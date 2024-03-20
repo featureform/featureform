@@ -286,3 +286,11 @@ func (m MockUnitTestOfflineStore) CreateTrainingSet(TrainingSetDef) error {
 func (m MockUnitTestOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
 	return nil, nil
 }
+
+func (m MockUnitTestOfflineStore) CreateTrainTestSplit(TrainTestSplitDef) (func() error, error) {
+	return nil, nil
+}
+
+func (m MockUnitTestOfflineStore) GetTrainTestSplit(TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+	return nil, nil, nil
+}

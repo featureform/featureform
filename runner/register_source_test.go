@@ -41,6 +41,14 @@ func (m MockOfflineRegisterSourceFail) GetTrainingSet(id provider.ResourceID) (p
 	return nil, nil
 }
 
+func (m MockOfflineRegisterSourceFail) CreateTrainTestSplit(provider.TrainTestSplitDef) (func() error, error) {
+	return nil, nil
+}
+
+func (m MockOfflineRegisterSourceFail) GetTrainTestSplit(provider.TrainTestSplitDef) (provider.TrainingSetIterator, provider.TrainingSetIterator, error) {
+	return nil, nil, nil
+}
+
 func (m MockOfflineRegisterSourceFail) CreatePrimaryTable(id provider.ResourceID, schema provider.TableSchema) (provider.PrimaryTable, error) {
 	return nil, nil
 }

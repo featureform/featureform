@@ -59,6 +59,7 @@ type OfflineTableQueries interface {
 	trainingSetCreate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error
 	trainingSetUpdate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error
 	trainingRowSelect(columns string, trainingSetName string) string
+	trainingRowSplitSelect(columns string, trainingSetSplitName string) (string, string)
 	castTableItemType(v interface{}, t interface{}) interface{}
 	getValueColumnType(t *sql.ColumnType) interface{}
 	numRows(n interface{}) (int64, error)
@@ -904,6 +905,14 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 	return store.newsqlTrainingSetIterator(rows, colTypes), nil
 }
 
+func (store *sqlOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
+	return nil, fmt.Errorf("not Implemented")
+}
+
+func (store *sqlOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+	return nil, nil, fmt.Errorf("not Implemented")
+}
+
 // getValueColumnTypes returns a list of column types. Columns consist of feature and label values
 // within a training set.
 func (store *sqlOfflineStore) getValueColumnTypes(table string) ([]interface{}, error) {
@@ -1514,6 +1523,10 @@ func (q defaultOfflineSQLQueries) trainingRowSelect(columns string, trainingSetN
 	return fmt.Sprintf("SELECT %s FROM %s", columns, sanitize(trainingSetName))
 }
 
+func (q defaultOfflineSQLQueries) trainingRowSplitSelect(columns string, trainingSetSplitName string) (string, string) {
+	// throw unimiplemented error
+	return "", ""
+}
 func (q defaultOfflineSQLQueries) getValueColumnTypes(tableName string) string {
 	return fmt.Sprintf("SELECT * FROM %s", sanitize(tableName))
 }

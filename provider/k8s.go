@@ -1531,6 +1531,14 @@ func (k8s *K8sOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, 
 	return fileStoreGetTrainingSet(id, k8s.store, k8s.logger)
 }
 
+func (k8s *K8sOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
+	return nil, fmt.Errorf("not Implemented")
+}
+
+func (k8s *K8sOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+	return nil, nil, fmt.Errorf("not Implemented")
+}
+
 func (k8s *K8sOfflineStore) CheckHealth() (bool, error) {
 	return false, fferr.NewInternalError(fmt.Errorf("provider health check not implemented"))
 }

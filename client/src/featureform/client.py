@@ -1,14 +1,15 @@
-from typing import Union, Optional
+from typing import Optional, Union
 
+import featureform.resources
 from .constants import NO_RECORD_LIMIT
+from .enums import ResourceType
 from .register import (
+    FeatureColumnResource,
     ResourceClient,
     SourceRegistrar,
     SubscriptableTransformation,
-    FeatureColumnResource,
 )
 from .serving import ServingClient
-from .enums import ResourceType
 
 
 class Client(ResourceClient, ServingClient):
@@ -156,6 +157,10 @@ class Client(ResourceClient, ServingClient):
         if isinstance(source, (SourceRegistrar, SubscriptableTransformation)):
             name, variant = source.name_variant()
             resource_type = ResourceType.SOURCE
+        elif isinstance(source, featureform.resources.TrainingSetVariant):
+            name = source.name
+            variant = source.variant
+            resource_type = ResourceType.TRAINING_SET
         elif isinstance(source, str):
             name = source
             if variant is None:

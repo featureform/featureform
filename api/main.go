@@ -821,6 +821,50 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 	}
 }
 
+func (serv *OnlineServer) TrainTestSplit(stream srv.Feature_TrainTestSplitServer) error {
+	serv.Logger.Infow("Starting Training Test Split Stream")
+	clientStream, err := serv.client.TrainTestSplit(context.Background())
+	if err != nil {
+		return fmt.Errorf("could not serve training test split: %w", err)
+	}
+
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			serv.Logger.Infow("Client has closed the stream")
+			if err := clientStream.CloseSend(); err != nil {
+				return fmt.Errorf("failed to close send direction to downstream service: %w", err)
+			}
+			return nil
+		}
+		if err != nil {
+			serv.Logger.Errorw("Error receiving from client stream", "error", err)
+			return err
+		}
+
+		if err := clientStream.Send(req); err != nil {
+			serv.Logger.Errorw("Failed to send request to downstream service", "error", err)
+			return err
+		}
+
+		resp, err := clientStream.Recv()
+		if err == io.EOF {
+			serv.Logger.Infow("Downstream service has closed the stream")
+			return nil
+		}
+		if err != nil {
+			serv.Logger.Errorw("Error receiving from downstream service", "error", err)
+			return err
+		}
+
+		if err := stream.Send(resp); err != nil {
+			serv.Logger.Errorw("Failed to send response to client", "error", err)
+			return err
+		}
+
+	}
+}
+
 func (serv *OnlineServer) TrainingDataColumns(ctx context.Context, req *srv.TrainingDataColumnsRequest) (*srv.TrainingColumns, error) {
 	serv.Logger.Infow("Serving Training Set Columns", "id", req.Id.String())
 	return serv.client.TrainingDataColumns(ctx, req)

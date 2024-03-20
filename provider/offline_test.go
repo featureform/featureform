@@ -89,6 +89,7 @@ func (test *OfflineStoreTest) RunSQL() {
 		"CreateResourceFromSourceNoTS":       testCreateResourceFromSourceNoTS,
 		"CreatePrimaryFromSource":            testCreatePrimaryFromSource,
 		"CreatePrimaryFromNonExistentSource": testCreatePrimaryFromNonExistentSource,
+		"TrainTestSplit":                     testTrainTestSplit,
 	}
 
 	for name, fn := range testFns {
@@ -4361,6 +4362,309 @@ func TestTableSchemaToParquetRecords(t *testing.T) {
 		t.Run(nameConst, func(t *testing.T) {
 			t.Parallel()
 			testSchema(t, testConst)
+		})
+	}
+}
+
+func testTrainTestSplit(t *testing.T, store OfflineStore) {
+	FeatureRecords := [][]ResourceRecord{
+		{
+			{Entity: "a", Value: 1},
+			{Entity: "b", Value: 2},
+			{Entity: "c", Value: 3},
+			{Entity: "d", Value: 4},
+			{Entity: "e", Value: 5},
+			{Entity: "f", Value: 6},
+			{Entity: "g", Value: 7},
+			{Entity: "h", Value: 8},
+			{Entity: "i", Value: 9},
+			{Entity: "j", Value: 10},
+		},
+		{
+			{Entity: "a", Value: "red"},
+			{Entity: "b", Value: "green"},
+			{Entity: "c", Value: "blue"},
+			{Entity: "d", Value: "purple"},
+			{Entity: "e", Value: "blue"},
+			{Entity: "f", Value: "green"},
+			{Entity: "g", Value: "red"},
+			{Entity: "h", Value: "purple"},
+			{Entity: "i", Value: "yellow"},
+			{Entity: "j", Value: "pink"},
+		},
+	}
+	FeatureSchema := []TableSchema{
+		{
+			Columns: []TableColumn{
+				{Name: "entity", ValueType: String},
+				{Name: "value", ValueType: Int},
+			},
+		},
+		{
+			Columns: []TableColumn{
+				{Name: "entity", ValueType: String},
+				{Name: "value", ValueType: String},
+			},
+		},
+	}
+	LabelRecords := []ResourceRecord{
+		{Entity: "a", Value: true},
+		{Entity: "b", Value: false},
+		{Entity: "c", Value: true},
+		{Entity: "d", Value: false},
+		{Entity: "e", Value: true},
+		{Entity: "f", Value: true},
+		{Entity: "g", Value: true},
+		{Entity: "h", Value: false},
+		{Entity: "i", Value: true},
+		{Entity: "j", Value: true},
+	}
+	LabelSchema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "value", ValueType: Bool},
+		},
+	}
+
+	type TestParameters struct {
+		TestSize          float32
+		Shuffle           bool
+		RandomState       int
+		RandomState2      int
+		ExpectedTestRows  int
+		IterShouldBeEqual bool
+	}
+
+	type TestCase struct {
+		TestParameters
+		TestFunction func(t *testing.T, store OfflineStore, params TestParameters)
+	}
+
+	setupTable := func(t *testing.T, store OfflineStore) ResourceID {
+		featureIDs := make([]ResourceID, len(FeatureRecords))
+
+		for i, recs := range FeatureRecords {
+			id := randomID(Feature)
+			featureIDs[i] = id
+			table, err := store.CreateResourceTable(id, FeatureSchema[i])
+			if err != nil {
+				t.Fatalf("Failed to create table: %s", err)
+			}
+			if err := table.WriteBatch(recs); err != nil {
+				t.Fatalf("Failed to write batch: %v", err)
+			}
+		}
+		labelID := randomID(Label)
+		labelTable, err := store.CreateResourceTable(labelID, LabelSchema)
+		if err != nil {
+			t.Fatalf("Failed to create table: %s", err)
+		}
+		if err := labelTable.WriteBatch(LabelRecords); err != nil {
+			t.Fatalf("Failed to write batch: %v", err)
+		}
+
+		def := TrainingSetDef{
+			ID:       randomID(TrainingSet),
+			Label:    labelID,
+			Features: featureIDs,
+		}
+		if err := store.CreateTrainingSet(def); err != nil {
+			t.Fatalf("Failed to create training set: %s", err)
+		}
+		_, err = store.GetTrainingSet(def.ID)
+		if err != nil {
+			t.Fatalf("Failed to get training set: %s", err)
+		}
+		return def.ID
+	}
+
+	testSplit := func(t *testing.T, store OfflineStore, params TestParameters) {
+		id := setupTable(t, store)
+		trainTestSplitDef := TrainTestSplitDef{TrainingSetName: id.Name, TrainingSetVariant: id.Variant, TestSize: params.TestSize, Shuffle: params.Shuffle, RandomState: params.RandomState}
+		cleanupFunc, err := store.CreateTrainTestSplit(trainTestSplitDef)
+		defer cleanupFunc()
+		if err != nil {
+			t.Fatalf("failed to fetch train test split iterators: %v", err)
+		}
+		trainIter, testIter, err := store.GetTrainTestSplit(trainTestSplitDef)
+		trainRows := 0
+		for trainIter.Next() {
+			trainRows += 1
+		}
+		testRows := 0
+		for testIter.Next() {
+			testRows += 1
+		}
+		if params.ExpectedTestRows != testRows {
+			t.Fatalf("Expected %d test rows, got: %d", params.ExpectedTestRows, testRows)
+		}
+		if (10 - params.ExpectedTestRows) != trainRows {
+			t.Fatalf("Expected %d train rows, got: %d", 10-params.ExpectedTestRows, testRows)
+		}
+	}
+
+	testShuffle := func(t *testing.T, store OfflineStore, params TestParameters) {
+
+		// helper function to extract the data from the TS iterator
+		extractData := func(iter TrainingSetIterator) ([][]interface{}, []interface{}) {
+			featureRows := make([][]interface{}, 0)
+			labelRows := make([]interface{}, 0)
+			for iter.Next() {
+				featureRows = append(featureRows, iter.Features())
+				labelRows = append(labelRows, iter.Label())
+			}
+			return featureRows, labelRows
+		}
+
+		id := setupTable(t, store)
+		trainTestSplitDef := TrainTestSplitDef{TrainingSetName: id.Name, TrainingSetVariant: id.Variant, TestSize: params.TestSize, Shuffle: params.Shuffle, RandomState: params.RandomState}
+		cleanupFunc, err := store.CreateTrainTestSplit(trainTestSplitDef)
+		if err != nil {
+			t.Fatalf("failed to fetch train test split iterators: %v", err)
+		}
+		trainIter, testIter, err := store.GetTrainTestSplit(trainTestSplitDef)
+		if err != nil {
+			t.Fatalf("failed to fetch train test split iterators: %v", err)
+		}
+		trainIter1FeatureRows, trainIter1LabelRows := extractData(trainIter)
+		testIter1FeatureRows, testIter1LabelRows := extractData(testIter)
+		if err := cleanupFunc(); err != nil {
+			t.Fatalf("failed to drop views: %v", err)
+		}
+
+		trainTestSplitDef = TrainTestSplitDef{TrainingSetName: id.Name, TrainingSetVariant: id.Variant, TestSize: params.TestSize, Shuffle: params.Shuffle, RandomState: params.RandomState2}
+		cleanupFunc, err = store.CreateTrainTestSplit(trainTestSplitDef)
+		if err != nil {
+			t.Fatalf("failed to fetch train test split iterators: %v", err)
+		}
+		trainIter2, testIter2, err := store.GetTrainTestSplit(trainTestSplitDef)
+		if err != nil {
+			t.Fatalf("failed to fetch second train test split iterators: %v", err)
+		}
+		trainIter2FeatureRows, trainIter2LabelRows := extractData(trainIter2)
+		testIter2FeatureRows, testIter2LabelRows := extractData(testIter2)
+		if err := cleanupFunc(); err != nil {
+			t.Fatalf("failed to drop views: %v", err)
+		}
+
+		// compare training
+		equalTrainRows := true
+		for i, row := range trainIter1FeatureRows {
+			if !reflect.DeepEqual(row, trainIter2FeatureRows[i]) {
+				equalTrainRows = false
+			}
+			if !reflect.DeepEqual(trainIter1LabelRows[i], trainIter2LabelRows[i]) {
+				equalTrainRows = false
+			}
+		}
+
+		// compare test
+		equalTestRows := true
+		for i, row := range testIter1FeatureRows {
+			if !reflect.DeepEqual(row, testIter2FeatureRows[i]) {
+				equalTestRows = false
+			}
+			if !reflect.DeepEqual(testIter1LabelRows[i], testIter2LabelRows[i]) {
+				equalTestRows = false
+			}
+		}
+
+		if params.IterShouldBeEqual && equalTrainRows == false {
+			t.Fatalf("Expected train calls to be equal but were not")
+		}
+		if params.IterShouldBeEqual && equalTestRows == false {
+			t.Fatalf("Expected test calls to be equal but were not")
+		}
+		if !params.IterShouldBeEqual && equalTrainRows == true {
+			t.Fatalf("Expected train calls to be different but were not")
+		}
+		if !params.IterShouldBeEqual && equalTestRows == true {
+			t.Fatalf("Expected test calls to be different but were not")
+		}
+	}
+
+	tests := map[string]TestCase{
+		"Even Rows": {
+			TestParameters: TestParameters{
+				TestSize:         0.5,
+				Shuffle:          true,
+				RandomState:      1,
+				ExpectedTestRows: 5,
+			},
+			TestFunction: testSplit,
+		},
+		"All Train Rows": {
+			TestParameters: TestParameters{
+				TestSize:         0.0,
+				Shuffle:          true,
+				RandomState:      1,
+				ExpectedTestRows: 0,
+			},
+			TestFunction: testSplit,
+		},
+		"All Test Rows": {
+			TestParameters: TestParameters{
+				TestSize:         1,
+				Shuffle:          true,
+				RandomState:      1,
+				ExpectedTestRows: 10,
+			},
+			TestFunction: testSplit,
+		},
+		"No Shuffle": {
+			TestParameters: TestParameters{
+				TestSize:          0.5,
+				Shuffle:           false,
+				RandomState:       0,
+				RandomState2:      0,
+				ExpectedTestRows:  5,
+				IterShouldBeEqual: true,
+			},
+			TestFunction: testShuffle,
+		},
+		"Shuffle": {
+			TestParameters: TestParameters{
+				TestSize:          0.5,
+				Shuffle:           true,
+				RandomState:       0,
+				RandomState2:      0,
+				ExpectedTestRows:  5,
+				IterShouldBeEqual: false,
+			},
+			TestFunction: testShuffle,
+		},
+		"Same Random State": {
+			TestParameters: TestParameters{
+				TestSize:          0.5,
+				Shuffle:           true,
+				RandomState:       1,
+				RandomState2:      1,
+				ExpectedTestRows:  5,
+				IterShouldBeEqual: true,
+			},
+			TestFunction: testShuffle,
+		},
+		"Different Random State": {
+			TestParameters: TestParameters{
+				TestSize:          0.5,
+				Shuffle:           true,
+				RandomState:       1,
+				RandomState2:      2,
+				ExpectedTestRows:  5,
+				IterShouldBeEqual: false,
+			},
+			TestFunction: testShuffle,
+		},
+	}
+
+	for name, test := range tests {
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			if store.Type() != pt.ClickHouseOffline {
+				t.Skip()
+			}
+			testConst.TestFunction(t, store, testConst.TestParameters)
 		})
 	}
 }

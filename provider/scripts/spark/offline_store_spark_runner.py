@@ -72,10 +72,9 @@ def display_data_metrics(df, spark):
         rows_as_list = rows_as_list[:100]
     for row in rows_as_list:
         row_values = list(row.asDict().values())
-        for index in range(len(row_values)):
-            curr_value = row_values[index]
+        for i, curr_value in enumerate(row_values):
             if isinstance(curr_value, datetime.datetime):
-                row_values[index] = curr_value.strftime("%m/%d/%Y, %H:%M:%S")
+                row_values[i] = curr_value.strftime("%m/%d/%Y, %H:%M:%S")
         rows.append(row_values)
 
     for column_name in data_type_dict:

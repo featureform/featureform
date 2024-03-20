@@ -792,11 +792,24 @@ func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetItera
 }
 
 func (store *memoryOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
-	return nil, fmt.Errorf("not Implemented")
+	// TODO properly implement this
+	dropFunc := func() error {
+		return nil
+	}
+	return dropFunc, nil
 }
 
 func (store *memoryOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
-	return nil, nil, fmt.Errorf("not Implemented")
+	// TODO properly implement this
+	trainingSetResourceId := ResourceID{
+		Name:    def.TrainingSetName,
+		Variant: def.TrainingSetVariant,
+	}
+	trainingSet, err := store.GetTrainingSet(trainingSetResourceId)
+	if err != nil {
+		return nil, nil, err
+	}
+	return trainingSet, trainingSet, nil
 
 }
 

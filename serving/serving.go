@@ -14,6 +14,7 @@ import (
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
 	"go.uber.org/zap"
+	"io"
 	"sync"
 )
 
@@ -98,12 +99,18 @@ func (serv *FeatureServer) TrainTestSplit(stream pb.Feature_TrainTestSplitServer
 
 	for {
 		if isTrainFinished && isTestFinished {
-			// If both iterators are finished, we can close the stream
 			serv.Logger.Infow("Both iterators are finished, closing stream")
+			// returning nil will close the stream
 			return nil
 		}
 
 		req, err := stream.Recv()
+
+		if err == io.EOF {
+			serv.Logger.Infow("Stream closed by client")
+			return nil
+		}
+
 		if err != nil {
 			return err
 		}
@@ -115,7 +122,7 @@ func (serv *FeatureServer) TrainTestSplit(stream pb.Feature_TrainTestSplitServer
 		featureObserver := serv.Metrics.BeginObservingTrainingServe(name, variant)
 		defer featureObserver.Finish()
 
-		ctx := splitContext{
+		splitContext := splitContext{
 			stream:          stream,
 			req:             req,
 			trainIterator:   &trainIter,
@@ -127,12 +134,12 @@ func (serv *FeatureServer) TrainTestSplit(stream pb.Feature_TrainTestSplitServer
 
 		switch req.GetRequestType() {
 		case pb.RequestType_INITIALIZE:
-			if err := serv.handleSplitInitializeRequest(&ctx); err != nil {
+			if err := serv.handleSplitInitializeRequest(&splitContext); err != nil {
 				featureObserver.SetError()
 				return err
 			}
 		default:
-			if err := serv.handleSplitDataRequest(&ctx); err != nil {
+			if err := serv.handleSplitDataRequest(&splitContext); err != nil {
 				featureObserver.SetError()
 				return err
 			}
@@ -140,15 +147,15 @@ func (serv *FeatureServer) TrainTestSplit(stream pb.Feature_TrainTestSplitServer
 	}
 }
 
-func (serv *FeatureServer) handleSplitInitializeRequest(ctx *splitContext) error {
-	ctx.logger.Infow("Initializing dataset", "id", ctx.req.Id, "shuffle", ctx.req.Shuffle, "testSize", ctx.req.TestSize)
+func (serv *FeatureServer) handleSplitInitializeRequest(splitContext *splitContext) error {
+	splitContext.logger.Infow("Initializing dataset", "id", splitContext.req.Id, "shuffle", splitContext.req.Shuffle, "testSize", splitContext.req.TestSize)
 
 	trainTestSplitDef := provider.TrainTestSplitDef{
-		TrainingSetName:    ctx.req.Id.GetName(),
-		TrainingSetVariant: ctx.req.Id.GetVersion(),
-		TestSize:           ctx.req.TestSize,
-		Shuffle:            ctx.req.Shuffle,
-		RandomState:        int(ctx.req.RandomState),
+		TrainingSetName:    splitContext.req.Id.GetName(),
+		TrainingSetVariant: splitContext.req.Id.GetVersion(),
+		TestSize:           splitContext.req.TestSize,
+		Shuffle:            splitContext.req.Shuffle,
+		RandomState:        int(splitContext.req.RandomState),
 	}
 
 	cleanupFunc, err := serv.createTrainTestSplit(trainTestSplitDef)
@@ -158,33 +165,33 @@ func (serv *FeatureServer) handleSplitInitializeRequest(ctx *splitContext) error
 	}
 	train, test, err := serv.getTrainTestSplitIterators(trainTestSplitDef)
 	if err != nil {
-		ctx.logger.Errorw("Failed to get training set iterator", "Error", err)
+		splitContext.logger.Errorw("Failed to get training set iterator", "Error", err)
 		return err
 	}
 
-	*ctx.trainIterator = train
-	*ctx.testIterator = test
+	*splitContext.trainIterator = train
+	*splitContext.testIterator = test
 
 	initResponse := &pb.BatchTrainTestSplitResponse{
 		RequestType: pb.RequestType_INITIALIZE,
 		Result:      &pb.BatchTrainTestSplitResponse_Initialized{Initialized: true},
 	}
 
-	if err := ctx.stream.Send(initResponse); err != nil {
-		ctx.logger.Errorw("Failed to send init response", "error", err)
+	if err := splitContext.stream.Send(initResponse); err != nil {
+		splitContext.logger.Errorw("Failed to send init response", "error", err)
 		return err
 	}
 
 	return nil
 }
 
-func (serv *FeatureServer) handleSplitDataRequest(ctx *splitContext) error {
+func (serv *FeatureServer) handleSplitDataRequest(splitContext *splitContext) error {
 	var thisIter provider.TrainingSetIterator
-	switch ctx.req.GetRequestType() {
+	switch splitContext.req.GetRequestType() {
 	case pb.RequestType_TRAINING:
-		thisIter = *ctx.trainIterator
+		thisIter = *splitContext.trainIterator
 	case pb.RequestType_TEST:
-		thisIter = *ctx.testIterator
+		thisIter = *splitContext.testIterator
 	default:
 		return fmt.Errorf("invalid request type")
 	}
@@ -192,7 +199,7 @@ func (serv *FeatureServer) handleSplitDataRequest(ctx *splitContext) error {
 	rows := 0
 	trainingDataRows := make([]*pb.TrainingDataRow, 0)
 
-	for rows < int(ctx.req.BatchSize) {
+	for rows < int(splitContext.req.BatchSize) {
 		if thisIter.Next() {
 			sRow, err := serializedRow(thisIter.Features(), thisIter.Label())
 			if err != nil {
@@ -202,7 +209,7 @@ func (serv *FeatureServer) handleSplitDataRequest(ctx *splitContext) error {
 			rows++
 		} else {
 			// if we reach the end of the iterator mid-batch, we'll send the processed rows so far and end the iteration
-			serv.handleFinishedIterator(trainingDataRows, ctx)
+			serv.handleFinishedIterator(trainingDataRows, splitContext)
 		}
 	}
 
@@ -212,27 +219,27 @@ func (serv *FeatureServer) handleSplitDataRequest(ctx *splitContext) error {
 		},
 	}
 
-	if err := ctx.stream.Send(response); err != nil {
-		ctx.logger.Errorw("Failed to write to stream", "Error", err)
+	if err := splitContext.stream.Send(response); err != nil {
+		splitContext.logger.Errorw("Failed to write to stream", "Error", err)
 		return err
 	}
 
 	if thisIter.Err() != nil {
-		ctx.logger.Errorw("Dataset error", "Error", thisIter.Err())
+		splitContext.logger.Errorw("Dataset error", "Error", thisIter.Err())
 		return thisIter.Err()
 	}
 
 	return nil
 }
 
-func (serv *FeatureServer) handleFinishedIterator(trainingDataRows []*pb.TrainingDataRow, ctx *splitContext) {
-	if ctx.req.GetRequestType() == pb.RequestType_TEST {
-		*ctx.isTestFinished = true
-	} else if ctx.req.GetRequestType() == pb.RequestType_TRAINING {
-		*ctx.isTrainFinished = true
+func (serv *FeatureServer) handleFinishedIterator(trainingDataRows []*pb.TrainingDataRow, splitContext *splitContext) {
+	if splitContext.req.GetRequestType() == pb.RequestType_TEST {
+		*splitContext.isTestFinished = true
+	} else if splitContext.req.GetRequestType() == pb.RequestType_TRAINING {
+		*splitContext.isTrainFinished = true
 	}
 
-	if *ctx.isTestFinished && *ctx.isTrainFinished {
+	if *splitContext.isTestFinished && *splitContext.isTrainFinished {
 		return // return so that we can close the stream
 	} else {
 		response := &pb.BatchTrainTestSplitResponse{
@@ -242,8 +249,8 @@ func (serv *FeatureServer) handleFinishedIterator(trainingDataRows []*pb.Trainin
 			IteratorDone: true,
 		}
 
-		if err := ctx.stream.Send(response); err != nil {
-			ctx.logger.Errorw("Failed to write to stream", "Error", err)
+		if err := splitContext.stream.Send(response); err != nil {
+			splitContext.logger.Errorw("Failed to write to stream", "Error", err)
 		}
 	}
 }
@@ -315,8 +322,7 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	}
 	store, err := p.AsOfflineStore()
 	if err != nil {
-		// This means that the provider of the training set isn't an offline store.
-		// That shouldn't be possible.
+		serv.Logger.Errorw("Training set provider is not an offline store", "Error", err)
 		return nil, err
 	}
 	serv.Logger.Debugw("Get Training Set From Store", "name", name, "variant", variant)
@@ -364,8 +370,7 @@ func (serv *FeatureServer) getTrainTestSplitIterators(def provider.TrainTestSpli
 	}
 	store, err := p.AsOfflineStore()
 	if err != nil {
-		// This means that the provider of the training set isn't an offline store.
-		// That shouldn't be possible.
+		serv.Logger.Errorw("Training set provider is not an offline store", "Error", err)
 		return nil, nil, err
 	}
 	return store.GetTrainTestSplit(def)

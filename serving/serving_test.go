@@ -8,6 +8,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"io"
 	"math/rand"
 	"net"
 	"reflect"
@@ -1453,4 +1456,65 @@ func TestTrainingDataColumns(t *testing.T) {
 	if !reflect.DeepEqual(expectedColumns, resp) {
 		t.Fatalf("Columns aren't equal: %v\n%v", expectedColumns, resp)
 	}
+}
+
+// Test Train Test Split
+
+type MockFeature_TrainTestSplitServer struct {
+	mock.Mock
+	pb.Feature_TrainTestSplitServer
+	Responses []*pb.BatchTrainTestSplitResponse
+}
+
+func (m *MockFeature_TrainTestSplitServer) Send(response *pb.BatchTrainTestSplitResponse) error {
+	args := m.Called(response)
+	m.Responses = append(m.Responses, response)
+	return args.Error(0)
+}
+
+func (m *MockFeature_TrainTestSplitServer) Recv() (*pb.TrainTestSplitRequest, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*pb.TrainTestSplitRequest), nil
+}
+
+func TestTrainTestSplit_Initialize(t *testing.T) {
+	ctx := onlineTestContext{
+		ResourceDefsFn: simpleResourceDefsFn,
+		FactoryFn:      createMockOfflineStoreFactory(simpleFeatureRecords(), simpleTrainingSetDefs()),
+	}
+	serv := ctx.Create(t)
+	defer ctx.Destroy()
+
+	initRequest := &pb.TrainTestSplitRequest{
+		Id:          &pb.TrainingDataID{Name: "training-set", Version: "variant"},
+		Model:       nil,
+		TestSize:    .5,
+		TrainSize:   .5,
+		Shuffle:     false,
+		RandomState: 0,
+		RequestType: pb.RequestType_INITIALIZE,
+		BatchSize:   1,
+	}
+
+	mockTrainTestSplitServer := new(MockFeature_TrainTestSplitServer)
+
+	mockTrainTestSplitServer.On("Recv").Return(initRequest, nil).Once()
+	mockTrainTestSplitServer.On("Recv").Return(nil, io.EOF).Once()
+	mockTrainTestSplitServer.On("Send", mock.Anything).Return(nil).Maybe()
+
+	done := make(chan bool)
+
+	go func() {
+		err := serv.TrainTestSplit(mockTrainTestSplitServer)
+		assert.NoError(t, err)
+		close(done)
+	}()
+
+	<-done
+
+	assert.NotEmpty(t, mockTrainTestSplitServer.Responses)
+	assert.Equal(t, pb.RequestType_INITIALIZE, mockTrainTestSplitServer.Responses[0].RequestType)
 }

@@ -17,7 +17,7 @@ func (trk TaskRunKey) String() string {
 	if trk.taskID.Value() == 0 {
 		return "/tasks/runs/task_id="
 	}
-	return fmt.Sprintf("/tasks/runs/task_id=%d", trk.taskID)
+	return fmt.Sprintf("/tasks/runs/task_id=%s", trk.taskID.String())
 }
 
 type TaskRunMetadataKey struct {
@@ -35,7 +35,7 @@ func (trmk TaskRunMetadataKey) String() string {
 
 		// adds the task_id and run_id to the key if they're not the default value
 		if trmk.taskID.Value() != 0 && trmk.runID.Value() != 0 {
-			key += fmt.Sprintf("/task_id=%d/run_id=%d", trmk.taskID, trmk.runID)
+			key += fmt.Sprintf("/task_id=%s/run_id=%s", trmk.taskID.String(), trmk.runID.String())
 		}
 	}
 	return key

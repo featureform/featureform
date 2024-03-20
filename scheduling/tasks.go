@@ -22,7 +22,7 @@ func (tmk TaskMetadataKey) String() string {
 	if tmk.taskID.Value() == 0 {
 		return "/tasks/metadata/task_id="
 	}
-	return fmt.Sprintf("/tasks/metadata/task_id=%d", tmk.taskID)
+	return fmt.Sprintf("/tasks/metadata/task_id=%s", tmk.taskID.String())
 }
 
 type TaskID ffsync.OrderedId

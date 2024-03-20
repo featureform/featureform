@@ -173,13 +173,11 @@ func TestTaskGetByID(t *testing.T) {
 	fn := func(t *testing.T, test TestCase) {
 		manager := NewMemoryTaskMetadataManager()
 
-		var definitions []TaskMetadata
 		for _, task := range test.Tasks {
-			taskDef, err := manager.CreateTask(task.Name, task.Type, task.Target)
+			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil {
 				t.Fatalf("failed to create task: %v", err)
 			}
-			definitions = append(definitions, taskDef)
 		}
 		recievedDef, err := manager.GetTaskByID(test.ID)
 		if err != nil && !test.shouldError {
@@ -190,7 +188,7 @@ func TestTaskGetByID(t *testing.T) {
 			return
 		}
 
-		idx := test.ID.(*MockOrderedID).Id
+		idx := test.ID.(*MockOrderedID).Id - 1 // Ids are 1 indexed
 		if reflect.DeepEqual(recievedDef, test.Tasks[idx]) {
 			t.Fatalf("Expected: %v got: %v", test.Tasks[idx], recievedDef)
 		}
@@ -205,6 +203,10 @@ func TestTaskGetByID(t *testing.T) {
 }
 
 func TestTaskGetAll(t *testing.T) {
+	id1 := ffsync.Uint64OrderedId(1)
+	id2 := ffsync.Uint64OrderedId(2)
+	id3 := ffsync.Uint64OrderedId(3)
+
 	type taskInfo struct {
 		Name       string
 		Type       TaskType
@@ -221,25 +223,25 @@ func TestTaskGetAll(t *testing.T) {
 		{
 			"Empty",
 			[]taskInfo{},
-			TaskID(&MockOrderedID{Id: 1}),
+			TaskID(&id1),
 			false,
 		},
 		{
 			"Single",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 1})},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&id2)},
 			},
-			TaskID(&MockOrderedID{Id: 1}),
+			TaskID(&id1),
 			false,
 		},
 		{
 			"Multiple",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 1})},
-				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 2})},
-				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 3})},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&id1)},
+				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&id2)},
+				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&id3)},
 			},
-			TaskID(&MockOrderedID{Id: 2}),
+			TaskID(&id2),
 			false,
 		},
 	}

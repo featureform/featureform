@@ -76,7 +76,7 @@ func (ic *IKVConfig) ToClientOptions() (*ikv.ClientOptions, error) {
 }
 
 // valid logging levels
-var loglevels = map[string]int{
+var loglevels = map[string]interface{}{
 	"error": 0,
 	"warn":  0,
 	"info":  0,

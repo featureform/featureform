@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/ffsync"
 )
 
-type TaskID int32 // need to determine how we want to create IDs
+type TaskID ffsync.OrderedId
+
 type TaskType string
 
 const (

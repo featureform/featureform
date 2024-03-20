@@ -26,7 +26,8 @@ func (trl *TaskRunList) FilterByStatus(status Status) {
 }
 
 type TaskMetadataManager struct {
-	storage ss.MetadataStorage
+	storage     ss.MetadataStorage
+	idGenerator ffsync.OrderedIdGenerator
 }
 
 func NewMemoryTaskMetadataManager() TaskMetadataManager {
@@ -38,32 +39,16 @@ func NewMemoryTaskMetadataManager() TaskMetadataManager {
 		Storage: &memoryStorage,
 	}
 	return TaskMetadataManager{
-		storage: memoryMetadataStorage,
+		storage:     memoryMetadataStorage,
+		idGenerator: ffsync.NewMemoryOrderedIdGenerator(),
 	}
 }
 
 func (m *TaskMetadataManager) CreateTask(name string, tType TaskType, target TaskTarget) (TaskMetadata, fferr.GRPCError) {
-	keys, err := m.storage.List(TaskMetadataKey{}.String())
-	if err != nil {
-		err.AddDetail("metadata type", "task metadata")
-		err.AddDetail("task name", name)
-		err.AddDetail("task type", string(tType))
-		return TaskMetadata{}, err
-	}
-
-	// This logic could probably be somewhere else
-	var latestID int
-	if len(keys) == 0 {
-		latestID = 0
-	} else {
-		latestID, err = getLatestId(keys)
-		if err != nil {
-			return TaskMetadata{}, err
-		}
-	}
+	id, err := m.idGenerator.NextId("task")
 
 	metadata := TaskMetadata{
-		ID:          TaskID(latestID + 1),
+		ID:          TaskID(id),
 		Name:        name,
 		TaskType:    tType,
 		Target:      target,
@@ -81,7 +66,7 @@ func (m *TaskMetadataManager) CreateTask(name string, tType TaskType, target Tas
 	key := TaskMetadataKey{taskID: metadata.ID}
 	err = m.storage.Create(key.String(), string(serializedMetadata))
 	if err != nil {
-		err.AddDetail("task_id", string(metadata.ID))
+		err.AddDetail("task_id", metadata.ID.String())
 		err.AddDetail("key", key.String())
 		return TaskMetadata{}, err
 	}
@@ -98,7 +83,7 @@ func (m *TaskMetadataManager) CreateTask(name string, tType TaskType, target Tas
 	taskRunKey := TaskRunKey{taskID: metadata.ID}
 	err = m.storage.Create(taskRunKey.String(), string(serializedRuns))
 	if err != nil {
-		err.AddDetail("task_id", string(metadata.ID))
+		err.AddDetail("task_id", metadata.ID.String())
 		return TaskMetadata{}, err
 	}
 
@@ -161,14 +146,14 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 	err = runs.Unmarshal([]byte(taskMetadata))
 	if err != nil {
 		err.AddDetail("task name", name)
-		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("task_id", taskID.String())
 		return TaskRunMetadata{}, err
 	}
 
 	latestID, err := runs.GetLatestRunId()
 	if err != nil {
 		err.AddDetail("task name", name)
-		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("task_id", taskID.String())
 		return TaskRunMetadata{}, err
 	}
 
@@ -189,7 +174,7 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 	serializedRuns, err := runs.Marshal()
 	if err != nil {
 		err.AddDetail("task name", name)
-		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("task_id", taskID.String())
 		err.AddDetail("run_id", string(metadata.ID))
 		return TaskRunMetadata{}, err
 	}
@@ -197,14 +182,14 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 	serializedMetadata, err := metadata.Marshal()
 	if err != nil {
 		err.AddDetail("task name", name)
-		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("task_id", taskID.String())
 		err.AddDetail("run_id", string(metadata.ID))
 		return TaskRunMetadata{}, err
 	}
 	err = m.storage.Create(taskRunKey.String(), string(serializedRuns))
 	if err != nil {
 		err.AddDetail("task name", name)
-		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("task_id", taskID.String())
 		return TaskRunMetadata{}, err
 	}
 
@@ -212,7 +197,7 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 	err = m.storage.Create(taskRunMetaKey.String(), string(serializedMetadata))
 	if err != nil {
 		err.AddDetail("task name", name)
-		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("task_id", taskID.String())
 		err.AddDetail("run_id", string(metadata.ID))
 		return TaskRunMetadata{}, err
 	}
@@ -225,7 +210,7 @@ func (m *TaskMetadataManager) GetRunByID(taskID TaskID, runID TaskRunID) (TaskRu
 	taskRunKey := TaskRunKey{taskID: taskID}
 	taskRunMetadata, err := m.storage.Get(taskRunKey.String())
 	if err != nil {
-		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("task_id", taskID.String())
 		err.AddDetail("run_id", string(runID))
 		return TaskRunMetadata{}, err
 	}
@@ -233,7 +218,7 @@ func (m *TaskMetadataManager) GetRunByID(taskID TaskID, runID TaskRunID) (TaskRu
 	runs := TaskRuns{}
 	err = runs.Unmarshal([]byte(taskRunMetadata))
 	if err != nil {
-		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("task_id", taskID.String())
 		err.AddDetail("run_id", string(runID))
 		return TaskRunMetadata{}, err
 	}
@@ -242,7 +227,7 @@ func (m *TaskMetadataManager) GetRunByID(taskID TaskID, runID TaskRunID) (TaskRu
 	found, runRecord := runs.ContainsRun(runID)
 	if !found {
 		err := fferr.NewKeyNotFoundError(taskRunKey.String(), fmt.Errorf("run not found"))
-		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("task_id", taskID.String())
 		err.AddDetail("run_id", string(runID))
 		return TaskRunMetadata{}, err
 	}
@@ -251,7 +236,7 @@ func (m *TaskMetadataManager) GetRunByID(taskID TaskID, runID TaskRunID) (TaskRu
 	taskRunMetadataKey := TaskRunMetadataKey{taskID: taskID, runID: runRecord.RunID, date: date}
 	rec, err := m.storage.Get(taskRunMetadataKey.String())
 	if err != nil {
-		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("task_id", taskID.String())
 		err.AddDetail("run_id", string(runID))
 		return TaskRunMetadata{}, err
 	}
@@ -259,7 +244,7 @@ func (m *TaskMetadataManager) GetRunByID(taskID TaskID, runID TaskRunID) (TaskRu
 	taskRun := TaskRunMetadata{}
 	err = taskRun.Unmarshal([]byte(rec))
 	if err != nil {
-		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("task_id", taskID.String())
 		err.AddDetail("run_id", string(runID))
 		return TaskRunMetadata{}, err
 	}
@@ -331,15 +316,9 @@ func (m *TaskMetadataManager) GetAllTaskRuns() (TaskRunList, fferr.GRPCError) {
 }
 
 func (m *TaskMetadataManager) SetRunStatus(runID TaskRunID, taskID TaskID, status Status, err error) fferr.GRPCError {
-	if taskID <= 0 {
-		e := fferr.NewInvalidArgumentError(fmt.Errorf("task id needs to be greater than 0"))
-		e.AddDetail("task_id", string(taskID))
-		return e
-	}
-
 	metadata, e := m.GetRunByID(taskID, runID)
 	if e != nil {
-		e.AddDetail("task_id", string(taskID))
+		e.AddDetail("task_id", taskID.String())
 		e.AddDetail("run_id", string(runID))
 		return e
 	}
@@ -349,13 +328,13 @@ func (m *TaskMetadataManager) SetRunStatus(runID TaskRunID, taskID TaskID, statu
 		unmarshalErr := metadata.Unmarshal([]byte(runMetadata))
 		if unmarshalErr != nil {
 			e := fferr.NewInternalError(unmarshalErr)
-			e.AddDetail("task_id", string(taskID))
+			e.AddDetail("task_id", taskID.String())
 			e.AddDetail("run_id", string(runID))
 			return "", e
 		}
 		if status == Failed && err == nil {
 			e := fferr.NewInvalidArgumentError(fmt.Errorf("error is required for failed status"))
-			e.AddDetail("task_id", string(taskID))
+			e.AddDetail("task_id", taskID.String())
 			e.AddDetail("run_id", string(runID))
 			e.AddDetail("status", string(status))
 			return "", e
@@ -369,7 +348,7 @@ func (m *TaskMetadataManager) SetRunStatus(runID TaskRunID, taskID TaskID, statu
 
 		serializedMetadata, marshalErr := metadata.Marshal()
 		if marshalErr != nil {
-			marshalErr.AddDetail("task_id", string(taskID))
+			marshalErr.AddDetail("task_id", taskID.String())
 			marshalErr.AddDetail("run_id", string(runID))
 			return "", marshalErr
 		}
@@ -383,16 +362,10 @@ func (m *TaskMetadataManager) SetRunStatus(runID TaskRunID, taskID TaskID, statu
 }
 
 func (m *TaskMetadataManager) SetRunEndTime(runID TaskRunID, taskID TaskID, time time.Time) fferr.GRPCError {
-	if taskID <= 0 {
-		errMessage := fmt.Errorf("task id has to be greater than 0")
-		err := fferr.NewInvalidArgumentError(errMessage)
-		err.AddDetail("task_id", string(taskID))
-		return err
-	}
 	if time.IsZero() {
 		errMessage := fmt.Errorf("end time cannot be zero")
 		err := fferr.NewInvalidArgumentError(errMessage)
-		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("task_id", taskID.String())
 		err.AddDetail("run_id", string(runID))
 		err.AddDetail("end_time", time.String())
 		return err
@@ -400,7 +373,7 @@ func (m *TaskMetadataManager) SetRunEndTime(runID TaskRunID, taskID TaskID, time
 
 	metadata, err := m.GetRunByID(taskID, runID)
 	if err != nil {
-		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("task_id", taskID.String())
 		err.AddDetail("run_id", string(runID))
 		return err
 	}
@@ -409,14 +382,14 @@ func (m *TaskMetadataManager) SetRunEndTime(runID TaskRunID, taskID TaskID, time
 		metadata := TaskRunMetadata{}
 		err := metadata.Unmarshal([]byte(runMetadata))
 		if err != nil {
-			err.AddDetail("task_id", string(taskID))
+			err.AddDetail("task_id", taskID.String())
 			err.AddDetail("run_id", string(runID))
 			return "", err
 		}
 
 		if metadata.StartTime.After(time) {
 			err := fferr.NewInvalidArgumentError(fmt.Errorf("end time cannot be before start time"))
-			err.AddDetail("task_id", string(taskID))
+			err.AddDetail("task_id", taskID.String())
 			err.AddDetail("run_id", string(runID))
 			err.AddDetail("start_time", metadata.StartTime.String())
 			err.AddDetail("end_time", time.String())
@@ -438,21 +411,9 @@ func (m *TaskMetadataManager) SetRunEndTime(runID TaskRunID, taskID TaskID, time
 }
 
 func (m *TaskMetadataManager) AppendRunLog(runID TaskRunID, taskID TaskID, log string) fferr.GRPCError {
-	if runID <= 0 {
-		err := fferr.NewInvalidArgumentError(fmt.Errorf("run id has to be greater than 0"))
-		err.AddDetail("run_id", string(runID))
-		err.AddDetail("task_id", string(taskID))
-		return err
-	}
-	if taskID <= 0 {
-		err := fferr.NewInvalidArgumentError(fmt.Errorf("task id has to be greater than 0"))
-		err.AddDetail("task_id", string(taskID))
-		err.AddDetail("run_id", string(runID))
-		return err
-	}
 	if log == "" {
 		err := fferr.NewInvalidArgumentError(fmt.Errorf("log cannot be empty"))
-		err.AddDetail("task_id", string(taskID))
+		err.AddDetail("task_id", taskID.String())
 		err.AddDetail("run_id", string(runID))
 		return err
 	}

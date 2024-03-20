@@ -33,7 +33,7 @@ func TestUint64OrderedId(t *testing.T) {
 }
 
 func TestMemoryIdGenerator(t *testing.T) {
-	generator := NewMemoryIdGenerator()
+	generator := NewMemoryOrderedIdGenerator()
 
 	prevId, _ := generator.NextId("testNamespace")
 	diffNamespaceId, _ := generator.NextId("diffNamespace")

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+
+	"github.com/featureform/fferr"
 )
 
 type OrderedId interface {
@@ -27,10 +29,10 @@ func (id uint64OrderedId) String() string {
 }
 
 type OrderedIdGenerator interface {
-	NextId(namespace string) (OrderedId, error)
+	NextId(namespace string) (OrderedId, fferr.GRPCError)
 }
 
-func NewMemoryIdGenerator() OrderedIdGenerator {
+func NewMemoryOrderedIdGenerator() OrderedIdGenerator {
 	return &memoryIdGenerator{
 		counters: make(map[string]*uint64OrderedId),
 		mu:       sync.Mutex{},
@@ -42,7 +44,7 @@ type memoryIdGenerator struct {
 	mu       sync.Mutex
 }
 
-func (m *memoryIdGenerator) NextId(namespace string) (OrderedId, error) {
+func (m *memoryIdGenerator) NextId(namespace string) (OrderedId, fferr.GRPCError) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

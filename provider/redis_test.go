@@ -7,12 +7,13 @@ package provider
 import (
 	"context"
 	"fmt"
-	"github.com/alicebob/miniredis"
-	"github.com/joho/godotenv"
 	"os"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/alicebob/miniredis"
+	"github.com/joho/godotenv"
 
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"

@@ -20,6 +20,7 @@ var providerMap = map[string]string{
 	"BLOB_ONLINE":        "OnlineBlobConfig",
 	"MONGODB_ONLINE":     "MongoDbConfig",
 	"PINECONE_ONLINE":    "PineconeConfig",
+	"IKV_ONLINE":         "IKVConfig",
 	"POSTGRES_OFFLINE":   "PostgresConfig",
 	"CLICKHOUSE_OFFLINE": "ClickHouseConfig",
 	"MYSQL_OFFLINE":      "MySqlConfig",
@@ -229,6 +230,40 @@ func TestPinecone(t *testing.T) {
 		ProjectID:   config["ProjectID"].(string),
 		Environment: config["Environment"].(string),
 		ApiKey:      config["ApiKey"].(string),
+	}
+
+	assert.NotNil(t, instance)
+}
+
+func TestIKV(t *testing.T) {
+	connectionConfigs, err := getConnectionConfigs()
+	if err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	var jsonDict map[string]interface{}
+	if err = json.Unmarshal(connectionConfigs, &jsonDict); err != nil {
+		println(err)
+		t.FailNow()
+	}
+
+	config := jsonDict["IKVConfig"].(map[string]interface{})
+
+	// required cfgs
+	instance := IKVConfig{
+		StoreName:      config["StoreName"].(string),
+		AccountId:      config["AccountId"].(string),
+		AccountPasskey: config["AccountPasskey"].(string),
+		MountDirectory: config["MountDirectory"].(string),
+	}
+
+	// optional cfgs
+	if value, exists := config["LogLevel"]; exists {
+		instance.LogLevel = value.(string)
+	}
+	if value, exists := config["LogFilePath"]; exists {
+		instance.LogFilePath = value.(string)
 	}
 
 	assert.NotNil(t, instance)

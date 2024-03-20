@@ -9,6 +9,12 @@
     "Environment": "local",
     "ApiKey": "api_key"
   },
+  "IKVConfig": {
+    "StoreName": "store",
+    "AccountId": "account-id",
+    "AccountPasskey": "account-passkey",
+    "MountDirectory": "path"
+  },
   "WeaviateConfig": {
     "URL": "url",
     "ApiKey": "api_key"

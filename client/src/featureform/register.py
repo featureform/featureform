@@ -48,6 +48,7 @@ from .resources import (
     OndemandFeatureParameters,
     OnlineBlobConfig,
     PineconeConfig,
+    IKVConfig,
     PostgresConfig,
     PrimaryData,
     Provider,
@@ -2216,6 +2217,64 @@ class Registrar:
         tags, properties = set_tags_properties(tags, properties)
         config = PineconeConfig(
             project_id=project_id, environment=environment, api_key=api_key
+        )
+        provider = Provider(
+            name=name,
+            function="ONLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
+        self.__resources.append(provider)
+        return OnlineProvider(self, provider)
+
+    def register_ikv(
+        self,
+        name: str,
+        store_name: str,
+        account_id: str,
+        account_passkey: str,
+        mount_dir: str,
+        log_level: str = "info",
+        log_file_path: str = "",
+        description: str = "",
+        team: str = "",
+        tags: Optional[List[str]] = None,
+        properties: Optional[dict] = None,
+    ):
+        """Register an IKV provider.
+
+        **Examples**:
+        ```
+        ikv = ff.register_ikv(
+            name="ikv-quickstart",
+            store_name="ikv-store-name",
+            account_id="ikv-account-id",
+            account_passkey="ikv-account-passkey",
+            mount_dir="/path/to/mount_dir",
+        )
+        ```
+
+        Args:
+            store_name (str): (Immutable) Name of IKV Store to be registered
+            account_id (str): (Immutable) IKV Account ID
+            account_passkey (str): (Immutable)  IKV Account Passkey
+            mount_dir (str): (Immutable) Absolute Path to IKV embedded DB mount point (directory)
+            description (str): (Mutable) Description of IKV provider to be registered
+            team (str): (Mutable) Name of team
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
+
+        Returns:
+            ikv (OnlineProvider): Provider
+        """
+
+        tags, properties = set_tags_properties(tags, properties)
+        config = IKVConfig(
+            store_name=store_name, account_id=account_id, account_passkey=account_passkey,
+            mount_directory=mount_dir, log_level=log_level, log_file_path=log_file_path
         )
         provider = Provider(
             name=name,
@@ -5471,6 +5530,7 @@ get_run = global_registrar.get_run
 register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
 register_pinecone = global_registrar.register_pinecone
+register_ikv = global_registrar.register_ikv
 register_weaviate = global_registrar.register_weaviate
 register_blob_store = global_registrar.register_blob_store
 register_bigquery = global_registrar.register_bigquery

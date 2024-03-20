@@ -146,6 +146,22 @@ func isValidRedisConfigUpdate(sa, sb pc.SerializedConfig) (bool, error) {
 	return a.MutableFields().Contains(diff), nil
 }
 
+func isValidIKVConfigUpdate(sa, sb pc.SerializedConfig) (bool, error) {
+	a := pc.IKVConfig{}
+	b := pc.IKVConfig{}
+	if err := a.Deserialize(sa); err != nil {
+		return false, err
+	}
+	if err := b.Deserialize(sb); err != nil {
+		return false, err
+	}
+	diff, err := a.DifferingFields(b)
+	if err != nil {
+		return false, err
+	}
+	return a.MutableFields().Contains(diff), nil
+}
+
 func isValidSnowflakeConfigUpdate(sa, sb pc.SerializedConfig) (bool, error) {
 	a := pc.SnowflakeConfig{}
 	b := pc.SnowflakeConfig{}

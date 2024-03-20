@@ -1,8 +1,8 @@
 Dashboard is available at:
-{{ .Values.global.hostname }}
+{{ .Values.hostname }}
 
-Dashboard Backend is available at:
-{{ .Values.global.hostname }}/data/
+Dashboard Backend Data is available at:
+{{ .Values.hostname }}/data/
 
-CLI can be connected with host flag:
-python3 -m featureform <file> --host {{ .Values.global.hostname }}:443
+Definitions can be applied with:
+python3 -m featureform <file> --host {{ .Values.hostname }}

@@ -214,6 +214,15 @@ func (it *bqGenericTableIterator) Values() GenericRecord {
 
 func (it *bqGenericTableIterator) Columns() []string {
 	var columns []string
+	// As the documentation for bigquery.Schema notes:
+	// > The schema of the table. In some scenarios it will only be available after the first call to Next(),
+	//   like when a call to Query.Read uses the jobs.query API for an optimized query path.
+	// Given this possibility, we should check if the schema is empty and if so, call Next() to populate it.
+	// Given Columns is only called to fetch the data sources columns list, we can safely call Next() here
+	// without concern for skipping a value in the iteration.
+	if len(it.iter.Schema) == 0 {
+		it.Next()
+	}
 	for _, col := range it.iter.Schema {
 		columns = append(columns, col.Name)
 	}

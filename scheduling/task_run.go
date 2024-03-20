@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/ffsync"
 )
 
-type TaskRunID int32
+type TaskRunID ffsync.OrderedId
 type Status string
 
 const (
@@ -95,14 +96,7 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) fferr.GRPCError {
 		return fferr.NewInternalError(errMessage)
 	}
 
-	if temp.ID == 0 {
-		return fferr.NewInvalidArgumentError(fmt.Errorf("task run metadata is missing RunID"))
-	}
 	t.ID = temp.ID
-
-	if temp.TaskId == 0 {
-		return fferr.NewInvalidArgumentError(fmt.Errorf("task run metadata is missing TaskID"))
-	}
 	t.TaskId = temp.TaskId
 
 	if temp.Name == "" {

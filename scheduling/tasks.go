@@ -82,9 +82,6 @@ func (t *TaskMetadata) Unmarshal(data []byte) fferr.GRPCError {
 		errMessage := fmt.Errorf("failed to deserialize task metadata: %w", err)
 		return fferr.NewInternalError(errMessage)
 	}
-	if temp.ID == 0 {
-		return fferr.NewInvalidArgumentError(fmt.Errorf("task metadata is missing ID"))
-	}
 	t.ID = temp.ID
 
 	if temp.Name == "" {

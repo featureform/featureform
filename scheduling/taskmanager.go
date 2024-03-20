@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/featureform/ffsync"
 	sp "github.com/featureform/scheduling/storage_providers"
 )
 
@@ -18,7 +19,7 @@ type TaskMetadataKey struct {
 }
 
 func (tmk TaskMetadataKey) String() string {
-	if tmk.taskID == 0 {
+	if tmk.taskID.Value() == 0 {
 		return "/tasks/metadata/task_id="
 	}
 	return fmt.Sprintf("/tasks/metadata/task_id=%d", tmk.taskID)
@@ -29,7 +30,7 @@ type TaskRunKey struct {
 }
 
 func (trk TaskRunKey) String() string {
-	if trk.taskID == 0 {
+	if trk.taskID.Value() == 0 {
 		return "/tasks/runs/task_id="
 	}
 	return fmt.Sprintf("/tasks/runs/task_id=%d", trk.taskID)
@@ -49,7 +50,7 @@ func (trmk TaskRunMetadataKey) String() string {
 		key += fmt.Sprintf("/%s", trmk.date.Format("2006/01/02"))
 
 		// adds the task_id and run_id to the key if they're not the default value
-		if trmk.taskID != 0 && trmk.runID != 0 {
+		if trmk.taskID.Value() != 0 && trmk.runID.Value() != 0 {
 			key += fmt.Sprintf("/task_id=%d/run_id=%d", trmk.taskID, trmk.runID)
 		}
 	}
@@ -57,33 +58,27 @@ func (trmk TaskRunMetadataKey) String() string {
 }
 
 func NewTaskManager(storage sp.StorageProvider) TaskManager {
-	return TaskManager{storage: storage}
+	return TaskManager{
+		storage:     storage,
+		idGenerator: ffsync.NewMemoryOrderedIdGenerator(),
+	}
 }
 
 type TaskManager struct {
-	storage sp.StorageProvider
+	storage     sp.StorageProvider
+	idGenerator ffsync.OrderedIdGenerator
 }
 
 // Task Methods
 func (tm *TaskManager) CreateTask(name string, tType TaskType, target TaskTarget) (TaskMetadata, error) {
-	keys, err := tm.storage.ListKeys(TaskMetadataKey{}.String())
-	if err != nil {
-		return TaskMetadata{}, fmt.Errorf("failed to fetch keys: %v", err)
-	}
-
 	// This logic could probably be somewhere else
-	var latestID int
-	if len(keys) == 0 {
-		latestID = 0
-	} else {
-		latestID, err = getLatestID(keys)
-		if err != nil {
-			return TaskMetadata{}, err
-		}
+	id, err := tm.idGenerator.NextId("task")
+	if err != nil {
+		return TaskMetadata{}, fmt.Errorf("failed to generate id: %v", err)
 	}
 
 	metadata := TaskMetadata{
-		ID:          TaskID(latestID + 1),
+		ID:          TaskID(id),
 		Name:        name,
 		TaskType:    tType,
 		Target:      target,

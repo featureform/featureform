@@ -12,6 +12,7 @@ type OrderedId interface {
 	Equals(other OrderedId) bool
 	Less(other OrderedId) bool
 	String() string
+	Value() interface{} // Value returns the underlying value of the ordered ID
 }
 
 type uint64OrderedId uint64
@@ -26,6 +27,10 @@ func (id uint64OrderedId) Less(other OrderedId) bool {
 
 func (id uint64OrderedId) String() string {
 	return fmt.Sprint(uint64(id))
+}
+
+func (id uint64OrderedId) Value() interface{} {
+	return uint64(id)
 }
 
 type OrderedIdGenerator interface {

@@ -5,6 +5,9 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/featureform/fferr"
+	"github.com/featureform/ffsync"
 )
 
 func TestTriggerName(t *testing.T) {
@@ -36,6 +39,8 @@ func TestTriggerName(t *testing.T) {
 }
 
 func TestEmptyVariables(t *testing.T) {
+	id1 := ffsync.Uint64OrderedId(1)
+
 	testCases := []struct {
 		name   string
 		task   TaskRunMetadata
@@ -44,8 +49,8 @@ func TestEmptyVariables(t *testing.T) {
 		{
 			name: "NoName",
 			task: TaskRunMetadata{
-				ID:     TaskRunID(&MockOrderedID{1}),
-				TaskId: TaskID(&MockOrderedID{12}),
+				ID:     TaskRunID(&id1),
+				TaskId: TaskID(&id1),
 				Name:   "",
 				Trigger: OneOffTrigger{
 					TriggerName: "name1",
@@ -57,13 +62,13 @@ func TestEmptyVariables(t *testing.T) {
 				Logs:        nil,
 				Error:       "No name present",
 			},
-			errMsg: fmt.Errorf("task run metadata is missing name"),
+			errMsg: fferr.NewInvalidArgumentError(fmt.Errorf("task run metadata is missing Name")),
 		},
 		{
 			name: "NoStartTime",
 			task: TaskRunMetadata{
-				ID:     TaskRunID(&MockOrderedID{1}),
-				TaskId: TaskID(&MockOrderedID{12}),
+				ID:     TaskRunID(&id1),
+				TaskId: TaskID(&id1),
 				Name:   "name2",
 				Trigger: OneOffTrigger{
 					TriggerName: "name3",
@@ -74,7 +79,7 @@ func TestEmptyVariables(t *testing.T) {
 				Logs:        nil,
 				Error:       "No start time present",
 			},
-			errMsg: fmt.Errorf("task run metadata is missing Start Time"),
+			errMsg: fferr.NewInvalidArgumentError(fmt.Errorf("task run metadata is missing StartTime")),
 		},
 	}
 
@@ -99,6 +104,8 @@ func TestEmptyVariables(t *testing.T) {
 }
 
 func TestSerializeTaskRunMetadata(t *testing.T) {
+	id1 := ffsync.Uint64OrderedId(1)
+
 	testCases := []struct {
 		name        string
 		task        TaskRunMetadata
@@ -107,8 +114,8 @@ func TestSerializeTaskRunMetadata(t *testing.T) {
 		{
 			name: "WithOneOffTrigger",
 			task: TaskRunMetadata{
-				ID:     TaskRunID(&MockOrderedID{1}),
-				TaskId: TaskID(&MockOrderedID{12}),
+				ID:     TaskRunID(&id1),
+				TaskId: TaskID(&id1),
 				Name:   "oneoff_taskrun",
 				Trigger: OneOffTrigger{
 					TriggerName: "name1",
@@ -125,8 +132,8 @@ func TestSerializeTaskRunMetadata(t *testing.T) {
 		{
 			name: "WithDummyTrigger",
 			task: TaskRunMetadata{
-				ID:     TaskRunID(&MockOrderedID{1}),
-				TaskId: TaskID(&MockOrderedID{12}),
+				ID:     TaskRunID(&id1),
+				TaskId: TaskID(&id1),
 				Name:   "dummy_taskrun",
 				Trigger: DummyTrigger{
 					TriggerName: "name2",
@@ -166,6 +173,8 @@ func TestSerializeTaskRunMetadata(t *testing.T) {
 }
 
 func TestIncorrectTaskRunMetadata(t *testing.T) {
+	id := ffsync.Uint64OrderedId(1)
+
 	testCases := []struct {
 		name string
 		task TaskRunMetadata
@@ -173,8 +182,8 @@ func TestIncorrectTaskRunMetadata(t *testing.T) {
 		{
 			name: "OneOffDummyTrigger",
 			task: TaskRunMetadata{
-				ID:     TaskRunID(&MockOrderedID{1}),
-				TaskId: TaskID(&MockOrderedID{12}),
+				ID:     TaskRunID(&id),
+				TaskId: TaskID(&id),
 				Name:   "dummy_and_oneoff",
 				Trigger: DummyTrigger{
 					TriggerName: "name3",
@@ -192,8 +201,8 @@ func TestIncorrectTaskRunMetadata(t *testing.T) {
 		{
 			name: "NoTrigger",
 			task: TaskRunMetadata{
-				ID:        TaskRunID(&MockOrderedID{1}),
-				TaskId:    TaskID(&MockOrderedID{12}),
+				ID:        TaskRunID(&id),
+				TaskId:    TaskID(&id),
 				Name:      "no_trigger",
 				Trigger:   nil,
 				Status:    Pending,

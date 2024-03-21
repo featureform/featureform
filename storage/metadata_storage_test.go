@@ -308,7 +308,7 @@ func testCreate(t *testing.T, ms MetadataStorage) {
 	}
 	tests := map[string]TestCase{
 		"Simple":   {"createTest/key1", "value1", nil},
-		"EmptyKey": {"", "value1", fferr.NewInternalError(fmt.Errorf("key is empty"))},
+		"EmptyKey": {"", "value1", fferr.NewInternalError(fmt.Errorf("cannot lock an empty key"))},
 	}
 
 	for name, test := range tests {
@@ -466,13 +466,9 @@ func testList(t *testing.T, ms MetadataStorage) {
 				"y/key2": "v2",
 				"z/key3": "v3",
 			},
-			prefix: "",
-			expectedKeys: map[string]string{
-				"x/key1": "v1",
-				"y/key2": "v2",
-				"z/key3": "v3",
-			},
-			expectedError: nil,
+			prefix:        "",
+			expectedKeys:  map[string]string{},
+			expectedError: fferr.NewInternalError(fmt.Errorf("cannot lock an empty key")),
 		},
 	}
 
@@ -485,7 +481,7 @@ func testList(t *testing.T, ms MetadataStorage) {
 				}
 			}
 			defer func() {
-				for key, _ := range test.keys {
+				for key := range test.keys {
 					_, err := ms.Delete(key)
 					if err != nil {
 						t.Fatalf("Delete(%s) failed: %v", key, err)
@@ -495,7 +491,7 @@ func testList(t *testing.T, ms MetadataStorage) {
 
 			keys, err := ms.List(test.prefix)
 			if err != nil && err.Error() != test.expectedError.Error() {
-				t.Errorf("List(%s): expected no error, got %v", test.prefix, err)
+				t.Fatalf("List(%s): expected: %v, got %v", test.prefix, test.expectedError, err)
 			} else if err != nil && err.Error() == test.expectedError.Error() {
 				return
 			}

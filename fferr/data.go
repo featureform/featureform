@@ -11,9 +11,7 @@ func NewResourceInternalError(resourceName string, resourceVariant string, resou
 		err = fmt.Errorf("internal error")
 	}
 	baseError := newBaseError(err, INTERNAL_ERROR, codes.Internal)
-	baseError.AddDetail("resource_name", resourceName)
-	baseError.AddDetail("resource_variant", resourceVariant)
-	baseError.AddDetail("resource_type", resourceType.String())
+	baseError.AddDetails("resource_name", resourceName, "resource_variant", resourceVariant, "resource_type", resourceType.String())
 
 	return &InternalError{
 		baseError,
@@ -110,8 +108,7 @@ func NewFeatureNotFoundError(featureName, featureVariant string, err error) *Fea
 		err = fmt.Errorf("feature not found")
 	}
 	baseError := newBaseError(err, FEATURE_NOT_FOUND, codes.NotFound)
-	baseError.AddDetail("feature_name", featureName)
-	baseError.AddDetail("feature_variant", featureVariant)
+	baseError.AddDetails("feature_name", featureName, "feature_variant", featureVariant)
 
 	return &FeatureNotFoundError{
 		baseError,
@@ -127,8 +124,7 @@ func NewTrainingSetNotFoundError(resourceName, resourceVariant string, err error
 		err = fmt.Errorf("training set not found")
 	}
 	baseError := newBaseError(err, TRAINING_SET_NOT_FOUND, codes.NotFound)
-	baseError.AddDetail("resource_name", resourceName)
-	baseError.AddDetail("resource_variant", resourceVariant)
+	baseError.AddDetails("resource_name", resourceName, "resource_variant", resourceVariant)
 
 	return &TrainingSetNotFoundError{
 		baseError,

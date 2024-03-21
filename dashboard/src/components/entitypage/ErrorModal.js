@@ -25,7 +25,7 @@ export default function ErrorModal({ errorTxt = '', buttonTxt = '' }) {
 
   const copyToClipBoard = (error = '') => {
     if (error) {
-      navigator.clipboard.writeText(error);
+      navigator?.clipboard?.writeText(error);
       setOpenSnack(true);
     }
   };
@@ -53,7 +53,11 @@ export default function ErrorModal({ errorTxt = '', buttonTxt = '' }) {
           <Typography>Copied to clipboard!</Typography>
         </Alert>
       </Snackbar>
-      <Typography style={{whiteSpace: 'pre-line'}} data-testid='errorMessageId' variant='body1'>
+      <Typography
+        style={{ whiteSpace: 'pre-line' }}
+        data-testid='errorMessageId'
+        variant='body1'
+      >
         {`${truncated + (isShowMore ? '...' : '')}`}
       </Typography>
       {isShowMore && (
@@ -80,6 +84,7 @@ export default function ErrorModal({ errorTxt = '', buttonTxt = '' }) {
           <Tooltip title='Copy to Clipboard'>
             <Button
               role='none'
+              data-testid='copyBtn'
               onClick={() => copyToClipBoard(errorTxt)}
               fontSize={11.5}
             >

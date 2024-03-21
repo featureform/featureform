@@ -9,6 +9,7 @@ dist
 **/.idea/
 **.env
 .terraform**
+grpc_debug.log
 terrafo
 rm.**
 **/*pb*

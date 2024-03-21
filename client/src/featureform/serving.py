@@ -15,14 +15,11 @@ import math
 import numpy as np
 import pandas as pd
 
-import featureform.resources
-import featureform.resources
 from featureform.proto import serving_pb2
 from featureform.proto import serving_pb2_grpc
-from . import GrpcClient
+from . import GrpcClient, Model
 from .enums import FileFormat, ResourceType
 from .register import FeatureColumnResource
-from .resources import Model
 from .tls import insecure_channel, secure_channel
 from .train_test_split import TrainTestSplit
 from .version import check_up_to_date

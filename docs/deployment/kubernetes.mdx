@@ -51,8 +51,8 @@ helm install  featureform/featureform \
 | versionOverride             | The Docker container tag to pull. The default value is overwritten with the latest deployment version when pulling from artifacthub.          | "0.0.0"                 |
 | repository                | The Docker repo to pull the images from.                                                                                                      | "featureformcom"        |
 | pullPolicy          | The container pull policies.                                                                                                                  | "Always"                |
-| selfSignedCert           | Will create a self-signed certificate for the hostname. Either localCert or publicCert must be enabled if generating a certificate.            | "true"                  |
-| publicCert          | Whether to use a public TLS certificate or a self-signed one. If true, the public certificate is generated for the provided global.hostname.   | "false"                 |
+| selfSignedCert           | Will create a self-signed certificate for the hostname. Either selfSignedCert or publicCert must be enabled if generating a certificate.            | "true"                  |
+| publicCert          | Whether to use a public TLS certificate or a self-signed one. If true, the public certificate is generated for the provided hostname.   | "false"                 |
 | tlsSecretName       | Will set the name of the TLS secret for the ingress to use if manually adding a certificate.                                                  | "featureform-ca-secret" |
 | k8sRunnerEnable | If true, uses a Kubernetes Job to run Featureform jobs. If false, Featureform jobs are run in the coordinator container in a separate thread. | "false"                 |
 | nginx.enabled       | Will install nginx along with Featureform if true.                                                                                            | "true"                  |

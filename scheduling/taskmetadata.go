@@ -2,8 +2,6 @@ package scheduling
 
 import (
 	"fmt"
-	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/featureform/fferr"
@@ -46,6 +44,9 @@ func NewMemoryTaskMetadataManager() TaskMetadataManager {
 
 func (m *TaskMetadataManager) CreateTask(name string, tType TaskType, target TaskTarget) (TaskMetadata, fferr.GRPCError) {
 	id, err := m.idGenerator.NextId("task")
+	if err != nil {
+		return TaskMetadata{}, err
+	}
 
 	metadata := TaskMetadata{
 		ID:          TaskID(id),
@@ -439,44 +440,4 @@ func (m *TaskMetadataManager) AppendRunLog(runID TaskRunID, taskID TaskID, log s
 	taskRunMetadataKey := TaskRunMetadataKey{taskID: taskID, runID: metadata.ID, date: metadata.StartTime}
 	err = m.storage.Update(taskRunMetadataKey.String(), updateLog)
 	return err
-}
-
-// Finds the highest increment in a list of strings formatted like "/tasks/metadata/task_id=0"
-func getLatestId(taskMetadata map[string]string) (int, fferr.GRPCError) {
-	highestTaskId := -1
-
-	// Regular expression pattern to match "task_id=<number>"
-	pattern := regexp.MustCompile(`/tasks/metadata/task_id=(\d+)`)
-
-	for path := range taskMetadata {
-		increment, err := getTaskIdFromPath(pattern, path)
-		if err != nil {
-			return -1, err
-		}
-
-		if increment > highestTaskId {
-			highestTaskId = increment
-		}
-	}
-	return highestTaskId, nil
-}
-
-func getTaskIdFromPath(pattern *regexp.Regexp, path string) (int, fferr.GRPCError) {
-	matches := pattern.FindStringSubmatch(path)
-	if len(matches) < 2 {
-		errMessage := fmt.Errorf("invalid format for path: %s", path)
-		err := fferr.NewInvalidArgumentError(errMessage)
-		err.AddDetail("path", path)
-		err.AddDetail("expected format", "/tasks/metadata/task_id=0")
-		return -1, err
-	}
-	taskId, err := strconv.Atoi(matches[1])
-	if err != nil {
-		errMessage := fmt.Errorf("failed to convert task_id to integer: %s", err)
-		err := fferr.NewInternalError(errMessage)
-		err.AddDetail("task_id", matches[1])
-		return -1, err
-	}
-
-	return taskId, nil
 }

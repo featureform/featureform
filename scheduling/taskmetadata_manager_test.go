@@ -881,6 +881,10 @@ func TestSetEndTimeByRunID(t *testing.T) {
 	}
 }
 
+func TestGetRunsByDate(t *testing.T) {
+	// TODO: implement
+}
+
 func TestKeyPaths(t *testing.T) {
 	type testCase struct {
 		Name        string

@@ -11,5 +11,5 @@ spec:
     - name: wget
       image: busybox
       command: ['wget']
-      args: ['{{ include "featureform.fullname" . }}:{{ .Values.service.port }}']
+      args: ['{{ include "featureform.fullname" . }}:{{ .Values.dashboardmetadata.port }}']
   restartPolicy: Never

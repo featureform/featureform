@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	pb "github.com/featureform/metadata/proto"
-	"golang.org/x/exp/slices"
+	"github.com/stretchr/testify/assert"
 	grpc_status "google.golang.org/grpc/status"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 
@@ -2071,17 +2071,93 @@ func Test_MetadataErrorInterceptors(t *testing.T) {
 }
 
 func TestSourceShallowMapOK(t *testing.T) {
-	sv := getSourceVariant()
+	//setup transform text, specs, and definition objects
+	sourceText := "transformation string"
+	specs := &pb.Transformation_KubernetesArgs{
+		KubernetesArgs: &pb.KubernetesArgs{
+			DockerImage: "someImage",
+			Specs: &pb.KubernetesResourceSpecs{
+				CpuLimit:      "12",
+				CpuRequest:    "1",
+				MemoryLimit:   "100M",
+				MemoryRequest: "500G",
+			},
+		},
+	}
+	primaryDef := &pb.SourceVariant_PrimaryData{
+		PrimaryData: &pb.PrimaryData{
+			Location: &pb.PrimaryData_Table{
+				Table: &pb.PrimarySQLTable{
+					Name: sourceText,
+				},
+			},
+		},
+	}
 
-	sourceVariantResource := SourceShallowMap(sv)
+	sqlDef := &pb.SourceVariant_Transformation{
+		Transformation: &pb.Transformation{
+			Type: &pb.Transformation_SQLTransformation{
+				SQLTransformation: &pb.SQLTransformation{
+					Query: sourceText,
+				},
+			},
+			Args: specs,
+		},
+	}
 
-	assertEqual(t, sv.serialized.Name, sourceVariantResource.Name)
-	assertEqual(t, sv.serialized.Variant, sourceVariantResource.Variant)
-	assertEqual(t, sv.Provider(), sourceVariantResource.Provider)
-	assertEqual(t, len(sv.Tags()), len(sourceVariantResource.Tags))
-	assertEqual(t, slices.Contains(sourceVariantResource.Tags, "test.active"), true)
-	assertEqual(t, slices.Contains(sourceVariantResource.Tags, "test.inactive"), true)
-	assertEqual(t, sv.Properties()["test.map.key"], sourceVariantResource.Properties["test.map.key"])
+	dataFrameDef := &pb.SourceVariant_Transformation{
+		Transformation: &pb.Transformation{
+			Type: &pb.Transformation_DFTransformation{
+				DFTransformation: &pb.DFTransformation{
+					Query:      []byte{},
+					Inputs:     []*pb.NameVariant{},
+					SourceText: sourceText,
+				},
+			},
+			Args: specs,
+		},
+	}
+	testCases := []struct {
+		name        string
+		svTransform pb.SourceVariant_Transformation
+		svPrimary   pb.SourceVariant_PrimaryData
+		sourceType  string
+	}{
+		{name: "Primary Data Definition", svPrimary: *primaryDef, sourceType: "Primary Table"},
+		{name: "SQL Definition", svTransform: *sqlDef, sourceType: "SQL Transformation"},
+		{name: "DF Definition", svTransform: *dataFrameDef, sourceType: "Dataframe Transformation"},
+	}
+
+	for _, currTest := range testCases {
+		t.Run(currTest.name, func(t *testing.T) {
+			sv := getSourceVariant()
+			if currTest.sourceType == "Primary Table" {
+				sv.serialized.Definition = &currTest.svPrimary
+			} else {
+				sv.serialized.Definition = &currTest.svTransform
+			}
+			svResource := SourceShallowMap(sv)
+
+			assert.Equal(t, sv.serialized.Name, svResource.Name)
+			assert.Equal(t, sv.serialized.Variant, svResource.Variant)
+			assert.Equal(t, sourceText, svResource.Definition)
+			assert.Equal(t, currTest.sourceType, svResource.SourceType)
+			assert.Equal(t, sv.Provider(), svResource.Provider)
+			assert.Len(t, svResource.Tags, len(sv.Tags()))
+			assert.Contains(t, svResource.Tags, "test.active")
+			assert.Contains(t, svResource.Tags, "test.inactive")
+			assert.Equal(t, sv.Properties()["test.map.key"], svResource.Properties["test.map.key"])
+
+			//check specs for svTransformations
+			if currTest.sourceType != "Primary Table" {
+				assert.Equal(t, specs.KubernetesArgs.DockerImage, svResource.Specifications["Docker Image"])
+				assert.Equal(t, specs.KubernetesArgs.Specs.CpuRequest, svResource.Specifications["CPU Request"])
+				assert.Equal(t, specs.KubernetesArgs.Specs.CpuLimit, svResource.Specifications["CPU Limit"])
+				assert.Equal(t, specs.KubernetesArgs.Specs.MemoryRequest, svResource.Specifications["Memory Request"])
+				assert.Equal(t, specs.KubernetesArgs.Specs.MemoryLimit, svResource.Specifications["Memory Limit"])
+			}
+		})
+	}
 }
 
 // TODO split these up into better tests

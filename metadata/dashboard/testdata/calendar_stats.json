@@ -1,0 +1,38 @@
+{
+  "columns": ["entity", "value", "ts"],
+  "rows": [
+    [
+      "C1010011",
+      "120180.54",
+      "java.util.GregorianCalendar[time=?,areFieldsSet=false,areAllFieldsSet=false,lenient=true,zone=sun.util.calendar.ZoneInfo[id=\"Etc/UTC\",offset=0,dstSavings=0,useDaylight=false,transitions=0,lastRule=null],firstDayOfWeek=1,minimalDaysInFirstWeek=1,ERA=?,YEAR=2022,MONTH=3,WEEK_OF_YEAR=?,WEEK_OF_MONTH=?,DAY_OF_MONTH=20,DAY_OF_YEAR=?,DAY_OF_WEEK=?,DAY_OF_WEEK_IN_MONTH=?,AM_PM=1,HOUR=10,HOUR_OF_DAY=22,MINUTE=31,SECOND=25,MILLISECOND=0,ZONE_OFFSET=?,DST_OFFSET=?]"
+    ],
+    [
+      "C1010012",
+      "24204.49",
+      "java.util.GregorianCalendar[time=?,areFieldsSet=false,areAllFieldsSet=false,lenient=true,zone=sun.util.calendar.ZoneInfo[id=\"Etc/UTC\",offset=0,dstSavings=0,useDaylight=false,transitions=0,lastRule=null],firstDayOfWeek=1,minimalDaysInFirstWeek=1,ERA=?,YEAR=2022,MONTH=3,WEEK_OF_YEAR=?,WEEK_OF_MONTH=?,DAY_OF_MONTH=19,DAY_OF_YEAR=?,DAY_OF_WEEK=?,DAY_OF_WEEK_IN_MONTH=?,AM_PM=1,HOUR=11,HOUR_OF_DAY=23,MINUTE=53,SECOND=55,MILLISECOND=0,ZONE_OFFSET=?,DST_OFFSET=?]"
+    ]
+  ],
+  "stats": [
+    {
+      "name": "entity",
+      "type": "string",
+      "string_categories": ["unique"],
+      "numeric_categories": [],
+      "categoryCounts": [882600]
+    },
+    {
+      "name": "value",
+      "type": "string",
+      "string_categories": ["unique"],
+      "numeric_categories": [],
+      "categoryCounts": [153905]
+    },
+    {
+      "name": "ts",
+      "type": "string",
+      "string_categories": ["unique"],
+      "numeric_categories": [],
+      "categoryCounts": [747840]
+    }
+  ]
+}

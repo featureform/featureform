@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	pb "github.com/featureform/metadata/proto"
-	"golang.org/x/exp/slices"
+	"github.com/stretchr/testify/assert"
 	grpc_status "google.golang.org/grpc/status"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 
@@ -2071,17 +2071,63 @@ func Test_MetadataErrorInterceptors(t *testing.T) {
 }
 
 func TestSourceShallowMapOK(t *testing.T) {
-	sv := getSourceVariant()
+	sourceText := "transformation string"
+	primaryDef := &pb.SourceVariant_PrimaryData{
+		PrimaryData: &pb.PrimaryData{
+			Location: &pb.PrimaryData_Table{
+				Table: &pb.PrimarySQLTable{
+					Name: sourceText,
+				},
+			},
+		},
+	}
 
-	sourceVariantResource := SourceShallowMap(sv)
+	sqlDef := &pb.SourceVariant_Transformation{
+		Transformation: &pb.Transformation{
+			Type: &pb.Transformation_SQLTransformation{
+				SQLTransformation: &pb.SQLTransformation{
+					Query: sourceText,
+				},
+			},
+		},
+	}
 
-	assertEqual(t, sv.serialized.Name, sourceVariantResource.Name)
-	assertEqual(t, sv.serialized.Variant, sourceVariantResource.Variant)
-	assertEqual(t, sv.Provider(), sourceVariantResource.Provider)
-	assertEqual(t, len(sv.Tags()), len(sourceVariantResource.Tags))
-	assertEqual(t, slices.Contains(sourceVariantResource.Tags, "test.active"), true)
-	assertEqual(t, slices.Contains(sourceVariantResource.Tags, "test.inactive"), true)
-	assertEqual(t, sv.Properties()["test.map.key"], sourceVariantResource.Properties["test.map.key"])
+	dataFrameDef := &pb.SourceVariant_Transformation{
+		Transformation: &pb.Transformation{
+			Type: &pb.Transformation_DFTransformation{
+				DFTransformation: &pb.DFTransformation{
+					Query:      []byte{},
+					Inputs:     []*pb.NameVariant{},
+					SourceText: sourceText,
+				},
+			},
+		},
+	}
+	testCases := []struct {
+		name       string
+		definition interface{}
+	}{
+		{name: "Primary Data Definition", definition: primaryDef},
+		{name: "SQL Definition", definition: sqlDef},
+		{name: "DF Definition", definition: dataFrameDef},
+	}
+
+	for _, currTest := range testCases {
+		t.Run(currTest.name, func(t *testing.T) {
+			sv := getSourceVariant()
+			sv.serialized.Definition = dataFrameDef
+			sourceVariantResource := SourceShallowMap(sv)
+
+			assert.Equal(t, sv.serialized.Name, sourceVariantResource.Name)
+			assert.Equal(t, sv.serialized.Variant, sourceVariantResource.Variant)
+			assert.Equal(t, sourceText, sourceVariantResource.Definition)
+			assert.Equal(t, sv.Provider(), sourceVariantResource.Provider)
+			assert.Len(t, sourceVariantResource.Tags, len(sv.Tags()))
+			assert.Contains(t, sourceVariantResource.Tags, "test.active")
+			assert.Contains(t, sourceVariantResource.Tags, "test.inactive")
+			assert.Equal(t, sv.Properties()["test.map.key"], sourceVariantResource.Properties["test.map.key"])
+		})
+	}
 }
 
 // TODO split these up into better tests

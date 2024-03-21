@@ -33,7 +33,7 @@ COPY metadata/*.go ./metadata/
 COPY metadata/search/* ./metadata/search/
 COPY ./provider/ ./provider/
 COPY storage/ storage/
-COPY locker/ locker/
+COPY ffsync/ ffsync/
 COPY scheduling/ scheduling/
 COPY runner/worker/main/main.go ./runner/worker/main/main.go
 

@@ -10,11 +10,13 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"github.com/featureform/helpers"
 	"io"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/featureform/ffsync"
+	"github.com/featureform/helpers"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/lib"
@@ -28,7 +30,6 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
-	sp "github.com/featureform/scheduling/storage_providers"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -1454,7 +1455,7 @@ type MetadataServer struct {
 	address     string
 	grpcServer  *grpc.Server
 	listener    net.Listener
-	taskManager *scheduling.TaskManager
+	taskManager *scheduling.TaskMetadataManager
 	pb.UnimplementedMetadataServer
 }
 
@@ -1478,8 +1479,7 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 
 	// Create the task manager for the server
 	// TODO: need to modify it so it can be any provider
-	storage := sp.NewMemoryStorageProvider()
-	taskManager := scheduling.NewTaskManager(storage)
+	taskManager := scheduling.NewMemoryTaskMetadataManager()
 
 	return &MetadataServer{
 		lookup:      lookup,
@@ -1900,7 +1900,8 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	} else {
 		// TODO: create a method to get the task id from the name and variant and type
 		// taskId = res.Proto().GetTaskId()
-		taskId = 1
+		id1 := ffsync.Uint64OrderedId(1)
+		taskId = scheduling.TaskID(&id1)
 	}
 
 	if existing != nil {

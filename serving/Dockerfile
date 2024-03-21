@@ -28,7 +28,7 @@ COPY ./kubernetes/ ./kubernetes/
 COPY ./metrics/ ./metrics/
 COPY ./provider/ ./provider/
 COPY ./storage/ ./storage/
-COPY ./locker/ ./locker/
+COPY ./ffsync/ ./ffsync/
 COPY ./scheduling/ ./scheduling/
 COPY serving/main/main.go ./serving/main/main.go
 

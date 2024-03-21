@@ -18,6 +18,7 @@ import (
 
 	rand "math/rand"
 
+	"github.com/featureform/ffsync"
 	filestore "github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
@@ -26,6 +27,7 @@ import (
 	"github.com/featureform/proto"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/scheduling"
 	sc "github.com/featureform/scheduling"
 	"github.com/featureform/serving"
 	"github.com/gin-contrib/cors"
@@ -1536,24 +1538,30 @@ func replaceTags(resourceTypeParam string, currentResource metadata.Resource, ne
 
 // todox: eventually remove
 func CreateDummyTaskRuns(count int) {
+	id1 := ffsync.Uint64OrderedId(1)
+	id2 := ffsync.Uint64OrderedId(2)
+	id3 := ffsync.Uint64OrderedId(3)
+	id4 := ffsync.Uint64OrderedId(4)
+	id5 := ffsync.Uint64OrderedId(5)
+
 	taskMetadataStaticList = []sc.TaskMetadata{
-		{ID: 0, Name: "Test_job", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
+		{ID: scheduling.TaskID(&id1), Name: "Test_job", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
 			Name:    "transaction",
 			Variant: "default",
 		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
-		{ID: 1, Name: "Nicole_Puppers", TaskType: sc.Monitoring, Target: sc.NameVariant{
+		{ID: scheduling.TaskID(&id2), Name: "Nicole_Puppers", TaskType: sc.Monitoring, Target: sc.NameVariant{
 			Name:    "avg_transactions",
 			Variant: "v1",
 		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
-		{ID: 2, Name: "Sandbox_Test", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
+		{ID: scheduling.TaskID(&id3), Name: "Sandbox_Test", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
 			Name:    "transaction",
 			Variant: "default",
 		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
-		{ID: 3, Name: "Production_Data_Set", TaskType: sc.HealthCheck, Target: sc.NameVariant{
+		{ID: scheduling.TaskID(&id4), Name: "Production_Data_Set", TaskType: sc.HealthCheck, Target: sc.NameVariant{
 			Name:    "speed_dating",
 			Variant: "left_overs",
 		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
-		{ID: 4, Name: "MySQL Task", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
+		{ID: scheduling.TaskID(&id5), Name: "MySQL Task", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
 			Name:    "testing_name",
 			Variant: "testing_variant",
 		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
@@ -1571,9 +1579,9 @@ func createTaskRun(id int, status sc.Status, timeParam time.Time) sc.TaskRunMeta
 
 	//todox: check against existing task metadata list
 	foundTaskMetadata := taskMetadataStaticList[rand.Intn(len(taskMetadataStaticList))]
-
+	uint64Id := ffsync.Uint64OrderedId(id)
 	return sc.TaskRunMetadata{
-		ID:          sc.TaskRunID(id),
+		ID:          sc.TaskRunID(&uint64Id),
 		TaskId:      foundTaskMetadata.ID,
 		Name:        foundTaskMetadata.Name,
 		Trigger:     sc.OneOffTrigger{TriggerName: "Apply"},
@@ -1596,8 +1604,10 @@ func filter[T any](ss []T, test func(T) bool) (ret []T) {
 }
 
 func mockTaskRunFind(searchId int) sc.TaskRunMetadata {
-	result := sc.TaskRunMetadata{ID: sc.TaskRunID(-1)} //sentinel result
-	searchTaskId := sc.TaskRunID(searchId)
+	id := ffsync.Uint64OrderedId(0)
+	uint64SearchId := ffsync.Uint64OrderedId(searchId)
+	result := sc.TaskRunMetadata{ID: sc.TaskRunID(&id)} //sentinel result
+	searchTaskId := sc.TaskRunID(&uint64SearchId)
 	for _, n := range taskRunStaticList {
 		if n.ID == searchTaskId {
 			result = n
@@ -1608,8 +1618,10 @@ func mockTaskRunFind(searchId int) sc.TaskRunMetadata {
 }
 
 func mockTaskFind(searchId int) sc.TaskMetadata {
-	result := sc.TaskMetadata{ID: sc.TaskID(-1)} //sentinel result
-	searchTaskId := sc.TaskID(searchId)
+	id := ffsync.Uint64OrderedId(0)
+	uint64SearchId := ffsync.Uint64OrderedId(searchId)
+	result := sc.TaskMetadata{ID: sc.TaskID(&id)} //sentinel result
+	searchTaskId := sc.TaskID(&uint64SearchId)
 	for _, n := range taskMetadataStaticList {
 		if n.ID == searchTaskId {
 			result = n
@@ -1688,7 +1700,7 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 
 	taskRunResponse := []TaskRunResponse{}
 	for _, loopRunItem := range taskListCopy {
-		taskRunResult := mockTaskFind(int(loopRunItem.TaskId))
+		taskRunResult := mockTaskFind(loopRunItem.TaskId.Value().(int))
 		taskRunResponse = append(taskRunResponse, TaskRunResponse{Task: taskRunResult, TaskRun: loopRunItem})
 	}
 
@@ -1718,7 +1730,8 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 		return
 	}
 
-	noResultTaskId := sc.TaskRunID(-1)
+	noResultId := ffsync.Uint64OrderedId(0)
+	noResultTaskId := sc.TaskRunID(&noResultId)
 
 	//todox: replace mock find with lib call
 	taskRunResult := mockTaskRunFind(searchId)

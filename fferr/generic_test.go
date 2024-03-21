@@ -200,6 +200,62 @@ func TestGenericError_AddDetail(t *testing.T) {
 	}
 }
 
+func TestGenericError_AddDetails(t *testing.T) {
+	type args struct {
+		keysAndValues []interface{}
+	}
+	tests := []struct {
+		name string
+		args args
+		want map[string]string
+	}{
+		{
+			name: "Simple",
+			args: args{[]interface{}{"key", "value"}},
+			want: map[string]string{"key": "value"},
+		},
+		{
+			name: "Odd_1",
+			args: args{[]interface{}{"key"}},
+			want: map[string]string{}, // Assuming your AddDetails method skips if not key-value pair
+		},
+		{
+			name: "Odd_3",
+			args: args{[]interface{}{"key", "value", "key2"}},
+			want: map[string]string{"key": "value"}, // Assuming your AddDetails method skips if not key-value pair
+		},
+		{
+			name: "Even",
+			args: args{[]interface{}{"key", "value", "key2", "value2"}},
+			want: map[string]string{"key": "value", "key2": "value2"},
+		},
+		{
+			name: "Non-string values",
+			args: args{[]interface{}{"key", 1, "key2", 2}},
+			want: map[string]string{"key": "1", "key2": "2"},
+		},
+		{
+			name: "Empty",
+			args: args{[]interface{}{}},
+			want: map[string]string{}, // No changes expected for an empty input
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &GenericError{
+				msg:     "",
+				err:     fmt.Errorf(""),
+				details: make(map[string]string),
+			}
+			e.AddDetails(tt.args.keysAndValues...)
+
+			if !reflect.DeepEqual(e.details, tt.want) {
+				t.Errorf("GenericError.details = %v, want %v", e.details, tt.want)
+			}
+		})
+	}
+}
+
 func TestGenericError_Details(t *testing.T) {
 	type fields struct {
 		msg     string

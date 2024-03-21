@@ -460,7 +460,7 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	}
 	if providerErr != nil {
 		serv.Logger.Errorw("Could not get primary table", "name", name, "variant", variant, "Error", providerErr)
-		return nil, err
+		return nil, providerErr
 	}
 	serv.Logger.Debugw("Getting source data iterator", "name", name, "variant", variant)
 	return primary.IterateSegment(limit)

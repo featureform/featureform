@@ -2071,6 +2071,7 @@ func Test_MetadataErrorInterceptors(t *testing.T) {
 }
 
 func TestSourceShallowMapOK(t *testing.T) {
+	//setup transform text, specs, and definition objects
 	sourceText := "transformation string"
 	specs := &pb.Transformation_KubernetesArgs{
 		KubernetesArgs: &pb.KubernetesArgs{
@@ -2155,7 +2156,6 @@ func TestSourceShallowMapOK(t *testing.T) {
 				assert.Equal(t, specs.KubernetesArgs.Specs.MemoryRequest, svResource.Specifications["Memory Request"])
 				assert.Equal(t, specs.KubernetesArgs.Specs.MemoryLimit, svResource.Specifications["Memory Limit"])
 			}
-
 		})
 	}
 }

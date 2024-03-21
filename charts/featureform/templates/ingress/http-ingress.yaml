@@ -1,0 +1,56 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    allowed-values: CN=client
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream: "false"
+    nginx.ingress.kubernetes.io/backend-protocol: HTTP
+    nginx.ingress.kubernetes.io/proxy-body-size: 64ms
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    cert-manager.io/issuer: letsencrypt-prod
+    {{ if eq .Values.embeddedIngress.enabled false }}
+    kots.io/exclude: "true"
+    {{ end }}
+  name: http-ingress
+spec:
+  defaultBackend:
+    service:
+      name: featureform-dashboard
+      port:
+        number: 80
+  rules:
+    - host: {{ .Values.hostname }}
+      http:
+        paths:
+          - path: /data/
+            pathType: Prefix
+            backend:
+              service:
+                name: featureform-dashboard-metadata
+                port:
+                  number: 3001
+          - path: /search/
+            pathType: Prefix
+            backend:
+              service:
+                name: featureform-dashboard-metadata
+                port:
+                  number: 3001
+          - path: /prometheus/
+            pathType: Prefix
+            backend:
+              service:
+                name: featureform-prometheus-service
+                port:
+                  number: 9090
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: featureform-dashboard
+                port:
+                  number: 80
+
+
+

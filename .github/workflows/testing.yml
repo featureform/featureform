@@ -1,9 +1,13 @@
 name: Testing
 on:
   push:
+    branches:
+      - main
+      - release/*
+  pull_request:
 
 concurrency:
-  group: ${{ github.head_ref }}-testing
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -159,15 +163,15 @@ jobs:
           etcd --logger=zap &
           
 
-      - name: Build and Run HDFS
+      - name: Run HDFS
         run: |
-          git clone https://github.com/rancavil/hadoop-single-node-cluster.git
-          cd hadoop-single-node-cluster
-          docker build -t hadoop .
-          docker run -d -p 9864:9864 -p 9870:9870 -p 8088:8088 -p 9000:9000 -p 9866:9866 --hostname localhost hadoop
+          # git clone https://github.com/rancavil/hadoop-single-node-cluster.git
+          # cd hadoop-single-node-cluster
+          # docker build -t hadoop .
+          docker run -d -p 9864:9864 -p 9870:9870 -p 8088:8088 -p 9000:9000 -p 9866:9866 --hostname localhost ahmadnazeri/hadoop:latest
 
       - name: Integration Tests
-        run: go test -timeout 20m -parallel 1000 -coverpkg=./... -coverprofile=./cover.out.tmp ./...
+        run: go test -v -timeout 20m -parallel 1000 -coverpkg=./... -coverprofile=./cover.out.tmp ./...
         env:
           DYNAMO_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
           DYNAMO_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
@@ -199,6 +203,8 @@ jobs:
           BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
           BIGQUERY_DATASET_ID: ${{ secrets.BIGQUERY_DATASET_ID }}
           BIGQUERY_CREDENTIALS: "/home/runner/work/featureform/featureform/provider/bigquery_credentials.json"
+          GCP_CREDENTIALS_FILE: "/home/runner/work/featureform/featureform/provider/bigquery_credentials.json"
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
           MYSQL_USER: "root"
           MYSQL_PASSWORD: "password"
           MYSQL_DB: "mysql"
@@ -211,8 +217,8 @@ jobs:
           MATERIALIZE_WITH_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_ts.sql
           ETCD_HOST: ${{ env.ETCD_HOST }}
           ETCD_PORT: ${{ env.ETCD_PORT }}
-          SPARK_LOCAL_SCRIPT_PATH: home/runner/work/featureform/featureform/provider/scripts/spark/offline_store_spark_runner.py
-          PYTHON_LOCAL_INIT_PATH: home/runner/work/featureform/featureform/provider/scripts/spark/python_packages.sh
+          SPARK_LOCAL_SCRIPT_PATH: /home/runner/work/featureform/featureform/provider/scripts/spark/offline_store_spark_runner.py
+          PYTHON_LOCAL_INIT_PATH: /home/runner/work/featureform/featureform/provider/scripts/spark/python_packages.sh
 
       - name: Print Clean Coverage
         if: always()
@@ -220,20 +226,19 @@ jobs:
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - uses: codecov/codecov-action@v2
-        if: always()
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./cover.out
-          name: go-coverage
-          verbose: true
-
-      - name: Archive code coverage results
+      - name: Archive code coverage results (HTML)
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: search-coverage-reports
+          name: go-coverage-html
           path: ./cover.html
+
+      - name: Archive code coverage results (cover.out)
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: go-coverage-out
+          path: ./cover.out
 
   client-deps:
     name: Client Dependencies
@@ -273,7 +278,6 @@ jobs:
     name: Test Client
     needs: client-deps
     runs-on: ${{ matrix.os }}
-    if: github.ref != 'refs/heads/main'
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -330,15 +334,12 @@ jobs:
       - name: Run Tests
         run: pytest -vv -s
 
-      - name: Upload Coverage Report
-        uses: codecov/codecov-action@v2
+      - uses: actions/upload-artifact@v3
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          root_dir: ./
-          files: ./coverage.xml
           name: client-coverage
-          verbose: true
+          path: ./coverage.xml
+          retention-days: 1
 
   dashboard:
     name: Test Dashboard
@@ -367,3 +368,35 @@ jobs:
           name: dashboard-coverage
           path: ./dashboard/coverage/clover.xml
           retention-days: 1
+
+  codecov-upload:
+    name: Codecov Upload
+    needs: [client, go-tests, dashboard]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download Client Coverage
+        uses: actions/download-artifact@v3
+        with:
+          name: client-coverage
+
+      - name: Download Go Coverage
+        uses: actions/download-artifact@v3
+        with:
+          name: go-coverage-out
+
+      - name: Download Go Coverage
+        uses: actions/download-artifact@v3
+        with:
+          name: dashboard-coverage
+
+      - uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml,./cover.out,./clover.xml
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+
+

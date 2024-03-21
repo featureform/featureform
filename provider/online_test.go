@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	"github.com/google/uuid"
 )
@@ -73,7 +74,7 @@ func testTableAlreadyExists(t *testing.T, store OnlineStore) {
 	}
 	if _, err := store.CreateTable(mockFeature, mockVariant, String); err == nil {
 		t.Fatalf("Succeeded in creating table twice")
-	} else if casted, valid := err.(*TableAlreadyExists); !valid {
+	} else if casted, valid := err.(*fferr.DatasetAlreadyExistsError); !valid {
 		t.Fatalf("Wrong error for table already exists: %T", err)
 	} else if casted.Error() == "" {
 		t.Fatalf("TableAlreadyExists has empty error message")
@@ -84,7 +85,7 @@ func testTableNotFound(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
 	if _, err := store.GetTable(mockFeature, mockVariant); err == nil {
 		t.Fatalf("Succeeded in getting non-existent table")
-	} else if casted, valid := err.(*TableNotFound); !valid {
+	} else if casted, valid := err.(*fferr.DatasetNotFoundError); !valid {
 		t.Fatalf("Wrong error for table not found: %s, %T", err, err)
 	} else if casted.Error() == "" {
 		t.Fatalf("TableNotFound has empty error message")
@@ -122,7 +123,7 @@ func testEntityNotFound(t *testing.T, store OnlineStore) {
 	}
 	if _, err := tab.Get(entity); err == nil {
 		t.Fatalf("succeeded in getting non-existent entity")
-	} else if casted, valid := err.(*EntityNotFound); !valid {
+	} else if casted, valid := err.(*fferr.EntityNotFoundError); !valid {
 		t.Fatalf("Wrong error for entity not found: %T", err)
 	} else if casted.Error() == "" {
 		t.Fatalf("EntityNotFound has empty error message")

@@ -1,76 +1,73 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
-import os
 import ast
 import inspect
+import os
 import warnings
 from abc import ABC
 from datetime import timedelta
-from pathlib import Path
-from typing import Dict, Tuple, Callable, List, Union, Optional
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import dill
 import pandas as pd
 from dataclasses import dataclass, field
 from typeguard import typechecked
-import numpy
 
 from . import feature_flag
-from .enums import FileFormat
 from .exceptions import InvalidSQLQuery
-from .file_utils import absolute_file_paths
 from .get import *
+from .grpc_client import GrpcClient
 from .list import *
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
 from .resources import (
-    PineconeConfig,
-    ScalarType,
+    AWSCredentials,
+    AzureFileStoreConfig,
+    BigQueryConfig,
+    CassandraConfig,
+    ClickHouseConfig,
+    DFTransformation,
+    DynamodbConfig,
+    Entity,
+    ExecutorCredentials,
+    FeatureVariant,
+    FilePrefix,
+    FirestoreConfig,
+    GCPCredentials,
+    GCSFileStoreConfig,
+    HDFSConfig,
+    K8sArgs,
+    K8sConfig,
+    K8sResourceSpecs,
+    LabelVariant,
+    Location,
     Model,
-    ResourceState,
+    MongoDBConfig,
+    OnDemandFeatureVariant,
+    OndemandFeatureParameters,
+    OnlineBlobConfig,
+    PineconeConfig,
+    PostgresConfig,
+    PrimaryData,
     Provider,
     RedisConfig,
-    FirestoreConfig,
-    CassandraConfig,
-    DynamodbConfig,
-    MongoDBConfig,
-    PostgresConfig,
-    SnowflakeConfig,
     RedshiftConfig,
-    BigQueryConfig,
-    ClickHouseConfig,
-    SparkConfig,
-    AzureFileStoreConfig,
-    OnlineBlobConfig,
-    K8sConfig,
+    ResourceColumnMapping,
+    ResourceRedefinedError,
+    ResourceState,
+    ResourceStatus,
+    ResourceVariant,
     S3StoreConfig,
-    GCSFileStoreConfig,
-    User,
-    Location,
-    SourceVariant,
-    PrimaryData,
     SQLTable,
     SQLTransformation,
-    DFTransformation,
-    Entity,
-    FeatureVariant,
-    LabelVariant,
-    ResourceColumnMapping,
+    ScalarType,
+    SnowflakeConfig,
+    SourceVariant,
+    SparkConfig,
     TrainingSetVariant,
-    ExecutorCredentials,
-    ResourceRedefinedError,
-    ResourceStatus,
-    K8sArgs,
-    AWSCredentials,
-    OndemandFeatureParameters,
-    GCPCredentials,
-    HDFSConfig,
-    K8sResourceSpecs,
-    FilePrefix,
-    OnDemandFeatureVariant,
+    User,
     WeaviateConfig,
-    ResourceVariant,
 )
 from .search import search
 from .status_display import display_statuses
@@ -2100,7 +2097,7 @@ class Registrar:
         with open(filename, "w") as f:
             json.dumps(json_data, f)
 
-    def get_entity(self, name, is_local=False):
+    def get_entity(self, name: str):
         """Get an entity. The returned object can be used to register additional resources.
 
         **Examples**:
@@ -2118,8 +2115,6 @@ class Registrar:
 
         Args:
             name (str): Name of entity to be retrieved
-            local (bool): If localmode is being used
-
         Returns:
             entity (EntityRegistrar): Entity
         """
@@ -2450,7 +2445,7 @@ class Registrar:
             name="gcs-quickstart",
             credentials=ff.GCPCredentials(...),
             bucket_name="bucket_name",
-            bucket_path="featureform/path/",
+            root_path="featureform/path/",
             description="An gcs store provider to store offline"
         )
         ```
@@ -2458,7 +2453,7 @@ class Registrar:
         Args:
             name (str): (Immutable) Name of GCS store to be registered
             bucket_name (str): (Immutable) The bucket name
-            bucket_path (str): (Immutable) Custom path to be used by featureform
+            root_path (str): (Immutable) Custom path to be used by featureform
             credentials (GCPCredentials): (Mutable) GCP credentials to access the bucket
             description (str): (Mutable) Description of GCS provider to be registered
             team (str): (Mutable) The name of the team registering the filestore
@@ -4057,6 +4052,7 @@ class Registrar:
             properties=properties,
         )
         self.__resources.append(resource)
+        return resource
 
     def register_model(
         self, name: str, tags: List[str] = [], properties: dict = {}
@@ -4131,7 +4127,7 @@ class ResourceClient:
             channel = insecure_channel(host)
         else:
             channel = secure_channel(host, cert_path)
-        self._stub = ff_grpc.ApiStub(channel)
+        self._stub = GrpcClient(ff_grpc.ApiStub(channel))
         self._host = host
 
     def apply(self, asynchronous=False, verbose=False):

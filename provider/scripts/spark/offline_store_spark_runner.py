@@ -7,7 +7,7 @@ import os
 import sys
 import types
 import uuid
-from datetime import datetime
+import datetime
 from pathlib import Path
 
 import boto3
@@ -15,7 +15,7 @@ import dill
 from azure.storage.blob import BlobServiceClient
 from google.cloud import storage
 from google.oauth2 import service_account
-from pyspark.sql import DataFrame
+from pyspark.sql.dataframe import DataFrame
 from pyspark.sql import SparkSession
 from pyspark.sql.types import (
     StructType,
@@ -67,12 +67,13 @@ def display_data_metrics(df, spark):
     rows = []
     stats = []
 
-    rows_as_list = df.collect()
-    if len(rows_as_list) > 100:
-        rows_as_list = rows_as_list[:100]
+    rows_as_list = df.limit(100).collect()
     for row in rows_as_list:
-        row_list = row.asDict().values()
-        rows.append(list(row_list))
+        row_values = list(row.asDict().values())
+        for i, curr_value in enumerate(row_values):
+            if isinstance(curr_value, datetime.datetime):
+                row_values[i] = curr_value.strftime("%m/%d/%Y, %H:%M:%S")
+        rows.append(row_values)
 
     for column_name in data_type_dict:
         columns.append(column_name)
@@ -348,7 +349,7 @@ def execute_sql_query(
         output_dataframe = spark.sql(sql_query)
         _validate_output_df(output_dataframe)
 
-        dt = datetime.now()
+        dt = datetime.datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
 
         # remove the '/' at the end of output_uri in order to avoid double slashes in the output file path.
@@ -378,7 +379,7 @@ def execute_sql_query(
             try:
                 stats_directory = f"{output_uri.rstrip('/')}/stats"
                 stats_df = display_data_metrics(output_dataframe, spark)
-                stats_df.write.json(stats_directory, mode="overwrite")
+                stats_df.coalesce(1).write.json(stats_directory, mode="overwrite")
             except Exception as e:
                 print(e)
                 print("Failed to display data metrics")
@@ -430,7 +431,7 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         output_df = func(*func_parameters)
         _validate_output_df(output_df)
 
-        dt = datetime.now()
+        dt = datetime.datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
 
         # remove the '/' at the end of output_uri in order to avoid double slashes in the output file path.
@@ -458,9 +459,9 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
 def _validate_output_df(output_df):
     if output_df is None:
         raise Exception("the transformation code returned None.")
-    if not isinstance(output_df, DataFrame):
+    if type(output_df).__name__ != "DataFrame":
         raise TypeError(
-            f"Expected output to be of type 'pyspark.sql.dataframe.DataFrame', "
+            f"Expected output to be of type 'DataFrame', "
             f"got '{type(output_df).__name__}' instead.\n"
             f"Please make sure that the transformation code returns a dataframe."
         )

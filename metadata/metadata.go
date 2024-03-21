@@ -12,6 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/featureform/helpers"
+
+	"github.com/featureform/fferr"
 	"github.com/featureform/lib"
 
 	"github.com/pkg/errors"
@@ -156,26 +159,26 @@ var bannedSuffixes = [...]string{"_"}
 func resourceNamedSafely(id ResourceID) error {
 	for _, substr := range bannedStrings {
 		if strings.Contains(id.Name, substr) {
-			return fmt.Errorf("resource name %s contains banned string %s", id.Name, substr)
+			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource name contains banned string %s", substr))
 		}
 		if strings.Contains(id.Variant, substr) {
-			return fmt.Errorf("resource variant %s contains banned string %s", id.Name, substr)
+			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource variant %s contains banned string %s", id.Name, substr))
 		}
 	}
 	for _, substr := range bannedPrefixes {
 		if strings.HasPrefix(id.Name, substr) {
-			return fmt.Errorf("resource name %s contains banned prefix %s", id.Name, substr)
+			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource name %s contains banned prefix %s", id.Name, substr))
 		}
 		if strings.HasPrefix(id.Variant, substr) {
-			return fmt.Errorf("resource variant %s contains banned prefix %s", id.Name, substr)
+			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource variant %s contains banned prefix %s", id.Name, substr))
 		}
 	}
 	for _, substr := range bannedSuffixes {
 		if strings.HasSuffix(id.Name, substr) {
-			return fmt.Errorf("resource name %s contains banned suffix %s", id.Name, substr)
+			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource name %s contains banned suffix %s", id.Name, substr))
 		}
 		if strings.HasSuffix(id.Variant, substr) {
-			return fmt.Errorf("resource variant %s contains banned suffix %s", id.Name, substr)
+			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource variant %s contains banned suffix %s", id.Name, substr))
 		}
 	}
 	return nil
@@ -259,7 +262,9 @@ type LocalResourceLookup map[ResourceID]Resource
 func (lookup LocalResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	res, has := lookup[id]
 	if !has {
-		return nil, &ResourceNotFoundError{id, nil}
+		wrapped := fferr.NewKeyNotFoundError(id.String(), nil)
+		wrapped.AddDetail("resource_type", id.Type.String())
+		return nil, wrapped
 	}
 	return res, nil
 }
@@ -279,7 +284,9 @@ func (lookup LocalResourceLookup) Submap(ids []ResourceID) (ResourceLookup, erro
 	for _, id := range ids {
 		resource, has := lookup[id]
 		if !has {
-			return nil, &ResourceNotFoundError{id, nil}
+			wrapped := fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("resource not found"))
+			wrapped.AddDetail("resource_type", id.Type.String())
+			return nil, wrapped
 		}
 		resources[id] = resource
 	}
@@ -307,7 +314,9 @@ func (lookup LocalResourceLookup) List() ([]Resource, error) {
 func (lookup LocalResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
 	res, has := lookup[id]
 	if !has {
-		return &ResourceNotFoundError{id, nil}
+		wrapped := fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("resource not found"))
+		wrapped.AddDetail("resource_type", id.Type.String())
+		return wrapped
 	}
 	if err := res.UpdateStatus(status); err != nil {
 		return err
@@ -323,7 +332,9 @@ func (lookup LocalResourceLookup) SetJob(id ResourceID, schedule string) error {
 func (lookup LocalResourceLookup) SetSchedule(id ResourceID, schedule string) error {
 	res, has := lookup[id]
 	if !has {
-		return &ResourceNotFoundError{id, nil}
+		wrapped := fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("resource not found"))
+		wrapped.AddDetail("resource_type", id.Type.String())
+		return wrapped
 	}
 	if err := res.UpdateSchedule(schedule); err != nil {
 		return err
@@ -383,11 +394,13 @@ func (resource *SourceResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *SourceResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *SourceResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExistsError{updateRes.ID()}
+	wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
+	wrapped.AddDetail("resource_type", resource.ID().Type.String())
+	return wrapped
 }
 
 type sourceVariantResource struct {
@@ -424,7 +437,7 @@ func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) (Reso
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not create submap for IDs: %v", depIds))
+		return nil, err
 	}
 	return deps, nil
 }
@@ -433,11 +446,11 @@ func (resource *sourceVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *sourceVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (sourceVariantResource *sourceVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
 	id := that.ID()
 	t := id.Type
 	key := id.Proto()
-	serialized := this.serialized
+	serialized := sourceVariantResource.serialized
 	switch t {
 	case TRAINING_SET_VARIANT:
 		serialized.Trainingsets = append(serialized.Trainingsets, key)
@@ -468,7 +481,7 @@ func (resource *sourceVariantResource) Update(lookup ResourceLookup, updateRes R
 	deserialized := updateRes.Proto()
 	variantUpdate, ok := deserialized.(*pb.SourceVariant)
 	if !ok {
-		return errors.New("failed to deserialize existing source variant record")
+		return fferr.NewInternalError(fmt.Errorf("failed to deserialize existing source variant record"))
 	}
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
@@ -498,7 +511,7 @@ func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) (bool
 		if otherDef, ok := otherProto.Definition.(*pb.SourceVariant_Transformation); ok {
 			isDefinitionEqual, err = isSourceProtoDefinitionEqual(thisDef, otherDef)
 			if err != nil {
-				return false, fmt.Errorf("error comparing source definitions: %v", err)
+				return false, fferr.NewInternalError(fmt.Errorf("error comparing source definitions: %v", err))
 			}
 
 		}
@@ -526,7 +539,7 @@ func isSourceProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transforma
 			sourceTextEqual := thisDef.Transformation.GetDFTransformation().SourceText == otherDef.DFTransformation.SourceText
 			inputsEqual, err := lib.EqualProtoContents(thisDef.Transformation.GetDFTransformation().Inputs, otherDef.DFTransformation.Inputs)
 			if err != nil {
-				return false, fmt.Errorf("error comparing transformation inputs: %v", err)
+				return false, fferr.NewInternalError(fmt.Errorf("error comparing transformation inputs: %v", err))
 			}
 			isDefinitionEqual = sourceTextEqual &&
 				inputsEqual
@@ -592,11 +605,13 @@ func (resource *featureResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *featureResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *featureResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExistsError{updateRes.ID()}
+	wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
+	wrapped.AddDetail("resource_type", resource.ID().Type.String())
+	return wrapped
 }
 
 type featureVariantResource struct {
@@ -648,7 +663,7 @@ func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (Res
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not create submap for IDs: %v", depIds))
+		return nil, err
 	}
 	return deps, nil
 }
@@ -690,7 +705,7 @@ func (resource *featureVariantResource) Update(lookup ResourceLookup, updateRes 
 	deserialized := updateRes.Proto()
 	variantUpdate, ok := deserialized.(*pb.FeatureVariant)
 	if !ok {
-		return errors.New("failed to deserialize existing feature variant record")
+		return fferr.NewInternalError(fmt.Errorf("failed to deserialize existing feature variant record"))
 	}
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
@@ -796,11 +811,13 @@ func (resource *labelResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *labelResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *labelResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExistsError{updateRes.ID()}
+	wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
+	wrapped.AddDetail("resource_type", resource.ID().Type.String())
+	return wrapped
 }
 
 type labelVariantResource struct {
@@ -846,7 +863,7 @@ func (resource *labelVariantResource) Dependencies(lookup ResourceLookup) (Resou
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not create submap for IDs: %v", depIds))
+		return nil, err
 	}
 	return deps, nil
 }
@@ -876,14 +893,14 @@ func (resource *labelVariantResource) UpdateStatus(status pb.ResourceStatus) err
 }
 
 func (resource *labelVariantResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *labelVariantResource) Update(lookup ResourceLookup, updateRes Resource) error {
 	deserialized := updateRes.Proto()
 	variantUpdate, ok := deserialized.(*pb.LabelVariant)
 	if !ok {
-		return errors.New("failed to deserialize existing label variant record")
+		return fferr.NewInternalError(fmt.Errorf("failed to deserialize existing label variant record"))
 	}
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
@@ -972,11 +989,13 @@ func (resource *trainingSetResource) UpdateStatus(status pb.ResourceStatus) erro
 }
 
 func (resource *trainingSetResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *trainingSetResource) Update(lookup ResourceLookup, updateRes Resource) error {
-	return &ResourceExistsError{updateRes.ID()}
+	wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
+	wrapped.AddDetail("resource_type", resource.ID().Type.String())
+	return wrapped
 }
 
 type trainingSetVariantResource struct {
@@ -1025,7 +1044,7 @@ func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) 
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not create submap for IDs: %v", depIds))
+		return nil, err
 	}
 	return deps, nil
 }
@@ -1057,7 +1076,7 @@ func (resource *trainingSetVariantResource) Update(lookup ResourceLookup, update
 	deserialized := updateRes.Proto()
 	variantUpdate, ok := deserialized.(*pb.TrainingSetVariant)
 	if !ok {
-		return errors.New("failed to deserialize existing training set variant record")
+		return fferr.NewInternalError(fmt.Errorf("failed to deserialize existing training set variant record"))
 	}
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
@@ -1141,7 +1160,7 @@ func (resource *modelResource) Dependencies(lookup ResourceLookup) (ResourceLook
 	}
 	deps, err := lookup.Submap(depIds)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not create submap for IDs: %v", depIds))
+		return nil, err
 	}
 	return deps, nil
 }
@@ -1163,14 +1182,14 @@ func (resource *modelResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *modelResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *modelResource) Update(lookup ResourceLookup, updateRes Resource) error {
 	deserialized := updateRes.Proto()
 	modelUpdate, ok := deserialized.(*pb.Model)
 	if !ok {
-		return errors.New("failed to deserialize existing model record")
+		return fferr.NewInternalError(fmt.Errorf("failed to deserialize existing model record"))
 	}
 	resource.serialized.Features = unionNameVariants(resource.serialized.Features, modelUpdate.Features)
 	resource.serialized.Trainingsets = unionNameVariants(resource.serialized.Trainingsets, modelUpdate.Trainingsets)
@@ -1235,14 +1254,14 @@ func (resource *userResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *userResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *userResource) Update(lookup ResourceLookup, updateRes Resource) error {
 	deserialized := updateRes.Proto()
 	userUpdate, ok := deserialized.(*pb.User)
 	if !ok {
-		return errors.New("failed to deserialize existing user record")
+		return fferr.NewInternalError(errors.New("failed to deserialize existing user record"))
 	}
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, userUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, userUpdate.Properties)
@@ -1305,20 +1324,21 @@ func (resource *providerResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *providerResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *providerResource) Update(lookup ResourceLookup, resourceUpdate Resource) error {
 	providerUpdate, ok := resourceUpdate.Proto().(*pb.Provider)
 	if !ok {
-		return errors.New("failed to deserialize existing provider record")
+		return fferr.NewInternalError(errors.New("failed to deserialize existing provider record"))
 	}
 	isValid, err := resource.isValidConfigUpdate(providerUpdate.SerializedConfig)
 	if err != nil {
 		return err
 	}
 	if !isValid {
-		return &ResourceExistsError{resourceUpdate.ID()}
+		wrapped := fferr.NewResourceInternalError(resource.ID().Name, resource.ID().Variant, fferr.ResourceType(resource.ID().Type.String()), fmt.Errorf("invalid config update"))
+		return wrapped
 	}
 	resource.serialized.SerializedConfig = providerUpdate.SerializedConfig
 	resource.serialized.Description = providerUpdate.Description
@@ -1356,7 +1376,7 @@ func (resource *providerResource) isValidConfigUpdate(configUpdate pc.Serialized
 	case pt.S3, pt.HDFS, pt.GCS, pt.AZURE, pt.BlobOnline:
 		return true, nil
 	default:
-		return false, fmt.Errorf("unable to update config for provider. Provider type %s not found", resource.serialized.Type)
+		return false, fferr.NewInternalError(fmt.Errorf("unable to update config for provider. Provider type %s not found", resource.serialized.Type))
 	}
 }
 
@@ -1409,14 +1429,14 @@ func (resource *entityResource) UpdateStatus(status pb.ResourceStatus) error {
 }
 
 func (resource *entityResource) UpdateSchedule(schedule string) error {
-	return fmt.Errorf("not implemented")
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (resource *entityResource) Update(lookup ResourceLookup, updateRes Resource) error {
 	deserialized := updateRes.Proto()
 	entityUpdate, ok := deserialized.(*pb.Entity)
 	if !ok {
-		return errors.New("failed to deserialize existing training entity record")
+		return fferr.NewInternalError(errors.New("failed to deserialize existing training entity record"))
 	}
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, entityUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, entityUpdate.Properties)
@@ -1437,7 +1457,7 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	lookup, err := config.StorageProvider.GetResourceLookup()
 
 	if err != nil {
-		return nil, fmt.Errorf("could not configure storage provider: %v", err)
+		return nil, err
 	}
 	if config.SearchParams != nil {
 		searcher, errInitializeSearch := search.NewMeilisearch(config.SearchParams)
@@ -1458,18 +1478,18 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 
 func (serv *MetadataServer) Serve() error {
 	if serv.grpcServer != nil {
-		return fmt.Errorf("Server already running")
+		return fferr.NewInternalError(fmt.Errorf("server already running"))
 	}
 	lis, err := net.Listen("tcp", serv.address)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(fmt.Errorf("cannot listen to server address %s", serv.address))
 	}
 	return serv.ServeOnListener(lis)
 }
 
 func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
 	serv.listener = lis
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(helpers.UnaryServerErrorInterceptor), grpc.StreamInterceptor(helpers.StreamServerErrorInterceptor))
 	pb.RegisterMetadataServer(grpcServer, serv)
 	serv.grpcServer = grpcServer
 	serv.Logger.Infow("Server starting", "Address", serv.listener.Addr().String())
@@ -1478,7 +1498,7 @@ func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
 
 func (serv *MetadataServer) GracefulStop() error {
 	if serv.grpcServer == nil {
-		return fmt.Errorf("Server not running")
+		return fferr.NewInternalError(fmt.Errorf("server not running"))
 	}
 	serv.grpcServer.GracefulStop()
 	serv.grpcServer = nil
@@ -1488,7 +1508,7 @@ func (serv *MetadataServer) GracefulStop() error {
 
 func (serv *MetadataServer) Stop() error {
 	if serv.grpcServer == nil {
-		return fmt.Errorf("Server not running")
+		return fferr.NewInternalError(fmt.Errorf("server not running"))
 	}
 	serv.grpcServer.Stop()
 	serv.grpcServer = nil
@@ -1515,7 +1535,7 @@ type EtcdStorageProvider struct {
 func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 	client, err := sp.Config.InitClient()
 	if err != nil {
-		return nil, fmt.Errorf("could not init etcd client: %v", err)
+		return nil, err
 	}
 	lookup := EtcdResourceLookup{
 		Connection: EtcdStorage{
@@ -1540,13 +1560,12 @@ func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.S
 }
 
 func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetStatusRequest) (*pb.Empty, error) {
-	serv.Logger.Infow("Setting resource status", "request", req.String())
+	serv.Logger.Infow("Setting resource status", "resource_id", req.ResourceId, "status", req.Status.Status)
 	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
 	err := serv.lookup.SetStatus(resID, *req.Status)
 	if err != nil {
 		serv.Logger.Errorw("Could not set resource status", "error", err.Error())
 	}
-
 	return &pb.Empty{}, err
 }
 
@@ -1788,12 +1807,12 @@ func findEquivalent(resources []Resource, resource ResourceVariant, filterReadyS
 
 		other, ok := res.(ResourceVariant)
 		if !ok {
-			return nil, fmt.Errorf("resource is not a ResourceVariant: %T", res)
+			return nil, fferr.NewInvalidResourceTypeError(res.ID().Name, res.ID().Variant, fferr.ResourceType(res.ID().Type.String()), fmt.Errorf("resource is not a ResourceVariant: %T", res))
 		}
 
 		equivalent, err := resource.IsEquivalent(other)
 		if err != nil {
-			return nil, err
+			return nil, fferr.NewInternalError(err)
 		}
 		if equivalent {
 			return other, nil
@@ -1814,7 +1833,7 @@ func (serv *MetadataServer) extractResourceVariant(req *pb.ResourceVariant) (Res
 	case *pb.ResourceVariant_TrainingSetVariant:
 		return &trainingSetVariantResource{res.TrainingSetVariant}, TRAINING_SET_VARIANT, nil
 	default:
-		return nil, 0, fmt.Errorf("unknown resource variant type: %T", req.Resource)
+		return nil, 0, fferr.NewInvalidArgumentError(fmt.Errorf("unknown resource variant type: %T", req.Resource))
 	}
 }
 
@@ -1844,8 +1863,9 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 	existing, err := serv.lookup.Lookup(id)
-	if _, isResourceError := err.(*ResourceNotFoundError); err != nil && !isResourceError {
-		return nil, err
+	if _, isResourceError := err.(*fferr.KeyNotFoundError); err != nil && !isResourceError {
+		// TODO: consider checking the GRPCError interface to avoid double wrapping error
+		return nil, fferr.NewInternalError(err)
 	}
 
 	if existing != nil {
@@ -1864,7 +1884,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if serv.needsJob(res) && existing == nil {
 		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
 		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
-			return nil, fmt.Errorf("set job: %w", err)
+			return nil, err
 		}
 		serv.Logger.Info("Successfully Created Job: ", res.ID().Name, res.ID().Variant)
 	}
@@ -1888,8 +1908,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		}
 	}
 	if err := serv.propagateChange(res); err != nil {
-		err := errors.Wrap(err, fmt.Sprintf("failed to update parent resources for: %s", res.ID().String()))
-		serv.Logger.Error(errors.WithStack(err))
+		serv.Logger.Error(err)
 		return nil, err
 	}
 	return &pb.Empty{}, nil
@@ -1934,7 +1953,7 @@ func (serv *MetadataServer) validateExisting(newRes Resource, existing Resource)
 			return err
 		}
 		if !isEquivalent {
-			return &ResourceChangedError{newRes.ID()}
+			return fferr.NewResourceChangedError(newRes.ID().Name, newRes.ID().Variant, fferr.ResourceType(newRes.ID().Type), nil)
 		}
 	}
 	return nil
@@ -1956,7 +1975,7 @@ func (serv *MetadataServer) isEquivalent(newRes Resource, existing Resource) (bo
 	}
 	isEquivalent, err := resVariant.IsEquivalent(existingVariant)
 	if err != nil {
-		return false, err
+		return false, fferr.NewInternalError(err)
 	}
 	return isEquivalent, nil
 }
@@ -1968,11 +1987,11 @@ func (serv *MetadataServer) propagateChange(newRes Resource) error {
 	propagateChange = func(parent Resource) error {
 		deps, err := parent.Dependencies(serv.lookup)
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("could not get dependencies for parent: %s", parent.ID().String()))
+			return err
 		}
 		depList, err := deps.List()
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("could not get dependencies list for parent: %s", parent))
+			return err
 		}
 		for _, res := range depList {
 			id := res.ID()
@@ -1984,7 +2003,7 @@ func (serv *MetadataServer) propagateChange(newRes Resource) error {
 				return err
 			}
 			if err := serv.lookup.Set(res.ID(), res); err != nil {
-				return nil
+				return err
 			}
 			if err := propagateChange(res); err != nil {
 				return err
@@ -2016,26 +2035,23 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 				Type:    t,
 			}
 		default:
-			return fmt.Errorf("Invalid Stream for Get: %T", casted)
+			return fferr.NewInternalError(fmt.Errorf("invalid Stream for Get: %T", casted))
 		}
 		if recvErr == io.EOF {
 			return nil
 		}
 		if recvErr != nil {
-			serv.Logger.Errorw("Generic Get receive error", "error", recvErr)
-			return recvErr
+			return fferr.NewInternalError(recvErr)
 		}
 		serv.Logger.Infow("Looking up Resource", "id", id)
 		resource, err := serv.lookup.Lookup(id)
 		if err != nil {
-			serv.Logger.Errorw("Generic Get lookup error", "error", err)
 			return err
 		}
 		serv.Logger.Infow("Sending Resource", "id", id)
 		serialized := resource.Proto()
 		if err := send(serialized); err != nil {
-			serv.Logger.Errorw("Generic Get send error", "error", err)
-			return err
+			return fferr.NewInternalError(err)
 		}
 		serv.Logger.Infow("Send Complete", "id", id)
 	}
@@ -2049,7 +2065,7 @@ func (serv *MetadataServer) genericList(t ResourceType, send sendFn) error {
 	for _, res := range resources {
 		serialized := res.Proto()
 		if err := send(serialized); err != nil {
-			return err
+			return fferr.NewInternalError(err)
 		}
 	}
 	return nil
@@ -2136,6 +2152,8 @@ type SourceVariantResource struct {
 func getSourceString(variant *SourceVariant) string {
 	if variant.IsSQLTransformation() {
 		return variant.SQLTransformationQuery()
+	} else if variant.IsDFTransformation() {
+		return variant.DFTransformationQuerySource()
 	} else {
 		return variant.PrimaryDataSQLTableName()
 	}

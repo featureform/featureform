@@ -68,6 +68,8 @@ from .resources import (
     TrainingSetVariant,
     User,
     WeaviateConfig,
+    TriggerResource,
+    ScheduleTriggerResource,
 )
 from .search import search
 from .status_display import display_statuses
@@ -769,6 +771,7 @@ class SQLTransformationDecorator:
             description=self.description,
             tags=self.tags,
             properties=self.properties,
+            # TODO: Add job task id stuff?
         )
 
     def name_variant(self):
@@ -881,6 +884,7 @@ class DFTransformationDecorator:
             description=self.description,
             tags=self.tags,
             properties=self.properties,
+            #  TODO: Add job task id stuff?
         )
 
     def name_variant(self):
@@ -1080,6 +1084,7 @@ class ColumnResource(ABC):
         properties: Dict[str, str],
         inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
         variant: str = "",
+        triggers: Union[List[str], List[TriggerResource]] = [],
     ):
         registrar, source_name_variant, columns = transformation_args
         self.type = type if isinstance(type, str) else type.value
@@ -1104,6 +1109,9 @@ class ColumnResource(ABC):
         self.tags = tags
         self.properties = properties
         self.variant = variant
+        self.task_ids = []
+        self.job_id = 0
+        self.triggers = [(t if isinstance(t, str) else t.name) for t in triggers]
 
     def register(self):
         features, labels = self.features_and_labels()
@@ -1131,6 +1139,9 @@ class ColumnResource(ABC):
                 "description": self.description,
                 "tags": self.tags,
                 "properties": self.properties,
+                "task_ids": self.task_ids,
+                "job_id": self.job_id,
+                "triggers": self.triggers,
             }
         ]
         if self.resource_type == "feature":
@@ -1184,6 +1195,7 @@ class FeatureColumnResource(ColumnResource):
         schedule: str = "",
         tags: Optional[List[str]] = None,
         properties: Optional[Dict[str, str]] = None,
+        triggers: Union[List[str], List[TriggerResource]] = [],
     ):
         """
         Feature registration object.
@@ -1220,6 +1232,7 @@ class FeatureColumnResource(ColumnResource):
             schedule=schedule,
             tags=tags,
             properties=properties,
+            triggers=triggers,
         )
 
 
@@ -1392,6 +1405,7 @@ class LabelColumnResource(ColumnResource):
         schedule: str = "",
         tags: List[str] = [],
         properties: Dict[str, str] = {},
+        triggers: Union[List[str], List[TriggerResource]] = [],
     ):
         """
         Label registration object.
@@ -1425,6 +1439,7 @@ class LabelColumnResource(ColumnResource):
             schedule=schedule,
             tags=tags,
             properties=properties,
+            triggers=triggers,
         )
 
 
@@ -1667,6 +1682,9 @@ class Registrar:
                 description="",
                 tags=[],
                 properties={},
+                task_ids=[],
+                job_id=0,
+                triggers=[],
             )
             return ColumnSourceRegistrar(self, mock_source)
 
@@ -3311,6 +3329,7 @@ class Registrar:
         variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
+        triggers: Union[List[str], List[TriggerResource]] = [],
     ):
         """Register a primary data source.
 
@@ -3343,6 +3362,9 @@ class Registrar:
             description=description,
             tags=tags,
             properties=properties,
+            task_ids=[],
+            job_id=0,
+            triggers=triggers,
         )
         self.__resources.append(source)
         column_source_registrar = ColumnSourceRegistrar(self, source)
@@ -3362,6 +3384,7 @@ class Registrar:
         inputs: Union[List[NameVariant], List[str], List[ColumnSourceRegistrar]] = None,
         tags: List[str] = [],
         properties: dict = {},
+        triggers: Union[List[str], List[TriggerResource]] = [],
     ):
         """Register a SQL transformation source.
 
@@ -3399,6 +3422,9 @@ class Registrar:
             description=description,
             tags=tags,
             properties=properties,
+            task_ids=[],
+            job_id=0,
+            triggers=triggers,
         )
         self.__resources.append(source)
         return ColumnSourceRegistrar(self, source)
@@ -3470,6 +3496,7 @@ class Registrar:
         args: K8sArgs = None,
         tags: List[str] = [],
         properties: dict = {},
+        triggers: Union[List[str], List[TriggerResource]] = [],
     ):
         """Register a Dataframe transformation source.
 
@@ -3509,6 +3536,9 @@ class Registrar:
             description=description,
             tags=tags,
             properties=properties,
+            task_ids=[],
+            job_id=0,
+            triggers=triggers,
         )
         self.__resources.append(source)
         return ColumnSourceRegistrar(self, source)
@@ -3659,6 +3689,25 @@ class Registrar:
             return decorator
         else:
             return decorator(fn)
+
+    def _register_schedule_trigger(self, trigger_name, trigger_args):
+        """Register a trigger.
+
+        Args:
+            trigger_name (str): Name of trigger
+            trigger_type (str): Type of trigger
+
+        Returns:
+            trigger (TriggerResource): Trigger
+        """
+        if not isinstance(trigger_name, str):
+            raise ValueError("Trigger name must be a string")
+        if trigger_name == "":
+            raise ValueError("Trigger name cannot be empty")
+
+        trigger = ScheduleTriggerResource(trigger_name, trigger_args)
+        self.__resources.append(trigger)
+        return trigger
 
     def state(self):
         for resource in self.__resources:
@@ -3859,6 +3908,7 @@ class Registrar:
                 tags=feature_tags,
                 properties=feature_properties,
                 additional_parameters=additional_Parameters,
+                triggers=feature.get("triggers", []),
             )
             self.__resources.append(resource)
             self.map_client_object_to_resource(client_object, resource)
@@ -3895,6 +3945,7 @@ class Registrar:
                 ),
                 tags=label_tags,
                 properties=label_properties,
+                triggers=label.get("triggers", []),
             )
             self.__resources.append(resource)
             self.map_client_object_to_resource(client_object, resource)
@@ -3968,6 +4019,7 @@ class Registrar:
         schedule: str = "",
         tags: List[str] = [],
         properties: dict = {},
+        triggers: Union[List[str], List[TriggerResource]] = [],
     ):
         """Register a training set.
 
@@ -3991,6 +4043,7 @@ class Registrar:
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
             tags (List[str]): Optional grouping mechanism for resources
             properties (dict): Optional grouping mechanism for resources
+            trigger (TriggerResource): Trigger
 
         Returns:
             resource (ResourceRegistrar): resource
@@ -4032,6 +4085,7 @@ class Registrar:
             label = (label, self.__run)
         if not isinstance(label, LabelColumnResource) and label[1] == "":
             label = (label[0], self.__run)
+        triggers = [t if isinstance(t, str) else t.name for t in triggers]
 
         processed_features = []
         for feature in features:
@@ -4050,6 +4104,7 @@ class Registrar:
             feature_lags=feature_lags,
             tags=tags,
             properties=properties,
+            triggers=triggers,
         )
         self.__resources.append(resource)
         return resource
@@ -4396,6 +4451,9 @@ class ResourceClient:
             location=ResourceColumnMapping("", "", ""),
             description=feature.description,
             status=feature.status.Status._enum_type.values[feature.status.status].name,
+            task_ids=feature.task_ids,
+            job_id=feature.job_id,
+            triggers=feature.triggers,
         )
 
     def print_feature(self, name, variant=None, local=False):
@@ -4515,6 +4573,9 @@ class ResourceClient:
             location=ResourceColumnMapping("", "", ""),
             description=label.description,
             status=label.status.Status._enum_type.values[label.status.status].name,
+            task_ids=label.task_ids,
+            job_id=label.job_id,
+            triggers=label.triggers,
         )
 
     def print_label(self, name, variant=None, local=False):
@@ -4637,6 +4698,9 @@ class ResourceClient:
             # TODO: apply values from proto
             tags=[],
             properties={},
+            task_ids=ts.task_ids,
+            job_id=ts.job_id,
+            triggers=ts.triggers,
         )
 
     def print_training_set(self, name, variant=None, local=False):
@@ -4753,6 +4817,9 @@ class ResourceClient:
             source_text=(
                 definition.source_text if type(definition) == DFTransformation else ""
             ),
+            task_ids=source.task_ids,
+            job_id=source.job_id,
+            triggers=source.triggers,
         )
 
     def _get_source_definition(self, source):
@@ -5512,6 +5579,7 @@ get_s3 = global_registrar.get_s3
 get_gcs = global_registrar.get_gcs
 ondemand_feature = global_registrar.ondemand_feature
 ResourceStatus = ResourceStatus
+ScheduleTrigger = global_registrar._register_schedule_trigger
 
 Nil = ScalarType.NIL
 String = ScalarType.STRING

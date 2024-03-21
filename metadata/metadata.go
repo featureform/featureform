@@ -7,11 +7,12 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"github.com/featureform/helpers"
 	"io"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/featureform/helpers"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/lib"
@@ -53,6 +54,7 @@ const (
 	TRAINING_SET                      = ResourceType(pb.ResourceType_TRAINING_SET)
 	TRAINING_SET_VARIANT              = ResourceType(pb.ResourceType_TRAINING_SET_VARIANT)
 	MODEL                             = ResourceType(pb.ResourceType_MODEL)
+	TRIGGER                           = ResourceType(pb.ResourceType_TRIGGER)
 )
 
 func (r ResourceType) String() string {
@@ -220,6 +222,7 @@ type ResourceLookup interface {
 	SetJob(ResourceID, string) error
 	SetStatus(ResourceID, pb.ResourceStatus) error
 	SetSchedule(ResourceID, string) error
+	Delete(ResourceID) error
 }
 
 type SearchWrapper struct {
@@ -344,6 +347,18 @@ func (lookup LocalResourceLookup) SetSchedule(id ResourceID, schedule string) er
 
 func (lookup LocalResourceLookup) HasJob(id ResourceID) (bool, error) {
 	return false, nil
+}
+
+func (lookup LocalResourceLookup) Delete(id ResourceID) error {
+	has, err := lookup.Has(id)
+	if err != nil {
+		return err
+	}
+	if !has {
+		return fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("resource not found"))
+	}
+	delete(lookup, id)
+	return nil
 }
 
 type SourceResource struct {
@@ -1442,6 +1457,74 @@ func (resource *entityResource) Update(lookup ResourceLookup, updateRes Resource
 	return nil
 }
 
+type triggerResource struct {
+	serialized *pb.Trigger
+}
+
+func (resource *triggerResource) ID() ResourceID {
+	return ResourceID{
+		Name: resource.serialized.Name,
+		Type: TRIGGER,
+	}
+}
+
+func (resource *triggerResource) Schedule() string {
+	// TODO: Make sure it's returning the correct thing
+	return resource.serialized.GetScheduleTrigger().Schedule
+}
+
+func (resource *triggerResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+	// depIdsProtos := resource.serialized.Resources
+	// depIds := make([]ResourceID, 0)
+	// for _, depIdProto := range depIdsProtos {
+	// 	depId := ResourceID{
+	// 		Name:    depIdProto.Resource.Name,
+	// 		Variant: depIdProto.Resource.Variant,
+	// 		Type:    ResourceType(depIdProto.ResourceType),
+	// 	}
+	// 	depIds = append(depIds, depId)
+	// }
+
+	// deps, err := lookup.Submap(depIds)
+	// if err != nil {
+	// 	return nil, errors.Wrap(err, fmt.Sprintf("could not create submap for IDs: %v", depIds))
+	// }
+	// return deps, nil
+	return make(LocalResourceLookup), nil
+}
+
+func (resource *triggerResource) Proto() proto.Message {
+	return resource.serialized
+}
+
+func (resource *triggerResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+	// update/list jobs and tasks associated
+	return nil
+}
+
+func (resource *triggerResource) GetStatus() *pb.ResourceStatus {
+	// TODO: return resourcestatus struct with no status
+	return nil
+}
+
+func (resource *triggerResource) UpdateStatus(status pb.ResourceStatus) error {
+	return nil
+}
+
+func (resource *triggerResource) UpdateSchedule(schedule string) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (resource *triggerResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	deserialized := updateRes.Proto()
+	triggerUpdate, ok := deserialized.(*pb.Trigger)
+	if !ok {
+		return errors.New("failed to deserialize existing model record")
+	}
+	resource.serialized.TriggerType = triggerUpdate.TriggerType
+	return nil
+}
+
 type MetadataServer struct {
 	Logger     *zap.SugaredLogger
 	lookup     ResourceLookup
@@ -1576,6 +1659,7 @@ func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFea
 
 func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *pb.FeatureVariant) (*pb.Empty, error) {
 	variant.Created = tspb.New(time.Now())
+
 	return serv.genericCreate(ctx, &featureVariantResource{variant}, func(name, variant string) Resource {
 		return &featureResource{
 			&pb.Feature{
@@ -1640,6 +1724,22 @@ func (serv *MetadataServer) ListTrainingSets(_ *pb.Empty, stream pb.Metadata_Lis
 
 func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, variant *pb.TrainingSetVariant) (*pb.Empty, error) {
 	variant.Created = tspb.New(time.Now())
+	triggers := variant.Triggers
+	for _, t := range triggers {
+		trigger, err := serv.lookup.Lookup(ResourceID{Name: t, Type: TRIGGER})
+		if err != nil {
+			return nil, fmt.Errorf("trigger does not exist: %v", err)
+		}
+		assertedTrigger, ok := trigger.(*triggerResource)
+		if !ok {
+			return nil, fmt.Errorf("resource not of type trigger: %v", err)
+		}
+		err = serv.lookup.Set(trigger.ID(), assertedTrigger)
+		if err != nil {
+			return nil, fmt.Errorf("could not set trigger: %v", err)
+		}
+	}
+
 	return serv.genericCreate(ctx, &trainingSetVariantResource{variant}, func(name, variant string) Resource {
 		return &trainingSetResource{
 			&pb.TrainingSet{
@@ -1742,6 +1842,228 @@ func (serv *MetadataServer) CreateEntity(ctx context.Context, entity *pb.Entity)
 func (serv *MetadataServer) GetEntities(stream pb.Metadata_GetEntitiesServer) error {
 	return serv.genericGet(stream, ENTITY, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Entity))
+	})
+}
+
+func (serv *MetadataServer) CreateTrigger(ctx context.Context, trigger *pb.Trigger) (*pb.Empty, error) {
+	fmt.Println("Creating Trigger", trigger)
+	return serv.genericCreate(ctx, &triggerResource{trigger}, nil)
+}
+
+func (serv *MetadataServer) AddTrigger(ctx context.Context, tr *pb.AddTriggerRequest) (*pb.Empty, error) {
+	fmt.Println("Adding Trigger", tr)
+
+	// Check if Trigger exists
+	triggerID := ResourceID{Name: tr.Trigger.Name, Type: TRIGGER}
+	triggerRecord, err := serv.lookup.Lookup(triggerID)
+	if err != nil {
+		return nil, fmt.Errorf("trigger does not exist: %v", err)
+	}
+
+	// Get the resource
+	resourceID := ResourceID{Name: tr.Resource.Resource.Name, Variant: tr.Resource.Resource.Variant, Type: ResourceType(tr.Resource.ResourceType)}
+	resourceRecord, err := serv.lookup.Lookup(resourceID)
+	if err != nil {
+		return nil, err
+	}
+
+	trigger_taskIDs := triggerRecord.(*triggerResource).serialized.TaskIds
+	trigger_jobIDs := triggerRecord.(*triggerResource).serialized.JobIds
+
+	// Add the trigger to the resource and resource to the trigger
+
+	switch r := resourceRecord.(type) {
+	case *featureVariantResource:
+		for _, tID := range r.serialized.TaskIds {
+			if !helpers.Contains(trigger_taskIDs, tID) {
+				triggerRecord.(*triggerResource).serialized.TaskIds = append(triggerRecord.(*triggerResource).serialized.TaskIds, tID)
+			}
+		}
+		for _, jID := range trigger_jobIDs {
+			if jID == r.serialized.JobId {
+				return nil, fmt.Errorf("jobID already exists in trigger: %d", jID)
+			}
+		}
+		triggerRecord.(*triggerResource).serialized.JobIds = append(triggerRecord.(*triggerResource).serialized.JobIds, r.serialized.JobId)
+		r.serialized.Triggers = append(r.serialized.Triggers, tr.Trigger.Name)
+	case *trainingSetVariantResource:
+		for _, tID := range r.serialized.TaskIds {
+			if !helpers.Contains(trigger_taskIDs, tID) {
+				triggerRecord.(*triggerResource).serialized.TaskIds = append(triggerRecord.(*triggerResource).serialized.TaskIds, tID)
+			}
+		}
+		for _, jID := range trigger_jobIDs {
+			if jID == r.serialized.JobId {
+				return nil, fmt.Errorf("jobID already exists in trigger: %d", jID)
+			}
+		}
+		triggerRecord.(*triggerResource).serialized.JobIds = append(triggerRecord.(*triggerResource).serialized.JobIds, r.serialized.JobId)
+		r.serialized.Triggers = append(r.serialized.Triggers, tr.Trigger.Name)
+	case *sourceVariantResource:
+		for _, tID := range r.serialized.TaskIds {
+			if !helpers.Contains(trigger_taskIDs, tID) {
+				triggerRecord.(*triggerResource).serialized.TaskIds = append(triggerRecord.(*triggerResource).serialized.TaskIds, tID)
+			}
+		}
+		for _, jID := range trigger_jobIDs {
+			if jID == r.serialized.JobId {
+				return nil, fmt.Errorf("jobID already exists in trigger: %d", jID)
+			}
+		}
+		triggerRecord.(*triggerResource).serialized.JobIds = append(triggerRecord.(*triggerResource).serialized.JobIds, r.serialized.JobId)
+		r.serialized.Triggers = append(r.serialized.Triggers, tr.Trigger.Name)
+	case *labelVariantResource:
+		for _, tID := range r.serialized.TaskIds {
+			if !helpers.Contains(trigger_taskIDs, tID) {
+				triggerRecord.(*triggerResource).serialized.TaskIds = append(triggerRecord.(*triggerResource).serialized.TaskIds, tID)
+			}
+		}
+		for _, jID := range trigger_jobIDs {
+			if jID == r.serialized.JobId {
+				return nil, fmt.Errorf("jobID already exists in trigger: %d", jID)
+			}
+		}
+		triggerRecord.(*triggerResource).serialized.JobIds = append(triggerRecord.(*triggerResource).serialized.JobIds, r.serialized.JobId)
+		r.serialized.Triggers = append(r.serialized.Triggers, tr.Trigger.Name)
+
+	default:
+		return nil, fmt.Errorf("could not assert resource")
+	}
+
+	// Save the trigger back
+	err = serv.lookup.Set(triggerID, triggerRecord)
+	if err != nil {
+		return nil, err
+	}
+
+	// Save the resource back
+	err = serv.lookup.Set(resourceID, resourceRecord)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.Empty{}, nil
+}
+
+func (serv *MetadataServer) RemoveTrigger(ctx context.Context, tr *pb.RemoveTriggerRequest) (*pb.Empty, error) {
+	fmt.Println("Removing Trigger", tr)
+
+	// Check if Trigger exists
+	triggerID := ResourceID{Name: tr.Trigger.Name, Type: TRIGGER}
+	triggerRecord, err := serv.lookup.Lookup(triggerID)
+	if err != nil {
+		return nil, fmt.Errorf("trigger does not exist: %v", err)
+	}
+
+	// Get the resource
+	resourceID := ResourceID{Name: tr.Resource.Resource.Name, Variant: tr.Resource.Resource.Variant, Type: ResourceType(tr.Resource.ResourceType)}
+	resourceRecord, err := serv.lookup.Lookup(resourceID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Remove the resource from the trigger
+	trigger_taskIDs := triggerRecord.(*triggerResource).serialized.TaskIds
+	trigger_jobIDs := triggerRecord.(*triggerResource).serialized.JobIds
+
+	// Remove the trigger from the resource
+	switch r := resourceRecord.(type) {
+	case *featureVariantResource:
+		r.serialized.Triggers, err = helpers.RemoveFromList(r.serialized.Triggers, tr.Trigger.Name)
+		if err != nil {
+			return nil, err
+		}
+		triggerRecord.(*triggerResource).serialized.TaskIds, err = helpers.RemoveItemsFromList(trigger_taskIDs, r.serialized.TaskIds)
+		if err != nil {
+			return nil, err
+		}
+		triggerRecord.(*triggerResource).serialized.JobIds, err = helpers.RemoveFromList(trigger_jobIDs, r.serialized.JobId)
+		if err != nil {
+			return nil, err
+		}
+	case *trainingSetVariantResource:
+		r.serialized.Triggers, err = helpers.RemoveFromList(r.serialized.Triggers, tr.Trigger.Name)
+		if err != nil {
+			return nil, err
+		}
+		triggerRecord.(*triggerResource).serialized.TaskIds, err = helpers.RemoveItemsFromList(trigger_taskIDs, r.serialized.TaskIds)
+		if err != nil {
+			return nil, err
+		}
+		triggerRecord.(*triggerResource).serialized.JobIds, err = helpers.RemoveFromList(trigger_jobIDs, r.serialized.JobId)
+		if err != nil {
+			return nil, err
+		}
+	case *sourceVariantResource:
+		r.serialized.Triggers, err = helpers.RemoveFromList(r.serialized.Triggers, tr.Trigger.Name)
+		if err != nil {
+			return nil, err
+		}
+		triggerRecord.(*triggerResource).serialized.TaskIds, err = helpers.RemoveItemsFromList(trigger_taskIDs, r.serialized.TaskIds)
+		if err != nil {
+			return nil, err
+		}
+		triggerRecord.(*triggerResource).serialized.JobIds, err = helpers.RemoveFromList(trigger_jobIDs, r.serialized.JobId)
+		if err != nil {
+			return nil, err
+		}
+	case *labelVariantResource:
+		r.serialized.Triggers, err = helpers.RemoveFromList(r.serialized.Triggers, tr.Trigger.Name)
+		if err != nil {
+			return nil, err
+		}
+		triggerRecord.(*triggerResource).serialized.TaskIds, err = helpers.RemoveItemsFromList(trigger_taskIDs, r.serialized.TaskIds)
+		if err != nil {
+			return nil, err
+		}
+		triggerRecord.(*triggerResource).serialized.JobIds, err = helpers.RemoveFromList(trigger_jobIDs, r.serialized.JobId)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf("could not assert resource")
+	}
+
+	// Save the resource back
+	err = serv.lookup.Set(resourceID, resourceRecord)
+	if err != nil {
+		return nil, err
+	}
+	// Save the trigger back
+	err = serv.lookup.Set(triggerID, triggerRecord)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.Empty{}, nil
+}
+
+func (serv *MetadataServer) DeleteTrigger(ctx context.Context, trigger *pb.Trigger) (*pb.Empty, error) {
+	// Ensure tigger doesnt have any resources associated with it
+	triggerID := ResourceID{Name: trigger.Name, Type: TRIGGER}
+	//triggerRecord, err := serv.lookup.Lookup(triggerID)
+	//if err != nil {
+	//	return nil, fmt.Errorf("trigger does not exist: %v", err)
+	//}
+	//if len(triggerRecord.(*triggerResource).serialized.Resources) > 0 {
+	//	return nil, fmt.Errorf("remove resources from trigger before deleting: %v", triggerRecord.(*triggerResource).serialized.Resources)
+	//}
+
+	err := serv.lookup.Delete(triggerID)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.Empty{}, nil
+}
+
+func (serv *MetadataServer) ListTriggers(_ *pb.Empty, stream pb.Metadata_ListTriggersServer) error {
+	return serv.genericList(TRIGGER, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Trigger))
+	})
+}
+
+func (serv *MetadataServer) GetTriggers(stream pb.Metadata_GetTriggersServer) error {
+	return serv.genericGet(stream, TRIGGER, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Trigger))
 	})
 }
 
@@ -1910,6 +2232,58 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		serv.Logger.Error(err)
 		return nil, err
 	}
+
+	triggers := []string{}
+	jobid := int32(0)
+	taskids := []int32{}
+	switch res.ID().Type {
+	case FEATURE_VARIANT:
+		triggers = res.(*featureVariantResource).serialized.Triggers
+		taskids = res.(*featureVariantResource).serialized.TaskIds
+		jobid = res.(*featureVariantResource).serialized.JobId
+	case LABEL_VARIANT:
+		triggers = res.(*labelVariantResource).serialized.Triggers
+		taskids = res.(*labelVariantResource).serialized.TaskIds
+		jobid = res.(*labelVariantResource).serialized.JobId
+	case TRAINING_SET_VARIANT:
+		triggers = res.(*trainingSetVariantResource).serialized.Triggers
+		taskids = res.(*trainingSetVariantResource).serialized.TaskIds
+		jobid = res.(*trainingSetVariantResource).serialized.JobId
+	case SOURCE_VARIANT:
+		triggers = res.(*sourceVariantResource).serialized.Triggers
+		taskids = res.(*sourceVariantResource).serialized.TaskIds
+		jobid = res.(*sourceVariantResource).serialized.JobId
+	default:
+		break
+	}
+
+	if len(triggers) > 0 {
+		for _, t := range triggers {
+			trigger, err := serv.lookup.Lookup(ResourceID{Name: t, Type: TRIGGER})
+			if err != nil {
+				return nil, fmt.Errorf("trigger does not exist: %v", err)
+			}
+			assertedTrigger, ok := trigger.(*triggerResource)
+			if !ok {
+				return nil, fmt.Errorf("resource not of type trigger: %v", err)
+			}
+			for _, t := range taskids {
+				if !helpers.Contains(assertedTrigger.serialized.TaskIds, t) {
+					assertedTrigger.serialized.TaskIds = append(assertedTrigger.serialized.TaskIds, t)
+				}
+			}
+			for _, j := range assertedTrigger.serialized.JobIds {
+				if j == jobid {
+					return nil, fmt.Errorf("jobID already exists in trigger: %d", jobid)
+				}
+			}
+			assertedTrigger.serialized.JobIds = append(assertedTrigger.serialized.JobIds, jobid)
+			err = serv.lookup.Set(trigger.ID(), assertedTrigger)
+			if err != nil {
+				return nil, fmt.Errorf("could not set trigger: %v", err)
+			}
+		}
+	}
 	return &pb.Empty{}, nil
 }
 
@@ -2042,17 +2416,14 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 		if recvErr != nil {
 			return fferr.NewInternalError(recvErr)
 		}
-		serv.Logger.Infow("Looking up Resource", "id", id)
 		resource, err := serv.lookup.Lookup(id)
 		if err != nil {
 			return err
 		}
-		serv.Logger.Infow("Sending Resource", "id", id)
 		serialized := resource.Proto()
 		if err := send(serialized); err != nil {
 			return fferr.NewInternalError(err)
 		}
-		serv.Logger.Infow("Send Complete", "id", id)
 	}
 }
 

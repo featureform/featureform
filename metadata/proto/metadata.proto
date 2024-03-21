@@ -21,6 +21,7 @@ service Metadata {
     rpc CreateLabelVariant(LabelVariant) returns (Empty);
     rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
     rpc CreateModel(Model) returns (Empty);
+    rpc CreateTrigger(Trigger) returns (Empty);
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
 
     rpc GetUsers(stream Name) returns (stream User);
@@ -35,6 +36,7 @@ service Metadata {
     rpc GetProviders(stream Name) returns (stream Provider);
     rpc GetEntities(stream Name) returns (stream Entity);
     rpc GetModels(stream Name) returns (stream Model);
+    rpc GetTriggers(stream Name) returns (stream Trigger);
 
     /**
       * GetEquivalent returns a resourceVariant that matches on key attributes,
@@ -50,8 +52,13 @@ service Metadata {
     rpc ListProviders(Empty) returns (stream Provider);
     rpc ListEntities(Empty) returns (stream Entity);
     rpc ListModels(Empty) returns (stream Model);
+    rpc ListTriggers(Empty) returns (stream Trigger);
 
     rpc SetResourceStatus(SetStatusRequest) returns (Empty);
+
+    rpc AddTrigger(AddTriggerRequest) returns (Empty);
+    rpc RemoveTrigger(RemoveTriggerRequest) returns (Empty);
+    rpc DeleteTrigger(Trigger) returns (Empty);
 }
 
 service Api {
@@ -63,6 +70,7 @@ service Api {
     rpc CreateLabelVariant(LabelVariant) returns (Empty);
     rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
     rpc CreateModel(Model) returns (Empty);
+    rpc CreateTrigger(Trigger) returns (Empty);
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
 
     rpc GetUsers(stream Name) returns (stream User);
@@ -77,6 +85,7 @@ service Api {
     rpc GetProviders(stream Name) returns (stream Provider);
     rpc GetEntities(stream Name) returns (stream Entity);
     rpc GetModels(stream Name) returns (stream Model);
+    rpc GetTriggers(stream Name) returns (stream Trigger);
     /**
       * GetEquivalent returns a resourceVariant that matches on key attributes,
       * i.e. for a sourceVariant it will only match on key attributes (name, definition, owner, provider)
@@ -91,6 +100,11 @@ service Api {
     rpc ListProviders(Empty) returns (stream Provider);
     rpc ListEntities(Empty) returns (stream Entity);
     rpc ListModels(Empty) returns (stream Model);
+    rpc ListTriggers(Empty) returns (stream Trigger);
+
+    rpc AddTrigger(AddTriggerRequest) returns (Empty);
+    rpc RemoveTrigger(RemoveTriggerRequest) returns (Empty);
+    rpc DeleteTrigger(Trigger) returns (Empty);
 }
 
 message Name {
@@ -138,6 +152,7 @@ enum ResourceType {
     ENTITY = 9;
     MODEL = 10;
     USER = 11;
+    TRIGGER = 12;
 }
 
 message ResourceID {
@@ -217,6 +232,9 @@ message FeatureVariant {
     bool is_embedding = 19;
     int32 dimension = 20;
     FeatureParameters additional_parameters = 21;
+    repeated int32 task_ids = 22;
+    int32 job_id = 23;
+    repeated string triggers = 24;
 }
 
 message FeatureParameters {
@@ -264,6 +282,10 @@ message LabelVariant {
     }
     Tags tags = 13;
     Properties properties = 14;
+    repeated int32 task_ids = 15;
+    int32 job_id = 16;
+    repeated string triggers = 17;
+
 }
 
 message Provider {
@@ -304,6 +326,9 @@ message TrainingSetVariant {
     repeated FeatureLag feature_lags = 15;
     Tags tags = 16;
     Properties properties = 17;
+    repeated int32 task_ids = 18;
+    int32 job_id = 19;
+    repeated string triggers = 20;
 }
 
 message Entity {
@@ -365,6 +390,9 @@ message SourceVariant {
     string schedule = 16;
     Tags tags = 17;
     Properties properties = 18;
+    repeated int32 task_ids = 19;
+    int32 job_id = 20;
+    repeated string triggers = 21;
 }
 
 message Transformation {
@@ -422,4 +450,32 @@ message Property {
 
 message Properties {
     map<string, Property> property = 1;
+}
+
+message Trigger {
+	string name = 1;
+	oneof trigger_type {
+		ScheduleTrigger schedule_trigger = 2;
+        OtherTypeTrigger other_type_trigger = 3;
+	}
+	repeated int32 job_ids = 4;
+	repeated int32 task_ids = 5;
+}
+
+message ScheduleTrigger {
+	string schedule = 1;
+}
+
+message OtherTypeTrigger {
+    string some_info = 1;
+}
+
+message AddTriggerRequest {
+	Trigger trigger = 1;
+	ResourceID resource = 2;
+}
+
+message RemoveTriggerRequest {
+	Trigger trigger = 1;
+	ResourceID resource = 2;
 }

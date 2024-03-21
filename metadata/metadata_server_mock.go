@@ -204,3 +204,27 @@ func (MetadataServerMock) SetResourceStatus(ctx context.Context, in *pb.SetStatu
 func (MetadataServerMock) RequestScheduleChange(ctx context.Context, in *pb.ScheduleChangeRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	return nil, nil
 }
+
+func (MetadataServerMock) AddTrigger(ctx context.Context, in *pb.AddTriggerRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
+	return nil, nil
+}
+
+func (MetadataServerMock) RemoveTrigger(ctx context.Context, in *pb.RemoveTriggerRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
+	return nil, nil
+}
+
+func (MetadataServerMock) CreateTrigger(ctx context.Context, in *pb.Trigger, opts ...grpc.CallOption) (*pb.Empty, error) {
+	return nil, nil
+}
+
+func (MetadataServerMock) DeleteTrigger(ctx context.Context, in *pb.Trigger, opts ...grpc.CallOption) (*pb.Empty, error) {
+	return nil, nil
+}
+
+func (MetadataServerMock) GetTriggers(ctx context.Context, opts ...grpc.CallOption) (pb.Metadata_GetTriggersClient, error) {
+	return nil, nil
+}
+
+func (MetadataServerMock) ListTriggers(ctx context.Context, empty *pb.Empty, opts ...grpc.CallOption) (pb.Metadata_ListTriggersClient, error) {
+	return nil, nil
+}

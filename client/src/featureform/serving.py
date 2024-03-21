@@ -209,7 +209,6 @@ class HostedClientImpl:
     def training_set(
         self, name, variation, include_label_timestamp, model: Union[str, Model] = None
     ):
-
         training_set_stream = TrainingSetStream(self._stub, name, variation, model)
         return Dataset(training_set_stream)
 

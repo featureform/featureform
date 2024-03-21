@@ -4,7 +4,7 @@ import stat
 import sys
 
 import featureform as ff
-from featureform import ResourceRedefinedError, InvalidSQLQuery
+from featureform import InvalidSQLQuery
 
 sys.path.insert(0, "client/src/")
 import pytest
@@ -16,6 +16,8 @@ from featureform.register import (
     SnowflakeConfig,
     Model,
 )
+
+from featureform.resources import ScheduleTriggerResource
 
 
 @pytest.mark.parametrize(
@@ -491,3 +493,9 @@ def test_register_blob_store(container_name, expected_error, ff_registrar):
         assert str(ve) == str(expected_error)
     except Exception as e:
         raise e
+
+
+@pytest.mark.local
+def test_register_schedule_trigger():
+    result = ff.ScheduleTrigger("name", "* * * * *")
+    assert isinstance(result, ScheduleTriggerResource)

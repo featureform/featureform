@@ -773,6 +773,26 @@ func (serv *MetadataServer) CreateModel(ctx context.Context, model *pb.Model) (*
 	return serv.meta.CreateModel(ctx, model)
 }
 
+func (serv *MetadataServer) CreateTrigger(ctx context.Context, trigger *pb.Trigger) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating/Updating Trigger", "trigger", trigger.String())
+	return serv.meta.CreateTrigger(ctx, trigger)
+}
+
+func (serv *MetadataServer) AddTrigger(ctx context.Context, triggerRequest *pb.AddTriggerRequest) (*pb.Empty, error) {
+	serv.Logger.Infow("Adding Trigger", "trigger", triggerRequest.String())
+	return serv.meta.AddTrigger(ctx, triggerRequest)
+}
+
+func (serv *MetadataServer) RemoveTrigger(ctx context.Context, triggerRequest *pb.RemoveTriggerRequest) (*pb.Empty, error) {
+	serv.Logger.Infow("Removing Trigger", "trigger", triggerRequest.String())
+	return serv.meta.RemoveTrigger(ctx, triggerRequest)
+}
+
+func (serv *MetadataServer) DeleteTrigger(ctx context.Context, trigger *pb.Trigger) (*pb.Empty, error) {
+	serv.Logger.Infow("Deleting Trigger", "trigger", trigger.String())
+	return serv.meta.DeleteTrigger(ctx, trigger)
+}
+
 func (serv *OnlineServer) FeatureServe(ctx context.Context, req *srv.FeatureServeRequest) (*srv.FeatureRow, error) {
 	serv.Logger.Infow("Serving Features", "request", req.String())
 	return serv.client.FeatureServe(ctx, req)

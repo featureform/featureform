@@ -38,6 +38,7 @@ from featureform.resources import (
     K8sResourceSpecs,
     SparkCredentials,
     GCPCredentials,
+    ScheduleTriggerResource,
 )
 
 from featureform.register import OfflineK8sProvider, Registrar, FileStoreProvider
@@ -669,6 +670,7 @@ def all_resources_strange_order(redis_provider):
         ),
         redis_provider,
         User(name="Featureform", tags=[], properties={}),
+        ScheduleTriggerResource(name="trigger", schedule="* * * * *"),
     ]
 
 
@@ -726,6 +728,7 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
         state.add(resource)
     assert state.sorted_list() == [
         User(name="Featureform", tags=[], properties={}),
+        ScheduleTriggerResource(name="trigger", schedule="* * * * *"),
         Provider(
             name="redis",
             description="desc3",
@@ -899,6 +902,7 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
         state.add(resource)
     assert state.sorted_list() == [
         User(name="Featureform", tags=[], properties={}),
+        ScheduleTriggerResource(name="trigger", schedule="* * * * *"),
         Provider(
             name="redis",
             description="desc3",

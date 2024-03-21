@@ -7,9 +7,17 @@ from .register import (
     SourceRegistrar,
     SubscriptableTransformation,
     FeatureColumnResource,
+    TriggerResource,
+    TrainingSetVariant,
+    LabelColumnResource,
+)
+from .resources import (
+    ScheduleTriggerResource,
+    TriggerResource,
 )
 from .serving import ServingClient
 from .enums import ResourceType
+from featureform.proto import metadata_pb2
 
 
 class Client(ResourceClient, ServingClient):
@@ -20,6 +28,7 @@ class Client(ResourceClient, ServingClient):
     ```py title="definitions.py"
     import featureform as ff
     from featureform import Client
+    from featureform.client.src.featureform import metadata_pb2
 
     client = Client()
 
@@ -222,6 +231,150 @@ class Client(ResourceClient, ServingClient):
                 "use client.columns(name, variant) or client.columns(source) or client.columns(transformation)"
             )
         return self.impl._get_source_columns(name, variant)
+
+    def _create_trigger_proto(self, trigger):
+        req = metadata_pb2.Trigger()
+        if isinstance(trigger, str):
+            req.name = trigger
+        elif isinstance(trigger, TriggerResource):
+            req.name = trigger.name
+        else:
+            raise ValueError(
+                f"Invalid trigger type: {type(trigger)}. Please use the trigger name or TriggerResource"
+            )
+
+        return req
+
+    def _create_resource_proto(self, resource):
+        req = metadata_pb2.ResourceID()
+        if isinstance(resource, tuple):
+            if len(resource) != 3:
+                raise ValueError(
+                    f"Invalid resource tuple: {resource}. resource tuple must have name, variant and type."
+                )
+            req.resource.name = resource[0]
+            req.resource.variant = resource[1]
+            req.resource_type = resource[2]
+        else:
+            if isinstance(resource, FeatureColumnResource):
+                req.resource_type = ResourceType.FEATURE.value
+            elif isinstance(resource, TrainingSetVariant):
+                req.resource_type = ResourceType.TRAINING_SET.value
+            elif isinstance(resource, SourceRegistrar):
+                req.resource_type = ResourceType.SOURCE.value
+            elif isinstance(resource, LabelColumnResource):
+                req.resource_type = ResourceType.LABEL.value
+
+            else:
+                raise ValueError(
+                    f"Invalid resource type: {type(resource)}. Resource must be a Feature, Training Set or Source."
+                )
+            req.resource.name = resource.name
+            req.resource.variant = resource.variant
+        return req
+
+    def add_trigger(self, trigger, resource):
+        """
+        Add a trigger to a resource
+
+        **Example:**
+        ```py title="definitions.py"
+        client.add_trigger("trigger_name", ("resource_name", "resource_variant, resource_type"))
+        ```
+
+        Args:
+            trigger(Union[str, TriggerResource]): The name of the trigger
+            resource(Union[tuple, FeatureColumnResource, TrainingSetVariant]): The name, variant and type of the resource
+        """
+
+        req = metadata_pb2.AddTriggerRequest()
+        trigger_req = self._create_trigger_proto(trigger)
+        req.trigger.CopyFrom(trigger_req)
+        resource_req = self._create_resource_proto(resource)
+        print("In add_trigger resource type is ", resource_req.resource_type)
+        req.resource.CopyFrom(resource_req)
+
+        self._stub.AddTrigger(req)
+
+    def remove_trigger(self, trigger, resource):
+        """
+        Remove a trigger from a resource
+
+        **Example:**
+        ```py title="definitions.py"
+        client.remove_trigger("trigger_name", ("resource_name", "resource_variant, resource_type"))
+        ```
+
+        Args:
+            trigger(Union[str, TriggerResource]): The name of the trigger
+            resource(Union[tuple, FeatureColumnResource, TrainingSetVariant]): The name, variant and type of the resource
+        """
+        req = metadata_pb2.RemoveTriggerRequest()
+        trigger_req = self._create_trigger_proto(trigger)
+        req.trigger.CopyFrom(trigger_req)
+        resource_req = self._create_resource_proto(resource)
+        req.resource.CopyFrom(resource_req)
+
+        self._stub.RemoveTrigger(req)
+
+    def update_trigger(self, trigger, schedule):
+        """
+        Update the schedule of the trigger
+
+        **Example:**
+        ```py title="definitions.py"
+        client.update_trigger("trigger_name", schedule)
+        ```
+
+        Args:
+            trigger_name (Union[str, TriggerResource]): The name of the trigger
+            TODO: schedule (str): The new schedule for the trigger
+        """
+        if not isinstance(trigger, ScheduleTriggerResource):
+            raise ValueError(
+                f"Invalid schedule type: {type(schedule)}. Please use the ScheduleTrigger object."
+            )
+        if not isinstance(schedule, str):
+            raise ValueError(
+                f"Invalid schedule type: {type(schedule)}. Please use the string format for the schedule."
+            )
+        trigger.update_schedule(schedule)
+        req = self._create_trigger_proto(trigger)
+        schedule_req = metadata_pb2.ScheduleTrigger()
+        schedule_req.schedule = schedule
+        req.schedule_trigger.CopyFrom(schedule_req)
+
+        self._stub.CreateTrigger(req)
+
+    def delete_trigger(self, trigger):
+        """
+        Delete a trigger from the storage provider
+
+        **Example:**
+        ```py title="definitions.py"
+        client.delete_trigger("trigger_name")
+        ```
+
+        Args:
+            trigger_name (Union[str, TriggerResource]): The name of the trigger
+        """
+        req = self._create_trigger_proto(trigger)
+        self._stub.DeleteTrigger(req)
+
+    def get_trigger(self, trigger):
+        """
+        Get a trigger from the storage provider
+
+        **Example:**
+        ```py title="definitions.py"
+        client.get_trigger("trigger_name")
+        ```
+
+        Args:
+            trigger_name (str): The name of the trigger
+        """
+        req = self._create_trigger_proto(trigger)
+        return self._stub.GetTrigger(req)
 
     @staticmethod
     def _validate_host(host):

@@ -160,6 +160,8 @@ func (client *Client) Create(ctx context.Context, def ResourceDef) error {
 		return client.CreateEntity(ctx, casted)
 	case ModelDef:
 		return client.CreateModel(ctx, casted)
+	case TriggerDef:
+		return client.CreateTrigger(ctx, casted)
 	default:
 		return fferr.NewInvalidArgumentError(fmt.Errorf("%T not implemented in Create", casted))
 	}
@@ -245,6 +247,9 @@ type FeatureDef struct {
 	IsOnDemand  bool
 	IsEmbedding bool
 	Definition  string
+	JobID       int32
+	TaskIDs     []int32
+	Triggers    []string
 }
 
 type ResourceVariantColumns struct {
@@ -305,7 +310,10 @@ func (def FeatureDef) Serialize() (*pb.FeatureVariant, error) {
 		Tags:        &pb.Tags{Tag: def.Tags},
 		Properties:  def.Properties.Serialize(),
 		Mode:        pb.ComputationMode(def.Mode),
+		JobId:       def.JobID,
+		TaskIds:     def.TaskIDs,
 		IsEmbedding: def.IsEmbedding,
+		Triggers:    def.Triggers,
 	}
 	switch x := def.Location.(type) {
 	case ResourceVariantColumns:
@@ -410,6 +418,9 @@ type LabelDef struct {
 	Location    interface{}
 	Tags        Tags
 	Properties  Properties
+	JobID       int32
+	TaskIDs     []int32
+	Triggers    []string
 }
 
 func (def LabelDef) ResourceType() ResourceType {
@@ -429,6 +440,9 @@ func (def LabelDef) Serialize() (*pb.LabelVariant, error) {
 		Provider:    def.Provider,
 		Tags:        &pb.Tags{Tag: def.Tags},
 		Properties:  def.Properties.Serialize(),
+		JobId:       def.JobID,
+		TaskIds:     def.TaskIDs,
+		Triggers:    def.Triggers,
 	}
 	switch x := def.Location.(type) {
 	case ResourceVariantColumns:
@@ -555,6 +569,9 @@ type TrainingSetDef struct {
 	Features    NameVariants
 	Tags        Tags
 	Properties  Properties
+	JobID       int32
+	TaskIDs     []int32
+	Triggers    []string
 }
 
 func (def TrainingSetDef) ResourceType() ResourceType {
@@ -574,6 +591,9 @@ func (def TrainingSetDef) Serialize() *pb.TrainingSetVariant {
 		Schedule:    def.Schedule,
 		Tags:        &pb.Tags{Tag: def.Tags},
 		Properties:  def.Properties.Serialize(),
+		JobId:       def.JobID,
+		TaskIds:     def.TaskIDs,
+		Triggers:    def.Triggers,
 	}
 }
 
@@ -687,6 +707,9 @@ type SourceDef struct {
 	Definition  SourceType
 	Tags        Tags
 	Properties  Properties
+	JobID       int32
+	TaskIDs     []int32
+	Triggers    []string
 }
 
 type SourceType interface {
@@ -794,6 +817,9 @@ func (def SourceDef) Serialize() (*pb.SourceVariant, error) {
 		Schedule:    def.Schedule,
 		Tags:        &pb.Tags{Tag: def.Tags},
 		Properties:  def.Properties.Serialize(),
+		JobId:       def.JobID,
+		TaskIds:     def.TaskIDs,
+		Triggers:    def.Triggers,
 	}
 	var err error
 	switch x := def.Definition.(type) {
@@ -1201,6 +1227,188 @@ func (client *Client) parseModelStream(stream modelStream) ([]*Model, error) {
 	return models, nil
 }
 
+func (client *Client) ListTriggers(ctx context.Context) ([]*Trigger, error) {
+	stream, err := client.GrpcConn.ListTriggers(ctx, &pb.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return client.parseTriggerStream(stream)
+}
+
+func (client *Client) GetTrigger(ctx context.Context, trigger string) (*Trigger, error) {
+	triggerList, err := client.GetTriggers(ctx, []string{trigger})
+	if err != nil {
+		return nil, err
+	}
+	return triggerList[0], nil
+}
+
+func (client *Client) GetTriggers(ctx context.Context, triggers []string) ([]*Trigger, error) {
+	stream, err := client.GrpcConn.GetTriggers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		for _, trigger := range triggers {
+			stream.Send(&pb.Name{Name: trigger})
+		}
+		err := stream.CloseSend()
+		if err != nil {
+			client.Logger.Errorw("Failed to close send", "Err", err)
+		}
+	}()
+	return client.parseTriggerStream(stream)
+}
+
+type TriggerDef struct {
+	Name            string
+	ScheduleTrigger string
+	JobIDs          []int32
+	TaskIDs         []int32
+}
+
+func (def TriggerDef) ResourceType() ResourceType {
+	return TRIGGER
+}
+
+func (client *Client) CreateTrigger(ctx context.Context, def TriggerDef) error {
+	serialized := &pb.Trigger{
+		Name: def.Name,
+		TriggerType: &pb.Trigger_ScheduleTrigger{
+			ScheduleTrigger: &pb.ScheduleTrigger{
+				Schedule: def.ScheduleTrigger,
+			},
+		},
+		JobIds:  def.JobIDs,
+		TaskIds: def.TaskIDs,
+	}
+	_, err := client.GrpcConn.CreateTrigger(ctx, serialized)
+	return err
+}
+
+func (client *Client) AddTrigger(ctx context.Context, def TriggerDef, resourceDef ResourceDef) error {
+
+	resourceID, err := client.getResourceIDFromDef(resourceDef)
+	if err != nil {
+		return err
+	}
+
+	serialized := &pb.AddTriggerRequest{
+		Trigger: &pb.Trigger{
+			Name: def.Name,
+			TriggerType: &pb.Trigger_ScheduleTrigger{
+				ScheduleTrigger: &pb.ScheduleTrigger{
+					Schedule: def.ScheduleTrigger,
+				},
+			},
+			JobIds:  def.JobIDs,
+			TaskIds: def.TaskIDs,
+		},
+		Resource: &pb.ResourceID{
+			Resource: &pb.NameVariant{
+				Name:    resourceID.Name,
+				Variant: resourceID.Variant,
+			},
+			ResourceType: resourceID.Type.Serialized(),
+		},
+	}
+
+	_, err = client.GrpcConn.AddTrigger(ctx, serialized)
+	return err
+}
+
+func (client *Client) RemoveTrigger(ctx context.Context, def TriggerDef, resourceDef ResourceDef) error {
+	resourceID, err := client.getResourceIDFromDef(resourceDef)
+	if err != nil {
+		return err
+	}
+
+	serialized := &pb.RemoveTriggerRequest{
+		Trigger: &pb.Trigger{
+			Name: def.Name,
+			TriggerType: &pb.Trigger_ScheduleTrigger{
+				ScheduleTrigger: &pb.ScheduleTrigger{
+					Schedule: def.ScheduleTrigger,
+				},
+			},
+			JobIds:  def.JobIDs,
+			TaskIds: def.TaskIDs,
+		},
+		Resource: &pb.ResourceID{
+			Resource: &pb.NameVariant{
+				Name:    resourceID.Name,
+				Variant: resourceID.Variant,
+			},
+			ResourceType: resourceID.Type.Serialized(),
+		},
+	}
+
+	_, err = client.GrpcConn.RemoveTrigger(ctx, serialized)
+	return err
+
+}
+
+func (client *Client) DeleteTrigger(ctx context.Context, t *pb.Trigger) error {
+
+	_, err := client.GrpcConn.DeleteTrigger(ctx, t)
+	return err
+}
+
+func (client *Client) getResourceIDFromDef(def ResourceDef) (ResourceID, error) {
+	var resourceID ResourceID
+	switch def.ResourceType() {
+	case FEATURE_VARIANT:
+		fv := def.(FeatureDef)
+		resourceID = ResourceID{
+			Name:    fv.Name,
+			Variant: fv.Variant,
+			Type:    fv.ResourceType(),
+		}
+	case TRAINING_SET_VARIANT:
+		ts := def.(TrainingSetDef)
+		resourceID = ResourceID{
+			Name:    ts.Name,
+			Variant: ts.Variant,
+			Type:    ts.ResourceType(),
+		}
+	case LABEL_VARIANT:
+		l := def.(LabelDef)
+		resourceID = ResourceID{
+			Name:    l.Name,
+			Variant: l.Variant,
+			Type:    l.ResourceType(),
+		}
+	case SOURCE_VARIANT:
+		s := def.(SourceDef)
+		resourceID = ResourceID{
+			Name:    s.Name,
+			Variant: s.Variant,
+			Type:    s.ResourceType(),
+		}
+	default:
+		return ResourceID{}, fmt.Errorf("unsupported resource type %s", def.ResourceType())
+	}
+	return resourceID, nil
+}
+
+type triggerStream interface {
+	Recv() (*pb.Trigger, error)
+}
+
+func (client *Client) parseTriggerStream(stream triggerStream) ([]*Trigger, error) {
+	users := make([]*Trigger, 0)
+	for {
+		serial, err := stream.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		users = append(users, wrapProtoTrigger(serial))
+	}
+	return users, nil
+}
+
 type protoStringer struct {
 	msg proto.Message
 }
@@ -1462,6 +1670,7 @@ type FeatureVariant struct {
 	fetchPropertiesFn
 	fetchIsEmbeddingFn
 	fetchDimensionFn
+	fetchTriggersFn
 }
 
 func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
@@ -1477,6 +1686,7 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 		fetchPropertiesFn:    fetchPropertiesFn{serialized},
 		fetchIsEmbeddingFn:   fetchIsEmbeddingFn{serialized},
 		fetchDimensionFn:     fetchDimensionFn{serialized},
+		fetchTriggersFn:      fetchTriggersFn{serialized},
 	}
 }
 
@@ -1577,6 +1787,32 @@ func (variant *FeatureVariant) Error() string {
 
 func (variant *FeatureVariant) Location() interface{} {
 	return variant.serialized.GetLocation()
+}
+
+func (variant *FeatureVariant) JobID() interface{} {
+	return variant.serialized.GetJobId()
+}
+
+func (variant *FeatureVariant) TaskIDs() interface{} {
+	return variant.serialized.GetTaskIds()
+}
+
+type triggersGetter interface {
+	GetTriggers() []string
+}
+
+type fetchTriggersFn struct {
+	getter triggersGetter
+}
+
+func (fn fetchTriggersFn) Triggers() []string {
+	triggers := []string{}
+	proto := fn.getter.GetTriggers()
+	if proto == nil {
+		return triggers
+	}
+	triggers = append(triggers, proto...)
+	return triggers
 }
 
 func (variant *FeatureVariant) Definition() string {
@@ -1852,6 +2088,7 @@ type LabelVariant struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
+	fetchTriggersFn
 }
 
 func wrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
@@ -1864,6 +2101,7 @@ func wrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
 		protoStringer:        protoStringer{serialized},
 		fetchTagsFn:          fetchTagsFn{serialized},
 		fetchPropertiesFn:    fetchPropertiesFn{serialized},
+		fetchTriggersFn:      fetchTriggersFn{serialized},
 	}
 }
 
@@ -1950,6 +2188,14 @@ func (variant *LabelVariant) Properties() Properties {
 	return variant.fetchPropertiesFn.Properties()
 }
 
+func (variant *LabelVariant) JobID() interface{} {
+	return variant.serialized.GetJobId()
+}
+
+func (variant *LabelVariant) TaskIDs() interface{} {
+	return variant.serialized.GetTaskIds()
+}
+
 type TrainingSet struct {
 	serialized *pb.TrainingSet
 	variantsFns
@@ -1977,6 +2223,7 @@ type TrainingSetVariant struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
+	fetchTriggersFn
 }
 
 func wrapProtoTrainingSetVariant(serialized *pb.TrainingSetVariant) *TrainingSetVariant {
@@ -1989,6 +2236,7 @@ func wrapProtoTrainingSetVariant(serialized *pb.TrainingSetVariant) *TrainingSet
 		protoStringer:     protoStringer{serialized},
 		fetchTagsFn:       fetchTagsFn{serialized},
 		fetchPropertiesFn: fetchPropertiesFn{serialized},
+		fetchTriggersFn:   fetchTriggersFn{serialized},
 	}
 }
 
@@ -2062,6 +2310,14 @@ func (variant *TrainingSetVariant) Properties() Properties {
 	return variant.fetchPropertiesFn.Properties()
 }
 
+func (variant *TrainingSetVariant) JobID() interface{} {
+	return variant.serialized.GetJobId()
+}
+
+func (variant *TrainingSetVariant) TaskIDs() interface{} {
+	return variant.serialized.GetTaskIds()
+}
+
 type Source struct {
 	serialized *pb.Source
 	variantsFns
@@ -2091,6 +2347,75 @@ type SourceVariant struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
+	fetchTriggersFn
+}
+
+func (variant *SourceVariant) JobID() interface{} {
+	return variant.serialized.GetJobId()
+}
+
+func (variant *SourceVariant) TaskIDs() interface{} {
+	return variant.serialized.GetTaskIds()
+}
+
+type Trigger struct {
+	serialized *pb.Trigger
+	protoStringer
+	fetchJobIDsFn
+	fetchTaskIDsFn
+}
+
+func wrapProtoTrigger(serialized *pb.Trigger) *Trigger {
+	return &Trigger{
+		serialized:     serialized,
+		protoStringer:  protoStringer{serialized},
+		fetchJobIDsFn:  fetchJobIDsFn{serialized},
+		fetchTaskIDsFn: fetchTaskIDsFn{serialized},
+	}
+}
+
+func (trigger *Trigger) Name() string {
+	return trigger.serialized.GetName()
+}
+
+func (trigger *Trigger) Schedule() string {
+	return trigger.serialized.GetScheduleTrigger().Schedule
+}
+
+type jobIDsGetter interface {
+	GetJobIds() []int32
+}
+
+type fetchJobIDsFn struct {
+	getter jobIDsGetter
+}
+
+func (fn fetchJobIDsFn) JobIDs() []int32 {
+	jobIDs := []int32{}
+	proto := fn.getter.GetJobIds()
+	if proto == nil {
+		return jobIDs
+	}
+	jobIDs = append(jobIDs, proto...)
+	return jobIDs
+}
+
+type taskIDsGetter interface {
+	GetTaskIds() []int32
+}
+
+type fetchTaskIDsFn struct {
+	getter taskIDsGetter
+}
+
+func (fn fetchTaskIDsFn) TaskIDs() []int32 {
+	taskIDs := []int32{}
+	proto := fn.getter.GetTaskIds()
+	if proto == nil {
+		return taskIDs
+	}
+	taskIDs = append(taskIDs, proto...)
+	return taskIDs
 }
 
 type TransformationArgType string
@@ -2164,6 +2489,7 @@ func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
 		protoStringer:        protoStringer{serialized},
 		fetchTagsFn:          fetchTagsFn{serialized},
 		fetchPropertiesFn:    fetchPropertiesFn{serialized},
+		fetchTriggersFn:      fetchTriggersFn{serialized},
 	}
 }
 

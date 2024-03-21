@@ -68,7 +68,7 @@ class _SplitStream:
         except grpc.RpcError as e:
             print(f"Caught RPC error of type: {e.code()} - {e.details()}")
             if e.code() == grpc.StatusCode.RESOURCE_EXHAUSTED:
-                print("Resource exhausted")
+                print("Message size exceeded. Try reducing the batch size.")
             raise
 
     def _create_request_generator(self):

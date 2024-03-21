@@ -1097,8 +1097,10 @@ func (store *clickHouseOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (T
 	}
 	trainTestSplitTableName := store.getTrainTestSplitTableName(prep.TrainingSetName, def)
 	train, test := store.query.trainingRowSplitSelect(prep.Columns, sanitizeCH(trainTestSplitTableName))
+
 	fmt.Printf("Training Set Query: %s\n", train)
 	fmt.Printf("Test Set Query: %s\n", test)
+
 	testRows, err := store.db.Query(test)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not query test set: %v", err)
@@ -1110,7 +1112,6 @@ func (store *clickHouseOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (T
 	}
 
 	colTypes, err := store.getValueColumnTypes(trainTestSplitTableName)
-	fmt.Printf("these are the column types: %v\n", colTypes)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not get column types: %v", err)
 	}

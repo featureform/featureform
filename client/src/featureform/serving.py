@@ -7,8 +7,7 @@ import random
 import types
 import warnings
 from collections.abc import Iterator
-from typing import List, Union
-from typing import Optional
+from typing import List, Optional, Union
 
 import dill
 import math

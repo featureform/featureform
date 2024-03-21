@@ -2072,6 +2072,17 @@ func Test_MetadataErrorInterceptors(t *testing.T) {
 
 func TestSourceShallowMapOK(t *testing.T) {
 	sourceText := "transformation string"
+	specs := &pb.Transformation_KubernetesArgs{
+		KubernetesArgs: &pb.KubernetesArgs{
+			DockerImage: "someImage",
+			Specs: &pb.KubernetesResourceSpecs{
+				CpuLimit:      "12",
+				CpuRequest:    "1",
+				MemoryLimit:   "100M",
+				MemoryRequest: "500G",
+			},
+		},
+	}
 	primaryDef := &pb.SourceVariant_PrimaryData{
 		PrimaryData: &pb.PrimaryData{
 			Location: &pb.PrimaryData_Table{
@@ -2089,6 +2100,7 @@ func TestSourceShallowMapOK(t *testing.T) {
 					Query: sourceText,
 				},
 			},
+			Args: specs,
 		},
 	}
 
@@ -2101,37 +2113,49 @@ func TestSourceShallowMapOK(t *testing.T) {
 					SourceText: sourceText,
 				},
 			},
+			Args: specs,
 		},
 	}
 	testCases := []struct {
-		name                   string
-		sourceVariantTransform pb.SourceVariant_Transformation
-		sourceVariantPrimary   pb.SourceVariant_PrimaryData
-		usePrimary             bool
+		name        string
+		svTransform pb.SourceVariant_Transformation
+		svPrimary   pb.SourceVariant_PrimaryData
+		sourceType  string
 	}{
-		{name: "Primary Data Definition", sourceVariantPrimary: *primaryDef, usePrimary: true},
-		{name: "SQL Definition", sourceVariantTransform: *sqlDef, usePrimary: false},
-		{name: "DF Definition", sourceVariantTransform: *dataFrameDef, usePrimary: false},
+		{name: "Primary Data Definition", svPrimary: *primaryDef, sourceType: "Primary Table"},
+		{name: "SQL Definition", svTransform: *sqlDef, sourceType: "SQL Transformation"},
+		{name: "DF Definition", svTransform: *dataFrameDef, sourceType: "Dataframe Transformation"},
 	}
 
 	for _, currTest := range testCases {
 		t.Run(currTest.name, func(t *testing.T) {
 			sv := getSourceVariant()
-			if currTest.usePrimary {
-				sv.serialized.Definition = &currTest.sourceVariantPrimary
+			if currTest.sourceType == "Primary Table" {
+				sv.serialized.Definition = &currTest.svPrimary
 			} else {
-				sv.serialized.Definition = &currTest.sourceVariantTransform
+				sv.serialized.Definition = &currTest.svTransform
 			}
-			sourceVariantResource := SourceShallowMap(sv)
+			svResource := SourceShallowMap(sv)
 
-			assert.Equal(t, sv.serialized.Name, sourceVariantResource.Name)
-			assert.Equal(t, sv.serialized.Variant, sourceVariantResource.Variant)
-			assert.Equal(t, sourceText, sourceVariantResource.Definition)
-			assert.Equal(t, sv.Provider(), sourceVariantResource.Provider)
-			assert.Len(t, sourceVariantResource.Tags, len(sv.Tags()))
-			assert.Contains(t, sourceVariantResource.Tags, "test.active")
-			assert.Contains(t, sourceVariantResource.Tags, "test.inactive")
-			assert.Equal(t, sv.Properties()["test.map.key"], sourceVariantResource.Properties["test.map.key"])
+			assert.Equal(t, sv.serialized.Name, svResource.Name)
+			assert.Equal(t, sv.serialized.Variant, svResource.Variant)
+			assert.Equal(t, sourceText, svResource.Definition)
+			assert.Equal(t, currTest.sourceType, svResource.SourceType)
+			assert.Equal(t, sv.Provider(), svResource.Provider)
+			assert.Len(t, svResource.Tags, len(sv.Tags()))
+			assert.Contains(t, svResource.Tags, "test.active")
+			assert.Contains(t, svResource.Tags, "test.inactive")
+			assert.Equal(t, sv.Properties()["test.map.key"], svResource.Properties["test.map.key"])
+
+			//check specs for svTransformations
+			if currTest.sourceType != "Primary Table" {
+				assert.Equal(t, specs.KubernetesArgs.DockerImage, svResource.Specifications["Docker Image"])
+				assert.Equal(t, specs.KubernetesArgs.Specs.CpuRequest, svResource.Specifications["CPU Request"])
+				assert.Equal(t, specs.KubernetesArgs.Specs.CpuLimit, svResource.Specifications["CPU Limit"])
+				assert.Equal(t, specs.KubernetesArgs.Specs.MemoryRequest, svResource.Specifications["Memory Request"])
+				assert.Equal(t, specs.KubernetesArgs.Specs.MemoryLimit, svResource.Specifications["Memory Limit"])
+			}
+
 		})
 	}
 }

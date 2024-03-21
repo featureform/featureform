@@ -34,7 +34,7 @@ helm install certmgr jetstack/cert-manager \
 ### Install featureform
 Go to ff/serving/charts and run:
 
-`helm install <NAME> ./featureform/ --set global.hostname=<DOMAIN_NAME>` 
+`helm install <NAME> ./featureform/ --set hostname=<DOMAIN_NAME>` 
 
 Where <DOMAIN_NAME> is the desired domain name that you own
 and <NAME> is your choice of name for the helm release

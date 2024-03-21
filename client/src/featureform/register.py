@@ -1279,7 +1279,7 @@ class MultiFeatureColumnResource(ColumnResource):
         self.owner = owner
         self.description = description
         self.schedule = schedule
-        self._resources = []
+        self.features = []
 
         include_columns = include_columns or []
         exclude_columns = exclude_columns or []
@@ -1309,27 +1309,23 @@ class MultiFeatureColumnResource(ColumnResource):
     ):
         df_has_quotes = self._check_df_column_format(df)
         for column_name in register_columns:
-            if timestamp_column != "":
-                feature = FeatureColumnResource(
-                    dataset[[entity_column, column_name, timestamp_column]],
-                    variant=variant,
-                    type=pd_to_ff_datatype[
-                        df[self._modify_column_name(column_name, df_has_quotes)].dtype
-                    ],
-                    inference_store=inference_store,
-                )
-
-            else:
-                feature = FeatureColumnResource(
-                    dataset[[entity_column, column_name]],
-                    variant=variant,
-                    type=pd_to_ff_datatype[
-                        df[self._modify_column_name(column_name, df_has_quotes)].dtype
-                    ],
-                    inference_store=inference_store,
-                )
+            transformation_args = (
+                dataset[[entity_column, column_name, timestamp_column]]
+                if timestamp_column != ""
+                else dataset[[entity_column, column_name]]
+            )
+            feature = FeatureColumnResource(
+                transformation_args=transformation_args,
+                variant=variant,
+                type=pd_to_ff_datatype[
+                    df[self._modify_column_name(column_name, df_has_quotes)].dtype
+                ],
+                inference_store=inference_store,
+            )
             feature.name = column_name
-            self._resources.append(feature)
+            self.features.append(feature)
+
+        return self.features
 
     def _get_feature_columns(
         self, df, include_columns, exclude_columns, entity_column, timestamp_column
@@ -5453,7 +5449,7 @@ def entity(cls):
                 resource.entity = entity
                 resource.register()
         elif isinstance(cls.__dict__[attr_name], MultiFeatureColumnResource):
-            multi_feature_resources = cls.__dict__[attr_name]._resources
+            multi_feature_resources = cls.__dict__[attr_name].features
             for resource in multi_feature_resources:
                 setattr(entity, resource.name, resource)
                 resource.entity = entity

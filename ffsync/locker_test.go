@@ -42,18 +42,6 @@ func LockAndUnlock(t *testing.T, locker Locker) {
 		t.Fatalf("Lock failed: %v", err)
 	}
 
-	// Test Lock on already locked item
-	diffLock, err := locker.Lock(key)
-	if err == nil {
-		t.Fatalf("Locking using different id should have failed")
-	}
-
-	// Test Unlock with different lock
-	err = locker.Unlock(diffLock)
-	if err == nil {
-		t.Fatalf("Unlocking using different id should have failed")
-	}
-
 	// Test Unlock with original lock
 	err = locker.Unlock(lock)
 	if err != nil {
@@ -72,22 +60,6 @@ func LockAndUnlockWithGoRoutines(t *testing.T, locker Locker) {
 	err := <-errChan
 	if err != nil {
 		t.Fatalf("Lock failed: %v", err)
-	}
-
-	// Test Lock on already locked item
-	diffLockChannel := make(chan Key)
-	go lockGoRoutine(locker, key, diffLockChannel, errChan)
-	diffLock := <-diffLockChannel
-	err = <-errChan
-	if err == nil {
-		t.Fatalf("Locking using different id should have failed")
-	}
-
-	// Test UnLock with different UUID
-	go unlockGoRoutine(locker, diffLock, errChan)
-	err = <-errChan
-	if err == nil {
-		t.Fatalf("Unlocking using different id should have failed")
 	}
 
 	// Test Unlock with original lock

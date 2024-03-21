@@ -6,6 +6,7 @@ import inspect
 import os
 import warnings
 from abc import ABC
+from collections.abc import Iterable
 from datetime import timedelta
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
@@ -1223,7 +1224,10 @@ class FeatureColumnResource(ColumnResource):
         )
 
 
-class MultiFeatureColumnResource(ColumnResource):
+class MultiFeatureColumnResource(Iterable):
+    def __iter__(self):
+        return iter(self.features)
+
     def __init__(
         self,
         dataset: SourceVariant,
@@ -1358,7 +1362,8 @@ class MultiFeatureColumnResource(ColumnResource):
         else:
             return list(all_columns_set - exclude_columns_set)
 
-    def _check_df_column_format(self, df):
+    @staticmethod
+    def _check_df_column_format(df):
         df_has_quotes = False
         for column_name in df.columns:
             if '"' in column_name:
@@ -1366,7 +1371,8 @@ class MultiFeatureColumnResource(ColumnResource):
             return df_has_quotes
 
     # TODO: Verify if you can have empty strings as column names (Add unit test for it)
-    def _clean_name(self, string_name):
+    @staticmethod
+    def _clean_name(string_name):
         return string_name.replace('"', "")
 
     def _modify_column_name(self, string_name, df_has_quotes):
@@ -3956,7 +3962,9 @@ class Registrar:
         self,
         name: str,
         variant: str = "",
-        features: Union[list, List[FeatureColumnResource]] = [],
+        features: Union[
+            list, List[FeatureColumnResource], MultiFeatureColumnResource
+        ] = [],
         label: Union[NameVariant, LabelColumnResource] = ("", ""),
         resources: list = [],
         owner: Union[str, UserRegistrar] = "",
@@ -3998,7 +4006,7 @@ class Registrar:
         if variant == "":
             variant = self.__run
 
-        if not isinstance(features, (list)):
+        if not isinstance(features, (list, MultiFeatureColumnResource)):
             raise ValueError(
                 f"Invalid features type: {type(features)} "
                 "Features must be entered as a list of name-variant tuples (e.g. [('feature1', 'quickstart'), ('feature2', 'quickstart')]) or a list of FeatureColumnResource instances."

@@ -14,8 +14,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from featureform.proto import serving_pb2
-from featureform.proto import serving_pb2_grpc
+from featureform.proto import serving_pb2, serving_pb2_grpc
 from . import GrpcClient, Model, TrainingSetVariant
 from .enums import FileFormat, ResourceType
 from .register import FeatureColumnResource

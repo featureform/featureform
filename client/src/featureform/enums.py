@@ -67,6 +67,10 @@ class ResourceStatus(str, Enum):
     READY = "READY"
     FAILED = "FAILED"
 
+    @staticmethod
+    def from_proto(proto):
+        return proto.Status._enum_type.values[proto.status].name
+
 
 class ComputationMode(Enum):
     PRECOMPUTED = "PRECOMPUTED"
@@ -156,3 +160,19 @@ class FileFormat(str, Enum):
     @classmethod
     def supported_formats(cls) -> str:
         return ", ".join([file_format.value for file_format in cls])
+
+
+@typechecked
+@dataclass
+class ResourceType(Enum):
+    # ResourceType is an enumeration representing the possible types of
+    # resources that may be registered with Featureform. Each value is based
+    # on OfflineResourceType in providers/offline.go
+
+    NO_TYPE = 0
+    LABEL = 1
+    FEATURE = 2
+    TRAINING_SET = 3
+    PRIMARY = 4
+    TRANSFORMATION = 5
+    FEATURE_MATERIALIZATION = 6

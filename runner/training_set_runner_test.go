@@ -40,6 +40,11 @@ func (m MockOfflineCreateTrainingSetFail) CreateTrainingSet(provider.TrainingSet
 func (m MockOfflineCreateTrainingSetFail) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
 	return nil, nil
 }
+
+func (m MockOfflineCreateTrainingSetFail) GetTrainingSetTestSplit(id provider.ResourceID, testSize float32, shuffle bool, randomState int) (provider.TrainingSetIterator, provider.TrainingSetIterator, func() error, error) {
+	return nil, nil, nil, nil
+}
+
 func (m MockOfflineCreateTrainingSetFail) GetBatchFeatures(ids []provider.ResourceID) (provider.BatchFeatureIterator, error) {
 	return nil, nil
 }
@@ -77,6 +82,10 @@ func (m MockOfflineCreateTrainingSetFail) Close() error {
 
 func (m MockOfflineCreateTrainingSetFail) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
+}
+
+func (m MockOfflineCreateTrainingSetFail) ResourceLocation(id provider.ResourceID) (string, error) {
+	return "", nil
 }
 
 func TestRunTrainingSet(t *testing.T) {

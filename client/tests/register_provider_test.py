@@ -8,7 +8,6 @@ from featureform.register import (
     OfflineSparkProvider,
     OfflineK8sProvider,
     Registrar,
-    LocalProvider,
 )
 
 from featureform.resources import AWSCredentials, GCPCredentials, SparkCredentials
@@ -269,6 +268,25 @@ def test_register_postgres():
 
 
 @pytest.mark.local
+def test_register_clickhouse():
+    reg = Registrar()
+    result = reg.register_clickhouse(
+        name="name",
+        description="description",
+        team="team",
+        host="host",
+        port=9000,
+        user="user",
+        password="pass",
+        database="db",
+        ssl=False,
+        tags=[],
+        properties={},
+    )
+    assert isinstance(result, OfflineSQLProvider)
+
+
+@pytest.mark.local
 def test_register_redshift():
     reg = Registrar()
     result = reg.register_redshift(
@@ -276,7 +294,7 @@ def test_register_redshift():
         description="description",
         team="team",
         host="host",
-        port=0,
+        port="0",
         user="user",
         password="pass",
         database="db",
@@ -361,8 +379,3 @@ def test_register_k8s():
         properties={},
     )
     assert isinstance(result, OfflineK8sProvider)
-
-
-@pytest.mark.local
-def test_register_local():
-    assert isinstance(Registrar().register_local(), LocalProvider)

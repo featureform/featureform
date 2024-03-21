@@ -32,24 +32,28 @@ The EMR cluster, before being deployed, must run a bootstrap action to install t
 ```py spark\_quickstart.py
 import featureform as ff
 
-emr = EMRCredentials(
-    aws_access_key_id="",
-    aws_secret_access_key="",
+aws_credentials = ff.AWSCredentials(
+    access_key="",
+    secret_key=""
+)
+
+emr = ff.EMRCredentials(
+    credentials=aws_credentials,
     emr_cluster_id="",
-    emr_cluster_region=""
+    emr_cluster_region="",
 )
 
 s3 = ff.register_s3(
     name="s3",
-    credentials="",
-    bucket_path="",
-    bucket_region=""
+    credentials=aws_credentials,
+    bucket_name="",
+    bucket_region="",
+    path="",
 )
 
 spark = ff.register_spark(
     name="",
     description="A Spark deployment we created for the Featureform quickstart",
-    team="",
     executor=emr,
     filestore=s3,
 )

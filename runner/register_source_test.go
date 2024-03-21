@@ -41,6 +41,10 @@ func (m MockOfflineRegisterSourceFail) GetTrainingSet(id provider.ResourceID) (p
 	return nil, nil
 }
 
+func (m MockOfflineRegisterSourceFail) GetTrainingSetTestSplit(id provider.ResourceID, testSize float32, shuffle bool, randomState int) (provider.TrainingSetIterator, provider.TrainingSetIterator, func() error, error) {
+	return nil, nil, nil, nil
+}
+
 func (m MockOfflineRegisterSourceFail) CreatePrimaryTable(id provider.ResourceID, schema provider.TableSchema) (provider.PrimaryTable, error) {
 	return nil, nil
 }
@@ -82,6 +86,10 @@ func (m MockOfflineRegisterSourceFail) Close() error {
 
 func (m MockOfflineRegisterSourceFail) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
+}
+
+func (m MockOfflineRegisterSourceFail) ResourceLocation(id provider.ResourceID) (string, error) {
+	return "", nil
 }
 
 func TestRunRegisterResource(t *testing.T) {

@@ -1,23 +1,25 @@
 # RUN docker build -f ./coordinator/Dockerfile . -t coordinator from /serving
 # docker tag coordinator:latest featureformcom/coordinator:latest
 # docker push featureformcom/coordinator:latest
-FROM golang:1.21-alpine as builder
+FROM golang:1.21 as builder
 
 WORKDIR /app
 
 COPY go.mod go.sum ./
 
 # Installing protobuf and compiling metadata
-RUN apk update && apk add protobuf-dev && \
-  go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest && \
-  go install google.golang.org/protobuf/cmd/protoc-gen-go@latest && \
-  rm -rf /var/cache/apk/*
+RUN apt update && \
+    apt install -y protobuf-compiler
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
 COPY ./metadata/proto/metadata.proto ./metadata/proto/
+
 ENV PATH /go/bin:$PATH
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
 
 # Copying source files
+COPY ./fferr ./fferr
 COPY ./lib/ ./lib/
 COPY ./filestore/ ./filestore/
 COPY ./coordinator/*.go ./coordinator/
@@ -32,15 +34,10 @@ COPY ./types ./types
 COPY ./coordinator/main/main.go ./coordinator/main/main.go
 
 # Building Go app
-# CGD_ENABLED=0 is used to avoid the libc differences in alpine and ubuntu
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=1
 RUN go build ./coordinator/main/main.go
 
 FROM ubuntu:22.04
-
-COPY --from=builder ./app/main /app/main
-COPY ./provider/scripts/spark/ /app/provider/scripts/spark/
-COPY ./provider/queries/ /app/provider/queries/
 
 # Installing pyenv
 RUN apt-get update && apt-get install -y \
@@ -61,12 +58,17 @@ RUN apt-get update && apt-get install -y \
   wget \
   && rm -rf /var/lib/apt/lists/*
 
+## Download Shaded Jar
+RUN wget https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop2-2.2.11/gcs-connector-hadoop2-2.2.11-shaded.jar -P /app/provider/scripts/spark/jars/
+
 ENV ENV="/root/.bashrc"
 ENV PYENV_ROOT="/.pyenv"
 ENV PATH="$PYENV_ROOT/bin:$PATH"
 RUN echo "PATH=${PATH}" > "${ENV}"
 
 RUN curl https://pyenv.run | bash
+
+COPY ./provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
 
 ## Install Python versions
 ARG TESTING
@@ -85,6 +87,11 @@ ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
 ENV MATERIALIZE_NO_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_no_ts.sql"
 ENV MATERIALIZE_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_ts.sql"
 
+COPY --from=builder ./app/main /app/main
+COPY ./provider/queries/ /app/provider/queries/
+COPY ./provider/scripts/spark/ /app/provider/scripts/spark/
+
+
 # Take the MD5 hash of the Spark runner script and store it in a file for use by the config package
 # when determining the remove filepath in cloud object storage (e.g. S3). By adding the hash as a suffix
 # to the file, we ensure that different versions of the script are uploaded to cloud object storage
@@ -93,8 +100,6 @@ RUN cat $SPARK_SCRIPT_PATH | md5sum \
   | awk '{print $1}' \
   | xargs echo -n > /app/provider/scripts/spark/offline_store_spark_runner_md5.txt
 
-## Download Shaded Jar
-RUN wget https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop2-2.2.11/gcs-connector-hadoop2-2.2.11-shaded.jar -P /app/provider/scripts/spark/jars/
 
 EXPOSE 8080
 ENTRYPOINT ["/app/main"]

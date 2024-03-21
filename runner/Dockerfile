@@ -4,7 +4,7 @@
 # docker build -f ./runner/Dockerfile . -t worker in /serving
 # docker tag worker:latest featureformcom/worker:latest
 # docker push featureformcom/worker:latest
-FROM golang:1.21-alpine
+FROM golang:1.21
 
 WORKDIR /app
 
@@ -13,10 +13,14 @@ COPY go.sum ./
 #RUN go mod download
 
 COPY ./metadata/proto/metadata.proto ./metadata/proto/metadata.proto
-RUN apk update && apk add protobuf-dev && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest && go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 ENV PATH /go/bin:$PATH
+RUN apt update && \
+    apt install -y protobuf-compiler
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
 
+COPY ./fferr ./fferr
 COPY ./lib/ ./lib/
 COPY ./filestore/ ./filestore/
 COPY runner/*.go ./runner/
@@ -33,18 +37,10 @@ COPY metadata/search/* ./metadata/search/
 COPY ./provider/ ./provider/
 COPY runner/worker/main/main.go ./runner/worker/main/main.go
 
-# CGD_ENABLED=0 is used to avoid the libc differences in alpine and ubuntu
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=1
 RUN go build -o worker ./runner/worker/main
 
 FROM ubuntu:22.04
-
-COPY --from=0 ./app/worker ./worker
-COPY ./provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
-COPY ./provider/scripts/spark/python_packages.sh /app/provider/scripts/spark/python_packages.sh
-COPY ./provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
-COPY ./provider/queries/materialize_no_ts.sql /app/provider/queries/materialize_no_ts.sql
-COPY ./provider/queries/materialize_ts.sql /app/provider/queries/materialize_ts.sql
 
 # Installing pyenv
 RUN apt-get update && apt-get install -y \
@@ -65,6 +61,9 @@ RUN apt-get update && apt-get install -y \
   openjdk-8-jdk \
   && rm -rf /var/lib/apt/lists/*
 
+# Download Shaded Jar
+RUN wget https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop2-2.2.11/gcs-connector-hadoop2-2.2.11-shaded.jar -P /app/provider/scripts/spark/jars/
+
 ENV ENV="/root/.bashrc"
 ENV PYENV_ROOT="/.pyenv"
 ENV PATH="$PYENV_ROOT/bin:$PATH"
@@ -72,6 +71,7 @@ RUN echo "PATH=${PATH}" > "${ENV}"
 
 RUN curl https://pyenv.run | bash
 
+COPY ./provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
 # Install Python versions
 
 ARG TESTING
@@ -90,6 +90,13 @@ ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
 ENV MATERIALIZE_NO_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_no_ts.sql"
 ENV MATERIALIZE_TIMESTAMP_QUERY_PATH="/app/provider/queries/materialize_ts.sql"
 
+COPY --from=0 ./app/worker ./worker
+COPY ./provider/scripts/spark/offline_store_spark_runner.py /app/provider/scripts/spark/offline_store_spark_runner.py
+COPY ./provider/scripts/spark/python_packages.sh /app/provider/scripts/spark/python_packages.sh
+COPY ./provider/queries/materialize_no_ts.sql /app/provider/queries/materialize_no_ts.sql
+COPY ./provider/queries/materialize_ts.sql /app/provider/queries/materialize_ts.sql
+
+
 # Take the MD5 hash of the Spark runner script and store it in a file for use by the config package
 # when determining the remove filepath in cloud object storage (e.g. S3). By adding the hash as a suffix
 # to the file, we ensure that different versions of the script are uploaded to cloud object storage
@@ -98,7 +105,5 @@ RUN cat $SPARK_SCRIPT_PATH | md5sum \
   | awk '{print $1}' \
   | xargs echo -n > /app/provider/scripts/spark/offline_store_spark_runner_md5.txt
 
-# Download Shaded Jar
-RUN wget https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop2-2.2.11/gcs-connector-hadoop2-2.2.11-shaded.jar -P /app/provider/scripts/spark/jars/
 
 CMD [ "./worker" ]

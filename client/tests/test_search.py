@@ -5,10 +5,16 @@ import os
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def before_and_after_each(setup_teardown):
+    setup_teardown()
+    yield
+    setup_teardown()
+
+
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
@@ -48,7 +54,6 @@ def test_simple_search(provider_source_fxt, is_local, is_insecure, request):
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
@@ -84,7 +89,6 @@ def test_special_character_search(provider_source_fxt, is_local, is_insecure, re
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
@@ -113,7 +117,6 @@ def test_empty_query_to_search(provider_source_fxt, is_local, is_insecure, reque
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
@@ -139,13 +142,6 @@ def test_query_type_in_search(provider_source_fxt, is_local, is_insecure, reques
         TypeError, match="missing 1 required positional argument: 'raw_query'"
     ):
         phrase = resource_client.search(local=is_local)
-
-
-@pytest.fixture(autouse=True)
-def before_and_after_each(setup_teardown):
-    setup_teardown()
-    yield
-    setup_teardown()
 
 
 def arrange_resources(provider, source, online_store, is_local, is_insecure):

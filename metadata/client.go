@@ -11,10 +11,12 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/featureform/fferr"
 	pb "github.com/featureform/metadata/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	grpc_status "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
@@ -104,6 +106,24 @@ func (client *Client) RequestScheduleChange(ctx context.Context, resID ResourceI
 	return err
 }
 
+func (client *Client) SetStatusError(ctx context.Context, resID ResourceID, status ResourceStatus, jobErr error) error {
+	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
+	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
+	errorStatus, ok := grpc_status.FromError(jobErr)
+	errorProto := errorStatus.Proto()
+	var errorStatusProto *pb.ErrorStatus
+	if ok {
+		errorStatusProto = &pb.ErrorStatus{Code: errorProto.Code, Message: errorProto.Message, Details: errorProto.Details}
+	} else {
+		errorStatusProto = nil
+	}
+
+	resourceStatus := pb.ResourceStatus{Status: pb.ResourceStatus_Status(status), ErrorMessage: jobErr.Error(), ErrorStatus: errorStatusProto}
+	statusRequest := pb.SetStatusRequest{ResourceId: &resourceID, Status: &resourceStatus}
+	_, err := client.GrpcConn.SetResourceStatus(ctx, &statusRequest)
+	return err
+}
+
 func (client *Client) SetStatus(ctx context.Context, resID ResourceID, status ResourceStatus, errorMessage string) error {
 	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
 	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
@@ -141,7 +161,7 @@ func (client *Client) Create(ctx context.Context, def ResourceDef) error {
 	case ModelDef:
 		return client.CreateModel(ctx, casted)
 	default:
-		return fmt.Errorf("%T not implemented in Create", casted)
+		return fferr.NewInvalidArgumentError(fmt.Errorf("%T not implemented in Create", casted))
 	}
 }
 
@@ -182,7 +202,7 @@ func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant)
 	logger := client.Logger.With("ids", ids)
 	stream, err := client.GrpcConn.GetFeatureVariants(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get feature variants: %v", err)
+		return nil, err
 	}
 	go func() {
 		for _, id := range ids {
@@ -293,9 +313,9 @@ func (def FeatureDef) Serialize() (*pb.FeatureVariant, error) {
 	case PythonFunction:
 		serialized.Location = def.Location.(PythonFunction).SerializePythonFunction()
 	case nil:
-		return nil, fmt.Errorf("FeatureDef Columns not set")
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("FeatureDef Columns not set"))
 	default:
-		return nil, fmt.Errorf("FeatureDef Columns has unexpected type %T", x)
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("FeatureDef Columns has unexpected type %T", x))
 	}
 	return serialized, nil
 }
@@ -414,9 +434,9 @@ func (def LabelDef) Serialize() (*pb.LabelVariant, error) {
 	case ResourceVariantColumns:
 		serialized.Location = def.Location.(ResourceVariantColumns).SerializeLabelColumns()
 	case nil:
-		return nil, fmt.Errorf("LabelDef Primary not set")
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("LabelDef Primary not set"))
 	default:
-		return nil, fmt.Errorf("LabelDef Primary has unexpected type %T", x)
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("LabelDef Primary has unexpected type %T", x))
 	}
 	return serialized, nil
 }
@@ -729,9 +749,9 @@ func (s TransformationSource) Serialize() (*pb.SourceVariant_Transformation, err
 			},
 		}
 	case nil:
-		return nil, fmt.Errorf("TransformationSource Type not set")
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("TransformationSource Type not set"))
 	default:
-		return nil, fmt.Errorf("TransformationSource Type has unexpected type %T", x)
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("TransformationSource Type has unexpected type %T", x))
 	}
 	return &pb.SourceVariant_Transformation{
 		Transformation: transformation,
@@ -750,9 +770,9 @@ func (s PrimaryDataSource) Serialize() (*pb.SourceVariant_PrimaryData, error) {
 			},
 		}
 	case nil:
-		return nil, fmt.Errorf("PrimaryDataSource Type not set")
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("PrimaryDataSource Type not set"))
 	default:
-		return nil, fmt.Errorf("PrimaryDataSource Type has unexpected type %T", x)
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("PrimaryDataSource Type has unexpected type %T", x))
 	}
 	return &pb.SourceVariant_PrimaryData{
 		PrimaryData: primaryData,
@@ -782,9 +802,9 @@ func (def SourceDef) Serialize() (*pb.SourceVariant, error) {
 	case PrimaryDataSource:
 		serialized.Definition, err = def.Definition.(PrimaryDataSource).Serialize()
 	case nil:
-		return nil, fmt.Errorf("SourceDef Definition not set")
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("SourceDef Definition not set"))
 	default:
-		return nil, fmt.Errorf("SourceDef Definition has unexpected type %T", x)
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("SourceDef Definition has unexpected type %T", x))
 	}
 	if err != nil {
 		return nil, err
@@ -804,7 +824,7 @@ func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) er
 func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) ([]*SourceVariant, error) {
 	stream, err := client.GrpcConn.GetSourceVariants(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("grpc connect: %w", err)
+		return nil, err
 	}
 	go func() {
 		for _, id := range ids {
@@ -828,7 +848,8 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 func (client *Client) GetSourceVariant(ctx context.Context, id NameVariant) (*SourceVariant, error) {
 	variants, err := client.GetSourceVariants(ctx, []NameVariant{id})
 	if err != nil {
-		return nil, fmt.Errorf("get source variant: %w", err)
+		return nil, err
+
 	}
 	return variants[0], nil
 }
@@ -856,18 +877,24 @@ type sourceVariantStream interface {
 }
 
 func (client *Client) parseSourceVariantStream(stream sourceVariantStream) ([]*SourceVariant, error) {
-	features := make([]*SourceVariant, 0)
+	sourceVariants := make([]*SourceVariant, 0)
 	for {
 		serial, err := stream.Recv()
 		if err == io.EOF {
 			break
 		} else if err != nil {
 			client.Logger.Errorw("Error receiving parsed stream", "error", err)
+			// print if this is a grpc status error
+			if grpcStatus, ok := grpc_status.FromError(err); ok {
+				client.Logger.Errorw("GRPC status error", "code", grpcStatus.Code(), "message", grpcStatus.Message(), "details", grpcStatus.Details())
+			} else {
+				client.Logger.Errorw("Error is not a grpc status error", "error", err)
+			}
 			return nil, err
 		}
-		features = append(features, wrapProtoSourceVariant(serial))
+		sourceVariants = append(sourceVariants, wrapProtoSourceVariant(serial))
 	}
-	return features, nil
+	return sourceVariants, nil
 }
 
 func (client *Client) ListUsers(ctx context.Context) ([]*User, error) {
@@ -1453,6 +1480,63 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 	}
 }
 
+func columnsToMap(columns ResourceVariantColumns) map[string]string {
+	columnNameValues := reflect.ValueOf(columns)
+	featureColumns := make(map[string]string)
+	for i := 0; i < columnNameValues.NumField(); i++ {
+		featureColumns[columnNameValues.Type().Field(i).Name] = fmt.Sprintf("%v", columnNameValues.Field(i).Interface())
+	}
+	return featureColumns
+}
+
+func (variant *FeatureVariant) ToShallowMap() FeatureVariantResource {
+	fv := FeatureVariantResource{}
+	switch variant.Mode() {
+	case PRECOMPUTED:
+		fv = FeatureVariantResource{
+			Created:     variant.Created(),
+			Description: variant.Description(),
+			Entity:      variant.Entity(),
+			Name:        variant.Name(),
+			DataType:    variant.Type(),
+			Variant:     variant.Variant(),
+			Owner:       variant.Owner(),
+			Provider:    variant.Provider(),
+			Source:      variant.Source(),
+			Location:    columnsToMap(variant.LocationColumns().(ResourceVariantColumns)),
+			Status:      variant.Status().String(),
+			Error:       variant.Error(),
+			Tags:        variant.Tags(),
+			Properties:  variant.Properties(),
+			Mode:        variant.Mode().String(),
+			IsOnDemand:  variant.IsOnDemand(),
+		}
+	case CLIENT_COMPUTED:
+		location := make(map[string]string)
+		if pyFunc, ok := variant.LocationFunction().(PythonFunction); ok {
+			location["query"] = string(pyFunc.Query)
+		}
+		fv = FeatureVariantResource{
+			Created:     variant.Created(),
+			Description: variant.Description(),
+			Name:        variant.Name(),
+			Variant:     variant.Variant(),
+			Owner:       variant.Owner(),
+			Location:    location,
+			Status:      variant.Status().String(),
+			Error:       variant.Error(),
+			Tags:        variant.Tags(),
+			Properties:  variant.Properties(),
+			Mode:        variant.Mode().String(),
+			IsOnDemand:  variant.IsOnDemand(),
+			Definition:  variant.Definition(),
+		}
+	default:
+		fmt.Printf("Unknown computation mode %v\n", variant.Mode())
+	}
+	return fv
+}
+
 func (variant *FeatureVariant) Name() string {
 	return variant.serialized.GetName()
 }
@@ -1486,7 +1570,7 @@ func (variant *FeatureVariant) Status() ResourceStatus {
 
 func (variant *FeatureVariant) Error() string {
 	if variant.serialized.GetStatus() != nil {
-		return variant.serialized.GetStatus().ErrorMessage
+		return fferr.ToDashboardError(variant.serialized.GetStatus())
 	}
 	return ""
 }
@@ -1604,7 +1688,7 @@ func (user *User) Status() ResourceStatus {
 
 func (user *User) Error() string {
 	if user.serialized.GetStatus() != nil {
-		return user.serialized.GetStatus().ErrorMessage
+		return fferr.ToDashboardError(user.serialized.GetStatus())
 	}
 	return ""
 }
@@ -1783,6 +1867,25 @@ func wrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
 	}
 }
 
+func (variant *LabelVariant) ToShallowMap() LabelVariantResource {
+	return LabelVariantResource{
+		Created:     variant.Created(),
+		Description: variant.Description(),
+		Entity:      variant.Entity(),
+		Name:        variant.Name(),
+		DataType:    variant.Type(),
+		Variant:     variant.Variant(),
+		Owner:       variant.Owner(),
+		Provider:    variant.Provider(),
+		Source:      variant.Source(),
+		Location:    columnsToMap(variant.LocationColumns().(ResourceVariantColumns)),
+		Status:      variant.Status().String(),
+		Error:       variant.Error(),
+		Tags:        variant.Tags(),
+		Properties:  variant.Properties(),
+	}
+}
+
 func (variant *LabelVariant) Name() string {
 	return variant.serialized.GetName()
 }
@@ -1816,7 +1919,7 @@ func (variant *LabelVariant) Status() ResourceStatus {
 
 func (variant *LabelVariant) Error() string {
 	if variant.serialized.GetStatus() != nil {
-		return variant.serialized.GetStatus().ErrorMessage
+		return fferr.ToDashboardError(variant.serialized.GetStatus())
 	}
 	return ""
 }
@@ -1889,6 +1992,22 @@ func wrapProtoTrainingSetVariant(serialized *pb.TrainingSetVariant) *TrainingSet
 	}
 }
 
+func (variant *TrainingSetVariant) ToShallowMap() TrainingSetVariantResource {
+	return TrainingSetVariantResource{
+		Created:     variant.Created(),
+		Description: variant.Description(),
+		Name:        variant.Name(),
+		Variant:     variant.Variant(),
+		Owner:       variant.Owner(),
+		Provider:    variant.Provider(),
+		Label:       variant.Label(),
+		Status:      variant.Status().String(),
+		Error:       variant.Error(),
+		Tags:        variant.Tags(),
+		Properties:  variant.Properties(),
+	}
+}
+
 func (variant *TrainingSetVariant) Name() string {
 	return variant.serialized.GetName()
 }
@@ -1916,7 +2035,7 @@ func (variant *TrainingSetVariant) Error() string {
 	if variant.serialized.GetStatus() == nil {
 		return ""
 	}
-	return variant.serialized.GetStatus().ErrorMessage
+	return fferr.ToDashboardError(variant.serialized.GetStatus())
 }
 
 func (variant *TrainingSetVariant) Label() NameVariant {
@@ -2048,6 +2167,38 @@ func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
 	}
 }
 
+func (variant *SourceVariant) getInputs() []NameVariant {
+	if variant.IsSQLTransformation() {
+		return variant.SQLTransformationSources()
+	} else if variant.IsDFTransformation() {
+		return variant.DFTransformationSources()
+	} else {
+		return []NameVariant{}
+	}
+}
+
+func (variant *SourceVariant) ToShallowMap() SourceVariantResource {
+	return SourceVariantResource{
+		Name:           variant.Name(),
+		Variant:        variant.Variant(),
+		Definition:     getSourceString(variant),
+		Owner:          variant.Owner(),
+		Description:    variant.Description(),
+		Provider:       variant.Provider(),
+		Created:        variant.Created(),
+		Status:         variant.Status().String(),
+		LastUpdated:    variant.LastUpdated(),
+		Schedule:       variant.Schedule(),
+		Tags:           variant.Tags(),
+		SourceType:     getSourceType(variant),
+		Properties:     variant.Properties(),
+		Error:          variant.Error(),
+		Specifications: getSourceArgs(variant),
+		Inputs:         variant.getInputs(),
+	}
+
+}
+
 func (variant *SourceVariant) Name() string {
 	return variant.serialized.GetName()
 }
@@ -2083,7 +2234,7 @@ func (variant *SourceVariant) Error() string {
 	if variant.serialized.GetStatus() == nil {
 		return ""
 	}
-	return variant.serialized.GetStatus().ErrorMessage
+	return fferr.ToDashboardError(variant.serialized.GetStatus())
 }
 
 func (variant *SourceVariant) IsTransformation() bool {
@@ -2229,7 +2380,7 @@ func (entity *Entity) Error() string {
 	if entity.serialized.GetStatus() == nil {
 		return ""
 	}
-	return entity.serialized.GetStatus().ErrorMessage
+	return fferr.ToDashboardError(entity.serialized.GetStatus())
 }
 
 func (entity *Entity) Tags() Tags {
@@ -2243,10 +2394,12 @@ func (entity *Entity) Properties() Properties {
 func NewClient(host string, logger *zap.SugaredLogger) (*Client, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		// grpc.WithUnaryInterceptor(fferr.UnaryClientInterceptor()),
+		// grpc.WithStreamInterceptor(fferr.StreamClientInterceptor()),
 	}
 	conn, err := grpc.Dial(host, opts...)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	client := pb.NewMetadataClient(conn)
 	return &Client{
@@ -2257,5 +2410,7 @@ func NewClient(host string, logger *zap.SugaredLogger) (*Client, error) {
 }
 
 func (client *Client) Close() {
-	client.conn.Close()
+	if err := client.conn.Close(); err != nil {
+		client.Logger.Errorw("Failed to close connection", "Err", err)
+	}
 }

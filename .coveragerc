@@ -1,0 +1,14 @@
+[run]
+branch = True
+omit = client/src/featureform/proto/*
+
+[report]
+
+ignore_errors = True
+omit =
+    */conftest.py
+    */tests/*
+    client/src/featureform/proto/*
+
+[html]
+directory = coverage

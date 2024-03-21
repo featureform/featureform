@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"github.com/featureform/fferr"
 
 	ss "github.com/featureform/helpers/string_set"
 )
@@ -16,7 +17,7 @@ type S3FileStoreConfig struct {
 func (s *S3FileStoreConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, s)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -24,7 +25,7 @@ func (s *S3FileStoreConfig) Deserialize(config SerializedConfig) error {
 func (s *S3FileStoreConfig) Serialize() ([]byte, error) {
 	conf, err := json.Marshal(s)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	return conf, nil
 }
@@ -53,7 +54,7 @@ type HDFSFileStoreConfig struct {
 func (s *HDFSFileStoreConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, s)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -61,11 +62,15 @@ func (s *HDFSFileStoreConfig) Deserialize(config SerializedConfig) error {
 func (s *HDFSFileStoreConfig) Serialize() ([]byte, error) {
 	conf, err := json.Marshal(s)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	return conf, nil
 }
 
 func (s *HDFSFileStoreConfig) IsFileStoreConfig() bool {
 	return true
+}
+
+func (s HDFSFileStoreConfig) DifferingFields(b HDFSFileStoreConfig) (ss.StringSet, error) {
+	return differingFields(s, b)
 }

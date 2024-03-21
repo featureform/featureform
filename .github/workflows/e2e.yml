@@ -18,6 +18,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and export
         uses: docker/build-push-action@v3
@@ -27,6 +30,8 @@ jobs:
           tags: local/api-server:stable
           push: false
           outputs: type=docker,dest=/tmp/api-server.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Upload image
         uses: actions/upload-artifact@v3
@@ -45,6 +50,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and export
         uses: docker/build-push-action@v3
@@ -54,6 +62,9 @@ jobs:
           tags: local/backup:stable
           push: false
           outputs: type=docker,dest=/tmp/backup.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Upload image
         uses: actions/upload-artifact@v3
         with:
@@ -97,6 +108,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and export
         uses: docker/build-push-action@v3
@@ -106,6 +120,9 @@ jobs:
           tags: local/dashboard:stable
           push: false
           outputs: type=docker,dest=/tmp/dashboard.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Upload image
         uses: actions/upload-artifact@v3
         with:
@@ -123,6 +140,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and export
         uses: docker/build-push-action@v3
@@ -132,6 +152,9 @@ jobs:
           tags: local/metadata:stable
           push: false
           outputs: type=docker,dest=/tmp/metadata.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Upload image
         uses: actions/upload-artifact@v3
         with:
@@ -149,6 +172,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and export
         uses: docker/build-push-action@v3
@@ -158,6 +184,8 @@ jobs:
           tags: local/metadata-dashboard:stable
           push: false
           outputs: type=docker,dest=/tmp/metadata-dashboard.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Upload image
         uses: actions/upload-artifact@v3
@@ -176,6 +204,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and export
         uses: docker/build-push-action@v3
@@ -185,6 +216,8 @@ jobs:
           tags: local/serving:stable
           push: false
           outputs: type=docker,dest=/tmp/serving.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Upload image
         uses: actions/upload-artifact@v3
@@ -229,6 +262,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       # Manual build and save b/c Github Actions not setting docker env properly
       - name: Build Base
@@ -354,7 +390,7 @@ jobs:
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
           helm install certmgr jetstack/cert-manager --set installCRDs=true --version v1.8.0 --namespace cert-manager --create-namespace
-          helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable --set backup.enabled=true --set backup.schedule="* * * * *"
+          helm install featureform ./charts/featureform --set repository=local --set pullPolicy=Never --set version=stable --set backup.enabled=true --set backup.schedule="* * * * *"
 
       - name: Create Secret
         env:

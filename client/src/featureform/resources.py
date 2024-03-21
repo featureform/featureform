@@ -2,25 +2,23 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import base64
 import json
 import os
 import re
 import sys
-import time
 from abc import ABC
-from typing import Any
+from typing import Any, Dict
 from typing import List, Tuple, Union, Optional
 
 import dill
 import grpc
 from dataclasses import field
 from google.protobuf.duration_pb2 import Duration
+from google.rpc import error_details_pb2
 
 from . import feature_flag
 from .enums import *
 from .exceptions import *
-from .sqlite_metadata import SQLiteMetadata
 from .version import check_up_to_date
 
 NameVariant = Tuple[str, str]
@@ -598,12 +596,41 @@ class PostgresConfig:
 
 @typechecked
 @dataclass
-class RedshiftConfig:
+class ClickHouseConfig:
     host: str
     port: int
     database: str
     user: str
     password: str
+    ssl: bool
+
+    def software(self) -> str:
+        return "clickhouse"
+
+    def type(self) -> str:
+        return "CLICKHOUSE_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Host": self.host,
+            "Port": self.port,
+            "Username": self.user,
+            "Password": self.password,
+            "Database": self.database,
+            "SSL": self.ssl,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+
+@typechecked
+@dataclass
+class RedshiftConfig:
+    host: str
+    port: str
+    database: str
+    user: str
+    password: str
+    sslmode: str
 
     def software(self) -> str:
         return "redshift"
@@ -614,10 +641,11 @@ class RedshiftConfig:
     def serialize(self) -> bytes:
         config = {
             "Host": self.host,
-            "Port": str(self.port),
+            "Port": self.port,
             "Username": self.user,
             "Password": self.password,
             "Database": self.database,
+            "SSLMode": self.sslmode,
         }
         return bytes(json.dumps(config), "utf-8")
 
@@ -734,27 +762,14 @@ class EmptyConfig:
         return self
 
 
-@typechecked
-@dataclass
-class LocalConfig:
-    def software(self) -> str:
-        return "localmode"
-
-    def type(self) -> str:
-        return "LOCAL_ONLINE"
-
-    def serialize(self) -> bytes:
-        return bytes(json.dumps({}), "utf-8")
-
-
 Config = Union[
     RedisConfig,
     PineconeConfig,
     SnowflakeConfig,
     PostgresConfig,
+    ClickHouseConfig,
     RedshiftConfig,
     PineconeConfig,
-    LocalConfig,
     BigQueryConfig,
     FirestoreConfig,
     SparkConfig,
@@ -783,6 +798,45 @@ class Properties:
             self.serialized.property[key].string_value = val
 
 
+@dataclass
+class ErrorInfo:
+    code: int
+    message: str
+    reason: str
+    metadata: Dict[str, str]
+
+
+@dataclass
+class ServerStatus:
+    status: ResourceStatus
+    error_info: Optional[ErrorInfo]
+
+    @staticmethod
+    def from_proto(resource_status_proto: pb.ResourceStatus):
+        error_info = None
+        if resource_status_proto.HasField("error_status"):
+            code = resource_status_proto.error_status.code
+            message = resource_status_proto.error_status.message
+
+            error = resource_status_proto.error_status.details[0]
+            error_info = error_details_pb2.ErrorInfo()
+            if error.Is(error_details_pb2.ErrorInfo.DESCRIPTOR):
+                error.Unpack(error_info)
+                error_info = ErrorInfo(
+                    code=code,
+                    message=message,
+                    reason=error_info.reason,
+                    metadata=error_info.metadata,
+                )
+            else:
+                print("The Any field does not contain an ErrorInfo")
+
+        return ServerStatus(
+            status=ResourceStatus.from_proto(resource_status_proto),
+            error_info=error_info,
+        )
+
+
 @typechecked
 @dataclass
 class Provider:
@@ -795,9 +849,20 @@ class Provider:
     tags: list = field(default_factory=list)
     properties: dict = field(default_factory=dict)
     error: Optional[str] = None
+    has_health_check: bool = False
+    server_status: Optional["ServerStatus"] = None
 
     def __post_init__(self):
         self.software = self.config.software() if self.config is not None else None
+        if self.config.type() in [
+            "REDIS_ONLINE",
+            "DYNAMODB_ONLINE",
+            "POSTGRES_OFFLINE",
+            "SPARK_OFFLINE",
+            "REDSHIFT_OFFLINE",
+            "CLICKHOUSE_OFFLINE",
+        ]:
+            self.has_health_check = True
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -823,6 +888,7 @@ class Provider:
                 provider.status.status
             ].name,
             error=provider.status.error_message,
+            server_status=ServerStatus.from_proto(provider.status),
         )
 
     def _create(self, stub) -> None:
@@ -837,26 +903,6 @@ class Provider:
             properties=Properties(self.properties).serialized,
         )
         stub.CreateProvider(serialized)
-
-    def _create_local(self, db) -> None:
-        db.insert(
-            "providers",
-            self.name,
-            "Provider",
-            self.description,
-            self.config.type(),
-            self.config.software(),
-            self.team,
-            "sources",
-            "ready",
-            str(self.config.serialize(), "utf-8"),
-        )
-        if len(self.tags):
-            db.upsert("tags", self.name, "", "providers", json.dumps(self.tags))
-        if len(self.properties):
-            db.upsert(
-                "properties", self.name, "", "providers", json.dumps(self.properties)
-            )
 
     def to_dictionary(self):
         return {
@@ -895,13 +941,6 @@ class User:
         )
         stub.CreateUser(serialized)
 
-    def _create_local(self, db) -> None:
-        db.insert("users", self.name, "User", "ready")
-        if len(self.tags):
-            db.upsert("tags", self.name, "", "users", json.dumps(self.tags))
-        if len(self.properties):
-            db.upsert("properties", self.name, "", "users", json.dumps(self.properties))
-
     def to_dictionary(self):
         return {
             "name": self.name,
@@ -929,10 +968,14 @@ Location = Union[SQLTable, Directory]
 class ResourceVariant(ABC):
     name: str
     variant: str
+    server_status: ServerStatus
 
     @staticmethod
     def type():
         raise NotImplementedError
+
+    def name_variant(self):
+        return self.name, self.variant
 
     def to_key(self) -> Tuple[str, str, str]:
         return self.type(), self.name, self.variant
@@ -967,23 +1010,62 @@ class Transformation:
 @dataclass
 class SQLTransformation(Transformation):
     query: str
-    args: K8sArgs = None
+    args: Optional[K8sArgs] = None
+    func_params_to_inputs: Dict[str, Any] = field(default_factory=dict)
 
-    def type(self):
+    _sql_placeholder_regex: str = field(
+        default=r"\{\{\s*\w+\s*\}\}", init=False, repr=False
+    )
+
+    def __post_init__(self):
+        self._validate_inputs_to_func_params(self.func_params_to_inputs)
+
+    def type(self) -> str:
+        """Return the type of the SQL transformation."""
         return SourceType.SQL_TRANSFORMATION.value
 
-    def kwargs(self):
+    def kwargs(self) -> Dict[str, pb.Transformation]:
+        """Construct kwargs for the SQL transformation."""
+        input_to_name_variant = self._resolve_input_variants()
+
+        # Find and replace placeholders in the query with source name variants
+        final_query = self.query
+        for placeholder in self._get_placeholders():
+            clean_placeholder = placeholder.strip(" {}")
+            name_variant = input_to_name_variant[clean_placeholder]
+            replacement = "{{ " + f"{name_variant[0]}.{name_variant[1]}" + " }}"
+            final_query = final_query.replace(placeholder, replacement)
+
         transformation = pb.Transformation(
-            SQLTransformation=pb.SQLTransformation(
-                query=self.query,
-                # We do not set the sources here as the backend figures it out
-            )
+            SQLTransformation=pb.SQLTransformation(query=final_query)
         )
 
         if self.args is not None:
             transformation = self.args.apply(transformation)
 
         return {"transformation": transformation}
+
+    def _validate_inputs_to_func_params(self, inputs: Dict[str, Any]) -> None:
+        # Find and replace placeholders in the query with source name variants
+        for placeholder in self._get_placeholders():
+            clean_placeholder = placeholder.strip(" {}")
+            if clean_placeholder not in self.func_params_to_inputs.keys():
+                raise ValueError(
+                    f"SQL placeholder '{placeholder}' not found in input arguments. "
+                    f"Available input arguments: {', '.join(inputs.keys())}.\n"
+                    f"Expected inputs based on function parameters: {', '.join(self.func_params_to_inputs.keys())}."
+                )
+
+    def _resolve_input_variants(self) -> Dict[str, Any]:
+        """Resolve inputs to their name variants."""
+        return {
+            func_param: inp.name_variant() if hasattr(inp, "name_variant") else inp
+            for func_param, inp in self.func_params_to_inputs.items()
+        }
+
+    def _get_placeholders(self) -> List[str]:
+        """Get placeholders from the query."""
+        return re.findall(self._sql_placeholder_regex, self.query)
 
 
 @typechecked
@@ -1063,6 +1145,7 @@ class SourceVariant(ResourceVariant):
     transformation: str = ""
     inputs: list = ([],)
     error: Optional[str] = None
+    server_status: Optional[ServerStatus] = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1098,6 +1181,7 @@ class SourceVariant(ResourceVariant):
             properties={k: v for k, v in source.properties.property.items()},
             status=source.status.Status._enum_type.values[source.status.status].name,
             error=source.status.error_message,
+            server_status=ServerStatus.from_proto(source.status),
         )
 
     def _get_source_definition(self, source):
@@ -1141,69 +1225,6 @@ class SourceVariant(ResourceVariant):
         stub.CreateSourceVariant(serialized)
         return serialized.variant
 
-    def _create_local(self, db) -> None:
-        should_insert_text = False
-        source_text = ""
-        self.source_type = "Source"
-        if type(self.definition) == DFTransformation:
-            should_insert_text = True
-            self.is_transformation = SourceType.DF_TRANSFORMATION.value
-            source_text = self.definition.source_text
-            self.inputs = self.definition.inputs
-            self.definition = self.definition.query
-            self.source_text = source_text
-            self.source_type = "Dataframe Transformation"
-        elif type(self.definition) == SQLTransformation:
-            self.is_transformation = SourceType.SQL_TRANSFORMATION.value
-            self.definition = self.definition.query
-        elif type(self.definition) == PrimaryData:
-            if isinstance(self.definition.location, Directory):
-                self.definition = self.definition.path()
-                self.is_transformation = SourceType.DIRECTORY.value
-            elif isinstance(self.definition.location, SQLTable):
-                self.definition = self.definition.name()
-                self.is_transformation = SourceType.PRIMARY_SOURCE.value
-            else:
-                raise ValueError(
-                    f"Invalid Primary Data Type {self.definition.location}"
-                )
-        db.insert_source(
-            "source_variant",
-            str(time.time()),
-            self.description,
-            self.name,
-            self.source_type,
-            self.owner,
-            self.provider,
-            self.variant,
-            "ready",
-            self.is_transformation,
-            json.dumps(self.inputs),
-            self.definition,
-        )
-
-        if should_insert_text:
-            db.insert_source_variant_text(
-                str(time.time()), self.name, self.variant, source_text
-            )
-
-        if len(self.tags):
-            db.upsert(
-                "tags", self.name, self.variant, "source_variant", json.dumps(self.tags)
-            )
-        if len(self.properties):
-            db.upsert(
-                "properties",
-                self.name,
-                self.variant,
-                "source_variant",
-                json.dumps(self.properties),
-            )
-        self._create_source_resource(db)
-
-    def _create_source_resource(self, db) -> None:
-        db.insert("sources", "Source", self.variant, self.name)
-
     def get_status(self):
         return ResourceStatus(self.status)
 
@@ -1239,15 +1260,6 @@ class Entity:
             properties=Properties(self.properties).serialized,
         )
         stub.CreateEntity(serialized)
-
-    def _create_local(self, db) -> None:
-        db.insert("entities", self.name, "Entity", self.description, "ready")
-        if len(self.tags):
-            db.upsert("tags", self.name, "", "entities", json.dumps(self.tags))
-        if len(self.properties):
-            db.upsert(
-                "properties", self.name, "", "entities", json.dumps(self.properties)
-            )
 
     def to_dictionary(self):
         return {
@@ -1337,6 +1349,7 @@ class FeatureVariant(ResourceVariant):
     status: str = "NO_STATUS"
     error: Optional[str] = None
     additional_parameters: Optional[Additional_Parameters] = None
+    server_status: Optional[ServerStatus] = None
 
     def __post_init__(self):
         col_types = [member.value for member in ScalarType]
@@ -1383,6 +1396,7 @@ class FeatureVariant(ResourceVariant):
             properties={k: v for k, v in feature.properties.property.items()},
             status=feature.status.Status._enum_type.values[feature.status.status].name,
             error=feature.status.error_message,
+            server_status=ServerStatus.from_proto(feature.status),
             additional_parameters=None,
         )
 
@@ -1416,65 +1430,6 @@ class FeatureVariant(ResourceVariant):
         stub.CreateFeatureVariant(serialized)
         return serialized.variant
 
-    def _create_local(self, db) -> None:
-        if hasattr(self.source, "name_variant"):
-            self.source = self.source.name_variant()
-        if self.provider == "":
-            self.provider = "local-mode"
-        db.insert(
-            "feature_variant",
-            str(time.time()),
-            self.description,
-            self.entity,
-            self.name,
-            self.owner,
-            self.provider,
-            self.value_type,
-            self.variant,
-            "ready",
-            self.location.entity,
-            self.location.timestamp,
-            self.location.value,
-            self.source[0],
-            self.source[1],
-            self.is_embedding,
-            self.dims,
-        )
-        if len(self.tags):
-            db.upsert(
-                "tags",
-                self.name,
-                self.variant,
-                "feature_variant",
-                json.dumps(self.tags),
-            )
-        if len(self.properties):
-            db.upsert(
-                "properties",
-                self.name,
-                self.variant,
-                "feature_variant",
-                json.dumps(self.properties),
-            )
-
-        self._write_feature_variant_and_mode(db)
-
-    def _write_feature_variant_and_mode(self, db) -> None:
-        db.insert(
-            "features",
-            self.name,
-            self.variant,
-            self.value_type,
-        )
-        is_on_demand = 0
-        db.insert(
-            "feature_computation_mode",
-            self.name,
-            self.variant,
-            ComputationMode.PRECOMPUTED.value,
-            is_on_demand,
-        )
-
     def get_status(self):
         return ResourceStatus(self.status)
 
@@ -1484,7 +1439,7 @@ class FeatureVariant(ResourceVariant):
 
 @typechecked
 @dataclass
-class OnDemandFeatureVariant:
+class OnDemandFeatureVariant(ResourceVariant):
     owner: str
     variant: str
     tags: List[str] = field(default_factory=list)
@@ -1494,6 +1449,7 @@ class OnDemandFeatureVariant:
     status: str = "READY"
     error: Optional[str] = None
     additional_parameters: Optional[Additional_Parameters] = None
+    server_status: Optional[ServerStatus] = None
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:
@@ -1535,55 +1491,6 @@ class OnDemandFeatureVariant:
         _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
         return serialized.variant
-
-    def _create_local(self, db) -> None:
-        decode_query = base64.b64encode(self.query).decode("ascii")
-
-        db.insert(
-            "ondemand_feature_variant",
-            str(time.time()),
-            self.description,
-            self.name,
-            self.owner,
-            self.variant,
-            "ready",
-            decode_query,
-        )
-        if self.tags and len(self.tags):
-            db.upsert(
-                "tags",
-                self.name,
-                self.variant,
-                "feature_variant",
-                json.dumps(self.tags),
-            )
-        if len(self.properties):
-            db.upsert(
-                "properties",
-                self.name,
-                self.variant,
-                "feature_variant",
-                json.dumps(self.properties),
-            )
-
-        self._write_feature_variant_and_mode(db)
-
-    def _write_feature_variant_and_mode(self, db) -> None:
-        db.insert(
-            "features",
-            self.name,
-            self.variant,
-            "tbd",
-        )
-        is_on_demand = 1
-
-        db.insert(
-            "feature_computation_mode",
-            self.name,
-            self.variant,
-            ComputationMode.CLIENT_COMPUTED.value,
-            is_on_demand,
-        )
 
     def get(self, stub) -> "OnDemandFeatureVariant":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
@@ -1646,6 +1553,7 @@ class LabelVariant(ResourceVariant):
     created: str = None
     status: str = "NO_STATUS"
     error: Optional[str] = None
+    server_status: Optional[ServerStatus] = None
 
     def __post_init__(self):
         col_types = [member.value for member in ScalarType]
@@ -1679,6 +1587,7 @@ class LabelVariant(ResourceVariant):
             tags=list(label.tags.tag),
             properties={k: v for k, v in label.properties.property.items()},
             status=label.status.Status._enum_type.values[label.status.status].name,
+            server_status=ServerStatus.from_proto(label.status),
             error=label.status.error_message,
         )
 
@@ -1704,43 +1613,6 @@ class LabelVariant(ResourceVariant):
         _get_and_set_equivalent_variant(serialized, "label_variant", stub)
         stub.CreateLabelVariant(serialized)
         return serialized.variant
-
-    def _create_local(self, db) -> None:
-        if hasattr(self.source, "name_variant"):
-            self.source = self.source.name_variant()
-        db.insert(
-            "label_variant",
-            str(time.time()),
-            self.description,
-            self.entity,
-            self.name,
-            self.owner,
-            self.provider,
-            self.value_type,
-            self.variant,
-            self.location.entity,
-            self.location.timestamp,
-            self.location.value,
-            "ready",
-            self.source[0],
-            self.source[1],
-        )
-        if len(self.tags):
-            db.upsert(
-                "tags", self.name, self.variant, "label_variant", json.dumps(self.tags)
-            )
-        if len(self.properties):
-            db.upsert(
-                "properties",
-                self.name,
-                self.variant,
-                "label_variant",
-                json.dumps(self.properties),
-            )
-        self._create_label_resource(db)
-
-    def _create_label_resource(self, db) -> None:
-        db.insert("labels", self.value_type, self.variant, self.name)
 
     def get_status(self):
         return ResourceStatus(self.status)
@@ -1771,12 +1643,6 @@ class EntityReference:
         except grpc._channel._MultiThreadedRendezvous:
             raise ValueError(f"Entity {self.name} not found.")
 
-    def _get_local(self, db):
-        local_entity = db.query_resource("entities", "name", self.name)
-        if local_entity == []:
-            raise ValueError(f"Entity {self.name} not found.")
-        self.obj = local_entity
-
 
 @typechecked
 @dataclass
@@ -1803,12 +1669,6 @@ class ProviderReference:
                 f"Provider {self.name} of type {self.provider_type} not found."
             )
 
-    def _get_local(self, db):
-        local_provider = db.query_resource("providers", "name", self.name)
-        if local_provider == []:
-            raise ValueError("Local mode provider not found.")
-        self.obj = local_provider
-
 
 @typechecked
 @dataclass
@@ -1834,12 +1694,6 @@ class SourceReference:
                 self.obj = source
         except grpc._channel._MultiThreadedRendezvous:
             raise ValueError(f"Source {self.name}, variant {self.variant} not found.")
-
-    def _get_local(self, db):
-        local_source = db.get_source_variant(self.name, self.variant)
-        if local_source == []:
-            raise ValueError(f"Source {self.name}, variant {self.variant} not found.")
-        self.obj = local_source
 
 
 @typechecked
@@ -1875,6 +1729,7 @@ class TrainingSetVariant(ResourceVariant):
     provider: str = ""
     status: str = "NO_STATUS"
     error: Optional[str] = None
+    server_status: Optional[ServerStatus] = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1926,6 +1781,7 @@ class TrainingSetVariant(ResourceVariant):
             tags=list(ts.tags.tag),
             properties={k: v for k, v in ts.properties.property.items()},
             error=ts.status.error_message,
+            server_status=ServerStatus.from_proto(ts.status),
         )
 
     def _create(self, stub) -> Optional[str]:
@@ -1966,99 +1822,6 @@ class TrainingSetVariant(ResourceVariant):
         stub.CreateTrainingSetVariant(serialized)
         return serialized.variant
 
-    def _create_local(self, db) -> None:
-        self._check_insert_training_set_resources(db)
-        db.insert(
-            "training_set_variant",
-            str(time.time()),
-            self.description,
-            self.name,
-            self.owner,
-            self.variant,
-            self.label[0],
-            self.label[1],
-            "ready",
-        )
-        if len(self.tags):
-            db.upsert(
-                "tags",
-                self.name,
-                self.variant,
-                "training_set_variant",
-                json.dumps(self.tags),
-            )
-        if len(self.properties):
-            db.upsert(
-                "properties",
-                self.name,
-                self.variant,
-                "training_set_variant",
-                json.dumps(self.properties),
-            )
-        self._create_training_set_resource(db)
-
-    def _create_training_set_resource(self, db) -> None:
-        db.insert("training_sets", "TrainingSet", self.variant, self.name)
-
-    def _check_insert_training_set_resources(self, db) -> None:
-        try:
-            db.get_label_variant(self.label[0], self.label[1])
-        except ValueError:
-            raise LabelNotFound(
-                self.label[0], self.label[1], message="Failed to register training set."
-            )
-
-        for feature_name, feature_variant in self.features:
-            try:
-                is_on_demand = db.get_feature_variant_on_demand(
-                    feature_name, feature_variant
-                )
-                if is_on_demand:
-                    raise InvalidTrainingSetFeatureComputationMode(
-                        feature_name, feature_variant
-                    )
-            except InvalidTrainingSetFeatureComputationMode as e:
-                raise e
-            except Exception as e:
-                raise FeatureNotFound(
-                    feature_name,
-                    feature_variant,
-                    message=f"Failed to register training set. Error: {e}",
-                )
-
-            db.insert(
-                "training_set_features",
-                self.name,
-                self.variant,
-                feature_name,  # feature name
-                feature_variant,  # feature variant
-            )
-
-        for feature in self.feature_lags:
-            feature_name = feature["feature"]
-            feature_variant = feature["variant"]
-            feature_new_name = feature["name"]
-            feature_lag = feature["lag"].total_seconds()
-
-            try:
-                db.get_feature_variant(feature_name, feature_variant)
-            except Exception as e:
-                raise FeatureNotFound(
-                    feature_name,
-                    feature_variant,
-                    message=f"Failed to register training set. Error: {e}",
-                )
-
-            db.insert(
-                "training_set_lag_features",
-                self.name,
-                self.variant,
-                feature_name,  # feature name
-                feature_variant,  # feature variant
-                feature_new_name,  # feature new name
-                feature_lag,  # feature_lag
-            )
-
     def get_status(self):
         return ResourceStatus(self.status)
 
@@ -2089,19 +1852,6 @@ class Model:
             properties=Properties(self.properties).serialized,
         )
         stub.CreateModel(serialized)
-
-    def _create_local(self, db) -> None:
-        db.insert(
-            "models",
-            self.name,
-            "Model",
-        )
-        if len(self.tags):
-            db.upsert("tags", self.name, "", "models", json.dumps(self.tags))
-        if len(self.properties):
-            db.upsert(
-                "properties", self.name, "", "models", json.dumps(self.properties)
-            )
 
     def to_dictionary(self):
         return {
@@ -2200,33 +1950,6 @@ class ResourceState:
                 print("Getting", resource.type(), resource.name)
             if resource.operation_type() is OperationType.CREATE:
                 print("Creating", resource.type(), resource.name)
-
-    def create_all_local(self) -> None:
-        db = SQLiteMetadata()
-        check_up_to_date(True, "register")
-        features = []
-        for resource in self.sorted_list():
-            if isinstance(resource, FeatureVariant):
-                features.append(resource)
-            resource_variant = (
-                f" {resource.variant}" if hasattr(resource, "variant") else ""
-            )
-            if resource.operation_type() is OperationType.GET:
-                print("Getting", resource.type(), resource.name, resource_variant)
-                resource._get_local(db)
-
-            if resource.operation_type() is OperationType.CREATE:
-                if resource.name != "default_user":
-                    print("Creating", resource.type(), resource.name, resource_variant)
-                resource._create_local(db)
-        db.close()
-
-        from .serving import LocalClientImpl
-
-        client = LocalClientImpl()
-        for feature in features:
-            client.compute_feature(feature.name, feature.variant, feature.entity)
-        return
 
     def create_all(self, stub, client_objs_for_resource: dict = None) -> None:
         check_up_to_date(False, "register")

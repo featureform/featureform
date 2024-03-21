@@ -213,6 +213,10 @@ func (M MockUnitTestOfflineStore) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 
+func (M MockUnitTestOfflineStore) ResourceLocation(id ResourceID) (string, error) {
+	return id.ToFilestorePath(), nil
+}
+
 type MockMaterialization struct{}
 
 func (m MockMaterialization) ID() MaterializationID {
@@ -281,4 +285,8 @@ func (m MockUnitTestOfflineStore) CreateTrainingSet(TrainingSetDef) error {
 
 func (m MockUnitTestOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
 	return nil, nil
+}
+
+func (m MockUnitTestOfflineStore) GetTrainingSetTestSplit(id ResourceID, testSize float32, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
+	return nil, nil, nil, nil
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	_ "github.com/lib/pq"
@@ -15,17 +16,17 @@ type postgresColumnType string
 
 const (
 	pgInt       postgresColumnType = "integer"
-	pgBigInt                       = "bigint"
-	pgFloat                        = "float8"
-	pgString                       = "varchar"
-	pgBool                         = "boolean"
-	pgTimestamp                    = "timestamp with time zone"
+	pgBigInt    postgresColumnType = "bigint"
+	pgFloat     postgresColumnType = "float8"
+	pgString    postgresColumnType = "varchar"
+	pgBool      postgresColumnType = "boolean"
+	pgTimestamp postgresColumnType = "timestamp with time zone"
 )
 
 func postgresOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.PostgresConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, NewProviderError(Runtime, pt.PostgresOffline, ConfigDeserialize, err.Error())
+		return nil, err
 	}
 
 	// We are doing this to support older versions of
@@ -76,25 +77,35 @@ func (q postgresSQLQueries) registerResources(db *sql.DB, tableName string, sche
 	}
 	fmt.Printf("Resource creation query: %s", query)
 	if _, err := db.Exec(query); err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.PostgresOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	return nil
 }
 
 func (q postgresSQLQueries) primaryTableRegister(tableName string, sourceName string) string {
-	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM %s", sanitize(tableName), sourceName)
+	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM %s", sanitize(tableName), sanitize(sourceName))
 }
 
-func (q postgresSQLQueries) materializationCreate(tableName string, sourceName string) string {
-	return fmt.Sprintf(
-		"CREATE MATERIALIZED VIEW IF NOT EXISTS %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
-			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
-			"AS rn FROM %s) t WHERE rn=1);  CREATE UNIQUE INDEX ON %s (entity);", sanitize(tableName), sanitize(sourceName), sanitize(tableName))
+func (q postgresSQLQueries) materializationCreate(tableName string, sourceName string) []string {
+	return []string{
+		fmt.Sprintf(
+			"CREATE MATERIALIZED VIEW IF NOT EXISTS %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
+				"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
+				"AS rn FROM %s) t WHERE rn=1);", sanitize(tableName), sanitize(sourceName)),
+		fmt.Sprintf("CREATE UNIQUE INDEX ON %s (entity);", sanitize(tableName)),
+	}
 }
 
 func (q postgresSQLQueries) materializationUpdate(db *sql.DB, tableName string, sourceName string) error {
-	_, err := db.Exec(fmt.Sprintf("REFRESH MATERIALIZED VIEW CONCURRENTLY %s", sanitize(tableName)))
-	return err
+	if _, err := db.Exec(fmt.Sprintf("REFRESH MATERIALIZED VIEW CONCURRENTLY %s", sanitize(tableName))); err != nil {
+		wrapped := fferr.NewExecutionError(pt.PostgresOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("source_name", sourceName)
+		return wrapped
+	}
+	return nil
 }
 
 func (q postgresSQLQueries) materializationExists() string {
@@ -116,7 +127,7 @@ func (q postgresSQLQueries) determineColumnType(valueType ValueType) (string, er
 	case NilType:
 		return "VARCHAR", nil
 	default:
-		return "", fmt.Errorf("cannot find column type for value type: %s", valueType)
+		return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", valueType), fmt.Errorf("could not determine column type"))
 	}
 }
 
@@ -162,14 +173,20 @@ func (q postgresSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Trainin
 	if !isUpdate {
 		fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", sanitize(tableName), columnStr, query)
 		if _, err := store.db.Exec(fullQuery); err != nil {
-			return err
+			wrapped := fferr.NewResourceExecutionError(pt.PostgresOffline.String(), def.ID.Name, def.ID.Variant, fferr.ResourceType(def.ID.Type.String()), err)
+			wrapped.AddDetail("table_name", tableName)
+			wrapped.AddDetail("label_name", labelName)
+			return wrapped
 		}
 	} else {
 		tempName := sanitize(fmt.Sprintf("tmp_%s", tableName))
 		fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", tempName, columnStr, query)
 		err := q.atomicUpdate(store.db, tableName, tempName, fullQuery)
 		if err != nil {
-			return err
+			wrapped := fferr.NewResourceExecutionError(pt.PostgresOffline.String(), def.ID.Name, def.ID.Variant, fferr.ResourceType(def.ID.Type.String()), err)
+			wrapped.AddDetail("table_name", tableName)
+			wrapped.AddDetail("label_name", labelName)
+			return wrapped
 		}
 	}
 	return nil
@@ -219,8 +236,10 @@ func (q postgresSQLQueries) numRows(n interface{}) (int64, error) {
 	return n.(int64), nil
 }
 
-func (q postgresSQLQueries) transformationCreate(name string, query string) string {
-	return fmt.Sprintf("CREATE TABLE  %s AS %s", sanitize(name), query)
+func (q postgresSQLQueries) transformationCreate(name string, query string) []string {
+	return []string{
+		fmt.Sprintf("CREATE TABLE  %s AS %s", sanitize(name), query),
+	}
 }
 
 func (q postgresSQLQueries) transformationUpdate(db *sql.DB, tableName string, query string) error {
@@ -237,14 +256,18 @@ func (q postgresSQLQueries) getColumns(db *sql.DB, tableName string) ([]TableCol
 	qry := fmt.Sprintf("SELECT attname AS column_name FROM   pg_attribute WHERE  attrelid = 'public.%s'::regclass AND    attnum > 0 ORDER  BY attnum", tableName)
 	rows, err := db.Query(qry)
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewExecutionError(pt.PostgresOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 	defer rows.Close()
 	columnNames := make([]TableColumn, 0)
 	for rows.Next() {
 		var column string
 		if err := rows.Scan(&column); err != nil {
-			return nil, err
+			wrapped := fferr.NewExecutionError(pt.PostgresOffline.String(), err)
+			wrapped.AddDetail("table_name", tableName)
+			return nil, wrapped
 		}
 		columnNames = append(columnNames, TableColumn{Name: column})
 	}

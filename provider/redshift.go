@@ -2,11 +2,11 @@ package provider
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	_ "github.com/lib/pq"
@@ -26,13 +26,22 @@ const (
 func redshiftOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.RedshiftConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, errors.New("invalid redshift config")
+		return nil, err
 	}
+
+	// We are doing this to support older versions of
+	// featureform that did not have the sslmode field
+	// on the client side.
+	sslMode := sc.SSLMode
+	if sslMode == "" {
+		sslMode = "disable"
+	}
+
 	queries := redshiftSQLQueries{}
 	queries.setVariableBinding(PostgresBindingStyle)
 	sgConfig := SQLOfflineStoreConfig{
 		Config:        config,
-		ConnectionURL: fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", sc.Username, sc.Password, sc.Endpoint, sc.Port, sc.Database),
+		ConnectionURL: fmt.Sprintf("sslmode=%s user=%v password=%s host=%v port=%v dbname=%v", sslMode, sc.Username, sc.Password, sc.Host, sc.Port, sc.Database),
 		Driver:        "postgres",
 		ProviderType:  pt.RedshiftOffline,
 		QueryImpl:     &queries,
@@ -67,7 +76,9 @@ func (q redshiftSQLQueries) registerResources(db *sql.DB, tableName string, sche
 			sanitize(schema.Entity), sanitize(schema.Value), time.UnixMilli(0).UTC(), sanitize(schema.SourceTable))
 	}
 	if _, err := db.Exec(query); err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.RedshiftOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	return nil
 }
@@ -77,13 +88,13 @@ func (q redshiftSQLQueries) primaryTableRegister(tableName string, sourceName st
 	return query
 }
 
-func (q redshiftSQLQueries) materializationCreate(tableName string, resultName string) string {
-	query := fmt.Sprintf(
-		"CREATE TABLE %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (entity)) as row_number FROM ("+
-			"SELECT entity, value, ts, row_number() OVER (PARTITION BY entity ORDER BY entity, ts DESC) as rn "+
-			"FROM %s) WHERE rn=1 ORDER BY entity)", sanitize(tableName), sanitize(resultName))
-
-	return query
+func (q redshiftSQLQueries) materializationCreate(tableName string, resultName string) []string {
+	return []string{
+		fmt.Sprintf(
+			"CREATE TABLE %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (entity)) as row_number FROM ("+
+				"SELECT entity, value, ts, row_number() OVER (PARTITION BY entity ORDER BY entity, ts DESC) as rn "+
+				"FROM %s) WHERE rn=1 ORDER BY entity)", sanitize(tableName), sanitize(resultName)),
+	}
 }
 
 func (q redshiftSQLQueries) materializationUpdate(db *sql.DB, tableName string, sourceName string) error {
@@ -101,8 +112,13 @@ func (q redshiftSQLQueries) materializationUpdate(db *sql.DB, tableName string, 
 			"COMMIT;"+
 			"", tempTable, sanitize(sourceName), sanitizedTable, oldTable, tempTable, sanitizedTable, oldTable)
 
-	_, err := db.Exec(query)
-	return err
+	if _, err := db.Exec(query); err != nil {
+		wrapped := fferr.NewExecutionError(pt.RedshiftOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("source_name", sourceName)
+		return wrapped
+	}
+	return nil
 }
 
 func (q redshiftSQLQueries) materializationDrop(tableName string) string {
@@ -124,7 +140,7 @@ func (q redshiftSQLQueries) determineColumnType(valueType ValueType) (string, er
 	case NilType:
 		return "VARCHAR", nil
 	default:
-		return "", fmt.Errorf("cannot find column type for value type: %s", valueType)
+		return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", valueType), fmt.Errorf("could not determine column type"))
 	}
 }
 
@@ -154,10 +170,10 @@ func (q redshiftSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Trainin
 	query := ""
 	for i, feature := range def.Features {
 		tableName, err := store.getResourceTableName(feature)
-		santizedName := sanitize(tableName)
 		if err != nil {
 			return err
 		}
+		santizedName := sanitize(tableName)
 		tableJoinAlias := fmt.Sprintf("t%d", i+1)
 		selectColumns = append(selectColumns, fmt.Sprintf("%s_rnk", tableJoinAlias))
 		columns = append(columns, santizedName)
@@ -177,7 +193,10 @@ func (q redshiftSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Trainin
 				"SELECT t0.entity AS e, t0.value AS label, t0.ts AS time, %s, %s FROM %s AS t0 %s )",
 			sanitize(tableName), columnStr, selectColumnStr, columnStr, selectColumnStr, sanitize(labelName), query)
 		if _, err := store.db.Exec(fullQuery); err != nil {
-			return err
+			wrapped := fferr.NewResourceExecutionError(pt.RedshiftOffline.String(), def.ID.Name, def.ID.Variant, fferr.ResourceType(def.ID.Type.String()), err)
+			wrapped.AddDetail("table_name", tableName)
+			wrapped.AddDetail("label_name", labelName)
+			return wrapped
 		}
 	} else {
 		tempTable := sanitize(fmt.Sprintf("tmp_%s", tableName))
@@ -187,8 +206,9 @@ func (q redshiftSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Trainin
 				"SELECT t0.entity AS e, t0.value AS label, t0.ts AS time, %s, %s FROM %s AS t0 %s )",
 			tempTable, columnStr, selectColumnStr, columnStr, selectColumnStr, sanitize(labelName), query)
 
-		err := q.atomicUpdate(store.db, tableName, tempTable, fullQuery)
-		return err
+		if err := q.atomicUpdate(store.db, tableName, tempTable, fullQuery); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -237,9 +257,8 @@ func (q redshiftSQLQueries) numRows(n interface{}) (int64, error) {
 	return n.(int64), nil
 }
 
-func (q redshiftSQLQueries) transformationCreate(name string, query string) string {
-	que := fmt.Sprintf("CREATE TABLE %s AS %s", sanitize(name), query)
-	return que
+func (q redshiftSQLQueries) transformationCreate(name string, query string) []string {
+	return []string{fmt.Sprintf("CREATE TABLE %s AS %s", sanitize(name), query)}
 }
 
 func (q redshiftSQLQueries) transformationUpdate(db *sql.DB, tableName string, query string) error {

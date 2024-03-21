@@ -1,12 +1,13 @@
-github_checks: false
+github_checks: true
 coverage:
   status:
     project:
       default:
-        target: 0
+        target: auto
     patch:
       default:
-        target: 0
+        target: 75%
+        base: auto
 codecov:
   require_ci_to_pass: true
   notify:

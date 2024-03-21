@@ -1,6 +1,3 @@
-//go:build offline
-// +build offline
-
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -9,11 +6,9 @@ package provider
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -23,288 +18,21 @@ import (
 	"testing"
 	"time"
 
-	"cloud.google.com/go/bigquery"
-	fs "github.com/featureform/filestore"
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
-	"github.com/joho/godotenv"
 	"github.com/parquet-go/parquet-go"
-	"google.golang.org/api/option"
 )
 
-var provider = flag.String("provider", "", "provider to perform test on")
-
-type testMember struct {
-	t               pt.Type
-	c               pc.SerializedConfig
-	integrationTest bool
+type OfflineStoreTest struct {
+	t     *testing.T
+	store OfflineStore
 }
 
-func TestOfflineStores(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-	err := godotenv.Load("../.env")
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	os.Setenv("TZ", "UTC")
-
-	checkEnv := func(envVar string) string {
-		value, has := os.LookupEnv(envVar)
-		if !has {
-			panic(fmt.Sprintf("Environment variable not found: %s", envVar))
-		}
-		return value
-	}
-
-	postgresInit := func() pc.SerializedConfig {
-		db := checkEnv("POSTGRES_DB")
-		user := checkEnv("POSTGRES_USER")
-		password := checkEnv("POSTGRES_PASSWORD")
-		var postgresConfig = pc.PostgresConfig{
-			Host:     "localhost",
-			Port:     "5432",
-			Database: db,
-			Username: user,
-			Password: password,
-			SSLMode:  "disable",
-		}
-		return postgresConfig.Serialize()
-	}
-
-	//mySqlInit := func() pc.SerializedConfig {
-	//	db := checkEnv("MYSQL_DB")
-	//	user := checkEnv("MYSQL_USER")
-	//	password := checkEnv("MYSQL_PASSWORD")
-	//	var mySqlConfig = pc.MySqlConfig{
-	//		Host:     "localhost",
-	//		Port:     "3306",
-	//		Username: user,
-	//		Password: password,
-	//		Database: db,
-	//	}
-	//	return mySqlConfig.Serialize()
-	//}
-
-	snowflakeInit := func() (pc.SerializedConfig, pc.SnowflakeConfig) {
-		snowFlakeDatabase := strings.ToUpper(uuid.NewString())
-		t.Log("Snowflake Database: ", snowFlakeDatabase)
-		username := checkEnv("SNOWFLAKE_USERNAME")
-		password := checkEnv("SNOWFLAKE_PASSWORD")
-		org := checkEnv("SNOWFLAKE_ORG")
-		account := checkEnv("SNOWFLAKE_ACCOUNT")
-		var snowflakeConfig = pc.SnowflakeConfig{
-			Username:     username,
-			Password:     password,
-			Organization: org,
-			Account:      account,
-			Database:     snowFlakeDatabase,
-		}
-		if err := createSnowflakeDatabase(snowflakeConfig); err != nil {
-			t.Fatalf("%v", err)
-		}
-		return snowflakeConfig.Serialize(), snowflakeConfig
-	}
-
-	redshiftInit := func() (pc.SerializedConfig, pc.RedshiftConfig) {
-		redshiftDatabase := fmt.Sprintf("ff%s", strings.ToLower(uuid.NewString()))
-		endpoint := checkEnv("REDSHIFT_ENDPOINT")
-		port := checkEnv("REDSHIFT_PORT")
-		username := checkEnv("REDSHIFT_USERNAME")
-		password := checkEnv("REDSHIFT_PASSWORD")
-		var redshiftConfig = pc.RedshiftConfig{
-			Endpoint: endpoint,
-			Port:     port,
-			Database: redshiftDatabase,
-			Username: username,
-			Password: password,
-		}
-		serialRSConfig := redshiftConfig.Serialize()
-		if err := createRedshiftDatabase(redshiftConfig); err != nil {
-			t.Fatalf("%v", err)
-		}
-		return serialRSConfig, redshiftConfig
-	}
-
-	bqInit := func() (pc.SerializedConfig, pc.BigQueryConfig) {
-		bigqueryCredentials := os.Getenv("BIGQUERY_CREDENTIALS")
-		JSONCredentials, err := ioutil.ReadFile(bigqueryCredentials)
-		if err != nil {
-			panic(fmt.Errorf("cannot find big query credentials: %v", err))
-		}
-
-		var credentialsDict map[string]interface{}
-		err = json.Unmarshal(JSONCredentials, &credentialsDict)
-		if err != nil {
-			panic(fmt.Errorf("cannot unmarshal big query credentials: %v", err))
-		}
-
-		bigQueryDatasetId := strings.Replace(strings.ToUpper(uuid.NewString()), "-", "_", -1)
-		os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
-		t.Log("BigQuery Dataset: ", bigQueryDatasetId)
-
-		var bigQueryConfig = pc.BigQueryConfig{
-			ProjectId:   os.Getenv("BIGQUERY_PROJECT_ID"),
-			DatasetId:   os.Getenv("BIGQUERY_DATASET_ID"),
-			Credentials: credentialsDict,
-		}
-		serialBQConfig := bigQueryConfig.Serialize()
-
-		if err := createBigQueryDataset(bigQueryConfig); err != nil {
-			t.Fatalf("Cannot create BigQuery Dataset: %v", err)
-		}
-		return serialBQConfig, bigQueryConfig
-	}
-
-	_ = func(t *testing.T, executorType pc.SparkExecutorType, storeType fs.FileStoreType) (pc.SerializedConfig, pc.SparkConfig) {
-		var executorConfig pc.SparkExecutorConfig
-
-		switch executorType {
-		case pc.SparkGeneric:
-			executorConfig = &pc.SparkGenericConfig{
-				Master:        os.Getenv("GENERIC_SPARK_MASTER"),
-				DeployMode:    os.Getenv("GENERIC_SPARK_DEPLOY_MODE"),
-				PythonVersion: os.Getenv("GENERIC_SPARK_PYTHON_VERSION"),
-			}
-		case pc.Databricks:
-			executorConfig = &pc.DatabricksConfig{
-				Host:    os.Getenv("DATABRICKS_HOST"),
-				Token:   os.Getenv("DATABRICKS_TOKEN"),
-				Cluster: os.Getenv("DATABRICKS_CLUSTER"),
-			}
-		case pc.EMR:
-			executorConfig = &pc.EMRConfig{
-				Credentials: pc.AWSCredentials{
-					AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-					AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-				},
-				ClusterRegion: os.Getenv("AWS_EMR_CLUSTER_REGION"),
-				ClusterName:   os.Getenv("AWS_EMR_CLUSTER_ID"),
-			}
-		default:
-			t.Fatalf("Invalid executor type: %v", executorType)
-		}
-
-		var fileStoreConfig pc.SparkFileStoreConfig
-		switch storeType {
-		case fs.S3:
-			fileStoreConfig = &pc.S3FileStoreConfig{
-				Credentials: pc.AWSCredentials{
-					AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-					AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
-				},
-				BucketRegion: os.Getenv("S3_BUCKET_REGION"),
-				BucketPath:   os.Getenv("S3_BUCKET_PATH"),
-				Path:         os.Getenv(""),
-			}
-		case fs.GCS:
-			credsFile := os.Getenv("GCP_CREDENTIALS_FILE")
-			content, err := ioutil.ReadFile(credsFile)
-			if err != nil {
-				t.Errorf("Error when opening file: %v", err)
-			}
-			var creds map[string]interface{}
-			err = json.Unmarshal(content, &creds)
-			if err != nil {
-				t.Errorf("Error during Unmarshal() creds: %v", err)
-			}
-
-			fileStoreConfig = &pc.GCSFileStoreConfig{
-				BucketName: os.Getenv("GCS_BUCKET_NAME"),
-				BucketPath: "",
-				Credentials: pc.GCPCredentials{
-					ProjectId: os.Getenv("GCP_PROJECT_ID"),
-					JSON:      creds,
-				},
-			}
-		case fs.Azure:
-			fileStoreConfig = &pc.AzureFileStoreConfig{
-				AccountName:   os.Getenv("AZURE_ACCOUNT_NAME"),
-				AccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
-				ContainerName: os.Getenv("AZURE_CONTAINER_NAME"),
-				Path:          os.Getenv("AZURE_CONTAINER_PATH"),
-			}
-		default:
-			t.Fatalf("Invalid store type: %v", storeType)
-		}
-
-		var sparkConfig = pc.SparkConfig{
-			ExecutorType:   executorType,
-			ExecutorConfig: executorConfig,
-			StoreType:      storeType,
-			StoreConfig:    fileStoreConfig,
-		}
-
-		serializedConfig, err := sparkConfig.Serialize()
-		if err != nil {
-			t.Fatalf("Cannot serialize Spark config with %s executor and %s files tore: %v", executorType, storeType, err)
-		}
-		return serializedConfig, sparkConfig
-	}
-
-	testList := []testMember{}
-
-	if *provider == "memory" || *provider == "" {
-		testList = append(testList, testMember{pt.MemoryOffline, []byte{}, false})
-	}
-	if *provider == "bigquery" || *provider == "" {
-		serialBQConfig, bigQueryConfig := bqInit()
-		testList = append(testList, testMember{pt.BigQueryOffline, serialBQConfig, true})
-		t.Cleanup(func() {
-			destroyBigQueryDataset(bigQueryConfig)
-		})
-	}
-	if *provider == "postgres" || *provider == "" {
-		testList = append(testList, testMember{pt.PostgresOffline, postgresInit(), true})
-	}
-	//if *provider == "mysql" || *provider == "" {
-	//	testList = append(testList, testMember{pt.MySqlOffline, mySqlInit(), true})
-	//}
-	if *provider == "snowflake" || *provider == "" {
-		serialSFConfig, snowflakeConfig := snowflakeInit()
-		testList = append(testList, testMember{pt.SnowflakeOffline, serialSFConfig, true})
-		t.Cleanup(func() {
-			destroySnowflakeDatabase(snowflakeConfig)
-		})
-	}
-	if *provider == "redshift" || *provider == "" {
-		serialRSConfig, redshiftConfig := redshiftInit()
-		testList = append(testList, testMember{pt.RedshiftOffline, serialRSConfig, true})
-		t.Cleanup(func() {
-			destroyRedshiftDatabase(redshiftConfig)
-		})
-	}
-	// TODO: update testing.yaml to include local PySpark instance generic Spark tests
-	// if *provider == "spark-generic-s3" || *provider == "" {
-	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.S3)
-	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	// }
-	// if *provider == "spark-generic-abs" || *provider == "" {
-	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.Azure)
-	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	// }
-	// if *provider == "spark-generic-gcs" || *provider == "" {
-	// 	serialSparkConfig, _ := sparkInit(t, pc.SparkGeneric, fs.GCS)
-	// 	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	// }
-	// TODO: Uncomments when databricks test is fixed
-	//if *provider == "spark-databricks-s3" || *provider == "" {
-	//	serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.S3)
-	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	//}
-	// TODO: Uncomments when abs test is fixed
-	//if *provider == "spark-databricks-abs" || *provider == "" {
-	//	serialSparkConfig, _ := sparkInit(t, pc.Databricks, fs.Azure)
-	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	//}
-	// TODO: Uncomment when EMR can be configured to run these tests quicker. Currently taking > 60 minutes.
-	//if *provider == "spark-emr-s3" || *provider == "" {
-	//	serialSparkConfig, _ := sparkInit(t, pc.EMR, fs.S3)
-	//	testList = append(testList, testMember{pt.SparkOffline, serialSparkConfig, true})
-	//}
+func (test *OfflineStoreTest) Run() {
+	t := test.t
+	store := test.store
 
 	testFns := map[string]func(*testing.T, OfflineStore){
 		"CreateGetTable":          testCreateGetOfflineTable,
@@ -327,8 +55,29 @@ func TestOfflineStores(t *testing.T) {
 		"LabelTableNotFound":     testLabelTableNotFound,
 		"FeatureTableNotFound":   testFeatureTableNotFound,
 		"TrainingDefShorthand":   testTrainingSetDefShorthand,
+		"ResourceLocation":       testResourceLocation,
 	}
-	testSQLFns := map[string]func(*testing.T, OfflineStore){
+
+	for name, fn := range testFns {
+		nameConst := name
+		fnConst := fn
+		t.Run(nameConst, func(t *testing.T) {
+			t.Parallel()
+			fnConst(t, store)
+		})
+	}
+
+	t.Cleanup(func() {
+		if err := store.Close(); err != nil {
+			t.Errorf("%v - %v\n", store.Type(), err)
+		}
+	})
+}
+
+func (test *OfflineStoreTest) RunSQL() {
+	t := test.t
+	store := test.store
+	testFns := map[string]func(*testing.T, OfflineStore){
 		"PrimaryTableCreate":                 testPrimaryCreateTable,
 		"PrimaryTableWrite":                  testPrimaryTableWrite,
 		"Transformation":                     testTransform,
@@ -340,52 +89,10 @@ func TestOfflineStores(t *testing.T) {
 		"CreateResourceFromSourceNoTS":       testCreateResourceFromSourceNoTS,
 		"CreatePrimaryFromSource":            testCreatePrimaryFromSource,
 		"CreatePrimaryFromNonExistentSource": testCreatePrimaryFromNonExistentSource,
+		"TrainTestSplit":                     testTrainTestSplit,
 	}
 
-	psqlInfo := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("POSTGRES_USER"), os.Getenv("POSTGRES_PASSWORD"), "localhost", "5432", os.Getenv("POSTGRES_DB"))
-	db, err := sql.Open("postgres", psqlInfo)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, testItem := range testList {
-		// for running go routines inside for loops in go, the iterated value needs to be redeclared
-		// this prevents the earlier go routines from referencing values in a later iteration of the for loop
-		testItemConst := testItem
-		t.Run(string(testItemConst.t), func(t *testing.T) {
-			t.Parallel()
-			testWithProvider(t, testItemConst, testFns, testSQLFns, db)
-		})
-	}
-}
-
-func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func(*testing.T, OfflineStore), testSQLFns map[string]func(*testing.T, OfflineStore), db *sql.DB) {
-	var err error
-	if testing.Short() && testItem.integrationTest {
-		t.Logf("Skipping %s, because it is an integration test", testItem.t)
-		return
-	}
-
-	provider, err := Get(testItem.t, testItem.c)
-	if err != nil {
-		t.Fatalf("Failed to get provider %s: %s", testItem.t, err)
-	}
-	store, err := provider.AsOfflineStore()
-	if err != nil {
-		t.Fatalf("Failed to use provider %s as OfflineStore: %s", testItem.t, err)
-	}
 	for name, fn := range testFns {
-		nameConst := name
-		fnConst := fn
-		t.Run(nameConst, func(t *testing.T) {
-			t.Parallel()
-			fnConst(t, store)
-		})
-	}
-	for name, fn := range testSQLFns {
-		if testItem.t == pt.MemoryOffline {
-			continue
-		}
 		nameConst := name
 		fnConst := fn
 		t.Run(nameConst, func(t *testing.T) {
@@ -396,121 +103,9 @@ func testWithProvider(t *testing.T, testItem testMember, testFns map[string]func
 
 	t.Cleanup(func() {
 		if err := store.Close(); err != nil {
-			t.Errorf("%v - %v\n", testItem.t, err)
+			t.Errorf("%v - %v\n", store.Type(), err)
 		}
 	})
-}
-
-func createRedshiftDatabase(c pc.RedshiftConfig) error {
-	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Endpoint, c.Port, "dev")
-	db, err := sql.Open("postgres", url)
-	if err != nil {
-		return err
-	}
-	databaseQuery := fmt.Sprintf("CREATE DATABASE %s", sanitize(c.Database))
-	if _, err := db.Exec(databaseQuery); err != nil {
-		return err
-	}
-	fmt.Printf("Created Redshift Database %s\n", c.Database)
-	return nil
-}
-
-func destroyRedshiftDatabase(c pc.RedshiftConfig) error {
-	url := fmt.Sprintf("sslmode=require user=%v password=%s host=%v port=%v dbname=%v", c.Username, c.Password, c.Endpoint, c.Port, "dev")
-	db, err := sql.Open("postgres", url)
-	if err != nil {
-		fmt.Errorf(err.Error())
-		return err
-	}
-	disconnectQuery := fmt.Sprintf("SELECT pg_terminate_backend(pg_stat_activity.procpid) FROM pg_stat_activity WHERE datid=(SELECT oid from pg_database where datname = '%s');", c.Database)
-	if _, err := db.Exec(disconnectQuery); err != nil {
-		fmt.Errorf(err.Error())
-		return err
-	}
-	var deleteErr error
-	retries := 5
-	databaseQuery := fmt.Sprintf("DROP DATABASE %s", sanitize(c.Database))
-	for {
-		if _, err := db.Exec(databaseQuery); err != nil {
-			deleteErr = err
-			time.Sleep(time.Second)
-			retries--
-			if retries == 0 {
-				fmt.Errorf(err.Error())
-				return deleteErr
-			}
-		} else {
-			continue
-		}
-	}
-}
-
-func createSnowflakeDatabase(c pc.SnowflakeConfig) error {
-	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
-	db, err := sql.Open("snowflake", url)
-	if err != nil {
-		return err
-	}
-	databaseQuery := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", sanitize(c.Database))
-	if _, err := db.Exec(databaseQuery); err != nil {
-		return err
-	}
-	return nil
-}
-
-func destroySnowflakeDatabase(c pc.SnowflakeConfig) error {
-	url := fmt.Sprintf("%s:%s@%s-%s", c.Username, c.Password, c.Organization, c.Account)
-	db, err := sql.Open("snowflake", url)
-	if err != nil {
-		fmt.Errorf(err.Error())
-		return err
-	}
-	databaseQuery := fmt.Sprintf("DROP DATABASE IF EXISTS %s", sanitize(c.Database))
-	if _, err := db.Exec(databaseQuery); err != nil {
-		fmt.Errorf(err.Error())
-		return err
-	}
-	return nil
-}
-
-func createBigQueryDataset(c pc.BigQueryConfig) error {
-	sCreds, err := json.Marshal(c.Credentials)
-	if err != nil {
-		return err
-	}
-
-	client, err := bigquery.NewClient(context.TODO(), c.ProjectId, option.WithCredentialsJSON(sCreds))
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
-	meta := &bigquery.DatasetMetadata{
-		Location:               "US",
-		DefaultTableExpiration: 24 * time.Hour,
-	}
-	err = client.Dataset(c.DatasetId).Create(context.TODO(), meta)
-
-	return err
-}
-
-func destroyBigQueryDataset(c pc.BigQueryConfig) error {
-	sCreds, err := json.Marshal(c.Credentials)
-	if err != nil {
-		return err
-	}
-
-	time.Sleep(10 * time.Second)
-
-	client, err := bigquery.NewClient(context.TODO(), c.ProjectId, option.WithCredentialsJSON(sCreds))
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
-	err = client.Dataset(c.DatasetId).DeleteWithContents(context.TODO())
-
-	return err
 }
 
 func randomID(types ...OfflineResourceType) ResourceID {
@@ -562,6 +157,54 @@ func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
 	}
 }
 
+func testResourceLocation(t *testing.T, store OfflineStore) {
+	if store.Type() == pt.MemoryOffline {
+		t.Skip("Skipping test for memory store")
+	}
+
+	id := ResourceID{
+		Name:    uuid.NewString(),
+		Variant: uuid.NewString(),
+		Type:    Primary,
+	}
+
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "int", ValueType: Int},
+			{Name: "bool", ValueType: Bool},
+			{Name: "string", ValueType: String},
+			{Name: "float", ValueType: Float32},
+		},
+	}
+
+	_, err := store.CreatePrimaryTable(id, schema)
+	if err != nil {
+		t.Fatalf("could not create primary table: %v", err)
+	}
+
+	if tab, err := store.GetResourceTable(id); tab == nil || err != nil {
+		t.Fatalf("Failed to get table: %v", err)
+	}
+
+	location, err := store.ResourceLocation(id)
+	if location == "" || err != nil {
+		t.Fatalf("Failed to get location: %v", err)
+	}
+
+	if store.Type() == pt.SparkOffline || store.Type() == pt.K8sOffline {
+		expectedLocation := fmt.Sprintf("featureform/transformation/%s/%s", id.Name, id.Variant)
+		if !strings.Contains(location, expectedLocation) {
+			t.Fatalf("Location is incorrect: %s needs to have %s", location, expectedLocation)
+		}
+	} else {
+		expectedLocation := fmt.Sprintf("featureform_primary__%s__%s", id.Name, id.Variant)
+		if location != expectedLocation {
+			t.Fatalf("Location is incorrect: %s != expected location (%s)", location, expectedLocation)
+		}
+	}
+}
+
 func testOfflineTableAlreadyExists(t *testing.T, store OfflineStore) {
 	id := randomID(Feature, Label)
 	schema := TableSchema{
@@ -582,7 +225,7 @@ func testOfflineTableAlreadyExists(t *testing.T, store OfflineStore) {
 	}
 	if _, err := store.CreateResourceTable(id, schema); err == nil {
 		t.Fatalf("Succeeded in creating table twice")
-	} else if casted, valid := err.(*TableAlreadyExists); !valid {
+	} else if casted, valid := err.(*fferr.DatasetAlreadyExistsError); !valid {
 		t.Fatalf("Wrong error for table already exists: %T", err)
 	} else if casted.Error() == "" {
 		t.Fatalf("TableAlreadyExists has empty error message")
@@ -593,7 +236,7 @@ func testOfflineTableNotFound(t *testing.T, store OfflineStore) {
 	id := randomID(Feature, Label)
 	if _, err := store.GetResourceTable(id); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
-	} else if casted, valid := err.(*TableNotFound); !valid {
+	} else if casted, valid := err.(*fferr.DatasetNotFoundError); !valid {
 		t.Fatalf("Wrong error for table not found: %T", err)
 	} else if casted.Error() == "" {
 		t.Fatalf("TableNotFound has empty error message")
@@ -1191,7 +834,7 @@ func testMaterializationNotFound(t *testing.T, store OfflineStore) {
 	if err == nil {
 		t.Fatalf("Succeeded in deleting uninitialized materialization")
 	}
-	var notFoundErr *MaterializationNotFound
+	var notFoundErr *fferr.DatasetNotFoundError
 	if validCast := errors.As(err, &notFoundErr); !validCast {
 		t.Fatalf("Wrong Error type for materialization not found: %T", err)
 	}
@@ -1944,7 +1587,7 @@ func testGetUnknownTrainingSet(t *testing.T, store OfflineStore) {
 	id := randomID(NoType)
 	if _, err := store.GetTrainingSet(id); err == nil {
 		t.Fatalf("Succeeded in getting unknown training set ResourceID")
-	} else if _, valid := err.(*TrainingSetNotFound); !valid {
+	} else if _, valid := err.(*fferr.DatasetNotFoundError); !valid {
 		t.Fatalf("Wrong error for training set not found: %T", err)
 	} else if err.Error() == "" {
 		t.Fatalf("Training set not found error msg not set")
@@ -2913,7 +2556,7 @@ func testTransformCreateFeature(t *testing.T, store OfflineStore) {
 			t.Fatalf("Could not write records: %v", err)
 		}
 
-		tableName := getTableName(t.Name(), table.GetName())
+		tableName := getTableName(string(store.Type()), table.GetName())
 		test.Config.Query = strings.Replace(test.Config.Query, "tb", tableName, 1)
 		if err := store.CreateTransformation(test.Config); err != nil {
 			t.Fatalf("Could not create transformation: %v", err)
@@ -3230,7 +2873,7 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not write batch: %v", err)
 	}
 
-	tableName := getTableName(t.Name(), table.GetName())
+	tableName := getTableName(string(store.Type()), table.GetName())
 	config := TransformationConfig{
 		Type: SQLTransformation,
 		TargetTableID: ResourceID{
@@ -3533,10 +3176,14 @@ func testCreatePrimaryFromNonExistentSource(t *testing.T, store OfflineStore) {
 	}
 }
 
+func createUUID() string {
+	return strings.Replace(uuid.NewString(), "-", "_", -1)
+}
+
 func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 	primaryID := ResourceID{
-		Name:    uuid.NewString(),
-		Variant: uuid.NewString(),
+		Name:    createUUID(),
+		Variant: createUUID(),
 		Type:    Primary,
 	}
 	schema := TableSchema{
@@ -3562,15 +3209,16 @@ func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not write batch: %v", err)
 	}
 	primaryCopyID := ResourceID{
-		Name:    uuid.NewString(),
-		Variant: uuid.NewString(),
+		Name:    createUUID(),
+		Variant: createUUID(),
 		Type:    Primary,
 	}
 
 	t.Log("Primary Name: ", primaryCopyID.Name)
 	// Need to sanitize name here b/c the the xxx-xxx format of the uuid. Cannot do it within
 	// register function because precreated tables do not necessarily use double quotes
-	tableName := sanitizeTableName(string(store.Type()), table.GetName())
+	tableName := table.GetName()
+	t.Log("Table Name: ", tableName)
 	// Currently, the assumption is that a primary table will always have an absolute path
 	// to the source data file in its schema; to keep with this assumption until we determine
 	// a better approach (e.g. handling directories of primary sources), we will use the
@@ -3729,6 +3377,8 @@ func getTableName(testName string, tableName string) string {
 	if strings.Contains(testName, "BIGQUERY") {
 		prefix := fmt.Sprintf("%s.%s", os.Getenv("BIGQUERY_PROJECT_ID"), os.Getenv("BIGQUERY_DATASET_ID"))
 		tableName = fmt.Sprintf("`%s.%s`", prefix, tableName)
+	} else if strings.Contains(testName, "CLICKHOUSE") {
+		tableName = sanitizeCH(tableName)
 	} else {
 		tableName = sanitize(tableName)
 	}
@@ -3738,6 +3388,8 @@ func getTableName(testName string, tableName string) string {
 func sanitizeTableName(testName string, tableName string) string {
 	if !strings.Contains(testName, "BIGQUERY") {
 		tableName = sanitize(tableName)
+	} else if strings.Contains(testName, "CLICKHOUSE") {
+		tableName = sanitizeCH(tableName)
 	}
 	return tableName
 }
@@ -3748,8 +3400,8 @@ func modifyTransformationConfig(t *testing.T, testName, tableName string, provid
 		// In contrast to the SQL provider, that only needed change is the table name to perform the required transformation configuration,
 		// The Spark implementation needs to update the source mappings to ensure the source file is used in the transformation query.
 		config.SourceMapping[0].Source = tableName
-	case pt.MemoryOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.MySqlOffline, pt.SnowflakeOffline, pt.RedshiftOffline:
-		tableName := getTableName(testName, tableName)
+	case pt.MemoryOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.MySqlOffline, pt.SnowflakeOffline, pt.ClickHouseOffline, pt.RedshiftOffline:
+		tableName := getTableName(string(providerType), tableName)
 		config.Query = strings.Replace(config.Query, "tb", tableName, 1)
 	default:
 		t.Fatalf("Unrecognized provider type %s", providerType)
@@ -4113,8 +3765,8 @@ func TestTableSchemaValue(t *testing.T) {
 }
 
 func testBatchFeature(t *testing.T, store OfflineStore) {
-	if store.Type() != pt.SnowflakeOffline && store.Type() != pt.SparkOffline {
-		t.Skip("Skipping test for non-SnowflakeOffline and non-SparkOffline providers")
+	if store.Type() != pt.SnowflakeOffline && store.Type() != pt.SparkOffline && store.Type() != pt.ClickHouseOffline {
+		t.Skip("Skipping test for non-SnowflakeOffline, SparkOffline or ClickHouseOffline providers")
 	}
 	type expectedBatchRow struct {
 		Entity   interface{}
@@ -4710,6 +4362,297 @@ func TestTableSchemaToParquetRecords(t *testing.T) {
 		t.Run(nameConst, func(t *testing.T) {
 			t.Parallel()
 			testSchema(t, testConst)
+		})
+	}
+}
+
+func testTrainTestSplit(t *testing.T, store OfflineStore) {
+	FeatureRecords := [][]ResourceRecord{
+		{
+			{Entity: "a", Value: 1},
+			{Entity: "b", Value: 2},
+			{Entity: "c", Value: 3},
+			{Entity: "d", Value: 4},
+			{Entity: "e", Value: 5},
+			{Entity: "f", Value: 6},
+			{Entity: "g", Value: 7},
+			{Entity: "h", Value: 8},
+			{Entity: "i", Value: 9},
+			{Entity: "j", Value: 10},
+		},
+		{
+			{Entity: "a", Value: "red"},
+			{Entity: "b", Value: "green"},
+			{Entity: "c", Value: "blue"},
+			{Entity: "d", Value: "purple"},
+			{Entity: "e", Value: "blue"},
+			{Entity: "f", Value: "green"},
+			{Entity: "g", Value: "red"},
+			{Entity: "h", Value: "purple"},
+			{Entity: "i", Value: "yellow"},
+			{Entity: "j", Value: "pink"},
+		},
+	}
+	FeatureSchema := []TableSchema{
+		{
+			Columns: []TableColumn{
+				{Name: "entity", ValueType: String},
+				{Name: "value", ValueType: Int},
+			},
+		},
+		{
+			Columns: []TableColumn{
+				{Name: "entity", ValueType: String},
+				{Name: "value", ValueType: String},
+			},
+		},
+	}
+	LabelRecords := []ResourceRecord{
+		{Entity: "a", Value: true},
+		{Entity: "b", Value: false},
+		{Entity: "c", Value: true},
+		{Entity: "d", Value: false},
+		{Entity: "e", Value: true},
+		{Entity: "f", Value: true},
+		{Entity: "g", Value: true},
+		{Entity: "h", Value: false},
+		{Entity: "i", Value: true},
+		{Entity: "j", Value: true},
+	}
+	LabelSchema := TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: String},
+			{Name: "value", ValueType: Bool},
+		},
+	}
+
+	type TestParameters struct {
+		TestSize          float32
+		Shuffle           bool
+		RandomState       int
+		RandomState2      int
+		ExpectedTestRows  int
+		IterShouldBeEqual bool
+	}
+	type TestCase struct {
+		TestParameters
+		TestFunction func(t *testing.T, store OfflineStore, params TestParameters)
+	}
+
+	setupTable := func(t *testing.T, store OfflineStore) ResourceID {
+		featureIDs := make([]ResourceID, len(FeatureRecords))
+
+		for i, recs := range FeatureRecords {
+			id := randomID(Feature)
+			featureIDs[i] = id
+			table, err := store.CreateResourceTable(id, FeatureSchema[i])
+			if err != nil {
+				t.Fatalf("Failed to create table: %s", err)
+			}
+			if err := table.WriteBatch(recs); err != nil {
+				t.Fatalf("Failed to write batch: %v", err)
+			}
+		}
+		labelID := randomID(Label)
+		labelTable, err := store.CreateResourceTable(labelID, LabelSchema)
+		if err != nil {
+			t.Fatalf("Failed to create table: %s", err)
+		}
+		if err := labelTable.WriteBatch(LabelRecords); err != nil {
+			t.Fatalf("Failed to write batch: %v", err)
+		}
+
+		def := TrainingSetDef{
+			ID:       randomID(TrainingSet),
+			Label:    labelID,
+			Features: featureIDs,
+		}
+		if err := store.CreateTrainingSet(def); err != nil {
+			t.Fatalf("Failed to create training set: %s", err)
+		}
+		_, err = store.GetTrainingSet(def.ID)
+		if err != nil {
+			t.Fatalf("Failed to get training set: %s", err)
+		}
+		return def.ID
+	}
+
+	testSplit := func(t *testing.T, store OfflineStore, params TestParameters) {
+		id := setupTable(t, store)
+		trainIter, testIter, closeFunc, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState)
+		defer closeFunc()
+		if err != nil {
+			t.Fatalf("failed to fetch train test split iterators: %v", err)
+		}
+		trainRows := 0
+		for trainIter.Next() {
+			trainRows += 1
+		}
+		testRows := 0
+		for testIter.Next() {
+			testRows += 1
+		}
+		if params.ExpectedTestRows != testRows {
+			t.Fatalf("Expected %d test rows, got: %d", params.ExpectedTestRows, testRows)
+		}
+		if (10 - params.ExpectedTestRows) != trainRows {
+			t.Fatalf("Expected %d train rows, got: %d", 10-params.ExpectedTestRows, testRows)
+		}
+	}
+
+	testShuffle := func(t *testing.T, store OfflineStore, params TestParameters) {
+
+		// helper function to extract the data from the TS iterator
+		extractData := func(iter TrainingSetIterator) ([][]interface{}, []interface{}) {
+			featureRows := make([][]interface{}, 0)
+			labelRows := make([]interface{}, 0)
+			for iter.Next() {
+				featureRows = append(featureRows, iter.Features())
+				labelRows = append(labelRows, iter.Label())
+			}
+			return featureRows, labelRows
+		}
+
+		id := setupTable(t, store)
+
+		trainIter, testIter, dropViews, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState)
+		if err != nil {
+			t.Fatalf("failed to fetch train test split iterators: %v", err)
+		}
+		trainIter1FeatureRows, trainIter1LabelRows := extractData(trainIter)
+		testIter1FeatureRows, testIter1LabelRows := extractData(testIter)
+		if err := dropViews(); err != nil {
+			t.Fatalf("failed to drop views: %v", err)
+		}
+
+		trainIter2, testIter2, dropViews, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState2)
+		if err != nil {
+			t.Fatalf("failed to fetch second train test split iterators: %v", err)
+		}
+		trainIter2FeatureRows, trainIter2LabelRows := extractData(trainIter2)
+		testIter2FeatureRows, testIter2LabelRows := extractData(testIter2)
+		if err := dropViews(); err != nil {
+			t.Fatalf("failed to drop views: %v", err)
+		}
+
+		// compare training
+		equalTrainRows := true
+		for i, row := range trainIter1FeatureRows {
+			if !reflect.DeepEqual(row, trainIter2FeatureRows[i]) {
+				equalTrainRows = false
+			}
+			if !reflect.DeepEqual(trainIter1LabelRows[i], trainIter2LabelRows[i]) {
+				equalTrainRows = false
+			}
+		}
+
+		// compare test
+		equalTestRows := true
+		for i, row := range testIter1FeatureRows {
+			if !reflect.DeepEqual(row, testIter2FeatureRows[i]) {
+				equalTestRows = false
+			}
+			if !reflect.DeepEqual(testIter1LabelRows[i], testIter2LabelRows[i]) {
+				equalTestRows = false
+			}
+		}
+
+		if params.IterShouldBeEqual && equalTrainRows == false {
+			t.Fatalf("Expected train calls to be equal but were not")
+		}
+		if params.IterShouldBeEqual && equalTestRows == false {
+			t.Fatalf("Expected test calls to be equal but were not")
+		}
+		if !params.IterShouldBeEqual && equalTrainRows == true {
+			t.Fatalf("Expected train calls to be different but were not")
+		}
+		if !params.IterShouldBeEqual && equalTestRows == true {
+			t.Fatalf("Expected test calls to be different but were not")
+		}
+	}
+
+	tests := map[string]TestCase{
+		"Even Rows": {
+			TestParameters: TestParameters{
+				TestSize:         0.5,
+				Shuffle:          true,
+				RandomState:      1,
+				ExpectedTestRows: 5,
+			},
+			TestFunction: testSplit,
+		},
+		"All Train Rows": {
+			TestParameters: TestParameters{
+				TestSize:         0.0,
+				Shuffle:          true,
+				RandomState:      1,
+				ExpectedTestRows: 0,
+			},
+			TestFunction: testSplit,
+		},
+		"All Test Rows": {
+			TestParameters: TestParameters{
+				TestSize:         1,
+				Shuffle:          true,
+				RandomState:      1,
+				ExpectedTestRows: 10,
+			},
+			TestFunction: testSplit,
+		},
+		"No Shuffle": {
+			TestParameters: TestParameters{
+				TestSize:          0.5,
+				Shuffle:           false,
+				RandomState:       0,
+				RandomState2:      0,
+				ExpectedTestRows:  5,
+				IterShouldBeEqual: true,
+			},
+			TestFunction: testShuffle,
+		},
+		"Shuffle": {
+			TestParameters: TestParameters{
+				TestSize:          0.5,
+				Shuffle:           true,
+				RandomState:       0,
+				RandomState2:      0,
+				ExpectedTestRows:  5,
+				IterShouldBeEqual: false,
+			},
+			TestFunction: testShuffle,
+		},
+		"Same Random State": {
+			TestParameters: TestParameters{
+				TestSize:          0.5,
+				Shuffle:           true,
+				RandomState:       1,
+				RandomState2:      1,
+				ExpectedTestRows:  5,
+				IterShouldBeEqual: true,
+			},
+			TestFunction: testShuffle,
+		},
+		"Different Random State": {
+			TestParameters: TestParameters{
+				TestSize:          0.5,
+				Shuffle:           true,
+				RandomState:       1,
+				RandomState2:      2,
+				ExpectedTestRows:  5,
+				IterShouldBeEqual: false,
+			},
+			TestFunction: testShuffle,
+		},
+	}
+
+	for name, test := range tests {
+		nameConst := name
+		testConst := test
+		t.Run(nameConst, func(t *testing.T) {
+			if store.Type() != pt.ClickHouseOffline {
+				t.Skip()
+			}
+			testConst.TestFunction(t, store, testConst.TestParameters)
 		})
 	}
 }

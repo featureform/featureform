@@ -11,7 +11,6 @@ dir_path = os.path.dirname(real_path)
 @pytest.mark.parametrize(
     "is_local,is_insecure",
     [
-        pytest.param(True, True, marks=pytest.mark.local),
         pytest.param(False, False, marks=pytest.mark.hosted),
         pytest.param(False, True, marks=pytest.mark.docker),
     ],
@@ -47,7 +46,6 @@ def test_adding_tags_and_properties_to_provider(is_local, is_insecure, request):
 @pytest.mark.parametrize(
     "is_local,is_insecure",
     [
-        pytest.param(True, True, marks=pytest.mark.local),
         pytest.param(False, False, marks=pytest.mark.hosted),
         pytest.param(False, True, marks=pytest.mark.docker),
     ],
@@ -105,7 +103,6 @@ def test_updating_tags_and_properties_for_provider(is_local, is_insecure, reques
 @pytest.mark.parametrize(
     "is_local,is_insecure",
     [
-        pytest.param(True, True, marks=pytest.mark.local),
         pytest.param(False, False, marks=pytest.mark.hosted),
         pytest.param(False, True, marks=pytest.mark.docker),
     ],
@@ -131,7 +128,6 @@ def test_adding_tags_and_properties_to_user(is_local, is_insecure, request):
 @pytest.mark.parametrize(
     "is_local,is_insecure",
     [
-        pytest.param(True, True, marks=pytest.mark.local),
         pytest.param(False, False, marks=pytest.mark.hosted),
         pytest.param(False, True, marks=pytest.mark.docker),
     ],
@@ -168,7 +164,6 @@ def test_updating_tags_and_properties_for_user(is_local, is_insecure, request):
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
@@ -224,7 +219,6 @@ def test_adding_tags_and_properties_to_source(
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
@@ -308,7 +302,6 @@ def test_updating_tags_and_properties_for_source(
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
@@ -362,7 +355,6 @@ def test_adding_tags_and_properties_to_transformation(
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
@@ -444,7 +436,6 @@ def test_updating_tags_and_properties_for_transformation(
 @pytest.mark.parametrize(
     "is_local,is_insecure",
     [
-        pytest.param(True, True, marks=pytest.mark.local),
         pytest.param(False, False, marks=pytest.mark.hosted),
         pytest.param(False, True, marks=pytest.mark.docker),
     ],
@@ -472,7 +463,6 @@ def test_adding_tags_and_properties_to_entity(is_local, is_insecure, request):
 @pytest.mark.parametrize(
     "is_local,is_insecure",
     [
-        pytest.param(True, True, marks=pytest.mark.local),
         pytest.param(False, False, marks=pytest.mark.hosted),
         pytest.param(False, True, marks=pytest.mark.docker),
     ],
@@ -511,7 +501,6 @@ def test_updating_tags_and_properties_for_entity(is_local, is_insecure, request)
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
@@ -557,7 +546,6 @@ def test_adding_tags_and_properties_to_feature(
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
@@ -622,7 +610,6 @@ def test_updating_tags_and_properties_for_feature(
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
@@ -668,7 +655,6 @@ def test_adding_tags_and_properties_to_label(
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
@@ -733,7 +719,6 @@ def test_updating_tags_and_properties_for_label(
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),
@@ -778,7 +763,6 @@ def test_adding_tags_and_properties_to_training_set(
 @pytest.mark.parametrize(
     "provider_source_fxt,is_local,is_insecure",
     [
-        pytest.param("local_provider_source", True, True, marks=pytest.mark.local),
         pytest.param(
             "hosted_sql_provider_and_source", False, False, marks=pytest.mark.hosted
         ),

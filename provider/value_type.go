@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"reflect"
 	"time"
+
+	"github.com/featureform/fferr"
 )
 
 type ValueType interface {
@@ -46,10 +48,22 @@ func (t ScalarType) Type() reflect.Type {
 	switch t {
 	case Int:
 		return reflect.PointerTo(reflect.TypeOf(int(0)))
+	case Int8:
+		return reflect.PointerTo(reflect.TypeOf(int8(0)))
+	case Int16:
+		return reflect.PointerTo(reflect.TypeOf(int16(0)))
 	case Int32:
 		return reflect.PointerTo(reflect.TypeOf(int32(0)))
 	case Int64:
 		return reflect.PointerTo(reflect.TypeOf(int64(0)))
+	case UInt8:
+		return reflect.PointerTo(reflect.TypeOf(uint8(0)))
+	case UInt16:
+		return reflect.PointerTo(reflect.TypeOf(uint16(0)))
+	case UInt32:
+		return reflect.PointerTo(reflect.TypeOf(uint32(0)))
+	case UInt64:
+		return reflect.PointerTo(reflect.TypeOf(uint64(0)))
 	case Float32:
 		return reflect.PointerTo(reflect.TypeOf(float32(0)))
 	case Float64:
@@ -70,8 +84,14 @@ func (t ScalarType) Type() reflect.Type {
 const (
 	NilType   ScalarType = ""
 	Int       ScalarType = "int"
+	Int8      ScalarType = "int8"
+	Int16     ScalarType = "int16"
 	Int32     ScalarType = "int32"
 	Int64     ScalarType = "int64"
+	UInt8     ScalarType = "uint8"
+	UInt16    ScalarType = "uint16"
+	UInt32    ScalarType = "uint32"
+	UInt64    ScalarType = "uint64"
 	Float32   ScalarType = "float32"
 	Float64   ScalarType = "float64"
 	String    ScalarType = "string"
@@ -83,8 +103,14 @@ const (
 var ScalarTypes = map[ScalarType]bool{
 	NilType:   true,
 	Int:       true,
+	Int8:      true,
+	Int16:     true,
 	Int32:     true,
 	Int64:     true,
+	UInt8:     true,
+	UInt16:    true,
+	UInt32:    true,
+	UInt64:    true,
 	Float32:   true,
 	Float64:   true,
 	String:    true,
@@ -110,7 +136,7 @@ func (vt *ValueTypeJSONWrapper) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return fmt.Errorf("could not unmarshal value type: %v", data)
+	return fferr.NewInternalError(fmt.Errorf("could not unmarshal value type: %v", data))
 }
 
 func (vt ValueTypeJSONWrapper) MarshalJSON() ([]byte, error) {
@@ -120,6 +146,6 @@ func (vt ValueTypeJSONWrapper) MarshalJSON() ([]byte, error) {
 	case ScalarType:
 		return json.Marshal(map[string]ScalarType{"ValueType": vt.ValueType.(ScalarType)})
 	default:
-		return nil, fmt.Errorf("could not marshal value type: %v", vt.ValueType)
+		return nil, fferr.NewInternalError(fmt.Errorf("could not marshal value type: %v", vt.ValueType))
 	}
 }

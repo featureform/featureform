@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	_ "github.com/go-sql-driver/mysql"
@@ -25,13 +26,13 @@ const (
 func mySqlOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.MySqlConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, fmt.Errorf("invalid postgres config: %v", config)
+		return nil, err
 	}
 	queries := mySQLQueries{}
 	queries.setVariableBinding(MySQLBindingStyle)
 	sgConfig := SQLOfflineStoreConfig{
 		Config:       config,
-		Driver:       "mysql",
+		Driver:       pt.MySqlOffline.String(),
 		ProviderType: pt.MySqlOffline,
 		QueryImpl:    &queries,
 	}
@@ -67,12 +68,16 @@ func (q mySQLQueries) registerResources(db *sql.DB, tableName string, schema Res
 	}
 	query, err = db.Prepare("CREATE VIEW ? AS SELECT ? as entity, ? as value, ? as ts FROM ?")
 	if err != nil {
-		return fmt.Errorf("error registering view: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	defer query.Close()
-	fmt.Printf("Resource creation query: %v", query)
-	_, err = query.Exec(tableName, schema.Entity, schema.Value, schema.TS, schema.SourceTable)
-	return err
+	if _, err = query.Exec(tableName, schema.Entity, schema.Value, schema.TS, schema.SourceTable); err != nil {
+		wrapped := fferr.NewExecutionError(pt.MySqlOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("entity", schema.Entity)
+		return wrapped
+	}
+	return nil
 }
 
 func (q mySQLQueries) primaryTableRegister(tableName string, sourceName string) string {
@@ -81,14 +86,19 @@ func (q mySQLQueries) primaryTableRegister(tableName string, sourceName string) 
 
 // materializationCreate satisfies the OfflineTableQueries interface.
 // mySQL doesn't have materialized views.
-func (q mySQLQueries) materializationCreate(tableName string, sourceName string) string {
-	return q.primaryTableRegister(tableName, sourceName)
+func (q mySQLQueries) materializationCreate(tableName string, sourceName string) []string {
+	return []string{q.primaryTableRegister(tableName, sourceName)}
 }
 
 func (q mySQLQueries) materializationUpdate(db *sql.DB, tableName string, sourceName string) error {
 	query := `DROP VIEW IF EXISTS ?;` + q.primaryTableCreate(tableName, sourceName)
-	_, err := db.Exec(query, tableName)
-	return err
+	if _, err := db.Exec(query, tableName); err != nil {
+		wrapped := fferr.NewExecutionError(pt.MySqlOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("source_name", sourceName)
+		return wrapped
+	}
+	return nil
 }
 
 func (q mySQLQueries) materializationExists() string {
@@ -110,7 +120,7 @@ func (q mySQLQueries) determineColumnType(valueType ValueType) (string, error) {
 	case NilType:
 		return "VARCHAR", nil
 	default:
-		return "", fmt.Errorf("cannot find column type for value type: %s", valueType)
+		return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", valueType), fmt.Errorf("could not determine column type"))
 	}
 }
 
@@ -167,7 +177,11 @@ func (q mySQLQueries) trainingSetQuery(store *sqlOfflineStore, def TrainingSetDe
 	} else {
 		fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", sanitize(tableName), columnStr, query)
 		if _, err := store.db.Exec(fullQuery); err != nil {
-			return err
+			wrapped := fferr.NewExecutionError(pt.MySqlOffline.String(), err)
+			wrapped.AddDetail("table_name", tableName)
+			wrapped.AddDetail("training_set_name", def.ID.Name)
+			wrapped.AddDetail("training_set_variant", def.ID.Variant)
+			return wrapped
 		}
 	}
 	return nil
@@ -214,11 +228,17 @@ func (q mySQLQueries) getValueColumnType(t *sql.ColumnType) interface{} {
 }
 
 func (q mySQLQueries) numRows(n interface{}) (int64, error) {
-	return n.(int64), nil
+	num, ok := n.(int64)
+	if !ok {
+		return 0, fferr.NewInternalError(fmt.Errorf("could not convert %T to int64", n))
+	}
+	return num, nil
 }
 
-func (q mySQLQueries) transformationCreate(name string, query string) string {
-	return fmt.Sprintf("CREATE TABLE  %s AS %s", sanitize(name), query)
+func (q mySQLQueries) transformationCreate(name string, query string) []string {
+	return []string{
+		fmt.Sprintf("CREATE TABLE  %s AS %s", sanitize(name), query),
+	}
 }
 
 func (q mySQLQueries) transformationUpdate(db *sql.DB, tableName string, query string) error {
@@ -234,14 +254,18 @@ func (q mySQLQueries) transformationExists() string {
 func (q mySQLQueries) getColumns(db *sql.DB, tableName string) ([]TableColumn, error) {
 	rows, err := db.Query("SELECT column_name FROM information_schema.columns WHERE table_name = ?", tableName)
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewExecutionError(pt.MySqlOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 	defer rows.Close()
 	columnNames := make([]TableColumn, 0)
 	for rows.Next() {
 		var column string
 		if err := rows.Scan(&column); err != nil {
-			return nil, err
+			wrapped := fferr.NewExecutionError(pt.MySqlOffline.String(), err)
+			wrapped.AddDetail("table_name", tableName)
+			return nil, wrapped
 		}
 		columnNames = append(columnNames, TableColumn{Name: column})
 	}

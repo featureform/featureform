@@ -3,7 +3,6 @@ import pytest
 
 from featureform.register import (
     EntityRegistrar,
-    LocalProvider,
     OnlineProvider,
     FileStoreProvider,
     OfflineSQLProvider,
@@ -22,13 +21,6 @@ def test_registrar_get_source():
     reg = Registrar()
     result = reg.get_source(name="name", variant="variant")
     assert isinstance(result, ColumnSourceRegistrar)
-
-
-@pytest.mark.local
-def test_registrar_get_local_provider():
-    reg = Registrar()
-    result = reg.get_local_provider(name="unit-test")
-    assert isinstance(result, LocalProvider)
 
 
 @pytest.mark.local
@@ -91,6 +83,15 @@ def test_registrar_get_redshift():
 
 
 @pytest.mark.local
+def test_registrar_get_clickhouse():
+    reg = Registrar()
+    result = reg.get_clickhouse(
+        name="unit-test",
+    )
+    assert isinstance(result, OfflineSQLProvider)
+
+
+@pytest.mark.local
 def test_registrar_get_bigquery():
     reg = Registrar()
     result = reg.get_bigquery(
@@ -138,5 +139,5 @@ def test_registrar_get_gcs():
 @pytest.mark.local
 def test_registrar_get_entity():
     reg = Registrar()
-    result = reg.get_entity(name="unit-test", is_local=True)
+    result = reg.get_entity(name="unit-test")
     assert isinstance(result, EntityRegistrar)

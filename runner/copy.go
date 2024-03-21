@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
@@ -67,7 +68,7 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		}
 		numRows, err := m.Materialized.NumRows()
 		if err != nil {
-			jobWatcher.EndWatch(fmt.Errorf("failed to get number of rows: %w", err))
+			jobWatcher.EndWatch(err)
 			return
 		}
 		if numRows == 0 {
@@ -82,7 +83,7 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		}
 		it, err := m.Materialized.IterateSegment(rowStart, rowEnd)
 		if err != nil {
-			jobWatcher.EndWatch(fmt.Errorf("failed to create iterator: %w", err))
+			jobWatcher.EndWatch(err)
 			return
 		}
 		// The logic for the below code (i.e. the channel, goroutines, wait group and iteration loop)
@@ -113,7 +114,7 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 				for record := range ch {
 					if err := m.Table.Set(record.Entity, record.Value); err != nil {
 						select {
-						case errCh <- fmt.Errorf("could not set value to table: %w", err):
+						case errCh <- err:
 						default:
 						}
 					}
@@ -147,21 +148,21 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		}
 		close(errCh)
 		if chanErr != nil {
-			jobWatcher.EndWatch(fmt.Errorf("error encountered by inference store writer goroutine: %w", chanErr))
+			jobWatcher.EndWatch(chanErr)
 			return
 		}
 		if err = it.Err(); err != nil {
-			jobWatcher.EndWatch(fmt.Errorf("iteration failed with error: %w", err))
+			jobWatcher.EndWatch(err)
 			return
 		}
 		err = it.Close()
 		if err != nil {
-			jobWatcher.EndWatch(fmt.Errorf("failed to close iterator: %w", err))
+			jobWatcher.EndWatch(err)
 			return
 		}
 		err = m.Store.Close()
 		if err != nil {
-			jobWatcher.EndWatch(fmt.Errorf("failed to close Online Store: %w", err))
+			jobWatcher.EndWatch(err)
 			return
 		}
 		jobWatcher.EndWatch(nil)
@@ -225,7 +226,7 @@ func (m *SyncWatcher) String() string {
 	if !done {
 		return "Job still running."
 	}
-	return "Job completed succesfully."
+	return "Job completed successfully."
 }
 
 type MaterializedChunkRunnerConfig struct {
@@ -244,7 +245,7 @@ type MaterializedChunkRunnerConfig struct {
 func (m *MaterializedChunkRunnerConfig) Serialize() (Config, error) {
 	config, err := json.Marshal(m)
 	if err != nil {
-		panic(err)
+		return nil, fferr.NewInternalError(err)
 	}
 	return config, nil
 }
@@ -252,7 +253,7 @@ func (m *MaterializedChunkRunnerConfig) Serialize() (Config, error) {
 func (m *MaterializedChunkRunnerConfig) Deserialize(config Config) error {
 	err := json.Unmarshal(config, m)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -260,39 +261,39 @@ func (m *MaterializedChunkRunnerConfig) Deserialize(config Config) error {
 func MaterializedChunkRunnerFactory(config Config) (types.Runner, error) {
 	runnerConfig := &MaterializedChunkRunnerConfig{}
 	if err := runnerConfig.Deserialize(config); err != nil {
-		return nil, fmt.Errorf("failed to deserialize materialize chunk runner config: %v", err)
+		return nil, err
 	}
 
 	onlineProvider, err := provider.Get(runnerConfig.OnlineType, runnerConfig.OnlineConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure %s provider: %v", runnerConfig.OnlineType, err)
+		return nil, err
 	}
 	offlineProvider, err := provider.Get(runnerConfig.OfflineType, runnerConfig.OfflineConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure %s provider: %v", runnerConfig.OfflineType, err)
+		return nil, err
 	}
 	onlineStore, err := onlineProvider.AsOnlineStore()
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert provider to online store: %v", err)
+		return nil, err
 	}
 	offlineStore, err := offlineProvider.AsOfflineStore()
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
+		return nil, err
 	}
 	materialization, err := offlineStore.GetMaterialization(runnerConfig.MaterializedID)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get materialization: %v", err)
+		return nil, err
 	}
 	numRows, err := materialization.NumRows()
 	if err != nil {
-		return nil, fmt.Errorf("cannot get materialization num rows: %v", err)
+		return nil, err
 	}
 	if runnerConfig.ChunkSize*runnerConfig.ChunkIdx > numRows {
-		return nil, fmt.Errorf("chunk runner starts after end of materialization rows")
+		return nil, fferr.NewInternalError(fmt.Errorf("chunk runner starts after end of materialization rows"))
 	}
 	table, err := onlineStore.GetTable(runnerConfig.ResourceID.Name, runnerConfig.ResourceID.Variant)
 	if err != nil {
-		return nil, fmt.Errorf("error getting online table: %v", err)
+		return nil, err
 	}
 	return &MaterializedChunkRunner{
 		Materialized: materialization,

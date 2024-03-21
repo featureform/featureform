@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 
@@ -32,7 +33,7 @@ type redisOnlineStore struct {
 func redisOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
 	redisConfig := &pc.RedisConfig{}
 	if err := redisConfig.Deserialize(serialized); err != nil {
-		return nil, NewProviderError(Runtime, pt.RedisOnline, ConfigDeserialize, err.Error())
+		return nil, err
 	}
 	if redisConfig.Prefix == "" {
 		redisConfig.Prefix = "Featureform_table__"
@@ -61,7 +62,10 @@ func NewRedisOnlineStore(options *pc.RedisConfig) (*redisOnlineStore, error) {
 	}
 	redisClient, err := rueidis.NewClient(redisOptions)
 	if err != nil {
-		return nil, NewProviderError(Connection, pt.RedisOnline, ClientInitialization, err.Error())
+		wrapped := fferr.NewConnectionError(pt.RedisOnline.String(), err)
+		wrapped.AddDetail("action", "client initialization")
+		wrapped.AddDetail("addr", options.Addr)
+		return nil, wrapped
 	}
 	return &redisOnlineStore{redisClient, options.Prefix, BaseProvider{
 		ProviderType:   pt.RedisOnline,
@@ -88,9 +92,9 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 		Build()
 	vType, err := store.client.Do(context.TODO(), cmd).ToString()
 	if err != nil && rueidis.IsRedisNil(err) {
-		return nil, &TableNotFound{feature, variant}
+		return nil, fferr.NewDatasetNotFoundError(feature, variant, err)
 	} else if err != nil {
-		return nil, err
+		return nil, fferr.NewResourceExecutionError(store.ProviderType.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
 	var table OnlineStoreTable
 	// This maintains backwards compatibility with the previous implementation,
@@ -106,7 +110,9 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 	valueTypeJSON := &ValueTypeJSONWrapper{}
 	err = json.Unmarshal([]byte(vType), valueTypeJSON)
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewInternalError(err)
+		wrapped.AddDetail("value_type", vType)
+		return nil, wrapped
 	}
 	switch valueTypeJSON.ValueType.(type) {
 	case VectorType:
@@ -126,7 +132,7 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 			valueType: valueTypeJSON.ValueType,
 		}
 	default:
-		return nil, fmt.Errorf("unknown value type: %T", valueTypeJSON.ValueType)
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("unknown value type: %T", valueTypeJSON.ValueType))
 	}
 	return table, nil
 }
@@ -140,14 +146,16 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 		Build()
 	exists, err := store.client.Do(context.TODO(), cmd).AsBool()
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewResourceExecutionError(store.ProviderType.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
 	if exists {
-		return nil, &TableAlreadyExists{feature, variant}
+		return nil, fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
 	}
 	serialized, err := json.Marshal(ValueTypeJSONWrapper{valueType})
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewInternalError(err)
+		wrapped.AddDetail("value_type", fmt.Sprintf("%v", valueType))
+		return nil, wrapped
 	}
 	cmd = store.client.B().
 		Hset().
@@ -156,7 +164,7 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 		FieldValue(key.String(), string(serialized)).
 		Build()
 	if resp := store.client.Do(context.TODO(), cmd); resp.Error() != nil {
-		return nil, resp.Error()
+		return nil, fferr.NewResourceExecutionError(store.ProviderType.String(), feature, variant, fferr.FEATURE_VARIANT, resp.Error())
 	}
 	var table OnlineStoreTable
 	switch valueType.(type) {
@@ -177,11 +185,12 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 			valueType: valueType,
 		}
 	default:
-		return nil, fmt.Errorf("unknown value type: %T", valueType)
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("unknown value type: %T", valueType))
 	}
 	return table, nil
 }
 
+// TODO: Implement table deletion
 func (store *redisOnlineStore) DeleteTable(feature, variant string) error {
 	return nil
 }
@@ -190,10 +199,14 @@ func (store *redisOnlineStore) CheckHealth() (bool, error) {
 	cmd := store.client.B().Ping().Build()
 	resp, err := store.client.Do(context.Background(), cmd).ToString()
 	if err != nil {
-		return false, NewProviderError(Connection, pt.RedisOnline, Ping, err.Error())
+		wrapped := fferr.NewConnectionError(pt.RedisOnline.String(), err)
+		wrapped.AddDetail("action", "ping")
+		return false, wrapped
 	}
 	if resp != "PONG" {
-		return false, NewProviderError(Connection, pt.RedisOnline, Ping, fmt.Sprintf("expected 'PONG' from Redis server; received: %s", resp))
+		wrapped := fferr.NewConnectionError(pt.RedisOnline.String(), fmt.Errorf("expected 'PONG' from Redis server; received: %s", resp))
+		wrapped.AddDetail("action", "ping")
+		return false, wrapped
 	}
 	return true, nil
 }
@@ -202,16 +215,17 @@ func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType V
 	key := redisIndexKey{Prefix: store.prefix, Feature: feature, Variant: variant}
 	cmd, err := store.createIndexCmd(key, vectorType)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewResourceExecutionError(store.ProviderType.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
 	resp := store.client.Do(context.Background(), cmd)
 	if resp.Error() != nil {
-		return &redisOnlineIndex{}, resp.Error()
+		return &redisOnlineIndex{}, fferr.NewResourceExecutionError(store.ProviderType.String(), feature, variant, fferr.FEATURE_VARIANT, resp.Error())
 	}
 	table := &redisOnlineIndex{client: store.client, key: key, valueType: vectorType}
 	return table, nil
 }
 
+// TODO: Implement index deletion
 func (store *redisOnlineStore) DeleteIndex(feature, variant string) error {
 	return nil
 }
@@ -271,7 +285,7 @@ func (table redisOnlineTable) Set(entity string, value interface{}) error {
 	case []float32:
 		value = rueidis.VectorString32(v)
 	default:
-		return fmt.Errorf("type %T of value %v is unsupported", value, value)
+		return fferr.NewDataTypeNotFoundError(fmt.Sprintf("%T", value), fmt.Errorf("unsupported data type"))
 	}
 	cmd := table.client.B().
 		Hset().
@@ -281,7 +295,9 @@ func (table redisOnlineTable) Set(entity string, value interface{}) error {
 		Build()
 	res := table.client.Do(context.TODO(), cmd)
 	if res.Error() != nil {
-		return res.Error()
+		wrapped := fferr.NewResourceExecutionError(pt.RedisOnline.String(), table.key.Feature, table.key.Variant, fferr.ENTITY, res.Error())
+		wrapped.AddDetail("entity", entity)
+		return wrapped
 	}
 	return nil
 }
@@ -294,13 +310,13 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 		Build()
 	resp := table.client.Do(context.TODO(), cmd)
 	if resp.Error() != nil {
-		return nil, &EntityNotFound{entity}
+		return nil, fferr.NewEntityNotFoundError(table.key.Feature, table.key.Variant, entity, resp.Error())
 	}
 	var err error
 	var result interface{}
 	val, err := resp.ToString()
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewResourceExecutionError(pt.RedisOnline.String(), table.key.Feature, table.key.Variant, fferr.ENTITY, err)
 	}
 	if table.valueType.IsVector() {
 		return rueidis.ToVector32(val), nil
@@ -332,7 +348,9 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 		result, err = val, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("could not cast value: %v to %s: %w", resp, table.valueType, err)
+		wrapped := fferr.NewInternalError(fmt.Errorf("could not cast value: %v to %s: %w", resp, table.valueType, err))
+		wrapped.AddDetail("entity", entity)
+		return nil, wrapped
 	}
 	return result, nil
 }
@@ -349,11 +367,21 @@ type redisIndexKey struct {
 
 func (k *redisIndexKey) serialize(entity string) ([]byte, error) {
 	k.Entity = entity
-	return json.Marshal(k)
+	serialized, err := json.Marshal(k)
+	if err != nil {
+		wrapped := fferr.NewInternalError(err)
+		wrapped.AddDetail("entity", entity)
+		return nil, wrapped
+	}
+	return serialized, nil
 }
 
 func (k *redisIndexKey) deserialize(key []byte) error {
-	return json.Unmarshal(key, &k)
+	err := json.Unmarshal(key, &k)
+	if err != nil {
+		return fferr.NewInternalError(err)
+	}
+	return nil
 }
 
 func (k redisIndexKey) getVectorField() string {
@@ -367,7 +395,9 @@ func (k redisIndexKey) getVectorField() string {
 func (table redisOnlineIndex) Set(entity string, value interface{}) error {
 	vector, ok := value.([]float32)
 	if !ok {
-		return fmt.Errorf("value %v is not a vector", value)
+		wrapped := fferr.NewDataTypeNotFoundError(fmt.Sprintf("%T", value), fmt.Errorf("value %v is not a vector", value))
+		wrapped.AddDetail("entity", entity)
+		return wrapped
 	}
 	serializedKey, err := table.key.serialize(entity)
 	if err != nil {
@@ -381,7 +411,9 @@ func (table redisOnlineIndex) Set(entity string, value interface{}) error {
 		Build()
 	res := table.client.Do(context.TODO(), cmd)
 	if res.Error() != nil {
-		return res.Error()
+		wrapped := fferr.NewResourceExecutionError(pt.RedisOnline.String(), table.key.Feature, table.key.Variant, fferr.ENTITY, res.Error())
+		wrapped.AddDetail("entity", entity)
+		return wrapped
 	}
 	return nil
 }
@@ -398,11 +430,11 @@ func (table redisOnlineIndex) Get(entity string) (interface{}, error) {
 		Build()
 	resp := table.client.Do(context.TODO(), cmd)
 	if resp.Error() != nil {
-		return nil, &EntityNotFound{entity}
+		return nil, fferr.NewEntityNotFoundError(table.key.Feature, table.key.Variant, entity, resp.Error())
 	}
 	val, err := resp.ToString()
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewResourceExecutionError(pt.RedisOnline.String(), table.key.Feature, table.key.Variant, fferr.ENTITY, err)
 	}
 	return rueidis.ToVector32(val), nil
 }
@@ -414,7 +446,7 @@ func (table redisOnlineIndex) Nearest(feature, variant string, vector []float32,
 	}
 	_, docs, err := table.client.Do(context.Background(), cmd).AsFtSearch()
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewResourceExecutionError(pt.RedisOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
 	entities := make([]string, len(docs))
 	for idx, doc := range docs {

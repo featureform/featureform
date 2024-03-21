@@ -1,6 +1,3 @@
-//go:build k8s
-// +build k8s
-
 package provider
 
 import (
@@ -111,6 +108,10 @@ func TestDeserializeExecutorConfig(t *testing.T) {
 }
 
 func TestBlobInterfaces(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+
 	fileStoreTests := map[string]func(*testing.T, FileStore){
 		"Test Filestore Read and Write": testFilestoreReadAndWrite,
 		"Test Exists":                   testExists,
@@ -182,14 +183,11 @@ func TestBlobInterfaces(t *testing.T) {
 		"HDFS":  hdfsFileStore,
 	}
 	for testName, fileTest := range fileStoreTests {
-		fileTest = fileTest
-		testName = testName
 		for blobName, blobProvider := range blobProviders {
-			if blobName != "HDFS" {
-				continue
+			if testing.Short() && blobName == "Azure" {
+				t.Skip()
 			}
-			blobName = blobName
-			blobProvider = blobProvider
+
 			t.Run(fmt.Sprintf("%s: %s", testName, blobName), func(t *testing.T) {
 				fileTest(t, blobProvider)
 			})
@@ -332,6 +330,9 @@ func TestExecutorRunLocal(t *testing.T) {
 
 func TestNewConfig(t *testing.T) {
 	err := godotenv.Load("../.env")
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
 
 	k8sConfig := pc.K8sConfig{
 		ExecutorType:   pc.K8s,
@@ -628,6 +629,7 @@ func testDeleteAll(t *testing.T, store FileStore) {
 		if err != nil {
 			t.Fatalf("Could not create random file path: %v", err)
 		}
+		fmt.Println("-----", randomFilePath.ToURI())
 		if err := store.Write(randomFilePath, randomData); err != nil {
 			t.Fatalf("Could not write key to filestore: %v", err)
 		}
@@ -730,6 +732,9 @@ func testNumRows(t *testing.T, store FileStore) {
 }
 
 func TestDatabricksInitialization(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	host := helpers.GetEnv("DATABRICKS_HOST", "")
 	token := helpers.GetEnv("DATABRICKS_ACCESS_TOKEN", "")
 	cluster := helpers.GetEnv("DATABRICKS_CLUSTER", "")
@@ -1067,8 +1072,8 @@ func Test_castTimestamp(t *testing.T) {
 		errMsg  string
 	}{
 		{"With time.Time", args{timeNow}, timeNow, false, ""},
-		{"With string", args{"idk"}, timeNow, true, "expected timestamp to be of type time.Time, but got string"},
-		{"With int", args{0}, timeNow, true, "expected timestamp to be of type time.Time, but got int"},
+		{"With string", args{"idk"}, timeNow, true, "expected timestamp to be of type time.Time"},
+		{"With int", args{0}, timeNow, true, "expected timestamp to be of type time.Time"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1080,7 +1085,7 @@ func Test_castTimestamp(t *testing.T) {
 			}
 			// If we expect error, checks that it is the correct error
 			if (err != nil) && tt.wantErr {
-				if err.Error() != tt.errMsg {
+				if !strings.Contains(err.Error(), tt.errMsg) {
 					t.Errorf("castTimestamp() error = %v, wantMsg %v", err, tt.errMsg)
 				}
 				return

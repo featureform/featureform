@@ -1,0 +1,7 @@
+apiVersion: v1
+data:
+  REACT_APP_API_URL: featureform-metadata-server
+kind: ConfigMap
+metadata:
+  name: featureform-env
+  

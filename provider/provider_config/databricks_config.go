@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"github.com/featureform/fferr"
 
 	ss "github.com/featureform/helpers/string_set"
 )
@@ -17,7 +18,7 @@ type DatabricksConfig struct {
 func (d *DatabricksConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, d)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -25,7 +26,7 @@ func (d *DatabricksConfig) Deserialize(config SerializedConfig) error {
 func (d *DatabricksConfig) Serialize() ([]byte, error) {
 	conf, err := json.Marshal(d)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	return conf, nil
 }

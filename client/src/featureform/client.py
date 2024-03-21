@@ -1,14 +1,15 @@
+import featureform.resources
 from typing import Union, Optional
 
 from .constants import NO_RECORD_LIMIT
 from .register import (
     ResourceClient,
     SourceRegistrar,
-    LocalSource,
     SubscriptableTransformation,
     FeatureColumnResource,
 )
 from .serving import ServingClient
+from .enums import ResourceType
 
 
 class Client(ResourceClient, ServingClient):
@@ -33,6 +34,11 @@ class Client(ResourceClient, ServingClient):
     def __init__(
         self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
     ):
+        if local:
+            raise Exception(
+                "Local mode is not supported in this version. Use featureform <= 1.12.0 for localmode"
+            )
+
         if host is not None:
             self._validate_host(host)
 
@@ -53,7 +59,7 @@ class Client(ResourceClient, ServingClient):
 
     def dataframe(
         self,
-        source: Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str],
+        source: Union[SourceRegistrar, SubscriptableTransformation, str],
         variant: Optional[str] = None,
         limit=NO_RECORD_LIMIT,
         asynchronous=False,
@@ -70,7 +76,7 @@ class Client(ResourceClient, ServingClient):
         ```
 
         Args:
-            source (Union[SourceRegistrar, LocalSource, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
+            source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
             variant (str): The source variant; can't be None if source is a string
             limit (int): The maximum number of records to return; defaults to NO_RECORD_LIMIT
             asynchronous (bool): Flag to determine whether the client should wait for resources to be in either a READY or FAILED state before returning. Defaults to False to ensure that newly registered resources are in a READY state prior to serving them as dataframes.
@@ -80,9 +86,7 @@ class Client(ResourceClient, ServingClient):
 
         """
         self.apply(asynchronous=asynchronous, verbose=verbose)
-        if isinstance(
-            source, (SourceRegistrar, LocalSource, SubscriptableTransformation)
-        ):
+        if isinstance(source, (SourceRegistrar, SubscriptableTransformation)):
             name, variant = source.name_variant()
         elif isinstance(source, str):
             name = source
@@ -92,7 +96,7 @@ class Client(ResourceClient, ServingClient):
                 raise ValueError("variant cannot be an empty string")
         else:
             raise ValueError(
-                f"source must be of type SourceRegistrar, LocalSource, SubscriptableTransformation or str, not {type(source)}\n"
+                f"source must be of type SourceRegistrar, SubscriptableTransformation or str, not {type(source)}\n"
                 "use client.dataframe(name, variant) or client.dataframe(source) or client.dataframe(transformation)"
             )
         return self.impl._get_source_as_df(name, variant, limit)
@@ -127,14 +131,97 @@ class Client(ResourceClient, ServingClient):
             )
 
         if k < 1:
-            raise ValueError(f"k must be a positive integer")
+            raise ValueError("k must be a positive integer")
         return self.impl.nearest(name, variant, vector, k)
+
+    def location(
+        self,
+        source: Union[SourceRegistrar, SubscriptableTransformation, str],
+        variant: Optional[str] = None,
+        resource_type: Optional[ResourceType] = None,
+    ):
+        """
+        Returns the location of a registered resource. For SQL resources, it will return the table name
+        and for file resources, it will return the file path.
+
+        **Example:**
+        ```py title="definitions.py"
+        transaction_location = client.location("transactions", "quickstart", ff.SOURCE)
+        ```
+
+        Args:
+            source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
+            variant (str): The source variant; can't be None if source is a string
+            resource_type (ResourceType): The type of resource; can be one of ff.SOURCE, ff.FEATURE, ff.LABEL, or ff.TRAINING_SET
+        """
+        if isinstance(source, (SourceRegistrar, SubscriptableTransformation)):
+            name, variant = source.name_variant()
+            resource_type = ResourceType.SOURCE
+        elif isinstance(source, featureform.resources.TrainingSetVariant):
+            name = source.name
+            variant = source.variant
+            resource_type = ResourceType.TRAINING_SET
+        elif isinstance(source, str):
+            name = source
+            if variant is None:
+                raise ValueError("variant must be specified if source is a string")
+            if variant == "":
+                raise ValueError("variant cannot be an empty string")
+
+            if resource_type is None:
+                raise ValueError(
+                    "resource_type must be specified if source is a string"
+                )
+
+        else:
+            raise ValueError(
+                f"source must be of type SourceRegistrar, SubscriptableTransformation or str, not {type(resource)}\n"
+                "use client.dataframe(name, variant) or client.dataframe(source) or client.dataframe(transformation)"
+            )
+
+        location = self.impl.location(name, variant, resource_type)
+        return location
 
     def close(self):
         """
-        Closes the client, closes channel for hosted mode and db for local mode
+        Closes the client, closes channel for hosted mode
         """
         self.impl.close()
+
+    def columns(
+        self,
+        source: Union[SourceRegistrar, SubscriptableTransformation, str],
+        variant: Optional[str] = None,
+    ):
+        """
+        Returns the columns of a registered source or transformation
+
+        **Example:**
+        ```py title="definitions.py"
+        columns = client.columns("transactions", "quickstart")
+        ```
+
+        Args:
+            source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to get the columns from
+            variant (str): The source variant; can't be None if source is a string
+
+        Returns:
+            columns (List[str]): The columns of the source or transformation
+        """
+        if isinstance(source, (SourceRegistrar, SubscriptableTransformation)):
+            name, variant = source.name_variant()
+        elif isinstance(source, str):
+            name = source
+            if variant is None:
+                raise ValueError("variant must be specified if source is a string")
+            if variant == "":
+                raise ValueError("variant cannot be an empty string")
+        else:
+            raise ValueError(
+                f"source must be of type SourceRegistrar, SubscriptableTransformation or str, not {type(source)}\n"
+                "use client.columns(name, variant) or client.columns(source) or client.columns(transformation)"
+            )
+        return self.impl._get_source_columns(name, variant)
 
     @staticmethod
     def _validate_host(host):

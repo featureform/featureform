@@ -1,6 +1,3 @@
-//go:build spark
-// +build spark
-
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -17,6 +14,7 @@ import (
 	"regexp"
 
 	"github.com/featureform/config"
+	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	fs "github.com/featureform/filestore"
 	"go.uber.org/zap/zaptest"
@@ -399,7 +397,7 @@ func testRegisterPrimary(store *SparkOfflineStore) error {
 
 func TestParquetUpload(t *testing.T) {
 	if testing.Short() {
-		return
+		t.Skip("skipping integration tests")
 	}
 	// emrSparkOfflineStore, err := getSparkOfflineStore(t)
 	// if err != nil {
@@ -552,7 +550,7 @@ func sparkTestGetUnknownTrainingSet(t *testing.T, store *SparkOfflineStore) {
 	id := sparkSafeRandomID(NoType)
 	if _, err := store.GetTrainingSet(id); err == nil {
 		t.Fatalf("Succeeded in getting unknown training set ResourceID")
-	} else if _, valid := err.(*TrainingSetNotFound); !valid {
+	} else if _, valid := err.(*fferr.TrainingSetNotFoundError); !valid {
 		t.Fatalf("Wrong error for training set not found: %T", err)
 	} else if err.Error() == "" {
 		t.Fatalf("Training set not found error msg not set")
@@ -668,7 +666,7 @@ func sparkTestOfflineTableNotFound(t *testing.T, store *SparkOfflineStore) {
 	id := sparkSafeRandomID(Feature, Label)
 	if _, err := store.GetResourceTable(id); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
-	} else if casted, valid := err.(*TableNotFound); !valid {
+	} else if casted, valid := err.(*fferr.DatasetNotFoundError); !valid {
 		t.Fatalf("Wrong error for table not found: %v, %T", err, err)
 	} else if casted.Error() == "" {
 		t.Fatalf("TableNotFound has empty error message")
@@ -749,7 +747,7 @@ func sparkTestOfflineTableAlreadyExists(t *testing.T, store *SparkOfflineStore) 
 	}
 	if err := registerRandomResource(id, store); err == nil {
 		t.Fatalf("Succeeded in creating table twice")
-	} else if casted, valid := err.(*TableAlreadyExists); !valid {
+	} else if casted, valid := err.(*fferr.DatasetAlreadyExistsError); !valid {
 		t.Fatalf("Wrong error for table already exists: %T", err)
 	} else if casted.Error() == "" {
 		t.Fatalf("TableAlreadyExists has empty error message")
@@ -968,7 +966,7 @@ func sparkTestMaterializationNotFound(t *testing.T, store *SparkOfflineStore) {
 	if err == nil {
 		t.Fatalf("Succeeded in deleting uninitialized materialization")
 	}
-	var notFoundErr *MaterializationNotFound
+	var notFoundErr *fferr.DatasetNotFoundError
 	if validCast := errors.As(err, &notFoundErr); !validCast {
 		t.Fatalf("Wrong Error type for materialization not found: %T", err)
 	}
@@ -2761,6 +2759,8 @@ func TestCreateLogS3FileStore(t *testing.T) {
 }
 
 func TestEMRErrorMessages(t *testing.T) {
+
+	t.Skip("extremely long running needs to be resolved")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		fmt.Println(err)
@@ -2824,7 +2824,7 @@ func TestEMRErrorMessages(t *testing.T) {
 		}
 		errorMessage := strings.Trim(scriptError[1], " ")
 
-		if errorMessage != test.ExpectedErrorMessage {
+		if !strings.Contains(errorMessage, test.ExpectedErrorMessage) {
 			t.Fatalf("did not get the expected error message: expected '%s' but got '%s'", test.ExpectedErrorMessage, errorMessage)
 		}
 	}
@@ -2877,6 +2877,9 @@ func createEMRAndS3(bucketName string) (SparkExecutor, SparkFileStore, error) {
 }
 
 func TestCreateSparkFileStore(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
 	type args struct {
 		name   string
 		config Config
@@ -2905,6 +2908,9 @@ func TestCreateSparkFileStore(t *testing.T) {
 }
 
 func TestSparkFilestore(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
 	testCases := []struct {
 		name                string
 		store               SparkFileStore
@@ -3370,6 +3376,95 @@ func TestDatabricksSubmitParams(t *testing.T) {
 				t.Fatalf("Expected %v, got %v", tt.shouldExceedAPILimit, actual)
 			}
 		})
+	}
+}
+
+func TestNewSparkFileStores(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping NewSparkFileStores tests")
+	}
+
+	err := godotenv.Load("../.env")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	mydir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("could not get working directory")
+	}
+
+	directoryPath := fmt.Sprintf("%s/scripts/k8s/tests/test_files/output/go_tests", mydir)
+	_ = os.MkdirAll(directoryPath, os.ModePerm)
+
+	localStoreConfig := pc.LocalFileStoreConfig{DirPath: fmt.Sprintf(`file:///%s`, directoryPath)}
+	localStoreConfigSerialized, err := localStoreConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Could not serialize local store config: %v", err)
+	}
+	_, err = NewSparkLocalFileStore(localStoreConfigSerialized)
+	if err != nil {
+		t.Fatalf("Could not create local store: %v", err)
+	}
+
+	s3StoreConfig := pc.S3FileStoreConfig{
+		Credentials: pc.AWSCredentials{
+			AWSSecretKey:   "",
+			AWSAccessKeyId: "",
+		},
+		BucketRegion: "abc",
+		BucketPath:   "abc",
+		Path:         "abc",
+	}
+	s3StoreConfigSerialized, err := s3StoreConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Could not serialize s3 store config: %v", err)
+	}
+	_, err = NewSparkS3FileStore(s3StoreConfigSerialized)
+	if err != nil {
+		t.Fatalf("Could not create s3 store: %v", err)
+	}
+
+	credsFile := os.Getenv("GCP_CREDENTIALS_FILE")
+	content, err := os.ReadFile(credsFile)
+	if err != nil {
+		t.Errorf("Error when opening file: %v", err)
+	}
+	var creds map[string]interface{}
+	err = json.Unmarshal(content, &creds)
+	if err != nil {
+		t.Errorf("Error during Unmarshal() creds: %v", err)
+	}
+
+	gcsStoreConfig := pc.GCSFileStoreConfig{
+		BucketName: os.Getenv("GCS_BUCKET_NAME"),
+		BucketPath: "",
+		Credentials: pc.GCPCredentials{
+			ProjectId: os.Getenv("GCP_PROJECT_ID"),
+			JSON:      creds,
+		},
+	}
+	gcsStoreConfigSerialized, err := gcsStoreConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Could not serialize gcs store config: %v", err)
+	}
+	_, err = NewSparkGCSFileStore(gcsStoreConfigSerialized)
+	if err != nil {
+		t.Fatalf("Could not create gcs store: %v", err)
+	}
+
+	hdfsStoreConfig := pc.HDFSFileStoreConfig{
+		Host:     "localhost",
+		Port:     "9000",
+		Username: "hduser",
+	}
+	hdfsStoreConfigSerialized, err := hdfsStoreConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Could not serialize hdfs store config: %v", err)
+	}
+	_, err = NewSparkHDFSFileStore(hdfsStoreConfigSerialized)
+	if err != nil {
+		t.Fatalf("Could not create hdfs store: %v", err)
 	}
 }
 

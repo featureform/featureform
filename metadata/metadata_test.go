@@ -2104,18 +2104,24 @@ func TestSourceShallowMapOK(t *testing.T) {
 		},
 	}
 	testCases := []struct {
-		name       string
-		definition interface{}
+		name                   string
+		sourceVariantTransform pb.SourceVariant_Transformation
+		sourceVariantPrimary   pb.SourceVariant_PrimaryData
+		usePrimary             bool
 	}{
-		{name: "Primary Data Definition", definition: primaryDef},
-		{name: "SQL Definition", definition: sqlDef},
-		{name: "DF Definition", definition: dataFrameDef},
+		{name: "Primary Data Definition", sourceVariantPrimary: *primaryDef, usePrimary: true},
+		{name: "SQL Definition", sourceVariantTransform: *sqlDef, usePrimary: false},
+		{name: "DF Definition", sourceVariantTransform: *dataFrameDef, usePrimary: false},
 	}
 
 	for _, currTest := range testCases {
 		t.Run(currTest.name, func(t *testing.T) {
 			sv := getSourceVariant()
-			sv.serialized.Definition = dataFrameDef
+			if currTest.usePrimary {
+				sv.serialized.Definition = &currTest.sourceVariantPrimary
+			} else {
+				sv.serialized.Definition = &currTest.sourceVariantTransform
+			}
 			sourceVariantResource := SourceShallowMap(sv)
 
 			assert.Equal(t, sv.serialized.Name, sourceVariantResource.Name)

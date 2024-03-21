@@ -172,7 +172,7 @@ class TrainTestSplitIterator:
         return batch_features, batch_labels
 
 
-class TrainingSetTestSplit:
+class TrainTestSplit:
     """
     Returns two iterators, one for the training set and one for the test set, in that order
     """

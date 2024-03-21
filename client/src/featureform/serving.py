@@ -24,7 +24,7 @@ from .enums import FileFormat, ResourceType
 from .register import FeatureColumnResource
 from .resources import Model
 from .tls import insecure_channel, secure_channel
-from .train_test_split import TrainingSetTestSplit
+from .train_test_split import TrainTestSplit
 from .version import check_up_to_date
 
 
@@ -523,7 +523,7 @@ class Dataset:
         stub = self._stream._stub
         model = self._stream.model if hasattr(self._stream, "model") else None
 
-        train, test = TrainingSetTestSplit(
+        train, test = TrainTestSplit(
             stub=stub,
             name=name,
             version=variant,

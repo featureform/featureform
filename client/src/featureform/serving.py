@@ -16,7 +16,7 @@ import pandas as pd
 
 from featureform.proto import serving_pb2
 from featureform.proto import serving_pb2_grpc
-from . import GrpcClient, Model
+from . import GrpcClient, Model, TrainingSetVariant
 from .enums import FileFormat, ResourceType
 from .register import FeatureColumnResource
 from .tls import insecure_channel, secure_channel
@@ -106,7 +106,7 @@ class ServingClient:
         Returns:
             training_set (Dataset): A training set iterator
         """
-        if isinstance(name, featureform.resources.TrainingSetVariant):
+        if isinstance(name, TrainingSetVariant):
             variant = name.variant
             name = name.name
         return self.impl.training_set(name, variant, include_label_timestamp, model)

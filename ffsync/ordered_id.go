@@ -32,7 +32,7 @@ func (id *Uint64OrderedId) Less(other OrderedId) bool {
 }
 
 func (id *Uint64OrderedId) String() string {
-	return fmt.Sprint(uint64(*id))
+	return fmt.Sprint(id.Value())
 }
 
 func (id *Uint64OrderedId) Value() interface{} {

@@ -292,6 +292,11 @@ func TestTaskGetAll(t *testing.T) {
 }
 
 func TestCreateTaskRun(t *testing.T) {
+	id1 := ffsync.Uint64OrderedId(1)
+	id2 := ffsync.Uint64OrderedId(2)
+	id3 := ffsync.Uint64OrderedId(3)
+	id4 := ffsync.Uint64OrderedId(4)
+
 	type taskInfo struct {
 		Name   string
 		Type   TaskType
@@ -314,23 +319,23 @@ func TestCreateTaskRun(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
-			[]runInfo{{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 1})}},
+			[]runInfo{{"name", TaskID(&id1), OneOffTrigger{"name"}, TaskRunID(&id1)}},
 			false,
 		},
 		{
 			"Multiple",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 1})},
-				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 2})},
-				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 3})},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}, TaskRunID(&id1)},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}, TaskRunID(&id2)},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}, TaskRunID(&id3)},
 			},
 			false,
 		},
 		{
 			"InvalidTask",
 			[]taskInfo{},
-			[]runInfo{{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 1})}},
+			[]runInfo{{"name", TaskID(&id1), OneOffTrigger{"name"}, TaskRunID(&id1)}},
 			true,
 		},
 		{
@@ -340,10 +345,10 @@ func TestCreateTaskRun(t *testing.T) {
 				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
-				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 1})},
-				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 2})},
-				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 1})},
-				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}, TaskRunID(&MockOrderedID{Id: 2})},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}, TaskRunID(&id1)},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}, TaskRunID(&id2)},
+				{"name", TaskID(&id2), OneOffTrigger{"name"}, TaskRunID(&id3)},
+				{"name", TaskID(&id2), OneOffTrigger{"name"}, TaskRunID(&id4)},
 			},
 			false,
 		},
@@ -366,8 +371,8 @@ func TestCreateTaskRun(t *testing.T) {
 			} else if err == nil && test.shouldError {
 				t.Fatalf("expected error but did not receive one")
 			}
-			if run.ExpectedID != recvRun.ID {
-				t.Fatalf("Expected id: %d, got: %d", run.ExpectedID, recvRun.ID)
+			if run.ExpectedID.Value() != recvRun.ID.Value() {
+				t.Fatalf("Expected id: %d, got: %d", run.ExpectedID.Value(), recvRun.ID.Value())
 			}
 		}
 	}
@@ -380,6 +385,10 @@ func TestCreateTaskRun(t *testing.T) {
 }
 
 func TestGetRunByID(t *testing.T) {
+	id1 := ffsync.Uint64OrderedId(1)
+	id2 := ffsync.Uint64OrderedId(2)
+	id3 := ffsync.Uint64OrderedId(3)
+
 	type taskInfo struct {
 		Name   string
 		Type   TaskType
@@ -402,21 +411,21 @@ func TestGetRunByID(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
-			[]runInfo{{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}}},
-			TaskID(&MockOrderedID{Id: 1}),
-			TaskRunID(&MockOrderedID{Id: 1}),
+			[]runInfo{{"name", TaskID(&id1), OneOffTrigger{"name"}}},
+			TaskID(&id1),
+			TaskRunID(&id1),
 			false,
 		},
 		{
 			"Multiple",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
 			},
-			TaskID(&MockOrderedID{Id: 1}),
-			TaskRunID(&MockOrderedID{Id: 2}),
+			TaskID(&id1),
+			TaskRunID(&id2),
 			false,
 		},
 		{
@@ -426,13 +435,13 @@ func TestGetRunByID(t *testing.T) {
 				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
-				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
-				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
+				{"name", TaskID(&id2), OneOffTrigger{"name"}},
+				{"name", TaskID(&id2), OneOffTrigger{"name"}},
 			},
-			TaskID(&MockOrderedID{Id: 2}),
-			TaskRunID(&MockOrderedID{Id: 1}),
+			TaskID(&id2),
+			TaskRunID(&id3),
 			false,
 		},
 		{
@@ -487,6 +496,9 @@ func TestGetRunByID(t *testing.T) {
 }
 
 func TestGetRunAll(t *testing.T) {
+	id1 := ffsync.Uint64OrderedId(1)
+	id2 := ffsync.Uint64OrderedId(2)
+
 	type taskInfo struct {
 		Name   string
 		Type   TaskType
@@ -507,16 +519,16 @@ func TestGetRunAll(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
-			[]runInfo{{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}}},
+			[]runInfo{{"name", TaskID(&id1), OneOffTrigger{"name"}}},
 			false,
 		},
 		{
 			"Multiple",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
 			},
 			false,
 		},
@@ -527,10 +539,10 @@ func TestGetRunAll(t *testing.T) {
 				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
-				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
-				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
-				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
+				{"name", TaskID(&id2), OneOffTrigger{"name"}},
+				{"name", TaskID(&id2), OneOffTrigger{"name"}},
 			},
 			false,
 		},
@@ -567,9 +579,7 @@ func TestGetRunAll(t *testing.T) {
 		} else if err == nil && test.shouldError {
 			t.Fatalf("expected error but did not receive one")
 		}
-		// if !reflect.DeepEqual(recvRuns, runDefs) {
-		// 	t.Fatalf("Expected \n%v, \ngot: \n%v", recvRuns, runDefs)
-		// }
+
 		for _, runDef := range runDefs {
 			foundDef := false
 			for _, recvRun := range recvRuns {
@@ -643,7 +653,7 @@ func TestSetStatusByRunID(t *testing.T) {
 			[]runInfo{
 				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
 			},
-			TaskID(&MockOrderedID{Id: 3}),
+			TaskID(&MockOrderedID{Id: 1}),
 			TaskRunID(&MockOrderedID{Id: 2}),
 			Pending,
 			nil,
@@ -674,7 +684,7 @@ func TestSetStatusByRunID(t *testing.T) {
 				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
 			},
 			TaskID(&MockOrderedID{Id: 2}),
-			TaskRunID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 3}),
 			Failed,
 			fmt.Errorf("Failed to create task"),
 			false,
@@ -690,7 +700,7 @@ func TestSetStatusByRunID(t *testing.T) {
 				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
 			},
 			TaskID(&MockOrderedID{Id: 2}),
-			TaskRunID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 2}),
 			Failed,
 			nil,
 			true,
@@ -823,7 +833,7 @@ func TestSetEndTimeByRunID(t *testing.T) {
 				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
 			},
 			TaskID(&MockOrderedID{Id: 2}),
-			TaskRunID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 3}),
 			time.Now().UTC().Add(3 * time.Minute).Truncate(0),
 			false,
 		},
@@ -838,20 +848,18 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			}
 		}
 
-		// var runDefs []TaskRunMetadata
 		for _, run := range test.Runs {
 			_, err := manager.CreateTaskRun(run.Name, run.TaskID, run.Trigger)
 			if err != nil && !test.shouldError {
 				t.Fatalf("failed to create task run: %v", err)
 			}
-			// runDefs = append(runDefs, runDef)
 		}
 
 		err := manager.SetRunEndTime(test.ForRun, test.ForTask, test.SetTime)
 		if err != nil && test.shouldError {
 			return
 		} else if err != nil && !test.shouldError {
-			t.Fatalf("failed to set status correctly: %v", err)
+			t.Fatalf("failed to set run end time correctly: %v", err)
 		} else if err == nil && test.shouldError {
 			t.Fatalf("expected error but did not receive one")
 		}
@@ -927,7 +935,6 @@ func TestKeyPaths(t *testing.T) {
 		if test.Key.String() != test.ExpectedKey {
 			t.Fatalf("Expected: %s, got: %s", test.ExpectedKey, test.Key.String())
 		}
-
 	}
 
 	for _, tt := range tests {

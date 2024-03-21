@@ -14,7 +14,7 @@ type TaskRunKey struct {
 }
 
 func (trk TaskRunKey) String() string {
-	if trk.taskID.Value() == 0 {
+	if trk.taskID == nil || trk.taskID.Value() == 0 {
 		return "/tasks/runs/task_id="
 	}
 	return fmt.Sprintf("/tasks/runs/task_id=%s", trk.taskID.String())
@@ -34,7 +34,9 @@ func (trmk TaskRunMetadataKey) String() string {
 		key += fmt.Sprintf("/%s", trmk.date.Format("2006/01/02"))
 
 		// adds the task_id and run_id to the key if they're not the default value
-		if trmk.taskID.Value() != 0 && trmk.runID.Value() != 0 {
+		taskIdIsNotNil := trmk.taskID != nil
+		runIdIsNotNil := trmk.runID != nil
+		if (taskIdIsNotNil && trmk.taskID.Value() != 0) && (runIdIsNotNil && trmk.runID.Value() != 0) {
 			key += fmt.Sprintf("/task_id=%s/run_id=%s", trmk.taskID.String(), trmk.runID.String())
 		}
 	}
@@ -110,8 +112,8 @@ func (t *TaskRunMetadata) Marshal() ([]byte, fferr.GRPCError) {
 }
 func (t *TaskRunMetadata) Unmarshal(data []byte) fferr.GRPCError {
 	type tempConfig struct {
-		ID          TaskRunID       `json:"runId"`
-		TaskId      TaskID          `json:"taskId"`
+		ID          uint64          `json:"runId"`
+		TaskId      uint64          `json:"taskId"`
 		Name        string          `json:"name"`
 		Trigger     json.RawMessage `json:"trigger"`
 		TriggerType TriggerType     `json:"triggerType"`
@@ -128,8 +130,11 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) fferr.GRPCError {
 		return fferr.NewInternalError(errMessage)
 	}
 
-	t.ID = temp.ID
-	t.TaskId = temp.TaskId
+	runId := ffsync.Uint64OrderedId(temp.ID)
+	t.ID = TaskRunID(&runId)
+
+	taskId := ffsync.Uint64OrderedId(temp.TaskId)
+	t.TaskId = TaskID(&taskId)
 
 	if temp.Name == "" {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("task run metadata is missing Name"))

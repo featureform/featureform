@@ -67,9 +67,7 @@ def display_data_metrics(df, spark):
     rows = []
     stats = []
 
-    rows_as_list = df.collect()
-    if len(rows_as_list) > 100:
-        rows_as_list = rows_as_list[:100]
+    rows_as_list = df.limit(100).collect()
     for row in rows_as_list:
         row_values = list(row.asDict().values())
         for i, curr_value in enumerate(row_values):

@@ -26,8 +26,7 @@ class FFGrpcErrorDetails:
         """
         from_grpc_error is a static method that creates a FFGrpcErrorDetails object from a gRPC error.
         """
-        status_proto = status_pb2.Status()
-        status_proto.MergeFromString(e.trailing_metadata()[0].value)
+        status_proto = _extract_error_details(e)
 
         for detail in status_proto.details:
             # should only be one detail
@@ -141,6 +140,16 @@ def _limited_traceback(limit):
         yield
     finally:
         sys.tracebacklimit = original_limit
+
+
+def _extract_error_details(e: grpc.RpcError) -> Optional[status_pb2.Status]:
+    status_proto = status_pb2.Status()
+    for key, value in e.trailing_metadata():
+        if key == "grpc-status-details-bin":
+            status_proto.ParseFromString(value)
+            return status_proto
+
+    return None
 
 
 def _format_metadata(metadata):

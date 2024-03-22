@@ -263,6 +263,14 @@ func (m *TransformationConfig) decodeArgs(t metadata.TransformationArgType, argM
 	return nil
 }
 
+type TrainTestSplitDef struct {
+	TrainingSetName    string
+	TrainingSetVariant string
+	TestSize           float32
+	Shuffle            bool
+	RandomState        int
+}
+
 type MaterializationOptions interface {
 	Output() filestore.FileType
 	ShouldIncludeHeaders() bool
@@ -287,7 +295,8 @@ type OfflineStore interface {
 	CreateTrainingSet(TrainingSetDef) error
 	UpdateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
-	GetTrainingSetTestSplit(id ResourceID, testSize float32, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, func() error, error)
+	CreateTrainTestSplit(TrainTestSplitDef) (func() error, error)
+	GetTrainTestSplit(TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error)
 	Close() error
 	ResourceLocation(id ResourceID) (string, error)
 	Provider
@@ -782,8 +791,26 @@ func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetItera
 	return data.(trainingRows).Iterator(), nil
 }
 
-func (store *memoryOfflineStore) GetTrainingSetTestSplit(id ResourceID, testSize float32, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
-	return nil, nil, nil, nil
+func (store *memoryOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
+	// TODO properly implement this
+	dropFunc := func() error {
+		return nil
+	}
+	return dropFunc, nil
+}
+
+func (store *memoryOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+	// TODO properly implement this
+	trainingSetResourceId := ResourceID{
+		Name:    def.TrainingSetName,
+		Variant: def.TrainingSetVariant,
+	}
+	trainingSet, err := store.GetTrainingSet(trainingSetResourceId)
+	if err != nil {
+		return nil, nil, err
+	}
+	return trainingSet, trainingSet, nil
+
 }
 
 func (store *memoryOfflineStore) Close() error {

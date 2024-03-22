@@ -162,20 +162,29 @@ func TestSplit(t *testing.T) {
 		fmt.Printf("could not initialize store: %s\n", err)
 	}
 
-	//store.CreateTrainingSet()
-	//split, err := store.CreateTrainingTestSplit("featureform_trainingset__ts_alice__v4", .5, false, 0)
-	//if err != nil {
-	//	t.Fatalf("could not create split: %s\n", err)
-	//}
-	//fmt.Printf("split: %v\n", split)
-
 	resourceId := ResourceID{
 		Name:    "ts_alice",
 		Variant: "v5",
 		Type:    TrainingSet,
 	}
-	train, test, closeFunc, err := store.GetTrainingSetTestSplit(resourceId, .5, true, 1)
+
+	trainTestSplitDef := TrainTestSplitDef{
+		TrainingSetName:    resourceId.Name,
+		TrainingSetVariant: resourceId.Variant,
+		TestSize:           .5,
+		Shuffle:            true,
+		RandomState:        1,
+	}
+
+	closeFunc, err := store.CreateTrainTestSplit(trainTestSplitDef)
+	if err != nil {
+		t.Fatalf("could not create split: %s\n", err)
+	}
 	defer closeFunc()
+	train, test, err := store.GetTrainTestSplit(trainTestSplitDef)
+	if err != nil {
+		t.Fatalf("could not get split: %s\n", err)
+	}
 
 	if err != nil {
 		t.Fatalf("could not get split: %s\n", err)

@@ -19,7 +19,7 @@ type TaskMetadataKey struct {
 }
 
 func (tmk TaskMetadataKey) String() string {
-	if tmk.taskID == nil || tmk.taskID.Value() == 0 {
+	if tmk.taskID == nil {
 		return "/tasks/metadata/task_id="
 	}
 	return fmt.Sprintf("/tasks/metadata/task_id=%s", tmk.taskID.String())

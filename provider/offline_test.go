@@ -4434,6 +4434,7 @@ func testTrainTestSplit(t *testing.T, store OfflineStore) {
 		ExpectedTestRows  int
 		IterShouldBeEqual bool
 	}
+
 	type TestCase struct {
 		TestParameters
 		TestFunction func(t *testing.T, store OfflineStore, params TestParameters)
@@ -4479,11 +4480,13 @@ func testTrainTestSplit(t *testing.T, store OfflineStore) {
 
 	testSplit := func(t *testing.T, store OfflineStore, params TestParameters) {
 		id := setupTable(t, store)
-		trainIter, testIter, closeFunc, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState)
-		defer closeFunc()
+		trainTestSplitDef := TrainTestSplitDef{TrainingSetName: id.Name, TrainingSetVariant: id.Variant, TestSize: params.TestSize, Shuffle: params.Shuffle, RandomState: params.RandomState}
+		cleanupFunc, err := store.CreateTrainTestSplit(trainTestSplitDef)
+		defer cleanupFunc()
 		if err != nil {
 			t.Fatalf("failed to fetch train test split iterators: %v", err)
 		}
+		trainIter, testIter, err := store.GetTrainTestSplit(trainTestSplitDef)
 		trainRows := 0
 		for trainIter.Next() {
 			trainRows += 1
@@ -4514,24 +4517,33 @@ func testTrainTestSplit(t *testing.T, store OfflineStore) {
 		}
 
 		id := setupTable(t, store)
-
-		trainIter, testIter, dropViews, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState)
+		trainTestSplitDef := TrainTestSplitDef{TrainingSetName: id.Name, TrainingSetVariant: id.Variant, TestSize: params.TestSize, Shuffle: params.Shuffle, RandomState: params.RandomState}
+		cleanupFunc, err := store.CreateTrainTestSplit(trainTestSplitDef)
+		if err != nil {
+			t.Fatalf("failed to fetch train test split iterators: %v", err)
+		}
+		trainIter, testIter, err := store.GetTrainTestSplit(trainTestSplitDef)
 		if err != nil {
 			t.Fatalf("failed to fetch train test split iterators: %v", err)
 		}
 		trainIter1FeatureRows, trainIter1LabelRows := extractData(trainIter)
 		testIter1FeatureRows, testIter1LabelRows := extractData(testIter)
-		if err := dropViews(); err != nil {
+		if err := cleanupFunc(); err != nil {
 			t.Fatalf("failed to drop views: %v", err)
 		}
 
-		trainIter2, testIter2, dropViews, err := store.GetTrainingSetTestSplit(id, params.TestSize, params.Shuffle, params.RandomState2)
+		trainTestSplitDef = TrainTestSplitDef{TrainingSetName: id.Name, TrainingSetVariant: id.Variant, TestSize: params.TestSize, Shuffle: params.Shuffle, RandomState: params.RandomState2}
+		cleanupFunc, err = store.CreateTrainTestSplit(trainTestSplitDef)
+		if err != nil {
+			t.Fatalf("failed to fetch train test split iterators: %v", err)
+		}
+		trainIter2, testIter2, err := store.GetTrainTestSplit(trainTestSplitDef)
 		if err != nil {
 			t.Fatalf("failed to fetch second train test split iterators: %v", err)
 		}
 		trainIter2FeatureRows, trainIter2LabelRows := extractData(trainIter2)
 		testIter2FeatureRows, testIter2LabelRows := extractData(testIter2)
-		if err := dropViews(); err != nil {
+		if err := cleanupFunc(); err != nil {
 			t.Fatalf("failed to drop views: %v", err)
 		}
 

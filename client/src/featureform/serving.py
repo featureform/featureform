@@ -3,26 +3,23 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 import inspect
 import os
-import queue
 import random
 import types
 import warnings
 from collections.abc import Iterator
-from typing import List, Union
+from typing import List, Optional, Union
 
 import dill
 import math
 import numpy as np
 import pandas as pd
 
-import featureform.resources
-from featureform.proto import serving_pb2
-from featureform.proto import serving_pb2_grpc
-from . import GrpcClient
+from featureform.proto import serving_pb2, serving_pb2_grpc
+from . import GrpcClient, Model, TrainingSetVariant
 from .enums import FileFormat, ResourceType
 from .register import FeatureColumnResource
-from .resources import Model
 from .tls import insecure_channel, secure_channel
+from .train_test_split import TrainTestSplit
 from .version import check_up_to_date
 
 
@@ -108,27 +105,10 @@ class ServingClient:
         Returns:
             training_set (Dataset): A training set iterator
         """
-        print(type(name))
-        if isinstance(name, featureform.resources.TrainingSetVariant):
+        if isinstance(name, TrainingSetVariant):
             variant = name.variant
             name = name.name
         return self.impl.training_set(name, variant, include_label_timestamp, model)
-
-    def train_test_split(self, name, variant="", model: Union[str, Model] = None):
-        """Split the dataset into a training set and a test set.
-
-        Args:
-            name (str): The name of the training set
-            variation (str): The variation of the training set
-            model (Union[str, Model]): The model to use for the training set
-
-        Returns:
-            train_set (Dataset): The training set
-            test_set (Dataset): The test set
-            :param variant:
-        """
-        train, test = self.impl.training_set_test_split(name, variant, model)
-        return train, test
 
     def features(
         self, features, entities, model: Union[str, Model] = None, params: list = None
@@ -196,12 +176,6 @@ class HostedClientImpl:
             return insecure_channel(host)
         else:
             return secure_channel(host, cert_path)
-
-    # def _create_async_channel(self, host, insecure, cert_path):
-    #     if insecure:
-    #         return async_insecure_channel(host)
-    #     else:
-    #         return secure_channel(host, cert_path)
 
     def training_set(
         self, name, variation, include_label_timestamp, model: Union[str, Model] = None
@@ -438,179 +412,6 @@ class Batch:
         return rows
 
 
-class TrainingSetSplitIterator:
-    def __init__(
-        self,
-        req_queue: queue.Queue,
-        resp_queue: queue.Queue,
-        resp_stream,
-        request_type,
-        name,
-        version,
-        test_size,
-        train_size,
-        shuffle,
-        random_state,
-        batch_size,
-        model: Union[str, Model] = None,
-    ):
-        self.name = name
-        self.version = version
-        self.model = model
-        self.test_size = test_size
-        self.train_size = train_size
-        self.shuffle = shuffle
-        self.batch_size = batch_size
-        self.random_state = random_state
-        self.resp_stream = resp_stream
-        self.complete = False
-
-        self.req_queue = req_queue
-        self.resp_queue = resp_queue
-        self._request_type = request_type
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self.complete:
-            raise StopIteration
-        i = 0
-        batch_features = None
-        batch_label = None
-        while i < self.batch_size:
-            req = serving_pb2.TrainingTestSplitRequest()
-            req.id.name = self.name
-            req.id.version = self.version
-
-            if self.model is not None:
-                req.model.name = (
-                    self.model if isinstance(self.model, str) else self.model.name
-                )
-            req.test_size = self.test_size
-            req.train_size = self.train_size
-            req.shuffle = self.shuffle
-            req.random_state = self.random_state
-            req.request_type = self._request_type
-
-            self.req_queue.put(req)
-
-            next_row = next(self.resp_stream)
-
-            if next_row.iterator_done:
-                self.complete = True
-                if batch_features is None:
-                    raise StopIteration
-                return batch_features, batch_label
-
-            if batch_features is None:
-                row = Row(next_row.row)
-                batch_features = np.array(row.features())
-                batch_label = np.array(row.label())
-            else:
-                batch_features = np.append(
-                    batch_features, Row(next_row.row).features(), axis=0
-                )
-                batch_label = np.append(batch_label, Row(next_row.row).label(), axis=0)
-            i += 1
-
-        return batch_features, batch_label
-
-
-class TrainingSetTestSplit:
-    """
-    Returns two iterators, one for the training set and one for the test set, in that order
-    """
-
-    def __init__(
-        self,
-        stub,
-        name: str,
-        version: str,
-        test_size: float,
-        train_size: float,
-        shuffle: bool,
-        random_state: int,
-        batch_size: int,
-        model: Union[str, Model] = None,
-    ):
-        self.name = name
-        self.version = version
-        self.shuffle = shuffle
-        self.random_state = random_state
-        self.model = model
-        self.test_size = test_size
-        self.train_size = train_size
-        self.batch_size = batch_size
-        self.train_iter = None
-        self.test_iter = None
-        self._stream = None
-        self.stub = stub
-
-        self.req_queue = queue.Queue()
-
-        # initialize the request queue
-        req = serving_pb2.TrainingTestSplitRequest()
-        req.id.name = self.name
-        req.id.version = self.version
-        if self.model is not None:
-            req.model.name = (
-                self.model if isinstance(self.model, str) else self.model.name
-            )
-        req.request_type = serving_pb2.RequestType.INITIALIZE
-        req.test_size = self.test_size
-        req.shuffle = self.shuffle
-        req.random_state = self.random_state
-
-        self.req_queue.put(req)
-
-        self.resp_queue = queue.Queue()
-
-    def request_generator(self):
-        while True:
-            if not self.req_queue.empty():
-                request = self.req_queue.get()
-                yield request
-
-    def split(self):
-        response_stream = self.stub.TrainingTestSplit(self.request_generator())
-        # verify initialization response # TODO: don't think we need this
-        init_response = next(response_stream)
-        if not init_response.initialized:
-            raise ValueError("Failed to initialize training test split")
-
-        self.train_iter = TrainingSetSplitIterator(
-            req_queue=self.req_queue,
-            resp_queue=self.resp_queue,
-            resp_stream=response_stream,
-            request_type=serving_pb2.RequestType.TRAINING,
-            name=self.name,
-            version=self.version,
-            model=self.model,
-            test_size=self.test_size,
-            train_size=self.train_size,
-            shuffle=self.shuffle,
-            random_state=self.random_state,
-            batch_size=self.batch_size,
-        )
-        self.test_iter = TrainingSetSplitIterator(
-            req_queue=self.req_queue,
-            resp_queue=self.resp_queue,
-            resp_stream=response_stream,
-            request_type=serving_pb2.RequestType.TEST,
-            name=self.name,
-            version=self.version,
-            model=self.model,
-            test_size=self.test_size,
-            train_size=self.train_size,
-            shuffle=self.shuffle,
-            random_state=self.random_state,
-            batch_size=self.batch_size,
-        )
-
-        return self.train_iter, self.test_iter
-
-
 class Dataset:
     def __init__(self, stream, dataframe=None):
         """Repeats the Dataset for the specified number of times
@@ -629,14 +430,14 @@ class Dataset:
         test_size: float = 0,
         train_size: float = 0,
         shuffle: bool = True,
-        random_state: Union[int, None] = None,
+        random_state: Optional[int] = None,
         batch_size: int = 1,
     ):
         """
         (This functionality is currently only available for Clickhouse).
 
         Splits an existing training set into training and testing iterators. The split is processed on the underlying
-        provider and calculated and serving time.
+        provider and calculated at serving time.
 
         **Examples**:
 
@@ -695,7 +496,7 @@ class Dataset:
             train_size (float): The ratio of train set size to train set size. Must be a value between 0 and 1. If excluded
                 it will be the complement to the test_size. One of test_size or train_size must be specified.
             shuffle (bool): Whether to shuffle the dataset before splitting.
-            random_state (Union[int, None]): A random state to shuffle the dataset. If None, the dataset will be shuffled
+            random_state (Optional[int]): A random state to shuffle the dataset. If None, the dataset will be shuffled
                 randomly on every call. If >0, the value will be used a seed to create random shuffle that can be repeated
                 if subsequent calls use the same seed.
             batch_size (int): The size of the batch to return from the iterator. Must be greater than 0.
@@ -707,8 +508,8 @@ class Dataset:
         if batch_size < 1:
             raise ValueError("batch_size must be 1 or greater")
 
-        if random_state == 0:
-            raise ValueError("random_state must be greater than zero or None")
+        if random_state is not None and random_state < 0:
+            raise ValueError("random_state must be 0 or greater")
 
         test_size, train_size = self.validate_test_size(test_size, train_size)
 
@@ -716,10 +517,8 @@ class Dataset:
         variant = self._stream.version
         stub = self._stream._stub
         model = self._stream.model if hasattr(self._stream, "model") else None
-        if random_state is None:
-            random_state = 0
 
-        train, test = TrainingSetTestSplit(
+        train, test = TrainTestSplit(
             stub=stub,
             name=name,
             version=variant,
@@ -727,7 +526,7 @@ class Dataset:
             test_size=test_size,
             train_size=train_size,
             shuffle=shuffle,
-            random_state=random_state,
+            random_state=(0 if random_state is None else random_state),
             batch_size=batch_size,
         ).split()
 
@@ -735,17 +534,22 @@ class Dataset:
 
     @staticmethod
     def validate_test_size(test_size, train_size):
-        if test_size > 1 or test_size < 0:
+        # Validate ranges
+        if not 0 <= test_size <= 1:
             raise ValueError("test_size must be between 0 and 1")
-        if train_size > 1 or train_size < 0:
+        if not 0 <= train_size <= 1:
             raise ValueError("train_size must be between 0 and 1")
-        if test_size != 0 and train_size != 0:
-            if test_size + train_size != 1:
-                raise ValueError("test_size + train_size must equal 1")
-        if test_size == 0 and train_size != 0:
+
+        # If both are specified but don't sum to 1, it's an error
+        if test_size != 0 and train_size != 0 and test_size + train_size != 1:
+            raise ValueError("test_size + train_size must equal 1 if both are non-zero")
+
+        # Auto-adjust if one is 0
+        if test_size == 0 and train_size > 0:
             test_size = 1 - train_size
-        if test_size != 0 and train_size == 0:
+        elif train_size == 0 and test_size > 0:
             train_size = 1 - test_size
+
         return test_size, train_size
 
     def dataframe(self, spark_session=None):
@@ -951,7 +755,7 @@ class Dataset:
 
 class Row:
     def __init__(self, proto_row):
-        self._types = [parse_proto_type(feature) for feature in proto_row.features]
+        self._types = [proto_type_to_np_type(feature) for feature in proto_row.features]
         self._features = np.array(
             [parse_proto_value(feature) for feature in proto_row.features],
             dtype=get_numpy_array_type(self._types),
@@ -1034,7 +838,7 @@ def parse_proto_value(value):
     return getattr(value, value.WhichOneof("value"))
 
 
-def parse_proto_type(value):
+def proto_type_to_np_type(value):
     type_mapping = {
         "str_value": str,
         "int_value": np.int32,

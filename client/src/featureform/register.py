@@ -6,6 +6,7 @@ import inspect
 import os
 import warnings
 from abc import ABC
+from collections.abc import Iterable
 from datetime import timedelta
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
@@ -1223,7 +1224,10 @@ class FeatureColumnResource(ColumnResource):
         )
 
 
-class MultiFeatureColumnResource(ColumnResource):
+class MultiFeatureColumnResource(Iterable):
+    def __iter__(self):
+        return iter(self.features)
+
     def __init__(
         self,
         dataset: SourceVariant,
@@ -1279,7 +1283,7 @@ class MultiFeatureColumnResource(ColumnResource):
         self.owner = owner
         self.description = description
         self.schedule = schedule
-        self._resources = []
+        self.features = []
 
         include_columns = include_columns or []
         exclude_columns = exclude_columns or []
@@ -1309,27 +1313,23 @@ class MultiFeatureColumnResource(ColumnResource):
     ):
         df_has_quotes = self._check_df_column_format(df)
         for column_name in register_columns:
-            if timestamp_column != "":
-                feature = FeatureColumnResource(
-                    dataset[[entity_column, column_name, timestamp_column]],
-                    variant=variant,
-                    type=pd_to_ff_datatype[
-                        df[self._modify_column_name(column_name, df_has_quotes)].dtype
-                    ],
-                    inference_store=inference_store,
-                )
-
-            else:
-                feature = FeatureColumnResource(
-                    dataset[[entity_column, column_name]],
-                    variant=variant,
-                    type=pd_to_ff_datatype[
-                        df[self._modify_column_name(column_name, df_has_quotes)].dtype
-                    ],
-                    inference_store=inference_store,
-                )
+            transformation_args = (
+                dataset[[entity_column, column_name, timestamp_column]]
+                if timestamp_column != ""
+                else dataset[[entity_column, column_name]]
+            )
+            feature = FeatureColumnResource(
+                transformation_args=transformation_args,
+                variant=variant,
+                type=pd_to_ff_datatype[
+                    df[self._modify_column_name(column_name, df_has_quotes)].dtype
+                ],
+                inference_store=inference_store,
+            )
             feature.name = column_name
-            self._resources.append(feature)
+            self.features.append(feature)
+
+        return self.features
 
     def _get_feature_columns(
         self, df, include_columns, exclude_columns, entity_column, timestamp_column
@@ -1362,7 +1362,8 @@ class MultiFeatureColumnResource(ColumnResource):
         else:
             return list(all_columns_set - exclude_columns_set)
 
-    def _check_df_column_format(self, df):
+    @staticmethod
+    def _check_df_column_format(df):
         df_has_quotes = False
         for column_name in df.columns:
             if '"' in column_name:
@@ -1370,7 +1371,8 @@ class MultiFeatureColumnResource(ColumnResource):
             return df_has_quotes
 
     # TODO: Verify if you can have empty strings as column names (Add unit test for it)
-    def _clean_name(self, string_name):
+    @staticmethod
+    def _clean_name(string_name):
         return string_name.replace('"', "")
 
     def _modify_column_name(self, string_name, df_has_quotes):
@@ -3960,7 +3962,9 @@ class Registrar:
         self,
         name: str,
         variant: str = "",
-        features: Union[list, List[FeatureColumnResource]] = [],
+        features: Union[
+            list, List[FeatureColumnResource], MultiFeatureColumnResource
+        ] = [],
         label: Union[NameVariant, LabelColumnResource] = ("", ""),
         resources: list = [],
         owner: Union[str, UserRegistrar] = "",
@@ -4002,7 +4006,7 @@ class Registrar:
         if variant == "":
             variant = self.__run
 
-        if not isinstance(features, (list)):
+        if not isinstance(features, (list, MultiFeatureColumnResource)):
             raise ValueError(
                 f"Invalid features type: {type(features)} "
                 "Features must be entered as a list of name-variant tuples (e.g. [('feature1', 'quickstart'), ('feature2', 'quickstart')]) or a list of FeatureColumnResource instances."
@@ -5453,7 +5457,7 @@ def entity(cls):
                 resource.entity = entity
                 resource.register()
         elif isinstance(cls.__dict__[attr_name], MultiFeatureColumnResource):
-            multi_feature_resources = cls.__dict__[attr_name]._resources
+            multi_feature_resources = cls.__dict__[attr_name].features
             for resource in multi_feature_resources:
                 setattr(entity, resource.name, resource)
                 resource.entity = entity

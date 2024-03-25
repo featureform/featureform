@@ -52,3 +52,18 @@ func NewKeyNotFoundError(key string, err error) *KeyNotFoundError {
 type KeyNotFoundError struct {
 	baseGRPCError
 }
+
+func NewParsingError(err error) *ParsingError {
+	if err == nil {
+		err = fmt.Errorf("parsing error")
+	}
+	baseError := newBaseGRPCError(err, PARSING_ERROR, codes.InvalidArgument)
+
+	return &ParsingError{
+		baseError,
+	}
+}
+
+type ParsingError struct {
+	baseGRPCError
+}

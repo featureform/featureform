@@ -1,20 +1,72 @@
 package scheduling
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
-	sp "github.com/featureform/scheduling/storage_providers"
+	"github.com/featureform/ffsync"
 )
 
-func TestInitialization(t *testing.T) {
-	storage := sp.NewMemoryStorageProvider()
-	NewTaskManager(storage)
+type MockOrderedID struct {
+	Id uint64
 }
 
-func TestCreateTask(t *testing.T) {
+func (id *MockOrderedID) Equals(other ffsync.OrderedId) bool {
+	otherID, ok := other.(*MockOrderedID)
+	if !ok {
+		return false
+	}
+	return id.Id == otherID.Id
+}
+
+func (id *MockOrderedID) Less(other ffsync.OrderedId) bool {
+	otherID, ok := other.(*MockOrderedID)
+	if !ok {
+		return false
+	}
+	return id.Id < otherID.Id
+}
+
+func (id *MockOrderedID) String() string {
+	return fmt.Sprint(id.Id)
+}
+
+func (id *MockOrderedID) Value() interface{} {
+	return id.Id
+}
+
+func (id *MockOrderedID) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprint(id.Id)), nil
+}
+
+func (id *MockOrderedID) UnmarshalJSON(data []byte) error {
+	var tmp uint64
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return fmt.Errorf("failed to unmarshal MockOrderedID: %v", err)
+	}
+
+	id.Id = tmp
+	return nil
+}
+
+func TestTaskMetadataManager(t *testing.T) {
+	testFns := map[string]func(*testing.T, TaskMetadataManager){
+		"CreateTask": testCreateTask,
+	}
+
+	memoryTaskMetadataManager := NewMemoryTaskMetadataManager()
+
+	for name, fn := range testFns {
+		t.Run(name, func(t *testing.T) {
+			fn(t, memoryTaskMetadataManager)
+		})
+	}
+}
+
+func testCreateTask(t *testing.T, manager TaskMetadataManager) {
 	type taskInfo struct {
 		Name       string
 		Type       TaskType
@@ -29,24 +81,23 @@ func TestCreateTask(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, 1},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 1})},
 			},
 			false,
 		},
 		{
 			"Multiple",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, 1},
-				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, 2},
-				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, 3},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 1})},
+				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 2})},
+				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 3})},
 			},
 			false,
 		},
 	}
 
 	fn := func(t *testing.T, tasks []taskInfo, shouldError bool) {
-		storage := sp.NewMemoryStorageProvider()
-		manager := NewTaskManager(storage)
+		manager := NewMemoryTaskMetadataManager() // TODO: will need to modify this to use any store and deletes tasks after job was done
 		for _, task := range tasks {
 			taskDef, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && shouldError {
@@ -56,7 +107,7 @@ func TestCreateTask(t *testing.T) {
 			} else if err == nil && shouldError {
 				t.Fatalf("expected error but did not receive one")
 			}
-			if task.ExpectedID != taskDef.ID {
+			if task.ExpectedID.Equals(taskDef.ID) {
 				t.Fatalf("Expected id: %d, got: %d", task.ExpectedID, taskDef.ID)
 			}
 		}
@@ -86,49 +137,47 @@ func TestTaskGetByID(t *testing.T) {
 		{
 			"Empty",
 			[]taskInfo{},
-			TaskID(1),
+			TaskID(&MockOrderedID{Id: 1}),
 			true,
 		},
 		{
 			"Single",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, 1},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 1})},
 			},
-			TaskID(1),
+			TaskID(&MockOrderedID{Id: 1}),
 			false,
 		},
 		{
 			"Multiple",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, 1},
-				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, 2},
-				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, 3},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 1})},
+				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 2})},
+				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&MockOrderedID{Id: 3})},
 			},
-			TaskID(2),
+			TaskID(&MockOrderedID{Id: 2}),
 			false,
 		},
 		{
 			"MultipleInsertInvalidLookup",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, 1},
-				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, 2},
-				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, 3},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, &MockOrderedID{Id: 1}},
+				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, &MockOrderedID{Id: 2}},
+				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, &MockOrderedID{Id: 3}},
 			},
-			TaskID(4),
+			TaskID(&MockOrderedID{Id: 4}),
 			true,
 		},
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := sp.NewMemoryStorageProvider()
-		manager := NewTaskManager(storage)
-		var definitions []TaskMetadata
+		manager := NewMemoryTaskMetadataManager()
+
 		for _, task := range test.Tasks {
-			taskDef, err := manager.CreateTask(task.Name, task.Type, task.Target)
+			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil {
 				t.Fatalf("failed to create task: %v", err)
 			}
-			definitions = append(definitions, taskDef)
 		}
 		recievedDef, err := manager.GetTaskByID(test.ID)
 		if err != nil && !test.shouldError {
@@ -139,8 +188,9 @@ func TestTaskGetByID(t *testing.T) {
 			return
 		}
 
-		if reflect.DeepEqual(recievedDef, test.Tasks[test.ID-1]) {
-			t.Fatalf("Expected: %v got: %v", test.Tasks[test.ID], recievedDef)
+		idx := test.ID.(*MockOrderedID).Id - 1 // Ids are 1 indexed
+		if reflect.DeepEqual(recievedDef, test.Tasks[idx]) {
+			t.Fatalf("Expected: %v got: %v", test.Tasks[idx], recievedDef)
 		}
 
 	}
@@ -153,6 +203,10 @@ func TestTaskGetByID(t *testing.T) {
 }
 
 func TestTaskGetAll(t *testing.T) {
+	id1 := ffsync.Uint64OrderedId(1)
+	id2 := ffsync.Uint64OrderedId(2)
+	id3 := ffsync.Uint64OrderedId(3)
+
 	type taskInfo struct {
 		Name       string
 		Type       TaskType
@@ -169,32 +223,31 @@ func TestTaskGetAll(t *testing.T) {
 		{
 			"Empty",
 			[]taskInfo{},
-			TaskID(1),
-			true,
+			TaskID(&id1),
+			false,
 		},
 		{
 			"Single",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, 1},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&id2)},
 			},
-			TaskID(1),
+			TaskID(&id1),
 			false,
 		},
 		{
 			"Multiple",
 			[]taskInfo{
-				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, 1},
-				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, 2},
-				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, 3},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&id1)},
+				{"name2", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&id2)},
+				{"name3", ResourceCreation, NameVariant{"name", "variant", "type"}, TaskID(&id3)},
 			},
-			TaskID(2),
+			TaskID(&id2),
 			false,
 		},
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := sp.NewMemoryStorageProvider()
-		manager := NewTaskManager(storage)
+		manager := NewMemoryTaskMetadataManager()
 		var definitions []TaskMetadata
 		for _, task := range test.Tasks {
 			taskDef, err := manager.CreateTask(task.Name, task.Type, task.Target)
@@ -239,6 +292,11 @@ func TestTaskGetAll(t *testing.T) {
 }
 
 func TestCreateTaskRun(t *testing.T) {
+	id1 := ffsync.Uint64OrderedId(1)
+	id2 := ffsync.Uint64OrderedId(2)
+	id3 := ffsync.Uint64OrderedId(3)
+	id4 := ffsync.Uint64OrderedId(4)
+
 	type taskInfo struct {
 		Name   string
 		Type   TaskType
@@ -261,23 +319,23 @@ func TestCreateTaskRun(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
-			[]runInfo{{"name", 1, OnApplyTrigger{"name"}, 1}},
+			[]runInfo{{"name", TaskID(&id1), OneOffTrigger{"name"}, TaskRunID(&id1)}},
 			false,
 		},
 		{
 			"Multiple",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", 1, OnApplyTrigger{"name"}, 1},
-				{"name", 1, OnApplyTrigger{"name"}, 2},
-				{"name", 1, OnApplyTrigger{"name"}, 3},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}, TaskRunID(&id1)},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}, TaskRunID(&id2)},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}, TaskRunID(&id3)},
 			},
 			false,
 		},
 		{
 			"InvalidTask",
 			[]taskInfo{},
-			[]runInfo{{"name", 1, OnApplyTrigger{"name"}, 1}},
+			[]runInfo{{"name", TaskID(&id1), OneOffTrigger{"name"}, TaskRunID(&id1)}},
 			true,
 		},
 		{
@@ -287,18 +345,17 @@ func TestCreateTaskRun(t *testing.T) {
 				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
-				{"name", 1, OnApplyTrigger{"name"}, 1},
-				{"name", 1, OnApplyTrigger{"name"}, 2},
-				{"name", 2, OnApplyTrigger{"name"}, 1},
-				{"name", 2, OnApplyTrigger{"name"}, 2},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}, TaskRunID(&id1)},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}, TaskRunID(&id2)},
+				{"name", TaskID(&id2), OneOffTrigger{"name"}, TaskRunID(&id3)},
+				{"name", TaskID(&id2), OneOffTrigger{"name"}, TaskRunID(&id4)},
 			},
 			false,
 		},
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := sp.NewMemoryStorageProvider()
-		manager := NewTaskManager(storage)
+		manager := NewMemoryTaskMetadataManager()
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -314,8 +371,8 @@ func TestCreateTaskRun(t *testing.T) {
 			} else if err == nil && test.shouldError {
 				t.Fatalf("expected error but did not receive one")
 			}
-			if run.ExpectedID != recvRun.ID {
-				t.Fatalf("Expected id: %d, got: %d", run.ExpectedID, recvRun.ID)
+			if run.ExpectedID.Value() != recvRun.ID.Value() {
+				t.Fatalf("Expected id: %d, got: %d", run.ExpectedID.Value(), recvRun.ID.Value())
 			}
 		}
 	}
@@ -328,6 +385,10 @@ func TestCreateTaskRun(t *testing.T) {
 }
 
 func TestGetRunByID(t *testing.T) {
+	id1 := ffsync.Uint64OrderedId(1)
+	id2 := ffsync.Uint64OrderedId(2)
+	id3 := ffsync.Uint64OrderedId(3)
+
 	type taskInfo struct {
 		Name   string
 		Type   TaskType
@@ -350,21 +411,21 @@ func TestGetRunByID(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
-			[]runInfo{{"name", 1, OnApplyTrigger{"name"}}},
-			1,
-			1,
+			[]runInfo{{"name", TaskID(&id1), OneOffTrigger{"name"}}},
+			TaskID(&id1),
+			TaskRunID(&id1),
 			false,
 		},
 		{
 			"Multiple",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 1, OnApplyTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
 			},
-			1,
-			2,
+			TaskID(&id1),
+			TaskRunID(&id2),
 			false,
 		},
 		{
@@ -374,28 +435,27 @@ func TestGetRunByID(t *testing.T) {
 				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 2, OnApplyTrigger{"name"}},
-				{"name", 2, OnApplyTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
+				{"name", TaskID(&id2), OneOffTrigger{"name"}},
+				{"name", TaskID(&id2), OneOffTrigger{"name"}},
 			},
-			2,
-			1,
+			TaskID(&id2),
+			TaskRunID(&id3),
 			false,
 		},
 		{
 			"Fetch NonExistent",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
-			[]runInfo{{"name", 1, OnApplyTrigger{"name"}}},
-			1,
-			2,
+			[]runInfo{{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}}},
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 2}),
 			true,
 		},
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := sp.NewMemoryStorageProvider()
-		manager := NewTaskManager(storage)
+		manager := NewMemoryTaskMetadataManager()
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -436,6 +496,9 @@ func TestGetRunByID(t *testing.T) {
 }
 
 func TestGetRunAll(t *testing.T) {
+	id1 := ffsync.Uint64OrderedId(1)
+	id2 := ffsync.Uint64OrderedId(2)
+
 	type taskInfo struct {
 		Name   string
 		Type   TaskType
@@ -456,16 +519,16 @@ func TestGetRunAll(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
-			[]runInfo{{"name", 1, OnApplyTrigger{"name"}}},
+			[]runInfo{{"name", TaskID(&id1), OneOffTrigger{"name"}}},
 			false,
 		},
 		{
 			"Multiple",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 1, OnApplyTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
 			},
 			false,
 		},
@@ -476,10 +539,10 @@ func TestGetRunAll(t *testing.T) {
 				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 2, OnApplyTrigger{"name"}},
-				{"name", 2, OnApplyTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}},
+				{"name", TaskID(&id2), OneOffTrigger{"name"}},
+				{"name", TaskID(&id2), OneOffTrigger{"name"}},
 			},
 			false,
 		},
@@ -487,13 +550,12 @@ func TestGetRunAll(t *testing.T) {
 			"Empty",
 			[]taskInfo{},
 			[]runInfo{},
-			true,
+			false,
 		},
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := sp.NewMemoryStorageProvider()
-		manager := NewTaskManager(storage)
+		manager := NewMemoryTaskMetadataManager()
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -517,9 +579,7 @@ func TestGetRunAll(t *testing.T) {
 		} else if err == nil && test.shouldError {
 			t.Fatalf("expected error but did not receive one")
 		}
-		// if !reflect.DeepEqual(recvRuns, runDefs) {
-		// 	t.Fatalf("Expected \n%v, \ngot: \n%v", recvRuns, runDefs)
-		// }
+
 		for _, runDef := range runDefs {
 			foundDef := false
 			for _, recvRun := range recvRuns {
@@ -540,25 +600,6 @@ func TestGetRunAll(t *testing.T) {
 		})
 	}
 }
-
-//func TestTaskRunList_FilterByStatus(t *testing.T) {
-//	type args struct {
-//		status Status
-//	}
-//	tests := []struct {
-//		name string
-//		given  TaskRunList
-//		expected TaskRunList
-//		args args
-//	}{
-//		{"Single", []TaskRunMetadata{{Name: }}},
-//	}
-//	for _, tt := range tests {
-//		t.Run(tt.name, func(t *testing.T) {
-//			tt.given.FilterByStatus(tt.args.status)
-//		})
-//	}
-//}
 
 func TestSetStatusByRunID(t *testing.T) {
 	type taskInfo struct {
@@ -585,9 +626,9 @@ func TestSetStatusByRunID(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
-			[]runInfo{{"name", 1, OnApplyTrigger{"name"}}},
-			1,
-			1,
+			[]runInfo{{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}}},
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 1}),
 			Success,
 			nil,
 			false,
@@ -596,12 +637,12 @@ func TestSetStatusByRunID(t *testing.T) {
 			"Multiple",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 1, OnApplyTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
 			},
-			1,
-			2,
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 2}),
 			Pending,
 			nil,
 			false,
@@ -610,10 +651,10 @@ func TestSetStatusByRunID(t *testing.T) {
 			"WrongID",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", 1, OnApplyTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
 			},
-			3,
-			2,
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 2}),
 			Pending,
 			nil,
 			true,
@@ -622,10 +663,10 @@ func TestSetStatusByRunID(t *testing.T) {
 			"WrongRunID",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", 1, OnApplyTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
 			},
-			1,
-			2,
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 2}),
 			Running,
 			nil,
 			true,
@@ -637,13 +678,13 @@ func TestSetStatusByRunID(t *testing.T) {
 				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 2, OnApplyTrigger{"name"}},
-				{"name", 2, OnApplyTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
 			},
-			2,
-			1,
+			TaskID(&MockOrderedID{Id: 2}),
+			TaskRunID(&MockOrderedID{Id: 3}),
 			Failed,
 			fmt.Errorf("Failed to create task"),
 			false,
@@ -655,11 +696,11 @@ func TestSetStatusByRunID(t *testing.T) {
 				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 2, OnApplyTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
 			},
-			2,
-			1,
+			TaskID(&MockOrderedID{Id: 2}),
+			TaskRunID(&MockOrderedID{Id: 2}),
 			Failed,
 			nil,
 			true,
@@ -667,8 +708,7 @@ func TestSetStatusByRunID(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := sp.NewMemoryStorageProvider()
-		manager := NewTaskManager(storage)
+		manager := NewMemoryTaskMetadataManager()
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -676,21 +716,14 @@ func TestSetStatusByRunID(t *testing.T) {
 			}
 		}
 
-		// var runDefs []TaskRunMetadata
 		for _, run := range test.Runs {
 			_, err := manager.CreateTaskRun(run.Name, run.TaskID, run.Trigger)
 			if err != nil && !test.shouldError {
 				t.Fatalf("failed to create task run: %v", err)
 			}
-			// runDefs = append(runDefs, runDef)
 		}
 
-		lock, err := manager.LockTaskRun(test.ForTask, test.ForRun)
-		if err != nil {
-			t.Fatalf("failed to lock task run: %v", err)
-		}
-
-		err = manager.SetRunStatus(test.ForRun, test.ForTask, test.SetStatus, test.SetError, lock)
+		err := manager.SetRunStatus(test.ForRun, test.ForTask, test.SetStatus, test.SetError)
 		if err != nil && test.shouldError {
 			return
 		} else if err != nil && !test.shouldError {
@@ -699,23 +732,15 @@ func TestSetStatusByRunID(t *testing.T) {
 			t.Fatalf("expected error but did not receive one")
 		}
 
-		err = manager.UnlockTaskRun(test.ForTask, test.ForRun, lock)
-		if err != nil {
-			t.Fatalf("failed to unlock task run: %v", err)
-		}
-
 		recvRun, err := manager.GetRunByID(test.ForTask, test.ForRun)
 		if err != nil {
 			t.Fatalf("failed to get run by ID %d: %v", test.ForTask, err)
 		}
+
 		recvStatus := recvRun.Status
-
 		if recvStatus != test.SetStatus {
-
 			t.Fatalf("Expcted %v, got: %v", test.SetStatus, recvStatus)
-
 		}
-
 	}
 
 	for _, tt := range tests {
@@ -750,9 +775,9 @@ func TestSetEndTimeByRunID(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
-			[]runInfo{{"name", 1, OnApplyTrigger{"name"}}},
-			1,
-			1,
+			[]runInfo{{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}}},
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 1}),
 			time.Now().Add(3 * time.Minute).Truncate(0).UTC(),
 			false,
 		},
@@ -760,12 +785,12 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			"Multiple",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 1, OnApplyTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
 			},
-			1,
-			2,
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskID(&MockOrderedID{Id: 2}),
 			time.Now().Add(3 * time.Minute).Truncate(0).UTC(),
 			false,
 		},
@@ -773,12 +798,12 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			"EmptyTime",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 1, OnApplyTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
 			},
-			1,
-			2,
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 2}),
 			time.Time{},
 			true,
 		},
@@ -786,12 +811,12 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			"WrongEndTime",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 1, OnApplyTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
 			},
-			1,
-			2,
+			TaskID(&MockOrderedID{Id: 1}),
+			TaskRunID(&MockOrderedID{Id: 2}),
 			time.Unix(1, 0).Truncate(0).UTC(),
 			true,
 		},
@@ -802,21 +827,20 @@ func TestSetEndTimeByRunID(t *testing.T) {
 				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 1, OnApplyTrigger{"name"}},
-				{"name", 2, OnApplyTrigger{"name"}},
-				{"name", 2, OnApplyTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 1}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
+				{"name", TaskID(&MockOrderedID{Id: 2}), OneOffTrigger{"name"}},
 			},
-			2,
-			1,
+			TaskID(&MockOrderedID{Id: 2}),
+			TaskRunID(&MockOrderedID{Id: 3}),
 			time.Now().UTC().Add(3 * time.Minute).Truncate(0),
 			false,
 		},
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		storage := sp.NewMemoryStorageProvider()
-		manager := NewTaskManager(storage)
+		manager := NewMemoryTaskMetadataManager()
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -824,32 +848,20 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			}
 		}
 
-		// var runDefs []TaskRunMetadata
 		for _, run := range test.Runs {
 			_, err := manager.CreateTaskRun(run.Name, run.TaskID, run.Trigger)
 			if err != nil && !test.shouldError {
 				t.Fatalf("failed to create task run: %v", err)
 			}
-			// runDefs = append(runDefs, runDef)
 		}
 
-		lock, err := manager.LockTaskRun(test.ForTask, test.ForRun)
-		if err != nil {
-			t.Fatalf("failed to lock task run: %v", err)
-		}
-
-		err = manager.SetRunEndTime(test.ForRun, test.ForTask, test.SetTime, lock)
+		err := manager.SetRunEndTime(test.ForRun, test.ForTask, test.SetTime)
 		if err != nil && test.shouldError {
 			return
 		} else if err != nil && !test.shouldError {
-			t.Fatalf("failed to set status correctly: %v", err)
+			t.Fatalf("failed to set run end time correctly: %v", err)
 		} else if err == nil && test.shouldError {
 			t.Fatalf("expected error but did not receive one")
-		}
-
-		err = manager.UnlockTaskRun(test.ForTask, test.ForRun, lock)
-		if err != nil {
-			t.Fatalf("failed to unlock task run: %v", err)
 		}
 
 		recvRun, err := manager.GetRunByID(test.ForTask, test.ForRun)
@@ -858,9 +870,7 @@ func TestSetEndTimeByRunID(t *testing.T) {
 		}
 
 		if recvRun.EndTime != test.SetTime {
-
 			t.Fatalf("expected %v, got: %v", test.SetTime, recvRun.EndTime)
-
 		}
 	}
 
@@ -871,6 +881,10 @@ func TestSetEndTimeByRunID(t *testing.T) {
 	}
 }
 
+func TestGetRunsByDate(t *testing.T) {
+	// TODO: implement
+}
+
 func TestKeyPaths(t *testing.T) {
 	type testCase struct {
 		Name        string
@@ -879,40 +893,40 @@ func TestKeyPaths(t *testing.T) {
 	}
 
 	tests := []testCase{
-		testCase{
+		{
 			Name:        "TaskMetadataKeyAll",
 			Key:         TaskMetadataKey{},
 			ExpectedKey: "/tasks/metadata/task_id=",
 		},
-		testCase{
+		{
 			Name:        "TaskMetadataKeyIndividual",
-			Key:         TaskMetadataKey{taskID: TaskID(1)},
+			Key:         TaskMetadataKey{taskID: TaskID(&MockOrderedID{Id: 1})},
 			ExpectedKey: "/tasks/metadata/task_id=1",
 		},
-		testCase{
+		{
 			Name:        "TaskRunKeyAll",
 			Key:         TaskRunKey{},
 			ExpectedKey: "/tasks/runs/task_id=",
 		},
-		testCase{
+		{
 			Name:        "TaskRunKeyIndividual",
-			Key:         TaskRunKey{taskID: TaskID(1)},
+			Key:         TaskRunKey{taskID: TaskID(&MockOrderedID{Id: 1})},
 			ExpectedKey: "/tasks/runs/task_id=1"},
-		testCase{
+		{
 			Name:        "TaskRunMetadataKeyAll",
 			Key:         TaskRunMetadataKey{},
 			ExpectedKey: "/tasks/runs/metadata",
 		},
-		testCase{
+		{
 			Name: "TaskRunMetadataKeyIndividual",
 			Key: TaskRunMetadataKey{
-				taskID: TaskID(1),
-				runID:  TaskRunID(1),
+				taskID: TaskID(&MockOrderedID{Id: 1}),
+				runID:  TaskRunID(&MockOrderedID{Id: 1}),
 				date:   time.Date(2023, time.January, 20, 23, 0, 0, 0, time.UTC),
 			},
 			ExpectedKey: "/tasks/runs/metadata/2023/01/20/task_id=1/run_id=1",
 		},
-		testCase{
+		{
 			Name: "TaskRunMetadataKeyYearOnly",
 			Key: TaskRunMetadataKey{
 				date: time.Date(2023, time.January, 20, 23, 0, 0, 0, time.UTC),
@@ -925,7 +939,6 @@ func TestKeyPaths(t *testing.T) {
 		if test.Key.String() != test.ExpectedKey {
 			t.Fatalf("Expected: %s, got: %s", test.ExpectedKey, test.Key.String())
 		}
-
 	}
 
 	for _, tt := range tests {

@@ -4,9 +4,12 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/featureform/ffsync"
 )
 
 func TestSerializeTaskMetadata(t *testing.T) {
+	id1 := ffsync.Uint64OrderedId(1)
 	testCases := []struct {
 		name       string
 		task       TaskMetadata
@@ -15,7 +18,7 @@ func TestSerializeTaskMetadata(t *testing.T) {
 		{
 			name: "WithProviderTarget",
 			task: TaskMetadata{
-				ID:       1,
+				ID:       TaskID(&id1),
 				Name:     "provider_task",
 				TaskType: HealthCheck,
 				Target: Provider{
@@ -29,7 +32,7 @@ func TestSerializeTaskMetadata(t *testing.T) {
 		{
 			name: "WithNameVariantTarget",
 			task: TaskMetadata{
-				ID:       1,
+				ID:       TaskID(&id1),
 				Name:     "nv_task",
 				TaskType: ResourceCreation,
 				Target: NameVariant{
@@ -73,7 +76,7 @@ func TestIncorrectTaskMetadata(t *testing.T) {
 		{
 			name: "NameVariantProviderTarget",
 			task: TaskMetadata{
-				ID:       1,
+				ID:       TaskID(&MockOrderedID{1}),
 				Name:     "nv_task",
 				TaskType: ResourceCreation,
 				Target: NameVariant{
@@ -87,7 +90,7 @@ func TestIncorrectTaskMetadata(t *testing.T) {
 		{
 			name: "NoTarget",
 			task: TaskMetadata{
-				ID:          1,
+				ID:          TaskID(&MockOrderedID{1}),
 				Name:        "nv_task",
 				TaskType:    ResourceCreation,
 				Target:      nil,

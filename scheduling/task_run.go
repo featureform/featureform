@@ -4,25 +4,48 @@ import (
 	"encoding/json"
 	"fmt"
 	pb "github.com/featureform/metadata/proto"
-	"strconv"
 	"time"
+
+	"github.com/featureform/fferr"
+	"github.com/featureform/ffsync"
 )
 
-type TaskRunID int32
-
-func (tid *TaskRunID) FromString(id string) error {
-	if id == "" {
-		return fmt.Errorf("cannot convert an empty string")
-	}
-	intID, err := strconv.Atoi(id)
-	if err != nil {
-		return err
-	}
-	*tid = TaskRunID(intID)
-	return nil
+type TaskRunKey struct {
+	taskID TaskID
 }
 
-type Status int32
+func (trk TaskRunKey) String() string {
+	if trk.taskID == nil {
+		return "/tasks/runs/task_id="
+	}
+	return fmt.Sprintf("/tasks/runs/task_id=%s", trk.taskID.String())
+}
+
+type TaskRunMetadataKey struct {
+	taskID TaskID
+	runID  TaskRunID
+	date   time.Time
+}
+
+func (trmk TaskRunMetadataKey) String() string {
+	key := "/tasks/runs/metadata"
+
+	// adds the date to the key if it's not zero
+	if !trmk.date.IsZero() {
+		key += fmt.Sprintf("/%s", trmk.date.Format("2006/01/02"))
+
+		// adds the task_id and run_id to the key if they're not null
+		taskIdIsNotNil := trmk.taskID != nil
+		runIdIsNotNil := trmk.runID != nil
+		if taskIdIsNotNil && runIdIsNotNil {
+			key += fmt.Sprintf("/task_id=%s/run_id=%s", trmk.taskID.String(), trmk.runID.String())
+		}
+	}
+	return key
+}
+
+type TaskRunID ffsync.OrderedId
+type Status string
 
 const (
 	NO_STATUS Status = Status(pb.ResourceStatus_NO_STATUS)
@@ -92,14 +115,17 @@ type TaskRunMetadata struct {
 	ErrorProto  *pb.ErrorStatus
 }
 
-// Formatting
-func (t *TaskRunMetadata) Marshal() ([]byte, error) {
-	return json.Marshal(t)
+func (t *TaskRunMetadata) Marshal() ([]byte, fferr.GRPCError) {
+	bytes, err := json.Marshal(t)
+	if err != nil {
+		return nil, fferr.NewInternalError(fmt.Errorf("failed to marshal TaskRunMetadata: %w", err))
+	}
+	return bytes, nil
 }
-func (t *TaskRunMetadata) Unmarshal(data []byte) error {
+func (t *TaskRunMetadata) Unmarshal(data []byte) fferr.GRPCError {
 	type tempConfig struct {
-		ID          TaskRunID       `json:"runId"`
-		TaskId      TaskID          `json:"taskId"`
+		ID          uint64          `json:"runId"`
+		TaskId      uint64          `json:"taskId"`
 		Name        string          `json:"name"`
 		Trigger     json.RawMessage `json:"trigger"`
 		TriggerType TriggerType     `json:"triggerType"`
@@ -113,28 +139,25 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 
 	var temp tempConfig
 	if err := json.Unmarshal(data, &temp); err != nil {
-		return fmt.Errorf("failed to deserialize task run metadata: %w", err)
+		errMessage := fmt.Errorf("failed to deserialize task run metadata: %w", err)
+		return fferr.NewInternalError(errMessage)
 	}
 
-	if temp.ID == 0 {
-		return fmt.Errorf("task run metadata is missing ID")
-	}
-	t.ID = temp.ID
+	runId := ffsync.Uint64OrderedId(temp.ID)
+	t.ID = TaskRunID(&runId)
 
-	if temp.TaskId == 0 {
-		return fmt.Errorf("task run metadata is missing RunID")
-	}
-	t.TaskId = temp.TaskId
+	taskId := ffsync.Uint64OrderedId(temp.TaskId)
+	t.TaskId = TaskID(&taskId)
 
 	if temp.Name == "" {
-		return fmt.Errorf("task run metadata is missing name")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("task run metadata is missing Name"))
 	}
 	t.Name = temp.Name
 
 	t.Status = temp.Status
 
 	if temp.StartTime.IsZero() {
-		return fmt.Errorf("task run metadata is missing Start Time")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("task run metadata is missing StartTime"))
 	}
 	t.StartTime = temp.StartTime
 
@@ -146,24 +169,28 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 
 	triggerMap := make(map[string]interface{})
 	if err := json.Unmarshal(temp.Trigger, &triggerMap); err != nil {
-		return fmt.Errorf("failed to deserialize trigger data: %w", err)
+		errMessage := fmt.Errorf("failed to deserialize trigger data: %w", err)
+		return fferr.NewInternalError(errMessage)
 	}
 
 	switch temp.TriggerType {
 	case OnApplyTriggerType:
 		var oneOffTrigger OnApplyTrigger
 		if err := json.Unmarshal(temp.Trigger, &oneOffTrigger); err != nil {
-			return fmt.Errorf("failed to deserialize One Off Trigger data: %w", err)
+			errMessage := fmt.Errorf("failed to deserialize One Off Trigger data: %w", err)
+			return fferr.NewInternalError(errMessage)
 		}
 		t.Trigger = oneOffTrigger
 	case DummyTriggerType:
 		var dummyTrigger DummyTrigger
 		if err := json.Unmarshal(temp.Trigger, &dummyTrigger); err != nil {
-			return fmt.Errorf("failed to deserialize Dummy Trigger data: %w", err)
+			errMessage := fmt.Errorf("failed to deserialize Dummy Trigger data: %w", err)
+			return fferr.NewInternalError(errMessage)
 		}
 		t.Trigger = dummyTrigger
 	default:
-		return fmt.Errorf("unknown trigger type: %s", temp.TriggerType)
+		errMessage := fmt.Errorf("unknown trigger type: %s", temp.TriggerType)
+		return fferr.NewInvalidArgumentError(errMessage)
 	}
 	return nil
 }

@@ -3,10 +3,11 @@ package fferr
 import (
 	"errors"
 	"fmt"
+	"strings"
+
 	pb "github.com/featureform/metadata/proto"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
-	"strings"
 
 	"github.com/rotisserie/eris"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
@@ -41,6 +42,7 @@ const (
 	// MISCELLANEOUS:
 	INTERNAL_ERROR   = "Internal Error"
 	INVALID_ARGUMENT = "Invalid Argument"
+	PARSING_ERROR    = "Parsing Error"
 
 	// JOBS:
 	JOB_DOES_NOT_EXIST        = "Job Does Not Exist"
@@ -52,6 +54,10 @@ const (
 
 	// ETCD
 	KEY_NOT_FOUND = "Key Not Found"
+
+	// LOCKING
+	KEY_ALREADY_LOCKED = "Key Already Locked"
+	KEY_NOT_LOCKED     = "Key Not Locked"
 
 	// RESOURCE TYPES:
 	PRIMARY_DATASET      ResourceType = "PRIMARY_DATASET"

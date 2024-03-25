@@ -87,19 +87,19 @@ func getSourceMapping(template string, replacements map[string]string) ([]provid
 }
 
 type Coordinator struct {
-	Metadata    *metadata.Client
-	Logger      *zap.SugaredLogger
-	EtcdClient  *clientv3.Client
-	KVClient    *clientv3.KV
-	Spawner     JobSpawner
-	Timeout     int
-	TaskManager scheduling.TaskManager
+	Metadata   *metadata.Client
+	Logger     *zap.SugaredLogger
+	EtcdClient *clientv3.Client
+	KVClient   *clientv3.KV
+	Spawner    JobSpawner
+	Timeout    int
 }
 
 type LockJobObj struct {
-	RunId  scheduling.TaskRunID
-	TaskId scheduling.TaskID
-	Lock   sp.LockObject
+	RunId       scheduling.TaskRunID
+	TaskId      scheduling.TaskID
+	Lock        sp.LockObject
+	taskManager scheduling.TaskMetadataManager
 }
 
 type ETCDConfig struct {

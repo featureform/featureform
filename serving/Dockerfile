@@ -27,6 +27,9 @@ COPY ./types/ ./types/
 COPY ./kubernetes/ ./kubernetes/
 COPY ./metrics/ ./metrics/
 COPY ./provider/ ./provider/
+COPY ./storage/ ./storage/
+COPY ./ffsync/ ./ffsync/
+COPY ./scheduling/ ./scheduling/
 COPY serving/main/main.go ./serving/main/main.go
 
 RUN go build ./serving/main/main.go

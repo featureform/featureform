@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"github.com/featureform/fferr"
 	"github.com/featureform/ffsync"
 )
 
@@ -10,7 +9,7 @@ type MetadataStorage struct {
 	Storage metadataStorageImplementation
 }
 
-func (s *MetadataStorage) Create(key string, value string) fferr.GRPCError {
+func (s *MetadataStorage) Create(key string, value string) error {
 	lock, err := s.Locker.Lock(key)
 	if err != nil {
 		return err
@@ -20,7 +19,7 @@ func (s *MetadataStorage) Create(key string, value string) fferr.GRPCError {
 	return s.Storage.Set(key, value)
 }
 
-func (s *MetadataStorage) MultiCreate(data map[string]string) fferr.GRPCError {
+func (s *MetadataStorage) MultiCreate(data map[string]string) error {
 	for key, value := range data {
 		lock, err := s.Locker.Lock(key)
 		if err != nil {
@@ -36,7 +35,7 @@ func (s *MetadataStorage) MultiCreate(data map[string]string) fferr.GRPCError {
 	return nil
 }
 
-func (s *MetadataStorage) Update(key string, updateFn func(string) (string, fferr.GRPCError)) fferr.GRPCError {
+func (s *MetadataStorage) Update(key string, updateFn func(string) (string, error)) error {
 	lock, err := s.Locker.Lock(key)
 	if err != nil {
 		return err
@@ -56,7 +55,7 @@ func (s *MetadataStorage) Update(key string, updateFn func(string) (string, ffer
 	return s.Storage.Set(key, newValue)
 }
 
-func (s *MetadataStorage) List(prefix string) (map[string]string, fferr.GRPCError) {
+func (s *MetadataStorage) List(prefix string) (map[string]string, error) {
 	lock, err := s.Locker.Lock(prefix)
 	if err != nil {
 		return nil, err
@@ -66,7 +65,7 @@ func (s *MetadataStorage) List(prefix string) (map[string]string, fferr.GRPCErro
 	return s.Storage.List(prefix)
 }
 
-func (s *MetadataStorage) Get(key string) (string, fferr.GRPCError) {
+func (s *MetadataStorage) Get(key string) (string, error) {
 	lock, err := s.Locker.Lock(key)
 	if err != nil {
 		return "", err
@@ -76,7 +75,7 @@ func (s *MetadataStorage) Get(key string) (string, fferr.GRPCError) {
 	return s.Storage.Get(key)
 }
 
-func (s *MetadataStorage) Delete(key string) (string, fferr.GRPCError) {
+func (s *MetadataStorage) Delete(key string) (string, error) {
 	lock, err := s.Locker.Lock(key)
 	if err != nil {
 		return "", err
@@ -91,8 +90,8 @@ func (s *MetadataStorage) Delete(key string) (string, fferr.GRPCError) {
 }
 
 type metadataStorageImplementation interface {
-	Set(key string, value string) fferr.GRPCError            // Set stores the value for the key and updates it if it already exists
-	Get(key string) (string, fferr.GRPCError)                // Get returns the value for the key
-	List(prefix string) (map[string]string, fferr.GRPCError) // List returns all the keys and values with the given prefix
-	Delete(key string) (string, fferr.GRPCError)             // Delete removes the key and its value from the store
+	Set(key string, value string) error            // Set stores the value for the key and updates it if it already exists
+	Get(key string) (string, error)                // Get returns the value for the key
+	List(prefix string) (map[string]string, error) // List returns all the keys and values with the given prefix
+	Delete(key string) (string, error)             // Delete removes the key and its value from the store
 }

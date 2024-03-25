@@ -7,7 +7,7 @@ import (
 
 type MetadataStorage struct {
 	Locker  ffsync.Locker
-	Storage metadataStorageImplementation
+	Storage MetadataStorageImplementation
 }
 
 func (s *MetadataStorage) Create(key string, value string) fferr.GRPCError {
@@ -90,7 +90,7 @@ func (s *MetadataStorage) Delete(key string) (string, fferr.GRPCError) {
 	return value, nil
 }
 
-type metadataStorageImplementation interface {
+type MetadataStorageImplementation interface {
 	Set(key string, value string) fferr.GRPCError            // Set stores the value for the key and updates it if it already exists
 	Get(key string) (string, fferr.GRPCError)                // Get returns the value for the key
 	List(prefix string) (map[string]string, fferr.GRPCError) // List returns all the keys and values with the given prefix

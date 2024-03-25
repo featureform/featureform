@@ -10,6 +10,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"github.com/featureform/storage"
 	"io"
 	"net"
 	"strings"
@@ -30,7 +31,6 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
-	sp "github.com/featureform/scheduling/storage_providers"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -1542,7 +1542,7 @@ func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 type Config struct {
 	Logger          *zap.SugaredLogger
 	SearchParams    *search.MeilisearchParams
-	StorageProvider sp.StorageProvider
+	StorageProvider storage.MetadataStorage
 	Address         string
 }
 
@@ -1575,7 +1575,7 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *p
 	if err != nil {
 		return nil, err
 	}
-	variant.TaskId = int32(task.ID)
+	variant.TaskId = task.ID.Value().(uint64)
 	return serv.genericCreate(ctx, &featureVariantResource{variant}, func(name, variant string) Resource {
 		return &featureResource{
 			&pb.Feature{
@@ -1613,7 +1613,7 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variant *pb.
 	if err != nil {
 		return nil, err
 	}
-	variant.TaskId = int32(task.ID)
+	variant.TaskId = task.ID.Value().(uint64)
 	return serv.genericCreate(ctx, &labelVariantResource{variant}, func(name, variant string) Resource {
 		return &labelResource{
 			&pb.Label{
@@ -1651,7 +1651,7 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, varian
 	if err != nil {
 		return nil, err
 	}
-	variant.TaskId = int32(task.ID)
+	variant.TaskId = task.ID.Value().(uint64)
 	return serv.genericCreate(ctx, &trainingSetVariantResource{variant}, func(name, variant string) Resource {
 		return &trainingSetResource{
 			&pb.TrainingSet{
@@ -1689,7 +1689,7 @@ func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variant *pb
 	if err != nil {
 		return nil, err
 	}
-	variant.TaskId = int32(task.ID)
+	variant.TaskId = task.ID.Value().(uint64)
 	return serv.genericCreate(ctx, &sourceVariantResource{variant}, func(name, variant string) Resource {
 		return &SourceResource{
 			&pb.Source{
@@ -1886,30 +1886,6 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, fferr.NewInternalError(err)
 	}
 
-	//var taskId scheduling.TaskID
-	if existing == nil {
-		// TODO: create task with ID
-		// update res with task id
-		// name string, tType TaskType, target TaskTarget
-		//name := fmt.Sprintf("%s__%s__%s", res.ID().Type, res.ID().Name, res.ID().Variant)
-		//taskTarget := scheduling.NameVariant{Name: res.ID().Name, Variant: res.ID().Variant, ResourceType: res.ID().Type.String()}
-		//taskMetadata, err := serv.taskManager.CreateTask(name, scheduling.ResourceCreation, taskTarget)
-		//if err != nil {
-		//	return nil, err
-		//}
-
-		// TODO: update with task id
-		//taskId = taskMetadata.ID
-		fmt.Println("need to update protos to have the task ids")
-	} else {
-		// TODO: create a method to get the task id from the name and variant and type
-		// taskId = res.Proto().GetTaskId()
-
-		id1 := ffsync.Uint64OrderedId(1)
-		taskId = scheduling.TaskID(&id1)
-
-	}
-
 	if existing != nil {
 		err = serv.validateExisting(res, existing)
 		if err != nil {
@@ -1928,16 +1904,20 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		var taskID scheduling.TaskID
 		// Do we want this in the interface?
 		if source, ok := res.(*sourceVariantResource); ok {
-			taskID = scheduling.TaskID(source.serialized.TaskId)
+			id := ffsync.Uint64OrderedId(source.serialized.TaskId)
+			taskID = scheduling.TaskID(&id)
 		}
 		if feature, ok := res.(*featureVariantResource); ok {
-			taskID = scheduling.TaskID(feature.serialized.TaskId)
+			id := ffsync.Uint64OrderedId(feature.serialized.TaskId)
+			taskID = scheduling.TaskID(&id)
 		}
 		if trainingSet, ok := res.(*trainingSetVariantResource); ok {
-			taskID = scheduling.TaskID(trainingSet.serialized.TaskId)
+			id := ffsync.Uint64OrderedId(trainingSet.serialized.TaskId)
+			taskID = scheduling.TaskID(&id)
 		}
 		if label, ok := res.(*labelVariantResource); ok {
-			taskID = scheduling.TaskID(label.serialized.TaskId)
+			id := ffsync.Uint64OrderedId(label.serialized.TaskId)
+			taskID = scheduling.TaskID(&id)
 		}
 		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
 		trigger := scheduling.OnApplyTrigger{TriggerName: "Apply"}
@@ -2086,7 +2066,8 @@ func (serv *MetadataServer) fetchStatus(taskId scheduling.TaskID) (*scheduling.S
 func (serv *MetadataServer) setStatus(res Resource) (Resource, error) {
 	switch r := res.(type) {
 	case *sourceVariantResource:
-		status, runErr, err := serv.fetchStatus(scheduling.TaskID(r.serialized.TaskId))
+		id := ffsync.Uint64OrderedId(r.serialized.TaskId)
+		status, runErr, err := serv.fetchStatus(scheduling.TaskID(&id))
 		if err != nil {
 			return nil, err
 		}
@@ -2094,7 +2075,8 @@ func (serv *MetadataServer) setStatus(res Resource) (Resource, error) {
 		r.serialized.Status.ErrorMessage = runErr
 		return r, nil
 	case *featureVariantResource:
-		status, runErr, err := serv.fetchStatus(scheduling.TaskID(r.serialized.TaskId))
+		id := ffsync.Uint64OrderedId(r.serialized.TaskId)
+		status, runErr, err := serv.fetchStatus(scheduling.TaskID(&id))
 		if err != nil {
 			return nil, err
 		}
@@ -2102,7 +2084,8 @@ func (serv *MetadataServer) setStatus(res Resource) (Resource, error) {
 		r.serialized.Status.ErrorMessage = runErr
 		return r, nil
 	case *labelVariantResource:
-		status, runErr, err := serv.fetchStatus(scheduling.TaskID(r.serialized.TaskId))
+		id := ffsync.Uint64OrderedId(r.serialized.TaskId)
+		status, runErr, err := serv.fetchStatus(scheduling.TaskID(&id))
 		if err != nil {
 			return nil, err
 		}
@@ -2110,7 +2093,8 @@ func (serv *MetadataServer) setStatus(res Resource) (Resource, error) {
 		r.serialized.Status.ErrorMessage = runErr
 		return r, nil
 	case *trainingSetVariantResource:
-		status, runErr, err := serv.fetchStatus(scheduling.TaskID(r.serialized.TaskId))
+		id := ffsync.Uint64OrderedId(r.serialized.TaskId)
+		status, runErr, err := serv.fetchStatus(scheduling.TaskID(&id))
 		if err != nil {
 			return nil, err
 		}

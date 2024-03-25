@@ -45,7 +45,7 @@ func (trmk TaskRunMetadataKey) String() string {
 }
 
 type TaskRunID ffsync.OrderedId
-type Status string
+type Status int32
 
 const (
 	NO_STATUS Status = Status(pb.ResourceStatus_NO_STATUS)

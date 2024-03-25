@@ -38,3 +38,15 @@ DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): version.featuref
 DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): version.featureform.com:443
 DEBUG:urllib3.connectionpool:https://version.featureform.com:443 "GET /?local=False&client=register&version=0.0.0 HTTP/1.1" 200 0
 DEBUG:urllib3.connectionpool:https://version.featureform.com:443 "GET /?local=False&client=serving&version=0.0.0 HTTP/1.1" 200 0
+DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): version.featureform.com:443
+DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): version.featureform.com:443
+DEBUG:urllib3.connectionpool:https://version.featureform.com:443 "GET /?local=False&client=serving&version=0.0.0 HTTP/1.1" 200 0
+DEBUG:urllib3.connectionpool:https://version.featureform.com:443 "GET /?local=False&client=register&version=0.0.0 HTTP/1.1" 200 0
+DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): version.featureform.com:443
+DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): version.featureform.com:443
+DEBUG:urllib3.connectionpool:https://version.featureform.com:443 "GET /?local=False&client=serving&version=0.0.0 HTTP/1.1" 200 0
+DEBUG:urllib3.connectionpool:https://version.featureform.com:443 "GET /?local=False&client=register&version=0.0.0 HTTP/1.1" 200 0
+DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): version.featureform.com:443
+DEBUG:urllib3.connectionpool:Starting new HTTPS connection (1): version.featureform.com:443
+DEBUG:urllib3.connectionpool:https://version.featureform.com:443 "GET /?local=False&client=register&version=0.0.0 HTTP/1.1" 200 0
+DEBUG:urllib3.connectionpool:https://version.featureform.com:443 "GET /?local=False&client=serving&version=0.0.0 HTTP/1.1" 200 0

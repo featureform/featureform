@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/featureform/ffsync"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/featureform/scheduling"
-	sp "github.com/featureform/scheduling/storage_providers"
 
 	db "github.com/jackc/pgx/v4"
 	"go.etcd.io/etcd/api/v3/mvccpb"
@@ -93,13 +93,12 @@ type Coordinator struct {
 	KVClient   *clientv3.KV
 	Spawner    JobSpawner
 	Timeout    int
+	Locker     ffsync.Locker
 }
 
 type LockJobObj struct {
-	RunId       scheduling.TaskRunID
-	TaskId      scheduling.TaskID
-	Lock        sp.LockObject
-	taskManager scheduling.TaskMetadataManager
+	RunId  scheduling.TaskRunID
+	TaskId scheduling.TaskID
 }
 
 type ETCDConfig struct {
@@ -239,14 +238,13 @@ func (k *MemoryJobSpawner) GetJobRunner(jobName runner.RunnerName, config runner
 	return jobRunner, nil
 }
 
-func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, taskManager scheduling.TaskManager, spawner JobSpawner) (*Coordinator, error) {
+func NewCoordinator(meta *metadata.Client, logger *zap.SugaredLogger, spawner JobSpawner) (*Coordinator, error) {
 	logger.Info("Creating new coordinator")
 	return &Coordinator{
-		Metadata:    meta,
-		Logger:      logger,
-		Spawner:     spawner,
-		Timeout:     600,
-		TaskManager: taskManager,
+		Metadata: meta,
+		Logger:   logger,
+		Spawner:  spawner,
+		Timeout:  600,
 	}, nil
 }
 
@@ -269,7 +267,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 	c.Logger.Info("Watching for new jobs")
 	// TODO: change it so we can watch for new jobs using task manager; searching for PENDING status tasks
 	// JOB__TYPE__NAME__VARIANT
-	runs, err := c.TaskManager.GetAllTaskRuns()
+	runs, err := c.Metadata.Tasks.GetAllRuns()
 	if err != nil {
 		return fferr.NewInternalError(err)
 	}
@@ -278,25 +276,22 @@ func (c *Coordinator) WatchForNewJobs() error {
 
 	for _, run := range runs {
 		go func(run scheduling.TaskRunMetadata) {
-			// LOCK and pass the key to the worker; if lock fails then skip
-			// UNLOCK after the worker is done
-			// LockTaskRun(taskID TaskID, runId TaskRunID) (sp.LockObject, error)
-			lock, err := c.TaskManager.LockTaskRun(run.TaskId, run.ID)
+			lock, err := c.Metadata.Tasks.LockRun(run.ID)
 			if err != nil {
 				c.Logger.Errorw("Error locking task run", "error", err)
 				return
 			}
-			defer func(TaskManager *scheduling.TaskManager, taskID scheduling.TaskID, runId scheduling.TaskRunID, lock sp.LockObject) {
-				err := TaskManager.UnlockTaskRun(taskID, runId, lock)
+			defer func(runId scheduling.TaskRunID, key ffsync.Key) {
+				err := c.Metadata.Tasks.UnlockRun(lock)
 				if err != nil {
 					fmt.Printf("failed to unlock task: %v", err)
 				}
-			}(&c.TaskManager, run.TaskId, run.ID, lock)
-			err = c.TaskManager.SetRunStatus(run.ID, run.TaskId, scheduling.RUNNING, err, lock)
+			}(run.ID, lock)
+			err = c.Metadata.Tasks.SetRunStatus(run.TaskId, run.ID, scheduling.RUNNING, err)
 			if err != nil {
 				fmt.Printf("failed to set status to Running: %v", err)
 			}
-			err = c.ExecuteJob(run, lock)
+			err = c.ExecuteJob(run)
 			fmt.Println(err)
 			if err != nil {
 				c.checkError(err, run.Name)
@@ -306,7 +301,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 
 	for {
 		// TODO: change it so we can watch for new jobs using task manager
-		runs, err := c.TaskManager.GetAllTaskRuns()
+		runs, err := c.Metadata.Tasks.GetAllRuns()
 		if err != nil {
 			return fmt.Errorf("fetch existing etcd jobs: %v", err)
 		}
@@ -317,13 +312,13 @@ func (c *Coordinator) WatchForNewJobs() error {
 				// LOCK and pass the key to the worker; if lock fails then skip
 				// UNLOCK after the worker is done
 				// LockTaskRun(taskID TaskID, runId TaskRunID) (sp.LockObject, error)
-				lock, err := c.TaskManager.LockTaskRun(run.TaskId, run.ID)
+				lock, err := c.Metadata.Tasks.LockRun(run.ID)
 				if err != nil {
 					c.Logger.Errorw("Error locking task run", "error", err)
 					return
 				}
-				defer c.TaskManager.UnlockTaskRun(run.TaskId, run.ID, lock)
-				err = c.ExecuteJob(run, lock)
+				defer c.Metadata.Tasks.UnlockRun(lock)
+				err = c.ExecuteJob(run)
 				if err != nil {
 					c.checkError(err, run.Name)
 				}
@@ -607,14 +602,14 @@ func (c *Coordinator) runPrimaryTableJob(source *metadata.SourceVariant, resID m
 	if sourceName == "" {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("source name is not set"))
 	}
-	err := c.TaskManager.AppendRunLog(lockInfo.RunId, lockInfo.TaskId, "Starting Registration...", lockInfo.Lock)
+	err := c.Metadata.Tasks.AddRunLog(lockInfo.TaskId, lockInfo.RunId, "Starting Registration...")
 	if err != nil {
 		return err
 	}
 	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, sourceName); err != nil {
 		return err
 	}
-	err = c.TaskManager.AppendRunLog(lockInfo.RunId, lockInfo.TaskId, "Registration Complete.", lockInfo.Lock)
+	err = c.Metadata.Tasks.AddRunLog(lockInfo.TaskId, lockInfo.RunId, "Registration Complete.")
 	if err != nil {
 		return err
 	}
@@ -623,7 +618,7 @@ func (c *Coordinator) runPrimaryTableJob(source *metadata.SourceVariant, resID m
 
 func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule string, lockInfo LockJobObj) error {
 	c.Logger.Info("Running register source job on resource: ", resID)
-	err := c.TaskManager.AppendRunLog(lockInfo.RunId, lockInfo.TaskId, "Fetching Metadata...", lockInfo.Lock)
+	err := c.Metadata.Tasks.AddRunLog(lockInfo.TaskId, lockInfo.RunId, "Fetching Metadata...")
 	if err != nil {
 		return err
 	}
@@ -631,7 +626,7 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule s
 	if err != nil {
 		return err
 	}
-	err = c.TaskManager.AppendRunLog(lockInfo.RunId, lockInfo.TaskId, "Fetching Provider...", lockInfo.Lock)
+	err = c.Metadata.Tasks.AddRunLog(lockInfo.TaskId, lockInfo.RunId, "Fetching Provider...")
 	if err != nil {
 		return err
 	}
@@ -639,7 +634,7 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule s
 	if err != nil {
 		return err
 	}
-	err = c.TaskManager.AppendRunLog(lockInfo.RunId, lockInfo.TaskId, fmt.Sprintf("Initializing Offline Store: %s...", sourceProvider.Type()), lockInfo.Lock)
+	err = c.Metadata.Tasks.AddRunLog(lockInfo.TaskId, lockInfo.RunId, fmt.Sprintf("Initializing Offline Store: %s...", sourceProvider.Type()))
 	if err != nil {
 		return err
 	}
@@ -1074,7 +1069,7 @@ func (c *Coordinator) getJob(taskRun scheduling.TaskRunMetadata) (*metadata.Coor
 	// Pull the information for CoordinatorJob from task run
 	// change parameter to accept task id and run id
 	c.Logger.Debugf("Checking existence of task with id %s and run id\n", taskRun.TaskId, taskRun.ID)
-	taskMetadata, err := c.TaskManager.GetTaskByID(taskRun.TaskId)
+	taskMetadata, err := c.Metadata.Tasks.GetTaskByID(taskRun.TaskId)
 	if err != nil {
 		return nil, fmt.Errorf("could not get task metadata: %v", err)
 	}
@@ -1160,12 +1155,12 @@ func (c *Coordinator) createJobLock(jobKey string, s *concurrency.Session) (*con
 	return mtx, nil
 }
 
-func (c *Coordinator) ExecuteJob(taskRun scheduling.TaskRunMetadata, lock sp.LockObject) error {
+func (c *Coordinator) ExecuteJob(taskRun scheduling.TaskRunMetadata) error {
 	// TODO: will need to modify to get the task id and task run id?
 	// Lock the run and set status to running in the task manager
 	// then
 	c.Logger.Info("Executing new task with id ", taskRun.TaskId, " and run id ", taskRun.ID)
-	err := c.TaskManager.AppendRunLog(taskRun.ID, taskRun.TaskId, "Starting Execution...", lock)
+	err := c.Metadata.Tasks.AddRunLog(taskRun.TaskId, taskRun.ID, "Starting Execution...")
 	if err != nil {
 		return err
 	}
@@ -1193,7 +1188,7 @@ func (c *Coordinator) ExecuteJob(taskRun scheduling.TaskRunMetadata, lock sp.Loc
 		return fferr.NewInvalidResourceTypeError(job.Resource.Name, job.Resource.Variant, fferr.ResourceType(job.Resource.Type.String()), nil)
 	}
 
-	if err := jobFunc(job.Resource, job.Schedule, LockJobObj{TaskId: taskRun.TaskId, RunId: taskRun.ID, Lock: lock}); err != nil {
+	if err := jobFunc(job.Resource, job.Schedule, LockJobObj{TaskId: taskRun.TaskId, RunId: taskRun.ID}); err != nil {
 		fmt.Println("ERROR", err)
 		switch err.(type) {
 		case *fferr.ResourceAlreadyFailedError:
@@ -1201,14 +1196,13 @@ func (c *Coordinator) ExecuteJob(taskRun scheduling.TaskRunMetadata, lock sp.Loc
 		default:
 			// TODO: set up status and error message in task manager
 			//runID TaskRunID, taskID TaskID, status Status, err error, lock sp.LockObject
-			err := c.TaskManager.SetRunStatus(taskRun.ID, taskRun.TaskId, scheduling.FAILED, err, lock)
+			err := c.Metadata.Tasks.SetRunStatus(taskRun.TaskId, taskRun.ID, scheduling.FAILED, err)
 			if err != nil {
 				return fmt.Errorf("set run status in task manager: %v", err)
 			}
 
 			// TODO: update the end time too
-			endTime := time.Now().UTC()
-			err = c.TaskManager.SetRunEndTime(taskRun.ID, taskRun.TaskId, endTime, lock)
+			err = c.Metadata.Tasks.EndRun(taskRun.TaskId, taskRun.ID)
 			if err != nil {
 				return fmt.Errorf("set run end time in task manager: %v", err)
 			}
@@ -1216,12 +1210,11 @@ func (c *Coordinator) ExecuteJob(taskRun scheduling.TaskRunMetadata, lock sp.Loc
 			return fmt.Errorf("%s job failed: %w", job.Resource.Type, err)
 		}
 	}
-	endTime := time.Now().UTC()
-	err = c.TaskManager.SetRunEndTime(taskRun.ID, taskRun.TaskId, endTime, lock)
+	err = c.Metadata.Tasks.EndRun(taskRun.TaskId, taskRun.ID)
 	if err != nil {
 		return fmt.Errorf("set run end time in task manager: %v", err)
 	}
-	err = c.TaskManager.SetRunStatus(taskRun.ID, taskRun.TaskId, scheduling.READY, nil, lock)
+	err = c.Metadata.Tasks.SetRunStatus(taskRun.TaskId, taskRun.ID, scheduling.READY, nil)
 	if err != nil {
 		return fmt.Errorf("set run status in task manager: %v", err)
 	}

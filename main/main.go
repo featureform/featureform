@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/featureform/api"
 	"github.com/featureform/coordinator"
+	"github.com/featureform/ffsync"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -11,7 +12,7 @@ import (
 	"github.com/featureform/metadata/search"
 	"github.com/featureform/runner"
 	"github.com/featureform/scheduling"
-	sp "github.com/featureform/scheduling/storage_providers"
+	ss "github.com/featureform/storage"
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 	"net/http"
@@ -20,6 +21,13 @@ import (
 )
 
 func main() {
+	locker := ffsync.NewMemoryLocker()
+	mstorage := ss.NewMemoryStorageImplementation()
+	storage := ss.MetadataStorage{
+		Locker:  &locker,
+		Storage: &mstorage,
+	}
+	meta := scheduling.NewTaskMetadataManager(storage)
 	/****************************************** API Server ************************************************************/
 	err := godotenv.Load(".env")
 	apiPort := help.GetEnv("API_PORT", "7878")
@@ -43,11 +51,10 @@ func main() {
 	mLogger := logging.NewLogger("metadata")
 	addr := help.GetEnv("METADATA_PORT", "8080")
 	enableSearch := help.GetEnv("ENABLE_SEARCH", "false")
-	storageProvider := sp.NewMemoryStorageProvider()
 	config := &metadata.Config{
 		Logger:          mLogger,
 		Address:         fmt.Sprintf(":%s", addr),
-		StorageProvider: storageProvider,
+		StorageProvider: meta,
 	}
 	if enableSearch == "true" {
 		logger.Infow("Connecting to search", "host", os.Getenv("MEILISEARCH_HOST"), "port", os.Getenv("MEILISEARCH_PORT"))
@@ -86,7 +93,8 @@ func main() {
 	cLogger := logging.NewLogger("coordinator")
 	defer cLogger.Sync()
 	cLogger.Debug("Connected to ETCD")
-	client, err := metadata.NewClient(metadataUrl, cLogger)
+
+	client, err := metadata.NewClient(metadataUrl, cLogger, meta, &locker)
 	if err != nil {
 		cLogger.Errorw("Failed to connect: %v", err)
 		panic(err)
@@ -95,9 +103,7 @@ func main() {
 	var spawner coordinator.JobSpawner
 	spawner = &coordinator.MemoryJobSpawner{}
 
-	taskManager := scheduling.NewTaskManager(storageProvider)
-
-	coord, err := coordinator.NewCoordinator(client, cLogger, taskManager, spawner)
+	coord, err := coordinator.NewCoordinator(client, cLogger, spawner)
 	if err != nil {
 		logger.Errorw("Failed to set up coordinator: %v", err)
 		panic(err)
@@ -109,7 +115,7 @@ func main() {
 
 	dbLogger.Infof("Looking for metadata at: %s\n", metadataUrl)
 
-	metadataServer, err := dm.NewMetadataServer(dbLogger, client, storageProvider)
+	metadataServer, err := dm.NewMetadataServer(dbLogger, client, meta)
 	if err != nil {
 		logger.Panicw("Failed to create server", "error", err)
 	}
@@ -151,7 +157,7 @@ func main() {
 	/******************************************** Start Servers *******************************************************/
 
 	go func() {
-		serv, err := api.NewApiServer(logger, apiConn, metadataConn, servingConn)
+		serv, err := api.NewApiServer(logger, apiConn, metadataConn, servingConn, meta, &locker)
 		if err != nil {
 			fmt.Println(err)
 			return

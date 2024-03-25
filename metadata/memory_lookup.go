@@ -11,13 +11,14 @@ import (
 	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
 	scheduling "github.com/featureform/scheduling/storage_providers"
+	"github.com/featureform/storage"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/proto"
 )
 
 // Create Resource Lookup Using ETCD
 type MemoryResourceLookup struct {
-	Connection scheduling.StorageProvider
+	Connection storage.MetadataStorage
 }
 
 // Wrapper around Resource/Job messages. Allows top level storage for info about saved value
@@ -140,12 +141,12 @@ func (lookup MemoryResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	logger := logging.NewLogger("lookup")
 	key := createKey(id)
 	logger.Infow("Get", "key", key)
-	resp, err := lookup.Connection.Get(key, false)
+	resp, err := lookup.Connection.Get(key)
 	if err != nil || len(resp) == 0 {
 		return nil, fferr.NewKeyNotFoundError(key, err)
 	}
 	logger.Infow("Deserialize", "key", key)
-	msg, err := lookup.deserialize([]byte(resp[key]))
+	msg, err := lookup.deserialize([]byte(key))
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to deserialize: %s", id))
 	}

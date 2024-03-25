@@ -7,6 +7,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"github.com/featureform/ffsync"
 	"github.com/featureform/scheduling"
 	"io"
 	"reflect"
@@ -92,6 +93,7 @@ type Client struct {
 	Logger   *zap.SugaredLogger
 	conn     *grpc.ClientConn
 	GrpcConn pb.MetadataClient
+	Tasks    Tasks
 }
 
 type ResourceDef interface {
@@ -2053,7 +2055,8 @@ func (variant *SourceVariant) DFTransformationQuerySource() string {
 }
 
 func (variant *SourceVariant) TaskID() scheduling.TaskID {
-	return scheduling.TaskID(variant.serialized.TaskId)
+	id := ffsync.Uint64OrderedId(variant.serialized.TaskId)
+	return scheduling.TaskID(&id)
 }
 
 func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
@@ -2263,7 +2266,7 @@ func (entity *Entity) Properties() Properties {
 	return entity.fetchPropertiesFn.Properties()
 }
 
-func NewClient(host string, logger *zap.SugaredLogger) (*Client, error) {
+func NewClient(host string, logger *zap.SugaredLogger, storage scheduling.TaskMetadataManager, locker ffsync.Locker) (*Client, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		// grpc.WithUnaryInterceptor(fferr.UnaryClientInterceptor()),
@@ -2278,6 +2281,10 @@ func NewClient(host string, logger *zap.SugaredLogger) (*Client, error) {
 		Logger:   logger,
 		conn:     conn,
 		GrpcConn: client,
+		Tasks: Tasks{
+			storage,
+			locker,
+		},
 	}, nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/featureform/ffsync"
 	filestore "github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
@@ -73,7 +74,6 @@ type MetadataServer struct {
 	client          *metadata.Client
 	logger          *zap.SugaredLogger
 	StorageProvider sp.StorageProvider
-	TaskManager     scheduling.TaskManager
 }
 
 func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client, storageProvider sp.StorageProvider) (*MetadataServer, error) {
@@ -84,7 +84,6 @@ func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client, stora
 		logger:          logger,
 		StorageProvider: storageProvider,
 		lookup:          metadata.MemoryResourceLookup{Connection: storageProvider},
-		TaskManager:     scheduling.NewTaskManager(storageProvider),
 	}, nil
 }
 
@@ -275,7 +274,7 @@ func trainingSetShallowMap(variant *metadata.TrainingSetVariant) metadata.Traini
 }
 
 func (m *MetadataServer) sourceShallowMap(variant *metadata.SourceVariant) (metadata.SourceVariantResource, error) {
-	taskRun, err := m.TaskManager.GetLatestRun(variant.TaskID())
+	taskRun, err := m.client.Tasks.GetLatestRun(variant.TaskID())
 	if err != nil {
 		return metadata.SourceVariantResource{}, err
 	}
@@ -1572,7 +1571,7 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 		return
 	}
 
-	runs, err := m.TaskManager.GetAllTaskRuns()
+	runs, err := m.client.Tasks.GetAllRuns()
 	if err != nil {
 		fetchError := m.GetRequestError(500, err, c, "GetTaskRuns - Failed to fetch task runs")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -1581,7 +1580,7 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 
 	taskListResponse := make([]TaskRunResponse, 0)
 	for _, run := range runs {
-		task, err := m.TaskManager.GetTaskByID(run.TaskId)
+		task, err := m.client.Tasks.GetTaskByID(run.TaskId)
 		if err != nil {
 			fetchError := m.GetRequestError(500, err, c, "GetTaskRuns - Failed to fetch task")
 			c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -1650,15 +1649,17 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	var taskID scheduling.TaskID
 	var taskRunID scheduling.TaskRunID
 
-	err := taskID.FromString(strTaskID)
+	var id ffsync.Uint64OrderedId
+	err := id.FromString(strTaskID)
 	if err != nil {
 		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
+	taskID = scheduling.TaskID(&id)
 
-	err = taskRunID.FromString(strTaskRunId)
+	err = id.FromString(strTaskRunId)
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not convert the given taskRunId"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
@@ -1666,7 +1667,9 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 		return
 	}
 
-	runs, err := m.TaskManager.GetTaskRuns(taskID)
+	taskRunID = scheduling.TaskRunID(&id)
+
+	runs, err := m.client.Tasks.GetRuns(taskID)
 	if err != nil {
 		fetchError := m.GetRequestError(500, err, c, "GetTaskRuns - Failed to fetch task")
 		c.JSON(fetchError.StatusCode, fetchError.Error())

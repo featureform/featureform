@@ -377,7 +377,7 @@ func testMultiCreate(t *testing.T, ms MetadataStorage) {
 	}
 }
 
-func updateFn(currentValue string) (string, fferr.GRPCError) {
+func updateFn(currentValue string) (string, error) {
 	return fmt.Sprintf("%s_updated", currentValue), nil
 }
 

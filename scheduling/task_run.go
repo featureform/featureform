@@ -115,14 +115,14 @@ type TaskRunMetadata struct {
 	ErrorProto  *pb.ErrorStatus
 }
 
-func (t *TaskRunMetadata) Marshal() ([]byte, fferr.GRPCError) {
+func (t *TaskRunMetadata) Marshal() ([]byte, error) {
 	bytes, err := json.Marshal(t)
 	if err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to marshal TaskRunMetadata: %w", err))
 	}
 	return bytes, nil
 }
-func (t *TaskRunMetadata) Unmarshal(data []byte) fferr.GRPCError {
+func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 	type tempConfig struct {
 		ID          uint64          `json:"runId"`
 		TaskId      uint64          `json:"taskId"`

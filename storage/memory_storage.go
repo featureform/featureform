@@ -17,7 +17,7 @@ type memoryStorageImplementation struct {
 	storage map[string]string
 }
 
-func (m *memoryStorageImplementation) Set(key string, value string) fferr.GRPCError {
+func (m *memoryStorageImplementation) Set(key string, value string) error {
 	if key == "" {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("key is empty"))
 	}
@@ -27,7 +27,7 @@ func (m *memoryStorageImplementation) Set(key string, value string) fferr.GRPCEr
 	return nil
 }
 
-func (m *memoryStorageImplementation) Get(key string) (string, fferr.GRPCError) {
+func (m *memoryStorageImplementation) Get(key string) (string, error) {
 	if key == "" {
 		return "", fferr.NewInvalidArgumentError(fmt.Errorf("key is empty"))
 	}
@@ -40,7 +40,7 @@ func (m *memoryStorageImplementation) Get(key string) (string, fferr.GRPCError) 
 	return value, nil
 }
 
-func (m *memoryStorageImplementation) List(prefix string) (map[string]string, fferr.GRPCError) {
+func (m *memoryStorageImplementation) List(prefix string) (map[string]string, error) {
 	result := make(map[string]string)
 
 	for key, value := range m.storage {
@@ -52,7 +52,7 @@ func (m *memoryStorageImplementation) List(prefix string) (map[string]string, ff
 	return result, nil
 }
 
-func (m *memoryStorageImplementation) Delete(key string) (string, fferr.GRPCError) {
+func (m *memoryStorageImplementation) Delete(key string) (string, error) {
 	if key == "" {
 		return "", fferr.NewInvalidArgumentError(fmt.Errorf("key is empty"))
 	}

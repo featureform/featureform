@@ -75,7 +75,7 @@ type TaskMetadata struct {
 	DateCreated time.Time  `json:"dateCreated"`
 }
 
-func (t *TaskMetadata) Marshal() ([]byte, fferr.GRPCError) {
+func (t *TaskMetadata) Marshal() ([]byte, error) {
 	bytes, err := json.Marshal(t)
 	if err != nil {
 		errMessage := fmt.Errorf("failed to serialize task metadata: %w", err)
@@ -84,7 +84,7 @@ func (t *TaskMetadata) Marshal() ([]byte, fferr.GRPCError) {
 	return bytes, nil
 }
 
-func (t *TaskMetadata) Unmarshal(data []byte) fferr.GRPCError {
+func (t *TaskMetadata) Unmarshal(data []byte) error {
 	type tempConfig struct {
 		ID          uint64          `json:"id"`
 		Name        string          `json:"name"`

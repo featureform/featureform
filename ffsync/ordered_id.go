@@ -54,7 +54,7 @@ func (id *Uint64OrderedId) MarshalJSON() ([]byte, error) {
 }
 
 type OrderedIdGenerator interface {
-	NextId(namespace string) (OrderedId, fferr.GRPCError)
+	NextId(namespace string) (OrderedId, error)
 }
 
 func NewMemoryOrderedIdGenerator() OrderedIdGenerator {
@@ -69,7 +69,7 @@ type memoryIdGenerator struct {
 	mu       sync.Mutex
 }
 
-func (m *memoryIdGenerator) NextId(namespace string) (OrderedId, fferr.GRPCError) {
+func (m *memoryIdGenerator) NextId(namespace string) (OrderedId, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

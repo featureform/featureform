@@ -19,7 +19,7 @@ type LockInformation struct {
 	Date time.Time
 }
 
-func (l *LockInformation) Unmarshal(data []byte) fferr.GRPCError {
+func (l *LockInformation) Unmarshal(data []byte) error {
 	var tmp struct {
 		ID   string
 		Key  string
@@ -52,7 +52,7 @@ func (l *LockInformation) Unmarshal(data []byte) fferr.GRPCError {
 	return nil
 }
 
-func (l *LockInformation) Marshal() ([]byte, fferr.GRPCError) {
+func (l *LockInformation) Marshal() ([]byte, error) {
 	bytes, err := json.Marshal(l)
 	if err != nil {
 		return nil, fferr.NewInternalError(err)
@@ -65,8 +65,8 @@ Locker interface is used to lock and unlock keys within different storage system
 example: etcd, memory, etc.
 */
 type Locker interface {
-	Lock(lock string) (Key, fferr.GRPCError)
-	Unlock(key Key) fferr.GRPCError
+	Lock(lock string) (Key, error)
+	Unlock(key Key) error
 }
 
 type Key interface {

@@ -14,7 +14,7 @@ type TaskRunSimple struct {
 	DateCreated time.Time `json:"dateCreated"`
 }
 
-func (trs *TaskRunSimple) Marshal() ([]byte, fferr.GRPCError) {
+func (trs *TaskRunSimple) Marshal() ([]byte, error) {
 	b, err := json.Marshal(trs)
 	if err != nil {
 		errMessage := fmt.Errorf("failed to marshal TaskRunSimple: %v", err)
@@ -48,7 +48,7 @@ type TaskRuns struct {
 	Runs   []TaskRunSimple `json:"runs"`
 }
 
-func (tr *TaskRuns) Marshal() ([]byte, fferr.GRPCError) {
+func (tr *TaskRuns) Marshal() ([]byte, error) {
 	b, err := json.Marshal(tr)
 	if err != nil {
 		errMessage := fmt.Errorf("failed to marshal TaskRun: %v", err)
@@ -57,7 +57,7 @@ func (tr *TaskRuns) Marshal() ([]byte, fferr.GRPCError) {
 	return b, nil
 }
 
-func (tr *TaskRuns) Unmarshal(data []byte) fferr.GRPCError {
+func (tr *TaskRuns) Unmarshal(data []byte) error {
 	type tempConfig struct {
 		TaskID uint64          `json:"taskID"`
 		Runs   []TaskRunSimple `json:"runs"`

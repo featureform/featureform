@@ -31,6 +31,9 @@ COPY ./metadata/ ./metadata/
 COPY ./runner/ ./runner/
 COPY ./kubernetes ./kubernetes
 COPY ./types ./types
+COPY ./storage/ ./storage/
+COPY ./ffsync/ ./ffsync/
+COPY ./scheduling/ ./scheduling/
 COPY ./coordinator/main/main.go ./coordinator/main/main.go
 
 # Building Go app

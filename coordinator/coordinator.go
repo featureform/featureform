@@ -93,7 +93,7 @@ type Coordinator struct {
 	KVClient    *clientv3.KV
 	Spawner     JobSpawner
 	Timeout     int
-	taskManager scheduling.TaskManager
+	taskManager scheduling.TaskMetadataManager
 }
 
 type ETCDConfig struct {

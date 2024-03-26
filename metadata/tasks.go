@@ -29,7 +29,7 @@ func (t *Tasks) GetLatestRun(id s.TaskID) (s.TaskRunMetadata, error) {
 }
 
 func (t *Tasks) SetRunStatus(taskID s.TaskID, runID s.TaskRunID, status s.Status, err error) error {
-	return t.SetRunStatus(taskID, runID, status, err)
+	return t.TaskManager.SetRunStatus(taskID, runID, status, err)
 }
 
 func (t *Tasks) AddRunLog(taskID s.TaskID, runID s.TaskRunID, msg string) error {

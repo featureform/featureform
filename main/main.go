@@ -54,7 +54,8 @@ func main() {
 	config := &metadata.Config{
 		Logger:          mLogger,
 		Address:         fmt.Sprintf(":%s", addr),
-		StorageProvider: meta,
+		StorageProvider: storage,
+		TaskManager:     meta,
 	}
 	if enableSearch == "true" {
 		logger.Infow("Connecting to search", "host", os.Getenv("MEILISEARCH_HOST"), "port", os.Getenv("MEILISEARCH_PORT"))
@@ -115,7 +116,7 @@ func main() {
 
 	dbLogger.Infof("Looking for metadata at: %s\n", metadataUrl)
 
-	metadataServer, err := dm.NewMetadataServer(dbLogger, client, meta)
+	metadataServer, err := dm.NewMetadataServer(dbLogger, client, storage)
 	if err != nil {
 		logger.Panicw("Failed to create server", "error", err)
 	}

@@ -1459,13 +1459,11 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	// Create the task manager for the server
 	// TODO: need to modify it so it can be any provider
 
-	taskManager := scheduling.NewMemoryTaskMetadataManager()
-
 	return &MetadataServer{
 		lookup:      lookup,
 		address:     config.Address,
 		Logger:      config.Logger,
-		taskManager: &taskManager,
+		taskManager: &config.TaskManager,
 	}, nil
 }
 
@@ -1543,6 +1541,7 @@ type Config struct {
 	Logger          *zap.SugaredLogger
 	SearchParams    *search.MeilisearchParams
 	StorageProvider storage.MetadataStorage
+	TaskManager     scheduling.TaskMetadataManager
 	Address         string
 }
 
@@ -2133,7 +2132,7 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 			return nil
 		}
 		if recvErr != nil {
-			return fferr.NewInternalError(recvErr)
+			return recvErr
 		}
 		serv.Logger.Infow("Looking up Resource", "id", id)
 		resource, err := serv.lookup.Lookup(id)

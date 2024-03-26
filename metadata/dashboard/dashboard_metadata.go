@@ -19,8 +19,8 @@ import (
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
 	sc "github.com/featureform/scheduling"
-	sp "github.com/featureform/scheduling/storage_providers"
 	"github.com/featureform/serving"
+	"github.com/featureform/storage"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -73,10 +73,10 @@ type MetadataServer struct {
 	lookup          metadata.ResourceLookup
 	client          *metadata.Client
 	logger          *zap.SugaredLogger
-	StorageProvider sp.StorageProvider
+	StorageProvider storage.MetadataStorage
 }
 
-func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client, storageProvider sp.StorageProvider) (*MetadataServer, error) {
+func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client, storageProvider storage.MetadataStorage) (*MetadataServer, error) {
 	logger.Debug("Creating new metadata server")
 
 	return &MetadataServer{

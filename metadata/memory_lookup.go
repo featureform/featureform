@@ -10,7 +10,6 @@ import (
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
-	scheduling "github.com/featureform/scheduling/storage_providers"
 	"github.com/featureform/storage"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/proto"
@@ -146,7 +145,7 @@ func (lookup MemoryResourceLookup) Lookup(id ResourceID) (Resource, error) {
 		return nil, fferr.NewKeyNotFoundError(key, err)
 	}
 	logger.Infow("Deserialize", "key", key)
-	msg, err := lookup.deserialize([]byte(key))
+	msg, err := lookup.deserialize([]byte(resp))
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to deserialize: %s", id))
 	}
@@ -165,7 +164,7 @@ func (lookup MemoryResourceLookup) Lookup(id ResourceID) (Resource, error) {
 }
 
 func (lookup MemoryResourceLookup) GetCountWithPrefix(id string) (int, error) {
-	get, err := lookup.Connection.Get(id, true)
+	get, err := lookup.Connection.List(id)
 	if err != nil {
 		return 0, err
 	}
@@ -210,19 +209,10 @@ func (lookup MemoryResourceLookup) SetJob(id ResourceID, schedule string) error 
 		return err
 	}
 	jobKey := GetJobKey(id)
-	lock, err := lookup.Connection.Lock(jobKey)
-	if err != nil {
+	if err := lookup.Connection.Create(jobKey, string(serialized)); err != nil {
 		return err
 	}
-	defer func(Connection scheduling.StorageProvider, key string, lock scheduling.LockObject) {
-		err := Connection.Unlock(key, lock)
-		if err != nil {
 
-		}
-	}(lookup.Connection, jobKey, lock)
-	if err := lookup.Connection.Set(jobKey, string(serialized), lock); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -237,17 +227,7 @@ func (lookup MemoryResourceLookup) SetSchedule(id ResourceID, schedule string) e
 		return err
 	}
 	jobKey := GetScheduleJobKey(id)
-	lock, err := lookup.Connection.Lock(jobKey)
-	if err != nil {
-		return err
-	}
-	defer func(Connection scheduling.StorageProvider, key string, lock scheduling.LockObject) {
-		err := Connection.Unlock(key, lock)
-		if err != nil {
-
-		}
-	}(lookup.Connection, jobKey, lock)
-	if err := lookup.Connection.Set(jobKey, string(serialized), lock); err != nil {
+	if err := lookup.Connection.Create(jobKey, string(serialized)); err != nil {
 		return err
 	}
 	return nil
@@ -260,17 +240,7 @@ func (lookup MemoryResourceLookup) Set(id ResourceID, res Resource) error {
 		return err
 	}
 	key := createKey(id)
-	lock, err := lookup.Connection.Lock(key)
-	if err != nil {
-		return err
-	}
-	defer func(Connection scheduling.StorageProvider, key string, lock scheduling.LockObject) {
-		err := Connection.Unlock(key, lock)
-		if err != nil {
-
-		}
-	}(lookup.Connection, key, lock)
-	if err := lookup.Connection.Set(key, string(serRes), lock); err != nil {
+	if err := lookup.Connection.Create(key, string(serRes)); err != nil {
 		return err
 	}
 	return nil
@@ -281,11 +251,11 @@ func (lookup MemoryResourceLookup) Submap(ids []ResourceID) (ResourceLookup, err
 
 	for _, id := range ids {
 		key := createKey(id)
-		resp, err := lookup.Connection.Get(key, false)
+		resp, err := lookup.Connection.Get(key)
 		if err != nil {
 			return nil, fferr.NewKeyNotFoundError(key, err)
 		}
-		etcdStore, err := lookup.deserialize([]byte(resp[key]))
+		etcdStore, err := lookup.deserialize([]byte(resp))
 		if err != nil {
 			return nil, errors.Wrap(err, fmt.Sprintf("submap deserialize: %s", id))
 		}
@@ -306,7 +276,7 @@ func (lookup MemoryResourceLookup) Submap(ids []ResourceID) (ResourceLookup, err
 
 func (lookup MemoryResourceLookup) ListForType(t ResourceType) ([]Resource, error) {
 	resources := make([]Resource, 0)
-	resp, err := lookup.Connection.Get(t.String(), true)
+	resp, err := lookup.Connection.List(t.String())
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("could not get prefix: %s", t))
 	}
@@ -329,7 +299,7 @@ func (lookup MemoryResourceLookup) ListForType(t ResourceType) ([]Resource, erro
 
 func (lookup MemoryResourceLookup) List() ([]Resource, error) {
 	resources := make([]Resource, 0)
-	resp, err := lookup.Connection.Get("", true)
+	resp, err := lookup.Connection.List("")
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("could not get prefix: %v", resources))
 	}

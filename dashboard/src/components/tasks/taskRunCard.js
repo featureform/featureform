@@ -129,7 +129,7 @@ export default function TaskRunCard({ handleClose, taskId, taskRunId }) {
             style={{ width: '100%' }}
             variant='filled'
             disabled
-            value={taskRunRecord?.taskRun?.logs.join('\n') + '\n' + taskRunRecord?.taskRun?.error}
+            value={taskRunRecord?.taskRun?.logs?.join('\n') + '\n' + taskRunRecord?.taskRun?.error}
             multiline
             minRows={3}
           ></TextField>

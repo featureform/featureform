@@ -24,11 +24,11 @@ func (k memoryKey) Key() string {
 	return k.key
 }
 
-func NewMemoryLocker() memoryLocker {
+func NewMemoryLocker() (memoryLocker, error) {
 	return memoryLocker{
 		lockedItems: map[string]LockInformation{},
 		mutex:       &sync.Mutex{},
-	}
+	}, nil
 }
 
 type memoryLocker struct {

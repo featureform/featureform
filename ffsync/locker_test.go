@@ -21,9 +21,7 @@ func (test *LockerTest) Run() {
 	testFns := map[string]func(*testing.T, Locker){
 		"LockAndUnlock":               LockAndUnlock,
 		"LockAndUnlockWithGoRoutines": LockAndUnlockWithGoRoutines,
-		"LockTimeUpdates":             LockTimeUpdates,
 		"StressTestLockAndUnlock":     StressTestLockAndUnlock,
-		"LockAndUnlockPrefixes":       LockAndUnlockPrefixes,
 	}
 
 	for name, fn := range testFns {
@@ -70,29 +68,6 @@ func LockAndUnlockWithGoRoutines(t *testing.T, locker Locker) {
 	}
 }
 
-func LockTimeUpdates(t *testing.T, locker Locker) {
-	key := "/tasks/metadata/task_id=3"
-	lock, err := locker.Lock(key)
-	if err != nil {
-		t.Fatalf("Lock failed: %v", err)
-	}
-
-	// Wait for 2 x ValidTimePeriod
-	time.Sleep(2 * ValidTimePeriod)
-
-	// Test the lock has been released
-	_, err = locker.Lock(key)
-	if err == nil {
-		t.Fatal("Second Lock should have failed but didn't")
-	}
-
-	// Release the lock
-	err = locker.Unlock(lock)
-	if err != nil {
-		t.Fatalf("Unlock failed: %v", err)
-	}
-}
-
 func StressTestLockAndUnlock(t *testing.T, locker Locker) {
 	key := "/tasks/metadata/task_id=5"
 
@@ -131,7 +106,20 @@ func StressTestLockAndUnlock(t *testing.T, locker Locker) {
 	}
 }
 
-func LockAndUnlockPrefixes(t *testing.T, locker Locker) {
+func lockGoRoutine(locker Locker, key string, lockChannel chan Key, errChan chan error) {
+	lockObject, err := locker.Lock(key)
+	lockChannel <- lockObject
+	errChan <- err
+}
+
+func unlockGoRoutine(locker Locker, lock Key, errChan chan error) {
+	err := locker.Unlock(lock)
+	errChan <- err
+}
+
+func TestLockAndUnlockPrefixes(t *testing.T) {
+	locker, _ := NewMemoryLocker()
+
 	prefix := "/tasks/metadata"
 	taskId := "task_id=5"
 	key := fmt.Sprintf("%s/%s", prefix, taskId)
@@ -171,15 +159,29 @@ func LockAndUnlockPrefixes(t *testing.T, locker Locker) {
 	}
 }
 
-func lockGoRoutine(locker Locker, key string, lockChannel chan Key, errChan chan error) {
-	lockObject, err := locker.Lock(key)
-	lockChannel <- lockObject
-	errChan <- err
-}
+func TestMemoryLockTimeUpdates(t *testing.T) {
+	locker, _ := NewMemoryLocker()
 
-func unlockGoRoutine(locker Locker, lock Key, errChan chan error) {
-	err := locker.Unlock(lock)
-	errChan <- err
+	key := "/tasks/metadata/task_id=3"
+	lock, err := locker.Lock(key)
+	if err != nil {
+		t.Fatalf("Lock failed: %v", err)
+	}
+
+	// Wait for 2 x ValidTimePeriod
+	time.Sleep(2 * ValidTimePeriod)
+
+	// Test the lock has been released
+	_, err = locker.Lock(key)
+	if err == nil {
+		t.Fatal("Second Lock should have failed but didn't")
+	}
+
+	// Release the lock
+	err = locker.Unlock(lock)
+	if err != nil {
+		t.Fatalf("Unlock failed: %v", err)
+	}
 }
 
 func TestLockInformation(t *testing.T) {

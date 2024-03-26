@@ -7,7 +7,7 @@ import os
 import sys
 import types
 import uuid
-from datetime import datetime
+import datetime
 from pathlib import Path
 
 import boto3
@@ -67,12 +67,13 @@ def display_data_metrics(df, spark):
     rows = []
     stats = []
 
-    rows_as_list = df.collect()
-    if len(rows_as_list) > 100:
-        rows_as_list = rows_as_list[:100]
+    rows_as_list = df.limit(100).collect()
     for row in rows_as_list:
-        row_list = row.asDict().values()
-        rows.append(list(row_list))
+        row_values = list(row.asDict().values())
+        for i, curr_value in enumerate(row_values):
+            if isinstance(curr_value, datetime.datetime):
+                row_values[i] = curr_value.strftime("%m/%d/%Y, %H:%M:%S")
+        rows.append(row_values)
 
     for column_name in data_type_dict:
         columns.append(column_name)
@@ -348,7 +349,7 @@ def execute_sql_query(
         output_dataframe = spark.sql(sql_query)
         _validate_output_df(output_dataframe)
 
-        dt = datetime.now()
+        dt = datetime.datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
 
         # remove the '/' at the end of output_uri in order to avoid double slashes in the output file path.
@@ -430,7 +431,7 @@ def execute_df_job(output_uri, code, store_type, spark_configs, credentials, sou
         output_df = func(*func_parameters)
         _validate_output_df(output_df)
 
-        dt = datetime.now()
+        dt = datetime.datetime.now()
         safe_datetime = dt.strftime("%Y-%m-%d-%H-%M-%S-%f")
 
         # remove the '/' at the end of output_uri in order to avoid double slashes in the output file path.

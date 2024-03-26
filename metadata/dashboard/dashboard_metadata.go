@@ -900,7 +900,7 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	}
 	iter, err := m.getSourceDataIterator(name, variant, limit)
 	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData - getSourceDataIterator() threw an exception"}
+		fetchError := &FetchError{StatusCode: 500, Type: fmt.Sprintf("GetSourceData - %s", err.Error())}
 		m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1121,20 +1121,20 @@ func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64
 	m.logger.Infow("Getting Source Variant Iterator", "name", name, "variant", variant)
 	sv, err := m.client.GetSourceVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get source variant")
+		return nil, err
 	}
 	providerEntry, err := sv.FetchProvider(m.client, ctx)
 	m.logger.Debugw("Fetched Source Variant Provider", "name", providerEntry.Name(), "type", providerEntry.Type())
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get fetch provider")
+		return nil, err
 	}
 	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get provider")
+		return nil, err
 	}
 	store, err := p.AsOfflineStore()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not open as offline store")
+		return nil, err
 	}
 	var primary provider.PrimaryTable
 	var providerErr error
@@ -1150,7 +1150,7 @@ func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64
 		primary, providerErr = store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary})
 	}
 	if providerErr != nil {
-		return nil, errors.Wrap(err, "could not get primary table")
+		return nil, providerErr
 	}
 	return primary.IterateSegment(limit)
 }

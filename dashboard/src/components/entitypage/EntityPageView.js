@@ -30,7 +30,7 @@ import MetricsDropdown from './elements/MetricsDropdown';
 import StatsDropdown from './elements/StatsDropdown';
 import TagBox from './elements/TagBox.js';
 import VariantControl from './elements/VariantControl';
-import ErrorModal from './ErrorModal.js';
+import ErrorModal, { ERROR_MSG_MAX } from './ErrorModal.js';
 
 SyntaxHighlighter.registerLanguage('python', python);
 SyntaxHighlighter.registerLanguage('sql', sql);
@@ -516,11 +516,24 @@ const EntityPageView = ({
                       )}
                     {metadata['error'] && metadata['error'] !== '' && (
                       <>
-                        <b>Error Message:</b>
-                        <ErrorModal
-                          buttonTxt='See More'
-                          errorTxt={metadata['error']}
-                        />
+                        <strong>Error Message:</strong>
+                        {metadata['error'].length > ERROR_MSG_MAX ? (
+                          <>
+                            <ErrorModal
+                              buttonTxt='See More'
+                              errorTxt={metadata['error']}
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <Typography
+                              variant='body1'
+                              style={{ whiteSpace: 'pre-line' }}
+                            >
+                              {metadata['error']}
+                            </Typography>
+                          </>
+                        )}
                       </>
                     )}
                     {metadata['source-type'] && (

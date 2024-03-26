@@ -66,7 +66,7 @@ def mock_type(value):
     "featureform.serving.parse_proto_value", mock.MagicMock(side_effect=side_effect)
 )
 @mock.patch(
-    "featureform.serving.parse_proto_type", mock.MagicMock(side_effect=mock_type)
+    "featureform.serving.proto_type_to_np_type", mock.MagicMock(side_effect=mock_type)
 )
 def test_row_to_numpy(proto_row):
     row = Row(proto_row)

@@ -7,11 +7,12 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"github.com/featureform/helpers"
 	"io"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/featureform/helpers"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/lib"
@@ -2151,6 +2152,8 @@ type SourceVariantResource struct {
 func getSourceString(variant *SourceVariant) string {
 	if variant.IsSQLTransformation() {
 		return variant.SQLTransformationQuery()
+	} else if variant.IsDFTransformation() {
+		return variant.DFTransformationQuerySource()
 	} else {
 		return variant.PrimaryDataSQLTableName()
 	}

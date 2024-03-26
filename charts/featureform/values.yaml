@@ -2,112 +2,50 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-replicaCount: 1
+# Hostname used to connect to featureform
+hostname: "localhost"
 
+# Override chart version. This value correlates to the docker image tags
+versionOverride: "0.0.0"
 
-image:
-  repository: nginx
-  pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+repository: "featureformcom"
 
-imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
+# Global pull policy
+pullPolicy: "Always"
 
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
+# If a public certificate should be generated automatically through lets encrypt and used
+publicCert: false
 
-podAnnotations: {}
+# Will automatically create a self-signed cert that can be used if enabled
+selfSignedCert: true
 
-podSecurityContext:
-  {}
-  # fsGroup: 2000
+# Note: If post publicCert and selfSignedCert are disabled, an existing certificate will need to be supplied
 
-securityContext:
-  {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
+# Name of the certificate
+tlsSecretName: "featureform-ca-secret"
 
-service:
-  type: ClusterIP
-  port: 80
+# If enabled, will run jobs on individual pods instead of in a coordinator thread
+k8sRunnerEnable: false
 
-ingress:
+nginx:
+  # If enabled, will install and use the ingress-nginx chart. Suggest disabling if another ingress is already installed
+  # on the cluster
+  enabled: true
+
+# If true, will restart pods on update even if no changes have been made
+restartOnUpdate: false
+
+logging:
+  # When enabled, will use the loki stack for logging
+  enabled: true
+
+# When enabled, uses an http proxy rather than the nginx ingress. Can be used without a certificate
+embeddedIngress:
   enabled: false
-  className: ""
-  annotations:
 
+debug: false
 
-resources:
-  {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
-
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {}
-
-global:
-  hostname: "localhost"
-  port: 3001
-  metadata:
-    port: 8080
-  version: "0.0.0"
-  repo: "featureformcom"
-  pullPolicy: "Always"
-  publicCert: false
-  localCert: true
-  k8s_runner_enable: false
-  nginx:
-    enabled: true
-  tlsSecretName: "featureform-ca-secret"
-  logging:
-    enabled: true
-  embeddedIngress:
-    disabled: true
-    enabled: false
-  debug: false
-
-
-metadata:
-  grpc:
-    port: 8080
-
-backup:
-  enabled: false
-  schedule: "0 * * * *"
-
-
-
-
+# These values override the values in the 3rd party ETCD chart
 etcd:
   fullnameOverride: featureform-etcd
   auth:
@@ -118,26 +56,20 @@ etcd:
   replicaCount: 3
   extraEnvVarsCM: etcd-upgrade-configmap
   removeMemberOnContainerTermination: false
+  host: featureform-etcd
+  port: 2379
 
-
+# These values override the values in the 3rd party meilisearch chart
 meilisearch:
   fullnameOverride: featureform-search
+  port: 7700
+  host: featureform-search
+  apikey: ""
 
-
-# Logging:
-# For instructions to see the dashboard, check here:
-# https://artifacthub.io/packages/helm/grafana/loki-stack
-# To disable, do --set global.logging.enabled=false
-# To get the dashboard password, do: kubectl get secret  featureform-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
-# To view dashboard, do: kubectl port-forward  service/featureform-grafana 3000:80
-# Go to localhost 3000. User is admin
-loki-stack:
-  fluent-bit:
-    enabled: true
-  promtail:
-      enabled: false
-  grafana:
-    enabled: true
+prometheus:
+  port: 9090
+  replicaCount: 1
+  image: prom/prometheus
 
 # Ensure AWS Load Balancer idle timeout doesn't default to 60 seconds,
 # which cannot support longer running operations
@@ -146,3 +78,135 @@ ingress-nginx:
     service:
       annotations:
         service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "4000"
+
+# Configuration for the API server
+api:
+  replicaCount: 1
+  image:
+    name: api-server
+
+  port: 7878
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+
+# Configuration for the coordinator server
+coordinator:
+  replicaCount: 1
+
+  host: "featureform-coordinator"
+  port: 80
+
+  image:
+    name: coordinator
+
+  resources:
+    limits:
+      cpu: 1.0
+    requests:
+      cpu: 1.0
+
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+
+# Configuration for the Dashboard frontend
+dashboard:
+  replicaCount: 1
+
+  image:
+    name: dashboard
+
+  port: 80
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+
+# Configuration for the Dashboard Backend
+dashboardmetadata:
+  replicaCount: 1
+
+  image:
+    name: metadata-dashboard
+
+  port: 3001
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+
+  resources:
+    limits:
+      cpu: 1.0
+    requests:
+      cpu: 1.0
+
+# Configuration for the Feature Serving Server
+serving:
+  replicaCount: 1
+
+  host: "featureform-feature-server"
+  port: 8080
+
+  image:
+    name: serving
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+
+# Configuration for the Metadata Server
+metadata:
+  replicaCount: 1
+
+  host: "featureform-metadata-server"
+  port: 8080
+
+  image:
+    name: metadata
+
+  nameOverride: metadata-server
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+
+# Configuration for the backup service
+backup:
+  enabled: false
+  schedule: "0 * * * *"
+
+# Logging:
+# For instructions to see the dashboard, check here:
+# https://artifacthub.io/packages/helm/grafana/loki-stack
+# To disable, do --set logging.enabled=false
+# To get the dashboard password, do: kubectl get secret  featureform-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+# To view dashboard, do: kubectl port-forward  service/featureform-grafana 3000:80
+# Go to localhost 3000. User is admin
+loki-stack:
+  fluent-bit:
+    enabled: true
+  promtail:
+    enabled: false
+  grafana:
+    enabled: true

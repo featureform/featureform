@@ -193,7 +193,7 @@ func (serv *FeatureServer) handleSplitDataRequest(splitContext *splitContext) er
 	case pb.RequestType_TEST:
 		thisIter = *splitContext.testIterator
 	default:
-		return fmt.Errorf("invalid request type")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("invalid request type: %s", req.GetRequestType().String()))
 	}
 
 	rows := 0

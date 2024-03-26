@@ -10,7 +10,7 @@ package featureform.serving.proto;
 
 service Feature {
   rpc TrainingData(TrainingDataRequest) returns (stream TrainingDataRow) {}
-  rpc TrainingTestSplit(stream TrainingTestSplitRequest) returns (stream TrainingTestSplitResponse) {}
+  rpc TrainTestSplit(stream TrainTestSplitRequest) returns (stream BatchTrainTestSplitResponse) {}
   rpc TrainingDataColumns(TrainingDataColumnsRequest) returns (TrainingColumns) {}
   rpc FeatureServe(FeatureServeRequest) returns (FeatureRow) {}
   rpc SourceData(SourceDataRequest) returns (stream SourceDataRow) {}
@@ -40,14 +40,14 @@ message TrainingDataRow {
 }
 
 message FeatureServeRequest {
-    repeated FeatureID features = 1;
-    repeated Entity entities = 2;
-    Model model = 3;
+  repeated FeatureID features = 1;
+  repeated Entity entities = 2;
+  Model model = 3;
 }
 
 message FeatureRow {
   // Deprecated: Use `value_lists` instead.
-  repeated Value values = 1 [deprecated=true];
+  repeated Value values = 1 [deprecated = true];
 
   repeated ValueList value_lists = 2;
 }
@@ -57,42 +57,42 @@ message ValueList {
 }
 
 message BatchFeatureServeRequest {
-    repeated FeatureID features = 1;
+  repeated FeatureID features = 1;
 }
 
 message BatchFeatureRow {
-    Value entity = 1;
-    repeated Value features = 2;
+  Value entity = 1;
+  repeated Value features = 2;
 }
 
 message FeatureID {
-    string name = 1;
-    string version = 2;
+  string name = 1;
+  string version = 2;
 }
 
 message Entity {
   string name = 1;
 
   // Deprecated: Use `values` instead.
-  string value = 2 [deprecated=true];
+  string value = 2 [deprecated = true];
 
   repeated string values = 3;
 }
 
 message Value {
-    oneof value {
-        string str_value = 1;
-        int32 int_value = 2;
-        float float_value = 3;
-        double double_value = 4;
-        int64  int64_value = 5;
-        int32  int32_value = 6;
-        bool   bool_value = 7;
-        bytes on_demand_function = 8;
-        Vector32 vector32_value = 9;
-        uint32  uint32_value = 10;
-        uint64  uint64_value = 11;
-    }
+  oneof value {
+    string str_value = 1;
+    int32 int_value = 2;
+    float float_value = 3;
+    double double_value = 4;
+    int64  int64_value = 5;
+    int32  int32_value = 6;
+    bool   bool_value = 7;
+    bytes on_demand_function = 8;
+    Vector32 vector32_value = 9;
+    uint32  uint32_value = 10;
+    uint64  uint64_value = 11;
+  }
 }
 
 message SourceID {
@@ -150,14 +150,15 @@ message ResourceLocation {
   string location = 1;
 }
 
-message TrainingTestSplitRequest {
+message TrainTestSplitRequest {
   TrainingDataID id = 1;
   Model model = 2;
   float test_size = 3;
   float train_size = 4;
   bool shuffle = 5;
-  int32 random_state = 6;  // Seed for shuffling, if shuffle is true
-  RequestType request_type = 7;  // NEW: Specify the type of data being requested
+  int32 random_state = 6;
+  RequestType request_type = 7;
+  int32 batch_size = 8;
 }
 
 enum RequestType {
@@ -166,11 +167,15 @@ enum RequestType {
   TEST = 2;      // Client is requesting test data
 }
 
-message TrainingTestSplitResponse {
+message BatchTrainTestSplitResponse {
   RequestType request_type = 1;
   bool iterator_done = 2;
-  oneof training_test_split {
+  oneof result {
     bool initialized = 3;
-    TrainingDataRow row = 4;
+    TrainingDataRows data = 4;
   }
+}
+
+message TrainingDataRows {
+  repeated TrainingDataRow rows = 1;
 }

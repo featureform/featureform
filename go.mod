@@ -35,7 +35,7 @@ require (
 	github.com/repeale/fp-go v0.11.1
 	github.com/rotisserie/eris v0.5.4
 	github.com/snowflakedb/gosnowflake v1.6.8
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	go.etcd.io/etcd/api/v3 v3.5.6
 	go.etcd.io/etcd/client/v3 v3.5.6
 	go.mongodb.org/mongo-driver v1.11.4
@@ -143,7 +143,10 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-require google.golang.org/genproto/googleapis/rpc v0.0.0-20240125205218-1f4bbc51befe
+require (
+	github.com/ClickHouse/clickhouse-go v1.5.4
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240125205218-1f4bbc51befe
+)
 
 require (
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
@@ -169,6 +172,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.16.10 // indirect
 	github.com/bytedance/sonic v1.9.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
+	github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58 // indirect
 	github.com/emicklei/go-restful v2.16.0+incompatible // indirect
 	github.com/go-faster/city v1.0.1 // indirect
 	github.com/go-faster/errors v0.7.0 // indirect
@@ -210,6 +214,7 @@ require (
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/segmentio/encoding v0.3.6 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.37.1-0.20220607072126-8a320890c08d // indirect

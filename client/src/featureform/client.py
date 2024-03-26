@@ -1,15 +1,15 @@
-import featureform.resources
-from typing import Union, Optional
+from typing import Optional, Union
 
+import featureform.resources
 from .constants import NO_RECORD_LIMIT
+from .enums import ResourceType
 from .register import (
+    FeatureColumnResource,
     ResourceClient,
     SourceRegistrar,
     SubscriptableTransformation,
-    FeatureColumnResource,
 )
 from .serving import ServingClient
-from .enums import ResourceType
 
 
 class Client(ResourceClient, ServingClient):

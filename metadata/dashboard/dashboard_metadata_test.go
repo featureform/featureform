@@ -166,14 +166,15 @@ func TestParseStatFile(t *testing.T) {
 	//given: a baseline json file
 	testCases := []struct {
 		name     string
-		filePath string
+		filepath string
 	}{
-		{"example file 1", "./mock_stats/mock_stats.json"},
-		{"example file 2", "./mock_stats/generated_stats.json"},
+		{"full stats", "./testdata/mock_stats.json"},
+		{"entity_value_stats file", "./testdata/entity_value_stats.json"},
+		{"calendar_stats file", "./testdata/calendar_stats.json"},
 	}
 	for _, currTest := range testCases {
 		t.Run(currTest.name, func(t *testing.T) {
-			baseFile, _ := os.ReadFile("./mock_stats/mock_stats.json")
+			baseFile, _ := os.ReadFile(currTest.filepath)
 
 			//when: we create the source data response obj using the file
 			response, _ := ParseStatFile(baseFile)

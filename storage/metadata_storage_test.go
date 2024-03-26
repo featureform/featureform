@@ -275,7 +275,7 @@ func StorageDelete(t *testing.T, storage metadataStorageImplementation) {
 }
 
 func TestMetadataStorage(t *testing.T) {
-	locker := ffsync.NewMemoryLocker()
+	locker, _ := ffsync.NewMemoryLocker()
 
 	storage, _ := NewMemoryStorageImplementation()
 

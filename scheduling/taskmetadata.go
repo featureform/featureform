@@ -28,18 +28,48 @@ type TaskMetadataManager struct {
 	idGenerator ffsync.OrderedIdGenerator
 }
 
-func NewMemoryTaskMetadataManager() TaskMetadataManager {
-	memoryLocker := ffsync.NewMemoryLocker()
-	memoryStorage := ss.NewMemoryStorageImplementation()
+func NewMemoryTaskMetadataManager() (TaskMetadataManager, error) {
+	memoryLocker, _ := ffsync.NewMemoryLocker()
+	memoryStorage, _ := ss.NewMemoryStorageImplementation()
 
 	memoryMetadataStorage := ss.MetadataStorage{
 		Locker:  &memoryLocker,
 		Storage: &memoryStorage,
 	}
+
+	idGenerator, _ := ffsync.NewMemoryOrderedIdGenerator()
+
 	return TaskMetadataManager{
 		storage:     memoryMetadataStorage,
-		idGenerator: ffsync.NewMemoryOrderedIdGenerator(),
+		idGenerator: idGenerator,
+	}, nil
+}
+
+func NewETCDTaskMetadataManager() (TaskMetadataManager, error) {
+	etcdLocker, err := ffsync.NewETCDLocker()
+	if err != nil {
+		return TaskMetadataManager{}, err
 	}
+
+	etcdStorage, err := ss.NewETCDStorageImplementation()
+	if err != nil {
+		return TaskMetadataManager{}, err
+	}
+
+	etcdMetadataStorage := ss.MetadataStorage{
+		Locker:  etcdLocker,
+		Storage: etcdStorage,
+	}
+
+	idGenerator, err := ffsync.NewETCDOrderedIdGenerator()
+	if err != nil {
+		return TaskMetadataManager{}, err
+	}
+
+	return TaskMetadataManager{
+		storage:     etcdMetadataStorage,
+		idGenerator: idGenerator,
+	}, nil
 }
 
 func (m *TaskMetadataManager) CreateTask(name string, tType TaskType, target TaskTarget) (TaskMetadata, error) {

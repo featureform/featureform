@@ -57,7 +57,7 @@ func TestTaskMetadataManager(t *testing.T) {
 		"CreateTask": testCreateTask,
 	}
 
-	memoryTaskMetadataManager := NewMemoryTaskMetadataManager()
+	memoryTaskMetadataManager, _ := NewMemoryTaskMetadataManager()
 
 	for name, fn := range testFns {
 		t.Run(name, func(t *testing.T) {
@@ -97,7 +97,7 @@ func testCreateTask(t *testing.T, manager TaskMetadataManager) {
 	}
 
 	fn := func(t *testing.T, tasks []taskInfo, shouldError bool) {
-		manager := NewMemoryTaskMetadataManager() // TODO: will need to modify this to use any store and deletes tasks after job was done
+		manager, _ := NewMemoryTaskMetadataManager() // TODO: will need to modify this to use any store and deletes tasks after job was done
 		for _, task := range tasks {
 			taskDef, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && shouldError {
@@ -171,7 +171,7 @@ func TestTaskGetByID(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		manager := NewMemoryTaskMetadataManager()
+		manager, _ := NewMemoryTaskMetadataManager()
 
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
@@ -247,7 +247,7 @@ func TestTaskGetAll(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		manager := NewMemoryTaskMetadataManager()
+		manager, _ := NewMemoryTaskMetadataManager()
 		var definitions []TaskMetadata
 		for _, task := range test.Tasks {
 			taskDef, err := manager.CreateTask(task.Name, task.Type, task.Target)
@@ -355,7 +355,7 @@ func TestCreateTaskRun(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		manager := NewMemoryTaskMetadataManager()
+		manager, _ := NewMemoryTaskMetadataManager()
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -455,7 +455,7 @@ func TestGetRunByID(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		manager := NewMemoryTaskMetadataManager()
+		manager, _ := NewMemoryTaskMetadataManager()
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -555,7 +555,7 @@ func TestGetRunAll(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		manager := NewMemoryTaskMetadataManager()
+		manager, _ := NewMemoryTaskMetadataManager()
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -708,7 +708,7 @@ func TestSetStatusByRunID(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		manager := NewMemoryTaskMetadataManager()
+		manager, _ := NewMemoryTaskMetadataManager()
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -840,7 +840,7 @@ func TestSetEndTimeByRunID(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		manager := NewMemoryTaskMetadataManager()
+		manager, _ := NewMemoryTaskMetadataManager()
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {

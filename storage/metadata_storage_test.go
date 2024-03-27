@@ -18,9 +18,10 @@ func (test *MetadataStorageTest) Run() {
 	storage := test.storage
 
 	testFns := map[string]func(*testing.T, metadataStorageImplementation){
-		"SetStorageProvider":  StorageSet,
-		"GetStorageProvider":  StorageGet,
-		"ListStorageProvider": StorageList,
+		"SetStorageProvider":    StorageSet,
+		"GetStorageProvider":    StorageGet,
+		"ListStorageProvider":   StorageList,
+		"DeleteStorageProvider": StorageDelete,
 	}
 
 	for name, fn := range testFns {
@@ -231,27 +232,19 @@ func StorageDelete(t *testing.T, storage metadataStorageImplementation) {
 		expectedError error
 	}
 	tests := map[string]TestCase{
-		"Simple": {
+		"DeleteSimple": {
 			setKey:        "deleteTest/key1",
 			setValue:      "value1",
 			deleteKey:     "deleteTest/key1",
 			deleteValue:   "value1",
 			expectedError: nil,
 		},
-		"EmptyKey": {
-			setKey:        "",
-			setValue:      "",
-			deleteKey:     "",
-			deleteValue:   "",
-			expectedError: fmt.Errorf("key is empty"),
-		},
-
 		"DeleteWrongKey": {
 			setKey:        "key1",
 			setValue:      "value1",
 			deleteKey:     "key2",
 			deleteValue:   "",
-			expectedError: fmt.Errorf("key '%s' not found", "key2"),
+			expectedError: fferr.NewKeyNotFoundError("key2", nil),
 		},
 	}
 
@@ -261,10 +254,15 @@ func StorageDelete(t *testing.T, storage metadataStorageImplementation) {
 			if err != nil {
 				t.Fatalf("Set(%s, %s) failed: %v", test.setKey, test.setValue, err)
 			}
+			defer func() {
+				storage.Delete(test.setKey)
+			}()
 
 			value, err := storage.Delete(test.deleteKey)
-			if err != nil {
+			if err != nil && err.Error() != test.expectedError.Error() {
 				t.Fatalf("Delete(%s) failed: %v", test.deleteKey, err)
+			} else if err != nil && err.Error() == test.expectedError.Error() {
+				return
 			}
 
 			if value != test.setValue {

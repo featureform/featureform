@@ -95,7 +95,7 @@ func (etcd *etcdStorageImplementation) Delete(key string) (string, error) {
 
 	_, err = etcd.client.Delete(etcd.ctx, key)
 	if err != nil {
-		return "", fferr.NewInternalError(fmt.Errorf("failed to delete key %s: %w", key, err))
+		return "", fferr.NewInternalError(fmt.Errorf("failed to delete key %s", key))
 	}
 
 	return string(resp.Kvs[0].Value), nil

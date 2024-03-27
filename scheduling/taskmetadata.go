@@ -76,6 +76,33 @@ func NewETCDTaskMetadataManager() (TaskMetadataManager, error) {
 	}, nil
 }
 
+func NewRDSTaskMetadataManager() (TaskMetadataManager, error) {
+	rdsLocker, err := ffsync.NewRDSLocker()
+	if err != nil {
+		return TaskMetadataManager{}, err
+	}
+
+	rdsStorage, err := ss.NewRDSStorageImplementation("ff_task_metadata")
+	if err != nil {
+		return TaskMetadataManager{}, err
+	}
+
+	rdsMetadataStorage := ss.MetadataStorage{
+		Locker:  rdsLocker,
+		Storage: rdsStorage,
+	}
+
+	idGenerator, err := ffsync.NewRDSOrderedIdGenerator()
+	if err != nil {
+		return TaskMetadataManager{}, err
+	}
+
+	return TaskMetadataManager{
+		storage:     rdsMetadataStorage,
+		idGenerator: idGenerator,
+	}, nil
+}
+
 func (m *TaskMetadataManager) CreateTask(name string, tType TaskType, target TaskTarget) (TaskMetadata, error) {
 	id, err := m.idGenerator.NextId("task")
 	if err != nil {

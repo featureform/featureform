@@ -1468,93 +1468,108 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	}, nil
 }
 
-//func convertTriggerTypeProto(trigger scheduling.Trigger) (interface{}, error) {
-//	switch t := trigger.(type) {
-//	case scheduling.OnApplyTrigger:
-//		return sch.TaskRunMetadata_Apply{Apply: &sch.OnApply{Name: t.TriggerName}}, nil
-//	default:
-//		return nil, fmt.Errorf("Unimplemented trigger")
+//	func convertTriggerTypeProto(trigger scheduling.Trigger) (interface{}, error) {
+//		switch t := trigger.(type) {
+//		case scheduling.OnApplyTrigger:
+//			return sch.TaskRunMetadata_Apply{Apply: &sch.OnApply{Name: t.TriggerName}}, nil
+//		default:
+//			return nil, fmt.Errorf("Unimplemented trigger")
+//		}
 //	}
-//}
-//
-//func convertTargetProto(target scheduling.TaskTarget) (interface{}, error) {
-//	switch t := target.(type) {
-//	case scheduling.NameVariant:
-//		return sch.NameVariantTarget{
-//			ResourceID: &pb.ResourceID{
-//				Resource: &pb.NameVariant{
-//					Name:    t.Name,
-//					Variant: t.Variant,
-//				},
-//				ResourceType: pb.ResourceType(t.ResourceType),
-//			},
-//		}, nil
-//	default:
-//		return nil, fmt.Errorf("Unimplemented target")
-//	}
-//}
 
-func wrapTaskMetadataProto(task scheduling.TaskMetadata) (*sch.TaskMetadata, error) {
-	//target, err := convertTargetProto(task.Target)
-	//if err != nil {
-	//	return nil, err
-	//}
-	t := task.Target.(scheduling.NameVariant)
-	name := t.Name
-	variant := t.Variant
-
-	return &sch.TaskMetadata{
-		Id:   &sch.TaskID{Id: task.ID.Value().(uint64)},
-		Name: task.Name,
-		Type: sch.TaskType_RESOURCE_CREATION,
-		Target: &sch.TaskMetadata_NameVariant{
+func setTargetProto(proto *sch.TaskMetadata, target scheduling.TaskTarget) (*sch.TaskMetadata, error) {
+	switch t := target.(type) {
+	case scheduling.NameVariant:
+		proto.Target = &sch.TaskMetadata_NameVariant{
 			NameVariant: &sch.NameVariantTarget{
 				ResourceID: &pb.ResourceID{
 					Resource: &pb.NameVariant{
-						Name:    name,
-						Variant: variant,
+						Name:    t.Name,
+						Variant: t.Variant,
 					},
+					ResourceType: pb.ResourceType(pb.ResourceType_value[t.ResourceType]),
 				},
 			},
-		},
-		TargetType: sch.TargetType_NAME_VARIANT,
-		Created: &tspb.Timestamp{
-			Seconds: task.DateCreated.Unix(),
-			Nanos:   int32(task.DateCreated.Nanosecond()),
-		},
-	}, nil
+		}
+	case scheduling.Provider:
+		proto.Target = &sch.TaskMetadata_Provider{
+			Provider: &sch.ProviderTarget{
+				Name: t.Name,
+			},
+		}
+	default:
+		return nil, fmt.Errorf("unimplemented target %T", target)
+	}
+	return proto, nil
+}
+
+func wrapTaskMetadataProto(task scheduling.TaskMetadata) (*sch.TaskMetadata, error) {
+	taskMetadata := &sch.TaskMetadata{
+		Id:         &sch.TaskID{Id: task.ID.Value().(uint64)},
+		Name:       task.Name,
+		Type:       task.TaskType.Proto(),
+		TargetType: task.TargetType.Proto(),
+		Created:    wrapTimestampProto(task.DateCreated),
+	}
+
+	taskMetadata, err := setTargetProto(taskMetadata, task.Target)
+	if err != nil {
+		return nil, err
+	}
+
+	return taskMetadata, nil
+}
+
+func setTriggerProto(proto *sch.TaskRunMetadata, trigger scheduling.Trigger) (*sch.TaskRunMetadata, error) {
+	switch t := trigger.(type) {
+	case scheduling.OnApplyTrigger:
+		proto.Trigger = &sch.TaskRunMetadata_Apply{
+			Apply: &sch.OnApply{
+				Name: t.Name(),
+			},
+		}
+	case scheduling.ScheduleTrigger:
+		proto.Trigger = &sch.TaskRunMetadata_Schedule{
+			Schedule: &sch.ScheduleTrigger{
+				Name:     t.Name(),
+				Schedule: t.Schedule,
+			},
+		}
+	default:
+		return nil, fmt.Errorf("unimplemented Trigger type: %T", trigger)
+	}
+	return proto, nil
+}
+
+func wrapTimestampProto(ts time.Time) *tspb.Timestamp {
+	return &tspb.Timestamp{
+		Seconds: ts.Unix(),
+		Nanos:   int32(ts.Nanosecond()),
+	}
 }
 
 func wrapTaskRunMetadataProto(run scheduling.TaskRunMetadata) (*sch.TaskRunMetadata, error) {
-	return &sch.TaskRunMetadata{
-		RunID: &sch.RunID{
-			Id: run.ID.Value().(uint64),
-		},
-		TaskID: &sch.TaskID{
-			Id: run.TaskId.Value().(uint64),
-		},
-		Name: run.Name,
-		Trigger: &sch.TaskRunMetadata_Apply{
-			Apply: &sch.OnApply{
-				Name: run.Trigger.Name(),
-			},
-		},
-		TriggerType: sch.TriggerType_ON_APPLY,
-		StartTime: &tspb.Timestamp{
-			Seconds: run.StartTime.Unix(),
-			Nanos:   int32(run.StartTime.Nanosecond()),
-		},
-		EndTime: &tspb.Timestamp{
-			Seconds: run.EndTime.Unix(),
-			Nanos:   int32(run.EndTime.Nanosecond()),
-		},
-		Logs: run.Logs,
+	taskRunMetadata := &sch.TaskRunMetadata{
+		RunID:       &sch.RunID{Id: run.ID.Value().(uint64)},
+		TaskID:      &sch.TaskID{Id: run.TaskId.Value().(uint64)},
+		Name:        run.Name,
+		TriggerType: run.TriggerType.Proto(),
+		StartTime:   wrapTimestampProto(run.StartTime),
+		EndTime:     wrapTimestampProto(run.EndTime),
+		Logs:        run.Logs,
 		Status: &pb.ResourceStatus{
 			Status:       pb.ResourceStatus_Status(run.Status),
 			ErrorMessage: run.Error,
 			ErrorStatus:  run.ErrorProto,
 		},
-	}, nil
+	}
+
+	taskRunMetadata, err := setTriggerProto(taskRunMetadata, run.Trigger)
+	if err != nil {
+		return nil, err
+	}
+
+	return taskRunMetadata, nil
 }
 
 func (serv *MetadataServer) GetTaskByID(ctx context.Context, taskID *sch.TaskID) (*sch.TaskMetadata, error) {
@@ -2241,7 +2256,7 @@ func (serv *MetadataServer) setStatus(res Resource) (Resource, error) {
 		if err != nil {
 			return nil, err
 		}
-		r.serialized.Status.Status = status.Serialized()
+		r.serialized.Status.Status = status.Proto()
 		r.serialized.Status.ErrorMessage = runErr
 		return r, nil
 	case *featureVariantResource:
@@ -2250,7 +2265,7 @@ func (serv *MetadataServer) setStatus(res Resource) (Resource, error) {
 		if err != nil {
 			return nil, err
 		}
-		r.serialized.Status.Status = status.Serialized()
+		r.serialized.Status.Status = status.Proto()
 		r.serialized.Status.ErrorMessage = runErr
 		return r, nil
 	case *labelVariantResource:
@@ -2259,7 +2274,7 @@ func (serv *MetadataServer) setStatus(res Resource) (Resource, error) {
 		if err != nil {
 			return nil, err
 		}
-		r.serialized.Status.Status = status.Serialized()
+		r.serialized.Status.Status = status.Proto()
 		r.serialized.Status.ErrorMessage = runErr
 		return r, nil
 	case *trainingSetVariantResource:
@@ -2268,7 +2283,7 @@ func (serv *MetadataServer) setStatus(res Resource) (Resource, error) {
 		if err != nil {
 			return nil, err
 		}
-		r.serialized.Status.Status = status.Serialized()
+		r.serialized.Status.Status = status.Proto()
 		r.serialized.Status.ErrorMessage = runErr
 		return r, nil
 	default:

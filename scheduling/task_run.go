@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	pb "github.com/featureform/metadata/proto"
+	sch "github.com/featureform/scheduling/proto"
 	"time"
 
 	"github.com/featureform/fferr"
@@ -60,16 +61,24 @@ func (s Status) String() string {
 	return pb.ResourceStatus_Status_name[int32(s)]
 }
 
-func (s Status) Serialized() pb.ResourceStatus_Status {
+func (s Status) Proto() pb.ResourceStatus_Status {
 	return pb.ResourceStatus_Status(s)
 }
 
-type TriggerType string
+type TriggerType int32
 
 const (
-	OnApplyTriggerType TriggerType = "On Apply"
-	DummyTriggerType   TriggerType = "DummyTrigger"
+	OnApplyTriggerType  TriggerType = TriggerType(sch.TriggerType_ON_APPLY)
+	ScheduleTriggerType TriggerType = TriggerType(sch.TriggerType_SCHEDULE)
 )
+
+func (tt TriggerType) String() string {
+	return sch.TriggerType_name[int32(tt)]
+}
+
+func (tt TriggerType) Proto() sch.TriggerType {
+	return sch.TriggerType(tt)
+}
 
 type Trigger interface {
 	Type() TriggerType
@@ -88,16 +97,16 @@ func (t OnApplyTrigger) Name() string {
 	return t.TriggerName
 }
 
-type DummyTrigger struct {
+type ScheduleTrigger struct {
 	TriggerName string `json:"triggerName"`
-	DummyField  bool   `json:"dummyField"`
+	Schedule    string `json:"schedule"`
 }
 
-func (t DummyTrigger) Type() TriggerType {
-	return DummyTriggerType
+func (t ScheduleTrigger) Type() TriggerType {
+	return ScheduleTriggerType
 }
 
-func (t DummyTrigger) Name() string {
+func (t ScheduleTrigger) Name() string {
 	return t.TriggerName
 }
 
@@ -181,13 +190,13 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 			return fferr.NewInternalError(errMessage)
 		}
 		t.Trigger = oneOffTrigger
-	case DummyTriggerType:
-		var dummyTrigger DummyTrigger
-		if err := json.Unmarshal(temp.Trigger, &dummyTrigger); err != nil {
-			errMessage := fmt.Errorf("failed to deserialize Dummy Trigger data: %w", err)
+	case ScheduleTriggerType:
+		var scheduleTrigger ScheduleTrigger
+		if err := json.Unmarshal(temp.Trigger, &scheduleTrigger); err != nil {
+			errMessage := fmt.Errorf("failed to deserialize Schedule Trigger data: %w", err)
 			return fferr.NewInternalError(errMessage)
 		}
-		t.Trigger = dummyTrigger
+		t.Trigger = scheduleTrigger
 	default:
 		errMessage := fmt.Errorf("unknown trigger type: %s", temp.TriggerType)
 		return fferr.NewInvalidArgumentError(errMessage)

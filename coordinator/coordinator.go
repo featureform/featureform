@@ -1078,7 +1078,7 @@ func (c *Coordinator) getJob(taskRun scheduling.TaskRunMetadata) (*metadata.Coor
 		return nil, fmt.Errorf("no task target found for task %s", taskRun.TaskId)
 	}
 	if taskMetadata.TargetType != scheduling.NameVariantTarget {
-		return nil, fmt.Errorf("task target type is not name variant for task %s", taskRun.TaskId)
+		return nil, fmt.Errorf("task target type is not name variant for task %s: instead got: %T", taskRun.TaskId, taskMetadata.TargetType)
 	}
 
 	targetResource := taskMetadata.Target.(scheduling.NameVariant)

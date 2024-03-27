@@ -25,17 +25,27 @@ func convertProtoTriggerType(trigger interface{}) (s.Trigger, error) {
 	switch t := trigger.(type) {
 	case *sch.TaskRunMetadata_Apply:
 		return s.OnApplyTrigger{TriggerName: t.Apply.Name}, nil
+	case *sch.TaskRunMetadata_Schedule:
+		return s.ScheduleTrigger{TriggerName: t.Schedule.Name, Schedule: t.Schedule.Schedule}, nil
 	default:
-		return nil, fmt.Errorf("Unimplemented trigger %T", trigger)
+		return nil, fmt.Errorf("unimplemented trigger %T", trigger)
 	}
 }
 
 func convertProtoTarget(target interface{}) (s.TaskTarget, error) {
 	switch t := target.(type) {
-	case *sch.NameVariantTarget:
-		return s.NameVariant{Name: t.ResourceID.Resource.Name, Variant: t.ResourceID.Resource.Variant}, nil
+	case *sch.TaskMetadata_NameVariant:
+		return s.NameVariant{
+			Name:         t.NameVariant.ResourceID.Resource.Name,
+			Variant:      t.NameVariant.ResourceID.Resource.Variant,
+			ResourceType: t.NameVariant.ResourceID.ResourceType.String(),
+		}, nil
+	case *sch.TaskMetadata_Provider:
+		return s.Provider{
+			Name: t.Provider.Name,
+		}, nil
 	default:
-		return nil, fmt.Errorf("Unimplemented target %s", t)
+		return nil, fmt.Errorf("unimplemented proto target %T", t)
 	}
 }
 
@@ -51,9 +61,9 @@ func wrapProtoTaskMetadata(task *sch.TaskMetadata) (s.TaskMetadata, error) {
 	return s.TaskMetadata{
 		ID:          tid,
 		Name:        task.Name,
-		TaskType:    s.TaskType(task.Type.String()),
+		TaskType:    s.TaskType(task.Type),
 		Target:      t,
-		TargetType:  s.TargetType(task.TargetType.String()),
+		TargetType:  s.TargetType(task.TargetType),
 		DateCreated: task.Created.AsTime(),
 	}, nil
 }
@@ -73,7 +83,7 @@ func wrapProtoTaskRunMetadata(run *sch.TaskRunMetadata) (s.TaskRunMetadata, erro
 		TaskId:      tid,
 		Name:        run.Name,
 		Trigger:     t,
-		TriggerType: s.TriggerType(run.TriggerType.String()),
+		TriggerType: s.TriggerType(run.TriggerType),
 		Status:      s.Status(run.Status.Status),
 		StartTime:   run.StartTime.AsTime(),
 		EndTime:     run.EndTime.AsTime(),
@@ -154,10 +164,14 @@ func (t *Tasks) GetLatestRun(id s.TaskID) (s.TaskRunMetadata, error) {
 
 func (t *Tasks) SetRunStatus(taskID s.TaskID, runID s.TaskRunID, status s.Status, errMsg error) error {
 	// Fill this in
+	msg := ""
+	if errMsg != nil {
+		msg = errMsg.Error()
+	}
 	update := &sch.StatusUpdate{
 		RunID:  &sch.RunID{Id: runID.Value().(uint64)},
 		TaskID: &sch.TaskID{Id: taskID.Value().(uint64)},
-		Status: &proto.ResourceStatus{Status: proto.ResourceStatus_Status(status), ErrorMessage: errMsg.Error()},
+		Status: &proto.ResourceStatus{Status: proto.ResourceStatus_Status(status), ErrorMessage: msg},
 	}
 	_, err := t.GrpcConn.SetRunStatus(context.Background(), update)
 	if err != nil {

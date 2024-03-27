@@ -39,7 +39,7 @@ SyntaxHighlighter.registerLanguage('json', json);
 export function getFormattedSQL(sqlString = '') {
   let stringResult = sqlString;
   try {
-    stringResult = format(sqlString.replace('{{', '').replace('}}', ''), {
+    stringResult = format(sqlString.replace('{{ ', '"').replace(' }}', '"'), {
       language: 'sql',
     });
   } catch {
@@ -80,9 +80,9 @@ const useStyles = makeStyles((theme) => ({
   },
   resourceMetadata: {
     padding: theme.spacing(1),
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-around',
+  },
+  resourceItem: {
+    paddingBottom: theme.spacing(1),
   },
   border: {
     background: '#FFFFFF',
@@ -192,6 +192,7 @@ const useStyles = makeStyles((theme) => ({
     paddingLeft: theme.spacing(1),
     borderLeft: `3px solid ${theme.palette.secondary.main}`,
     marginLeft: theme.spacing(2),
+    maxWidth: 1300,
   },
   tableRoot: {
     border: `2px solid ${theme.palette.border.main}`,
@@ -292,20 +293,6 @@ const EntityPageView = ({
       metadata[key] = resource[key];
     }
   });
-
-  function getFormattedSQL(sqlString = '') {
-    let stringResult = sqlString;
-    try {
-      stringResult = format(sqlString.replace('{{', '').replace('}}', ''), {
-        language: 'sql',
-      });
-    } catch {
-      console.error('There was an error formatting the sql string');
-      console.error(stringResult);
-      stringResult = sqlString;
-    }
-    return stringResult;
-  }
 
   const numValidKeys = (dict) => {
     let validKeys = 0;
@@ -415,135 +402,162 @@ const EntityPageView = ({
             metadata['status'] != 'NO_STATUS' && (
               <div className={classes.resourcesData}>
                 <Grid container spacing={0}>
-                  <Grid item xs={6} className={classes.resourceMetadata}>
+                  <Grid item xs={8} className={classes.resourceMetadata}>
                     {metadata['description'] && (
-                      <Typography
-                        variant='body1'
-                        className={classes.description}
-                      >
-                        <b>Description:</b> {metadata['description']}
-                      </Typography>
+                      <div className={classes.resourceItem}>
+                        <Typography
+                          variant='body1'
+                          className={classes.description}
+                        >
+                          <b>Description:</b> {metadata['description']}
+                        </Typography>
+                      </div>
                     )}
 
                     {metadata['owner'] && (
-                      <div className={classes.linkBox}>
-                        <Typography
-                          variant='body1'
-                          className={classes.typeTitle}
-                        >
-                          <b>Owner:</b>{' '}
-                        </Typography>
-                        <Chip
-                          variant='outlined'
-                          className={classes.linkChip}
-                          size='small'
-                          onClick={linkToUserPage}
-                          label={metadata['owner']}
-                        ></Chip>
+                      <div className={classes.resourceItem}>
+                        <div className={classes.linkBox}>
+                          <Typography
+                            variant='body1'
+                            className={classes.typeTitle}
+                          >
+                            <b>Owner:</b>{' '}
+                          </Typography>
+                          <Chip
+                            variant='outlined'
+                            className={classes.linkChip}
+                            size='small'
+                            onClick={linkToUserPage}
+                            label={metadata['owner']}
+                          ></Chip>
+                        </div>
                       </div>
                     )}
 
                     {metadata['provider'] && (
-                      <div className={classes.linkBox}>
-                        <Typography
-                          variant='body1'
-                          className={classes.typeTitle}
-                        >
-                          <b>Provider:</b>{' '}
-                        </Typography>
-                        <Chip
-                          variant='outlined'
-                          className={classes.linkChip}
-                          size='small'
-                          onClick={linkToProviderPage}
-                          label={metadata['provider']}
-                        ></Chip>
+                      <div className={classes.resourceItem}>
+                        <div className={classes.linkBox}>
+                          <Typography
+                            variant='body1'
+                            className={classes.typeTitle}
+                          >
+                            <b>Provider:</b>{' '}
+                          </Typography>
+                          <Chip
+                            variant='outlined'
+                            className={classes.linkChip}
+                            size='small'
+                            onClick={linkToProviderPage}
+                            label={metadata['provider']}
+                          ></Chip>
+                        </div>
                       </div>
                     )}
 
                     {metadata['dimensions'] && (
-                      <Typography variant='body1'>
-                        <b>Dimensions:</b> {metadata['dimensions']}
-                      </Typography>
+                      <div className={classes.resourceItem}>
+                        <Typography variant='body1'>
+                          <b>Dimensions:</b> {metadata['dimensions']}
+                        </Typography>
+                      </div>
                     )}
                     {metadata['data-type'] && (
-                      <Typography variant='body1'>
-                        <b>Data Type:</b> {metadata['data-type']}
-                      </Typography>
+                      <div className={classes.resourceItem}>
+                        <Typography variant='body1'>
+                          <b>Data Type:</b> {metadata['data-type']}
+                        </Typography>
+                      </div>
                     )}
                     {metadata['joined'] && (
-                      <Typography variant='body1'>
-                        <b>Joined:</b> {convertInputToDate(metadata['joined'])}
-                      </Typography>
+                      <div className={classes.resourceItem}>
+                        <Typography variant='body1'>
+                          <b>Joined:</b>{' '}
+                          {convertInputToDate(metadata['joined'])}
+                        </Typography>
+                      </div>
                     )}
                     {metadata['software'] && (
-                      <Typography variant='body1'>
-                        <b>Software:</b> {metadata['software']}
-                      </Typography>
+                      <div className={classes.resourceItem}>
+                        <Typography variant='body1'>
+                          <b>Software:</b> {metadata['software']}
+                        </Typography>
+                      </div>
                     )}
                     {metadata['label'] && (
-                      <div className={classes.linkBox}>
-                        <Typography
-                          variant='body1'
-                          className={classes.typeTitle}
-                        >
-                          <b>Label: </b>{' '}
-                        </Typography>
-                        <Chip
-                          variant='outlined'
-                          className={classes.linkChip}
-                          size='small'
-                          onClick={linkToLabel}
-                          label={metadata['label'].Name}
-                        ></Chip>
+                      <div className={classes.resourceItem}>
+                        <div className={classes.linkBox}>
+                          <Typography
+                            variant='body1'
+                            className={classes.typeTitle}
+                          >
+                            <b>Label: </b>{' '}
+                          </Typography>
+                          <Chip
+                            variant='outlined'
+                            className={classes.linkChip}
+                            size='small'
+                            onClick={linkToLabel}
+                            label={metadata['label'].Name}
+                          ></Chip>
+                        </div>
                       </div>
                     )}
                     {metadata['provider-type'] && (
-                      <Typography variant='body1'>
-                        <b>Provider Type:</b> {metadata['provider-type']}
-                      </Typography>
+                      <div className={classes.resourceItem}>
+                        <Typography variant='body1'>
+                          <b>Provider Type:</b> {metadata['provider-type']}
+                        </Typography>
+                      </div>
                     )}
                     {metadata['team'] && (
-                      <Typography variant='body1'>
-                        <b>Team:</b> {metadata['team']}
-                      </Typography>
+                      <div className={classes.resourceItem}>
+                        <Typography variant='body1'>
+                          <b>Team:</b> {metadata['team']}
+                        </Typography>
+                      </div>
                     )}
                     {metadata['status'] &&
                       metadata['status'] !== 'NO_STATUS' && (
-                        <Typography variant='body1'>
-                          <b>Status:</b> {metadata['status']}
-                        </Typography>
+                        <div className={classes.resourceItem}>
+                          <Typography variant='body1'>
+                            <b>Status:</b> {metadata['status']}
+                          </Typography>
+                        </div>
                       )}
                     {metadata['error'] && metadata['error'] !== '' && (
                       <>
-                        <strong>Error Message:</strong>
-                        {metadata['error'].length > ERROR_MSG_MAX ? (
-                          <>
-                            <ErrorModal
-                              buttonTxt='See More'
-                              errorTxt={metadata['error']}
-                            />
-                          </>
-                        ) : (
-                          <>
-                            <Typography
-                              variant='body1'
-                              style={{ whiteSpace: 'pre-line' }}
-                            >
-                              {metadata['error']}
-                            </Typography>
-                          </>
-                        )}
+                        <div className={classes.resourceItem}>
+                          <strong>Error Message:</strong>
+                          {metadata['error'].length > ERROR_MSG_MAX ? (
+                            <>
+                              <ErrorModal
+                                buttonTxt='See More'
+                                errorTxt={metadata['error']}
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <Typography
+                                variant='body1'
+                                style={{ whiteSpace: 'pre-line' }}
+                              >
+                                {metadata['error']}
+                              </Typography>
+                            </>
+                          )}
+                        </div>
                       </>
                     )}
                     {metadata['source-type'] && (
-                      <Typography variant='body1'>
-                        <b>Source Type:</b> {metadata['source-type']}
-                      </Typography>
+                      <div className={classes.resourceItem}>
+                        <Typography variant='body1'>
+                          <b>Source Type:</b> {metadata['source-type']}
+                        </Typography>
+                      </div>
                     )}
                     {metadata['specifications'] &&
                       numValidKeys(metadata['specifications']) > 0 && (
-                        <div>
+                        <div className={classes.resourceItem}>
                           <Typography variant='body1'>
                             <b>Specifications:</b>
                           </Typography>
@@ -561,112 +575,124 @@ const EntityPageView = ({
                       )}
 
                     {metadata['serialized-config'] && (
-                      <Typography variant='body1'>
-                        <b>Serialized Config:</b>{' '}
-                        {metadata['serialized-config']}
-                      </Typography>
+                      <div className={classes.resourceItem}>
+                        <Typography variant='body1'>
+                          <b>Serialized Config:</b>{' '}
+                          {metadata['serialized-config']}
+                        </Typography>
+                      </div>
                     )}
 
                     {metadata['source']?.Name && (
-                      <div className={classes.linkBox}>
-                        <Typography
-                          variant='body1'
-                          className={classes.typeTitle}
-                        >
-                          <b>Source: </b>{' '}
-                        </Typography>
-                        <Chip
-                          variant='outlined'
-                          className={classes.linkChip}
-                          size='small'
-                          onClick={() =>
-                            linkToLineage({
-                              Name: metadata['source']?.Name,
-                              Variant: metadata['source']?.Variant,
-                            })
-                          }
-                          label={`${metadata['source'].Name} (${metadata['source'].Variant})`}
-                        ></Chip>
+                      <div className={classes.resourceItem}>
+                        <div className={classes.linkBox}>
+                          <Typography
+                            variant='body1'
+                            className={classes.typeTitle}
+                          >
+                            <b>Source: </b>{' '}
+                          </Typography>
+                          <Chip
+                            variant='outlined'
+                            className={classes.linkChip}
+                            size='small'
+                            onClick={() =>
+                              linkToLineage({
+                                Name: metadata['source']?.Name,
+                                Variant: metadata['source']?.Variant,
+                              })
+                            }
+                            label={`${metadata['source'].Name} (${metadata['source'].Variant})`}
+                          ></Chip>
+                        </div>
                       </div>
                     )}
 
                     {metadata['entity'] && (
-                      <div className={classes.linkBox}>
-                        <Typography
-                          variant='body1'
-                          className={classes.typeTitle}
-                        >
-                          <b>Entity:</b>{' '}
-                        </Typography>
-                        <Chip
-                          variant='outlined'
-                          className={classes.linkChip}
-                          size='small'
-                          onClick={linkToEntityPage}
-                          label={metadata['entity']}
-                        ></Chip>
+                      <div className={classes.resourceItem}>
+                        <div className={classes.linkBox}>
+                          <Typography
+                            variant='body1'
+                            className={classes.typeTitle}
+                          >
+                            <b>Entity:</b>{' '}
+                          </Typography>
+                          <Chip
+                            variant='outlined'
+                            className={classes.linkChip}
+                            size='small'
+                            onClick={linkToEntityPage}
+                            label={metadata['entity']}
+                          ></Chip>
+                        </div>
                       </div>
                     )}
 
                     {metadata['location'] && !metadata['is-on-demand'] && (
-                      <div className={classes.linkBox}>
-                        <Typography
-                          variant='body1'
-                          className={classes.typeTitle}
-                        >
-                          <b>Columns:</b>{' '}
-                        </Typography>
-                        <Typography variant='body2'>
-                          &nbsp;<b>Entity:</b> {metadata['location'].Entity}
-                          &nbsp;<b>Value:</b> {metadata['location'].Value}
-                          &nbsp;<b>Timestamp:</b> {metadata['location'].TS}
-                        </Typography>
+                      <div className={classes.resourceItem}>
+                        <div className={classes.linkBox}>
+                          <Typography
+                            variant='body1'
+                            className={classes.typeTitle}
+                          >
+                            <b>Columns:</b>{' '}
+                          </Typography>
+                          <Typography variant='body2'>
+                            &nbsp;<b>Entity:</b> {metadata['location'].Entity}
+                            &nbsp;<b>Value:</b> {metadata['location'].Value}
+                            &nbsp;<b>Timestamp:</b> {metadata['location'].TS}
+                          </Typography>
+                        </div>
                       </div>
                     )}
 
                     {metadata['location'] && metadata['is-on-demand'] && (
-                      <div className={classes.linkBox}>
-                        <Typography
-                          variant='body1'
-                          className={classes.typeTitle}
-                        >
-                          <b>Feature Variant Type:</b>{' '}
-                        </Typography>
-                        <Chip
-                          variant='outlined'
-                          className={classes.linkChip}
-                          size='small'
-                          onClick={() => {}}
-                          label={'On-Demand'}
-                        ></Chip>
+                      <div className={classes.resourceItem}>
+                        <div className={classes.linkBox}>
+                          <Typography
+                            variant='body1'
+                            className={classes.typeTitle}
+                          >
+                            <b>Feature Variant Type:</b>{' '}
+                          </Typography>
+                          <Chip
+                            variant='outlined'
+                            className={classes.linkChip}
+                            size='small'
+                            onClick={() => {}}
+                            label={'On-Demand'}
+                          ></Chip>
+                        </div>
                       </div>
                     )}
 
                     {metadata['inputs']?.length ? (
-                      <div className={classes.linkBox}>
-                        <Typography
-                          variant='body1'
-                          className={classes.typeTitle}
-                        >
-                          <b>Sources:</b>
-                        </Typography>
-                        {metadata['inputs'].map((nv, index) => {
-                          return (
-                            <Chip
-                              key={index}
-                              variant='outlined'
-                              className={classes.linkChip}
-                              size='small'
-                              onClick={() => linkToLineage(nv)}
-                              label={`${nv.Name} (${nv.Variant})`}
-                            ></Chip>
-                          );
-                        })}
+                      <div className={classes.resourceItem}>
+                        <div className={classes.linkBox}>
+                          <Typography
+                            variant='body1'
+                            className={classes.typeTitle}
+                          >
+                            <b>Sources:</b>
+                          </Typography>
+                          {metadata['inputs'].map((nv, index) => {
+                            return (
+                              <Chip
+                                key={index}
+                                variant='outlined'
+                                className={classes.linkChip}
+                                size='small'
+                                onClick={() => linkToLineage(nv)}
+                                label={`${nv.Name} (${nv.Variant})`}
+                              ></Chip>
+                            );
+                          })}
+                        </div>
                       </div>
                     ) : null}
 
                     {metadata['definition'] ? (
-                      <div>
+                      <div className={classes.resourceItem}>
                         {(() => {
                           if (
                             metadata['source-type'] === 'SQL Transformation'
@@ -710,11 +736,13 @@ const EntityPageView = ({
                             metadata['status']?.toUpperCase() !== 'PENDING'
                           ) {
                             return (
-                              <SourceDialog
-                                api={api}
-                                sourceName={name}
-                                sourceVariant={variant}
-                              />
+                              <div className={classes.resourceItem}>
+                                <SourceDialog
+                                  api={api}
+                                  sourceName={name}
+                                  sourceVariant={variant}
+                                />
+                              </div>
                             );
                           }
                         })()}
@@ -728,20 +756,22 @@ const EntityPageView = ({
                           metadata['status']?.toUpperCase() !== 'PENDING'
                         ) {
                           return (
-                            <SourceDialog
-                              api={api}
-                              btnTxt='Feature Stats'
-                              type='Feature'
-                              sourceName={name}
-                              sourceVariant={variant}
-                            />
+                            <div className={classes.resourceItem}>
+                              <SourceDialog
+                                api={api}
+                                btnTxt='Feature Stats'
+                                type='Feature'
+                                sourceName={name}
+                                sourceVariant={variant}
+                              />
+                            </div>
                           );
                         }
                       })()
                     )}
                   </Grid>
 
-                  <Grid item xs>
+                  <Grid item xs={4}>
                     <TagBox
                       resourceName={name}
                       variant={variant}
@@ -766,17 +796,19 @@ const EntityPageView = ({
               </div>
             )}
           {metadata['config'] && (
-            <div className={classes.config}>
-              <Typography variant='body1'>
-                <b>Config:</b>
-              </Typography>
-              <SyntaxHighlighter
-                className={classes.syntax}
-                language={metadata['language']}
-                style={okaidia}
-              >
-                {metadata['config']}
-              </SyntaxHighlighter>
+            <div className={classes.resourceItem}>
+              <div className={classes.config}>
+                <Typography variant='body1'>
+                  <b>Config:</b>
+                </Typography>
+                <SyntaxHighlighter
+                  className={classes.syntax}
+                  language={metadata['language']}
+                  style={okaidia}
+                >
+                  {metadata['config']}
+                </SyntaxHighlighter>
+              </div>
             </div>
           )}
         </div>

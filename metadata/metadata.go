@@ -10,16 +10,16 @@ package metadata
 import (
 	"context"
 	"fmt"
+	sch "github.com/featureform/scheduling/proto"
 	"github.com/featureform/storage"
 	"io"
 	"net"
 	"strings"
 	"time"
 
+	"github.com/featureform/fferr"
 	"github.com/featureform/ffsync"
 	"github.com/featureform/helpers"
-
-	"github.com/featureform/fferr"
 	"github.com/featureform/lib"
 
 	"github.com/pkg/errors"
@@ -1439,6 +1439,7 @@ type MetadataServer struct {
 	listener    net.Listener
 	taskManager *scheduling.TaskMetadataManager
 	pb.UnimplementedMetadataServer
+	sch.UnimplementedTasksServer
 }
 
 func NewMetadataServer(config *Config) (*MetadataServer, error) {
@@ -1467,6 +1468,175 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	}, nil
 }
 
+//func convertTriggerTypeProto(trigger scheduling.Trigger) (interface{}, error) {
+//	switch t := trigger.(type) {
+//	case scheduling.OnApplyTrigger:
+//		return sch.TaskRunMetadata_Apply{Apply: &sch.OnApply{Name: t.TriggerName}}, nil
+//	default:
+//		return nil, fmt.Errorf("Unimplemented trigger")
+//	}
+//}
+//
+//func convertTargetProto(target scheduling.TaskTarget) (interface{}, error) {
+//	switch t := target.(type) {
+//	case scheduling.NameVariant:
+//		return sch.NameVariantTarget{
+//			ResourceID: &pb.ResourceID{
+//				Resource: &pb.NameVariant{
+//					Name:    t.Name,
+//					Variant: t.Variant,
+//				},
+//				ResourceType: pb.ResourceType(t.ResourceType),
+//			},
+//		}, nil
+//	default:
+//		return nil, fmt.Errorf("Unimplemented target")
+//	}
+//}
+
+func wrapTaskMetadataProto(task scheduling.TaskMetadata) (*sch.TaskMetadata, error) {
+	//target, err := convertTargetProto(task.Target)
+	//if err != nil {
+	//	return nil, err
+	//}
+	t := task.Target.(scheduling.NameVariant)
+	name := t.Name
+	variant := t.Variant
+
+	return &sch.TaskMetadata{
+		Id:   &sch.TaskID{Id: task.ID.Value().(uint64)},
+		Name: task.Name,
+		Type: sch.TaskType_RESOURCE_CREATION,
+		Target: &sch.TaskMetadata_NameVariant{
+			NameVariant: &sch.NameVariantTarget{
+				ResourceID: &pb.ResourceID{
+					Resource: &pb.NameVariant{
+						Name:    name,
+						Variant: variant,
+					},
+				},
+			},
+		},
+		TargetType: sch.TargetType_NAME_VARIANT,
+		Created: &tspb.Timestamp{
+			Seconds: task.DateCreated.Unix(),
+			Nanos:   int32(task.DateCreated.Nanosecond()),
+		},
+	}, nil
+}
+
+func wrapTaskRunMetadataProto(run scheduling.TaskRunMetadata) (*sch.TaskRunMetadata, error) {
+	return &sch.TaskRunMetadata{
+		RunID: &sch.RunID{
+			Id: run.ID.Value().(uint64),
+		},
+		TaskID: &sch.TaskID{
+			Id: run.TaskId.Value().(uint64),
+		},
+		Name: run.Name,
+		Trigger: &sch.TaskRunMetadata_Apply{
+			Apply: &sch.OnApply{
+				Name: run.Trigger.Name(),
+			},
+		},
+		TriggerType: sch.TriggerType_ON_APPLY,
+		StartTime: &tspb.Timestamp{
+			Seconds: run.StartTime.Unix(),
+			Nanos:   int32(run.StartTime.Nanosecond()),
+		},
+		EndTime: &tspb.Timestamp{
+			Seconds: run.EndTime.Unix(),
+			Nanos:   int32(run.EndTime.Nanosecond()),
+		},
+		Logs: run.Logs,
+		Status: &pb.ResourceStatus{
+			Status:       pb.ResourceStatus_Status(run.Status),
+			ErrorMessage: run.Error,
+			ErrorStatus:  run.ErrorProto,
+		},
+	}, nil
+}
+
+func (serv *MetadataServer) GetTaskByID(ctx context.Context, taskID *sch.TaskID) (*sch.TaskMetadata, error) {
+	id := ffsync.Uint64OrderedId(taskID.GetId())
+	tid := scheduling.TaskID(&id)
+	task, err := serv.taskManager.GetTaskByID(tid)
+	if err != nil {
+		return nil, err
+	}
+	p, err := wrapTaskMetadataProto(task)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+func (serv *MetadataServer) GetRuns(ctx context.Context, taskID *sch.TaskID) (*sch.TaskRunList, error) {
+	id := ffsync.Uint64OrderedId(taskID.GetId())
+	tid := scheduling.TaskID(&id)
+	runs, err := serv.taskManager.GetTaskRunMetadata(tid)
+	if err != nil {
+		return nil, err
+	}
+	taskRunList := &sch.TaskRunList{}
+	for _, run := range runs {
+		runProto, err := wrapTaskRunMetadataProto(run)
+		if err != nil {
+			return nil, err
+		}
+		taskRunList.Runs = append(taskRunList.Runs, runProto)
+	}
+	return taskRunList, nil
+}
+
+func (serv *MetadataServer) GetAllRuns(ctx context.Context, _ *sch.Empty) (*sch.TaskRunList, error) {
+	runs, err := serv.taskManager.GetAllTaskRuns()
+	if err != nil {
+		return nil, err
+	}
+	taskRunList := &sch.TaskRunList{}
+	for _, run := range runs {
+		runProto, err := wrapTaskRunMetadataProto(run)
+		if err != nil {
+			return nil, err
+		}
+		taskRunList.Runs = append(taskRunList.Runs, runProto)
+	}
+	return taskRunList, nil
+}
+func (serv *MetadataServer) SetRunStatus(ctx context.Context, update *sch.StatusUpdate) (*sch.Empty, error) {
+	id := ffsync.Uint64OrderedId(update.GetRunID().Id)
+	rid := scheduling.TaskRunID(&id)
+	id = ffsync.Uint64OrderedId(update.GetTaskID().Id)
+	tid := scheduling.TaskID(&id)
+	err := serv.taskManager.SetRunStatus(rid, tid, scheduling.Status(update.Status.Status), fmt.Errorf(update.Status.ErrorStatus.String()))
+	if err != nil {
+		return nil, err
+	}
+	return &sch.Empty{}, nil
+}
+func (serv *MetadataServer) AddRunLog(ctx context.Context, log *sch.Log) (*sch.Empty, error) {
+	id := ffsync.Uint64OrderedId(log.GetRunID().GetId())
+	rid := scheduling.TaskRunID(&id)
+	id = ffsync.Uint64OrderedId(log.GetTaskID().GetId())
+	tid := scheduling.TaskID(&id)
+	err := serv.taskManager.AppendRunLog(rid, tid, log.Log)
+	if err != nil {
+		return nil, err
+	}
+	return &sch.Empty{}, nil
+}
+func (serv *MetadataServer) SetRunEndTime(ctx context.Context, update *sch.RunEndTimeUpdate) (*sch.Empty, error) {
+	id := ffsync.Uint64OrderedId(update.GetRunID().Id)
+	rid := scheduling.TaskRunID(&id)
+	id = ffsync.Uint64OrderedId(update.GetTaskID().Id)
+	tid := scheduling.TaskID(&id)
+	err := serv.taskManager.SetRunEndTime(rid, tid, update.End.AsTime())
+	if err != nil {
+		return nil, err
+	}
+	return &sch.Empty{}, nil
+}
+
 func (serv *MetadataServer) Serve() error {
 	if serv.grpcServer != nil {
 		return fferr.NewInternalError(fmt.Errorf("server already running"))
@@ -1482,6 +1652,7 @@ func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
 	serv.listener = lis
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(helpers.UnaryServerErrorInterceptor), grpc.StreamInterceptor(helpers.StreamServerErrorInterceptor))
 	pb.RegisterMetadataServer(grpcServer, serv)
+	sch.RegisterTasksServer(grpcServer, serv)
 	serv.grpcServer = grpcServer
 	serv.Logger.Infow("Server starting", "Address", serv.listener.Addr().String())
 	return grpcServer.Serve(lis)

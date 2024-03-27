@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/featureform/ffsync"
 	"github.com/featureform/scheduling"
+	sch "github.com/featureform/scheduling/proto"
 	"io"
 	"reflect"
 	"time"
@@ -1502,7 +1503,7 @@ func (variant *FeatureVariant) Status() scheduling.Status {
 	if variant.serialized.GetStatus() != nil {
 		return scheduling.Status(variant.serialized.GetStatus().Status)
 	}
-	return scheduling.Status(0)
+	return scheduling.CREATED
 }
 
 func (variant *FeatureVariant) Error() string {
@@ -1832,7 +1833,7 @@ func (variant *LabelVariant) Status() scheduling.Status {
 	if variant.serialized.GetStatus() != nil {
 		return scheduling.Status(variant.serialized.GetStatus().Status)
 	}
-	return scheduling.Status(0)
+	return scheduling.CREATED
 }
 
 func (variant *LabelVariant) Error() string {
@@ -2266,7 +2267,7 @@ func (entity *Entity) Properties() Properties {
 	return entity.fetchPropertiesFn.Properties()
 }
 
-func NewClient(host string, logger *zap.SugaredLogger, storage scheduling.TaskMetadataManager, locker ffsync.Locker) (*Client, error) {
+func NewClient(host string, logger *zap.SugaredLogger) (*Client, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		// grpc.WithUnaryInterceptor(fferr.UnaryClientInterceptor()),
@@ -2276,14 +2277,16 @@ func NewClient(host string, logger *zap.SugaredLogger, storage scheduling.TaskMe
 	if err != nil {
 		return nil, fferr.NewInternalError(err)
 	}
-	client := pb.NewMetadataClient(conn)
+	metadataClient := pb.NewMetadataClient(conn)
+	tasksClient := sch.NewTasksClient(conn)
 	return &Client{
 		Logger:   logger,
 		conn:     conn,
-		GrpcConn: client,
+		GrpcConn: metadataClient,
 		Tasks: Tasks{
-			storage,
-			locker,
+			Logger:   logger,
+			conn:     conn,
+			GrpcConn: tasksClient,
 		},
 	}, nil
 }

@@ -194,7 +194,7 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 }
 
 func (m *TaskMetadataManager) GetLatestRun(taskID TaskID) (TaskRunMetadata, error) {
-	runs, err := m.GetTaskRuns(taskID)
+	runs, err := m.getTaskRunRecords(taskID)
 	if err != nil {
 		return TaskRunMetadata{}, err
 	}
@@ -222,7 +222,7 @@ func (m *TaskMetadataManager) GetLatestRun(taskID TaskID) (TaskRunMetadata, erro
 }
 
 func (m *TaskMetadataManager) GetTaskRunMetadata(taskID TaskID) (TaskRunList, error) {
-	runs, err := m.GetTaskRuns(taskID)
+	runs, err := m.getTaskRunRecords(taskID)
 	if err != nil {
 		return TaskRunList{}, err
 	}
@@ -237,7 +237,7 @@ func (m *TaskMetadataManager) GetTaskRunMetadata(taskID TaskID) (TaskRunList, er
 	return runMetadata, nil
 }
 
-func (m *TaskMetadataManager) GetTaskRuns(taskID TaskID) (TaskRuns, error) {
+func (m *TaskMetadataManager) getTaskRunRecords(taskID TaskID) (TaskRuns, error) {
 	taskRunKey := TaskRunKey{taskID: taskID}
 	taskRunMetadata, err := m.Storage.Get(taskRunKey.String())
 	if err != nil {

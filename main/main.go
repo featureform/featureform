@@ -95,7 +95,7 @@ func main() {
 	defer cLogger.Sync()
 	cLogger.Debug("Connected to ETCD")
 
-	client, err := metadata.NewClient(metadataUrl, cLogger, meta, &locker)
+	client, err := metadata.NewClient(metadataUrl, cLogger)
 	if err != nil {
 		cLogger.Errorw("Failed to connect: %v", err)
 		panic(err)
@@ -104,7 +104,7 @@ func main() {
 	var spawner coordinator.JobSpawner
 	spawner = &coordinator.MemoryJobSpawner{}
 
-	coord, err := coordinator.NewCoordinator(client, cLogger, spawner)
+	coord, err := coordinator.NewCoordinator(client, cLogger, spawner, &locker)
 	if err != nil {
 		logger.Errorw("Failed to set up coordinator: %v", err)
 		panic(err)

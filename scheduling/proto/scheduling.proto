@@ -1,0 +1,107 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "metadata/proto/metadata.proto";
+
+option go_package = "github.com/featureform/scheduling/proto";
+
+package featureform.scheduling.proto;
+
+service Tasks {
+  rpc GetTaskByID(TaskID) returns (TaskMetadata);
+  rpc GetRuns(TaskID) returns (TaskRunList);
+  rpc GetAllRuns(Empty) returns (TaskRunList);
+  rpc SetRunStatus(StatusUpdate) returns (Empty);
+  rpc AddRunLog(Log) returns (Empty);
+  rpc SetRunEndTime(RunEndTimeUpdate) returns (Empty);
+}
+
+message TaskID {
+  uint64 id = 1;
+}
+
+message RunID {
+  uint64 id = 1;
+}
+
+message StatusUpdate {
+  RunID runID = 1;
+  TaskID taskID = 2;
+  featureform.serving.metadata.proto.ResourceStatus status = 3;
+}
+
+message Log {
+  RunID runID = 1;
+  TaskID taskID = 2;
+  string log = 3;
+}
+
+message RunEndTimeUpdate {
+  RunID runID = 1;
+  TaskID taskID = 2;
+  google.protobuf.Timestamp end = 3;
+}
+
+message TaskMetadata {
+  TaskID id = 1;
+  string name = 2;
+  TaskType type = 3;
+  oneof target {
+    NameVariantTarget nameVariant = 4;
+  };
+  TargetType targetType = 5;
+  google.protobuf.Timestamp created = 6;
+}
+
+message ScheduleTrigger {
+  string name =1;
+  string schedule = 2;
+}
+
+message OnApply {
+  string name =1;
+}
+
+message NameVariantTarget {
+  featureform.serving.metadata.proto.ResourceID resourceID = 1;
+}
+
+enum TargetType {
+  NAME_VARIANT = 0;
+}
+
+enum TaskType {
+  RESOURCE_CREATION = 0;
+  HEALTH_CHECK = 1;
+  METRICS = 2;
+}
+
+enum TriggerType {
+  SCHEDULE = 0;
+  ON_APPLY = 1;
+}
+
+message TaskRunMetadata {
+  RunID runID = 1;
+  TaskID taskID = 2;
+  string name = 3;
+  oneof trigger {
+    OnApply apply = 4;
+    ScheduleTrigger schedule = 5;
+  }
+  TriggerType triggerType = 6;
+  google.protobuf.Timestamp  startTime = 7;
+  google.protobuf.Timestamp  endTime = 8;
+  repeated string logs = 9;
+  featureform.serving.metadata.proto.ResourceStatus status = 10;
+}
+
+message TaskRunList {
+  repeated TaskRunMetadata runs = 1;
+}
+
+message Empty {}

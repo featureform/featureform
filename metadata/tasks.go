@@ -171,7 +171,7 @@ func (t *Tasks) SetRunStatus(taskID s.TaskID, runID s.TaskRunID, status s.Status
 	update := &sch.StatusUpdate{
 		RunID:  &sch.RunID{Id: runID.Value().(uint64)},
 		TaskID: &sch.TaskID{Id: taskID.Value().(uint64)},
-		Status: &proto.ResourceStatus{Status: proto.ResourceStatus_Status(status), ErrorMessage: msg},
+		Status: &proto.ResourceStatus{Status: proto.ResourceStatus_Status(status), ErrorMessage: msg, ErrorStatus: },
 	}
 	_, err := t.GrpcConn.SetRunStatus(context.Background(), update)
 	if err != nil {

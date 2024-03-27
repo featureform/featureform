@@ -12,6 +12,8 @@ import (
 	"fmt"
 	sch "github.com/featureform/scheduling/proto"
 	"github.com/featureform/storage"
+	"google.golang.org/grpc/codes"
+	grpc_status "google.golang.org/grpc/status"
 	"io"
 	"net"
 	"strings"
@@ -1623,7 +1625,13 @@ func (serv *MetadataServer) SetRunStatus(ctx context.Context, update *sch.Status
 	rid := scheduling.TaskRunID(&id)
 	id = ffsync.Uint64OrderedId(update.GetTaskID().Id)
 	tid := scheduling.TaskID(&id)
-	err := serv.taskManager.SetRunStatus(rid, tid, scheduling.Status(update.Status.Status), fmt.Errorf(update.Status.ErrorStatus.String()))
+
+	var err error
+	if update.Status.ErrorMessage != "" {
+		err = grpc_status.Errorf(codes.Code(update.Status.ErrorStatus.Code), update.Status.ErrorMessage, update.Status.ErrorStatus.Details)
+	}
+
+	err = serv.taskManager.SetRunStatus(rid, tid, scheduling.Status(update.Status.Status), err)
 	if err != nil {
 		return nil, err
 	}

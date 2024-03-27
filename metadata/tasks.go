@@ -9,6 +9,7 @@ import (
 	sch "github.com/featureform/scheduling/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	grpc_status "google.golang.org/grpc/status"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 	"time"
 )
@@ -163,16 +164,28 @@ func (t *Tasks) GetLatestRun(id s.TaskID) (s.TaskRunMetadata, error) {
 }
 
 func (t *Tasks) SetRunStatus(taskID s.TaskID, runID s.TaskRunID, status s.Status, errMsg error) error {
-	// Fill this in
+	// This is gross
 	msg := ""
 	if errMsg != nil {
 		msg = errMsg.Error()
 	}
+	errorStatus, ok := grpc_status.FromError(errMsg)
+	errorProto := errorStatus.Proto()
+	var errorStatusProto *proto.ErrorStatus
+	if ok && errMsg != nil {
+		errorStatusProto = &proto.ErrorStatus{Code: errorProto.Code, Message: errorProto.Message, Details: errorProto.Details}
+	} else {
+		errorStatusProto = nil
+	}
+
+	resourceStatus := proto.ResourceStatus{Status: proto.ResourceStatus_Status(status), ErrorMessage: msg, ErrorStatus: errorStatusProto}
+
 	update := &sch.StatusUpdate{
 		RunID:  &sch.RunID{Id: runID.Value().(uint64)},
 		TaskID: &sch.TaskID{Id: taskID.Value().(uint64)},
-		Status: &proto.ResourceStatus{Status: proto.ResourceStatus_Status(status), ErrorMessage: msg, ErrorStatus: },
+		Status: &resourceStatus,
 	}
+
 	_, err := t.GrpcConn.SetRunStatus(context.Background(), update)
 	if err != nil {
 		return err

@@ -288,6 +288,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 				err := c.Locker.UnlockRun(lock)
 				if err != nil {
 					fmt.Printf("failed to unlock task: %v", err)
+					return
 				}
 			}(run.ID, lock)
 			err = c.Metadata.Tasks.SetRunStatus(run.TaskId, run.ID, scheduling.RUNNING, err)
@@ -305,7 +306,7 @@ func (c *Coordinator) WatchForNewJobs() error {
 		// TODO: change it so we can watch for new jobs using task manager
 		runs, err := c.Metadata.Tasks.GetAllRuns()
 		if err != nil {
-			return fmt.Errorf("fetch existing etcd jobs: %v", err)
+			fmt.Printf("fetch existing etcd jobs: %v", err)
 		}
 
 		runs.FilterByStatus(scheduling.PENDING)
@@ -315,11 +316,19 @@ func (c *Coordinator) WatchForNewJobs() error {
 				// UNLOCK after the worker is done
 				// LockTaskRun(taskID TaskID, runId TaskRunID) (sp.LockObject, error)
 				lock, err := c.Locker.LockRun(run.ID)
-				if err != nil {
+				if _, ok := err.(*fferr.KeyAlreadyLockedError); ok {
+					return
+				} else if err != nil {
 					c.Logger.Errorw("Error locking task run", "error", err)
 					return
 				}
-				defer c.Locker.UnlockRun(lock)
+				defer func(runId scheduling.TaskRunID, key ffsync.Key) {
+					err := c.Locker.UnlockRun(lock)
+					if err != nil {
+						fmt.Printf("failed to unlock task: %v", err)
+						return
+					}
+				}(run.ID, lock)
 				err = c.ExecuteJob(run)
 				if err != nil {
 					c.checkError(err, run.Name)
@@ -1193,16 +1202,13 @@ func (c *Coordinator) ExecuteJob(taskRun scheduling.TaskRunMetadata) error {
 		case *fferr.ResourceAlreadyFailedError:
 			return err
 		default:
-			// TODO: set up status and error message in task manager
-			//runID TaskRunID, taskID TaskID, status Status, err error, lock sp.LockObject
-			err := c.Metadata.Tasks.SetRunStatus(taskRun.TaskId, taskRun.ID, scheduling.FAILED, err)
-			if err != nil {
+			setErr := c.Metadata.Tasks.SetRunStatus(taskRun.TaskId, taskRun.ID, scheduling.FAILED, err)
+			if setErr != nil {
 				return fmt.Errorf("set run status in task manager: %v", err)
 			}
 
-			// TODO: update the end time too
-			err = c.Metadata.Tasks.EndRun(taskRun.TaskId, taskRun.ID)
-			if err != nil {
+			setErr = c.Metadata.Tasks.EndRun(taskRun.TaskId, taskRun.ID)
+			if setErr != nil {
 				return fmt.Errorf("set run end time in task manager: %v", err)
 			}
 			return fmt.Errorf("%s job failed: %w", job.Resource.Type, err)

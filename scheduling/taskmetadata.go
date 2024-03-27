@@ -2,6 +2,7 @@ package scheduling
 
 import (
 	"fmt"
+	"github.com/featureform/metadata/proto"
 	"time"
 
 	"github.com/featureform/fferr"
@@ -351,7 +352,7 @@ func (m *TaskMetadataManager) GetAllTaskRuns() (TaskRunList, error) {
 	return runs, nil
 }
 
-func (m *TaskMetadataManager) SetRunStatus(runID TaskRunID, taskID TaskID, status Status, err error) error {
+func (m *TaskMetadataManager) SetRunStatus(runID TaskRunID, taskID TaskID, status *proto.ResourceStatus) error {
 	metadata, e := m.GetRunByID(taskID, runID)
 	if e != nil {
 		return e
@@ -364,15 +365,15 @@ func (m *TaskMetadataManager) SetRunStatus(runID TaskRunID, taskID TaskID, statu
 			e := fferr.NewInternalError(unmarshalErr)
 			return "", e
 		}
-		if status == FAILED && err == nil {
+		if Status(status.Status) == FAILED && status.ErrorStatus == nil {
 			e := fferr.NewInvalidArgumentError(fmt.Errorf("error is required for failed status"))
 			return "", e
 		}
-		metadata.Status = status
-		if err == nil {
+		metadata.Status = Status(status.Status)
+		if status.ErrorStatus == nil {
 			metadata.Error = ""
 		} else {
-			metadata.Error = err.Error()
+			metadata.Error = fferr.ToDashboardError(status)
 		}
 
 		serializedMetadata, marshalErr := metadata.Marshal()

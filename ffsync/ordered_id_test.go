@@ -78,3 +78,32 @@ func TestETCDIdGenerator(t *testing.T) {
 		prevId = id
 	}
 }
+
+func TestRDSIdGenerator(t *testing.T) {
+	generator, err := NewRDSOrderedIdGenerator()
+	if err != nil {
+		t.Fatalf("Failed to create RDS ID generator: %v", err)
+	}
+
+	prevId, err := generator.NextId("testNamespace")
+	if err != nil {
+		t.Fatalf("Failed to get next id: %v", err)
+	}
+
+	diffNamespaceId, err := generator.NextId("diffNamespace")
+	if err != nil {
+		t.Fatalf("Failed to get next id: %v", err)
+	}
+
+	if !prevId.Equals(diffNamespaceId) {
+		t.Errorf("Expected id '%s' to equal id '%s'", prevId, diffNamespaceId)
+	}
+
+	for i := 0; i < 10; i++ {
+		id, _ := generator.NextId("testNamespace")
+		if !prevId.Less(id) {
+			t.Errorf("Expected id '%s' to be greater than previous id '%s'", id, prevId)
+		}
+		prevId = id
+	}
+}

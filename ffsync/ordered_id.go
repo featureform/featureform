@@ -2,6 +2,7 @@ package ffsync
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/helpers"
+	_ "github.com/lib/pq"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
 )
@@ -158,6 +160,73 @@ func (etcd *etcdIdGenerator) NextId(namespace string) (OrderedId, error) {
 	}
 	if _, err := etcd.client.Put(etcd.ctx, lockKey, string(nextIdBytes)); err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to set key %s: %w", lockKey, err))
+	}
+
+	return (*Uint64OrderedId)(&nextId), nil
+}
+
+func NewRDSOrderedIdGenerator() (OrderedIdGenerator, error) {
+	tableName := "ordered_id"
+	host := helpers.GetEnv("POSTGRES_HOST", "localhost")
+	port := helpers.GetEnv("POSTGRES_PORT", "5432")
+	username := helpers.GetEnv("POSTGRES_USER", "postgres")
+	password := helpers.GetEnv("POSTGRES_PASSWORD", "mysecretpassword")
+	dbName := helpers.GetEnv("POSTGRES_DB", "postgres")
+	sslMode := helpers.GetEnv("POSTGRES_SSL_MODE", "disable")
+
+	connectionString := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", host, port, username, password, dbName, sslMode)
+
+	db, err := sql.Open("postgres", connectionString)
+	if err != nil {
+		return nil, fferr.NewInternalError(fmt.Errorf("failed to open connection to Postgres: %w", err))
+	}
+
+	// Create a table to store the key-value pairs
+	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (key VARCHAR(255) PRIMARY KEY, value TEXT)", tableName)
+	_, err = db.Exec(tableCreationSQL)
+	if err != nil {
+		return nil, fferr.NewInternalError(fmt.Errorf("failed to create table %s: %w", tableName, err))
+	}
+
+	return &rdsIdGenerator{
+		db:        db,
+		tableName: tableName,
+	}, nil
+}
+
+type rdsIdGenerator struct {
+	db        *sql.DB
+	tableName string
+}
+
+func (rds *rdsIdGenerator) NextId(namespace string) (OrderedId, error) {
+	if namespace == "" {
+		return nil, fferr.NewInternalError(fmt.Errorf("cannot generate ID for empty namespace"))
+	}
+
+	// TODO: Lock the namespace to prevent concurrent ID generation
+
+	// Get the current ID
+	selectSQL := fmt.Sprintf("SELECT value FROM %s WHERE key = $1", rds.tableName)
+	row := rds.db.QueryRow(selectSQL, namespace)
+
+	var nextId uint64
+	err := row.Scan(&nextId)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			nextId = 1
+		} else {
+			return nil, fferr.NewInternalError(fmt.Errorf("failed to get key %s: %w", namespace, err))
+		}
+	} else {
+		nextId++
+	}
+
+	// Update the ID
+	insertSQL := fmt.Sprintf("INSERT INTO %s (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", rds.tableName)
+	_, err = rds.db.Exec(insertSQL, namespace, nextId)
+	if err != nil {
+		return nil, fferr.NewInternalError(fmt.Errorf("failed to set key %s: %w", namespace, err))
 	}
 
 	return (*Uint64OrderedId)(&nextId), nil

@@ -258,11 +258,13 @@ func (m *TaskMetadataManager) GetRunByID(taskID TaskID, runID TaskRunID) (TaskRu
 }
 
 func (m *TaskMetadataManager) GetRunsByDate(start time.Time, end time.Time) (TaskRunList, error) {
-	// TODO: add a comment about the key path
-	// TODO: fix the key to include the 0-23 hours and 0-59 minutes, but loop through for each hour
-	// keyPath := key.TruncateToDay() -> // 2024/03/01 (keep it as this for now)
-	// keyPath := key.TruncateToHour() -> // 2024/03/01/00
-	// keyPath := key.TruncateToMinute() -> // 2024/03/01/00/00
+	/*
+		Given a date range, return all runs that started within that range
+		Currently, we are iterating through each day in the range and getting the runs for that day
+		But in the feature, we can iterate by hour and minute as well. We just need to modify the for loop
+		below to iterate by hour and minute and modify the getRunsForDay function to get runs for that hour or minute.
+	*/
+
 	// the date range is inclusive
 	var runs []TaskRunMetadata
 
@@ -280,7 +282,7 @@ func (m *TaskMetadataManager) GetRunsByDate(start time.Time, end time.Time) (Tas
 
 func (m *TaskMetadataManager) getRunsForDay(date time.Time, start time.Time, end time.Time) ([]TaskRunMetadata, error) {
 	key := TaskRunMetadataKey{date: date}
-	recs, err := m.storage.List(key.String())
+	recs, err := m.storage.List(key.TruncateToDay())
 	if err != nil {
 		return []TaskRunMetadata{}, err
 	}

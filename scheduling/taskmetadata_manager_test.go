@@ -882,7 +882,145 @@ func TestSetEndTimeByRunID(t *testing.T) {
 }
 
 func TestGetRunsByDate(t *testing.T) {
-	// TODO: implement
+	id1 := ffsync.Uint64OrderedId(1)
+	id2 := ffsync.Uint64OrderedId(2)
+	id3 := ffsync.Uint64OrderedId(3)
+	id4 := ffsync.Uint64OrderedId(4)
+
+	type taskInfo struct {
+		Name   string
+		Type   TaskType
+		Target TaskTarget
+	}
+	type runInfo struct {
+		Name    string
+		TaskID  TaskID
+		Trigger Trigger
+		Date    time.Time
+	}
+	type expectedRunInfo struct {
+		TaskID TaskID
+		RunID  TaskRunID
+	}
+
+	type TestCase struct {
+		Name         string
+		Tasks        []taskInfo
+		Runs         []runInfo
+		ExpectedRuns []expectedRunInfo
+		ForTask      TaskID
+		ForDate      time.Time
+		shouldError  bool
+	}
+
+	tests := []TestCase{
+		{
+			"Empty",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
+			[]runInfo{},
+			[]expectedRunInfo{},
+			TaskID(&id1),
+			time.Now().UTC(),
+			false,
+		},
+		{
+			"Single",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
+			[]runInfo{{"name", TaskID(&id1), OneOffTrigger{"name"}, time.Now().UTC().Add(3 * time.Minute).Truncate(0).UTC()}},
+			[]expectedRunInfo{{TaskID(&id1), TaskRunID(&id1)}},
+			TaskID(&id1),
+			time.Now().UTC(),
+			false,
+		},
+		{
+			"Multiple",
+			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
+			[]runInfo{
+				{"name", TaskID(&id1), OneOffTrigger{"name"}, time.Now().UTC().Add(1 * time.Minute).Truncate(0).UTC()},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}, time.Now().UTC().Add(2 * time.Minute).Truncate(0).UTC()},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}, time.Now().UTC().Add(3 * time.Minute).Truncate(0).UTC()},
+			},
+			[]expectedRunInfo{
+				{TaskID(&id1), TaskRunID(&id1)},
+				{TaskID(&id1), TaskRunID(&id2)},
+				{TaskID(&id1), TaskRunID(&id3)},
+			},
+			TaskID(&id1),
+			time.Now().UTC(),
+			false,
+		},
+		{
+			"MultipleTasks",
+			[]taskInfo{
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
+				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
+			},
+			[]runInfo{
+				{"name", TaskID(&id1), OneOffTrigger{"name"}, time.Now().
+					Add(1 * time.Minute).Truncate(0).UTC()},
+				{"name", TaskID(&id1), OneOffTrigger{"name"}, time.Now().
+					Add(2 * time.Minute).Truncate(0).UTC()},
+				{"name", TaskID(&id2), OneOffTrigger{"name"}, time.Now().
+					Add(3 * time.Minute).Truncate(0).UTC()},
+				{"name", TaskID(&id2), OneOffTrigger{"name"}, time.Now().
+					Add(4 * time.Minute).Truncate(0).UTC()},
+			},
+			[]expectedRunInfo{
+				{TaskID(&id1), TaskRunID(&id1)},
+				{TaskID(&id1), TaskRunID(&id2)},
+				{TaskID(&id2), TaskRunID(&id3)},
+				{TaskID(&id2), TaskRunID(&id4)},
+			},
+			TaskID(&MockOrderedID{Id: 2}),
+			time.Now().UTC(),
+			false,
+		},
+	}
+
+	fn := func(t *testing.T, test TestCase) {
+		manager, _ := NewMemoryTaskMetadataManager()
+		for _, task := range test.Tasks {
+			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
+			if err != nil && !test.shouldError {
+				t.Fatalf("failed to create task: %v", err)
+			}
+		}
+
+		for _, run := range test.Runs {
+			_, err := manager.CreateTaskRun(run.Name, run.TaskID, run.Trigger)
+			if err != nil && !test.shouldError {
+				t.Fatalf("failed to create task run: %v", err)
+			}
+		}
+
+		recvRuns, err := manager.GetRunsByDate(test.ForDate, test.ForDate.Add(24*time.Hour))
+		if err != nil && test.shouldError {
+			return
+		} else if err != nil && !test.shouldError {
+			t.Fatalf("failed to get runs by date: %v", err)
+		} else if err == nil && test.shouldError {
+			t.Fatalf("expected error but did not receive one")
+		}
+
+		for _, run := range test.ExpectedRuns {
+			foundRun := false
+			for _, recvRun := range recvRuns {
+				if recvRun.TaskId.Value() == run.TaskID.Value() && recvRun.ID.Value() == run.RunID.Value() {
+					foundRun = true
+					break
+				}
+			}
+			if !foundRun {
+				t.Fatalf("Expected Task %v, got: %v", run, recvRuns)
+			}
+		}
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			fn(t, tt)
+		})
+	}
 }
 
 func TestKeyPaths(t *testing.T) {

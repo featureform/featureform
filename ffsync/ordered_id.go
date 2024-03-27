@@ -24,7 +24,7 @@ type OrderedId interface {
 
 type Uint64OrderedId uint64
 
-const ETCD_ID_KEY = "FFSync/ID/" // Key for the etcd ID generator, will add namespace to the end
+const etcd_id_key = "FFSync/ID/" // Key for the etcd ID generator, will add namespace to the end
 
 func (id *Uint64OrderedId) Equals(other OrderedId) bool {
 	return id.Value() == other.Value()
@@ -122,8 +122,12 @@ type etcdIdGenerator struct {
 }
 
 func (etcd *etcdIdGenerator) NextId(namespace string) (OrderedId, error) {
+	if namespace == "" {
+		return nil, fferr.NewInternalError(fmt.Errorf("cannot generate ID for empty namespace"))
+	}
+
 	// Lock the namespace to prevent concurrent ID generation
-	lockKey := ETCD_ID_KEY + namespace
+	lockKey := etcd_id_key + namespace
 	lockMutex := concurrency.NewMutex(etcd.session, lockKey)
 	if err := lockMutex.Lock(etcd.ctx); err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to lock key %s: %w", lockKey, err))

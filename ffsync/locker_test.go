@@ -106,13 +106,13 @@ func StressTestLockAndUnlock(t *testing.T, locker Locker) {
 	}
 }
 
-func lockGoRoutine(locker Locker, key string, lockChannel chan Key, errChan chan error) {
+func lockGoRoutine(locker Locker, key string, lockChannel chan<- Key, errChan chan<- error) {
 	lockObject, err := locker.Lock(key)
 	lockChannel <- lockObject
 	errChan <- err
 }
 
-func unlockGoRoutine(locker Locker, lock Key, errChan chan error) {
+func unlockGoRoutine(locker Locker, lock Key, errChan chan<- error) {
 	err := locker.Unlock(lock)
 	errChan <- err
 }

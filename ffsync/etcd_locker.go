@@ -14,7 +14,7 @@ import (
 type etcdKey struct {
 	id        string
 	key       string
-	LockMutex *concurrency.Mutex
+	lockMutex *concurrency.Mutex
 }
 
 func (k etcdKey) ID() string {
@@ -71,7 +71,7 @@ func (m *etcdLocker) Lock(key string) (Key, error) {
 	lockKey := etcdKey{
 		id:        id,
 		key:       key,
-		LockMutex: lockMutex,
+		lockMutex: lockMutex,
 	}
 
 	return lockKey, nil
@@ -84,10 +84,10 @@ func (m *etcdLocker) Unlock(key Key) error {
 
 	etcdKey, ok := key.(etcdKey)
 	if !ok {
-		return fferr.NewInternalError(fmt.Errorf("key is not an etcd key"))
+		return fferr.NewInternalError(fmt.Errorf("key is not an etcd key: %v", key.Key()))
 	}
 
-	if err := etcdKey.LockMutex.Unlock(m.ctx); err != nil {
+	if err := etcdKey.lockMutex.Unlock(m.ctx); err != nil {
 		return fferr.NewInternalError(fmt.Errorf("failed to unlock key %s: %w", key.Key(), err))
 	}
 

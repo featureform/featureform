@@ -9,6 +9,10 @@ import (
 	ss "github.com/featureform/storage"
 )
 
+const (
+	EmptyList int = iota
+)
+
 type TaskMetadataList []TaskMetadata
 
 type TaskRunList []TaskRunMetadata
@@ -125,8 +129,7 @@ func (m *TaskMetadataManager) GetTaskByID(id TaskID) (TaskMetadata, error) {
 		return TaskMetadata{}, err
 	}
 
-	// Should enum 0 as EmptyList or something
-	if len(metadata) == 0 {
+	if len(metadata) == EmptyList {
 		return TaskMetadata{}, fferr.NewInternalError(fmt.Errorf("task not found for id: %s", id.String()))
 	}
 
@@ -202,13 +205,16 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 	if err != nil {
 		return TaskRunMetadata{}, err
 	}
-	err = m.storage.Create(taskRunKey.String(), string(serializedRuns))
-	if err != nil {
-		return TaskRunMetadata{}, err
-	}
 
 	taskRunMetaKey := TaskRunMetadataKey{taskID: taskID, runID: metadata.ID, date: startTime}
-	err = m.storage.Create(taskRunMetaKey.String(), string(serializedMetadata))
+
+	// this is used to store the metadata for the run as well as the list of runs for the task
+	taskRunMetadata := map[string]string{
+		taskRunKey.String():     string(serializedRuns),
+		taskRunMetaKey.String(): string(serializedMetadata),
+	}
+
+	err = m.storage.MultiCreate(taskRunMetadata)
 	if err != nil {
 		return TaskRunMetadata{}, err
 	}

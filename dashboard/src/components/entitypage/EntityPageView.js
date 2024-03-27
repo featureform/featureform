@@ -84,6 +84,11 @@ const useStyles = makeStyles((theme) => ({
     borderRadius: '16px',
     border: `1px solid ${theme.palette.border.main}`,
   },
+  tagBox: {
+    padding: theme.spacing(1),
+    borderRadius: '16px',
+    border: `1px solid ${theme.palette.border.main}`,
+  },
   resourceItem: {
     paddingBottom: theme.spacing(1),
   },
@@ -786,7 +791,7 @@ const EntityPageView = ({
                     )}
                   </Grid>
 
-                  <Grid item xs={4}>
+                  <Grid item xs={4} className={classes.tagBox}>
                     <TagBox
                       resourceName={name}
                       variant={variant}

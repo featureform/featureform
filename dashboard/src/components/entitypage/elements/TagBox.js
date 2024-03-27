@@ -16,11 +16,6 @@ const useStyles = makeStyles((theme) => ({
   selectEmpty: {
     marginTop: theme.spacing(2),
   },
-  attributeContainer: {
-    padding: theme.spacing(2),
-    borderRadius: '16px',
-    border: `1px solid ${theme.palette.border.main}`,
-  },
   tagTopRow: {
     minHeight: 60,
     display: 'flex',

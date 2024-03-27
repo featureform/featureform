@@ -166,7 +166,7 @@ func (etcd *etcdIdGenerator) NextId(namespace string) (OrderedId, error) {
 }
 
 func NewRDSOrderedIdGenerator() (OrderedIdGenerator, error) {
-	tableName := "ordered_id"
+	tableName := "ff_ordered_id"
 	host := helpers.GetEnv("POSTGRES_HOST", "localhost")
 	port := helpers.GetEnv("POSTGRES_PORT", "5432")
 	username := helpers.GetEnv("POSTGRES_USER", "postgres")

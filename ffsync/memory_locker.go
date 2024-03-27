@@ -26,13 +26,13 @@ func (k memoryKey) Key() string {
 
 func NewMemoryLocker() memoryLocker {
 	return memoryLocker{
-		lockedItems: map[string]LockInformation{},
+		lockedItems: &sync.Map{},
 		mutex:       &sync.Mutex{},
 	}
 }
 
 type memoryLocker struct {
-	lockedItems map[string]LockInformation
+	lockedItems *sync.Map
 	mutex       *sync.Mutex
 }
 
@@ -56,9 +56,10 @@ func (m *memoryLocker) Lock(key string) (Key, error) {
 
 	id := uuid.New().String()
 
-	if lockInfo, ok := m.lockedItems[key]; ok {
-		if time.Since(lockInfo.Date) < ValidTimePeriod {
-			return nil, fferr.NewKeyAlreadyLockedError(key, lockInfo.ID, nil)
+	if lockInfo, ok := m.lockedItems.Load(key); ok {
+		keyLock := lockInfo.(LockInformation)
+		if time.Since(keyLock.Date) < ValidTimePeriod {
+			return nil, fferr.NewKeyAlreadyLockedError(key, keyLock.ID, nil)
 		}
 	}
 
@@ -70,7 +71,7 @@ func (m *memoryLocker) Lock(key string) (Key, error) {
 		Key:  key,
 		Date: time.Now().UTC(),
 	}
-	m.lockedItems[key] = lock
+	m.lockedItems.Store(key, lock)
 
 	go m.updateLockTime(lockKey)
 
@@ -81,13 +82,15 @@ func (m *memoryLocker) isPrefixOfExistingKey(key string) (string, bool) {
 	existingKey := ""
 	isPrefix := false
 
-	for k := range m.lockedItems {
-		if strings.HasPrefix(k, key) {
+	m.lockedItems.Range(func(k, v interface{}) bool {
+		if strings.HasPrefix(k.(string), key) {
 			isPrefix = true
-			existingKey = k
-			break
+			existingKey = k.(string)
+			return false
 		}
-	}
+		return true
+	})
+
 	return existingKey, isPrefix
 }
 
@@ -95,13 +98,15 @@ func (m *memoryLocker) hasPrefixLocked(key string) (string, bool) {
 	prefix := ""
 	hasPrefix := false
 
-	for k := range m.lockedItems {
-		if strings.HasPrefix(key, k) {
-			prefix = k
+	m.lockedItems.Range(func(k, v interface{}) bool {
+		if strings.HasPrefix(key, k.(string)) {
+			prefix = k.(string)
 			hasPrefix = true
-			break
+			return false
 		}
-	}
+		return true
+	})
+
 	return prefix, hasPrefix
 }
 
@@ -117,16 +122,17 @@ func (m *memoryLocker) updateLockTime(key *memoryKey) {
 		case <-ticker.C:
 			// Continue updating lock time
 			// We need to check if the key still exists because it could have been deleted
-			lockInfo, ok := m.lockedItems[key.key]
+			lockInfo, ok := m.lockedItems.Load(key.key)
 			if !ok {
 				// Key no longer exists, stop updating
 				return
 			}
 
-			if lockInfo.ID == key.id {
-				lockInfo.Date = time.Now().UTC()
+			lock, ok := lockInfo.(LockInformation)
+			if lock.ID == key.id {
+				lock.Date = time.Now().UTC()
 				// Update lock time
-				m.lockedItems[key.key] = lockInfo
+				m.lockedItems.Store(key.key, lock)
 			}
 		}
 	}
@@ -140,18 +146,25 @@ func (m *memoryLocker) Unlock(key Key) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	lockInfo, ok := m.lockedItems[key.Key()]
+	lockInfo, ok := m.lockedItems.Load(key.Key())
 	if !ok {
 		return fferr.NewKeyNotLockedError(key.Key(), nil)
 	}
 
-	if lockInfo.ID != key.ID() {
-		err := fferr.NewKeyAlreadyLockedError(key.Key(), lockInfo.ID, fmt.Errorf("attempting to unlock with incorrect key"))
-		err.AddDetail("expected key", lockInfo.ID)
+	keyLock, ok := lockInfo.(LockInformation)
+	if !ok {
+		return fferr.NewInternalError(fmt.Errorf("could not cast lock information"))
+	}
+
+	if keyLock.ID != key.ID() {
+		err := fferr.NewKeyAlreadyLockedError(key.Key(), keyLock.ID, fmt.Errorf("attempting to unlock with incorrect key"))
+		err.AddDetail("expected key", keyLock.ID)
 		err.AddDetail("received key", key.ID())
 		return err
 	}
-	delete(m.lockedItems, key.Key())
+
+	m.lockedItems.Delete(key.Key())
+
 	mKey, ok := key.(*memoryKey)
 	if !ok {
 		return fferr.NewInternalError(fmt.Errorf("could not cast key to memory key"))

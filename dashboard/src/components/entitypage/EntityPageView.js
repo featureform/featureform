@@ -31,6 +31,7 @@ import StatsDropdown from './elements/StatsDropdown';
 import TagBox from './elements/TagBox.js';
 import VariantControl from './elements/VariantControl';
 import ErrorModal, { ERROR_MSG_MAX } from './ErrorModal.js';
+import StatusChip from './statusChip.js';
 
 SyntaxHighlighter.registerLanguage('python', python);
 SyntaxHighlighter.registerLanguage('sql', sql);
@@ -80,6 +81,8 @@ const useStyles = makeStyles((theme) => ({
   },
   resourceMetadata: {
     padding: theme.spacing(1),
+    borderRadius: '16px',
+    border: `1px solid ${theme.palette.border.main}`,
   },
   resourceItem: {
     paddingBottom: theme.spacing(1),
@@ -183,14 +186,12 @@ const useStyles = makeStyles((theme) => ({
     flexGrow: 1,
     paddingLeft: theme.spacing(2),
     marginTop: theme.spacing(2),
-    borderLeft: `3px solid ${theme.palette.secondary.main}`,
     marginLeft: theme.spacing(2),
   },
 
   resourcesData: {
     flexGrow: 1,
     paddingLeft: theme.spacing(1),
-    borderLeft: `3px solid ${theme.palette.secondary.main}`,
     marginLeft: theme.spacing(2),
     maxWidth: 1300,
   },
@@ -373,7 +374,7 @@ const EntityPageView = ({
                     <Typography variant='h3' component='h3'>
                       <span>
                         {`${resources.type}: `}
-                        <b>{resources.name}</b>
+                        <strong>{resources.name}</strong>
                       </span>
                     </Typography>
                     {metadata['created'] && (
@@ -409,7 +410,8 @@ const EntityPageView = ({
                           variant='body1'
                           className={classes.description}
                         >
-                          <b>Description:</b> {metadata['description']}
+                          <strong>Description:</strong>{' '}
+                          {metadata['description']}
                         </Typography>
                       </div>
                     )}
@@ -421,7 +423,7 @@ const EntityPageView = ({
                             variant='body1'
                             className={classes.typeTitle}
                           >
-                            <b>Owner:</b>{' '}
+                            <strong>Owner:</strong>{' '}
                           </Typography>
                           <Chip
                             variant='outlined'
@@ -441,7 +443,7 @@ const EntityPageView = ({
                             variant='body1'
                             className={classes.typeTitle}
                           >
-                            <b>Provider:</b>{' '}
+                            <strong>Provider:</strong>{' '}
                           </Typography>
                           <Chip
                             variant='outlined'
@@ -457,21 +459,21 @@ const EntityPageView = ({
                     {metadata['dimensions'] && (
                       <div className={classes.resourceItem}>
                         <Typography variant='body1'>
-                          <b>Dimensions:</b> {metadata['dimensions']}
+                          <strong>Dimensions:</strong> {metadata['dimensions']}
                         </Typography>
                       </div>
                     )}
                     {metadata['data-type'] && (
                       <div className={classes.resourceItem}>
                         <Typography variant='body1'>
-                          <b>Data Type:</b> {metadata['data-type']}
+                          <strong>Data Type:</strong> {metadata['data-type']}
                         </Typography>
                       </div>
                     )}
                     {metadata['joined'] && (
                       <div className={classes.resourceItem}>
                         <Typography variant='body1'>
-                          <b>Joined:</b>{' '}
+                          <strong>Joined:</strong>{' '}
                           {convertInputToDate(metadata['joined'])}
                         </Typography>
                       </div>
@@ -479,7 +481,7 @@ const EntityPageView = ({
                     {metadata['software'] && (
                       <div className={classes.resourceItem}>
                         <Typography variant='body1'>
-                          <b>Software:</b> {metadata['software']}
+                          <strong>Software:</strong> {metadata['software']}
                         </Typography>
                       </div>
                     )}
@@ -490,7 +492,7 @@ const EntityPageView = ({
                             variant='body1'
                             className={classes.typeTitle}
                           >
-                            <b>Label: </b>{' '}
+                            <strong>Label: </strong>{' '}
                           </Typography>
                           <Chip
                             variant='outlined'
@@ -505,14 +507,15 @@ const EntityPageView = ({
                     {metadata['provider-type'] && (
                       <div className={classes.resourceItem}>
                         <Typography variant='body1'>
-                          <b>Provider Type:</b> {metadata['provider-type']}
+                          <strong>Provider Type:</strong>{' '}
+                          {metadata['provider-type']}
                         </Typography>
                       </div>
                     )}
                     {metadata['team'] && (
                       <div className={classes.resourceItem}>
                         <Typography variant='body1'>
-                          <b>Team:</b> {metadata['team']}
+                          <strong>Team:</strong> {metadata['team']}
                         </Typography>
                       </div>
                     )}
@@ -520,7 +523,8 @@ const EntityPageView = ({
                       metadata['status'] !== 'NO_STATUS' && (
                         <div className={classes.resourceItem}>
                           <Typography variant='body1'>
-                            <b>Status:</b> {metadata['status']}
+                            <strong>Status:</strong>{' '}
+                            <StatusChip status={metadata['status']} />
                           </Typography>
                         </div>
                       )}
@@ -551,7 +555,8 @@ const EntityPageView = ({
                     {metadata['source-type'] && (
                       <div className={classes.resourceItem}>
                         <Typography variant='body1'>
-                          <b>Source Type:</b> {metadata['source-type']}
+                          <strong>Source Type:</strong>{' '}
+                          {metadata['source-type']}
                         </Typography>
                       </div>
                     )}
@@ -559,14 +564,15 @@ const EntityPageView = ({
                       numValidKeys(metadata['specifications']) > 0 && (
                         <div className={classes.resourceItem}>
                           <Typography variant='body1'>
-                            <b>Specifications:</b>
+                            <strong>Specifications:</strong>
                           </Typography>
                           <Typography variant='body1' component={'h2'}>
                             {Object.keys(metadata['specifications']).map(
                               (k, index) =>
                                 metadata['specifications'][k] !== '' && (
                                   <div key={index} style={{ marginLeft: 16 }}>
-                                    <b>{k}: </b> {metadata['specifications'][k]}
+                                    <strong>{k}: </strong>{' '}
+                                    {metadata['specifications'][k]}
                                   </div>
                                 )
                             )}
@@ -577,7 +583,7 @@ const EntityPageView = ({
                     {metadata['serialized-config'] && (
                       <div className={classes.resourceItem}>
                         <Typography variant='body1'>
-                          <b>Serialized Config:</b>{' '}
+                          <strong>Serialized Config:</strong>{' '}
                           {metadata['serialized-config']}
                         </Typography>
                       </div>
@@ -590,7 +596,7 @@ const EntityPageView = ({
                             variant='body1'
                             className={classes.typeTitle}
                           >
-                            <b>Source: </b>{' '}
+                            <strong>Source: </strong>{' '}
                           </Typography>
                           <Chip
                             variant='outlined'
@@ -615,7 +621,7 @@ const EntityPageView = ({
                             variant='body1'
                             className={classes.typeTitle}
                           >
-                            <b>Entity:</b>{' '}
+                            <strong>Entity:</strong>{' '}
                           </Typography>
                           <Chip
                             variant='outlined'
@@ -635,12 +641,21 @@ const EntityPageView = ({
                             variant='body1'
                             className={classes.typeTitle}
                           >
-                            <b>Columns:</b>{' '}
+                            <strong>Columns:</strong>{' '}
                           </Typography>
                           <Typography variant='body2'>
-                            &nbsp;<b>Entity:</b> {metadata['location'].Entity}
-                            &nbsp;<b>Value:</b> {metadata['location'].Value}
-                            &nbsp;<b>Timestamp:</b> {metadata['location'].TS}
+                            &nbsp;<strong>Entity:</strong>{' '}
+                            {metadata['location'].Entity}
+                            &nbsp;<strong>Value:</strong>{' '}
+                            {metadata['location'].Value}
+                            {metadata['location'].TS ? (
+                              <>
+                                &nbsp;<strong>Timestamp:</strong>{' '}
+                                {metadata['location'].TS}
+                              </>
+                            ) : (
+                              ''
+                            )}
                           </Typography>
                         </div>
                       </div>
@@ -653,7 +668,7 @@ const EntityPageView = ({
                             variant='body1'
                             className={classes.typeTitle}
                           >
-                            <b>Feature Variant Type:</b>{' '}
+                            <strong>Feature Variant Type:</strong>{' '}
                           </Typography>
                           <Chip
                             variant='outlined'
@@ -673,7 +688,7 @@ const EntityPageView = ({
                             variant='body1'
                             className={classes.typeTitle}
                           >
-                            <b>Sources:</b>
+                            <strong>Sources:</strong>
                           </Typography>
                           {metadata['inputs'].map((nv, index) => {
                             return (
@@ -724,7 +739,7 @@ const EntityPageView = ({
                           } else {
                             return (
                               <Typography variant='h7'>
-                                <b>{metadata['definition']}</b>
+                                <strong>{metadata['definition']}</strong>
                               </Typography>
                             );
                           }
@@ -799,7 +814,7 @@ const EntityPageView = ({
             <div className={classes.resourceItem}>
               <div className={classes.config}>
                 <Typography variant='body1'>
-                  <b>Config:</b>
+                  <strong>Config:</strong>
                 </Typography>
                 <SyntaxHighlighter
                   className={classes.syntax}

@@ -5,7 +5,7 @@ import (
 )
 
 func TestMemoryLocker(t *testing.T) {
-	locker := NewMemoryLocker()
+	locker, _ := NewMemoryLocker()
 
 	test := LockerTest{
 		t:      t,

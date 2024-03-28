@@ -96,7 +96,7 @@ type Coordinator struct {
 	Locker     *metadata.TaskLocker
 }
 
-type jobInfo struct {
+type runInfo struct {
 	RunId  scheduling.TaskRunID
 	TaskId scheduling.TaskID
 }
@@ -456,7 +456,7 @@ func (c *Coordinator) verifyCompletionOfSources(sources []metadata.NameVariant) 
 	return nil
 }
 
-func (c *Coordinator) runTransformationJob(transformationConfig provider.TransformationConfig, resID metadata.ResourceID, schedule string, sourceProvider *metadata.Provider) error {
+func (c *Coordinator) runTransformationJob(transformationConfig provider.TransformationConfig, resID metadata.ResourceID, schedule string, sourceProvider *metadata.Provider, runInfo runInfo) error {
 	createTransformationConfig := runner.CreateTransformationConfig{
 		OfflineType:          pt.Type(sourceProvider.Type()),
 		OfflineConfig:        sourceProvider.SerializedConfig(),
@@ -469,16 +469,31 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 		return err
 	}
 	c.Logger.Debugw("Transformation Get Job Runner")
+
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Fetching job runner...")
+	if err != nil {
+		return err
+	}
+
 	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRANSFORMATION, serialized, resID)
 	if err != nil {
 		return err
 	}
 	c.Logger.Debugw("Transformation Run Job")
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Starting Transformation...")
+	if err != nil {
+		return err
+	}
 	completionWatcher, err := jobRunner.Run()
 	if err != nil {
 		return err
 	}
 	c.Logger.Debugw("Transformation Waiting For Completion")
+
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Waiting for Transformation to complete...")
+	if err != nil {
+		return err
+	}
 	if err := completionWatcher.Wait(); err != nil {
 		return err
 	}
@@ -506,15 +521,33 @@ func (c *Coordinator) runTransformationJob(transformationConfig provider.Transfo
 			return err
 		}
 	}
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Transformation Complete.")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string, sourceProvider *metadata.Provider) error {
+func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string, sourceProvider *metadata.Provider, runInfo runInfo) error {
 	c.Logger.Info("Running SQL transformation job on resource: ", resID)
+	err := c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Fetching Queries...")
+	if err != nil {
+		return err
+	}
 	templateString := transformSource.SQLTransformationQuery()
 	sources := transformSource.SQLTransformationSources()
 
-	err := c.verifyCompletionOfSources(sources)
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Waiting for dependent jobs to complete...")
+	if err != nil {
+		return err
+	}
+
+	err = c.verifyCompletionOfSources(sources)
+	if err != nil {
+		return err
+	}
+
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Mapping Name Variants to Tables...")
 	if err != nil {
 		return err
 	}
@@ -544,7 +577,7 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 		Args:          transformSource.TransformationArgs(),
 	}
 
-	err = c.runTransformationJob(transformationConfig, resID, schedule, sourceProvider)
+	err = c.runTransformationJob(transformationConfig, resID, schedule, sourceProvider, runInfo)
 	if err != nil {
 		return err
 	}
@@ -552,12 +585,26 @@ func (c *Coordinator) runSQLTransformationJob(transformSource *metadata.SourceVa
 	return nil
 }
 
-func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string, sourceProvider *metadata.Provider) error {
+func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string, sourceProvider *metadata.Provider, runInfo runInfo) error {
 	c.Logger.Info("Running DF transformation job on resource: ", resID)
+	err := c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Fetching Queries...")
+	if err != nil {
+		return err
+	}
 	code := transformSource.DFTransformationQuery()
 	sources := transformSource.DFTransformationSources()
 
-	err := c.verifyCompletionOfSources(sources)
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Waiting for dependent jobs to complete...")
+	if err != nil {
+		return err
+	}
+
+	err = c.verifyCompletionOfSources(sources)
+	if err != nil {
+		return err
+	}
+
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Mapping Name Variants to Tables...")
 	if err != nil {
 		return err
 	}
@@ -582,7 +629,7 @@ func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVar
 		Args:          transformSource.TransformationArgs(),
 	}
 
-	err = c.runTransformationJob(transformationConfig, resID, schedule, sourceProvider)
+	err = c.runTransformationJob(transformationConfig, resID, schedule, sourceProvider, runInfo)
 	if err != nil {
 		return err
 	}
@@ -603,7 +650,7 @@ func getOrderedSourceMappings(sources []metadata.NameVariant, sourceMap map[stri
 	return sourceMapping, nil
 }
 
-func (c *Coordinator) runPrimaryTableJob(source *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string, runInfo jobInfo) error {
+func (c *Coordinator) runPrimaryTableJob(source *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string, runInfo runInfo) error {
 	c.Logger.Info("Running primary table job on resource: ", resID)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Primary}
 	if !source.IsPrimaryDataSQLTable() {
@@ -627,7 +674,7 @@ func (c *Coordinator) runPrimaryTableJob(source *metadata.SourceVariant, resID m
 	return nil
 }
 
-func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule string, runInfo jobInfo) error {
+func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule string, runInfo runInfo) error {
 	c.Logger.Info("Running register source job on resource: ", resID)
 	err := c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Fetching Metadata...")
 	if err != nil {
@@ -664,9 +711,9 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule s
 		}
 	}(sourceStore)
 	if source.IsSQLTransformation() {
-		return c.runSQLTransformationJob(source, resID, sourceStore, schedule, sourceProvider)
+		return c.runSQLTransformationJob(source, resID, sourceStore, schedule, sourceProvider, runInfo)
 	} else if source.IsDFTransformation() {
-		return c.runDFTransformationJob(source, resID, sourceStore, schedule, sourceProvider)
+		return c.runDFTransformationJob(source, resID, sourceStore, schedule, sourceProvider, runInfo)
 	} else if source.IsPrimaryDataSQLTable() {
 		return c.runPrimaryTableJob(source, resID, sourceStore, schedule, runInfo)
 	} else {
@@ -674,8 +721,13 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule s
 	}
 }
 
-func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule string, runInfo jobInfo) error {
+func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule string, runInfo runInfo) error {
 	c.Logger.Info("Running label register job: ", resID)
+	err := c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Fetching Label details...")
+	if err != nil {
+		return err
+	}
+
 	label, err := c.Metadata.GetLabelVariant(context.Background(), metadata.NameVariant{Name: resID.Name, Variant: resID.Variant})
 	if err != nil {
 		return err
@@ -684,10 +736,21 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 	sourceNameVariant := label.Source()
 	c.Logger.Infow("feature obj", "name", label.Name(), "source", label.Source(), "location", label.Location(), "location_col", label.LocationColumns())
 
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Waiting for dependencies to complete...")
+	if err != nil {
+		return err
+	}
+
 	source, err := c.AwaitPendingSource(sourceNameVariant)
 	if err != nil {
 		return err
 	}
+
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Fetching Offline Store...")
+	if err != nil {
+		return err
+	}
+
 	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
 		return err
@@ -736,28 +799,56 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 		SourceTable: sourceTableName,
 	}
 	c.Logger.Debugw("Creating Label Resource Table", "id", labelID, "schema", schema)
+
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Registering Label from dataset...")
+	if err != nil {
+		return err
+	}
+
 	_, err = sourceStore.RegisterResourceFromSourceTable(labelID, schema)
 	if err != nil {
 		return err
 	}
 	c.Logger.Debugw("Resource Table Created", "id", labelID, "schema", schema)
 
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Registration complete...")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedule string, runInfo jobInfo) error {
+func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedule string, runInfo runInfo) error {
 	c.Logger.Info("Running feature materialization job on resource: ", resID)
+
+	err := c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Fetching Feature details...")
+	if err != nil {
+		return err
+	}
+
 	feature, err := c.Metadata.GetFeatureVariant(context.Background(), metadata.NameVariant{Name: resID.Name, Variant: resID.Variant})
 	if err != nil {
 		return err
 	}
 	c.Logger.Infow("feature variant", "name", feature.Name(), "source", feature.Source(), "location", feature.Location(), "location_col", feature.LocationColumns())
 
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Waiting for dependencies to complete...")
+	if err != nil {
+		return err
+	}
+
 	sourceNameVariant := feature.Source()
 	source, err := c.AwaitPendingSource(sourceNameVariant)
 	if err != nil {
 		return err
 	}
+
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Fetching Offline Store...")
+	if err != nil {
+		return err
+	}
+
 	sourceProvider, err := source.FetchProvider(c.Metadata, context.Background())
 	if err != nil {
 		return err
@@ -826,6 +917,12 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		SourceTable: sourceTableName,
 	}
 	c.Logger.Debugw("Creating Resource Table", "id", featID, "schema", schema)
+
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Registering Feature from dataset...")
+	if err != nil {
+		return err
+	}
+
 	_, err = sourceStore.RegisterResourceFromSourceTable(featID, schema)
 	if err != nil {
 		return err
@@ -853,24 +950,37 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		return err
 	}
 
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Starting Materialization...")
+	if err != nil {
+		return err
+	}
+
 	var materializationErr error
 	if schedule != "" {
 		materializationErr = c.materializeFeatureOnSchedule(resID, materializedRunnerConfig, schedule)
 	} else if isImportToS3Enabled {
-		materializationErr = c.materializeFeatureViaS3Import(resID, materializedRunnerConfig, sourceStore)
+		materializationErr = c.materializeFeatureViaS3Import(resID, materializedRunnerConfig, sourceStore, runInfo)
 	} else {
-		materializationErr = c.materializeFeature(resID, materializedRunnerConfig)
+		materializationErr = c.materializeFeature(resID, materializedRunnerConfig, runInfo)
 	}
 	if materializationErr != nil {
 		return materializationErr
 	}
 
 	c.Logger.Debugw("Setting status to ready", "id", featID)
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Materialization Complete...")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func (c *Coordinator) materializeFeature(id metadata.ResourceID, config runner.MaterializedRunnerConfig) error {
+func (c *Coordinator) materializeFeature(id metadata.ResourceID, config runner.MaterializedRunnerConfig, runInfo runInfo) error {
 	c.Logger.Infow("Starting Feature Materialization", "id", id)
+	err := c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Starting Materialization via Copy...")
+	if err != nil {
+		return err
+	}
 	serialized, err := config.Serialize()
 	if err != nil {
 		return err
@@ -883,6 +993,12 @@ func (c *Coordinator) materializeFeature(id metadata.ResourceID, config runner.M
 	if err != nil {
 		return err
 	}
+
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Waiting for Materialization to complete...")
+	if err != nil {
+		return err
+	}
+
 	if err := completionWatcher.Wait(); err != nil {
 		return err
 	}
@@ -910,8 +1026,12 @@ func (c *Coordinator) materializeFeatureOnSchedule(id metadata.ResourceID, confi
 	return nil
 }
 
-func (c *Coordinator) materializeFeatureViaS3Import(id metadata.ResourceID, config runner.MaterializedRunnerConfig, sourceStore provider.OfflineStore) error {
+func (c *Coordinator) materializeFeatureViaS3Import(id metadata.ResourceID, config runner.MaterializedRunnerConfig, sourceStore provider.OfflineStore, runInfo runInfo) error {
 	c.Logger.Infow("Materializing Feature Via S3 Import", "id", id)
+	err := c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Starting Materialization via S3 to Dynamo Import...")
+	if err != nil {
+		return err
+	}
 	sparkOfflineStore, isSparkOfflineStore := sourceStore.(*provider.SparkOfflineStore)
 	if !isSparkOfflineStore {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("offline store is not spark offline store"))
@@ -931,6 +1051,12 @@ func (c *Coordinator) materializeFeatureViaS3Import(id metadata.ResourceID, conf
 	if err != nil {
 		return err
 	}
+
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Waiting for Materialization to complete...")
+	if err != nil {
+		return err
+	}
+
 	if err := completionWatcher.Wait(); err != nil {
 		return err
 	}
@@ -950,9 +1076,24 @@ func (c *Coordinator) checkS3Import(featureProvider *metadata.Provider) (bool, e
 	return false, nil
 }
 
-func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule string, runInfo jobInfo) error {
+func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule string, runInfo runInfo) error {
 	c.Logger.Info("Running training set job on resource: ", "name", resID.Name, "variant", resID.Variant)
+	err := c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Starting Training Set Creation...")
+	if err != nil {
+		return err
+	}
+
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Fetching Training Set configuration...")
+	if err != nil {
+		return err
+	}
+
 	ts, err := c.Metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{Name: resID.Name, Variant: resID.Variant})
+	if err != nil {
+		return err
+	}
+
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Fetching Offline Store...")
 	if err != nil {
 		return err
 	}
@@ -980,6 +1121,12 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 	if _, err := store.GetTrainingSet(providerResID); err == nil {
 		return err
 	}
+
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Waiting for dependencies to complete...")
+	if err != nil {
+		return err
+	}
+
 	features := ts.Features()
 	featureList := make([]provider.ResourceID, len(features))
 	for i, feature := range features {
@@ -1036,14 +1183,32 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 		IsUpdate:      false,
 	}
 	serialized, _ := tsRunnerConfig.Serialize()
+
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Fetching Job runner...")
+	if err != nil {
+		return err
+	}
+
 	jobRunner, err := c.Spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serialized, resID)
 	if err != nil {
 		return err
 	}
+
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Starting execution...")
+	if err != nil {
+		return err
+	}
+
 	completionWatcher, err := jobRunner.Run()
 	if err != nil {
 		return err
 	}
+
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Waiting for completion...")
+	if err != nil {
+		return err
+	}
+
 	if err := completionWatcher.Wait(); err != nil {
 		return err
 	}
@@ -1070,6 +1235,12 @@ func (c *Coordinator) runTrainingSetJob(resID metadata.ResourceID, schedule stri
 			return err
 		}
 	}
+
+	err = c.Metadata.Tasks.AddRunLog(runInfo.TaskId, runInfo.RunId, "Training Set creation complete...")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -1185,7 +1356,7 @@ func (c *Coordinator) ExecuteJob(taskRun scheduling.TaskRunMetadata) error {
 		return fmt.Errorf("job failed after %d attempts. Cancelling coordinator flow", MAX_ATTEMPTS)
 	}
 	job.Attempts += 1
-	type jobFunction func(metadata.ResourceID, string, jobInfo) error
+	type jobFunction func(metadata.ResourceID, string, runInfo) error
 	fns := map[metadata.ResourceType]jobFunction{
 		metadata.TRAINING_SET_VARIANT: c.runTrainingSetJob,
 		metadata.FEATURE_VARIANT:      c.runFeatureMaterializeJob,
@@ -1197,7 +1368,7 @@ func (c *Coordinator) ExecuteJob(taskRun scheduling.TaskRunMetadata) error {
 		return fferr.NewInvalidResourceTypeError(job.Resource.Name, job.Resource.Variant, fferr.ResourceType(job.Resource.Type.String()), nil)
 	}
 
-	if err := jobFunc(job.Resource, job.Schedule, jobInfo{TaskId: taskRun.TaskId, RunId: taskRun.ID}); err != nil {
+	if err := jobFunc(job.Resource, job.Schedule, runInfo{TaskId: taskRun.TaskId, RunId: taskRun.ID}); err != nil {
 		switch err.(type) {
 		case *fferr.ResourceAlreadyFailedError:
 			return err

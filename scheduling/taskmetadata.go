@@ -194,15 +194,12 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 	return metadata, nil
 }
 
-func (m *TaskMetadataManager) GetLatestRun(taskID TaskID) (TaskRunMetadata, error) {
-	runs, err := m.getTaskRunRecords(taskID)
-	if err != nil {
-		return TaskRunMetadata{}, err
-	}
+func (m *TaskMetadataManager) latestTaskRun(runs TaskRuns) (TaskRunID, error) {
 	if len(runs.Runs) == 0 {
 		//Fix this error later
-		return TaskRunMetadata{}, fmt.Errorf("No runs")
+		return TaskRunID(uint64(0)), fmt.Errorf("No runs")
 	}
+
 	var latestTime time.Time
 	var latestRunIdx int
 	for i, run := range runs.Runs {
@@ -214,8 +211,23 @@ func (m *TaskMetadataManager) GetLatestRun(taskID TaskID) (TaskRunMetadata, erro
 			latestRunIdx = i
 		}
 	}
+	return runs.Runs[latestRunIdx].RunID, nil
+}
 
-	run, err := m.GetRunByID(taskID, runs.Runs[latestRunIdx].RunID)
+// GetLatestRun is not guaranteed to be completely accurate. This function should only
+// be used for visual purposes on the Dashboard and CLI rather than internal business logic
+func (m *TaskMetadataManager) GetLatestRun(taskID TaskID) (TaskRunMetadata, error) {
+	runs, err := m.getTaskRunRecords(taskID)
+	if err != nil {
+		return TaskRunMetadata{}, err
+	}
+
+	latest, err := m.latestTaskRun(runs)
+	if err != nil {
+		return TaskRunMetadata{}, err
+	}
+
+	run, err := m.GetRunByID(taskID, latest)
 	if err != nil {
 		return TaskRunMetadata{}, err
 	}

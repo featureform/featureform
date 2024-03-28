@@ -13,8 +13,9 @@ package featureform.scheduling.proto;
 
 service Tasks {
   rpc GetTaskByID(TaskID) returns (TaskMetadata);
-  rpc GetRuns(TaskID) returns (TaskRunList);
-  rpc GetAllRuns(Empty) returns (TaskRunList);
+  rpc GetRuns(TaskID) returns (stream TaskRunMetadata);
+  rpc GetAllRuns(Empty) returns (stream TaskRunMetadata);
+  rpc GetLatestRun(TaskID) returns (TaskRunMetadata);
   rpc SetRunStatus(StatusUpdate) returns (Empty);
   rpc AddRunLog(Log) returns (Empty);
   rpc SetRunEndTime(RunEndTimeUpdate) returns (Empty);

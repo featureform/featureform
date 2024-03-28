@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/ffsync"
 	"github.com/featureform/helpers"
 	"github.com/featureform/lib"
 
@@ -68,6 +67,38 @@ func (r ResourceType) String() string {
 
 func (r ResourceType) Serialized() pb.ResourceType {
 	return pb.ResourceType(r)
+}
+
+// Returns an empty Resource Object of the given type to unmarshal etcd value into
+func createEmptyResource(t ResourceType) (Resource, error) {
+	switch t {
+	case FEATURE:
+		return &featureResource{&pb.Feature{}}, nil
+	case FEATURE_VARIANT:
+		return &featureVariantResource{&pb.FeatureVariant{}}, nil
+	case LABEL:
+		return &labelResource{&pb.Label{}}, nil
+	case LABEL_VARIANT:
+		return &labelVariantResource{&pb.LabelVariant{}}, nil
+	case USER:
+		return &userResource{&pb.User{}}, nil
+	case ENTITY:
+		return &entityResource{&pb.Entity{}}, nil
+	case PROVIDER:
+		return &providerResource{&pb.Provider{}}, nil
+	case SOURCE:
+		return &SourceResource{&pb.Source{}}, nil
+	case SOURCE_VARIANT:
+		return &sourceVariantResource{&pb.SourceVariant{}}, nil
+	case TRAINING_SET:
+		return &trainingSetResource{&pb.TrainingSet{}}, nil
+	case TRAINING_SET_VARIANT:
+		return &trainingSetVariantResource{&pb.TrainingSetVariant{}}, nil
+	case MODEL:
+		return &modelResource{&pb.Model{}}, nil
+	default:
+		return nil, fferr.NewInternalError(fmt.Errorf("unable to create empty resource of type %T. Unimplemeted", t))
+	}
 }
 
 type ComputationMode int32
@@ -209,6 +240,14 @@ type ResourceLookup interface {
 	SetJob(ResourceID, string) error
 	SetStatus(ResourceID, pb.ResourceStatus) error
 	SetSchedule(ResourceID, string) error
+}
+
+type resourceStatusImplementation interface {
+	SetStatus(status *scheduling.Status, msg string)
+}
+
+type resourceTaskImplementation interface {
+	TaskID() scheduling.TaskID
 }
 
 type SearchWrapper struct {
@@ -519,6 +558,15 @@ func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) (bool
 	return false, nil
 }
 
+func (resource *sourceVariantResource) SetStatus(status *scheduling.Status, msg string) {
+	resource.serialized.Status.Status = status.Proto()
+	resource.serialized.Status.ErrorMessage = msg
+}
+
+func (resource *sourceVariantResource) TaskID() scheduling.TaskID {
+	return scheduling.NewUint64TaskId(resource.serialized.TaskId)
+}
+
 func isSourceProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transformation) (bool, error) {
 	isDefinitionEqual := false
 	switch thisDef.Transformation.Type.(type) {
@@ -752,6 +800,15 @@ func (resource *featureVariantResource) GetDefinition() string {
 	return def
 }
 
+func (resource *featureVariantResource) SetStatus(status *scheduling.Status, msg string) {
+	resource.serialized.Status.Status = status.Proto()
+	resource.serialized.Status.ErrorMessage = msg
+}
+
+func (resource *featureVariantResource) TaskID() scheduling.TaskID {
+	return scheduling.NewUint64TaskId(resource.serialized.TaskId)
+}
+
 type labelResource struct {
 	serialized *pb.Label
 }
@@ -893,6 +950,15 @@ func (resource *labelVariantResource) Update(lookup ResourceLookup, updateRes Re
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
+}
+
+func (resource *labelVariantResource) SetStatus(status *scheduling.Status, msg string) {
+	resource.serialized.Status.Status = status.Proto()
+	resource.serialized.Status.ErrorMessage = msg
+}
+
+func (resource *labelVariantResource) TaskID() scheduling.TaskID {
+	return scheduling.NewUint64TaskId(resource.serialized.TaskId)
 }
 
 func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
@@ -1069,6 +1135,15 @@ func (resource *trainingSetVariantResource) Update(lookup ResourceLookup, update
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
+}
+
+func (resource *trainingSetVariantResource) SetStatus(status *scheduling.Status, msg string) {
+	resource.serialized.Status.Status = status.Proto()
+	resource.serialized.Status.ErrorMessage = msg
+}
+
+func (resource *trainingSetVariantResource) TaskID() scheduling.TaskID {
+	return scheduling.NewUint64TaskId(resource.serialized.TaskId)
 }
 
 func (resource *trainingSetVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
@@ -1445,7 +1520,7 @@ type MetadataServer struct {
 func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	config.Logger.Debug("Creating new metadata server", "Address:", config.Address)
 	lookup := MemoryResourceLookup{config.StorageProvider}
-
+	//
 	//if config.SearchParams != nil {
 	//	searcher, errInitializeSearch := search.NewMeilisearch(config.SearchParams)
 	//	if errInitializeSearch != nil {
@@ -1456,9 +1531,6 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	//		ResourceLookup: lookup,
 	//	}
 	//}
-
-	// Create the task manager for the server
-	// TODO: need to modify it so it can be any provider
 
 	return &MetadataServer{
 		lookup:      lookup,
@@ -1580,8 +1652,7 @@ func wrapTaskRunMetadataProto(run scheduling.TaskRunMetadata) (*sch.TaskRunMetad
 }
 
 func (serv *MetadataServer) GetTaskByID(ctx context.Context, taskID *sch.TaskID) (*sch.TaskMetadata, error) {
-	id := ffsync.Uint64OrderedId(taskID.GetId())
-	tid := scheduling.TaskID(&id)
+	tid := scheduling.NewUint64TaskId(taskID.GetId())
 	task, err := serv.taskManager.GetTaskByID(tid)
 	if err != nil {
 		return nil, err
@@ -1605,40 +1676,62 @@ func wrapTaskRunMetadataProtos(runs scheduling.TaskRunList) (*sch.TaskRunList, e
 	return taskRunList, nil
 }
 
-func (serv *MetadataServer) GetRuns(ctx context.Context, taskID *sch.TaskID) (*sch.TaskRunList, error) {
-	id := ffsync.Uint64OrderedId(taskID.GetId())
-	tid := scheduling.TaskID(&id)
+func (serv *MetadataServer) GetRuns(id *sch.TaskID, stream sch.Tasks_GetRunsServer) error {
+	tid := scheduling.NewUint64TaskId(id.GetId())
 	runs, err := serv.taskManager.GetTaskRunMetadata(tid)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	taskRunList, err := wrapTaskRunMetadataProtos(runs)
-	if err != nil {
-		return nil, err
+	for _, run := range runs {
+		wrapped, err := wrapTaskRunMetadataProto(run)
+		if err != nil {
+			return err
+		}
+		err = stream.Send(wrapped)
+		if err != nil {
+			return err
+		}
 	}
-
-	return taskRunList, nil
+	return nil
 }
 
-func (serv *MetadataServer) GetAllRuns(ctx context.Context, _ *sch.Empty) (*sch.TaskRunList, error) {
+func (serv *MetadataServer) GetAllRuns(_ *sch.Empty, stream sch.Tasks_GetAllRunsServer) error {
 	runs, err := serv.taskManager.GetAllTaskRuns()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	taskRunList, err := wrapTaskRunMetadataProtos(runs)
+	for _, run := range runs {
+		wrapped, err := wrapTaskRunMetadataProto(run)
+		if err != nil {
+			return err
+		}
+		err = stream.Send(wrapped)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (serv *MetadataServer) GetLatestRun(ctx context.Context, taskID *sch.TaskID) (*sch.TaskRunMetadata, error) {
+	run, err := serv.taskManager.GetLatestRun(scheduling.NewUint64TaskId(taskID.GetId()))
 	if err != nil {
 		return nil, err
 	}
 
-	return taskRunList, nil
+	wrapped, err := wrapTaskRunMetadataProto(run)
+	if err != nil {
+		return nil, err
+	}
+
+	return wrapped, nil
 }
+
 func (serv *MetadataServer) SetRunStatus(ctx context.Context, update *sch.StatusUpdate) (*sch.Empty, error) {
-	id := ffsync.Uint64OrderedId(update.GetRunID().Id)
-	rid := scheduling.TaskRunID(&id)
-	id = ffsync.Uint64OrderedId(update.GetTaskID().Id)
-	tid := scheduling.TaskID(&id)
+	rid := scheduling.NewUint64TaskRunId(update.GetRunID().GetId())
+	tid := scheduling.NewUint64TaskId(update.GetTaskID().GetId())
 
 	err := serv.taskManager.SetRunStatus(rid, tid, update.Status)
 	if err != nil {
@@ -1647,10 +1740,8 @@ func (serv *MetadataServer) SetRunStatus(ctx context.Context, update *sch.Status
 	return &sch.Empty{}, nil
 }
 func (serv *MetadataServer) AddRunLog(ctx context.Context, log *sch.Log) (*sch.Empty, error) {
-	id := ffsync.Uint64OrderedId(log.GetRunID().GetId())
-	rid := scheduling.TaskRunID(&id)
-	id = ffsync.Uint64OrderedId(log.GetTaskID().GetId())
-	tid := scheduling.TaskID(&id)
+	rid := scheduling.NewUint64TaskRunId(log.GetRunID().GetId())
+	tid := scheduling.NewUint64TaskId(log.GetTaskID().GetId())
 	err := serv.taskManager.AppendRunLog(rid, tid, log.Log)
 	if err != nil {
 		return nil, err
@@ -1658,10 +1749,8 @@ func (serv *MetadataServer) AddRunLog(ctx context.Context, log *sch.Log) (*sch.E
 	return &sch.Empty{}, nil
 }
 func (serv *MetadataServer) SetRunEndTime(ctx context.Context, update *sch.RunEndTimeUpdate) (*sch.Empty, error) {
-	id := ffsync.Uint64OrderedId(update.GetRunID().Id)
-	rid := scheduling.TaskRunID(&id)
-	id = ffsync.Uint64OrderedId(update.GetTaskID().Id)
-	tid := scheduling.TaskID(&id)
+	rid := scheduling.NewUint64TaskRunId(update.GetRunID().GetId())
+	tid := scheduling.NewUint64TaskId(update.GetTaskID().GetId())
 	err := serv.taskManager.SetRunEndTime(rid, tid, update.End.AsTime())
 	if err != nil {
 		return nil, err
@@ -2104,7 +2193,10 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 
 	if serv.needsJob(res) && existing == nil {
 
-		taskID := serv.getTaskID(res)
+		var taskID scheduling.TaskID
+		if r, ok := res.(resourceTaskImplementation); ok {
+			taskID = r.TaskID()
+		}
 
 		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
 		trigger := scheduling.OnApplyTrigger{TriggerName: "Apply"}
@@ -2140,23 +2232,6 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 	return &pb.Empty{}, nil
-}
-
-// Can add this to the interface if thats cleaner
-func (serv *MetadataServer) getTaskID(res Resource) scheduling.TaskID {
-	var intID uint64
-	switch r := res.(type) {
-	case *sourceVariantResource:
-		intID = r.serialized.TaskId
-	case *featureVariantResource:
-		intID = r.serialized.TaskId
-	case *labelVariantResource:
-		intID = r.serialized.TaskId
-	case *trainingSetVariantResource:
-		intID = r.serialized.TaskId
-	}
-	id := ffsync.Uint64OrderedId(intID)
-	return scheduling.TaskID(&id)
 }
 
 func (serv *MetadataServer) setDefaultVariant(id ResourceID, defaultVariant string) error {
@@ -2267,49 +2342,6 @@ func (serv *MetadataServer) fetchStatus(taskId scheduling.TaskID) (*scheduling.S
 	return &run.Status, run.Error, nil
 }
 
-func (serv *MetadataServer) setStatus(res Resource) (Resource, error) {
-	switch r := res.(type) {
-	case *sourceVariantResource:
-		id := ffsync.Uint64OrderedId(r.serialized.TaskId)
-		status, runErr, err := serv.fetchStatus(scheduling.TaskID(&id))
-		if err != nil {
-			return nil, err
-		}
-		r.serialized.Status.Status = status.Proto()
-		r.serialized.Status.ErrorMessage = runErr
-		return r, nil
-	case *featureVariantResource:
-		id := ffsync.Uint64OrderedId(r.serialized.TaskId)
-		status, runErr, err := serv.fetchStatus(scheduling.TaskID(&id))
-		if err != nil {
-			return nil, err
-		}
-		r.serialized.Status.Status = status.Proto()
-		r.serialized.Status.ErrorMessage = runErr
-		return r, nil
-	case *labelVariantResource:
-		id := ffsync.Uint64OrderedId(r.serialized.TaskId)
-		status, runErr, err := serv.fetchStatus(scheduling.TaskID(&id))
-		if err != nil {
-			return nil, err
-		}
-		r.serialized.Status.Status = status.Proto()
-		r.serialized.Status.ErrorMessage = runErr
-		return r, nil
-	case *trainingSetVariantResource:
-		id := ffsync.Uint64OrderedId(r.serialized.TaskId)
-		status, runErr, err := serv.fetchStatus(scheduling.TaskID(&id))
-		if err != nil {
-			return nil, err
-		}
-		r.serialized.Status.Status = status.Proto()
-		r.serialized.Status.ErrorMessage = runErr
-		return r, nil
-	default:
-		return r, nil
-	}
-}
-
 func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send sendFn) error {
 	for {
 		var recvErr error
@@ -2344,10 +2376,18 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 		if err != nil {
 			return err
 		}
-		resource, err = serv.setStatus(resource)
-		if err != nil {
-			serv.Logger.Errorw("Failed to set status", "error", err)
-			return err
+
+		// Fetches the latest run for the task and returns it for the CLI status watcher.
+		// Can improve on this by linking the request to a specific run but that requires
+		// additional changes
+		if res, ok := resource.(resourceStatusImplementation); ok {
+			taskID := resource.(resourceTaskImplementation).TaskID()
+			status, msg, err := serv.fetchStatus(taskID)
+			if err != nil {
+				serv.Logger.Errorw("Failed to set status", "error", err)
+				return err
+			}
+			res.SetStatus(status, msg)
 		}
 
 		serv.Logger.Infow("Sending Resource", "id", id)

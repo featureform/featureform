@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc"
 	grpc_status "google.golang.org/grpc/status"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
-	"time"
+	"io"
 )
 
 type Empty sch.Empty
@@ -106,61 +106,72 @@ func (t *Tasks) GetTaskByID(id s.TaskID) (s.TaskMetadata, error) {
 	return metadata, nil
 }
 
+type runStream interface {
+	grpc.ClientStream
+}
+
+type runStreamProto interface {
+	ProtoMessage()
+}
+
+func (t *Tasks) genericParseRuns(client runStream) (s.TaskRunList, error) {
+	runs := s.TaskRunList{}
+	for {
+		var msg sch.TaskRunMetadata
+		err := client.RecvMsg(&msg)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		wrappedRun, err := wrapProtoTaskRunMetadata(&msg)
+		if err != nil {
+			return s.TaskRunList{}, err
+		}
+		runs = append(runs, wrappedRun)
+
+	}
+	return runs, nil
+}
+
 func (t *Tasks) GetAllRuns() (s.TaskRunList, error) {
-	runs, err := t.GrpcConn.GetAllRuns(context.Background(), &sch.Empty{})
+	client, err := t.GrpcConn.GetAllRuns(context.Background(), &sch.Empty{})
 	if err != nil {
 		return s.TaskRunList{}, err
 	}
 
-	wrapped := s.TaskRunList{}
-	for _, run := range runs.GetRuns() {
-		wrappedRun, err := wrapProtoTaskRunMetadata(run)
-		if err != nil {
-			return nil, err
-		}
-		wrapped = append(wrapped, wrappedRun)
+	runs, err := t.genericParseRuns(client)
+	if err != nil {
+		return s.TaskRunList{}, err
 	}
-	return wrapped, nil
+	return runs, nil
 }
 
 func (t *Tasks) GetRuns(id s.TaskID) (s.TaskRunList, error) {
-	runs, err := t.GrpcConn.GetRuns(context.Background(), &sch.TaskID{Id: id.Value().(uint64)})
+	client, err := t.GrpcConn.GetRuns(context.Background(), &sch.TaskID{Id: id.Value().(uint64)})
 	if err != nil {
 		return s.TaskRunList{}, err
 	}
 
-	wrapped := s.TaskRunList{}
-	for _, run := range runs.GetRuns() {
-		wrappedRun, err := wrapProtoTaskRunMetadata(run)
-		if err != nil {
-			return nil, err
-		}
-		wrapped = append(wrapped, wrappedRun)
+	runs, err := t.genericParseRuns(client)
+	if err != nil {
+		return s.TaskRunList{}, err
 	}
-	return wrapped, nil
+	return runs, nil
 }
 
 func (t *Tasks) GetLatestRun(id s.TaskID) (s.TaskRunMetadata, error) {
-	runs, err := t.GetRuns(id)
+	run, err := t.GrpcConn.GetLatestRun(context.Background(), &sch.TaskID{Id: id.Value().(uint64)})
 	if err != nil {
 		return s.TaskRunMetadata{}, err
 	}
-
-	if len(runs) == 0 {
-		return s.TaskRunMetadata{}, fmt.Errorf("No runs")
+	wrappedRun, err := wrapProtoTaskRunMetadata(run)
+	if err != nil {
+		return s.TaskRunMetadata{}, err
 	}
-
-	latestIdx := 0
-	var latestTime time.Time
-	for i, run := range runs {
-		if i == 0 {
-			latestTime = run.StartTime
-		} else if latestTime.Before(run.StartTime) {
-			latestTime = run.StartTime
-			latestIdx = i
-		}
-	}
-	return runs[latestIdx], nil
+	return wrappedRun, nil
 }
 
 func (t *Tasks) SetRunStatus(taskID s.TaskID, runID s.TaskRunID, status s.Status, errMsg error) error {

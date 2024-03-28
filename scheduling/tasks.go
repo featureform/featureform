@@ -30,6 +30,11 @@ func (tmk TaskMetadataKey) String() string {
 
 type TaskID ffsync.OrderedId
 
+func NewUint64TaskId(id uint64) TaskID {
+	orderedID := ffsync.Uint64OrderedId(id)
+	return TaskID(&orderedID)
+}
+
 type TaskType int32
 
 const (

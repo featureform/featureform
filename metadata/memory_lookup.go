@@ -58,52 +58,6 @@ func (s MemoryResourceLookup) ParseResource(res EtcdRow, resType Resource) (Reso
 	return resType, nil
 }
 
-// Returns an empty Resource Object of the given type to unmarshal etcd value into
-func (lookup MemoryResourceLookup) createEmptyResource(t ResourceType) (Resource, error) {
-	var resource Resource
-	switch t {
-	case FEATURE:
-		resource = &featureResource{&pb.Feature{}}
-		break
-	case FEATURE_VARIANT:
-		resource = &featureVariantResource{&pb.FeatureVariant{}}
-		break
-	case LABEL:
-		resource = &labelResource{&pb.Label{}}
-		break
-	case LABEL_VARIANT:
-		resource = &labelVariantResource{&pb.LabelVariant{}}
-		break
-	case USER:
-		resource = &userResource{&pb.User{}}
-		break
-	case ENTITY:
-		resource = &entityResource{&pb.Entity{}}
-		break
-	case PROVIDER:
-		resource = &providerResource{&pb.Provider{}}
-		break
-	case SOURCE:
-		resource = &SourceResource{&pb.Source{}}
-		break
-	case SOURCE_VARIANT:
-		resource = &sourceVariantResource{&pb.SourceVariant{}}
-		break
-	case TRAINING_SET:
-		resource = &trainingSetResource{&pb.TrainingSet{}}
-		break
-	case TRAINING_SET_VARIANT:
-		resource = &trainingSetVariantResource{&pb.TrainingSetVariant{}}
-		break
-	case MODEL:
-		resource = &modelResource{&pb.Model{}}
-		break
-	default:
-		return nil, fmt.Errorf("Invalid Type\n")
-	}
-	return resource, nil
-}
-
 // Serializes the entire ETCD Storage Object to be put into ETCD
 func (lookup MemoryResourceLookup) serializeResource(res Resource) ([]byte, error) {
 	p, err := proto.Marshal(res.Proto())
@@ -150,7 +104,7 @@ func (lookup MemoryResourceLookup) Lookup(id ResourceID) (Resource, error) {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to deserialize: %s", id))
 	}
 	logger.Infow("Create empty resource", "key", key)
-	resType, err := lookup.createEmptyResource(msg.ResourceType)
+	resType, err := createEmptyResource(msg.ResourceType)
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to create empty resource: %s", id))
 	}
@@ -260,7 +214,7 @@ func (lookup MemoryResourceLookup) Submap(ids []ResourceID) (ResourceLookup, err
 			return nil, errors.Wrap(err, fmt.Sprintf("submap deserialize: %s", id))
 		}
 
-		resource, err := lookup.createEmptyResource(etcdStore.ResourceType)
+		resource, err := createEmptyResource(etcdStore.ResourceType)
 		if err != nil {
 			return nil, errors.Wrap(err, fmt.Sprintf("submap create empty resource: %s", id))
 		}
@@ -285,7 +239,7 @@ func (lookup MemoryResourceLookup) ListForType(t ResourceType) ([]Resource, erro
 		if err != nil {
 			return nil, errors.Wrap(err, fmt.Sprintf("could not deserialize: %s", k))
 		}
-		resource, err := lookup.createEmptyResource(etcdStore.ResourceType)
+		resource, err := createEmptyResource(etcdStore.ResourceType)
 		if err != nil {
 			return nil, errors.Wrap(err, fmt.Sprintf("could not create empty resource: %s", k))
 		}
@@ -308,7 +262,7 @@ func (lookup MemoryResourceLookup) List() ([]Resource, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, fmt.Sprintf("list deserialize: %s", k))
 		}
-		resource, err := lookup.createEmptyResource(etcdStore.ResourceType)
+		resource, err := createEmptyResource(etcdStore.ResourceType)
 		if err != nil {
 			return nil, errors.Wrap(err, fmt.Sprintf("list create empty resource: %s", k))
 		}

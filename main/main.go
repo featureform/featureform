@@ -33,6 +33,8 @@ func main() {
 		Storage: &mstorage,
 	}
 	meta := scheduling.NewTaskMetadataManager(storage)
+
+	local := help.GetEnvBool("FEATUREFORM_LOCAL", true)
 	/****************************************** API Server ************************************************************/
 	err := godotenv.Load(".env")
 	apiPort := help.GetEnv("API_PORT", "7878")
@@ -153,7 +155,7 @@ func main() {
 	/******************************************** Start Servers *******************************************************/
 
 	go func() {
-		serv, err := api.NewApiServer(logger, apiConn, metadataConn, servingConn, meta, &locker)
+		serv, err := api.NewApiServer(logger, apiConn, metadataConn, servingConn)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -176,7 +178,7 @@ func main() {
 	}()
 
 	go func() {
-		metadataServer.Start(metadataServingPort)
+		metadataServer.Start(metadataServingPort, local)
 	}()
 
 	go func() {

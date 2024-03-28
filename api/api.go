@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/featureform/ffsync"
-	"github.com/featureform/scheduling"
 	"io"
 	"net"
 	"net/http"
@@ -41,8 +39,6 @@ type ApiServer struct {
 	listener   net.Listener
 	metadata   MetadataServer
 	online     OnlineServer
-	storage    scheduling.TaskMetadataManager
-	locker     ffsync.Locker
 }
 
 type MetadataServer struct {
@@ -61,7 +57,7 @@ type OnlineServer struct {
 	srv.UnimplementedFeatureServer
 }
 
-func NewApiServer(logger *zap.SugaredLogger, address string, metaAddr string, srvAddr string, storage scheduling.TaskMetadataManager, locker ffsync.Locker) (*ApiServer, error) {
+func NewApiServer(logger *zap.SugaredLogger, address string, metaAddr string, srvAddr string) (*ApiServer, error) {
 	return &ApiServer{
 		Logger:  logger,
 		address: address,
@@ -73,8 +69,6 @@ func NewApiServer(logger *zap.SugaredLogger, address string, metaAddr string, sr
 			Logger:  logger,
 			address: srvAddr,
 		},
-		storage: storage,
-		locker:  locker,
 	}, nil
 }
 

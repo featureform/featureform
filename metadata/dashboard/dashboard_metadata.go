@@ -1685,8 +1685,7 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 			selectedRun = run
 		}
 	}
-	//logs := strings.Join(selectedRun.Logs, "\n")
-	//logsWithError := fmt.Sprintf("%s\n%s", logs, selectedRun.Error)
+
 	resp := TaskRunDetailResponse{
 		TaskRun:   selectedRun,
 		OtherRuns: otherRuns,
@@ -1695,15 +1694,18 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-func (m *MetadataServer) Start(port string) {
+func (m *MetadataServer) Start(port string, local bool) error {
 	router := gin.Default()
-	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
-		AllowCredentials: true,
-		AllowMethods:     []string{"PUT", "PATCH", "GET"},
-		AllowHeaders:     []string{"Content-Type,access-control-allow-origin, access-control-allow-headers"},
-	}))
-	//router.Use(CORSMiddleware())
+	if local {
+		router.Use(cors.New(cors.Config{
+			AllowOrigins:     []string{"*"},
+			AllowCredentials: true,
+			AllowMethods:     []string{"PUT", "PATCH", "GET"},
+			AllowHeaders:     []string{"Content-Type,access-control-allow-origin, access-control-allow-headers"},
+		}))
+	} else {
+		router.Use(cors.Default())
+	}
 	router.GET("/data/:type", m.GetMetadataList)
 	router.GET("/data/:type/:resource", m.GetMetadata)
 	router.GET("/data/search", m.GetSearch)
@@ -1714,5 +1716,5 @@ func (m *MetadataServer) Start(port string) {
 	router.POST("/data/:type/:resource/tags", m.PostTags)
 	router.POST("/data/taskruns", m.GetTaskRuns)
 	router.GET("/data/taskruns/taskrundetail/:taskId/:taskRunId", m.GetTaskRunDetails)
-	router.Run(port)
+	return router.Run(port)
 }

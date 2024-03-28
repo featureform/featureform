@@ -54,8 +54,8 @@ service Metadata {
 
     rpc SetResourceStatus(SetStatusRequest) returns (Empty);
     
-    rpc AddProject(ProjectRequest) returns (Empty);
-    rpc RemoveProject(ProjectRequest) returns (Empty);
+    rpc AddProject(Project) returns (Empty);
+    rpc RemoveProject(Project) returns (Empty);
     rpc UpdateProject(Project) returns (Empty);
     rpc DeleteProject(Project) returns (Empty);
 }
@@ -99,8 +99,8 @@ service Api {
     rpc ListEntities(Empty) returns (stream Entity);
     rpc ListModels(Empty) returns (stream Model);
 
-    rpc AddProject(ProjectRequest) returns (Empty);
-    rpc RemoveProject(ProjectRequest) returns (Empty);
+    rpc AddProject(Project) returns (Empty);
+    rpc RemoveProject(Project) returns (Empty);
     rpc UpdateProject(Project) returns (Empty);
     rpc DeleteProject(Project) returns (Empty);
 }

@@ -1,7 +1,7 @@
 package scheduling
 
 import (
-	"fmt"
+	"github.com/featureform/fferr"
 	"sort"
 	"strings"
 	"sync"
@@ -40,20 +40,20 @@ func NewMemoryStorageProvider() *MemoryStorageProvider {
 
 func (m *MemoryStorageProvider) Set(key string, value string, lock LockObject) error {
 	if key == "" {
-		return fmt.Errorf("key is empty")
+		return fferr.NewInternalErrorf("attempted to set an empty key")
 	}
 	if value == "" {
-		return fmt.Errorf("value is empty for key %s", key)
+		return fferr.NewInternalErrorf("attempted to set a key without a value")
 	}
 
 	lockInfo, ok := m.lockedItems.Load(key)
 	if !ok {
-		return fmt.Errorf("key is not locked")
+		return fferr.NewKeyNotLockedError(key, nil)
 	}
 
 	currentLock := lockInfo.(LockInformation)
 	if currentLock.ID != lock.ID {
-		return fmt.Errorf("key %s is locked by another id: locked by: %s, unlock by: %s", key, currentLock.ID, lock.ID)
+		return fferr.NewKeyAlreadyLockedError(key, lock.ID, nil)
 	}
 
 	m.storage.Store(key, value)
@@ -107,7 +107,7 @@ func (m *MemoryStorageProvider) ListKeys(prefix string) ([]string, error) {
 
 func (m *MemoryStorageProvider) Lock(key string) (LockObject, error) {
 	if key == "" {
-		return LockObject{}, fmt.Errorf("key is empty")
+		return LockObject{}, fferr.NewInternalErrorf("attempted to lock an empty key")
 	}
 
 	id := uuid.New().String()
@@ -119,7 +119,7 @@ func (m *MemoryStorageProvider) Lock(key string) (LockObject, error) {
 	if lockInfo, ok := m.lockedItems.Load(key); ok {
 		keyLock := lockInfo.(LockInformation)
 		if time.Since(keyLock.Date) < ValidTimePeriod {
-			return LockObject{}, fmt.Errorf("key is already locked by: %s", keyLock.ID)
+			return LockObject{}, fferr.NewKeyAlreadyLockedError(key, keyLock.ID, nil)
 		}
 	}
 
@@ -146,12 +146,12 @@ func (m *MemoryStorageProvider) Unlock(key string, lock LockObject) error {
 	if lockInfo, ok := m.lockedItems.Load(key); ok {
 		keyLock := lockInfo.(LockInformation)
 		if keyLock.ID != lock.ID {
-			return fmt.Errorf("key is locked by another id: locked by: %s, unlock  by: %s", keyLock.ID, lock.ID)
+			return fferr.NewKeyAlreadyLockedError(key, lock.ID, nil)
 		}
 		m.lockedItems.Delete(key)
 		return nil
 	}
-	return fmt.Errorf("key is not locked")
+	return fferr.NewKeyNotLockedError(key, nil)
 }
 
 func (m *MemoryStorageProvider) updateLockTime(id string, key string, lockChannel chan error) {

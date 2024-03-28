@@ -3,6 +3,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"github.com/featureform/fferr"
 	"github.com/featureform/ffsync"
 	"github.com/featureform/metadata/proto"
 	s "github.com/featureform/scheduling"
@@ -29,7 +30,7 @@ func convertProtoTriggerType(trigger interface{}) (s.Trigger, error) {
 	case *sch.TaskRunMetadata_Schedule:
 		return s.ScheduleTrigger{TriggerName: t.Schedule.Name, Schedule: t.Schedule.Schedule}, nil
 	default:
-		return nil, fmt.Errorf("unimplemented trigger %T", trigger)
+		return nil, fferr.NewUnimplementedErrorf("could not convert trigger type: %T", trigger)
 	}
 }
 
@@ -46,7 +47,7 @@ func convertProtoTarget(target interface{}) (s.TaskTarget, error) {
 			Name: t.Provider.Name,
 		}, nil
 	default:
-		return nil, fmt.Errorf("unimplemented proto target %T", t)
+		return nil, fferr.NewUnimplementedErrorf("could not convert target proto type: %T", target)
 	}
 }
 
@@ -108,10 +109,6 @@ func (t *Tasks) GetTaskByID(id s.TaskID) (s.TaskMetadata, error) {
 
 type runStream interface {
 	grpc.ClientStream
-}
-
-type runStreamProto interface {
-	ProtoMessage()
 }
 
 func (t *Tasks) genericParseRuns(client runStream) (s.TaskRunList, error) {

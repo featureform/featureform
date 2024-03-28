@@ -1251,14 +1251,14 @@ func (c *Coordinator) getJob(taskRun scheduling.TaskRunMetadata) (*metadata.Coor
 	c.Logger.Debugf("Checking existence of task with id %s and run id\n", taskRun.TaskId, taskRun.ID)
 	taskMetadata, err := c.Metadata.Tasks.GetTaskByID(taskRun.TaskId)
 	if err != nil {
-		return nil, fmt.Errorf("could not get task metadata: %v", err)
+		return nil, err
 	}
 
 	if taskMetadata.Target == nil {
-		return nil, fmt.Errorf("no task target found for task %s", taskRun.TaskId)
+		return nil, fferr.NewInternalErrorf("no task target found for task %s", taskRun.TaskId)
 	}
 	if taskMetadata.TargetType != scheduling.NameVariantTarget {
-		return nil, fmt.Errorf("task target type is not name variant for task %s: instead got: %T", taskRun.TaskId, taskMetadata.TargetType)
+		return nil, fferr.NewInternalErrorf("task target type is not name variant for task %s: instead got: %T", taskRun.TaskId, taskMetadata.TargetType)
 	}
 
 	targetResource := taskMetadata.Target.(scheduling.NameVariant)
@@ -1375,23 +1375,23 @@ func (c *Coordinator) ExecuteJob(taskRun scheduling.TaskRunMetadata) error {
 		default:
 			setErr := c.Metadata.Tasks.SetRunStatus(taskRun.TaskId, taskRun.ID, scheduling.FAILED, err)
 			if setErr != nil {
-				return fmt.Errorf("set run status in task manager: %v", err)
+				return fferr.NewInternalErrorf("set run status in task manager: %v", err)
 			}
 
 			setErr = c.Metadata.Tasks.EndRun(taskRun.TaskId, taskRun.ID)
 			if setErr != nil {
-				return fmt.Errorf("set run end time in task manager: %v", err)
+				return fferr.NewInternalErrorf("set run end time in task manager: %v", err)
 			}
-			return fmt.Errorf("%s job failed: %w", job.Resource.Type, err)
+			return fferr.NewResourceTaskFailed(job.Resource.Name, job.Resource.Variant, job.Resource.Type.String(), nil)
 		}
 	}
 	err = c.Metadata.Tasks.EndRun(taskRun.TaskId, taskRun.ID)
 	if err != nil {
-		return fmt.Errorf("set run end time in task manager: %v", err)
+		return fferr.NewInternalErrorf("failed to set run end time in task manager: %v", err)
 	}
 	err = c.Metadata.Tasks.SetRunStatus(taskRun.TaskId, taskRun.ID, scheduling.READY, nil)
 	if err != nil {
-		return fmt.Errorf("set run status in task manager: %v", err)
+		return fferr.NewInternalErrorf("failed to set run status in task manager: %v", err)
 	}
 
 	return nil

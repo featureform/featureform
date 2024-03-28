@@ -97,7 +97,7 @@ func createEmptyResource(t ResourceType) (Resource, error) {
 	case MODEL:
 		return &modelResource{&pb.Model{}}, nil
 	default:
-		return nil, fferr.NewInternalError(fmt.Errorf("unable to create empty resource of type %T. Unimplemeted", t))
+		return nil, fferr.NewUnimplementedErrorf("unable to create empty resource of type %T", t)
 	}
 }
 
@@ -1569,7 +1569,7 @@ func setTargetProto(proto *sch.TaskMetadata, target scheduling.TaskTarget) (*sch
 	case scheduling.Provider:
 		proto.Target = getProviderTargetProto(t)
 	default:
-		return nil, fmt.Errorf("unimplemented target %T", target)
+		return nil, fferr.NewUnimplementedErrorf("could not convert target to proto: type: %T", target)
 	}
 	return proto, nil
 }
@@ -1615,7 +1615,7 @@ func setTriggerProto(proto *sch.TaskRunMetadata, trigger scheduling.Trigger) (*s
 	case scheduling.ScheduleTrigger:
 		proto.Trigger = getScheduleTrigger(t)
 	default:
-		return nil, fmt.Errorf("unimplemented Trigger type: %T", trigger)
+		return nil, fferr.NewUnimplementedErrorf("could not convert trigger to proto: type: %T", trigger)
 	}
 	return proto, nil
 }
@@ -1662,18 +1662,6 @@ func (serv *MetadataServer) GetTaskByID(ctx context.Context, taskID *sch.TaskID)
 		return nil, err
 	}
 	return p, nil
-}
-
-func wrapTaskRunMetadataProtos(runs scheduling.TaskRunList) (*sch.TaskRunList, error) {
-	taskRunList := &sch.TaskRunList{}
-	for _, run := range runs {
-		runProto, err := wrapTaskRunMetadataProto(run)
-		if err != nil {
-			return nil, err
-		}
-		taskRunList.Runs = append(taskRunList.Runs, runProto)
-	}
-	return taskRunList, nil
 }
 
 func (serv *MetadataServer) GetRuns(id *sch.TaskID, stream sch.Tasks_GetRunsServer) error {
@@ -1760,11 +1748,11 @@ func (serv *MetadataServer) SetRunEndTime(ctx context.Context, update *sch.RunEn
 
 func (serv *MetadataServer) Serve() error {
 	if serv.grpcServer != nil {
-		return fferr.NewInternalError(fmt.Errorf("server already running"))
+		return fferr.NewInternalErrorf("server already running")
 	}
 	lis, err := net.Listen("tcp", serv.address)
 	if err != nil {
-		return fferr.NewInternalError(fmt.Errorf("cannot listen to server address %s", serv.address))
+		return fferr.NewInternalErrorf("cannot listen to server address %s", serv.address)
 	}
 	return serv.ServeOnListener(lis)
 }
@@ -1781,7 +1769,7 @@ func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
 
 func (serv *MetadataServer) GracefulStop() error {
 	if serv.grpcServer == nil {
-		return fferr.NewInternalError(fmt.Errorf("server not running"))
+		return fferr.NewInternalErrorf("server not running")
 	}
 	serv.grpcServer.GracefulStop()
 	serv.grpcServer = nil

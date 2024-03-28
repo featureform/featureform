@@ -40,9 +40,10 @@ const (
 	RESOURCE_CHANGED              = "Resource Changed"
 
 	// MISCELLANEOUS:
-	INTERNAL_ERROR   = "Internal Error"
-	INVALID_ARGUMENT = "Invalid Argument"
-	PARSING_ERROR    = "Parsing Error"
+	INTERNAL_ERROR      = "Internal Error"
+	INVALID_ARGUMENT    = "Invalid Argument"
+	PARSING_ERROR       = "Parsing Error"
+	UNIMPLEMENTED_ERROR = "Unimplemented"
 
 	// JOBS:
 	JOB_DOES_NOT_EXIST        = "Job Does Not Exist"
@@ -74,6 +75,9 @@ const (
 	ENTITY               ResourceType = "ENTITY"
 	MODEL                ResourceType = "MODEL"
 	USER                 ResourceType = "USER"
+
+	// TASKS
+	RESOURCE_TASK_FAILED = "Resource Task Failed"
 )
 
 type JSONStackTrace map[string]interface{}

@@ -17,6 +17,15 @@ func NewInternalError(err error) *InternalError {
 	}
 }
 
+func NewInternalErrorf(format string, a ...any) *InternalError {
+	err := fmt.Errorf(format, a)
+	baseError := newBaseGRPCError(err, INTERNAL_ERROR, codes.Internal)
+
+	return &InternalError{
+		baseError,
+	}
+}
+
 type InternalError struct {
 	baseGRPCError
 }
@@ -66,4 +75,21 @@ func NewParsingError(err error) *ParsingError {
 
 type ParsingError struct {
 	baseGRPCError
+}
+
+type UnimplementedError struct {
+	baseGRPCError
+}
+
+func NewUnimplementedErrorf(format string, a ...any) *UnimplementedError {
+	err := fmt.Errorf(format, a)
+	return NewUnimplementedError(err)
+}
+
+func NewUnimplementedError(err error) *UnimplementedError {
+	baseError := newBaseGRPCError(err, UNIMPLEMENTED_ERROR, codes.Unimplemented)
+
+	return &UnimplementedError{
+		baseError,
+	}
 }

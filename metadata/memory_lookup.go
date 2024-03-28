@@ -35,8 +35,8 @@ type MemoryRowTemp struct {
 	Message      []byte      //Contents to be stored
 }
 
-// Takes a populated ETCD storage struct and a resource
-// Checks to make sure the given ETCD storage Object contains a Resource, not job
+// Takes a populated ETCD Storage struct and a resource
+// Checks to make sure the given ETCD Storage Object contains a Resource, not job
 // Deserializes Resource value into the provided Resource object
 func (s MemoryResourceLookup) ParseResource(res EtcdRow, resType Resource) (Resource, error) {
 	if res.StorageType != RESOURCE {
@@ -104,7 +104,7 @@ func (lookup MemoryResourceLookup) createEmptyResource(t ResourceType) (Resource
 	return resource, nil
 }
 
-// Serializes the entire ETCD storage Object to be put into ETCD
+// Serializes the entire ETCD Storage Object to be put into ETCD
 func (lookup MemoryResourceLookup) serializeResource(res Resource) ([]byte, error) {
 	p, err := proto.Marshal(res.Proto())
 	if err != nil {
@@ -122,7 +122,7 @@ func (lookup MemoryResourceLookup) serializeResource(res Resource) ([]byte, erro
 	return serialMsg, nil
 }
 
-// Deserializes object into ETCD storage Object
+// Deserializes object into ETCD Storage Object
 func (lookup MemoryResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 	var tmp EtcdRowTemp
 	if err := json.Unmarshal(value, &tmp); err != nil {

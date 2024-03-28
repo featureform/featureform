@@ -81,7 +81,7 @@ type Filepath interface {
 	Scheme() string
 	SetScheme(scheme string) error
 
-	// Returns the name of the bucket (S3) or container (Azure Blob storage)
+	// Returns the name of the bucket (S3) or container (Azure Blob Storage)
 	Bucket() string
 	SetBucket(bucket string) error
 
@@ -342,7 +342,7 @@ func (azure *AzureFilepath) ToURI() string {
 	return fmt.Sprintf("%s%s@%s.dfs.core.windows.net/%s", azure.scheme, azure.bucket, azure.StorageAccount, azure.key)
 }
 
-// **NOTE**: Due to Azure Blob storage's unique URI format, we need to re-implement this method
+// **NOTE**: Due to Azure Blob Storage's unique URI format, we need to re-implement this method
 // on the derived type to ensure we can properly handle the `bucket` field.
 func (azure *AzureFilepath) ParseFilePath(fullPath string) error {
 	u, err := url.Parse(fullPath)

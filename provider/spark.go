@@ -1752,7 +1752,7 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 		id := ResourceID{}
 		err := id.FromFilestorePath(path)
 		if err != nil {
-			spark.Logger.Errorf("could not construct ResourceID for Azure Blob storage path %s due to %v", path, err)
+			spark.Logger.Errorf("could not construct ResourceID for Azure Blob Storage path %s due to %v", path, err)
 			return "", "", ""
 		}
 		fileType, fileName, fileVariant = strings.ToLower(id.Type.String()), id.Name, id.Variant
@@ -1782,7 +1782,7 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 		id := ResourceID{}
 		err := id.FromFilestorePath(path)
 		if err != nil {
-			spark.Logger.Errorf("could not construct ResourceID for Google Cloud storage path %s due to %v", path, err)
+			spark.Logger.Errorf("could not construct ResourceID for Google Cloud Storage path %s due to %v", path, err)
 			return "", "", ""
 		}
 		fileType, fileName, fileVariant = strings.ToLower(id.Type.String()), id.Name, id.Variant

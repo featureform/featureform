@@ -151,7 +151,7 @@ func (config EtcdConfig) MakeAddresses() []string {
 	return addresses
 }
 
-// Uses storage Type as prefix so Resources and Jobs can be queried more easily
+// Uses Storage Type as prefix so Resources and Jobs can be queried more easily
 func createKey(id ResourceID) string {
 	return fmt.Sprintf("%s__%s__%s", id.Type, id.Name, id.Variant)
 }
@@ -314,7 +314,7 @@ func (lookup EtcdResourceLookup) serializeResource(res Resource) ([]byte, error)
 	return serialMsg, nil
 }
 
-// Deserializes object into ETCD storage Object
+// Deserializes object into ETCD Storage Object
 func (lookup EtcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 	var tmp EtcdRowTemp
 	if err := json.Unmarshal(value, &tmp); err != nil {

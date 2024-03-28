@@ -646,9 +646,13 @@ const EntityPageView = ({
                             variant='body1'
                             className={classes.typeTitle}
                           >
+                            <Typography
+                              variant='body1'
+                              fontWeight='bold'
+                            ></Typography>
                             <strong>Columns:</strong>{' '}
                           </Typography>
-                          <Typography variant='body2'>
+                          <Typography variant='body2' style={{ marginTop: 2 }}>
                             &nbsp;<strong>Entity:</strong>{' '}
                             {metadata['location'].Entity}
                             &nbsp;<strong>Value:</strong>{' '}

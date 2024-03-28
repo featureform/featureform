@@ -95,12 +95,11 @@ const VariantControl = ({
 
       <Box style={{ minWidth: 325 }}>
         <FormControl className={classes.formControl}>
-          <InputLabel shrink={true} id='variantControlId'>
+          <InputLabel shrink id='variantControlId'>
             Variant
           </InputLabel>
           <Select
             value={variant}
-            InputLabelProps={{ shrink: true }}
             labelId='variantControlId'
             label='Variant'
             data-testid={'variantControlSelectId'}

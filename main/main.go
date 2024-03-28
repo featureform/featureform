@@ -10,14 +10,17 @@ import (
 	"github.com/featureform/metadata"
 	dm "github.com/featureform/metadata/dashboard"
 	"github.com/featureform/metadata/search"
+	pb "github.com/featureform/proto"
 	"github.com/featureform/runner"
 	"github.com/featureform/scheduling"
+	"github.com/featureform/serving"
 	ss "github.com/featureform/storage"
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"net"
 	"net/http"
 	"os"
-	"time"
 )
 
 func main() {
@@ -126,34 +129,24 @@ func main() {
 
 	/**************************************** Serving *******************************************************/
 
-	//sLogger := logging.NewLogger("serving")
-	//
-	//host := help.GetEnv("SERVING_HOST", "0.0.0.0")
-	//port := help.GetEnv("SERVING_PORT", "8080")
-	//address := fmt.Sprintf("%s:%s", host, port)
-	//lis, err := net.Listen("tcp", address)
-	//if err != nil {
-	//	sLogger.Panicw("Failed to listen on port", "Err", err)
-	//}
-	//
-	//promMetrics := metrics.NewMetrics("test")
-	//metricsPort := help.GetEnv("METRICS_PORT", ":9090")
-	//
-	//meta, err := metadata.NewClient(metadataConn, sLogger)
-	//if err != nil {
-	//	sLogger.Panicw("Failed to connect to metadata", "Err", err)
-	//}
-	//
-	//serv, err := serving.NewFeatureServer(meta, promMetrics, sLogger)
-	//if err != nil {
-	//	sLogger.Panicw("Failed to create training server", "Err", err)
-	//}
-	//grpcServer := grpc.NewServer()
-	//
-	//pb.RegisterFeatureServer(grpcServer, serv)
-	//sLogger.Infow("Serving metrics", "Port", metricsPort)
-	//go promMetrics.ExposePort(metricsPort)
-	//sLogger.Infow("Server starting", "Port", address)
+	sLogger := logging.NewLogger("serving")
+
+	host := help.GetEnv("SERVING_HOST", "0.0.0.0")
+	port := help.GetEnv("SERVING_PORT", "8080")
+	address := fmt.Sprintf("%s:%s", host, port)
+	lis, err := net.Listen("tcp", address)
+	if err != nil {
+		sLogger.Panicw("Failed to listen on port", "Err", err)
+	}
+
+	serv, err := serving.NewFeatureServer(client, nil, sLogger)
+	if err != nil {
+		sLogger.Panicw("Failed to create training server", "Err", err)
+	}
+	grpcServer := grpc.NewServer()
+
+	pb.RegisterFeatureServer(grpcServer, serv)
+	sLogger.Infow("Server starting", "Port", address)
 
 	/******************************************** Start Servers *******************************************************/
 
@@ -184,21 +177,11 @@ func main() {
 		metadataServer.Start(metadataServingPort)
 	}()
 
-	//go func() {
-	//	serveErr := grpcServer.Serve(lis)
-	//	if serveErr != nil {
-	//		logger.Errorw("Serve failed with error", "Err", serveErr)
-	//	}
-	//}()
+	go func() {
+		serveErr := grpcServer.Serve(lis)
+		if serveErr != nil {
+			logger.Errorw("Serve failed with error", "Err", serveErr)
+		}
+	}()
 
-	for {
-		//things, err := storageProvider.Get("", true)
-		//if err != nil {
-		//	panic(err)
-		//}
-		//for k, v := range things {
-		//	fmt.Println("CURRENT DICT", k, v)
-		//}
-		time.Sleep(1 * time.Second)
-	}
 }

@@ -403,8 +403,8 @@ func (ctx *testContext) Destroy() {
 func startServ(t *testing.T) (*MetadataServer, string) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logger.Sugar(),
-		StorageProvider: LocalStorageProvider{},
+		Logger: logger.Sugar(),
+		//StorageProvider: LocalStorageProvider{},
 	}
 	serv, err := NewMetadataServer(config)
 	if err != nil {
@@ -426,8 +426,8 @@ func startServ(t *testing.T) (*MetadataServer, string) {
 func startServNoPanic(t *testing.T) (*MetadataServer, string) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logger.Sugar(),
-		StorageProvider: LocalStorageProvider{},
+		Logger: logger.Sugar(),
+		//StorageProvider: LocalStorageProvider{},
 	}
 	serv, err := NewMetadataServer(config)
 	if err != nil {
@@ -505,9 +505,9 @@ func TestClosedServer(t *testing.T) {
 func TestServeGracefulStop(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logger.Sugar(),
-		StorageProvider: LocalStorageProvider{},
-		Address:         ":0",
+		Logger: logger.Sugar(),
+		//StorageProvider: LocalStorageProvider{},
+		Address: ":0",
 	}
 	serv, err := NewMetadataServer(config)
 	if err != nil {

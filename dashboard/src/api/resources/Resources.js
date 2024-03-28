@@ -138,7 +138,7 @@ export const providerLogos = Object.freeze({
 });
 
 var hostname = 'localhost';
-var port = 3000;
+var port = 3001;
 
 if (typeof window !== 'undefined') {
   hostname = window.location.hostname;

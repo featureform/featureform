@@ -3,18 +3,19 @@ package storage
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/featureform/fferr"
 )
 
 func NewMemoryStorageImplementation() memoryStorageImplementation {
 	return memoryStorageImplementation{
-		storage: make(map[string]string),
+		storage: &sync.Map{},
 	}
 }
 
 type memoryStorageImplementation struct {
-	storage map[string]string
+	storage *sync.Map
 }
 
 func (m *memoryStorageImplementation) Set(key string, value string) error {
@@ -22,7 +23,7 @@ func (m *memoryStorageImplementation) Set(key string, value string) error {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("key is empty"))
 	}
 
-	m.storage[key] = value
+	m.storage.Store(key, value)
 
 	return nil
 }
@@ -32,22 +33,23 @@ func (m *memoryStorageImplementation) Get(key string) (string, error) {
 		return "", fferr.NewInvalidArgumentError(fmt.Errorf("key is empty"))
 	}
 
-	value, ok := m.storage[key]
+	value, ok := m.storage.Load(key)
 	if !ok {
 		return "", fferr.NewKeyNotFoundError(key, nil)
 	}
 
-	return value, nil
+	return value.(string), nil
 }
 
 func (m *memoryStorageImplementation) List(prefix string) (map[string]string, error) {
 	result := make(map[string]string)
 
-	for key, value := range m.storage {
-		if strings.HasPrefix(key, prefix) {
-			result[key] = value
+	m.storage.Range(func(key, value interface{}) bool {
+		if strings.HasPrefix(key.(string), prefix) {
+			result[key.(string)] = value.(string)
 		}
-	}
+		return true
+	})
 
 	return result, nil
 }
@@ -57,12 +59,10 @@ func (m *memoryStorageImplementation) Delete(key string) (string, error) {
 		return "", fferr.NewInvalidArgumentError(fmt.Errorf("key is empty"))
 	}
 
-	value, ok := m.storage[key]
+	value, ok := m.storage.LoadAndDelete(key)
 	if !ok {
 		return "", fferr.NewKeyNotFoundError(key, nil)
 	}
 
-	delete(m.storage, key)
-
-	return value, nil
+	return value.(string), nil
 }

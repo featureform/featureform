@@ -61,9 +61,6 @@ func (m *MemoryStorageProvider) Set(key string, value string, lock LockObject) e
 }
 
 func (m *MemoryStorageProvider) Get(key string, prefix bool) (map[string]string, error) {
-	if key == "" {
-		return nil, fmt.Errorf("key is empty")
-	}
 
 	result := make(map[string]string)
 
@@ -86,7 +83,7 @@ func (m *MemoryStorageProvider) Get(key string, prefix bool) (map[string]string,
 		return true
 	})
 
-	if len(result) == 0 {
+	if len(result) == 0 && !prefix {
 		return nil, &KeyNotFoundError{Key: key}
 	}
 	return result, nil

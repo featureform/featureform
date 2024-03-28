@@ -1,4 +1,4 @@
-package main
+package dashboard_metadata
 
 import (
 	"bytes"

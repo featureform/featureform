@@ -3,6 +3,7 @@ package ffsync
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"sync"
 	"sync/atomic"
 
@@ -13,6 +14,7 @@ type OrderedId interface {
 	Equals(other OrderedId) bool
 	Less(other OrderedId) bool
 	String() string
+	FromString(id string) error
 	Value() interface{} // Value returns the underlying value of the ordered ID
 	MarshalJSON() ([]byte, error)
 	UnmarshalJSON(data []byte) error
@@ -33,6 +35,15 @@ func (id *Uint64OrderedId) Less(other OrderedId) bool {
 
 func (id *Uint64OrderedId) String() string {
 	return fmt.Sprint(id.Value())
+}
+
+func (id *Uint64OrderedId) FromString(strID string) error {
+	tmp, err := strconv.ParseUint(strID, 10, 64)
+	if err != nil {
+		return fferr.NewInternalError(err)
+	}
+	*id = Uint64OrderedId(tmp)
+	return nil
 }
 
 func (id *Uint64OrderedId) Value() interface{} {

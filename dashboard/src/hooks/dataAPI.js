@@ -1,5 +1,5 @@
 let hostname = 'localhost';
-let port = 3000;
+let port = 3001;
 if (typeof window !== 'undefined') {
   hostname = window.location.hostname;
   port = window.location.port;
@@ -74,9 +74,9 @@ export function useDataAPI() {
     return result;
   };
 
-  const getTaskRunDetails = async (taskRunId = '') => {
+  const getTaskRunDetails = async (taskId = '', taskRunId = '') => {
     const result = await fetch(
-      `${API_URL}/data/taskruns/taskrundetail/${taskRunId}`,
+      `${API_URL}/data/taskruns/taskrundetail/${taskId}/${taskRunId}`,
       {
         cache: 'no-store',
         method: 'GET',

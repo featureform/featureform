@@ -18,7 +18,7 @@ func TestTriggerName(t *testing.T) {
 	}{
 		{
 			name:     "OneOffTriggerName",
-			trigger:  OneOffTrigger{TriggerName: "name1"},
+			trigger:  OnApplyTrigger{TriggerName: "name1"},
 			expected: "name1",
 		},
 		{
@@ -52,11 +52,11 @@ func TestEmptyVariables(t *testing.T) {
 				ID:     TaskRunID(&id1),
 				TaskId: TaskID(&id1),
 				Name:   "",
-				Trigger: OneOffTrigger{
+				Trigger: OnApplyTrigger{
 					TriggerName: "name1",
 				},
-				TriggerType: OneOffTriggerType,
-				Status:      Pending,
+				TriggerType: OnApplyTriggerType,
+				Status:      PENDING,
 				StartTime:   time.Now().Truncate(0).UTC(),
 				EndTime:     time.Now().Truncate(0).UTC(),
 				Logs:        nil,
@@ -70,11 +70,11 @@ func TestEmptyVariables(t *testing.T) {
 				ID:     TaskRunID(&id1),
 				TaskId: TaskID(&id1),
 				Name:   "name2",
-				Trigger: OneOffTrigger{
+				Trigger: OnApplyTrigger{
 					TriggerName: "name3",
 				},
-				TriggerType: OneOffTriggerType,
-				Status:      Pending,
+				TriggerType: OnApplyTriggerType,
+				Status:      PENDING,
 				EndTime:     time.Now().Truncate(0).UTC(),
 				Logs:        nil,
 				Error:       "No start time present",
@@ -117,17 +117,17 @@ func TestSerializeTaskRunMetadata(t *testing.T) {
 				ID:     TaskRunID(&id1),
 				TaskId: TaskID(&id1),
 				Name:   "oneoff_taskrun",
-				Trigger: OneOffTrigger{
+				Trigger: OnApplyTrigger{
 					TriggerName: "name1",
 				},
-				TriggerType: OneOffTriggerType,
-				Status:      Pending,
+				TriggerType: OnApplyTriggerType,
+				Status:      PENDING,
 				StartTime:   time.Now().Truncate(0).UTC(),
 				EndTime:     time.Now().Truncate(0).UTC(),
 				Logs:        nil,
 				Error:       "",
 			},
-			triggerType: "OneOffTrigger",
+			triggerType: "OnApplyTrigger",
 		},
 		{
 			name: "WithDummyTrigger",
@@ -140,7 +140,7 @@ func TestSerializeTaskRunMetadata(t *testing.T) {
 					DummyField:  true,
 				},
 				TriggerType: DummyTriggerType,
-				Status:      Failed,
+				Status:      FAILED,
 				StartTime:   time.Now().Truncate(0).UTC(),
 				EndTime:     time.Now().Truncate(0).UTC(),
 				Logs:        nil,
@@ -189,8 +189,8 @@ func TestIncorrectTaskRunMetadata(t *testing.T) {
 					TriggerName: "name3",
 					DummyField:  false,
 				},
-				TriggerType: OneOffTriggerType,
-				Status:      Failed,
+				TriggerType: OnApplyTriggerType,
+				Status:      FAILED,
 				StartTime:   time.Now().Truncate(0).UTC(),
 				EndTime:     time.Now().Truncate(0).UTC(),
 				Logs:        nil,
@@ -205,7 +205,7 @@ func TestIncorrectTaskRunMetadata(t *testing.T) {
 				TaskId:    TaskID(&id),
 				Name:      "no_trigger",
 				Trigger:   nil,
-				Status:    Pending,
+				Status:    PENDING,
 				StartTime: time.Now().Truncate(0).UTC(),
 				EndTime:   time.Now().Truncate(0).UTC(),
 				Logs:      nil,
@@ -243,7 +243,7 @@ func TestCorruptData(t *testing.T) {
 		{
 			name: "InvalidJson",
 			inputfile: []byte(`{"id"1, "TaskID": 12, "name":"invalid_json_file",
-			 "trigger": {"triggerName": "name4", "triggerType": "OneOffTrigger", "dummyField":  false,},
+			 "trigger": {"triggerName": "name4", "triggerType": "OnApplyTrigger", "dummyField":  false,},
 			  "status": "FAILED", "startTime": "2021-08-26T15:04:05Z", "endTime": "2021-08-26T15:04:05Z",
 			   "logs": nil, "error": "invalid json",
 			}`),
@@ -252,7 +252,7 @@ func TestCorruptData(t *testing.T) {
 		{
 			name: "MissingName",
 			inputfile: []byte(`{"id":1, "TaskID": 12,
-			"trigger": {"triggerName": "name5", "triggerType": "OneOffTrigger", "dummyField":  false,},
+			"trigger": {"triggerName": "name5", "triggerType": "OnApplyTrigger", "dummyField":  false,},
 			 "status": "FAILED", "startTime": "2021-08-26T15:04:05Z", "endTime": "2021-08-26T15:04:05Z",
 			  "logs": nil, "error": "invalid json",
 		   }`),
@@ -269,7 +269,7 @@ func TestCorruptData(t *testing.T) {
 		{
 			name: "InvalidStatusType",
 			inputfile: []byte(`{"id":1, "TaskID": 12, "name":"invalid_json_file",
-			"trigger": {"triggerName": "name6", "triggerType": "OneOffTrigger", "dummyField":  false,},
+			"trigger": {"triggerName": "name6", "triggerType": "OnApplyTrigger", "dummyField":  false,},
 			 "status": "NOSTATUS", "startTime": "2021-08-26T15:04:05Z", "endTime": "2021-08-26T15:04:05Z",
 			  "logs": nil, "error": "invalid json",
 		   }`),

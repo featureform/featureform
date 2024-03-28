@@ -207,6 +207,7 @@ const useStyles = makeStyles((theme) => ({
   resourcesTopRow: {
     display: 'flex',
     justifyContent: 'space-between',
+    marginBottom: 10,
   },
   title: {
     display: 'flex',
@@ -376,7 +377,7 @@ const EntityPageView = ({
                 <div className={classes.title}>
                   <Icon>{icon}</Icon>
                   <div className={classes.titleText}>
-                    <Typography variant='h3' component='h3'>
+                    <Typography variant='h4' component='h4'>
                       <span>
                         {`${resources.type}: `}
                         <strong>{resources.name}</strong>

@@ -18,6 +18,7 @@ const useStyles = makeStyles((theme) => ({
   },
   tagTopRow: {
     minHeight: 60,
+    minWidth: 300,
     display: 'flex',
   },
   chip: {
@@ -105,6 +106,7 @@ const TagBox = ({
           <>
             <TextField
               label='New Tag'
+              style={{ maxWidth: 160 }}
               autoFocus
               onChange={(event) => {
                 const rawText = event.target.value;

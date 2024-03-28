@@ -14,7 +14,6 @@ export default function StatusChip({ status = '' }) {
     <Chip
       sx={{ backgroundColor: chipMap[status] ?? '#FFFFFF' }}
       size='medium'
-      //   label={status?.[0]?.toUpperCase() + status?.slice(1)?.toLowerCase()}
       label={status?.toUpperCase()}
     />
   );

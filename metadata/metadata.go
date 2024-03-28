@@ -1468,35 +1468,34 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	}, nil
 }
 
-//	func convertTriggerTypeProto(trigger scheduling.Trigger) (interface{}, error) {
-//		switch t := trigger.(type) {
-//		case scheduling.OnApplyTrigger:
-//			return sch.TaskRunMetadata_Apply{Apply: &sch.OnApply{Name: t.TriggerName}}, nil
-//		default:
-//			return nil, fmt.Errorf("Unimplemented trigger")
-//		}
-//	}
+func getNameVariantTargetProto(target scheduling.NameVariant) *sch.TaskMetadata_NameVariant {
+	return &sch.TaskMetadata_NameVariant{
+		NameVariant: &sch.NameVariantTarget{
+			ResourceID: &pb.ResourceID{
+				Resource: &pb.NameVariant{
+					Name:    target.Name,
+					Variant: target.Variant,
+				},
+				ResourceType: pb.ResourceType(pb.ResourceType_value[target.ResourceType]),
+			},
+		},
+	}
+}
+
+func getProviderTargetProto(target scheduling.Provider) *sch.TaskMetadata_Provider {
+	return &sch.TaskMetadata_Provider{
+		Provider: &sch.ProviderTarget{
+			Name: target.Name,
+		},
+	}
+}
 
 func setTargetProto(proto *sch.TaskMetadata, target scheduling.TaskTarget) (*sch.TaskMetadata, error) {
 	switch t := target.(type) {
 	case scheduling.NameVariant:
-		proto.Target = &sch.TaskMetadata_NameVariant{
-			NameVariant: &sch.NameVariantTarget{
-				ResourceID: &pb.ResourceID{
-					Resource: &pb.NameVariant{
-						Name:    t.Name,
-						Variant: t.Variant,
-					},
-					ResourceType: pb.ResourceType(pb.ResourceType_value[t.ResourceType]),
-				},
-			},
-		}
+		proto.Target = getNameVariantTargetProto(t)
 	case scheduling.Provider:
-		proto.Target = &sch.TaskMetadata_Provider{
-			Provider: &sch.ProviderTarget{
-				Name: t.Name,
-			},
-		}
+		proto.Target = getProviderTargetProto(t)
 	default:
 		return nil, fmt.Errorf("unimplemented target %T", target)
 	}
@@ -1520,21 +1519,29 @@ func wrapTaskMetadataProto(task scheduling.TaskMetadata) (*sch.TaskMetadata, err
 	return taskMetadata, nil
 }
 
+func getApplyTrigger(trigger scheduling.OnApplyTrigger) *sch.TaskRunMetadata_Apply {
+	return &sch.TaskRunMetadata_Apply{
+		Apply: &sch.OnApply{
+			Name: trigger.Name(),
+		},
+	}
+}
+
+func getScheduleTrigger(trigger scheduling.ScheduleTrigger) *sch.TaskRunMetadata_Schedule {
+	return &sch.TaskRunMetadata_Schedule{
+		Schedule: &sch.ScheduleTrigger{
+			Name:     trigger.Name(),
+			Schedule: trigger.Schedule,
+		},
+	}
+}
+
 func setTriggerProto(proto *sch.TaskRunMetadata, trigger scheduling.Trigger) (*sch.TaskRunMetadata, error) {
 	switch t := trigger.(type) {
 	case scheduling.OnApplyTrigger:
-		proto.Trigger = &sch.TaskRunMetadata_Apply{
-			Apply: &sch.OnApply{
-				Name: t.Name(),
-			},
-		}
+		proto.Trigger = getApplyTrigger(t)
 	case scheduling.ScheduleTrigger:
-		proto.Trigger = &sch.TaskRunMetadata_Schedule{
-			Schedule: &sch.ScheduleTrigger{
-				Name:     t.Name(),
-				Schedule: t.Schedule,
-			},
-		}
+		proto.Trigger = getScheduleTrigger(t)
 	default:
 		return nil, fmt.Errorf("unimplemented Trigger type: %T", trigger)
 	}
@@ -1585,13 +1592,8 @@ func (serv *MetadataServer) GetTaskByID(ctx context.Context, taskID *sch.TaskID)
 	}
 	return p, nil
 }
-func (serv *MetadataServer) GetRuns(ctx context.Context, taskID *sch.TaskID) (*sch.TaskRunList, error) {
-	id := ffsync.Uint64OrderedId(taskID.GetId())
-	tid := scheduling.TaskID(&id)
-	runs, err := serv.taskManager.GetTaskRunMetadata(tid)
-	if err != nil {
-		return nil, err
-	}
+
+func wrapTaskRunMetadataProtos(runs scheduling.TaskRunList) (*sch.TaskRunList, error) {
 	taskRunList := &sch.TaskRunList{}
 	for _, run := range runs {
 		runProto, err := wrapTaskRunMetadataProto(run)
@@ -1603,19 +1605,33 @@ func (serv *MetadataServer) GetRuns(ctx context.Context, taskID *sch.TaskID) (*s
 	return taskRunList, nil
 }
 
+func (serv *MetadataServer) GetRuns(ctx context.Context, taskID *sch.TaskID) (*sch.TaskRunList, error) {
+	id := ffsync.Uint64OrderedId(taskID.GetId())
+	tid := scheduling.TaskID(&id)
+	runs, err := serv.taskManager.GetTaskRunMetadata(tid)
+	if err != nil {
+		return nil, err
+	}
+
+	taskRunList, err := wrapTaskRunMetadataProtos(runs)
+	if err != nil {
+		return nil, err
+	}
+
+	return taskRunList, nil
+}
+
 func (serv *MetadataServer) GetAllRuns(ctx context.Context, _ *sch.Empty) (*sch.TaskRunList, error) {
 	runs, err := serv.taskManager.GetAllTaskRuns()
 	if err != nil {
 		return nil, err
 	}
-	taskRunList := &sch.TaskRunList{}
-	for _, run := range runs {
-		runProto, err := wrapTaskRunMetadataProto(run)
-		if err != nil {
-			return nil, err
-		}
-		taskRunList.Runs = append(taskRunList.Runs, runProto)
+
+	taskRunList, err := wrapTaskRunMetadataProtos(runs)
+	if err != nil {
+		return nil, err
 	}
+
 	return taskRunList, nil
 }
 func (serv *MetadataServer) SetRunStatus(ctx context.Context, update *sch.StatusUpdate) (*sch.Empty, error) {
@@ -2087,24 +2103,9 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	}
 
 	if serv.needsJob(res) && existing == nil {
-		var taskID scheduling.TaskID
-		// Do we want this in the interface?
-		if source, ok := res.(*sourceVariantResource); ok {
-			id := ffsync.Uint64OrderedId(source.serialized.TaskId)
-			taskID = scheduling.TaskID(&id)
-		}
-		if feature, ok := res.(*featureVariantResource); ok {
-			id := ffsync.Uint64OrderedId(feature.serialized.TaskId)
-			taskID = scheduling.TaskID(&id)
-		}
-		if trainingSet, ok := res.(*trainingSetVariantResource); ok {
-			id := ffsync.Uint64OrderedId(trainingSet.serialized.TaskId)
-			taskID = scheduling.TaskID(&id)
-		}
-		if label, ok := res.(*labelVariantResource); ok {
-			id := ffsync.Uint64OrderedId(label.serialized.TaskId)
-			taskID = scheduling.TaskID(&id)
-		}
+
+		taskID := serv.getTaskID(res)
+
 		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
 		trigger := scheduling.OnApplyTrigger{TriggerName: "Apply"}
 		taskName := fmt.Sprintf("Create Resource %s (%s)", res.ID().Name, res.ID().Variant)
@@ -2139,6 +2140,23 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 	return &pb.Empty{}, nil
+}
+
+// Can add this to the interface if thats cleaner
+func (serv *MetadataServer) getTaskID(res Resource) scheduling.TaskID {
+	var intID uint64
+	switch r := res.(type) {
+	case *sourceVariantResource:
+		intID = r.serialized.TaskId
+	case *featureVariantResource:
+		intID = r.serialized.TaskId
+	case *labelVariantResource:
+		intID = r.serialized.TaskId
+	case *trainingSetVariantResource:
+		intID = r.serialized.TaskId
+	}
+	id := ffsync.Uint64OrderedId(intID)
+	return scheduling.TaskID(&id)
 }
 
 func (serv *MetadataServer) setDefaultVariant(id ResourceID, defaultVariant string) error {

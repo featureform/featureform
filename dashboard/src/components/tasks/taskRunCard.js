@@ -20,7 +20,6 @@ export default function TaskRunCard({ handleClose, taskId, taskRunId }) {
   const dataAPI = useDataAPI();
   const [taskRunRecord, setTaskRecord] = useState({});
   const [loading, setLoading] = useState(true);
-  console.log("Opened tray", taskId, taskRunId)
   const columns = [
     {
       field: 'runId',

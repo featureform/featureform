@@ -83,7 +83,7 @@ func TestValidateFilepaths(t *testing.T) {
 			}, false,
 		},
 		{
-			"Azure Invalid Storage Account",
+			"Azure Invalid storage Account",
 			Azure,
 			&AzureFilepath{
 				StorageAccount: "",

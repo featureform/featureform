@@ -10,14 +10,14 @@ import (
 
 type MetadataStorageTest struct {
 	t       *testing.T
-	storage MetadataStorageImplementation
+	storage metadataStorageImplementation
 }
 
 func (test *MetadataStorageTest) Run() {
 	t := test.t
 	storage := test.storage
 
-	testFns := map[string]func(*testing.T, MetadataStorageImplementation){
+	testFns := map[string]func(*testing.T, metadataStorageImplementation){
 		"SetStorageProvider":  StorageSet,
 		"GetStorageProvider":  StorageGet,
 		"ListStorageProvider": StorageList,
@@ -30,7 +30,7 @@ func (test *MetadataStorageTest) Run() {
 	}
 }
 
-func StorageSet(t *testing.T, storage MetadataStorageImplementation) {
+func StorageSet(t *testing.T, storage metadataStorageImplementation) {
 	type keyValue struct {
 		key   string
 		value string
@@ -98,7 +98,7 @@ func StorageSet(t *testing.T, storage MetadataStorageImplementation) {
 	}
 }
 
-func StorageGet(t *testing.T, storage MetadataStorageImplementation) {
+func StorageGet(t *testing.T, storage metadataStorageImplementation) {
 	type TestCase struct {
 		key   string
 		value string
@@ -133,7 +133,7 @@ func StorageGet(t *testing.T, storage MetadataStorageImplementation) {
 	}
 }
 
-func StorageList(t *testing.T, storage MetadataStorageImplementation) {
+func StorageList(t *testing.T, storage metadataStorageImplementation) {
 	type TestCase struct {
 		keys          map[string]string
 		prefix        string
@@ -222,7 +222,7 @@ func StorageList(t *testing.T, storage MetadataStorageImplementation) {
 	}
 }
 
-func StorageDelete(t *testing.T, storage MetadataStorageImplementation) {
+func StorageDelete(t *testing.T, storage metadataStorageImplementation) {
 	type TestCase struct {
 		setKey        string
 		setValue      string

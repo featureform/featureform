@@ -2890,7 +2890,7 @@ func TestCreateSparkFileStore(t *testing.T) {
 		want    SparkFileStore
 		wantErr bool
 	}{
-		{"Invalid Storage Provider", args{"invalid", Config{}}, nil, true},
+		{"Invalid storage Provider", args{"invalid", Config{}}, nil, true},
 		{"Invalid Config", args{"S3", Config{}}, nil, true},
 	}
 	for _, tt := range tests {

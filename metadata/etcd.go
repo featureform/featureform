@@ -151,7 +151,7 @@ func (config EtcdConfig) MakeAddresses() []string {
 	return addresses
 }
 
-// Uses Storage Type as prefix so Resources and Jobs can be queried more easily
+// Uses storage Type as prefix so Resources and Jobs can be queried more easily
 func createKey(id ResourceID) string {
 	return fmt.Sprintf("%s__%s__%s", id.Type, id.Name, id.Variant)
 }
@@ -228,7 +228,7 @@ func (s EtcdStorage) GetCountWithPrefix(key string) (int64, error) {
 }
 
 // Takes a populated ETCD storage struct and a resource
-// Checks to make sure the given ETCD Storage Object contains a Resource, not job
+// Checks to make sure the given ETCD storage Object contains a Resource, not job
 // Deserializes Resource value into the provided Resource object
 func (s EtcdStorage) ParseResource(res EtcdRow, resType Resource) (Resource, error) {
 	if res.StorageType != RESOURCE {
@@ -296,7 +296,7 @@ func (lookup EtcdResourceLookup) createEmptyResource(t ResourceType) (Resource, 
 	return resource, nil
 }
 
-// Serializes the entire ETCD Storage Object to be put into ETCD
+// Serializes the entire ETCD storage Object to be put into ETCD
 func (lookup EtcdResourceLookup) serializeResource(res Resource) ([]byte, error) {
 	p, err := proto.Marshal(res.Proto())
 	if err != nil {
@@ -314,7 +314,7 @@ func (lookup EtcdResourceLookup) serializeResource(res Resource) ([]byte, error)
 	return serialMsg, nil
 }
 
-// Deserializes object into ETCD Storage Object
+// Deserializes object into ETCD storage Object
 func (lookup EtcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 	var tmp EtcdRowTemp
 	if err := json.Unmarshal(value, &tmp); err != nil {

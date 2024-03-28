@@ -1073,7 +1073,7 @@ func (store *genericFileStore) AddEnvVars(envVars map[string]string) map[string]
 	return envVars
 }
 
-// Unlike Azure Blob Storage, which does return true for "partial keys" (i.e. keys that are prefixes of other keys,
+// Unlike Azure Blob storage, which does return true for "partial keys" (i.e. keys that are prefixes of other keys,
 // which we're treating as a directory path), S3 and GCS does not. To sidestep this difference in behavior, we've added
 // `Exists` to `S3FileStore`, which uses `List` with a key prefix under the hood to determine whether there are
 // objects "under" the partial key/path.

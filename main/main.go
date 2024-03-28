@@ -10,6 +10,7 @@ import (
 	"github.com/featureform/metadata"
 	dm "github.com/featureform/metadata/dashboard"
 	"github.com/featureform/metadata/search"
+	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/runner"
 	"github.com/featureform/scheduling"
@@ -21,6 +22,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"time"
 )
 
 func main() {
@@ -37,7 +39,7 @@ func main() {
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")
 	servingHost := help.GetEnv("SERVING_HOST", "localhost")
-	servingPort := help.GetEnv("SERVING_PORT", "8080")
+	servingPort := help.GetEnv("SERVING_PORT", "8081")
 	apiConn := fmt.Sprintf("0.0.0.0:%s", apiPort)
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	servingConn := fmt.Sprintf("%s:%s", servingHost, servingPort)
@@ -132,14 +134,14 @@ func main() {
 	sLogger := logging.NewLogger("serving")
 
 	host := help.GetEnv("SERVING_HOST", "0.0.0.0")
-	port := help.GetEnv("SERVING_PORT", "8080")
+	port := help.GetEnv("SERVING_PORT", "8081")
 	address := fmt.Sprintf("%s:%s", host, port)
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		sLogger.Panicw("Failed to listen on port", "Err", err)
 	}
-
-	serv, err := serving.NewFeatureServer(client, nil, sLogger)
+	metricsHandler := &metrics.NoOpMetricsHandler{}
+	serv, err := serving.NewFeatureServer(client, metricsHandler, sLogger)
 	if err != nil {
 		sLogger.Panicw("Failed to create training server", "Err", err)
 	}
@@ -183,5 +185,7 @@ func main() {
 			logger.Errorw("Serve failed with error", "Err", serveErr)
 		}
 	}()
-
+	for {
+		time.Sleep(1 * time.Second)
+	}
 }

@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/helpers"
@@ -13,10 +14,15 @@ func NewETCDStorageImplementation() (metadataStorageImplementation, error) {
 	etcdHost := helpers.GetEnv("ETCD_HOST", "localhost")
 	etcdPort := helpers.GetEnv("ETCD_PORT", "2379")
 
-	etcdURL := fmt.Sprintf("http://%s:%s", etcdHost, etcdPort)
+	etcdHostPort := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
+
+	etcdURL := url.URL{
+		Scheme: "http",
+		Host:   etcdHostPort,
+	}
 
 	client, err := clientv3.New(clientv3.Config{
-		Endpoints: []string{etcdURL},
+		Endpoints: []string{etcdURL.String()},
 	})
 	if err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to create etcd client: %w", err))

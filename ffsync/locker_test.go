@@ -118,7 +118,10 @@ func unlockGoRoutine(locker Locker, lock Key, errChan chan<- error) {
 }
 
 func TestLockAndUnlockPrefixes(t *testing.T) {
-	locker, _ := NewMemoryLocker()
+	locker, err := NewMemoryLocker()
+	if err != nil {
+		t.Fatalf("Failed to create memory locker: %v", err)
+	}
 
 	prefix := "/tasks/metadata"
 	taskId := "task_id=5"
@@ -160,7 +163,10 @@ func TestLockAndUnlockPrefixes(t *testing.T) {
 }
 
 func TestMemoryLockTimeUpdates(t *testing.T) {
-	locker, _ := NewMemoryLocker()
+	locker, err := NewMemoryLocker()
+	if err != nil {
+		t.Fatalf("Failed to create memory locker: %v", err)
+	}
 
 	key := "/tasks/metadata/task_id=3"
 	lock, err := locker.Lock(key)

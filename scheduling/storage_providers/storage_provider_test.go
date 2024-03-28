@@ -73,16 +73,28 @@ func StorageProviderGet(t *testing.T) {
 	}
 
 	runTestCase := func(t *testing.T, test TestCase) {
-		lockObject1, _ := provider.Lock("key1")
+		lockObject1, err := provider.Lock("key1")
+		if err != nil {
+			t.Fatalf("could not lock key: %v", err)
+		}
 		provider.Set("key1", "value1", lockObject1)
 
-		lockObject2, _ := provider.Lock("key2")
+		lockObject2, err := provider.Lock("key2")
+		if err != nil {
+			t.Fatalf("could not lock key: %v", err)
+		}
 		provider.Set("key2", "value2", lockObject2)
 
-		lockObject3, _ := provider.Lock("prefix/key3")
+		lockObject3, err := provider.Lock("prefix/key3")
+		if err != nil {
+			t.Fatalf("could not lock key: %v", err)
+		}
 		provider.Set("prefix/key3", "value3", lockObject3)
 
-		lockObject4, _ := provider.Lock("prefix/key4")
+		lockObject4, err := provider.Lock("prefix/key4")
+		if err != nil {
+			t.Fatalf("could not lock key: %v", err)
+		}
 		provider.Set("prefix/key4", "value4", lockObject4)
 
 		results, err := provider.Get(test.key, test.prefix)

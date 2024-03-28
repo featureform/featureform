@@ -7,7 +7,10 @@ func TestMemoryMetadataStorage(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
-	storage, _ := NewMemoryStorageImplementation()
+	storage, err := NewMemoryStorageImplementation()
+	if err != nil {
+		t.Fatalf("Failed to create Memory storage: %v", err)
+	}
 
 	test := MetadataStorageTest{
 		t:       t,

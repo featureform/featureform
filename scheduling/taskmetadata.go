@@ -33,15 +33,25 @@ type TaskMetadataManager struct {
 }
 
 func NewMemoryTaskMetadataManager() (TaskMetadataManager, error) {
-	memoryLocker, _ := ffsync.NewMemoryLocker()
-	memoryStorage, _ := ss.NewMemoryStorageImplementation()
+	memoryLocker, err := ffsync.NewMemoryLocker()
+	if err != nil {
+		return TaskMetadataManager{}, err
+	}
+
+	memoryStorage, err := ss.NewMemoryStorageImplementation()
+	if err != nil {
+		return TaskMetadataManager{}, err
+	}
 
 	memoryMetadataStorage := ss.MetadataStorage{
 		Locker:  &memoryLocker,
 		Storage: &memoryStorage,
 	}
 
-	idGenerator, _ := ffsync.NewMemoryOrderedIdGenerator()
+	idGenerator, err := ffsync.NewMemoryOrderedIdGenerator()
+	if err != nil {
+		return TaskMetadataManager{}, err
+	}
 
 	return TaskMetadataManager{
 		storage:     memoryMetadataStorage,

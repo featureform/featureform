@@ -273,9 +273,15 @@ func StorageDelete(t *testing.T, storage metadataStorageImplementation) {
 }
 
 func TestMetadataStorage(t *testing.T) {
-	locker, _ := ffsync.NewMemoryLocker()
+	locker, err := ffsync.NewMemoryLocker()
+	if err != nil {
+		t.Fatalf("Failed to create Memory locker: %v", err)
+	}
 
-	storage, _ := NewMemoryStorageImplementation()
+	storage, err := NewMemoryStorageImplementation()
+	if err != nil {
+		t.Fatalf("Failed to create Memory storage: %v", err)
+	}
 
 	metadataStorage := MetadataStorage{
 		Locker:  &locker,

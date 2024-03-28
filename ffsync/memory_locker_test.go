@@ -5,7 +5,10 @@ import (
 )
 
 func TestMemoryLocker(t *testing.T) {
-	locker, _ := NewMemoryLocker()
+	locker, err := NewMemoryLocker()
+	if err != nil {
+		t.Fatalf("Failed to create Memory locker: %v", err)
+	}
 
 	test := LockerTest{
 		t:      t,

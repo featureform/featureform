@@ -22,6 +22,7 @@ service Metadata {
     rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
     rpc CreateModel(Model) returns (Empty);
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
+    rpc CreateProject(Project) returns (Empty);
 
     rpc GetUsers(stream Name) returns (stream User);
     rpc GetFeatures(stream Name) returns (stream Feature);
@@ -52,6 +53,11 @@ service Metadata {
     rpc ListModels(Empty) returns (stream Model);
 
     rpc SetResourceStatus(SetStatusRequest) returns (Empty);
+    
+    rpc AddProject(ProjectRequest) returns (Empty);
+    rpc RemoveProject(ProjectRequest) returns (Empty);
+    rpc UpdateProject(Project) returns (Empty);
+    rpc DeleteProject(Project) returns (Empty);
 }
 
 service Api {

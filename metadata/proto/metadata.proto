@@ -150,6 +150,7 @@ enum ResourceType {
     ENTITY = 9;
     MODEL = 10;
     USER = 11;
+    PROJECT = 12;
 }
 
 message ResourceID {
@@ -229,6 +230,7 @@ message FeatureVariant {
     bool is_embedding = 19;
     int32 dimension = 20;
     FeatureParameters additional_parameters = 21;
+    Project project = 22;
 }
 
 message FeatureParameters {
@@ -316,6 +318,7 @@ message TrainingSetVariant {
     repeated FeatureLag feature_lags = 15;
     Tags tags = 16;
     Properties properties = 17;
+    Project project = 18;
 }
 
 message Entity {
@@ -434,4 +437,13 @@ message Property {
 
 message Properties {
     map<string, Property> property = 1;
+}
+
+message Project {
+	string name = 1;
+	repeated NameVariant inputs = 2;
+}
+
+message Projects {
+  repeated Project projects = 1;
 }

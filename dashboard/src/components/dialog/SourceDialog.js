@@ -84,7 +84,7 @@ export default function SourceDialog({
         aria-describedby='dialog-description'
       >
         <DialogTitle id='dialog-title' data-testid={'sourceTableTitleId'}>
-          {`${sourceName.toUpperCase()} - ${sourceVariant}`}
+          {`${sourceName} - ${sourceVariant}`}
           <IconButton
             data-testid={'sourceTableCloseId'}
             sx={{ float: 'right' }}

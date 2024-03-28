@@ -98,9 +98,7 @@ describe('Source Table Dialog Tests', () => {
       name,
       DEFAULT_VARIANT
     );
-    expect(foundName.textContent).toBe(
-      `${DEFAULT_NAME.toUpperCase()} - ${DEFAULT_VARIANT}`
-    );
+    expect(foundName.textContent).toBe(`${DEFAULT_NAME} - ${DEFAULT_VARIANT}`);
     expect(foundName.nodeName).toBe(H2_NODE);
   });
 
@@ -126,9 +124,7 @@ describe('Source Table Dialog Tests', () => {
       name,
       DEFAULT_VARIANT
     );
-    expect(foundName.textContent).toBe(
-      `${DEFAULT_NAME.toUpperCase()} - ${DEFAULT_VARIANT}`
-    );
+    expect(foundName.textContent).toBe(`${DEFAULT_NAME} - ${DEFAULT_VARIANT}`);
     expect(foundName.nodeName).toBe(H2_NODE);
     expect(foundColumn1.nodeName).toBe(TH_NODE);
     expect(foundColumn2.nodeName).toBe(TH_NODE);

@@ -4,7 +4,7 @@ import React from 'react';
 export default function StatusChip({ status = '' }) {
   console.log(status);
   const chipMap = {
-    NO_STATUS: '#FFFFFF',
+    NO_STATUS: '#D0FAEC',
     CREATED: '#FFFFFF',
     PENDING: '#FAECD0',
     READY: '#D1FAD0',

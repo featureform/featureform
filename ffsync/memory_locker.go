@@ -38,7 +38,7 @@ type memoryLocker struct {
 
 func (m *memoryLocker) Lock(key string) (Key, error) {
 	if key == "" {
-		return nil, fferr.NewInternalError(fmt.Errorf("cannot lock an empty key"))
+		return nil, fferr.NewLockEmptyKeyError()
 	}
 
 	m.mutex.Lock()
@@ -134,7 +134,7 @@ func (m *memoryLocker) updateLockTime(key *memoryKey) {
 
 func (m *memoryLocker) Unlock(key Key) error {
 	if key.Key() == "" {
-		return fferr.NewInternalError(fmt.Errorf("cannot unlock an empty key"))
+		return fferr.NewUnlockEmptyKeyError()
 	}
 
 	m.mutex.Lock()

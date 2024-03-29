@@ -9,6 +9,11 @@ import (
 	"github.com/featureform/ffsync"
 )
 
+const (
+	taskRunKeyPrefix         = "/tasks/runs/task_id="
+	taskRunMetadataKeyPrefix = "/tasks/runs/metadata"
+)
+
 type TaskRunKey struct {
 	taskID TaskID
 }
@@ -17,7 +22,7 @@ func (trk TaskRunKey) String() string {
 	if trk.taskID == nil {
 		return "/tasks/runs/task_id="
 	}
-	return fmt.Sprintf("/tasks/runs/task_id=%s", trk.taskID.String())
+	return fmt.Sprintf("%s%s", taskRunKeyPrefix, trk.taskID.String())
 }
 
 type TaskRunMetadataKey struct {
@@ -27,18 +32,14 @@ type TaskRunMetadataKey struct {
 }
 
 func (trmk TaskRunMetadataKey) String() string {
-	key := "/tasks/runs/metadata"
+	// will return the taskRunMetadataKeyPrefix with date to the minute; ex. /tasks/runs/metadata/2021/01/01/15/04
+	key := trmk.TruncateToMinute()
 
-	// adds the date to the key if it's not zero
-	if !trmk.date.IsZero() {
-		key += fmt.Sprintf("/%s", trmk.date.Format("2006/01/02/15/04"))
-
-		// adds the task_id and run_id to the key if they're not null
-		taskIdIsNotNil := trmk.taskID != nil
-		runIdIsNotNil := trmk.runID != nil
-		if taskIdIsNotNil && runIdIsNotNil {
-			key += fmt.Sprintf("/task_id=%s/run_id=%s", trmk.taskID.String(), trmk.runID.String())
-		}
+	// adds the task_id and run_id to the key if they're not null
+	taskIdIsNotNil := trmk.taskID != nil
+	runIdIsNotNil := trmk.runID != nil
+	if taskIdIsNotNil && runIdIsNotNil {
+		key += fmt.Sprintf("/task_id=%s/run_id=%s", trmk.taskID.String(), trmk.runID.String())
 	}
 	return key
 }
@@ -62,18 +63,11 @@ func (trmk TaskRunMetadataKey) TruncateToMinute() string {
 }
 
 func (trmk TaskRunMetadataKey) pathWithDateFormat(dateFormat string) string {
-	key := "/tasks/runs/metadata"
+	key := taskRunMetadataKeyPrefix
 
 	// adds the date to the key if it's not zero
 	if !trmk.date.IsZero() {
 		key += fmt.Sprintf("/%s", trmk.date.Format(dateFormat))
-
-		// adds the task_id and run_id to the key if they're not null
-		taskIdIsNotNil := trmk.taskID != nil
-		runIdIsNotNil := trmk.runID != nil
-		if taskIdIsNotNil && runIdIsNotNil {
-			key += fmt.Sprintf("/task_id=%s/run_id=%s", trmk.taskID.String(), trmk.runID.String())
-		}
 	}
 	return key
 }

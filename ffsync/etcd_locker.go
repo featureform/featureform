@@ -64,7 +64,7 @@ type etcdLocker struct {
 
 func (m *etcdLocker) Lock(key string) (Key, error) {
 	if key == "" {
-		return nil, fferr.NewInternalError(fmt.Errorf("cannot lock an empty key"))
+		return nil, fferr.NewLockEmptyKeyError()
 	}
 
 	id := uuid.New().String()
@@ -85,7 +85,7 @@ func (m *etcdLocker) Lock(key string) (Key, error) {
 
 func (m *etcdLocker) Unlock(key Key) error {
 	if key.Key() == "" {
-		return fferr.NewInternalError(fmt.Errorf("cannot unlock an empty key"))
+		return fferr.NewUnlockEmptyKeyError()
 	}
 
 	etcdKey, ok := key.(etcdKey)

@@ -14,7 +14,7 @@ func TestExecutorTaskRunLockPath(t *testing.T) {
 		args args
 		want string
 	}{
-		{"Zero", args{scheduling.NewTaskRunIdFromString(0)}, "/runlock/0"},
+		{"Zero", args{scheduling.NewTaskRunIdFromString("0")}, "/runlock/0"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

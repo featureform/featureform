@@ -69,8 +69,8 @@ func wrapProtoTaskMetadata(task *sch.TaskMetadata) (s.TaskMetadata, error) {
 }
 
 func wrapProtoTaskRunMetadata(run *sch.TaskRunMetadata) (s.TaskRunMetadata, error) {
-	rid := s.NewTaskRunIdFromString(run.RunID.String())
-	tid := s.NewTaskIdFromString(run.TaskID.String())
+	rid := s.NewTaskRunIdFromString(run.RunID.Id)
+	tid := s.NewTaskIdFromString(run.TaskID.Id)
 
 	t, err := convertProtoTriggerType(run.GetTrigger())
 	if err != nil {

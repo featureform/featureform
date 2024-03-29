@@ -9,7 +9,7 @@ import (
 	sch "github.com/featureform/scheduling/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	grpc_status "google.golang.org/grpc/status"
+	grpcstatus "google.golang.org/grpc/status"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 	"io"
 )
@@ -51,8 +51,7 @@ func convertProtoTarget(target interface{}) (s.TaskTarget, error) {
 }
 
 func wrapProtoTaskMetadata(task *sch.TaskMetadata) (s.TaskMetadata, error) {
-	id := ffsync.Uint64OrderedId(task.GetId().Id)
-	tid := s.TaskID(&id)
+	tid := s.NewTaskRunIdFromString(task.GetId().Id)
 
 	t, err := convertProtoTarget(task.Target)
 	if err != nil {
@@ -70,10 +69,8 @@ func wrapProtoTaskMetadata(task *sch.TaskMetadata) (s.TaskMetadata, error) {
 }
 
 func wrapProtoTaskRunMetadata(run *sch.TaskRunMetadata) (s.TaskRunMetadata, error) {
-	id := ffsync.Uint64OrderedId(run.TaskID.Id)
-	rid := s.TaskRunID(&id)
-	id = ffsync.Uint64OrderedId(run.RunID.Id)
-	tid := s.TaskID(&id)
+	rid := s.NewTaskRunIdFromString(run.RunID.String())
+	tid := s.NewTaskIdFromString(run.TaskID.String())
 
 	t, err := convertProtoTriggerType(run.GetTrigger())
 	if err != nil {
@@ -95,7 +92,7 @@ func wrapProtoTaskRunMetadata(run *sch.TaskRunMetadata) (s.TaskRunMetadata, erro
 }
 
 func (t *Tasks) GetTaskByID(id s.TaskID) (s.TaskMetadata, error) {
-	task, err := t.GrpcConn.GetTaskByID(context.Background(), &sch.TaskID{Id: id.Value().(uint64)})
+	task, err := t.GrpcConn.GetTaskByID(context.Background(), &sch.TaskID{Id: id.String()})
 	if err != nil {
 		return s.TaskMetadata{}, err
 	}
@@ -146,7 +143,7 @@ func (t *Tasks) GetAllRuns() (s.TaskRunList, error) {
 }
 
 func (t *Tasks) GetRuns(id s.TaskID) (s.TaskRunList, error) {
-	client, err := t.GrpcConn.GetRuns(context.Background(), &sch.TaskID{Id: id.Value().(uint64)})
+	client, err := t.GrpcConn.GetRuns(context.Background(), &sch.TaskID{Id: id.String()})
 	if err != nil {
 		return s.TaskRunList{}, err
 	}
@@ -159,7 +156,7 @@ func (t *Tasks) GetRuns(id s.TaskID) (s.TaskRunList, error) {
 }
 
 func (t *Tasks) GetLatestRun(id s.TaskID) (s.TaskRunMetadata, error) {
-	run, err := t.GrpcConn.GetLatestRun(context.Background(), &sch.TaskID{Id: id.Value().(uint64)})
+	run, err := t.GrpcConn.GetLatestRun(context.Background(), &sch.TaskID{Id: id.String()})
 	if err != nil {
 		return s.TaskRunMetadata{}, err
 	}
@@ -176,7 +173,7 @@ func (t *Tasks) SetRunStatus(taskID s.TaskID, runID s.TaskRunID, status s.Status
 	if errMsg != nil {
 		msg = errMsg.Error()
 	}
-	errorStatus, ok := grpc_status.FromError(errMsg)
+	errorStatus, ok := grpcstatus.FromError(errMsg)
 	errorProto := errorStatus.Proto()
 	var errorStatusProto *proto.ErrorStatus
 	if ok && errMsg != nil {
@@ -188,8 +185,8 @@ func (t *Tasks) SetRunStatus(taskID s.TaskID, runID s.TaskRunID, status s.Status
 	resourceStatus := proto.ResourceStatus{Status: proto.ResourceStatus_Status(status), ErrorMessage: msg, ErrorStatus: errorStatusProto}
 
 	update := &sch.StatusUpdate{
-		RunID:  &sch.RunID{Id: runID.Value().(uint64)},
-		TaskID: &sch.TaskID{Id: taskID.Value().(uint64)},
+		RunID:  &sch.RunID{Id: runID.String()},
+		TaskID: &sch.TaskID{Id: taskID.String()},
 		Status: &resourceStatus,
 	}
 
@@ -201,7 +198,7 @@ func (t *Tasks) SetRunStatus(taskID s.TaskID, runID s.TaskRunID, status s.Status
 }
 
 func (t *Tasks) AddRunLog(taskID s.TaskID, runID s.TaskRunID, msg string) error {
-	log := &sch.Log{RunID: &sch.RunID{Id: runID.Value().(uint64)}, TaskID: &sch.TaskID{Id: taskID.Value().(uint64)}, Log: msg}
+	log := &sch.Log{RunID: &sch.RunID{Id: runID.String()}, TaskID: &sch.TaskID{Id: taskID.String()}, Log: msg}
 	_, err := t.GrpcConn.AddRunLog(context.Background(), log)
 	if err != nil {
 		return err
@@ -211,8 +208,8 @@ func (t *Tasks) AddRunLog(taskID s.TaskID, runID s.TaskRunID, msg string) error 
 
 func (t *Tasks) EndRun(taskID s.TaskID, runID s.TaskRunID) error {
 	update := &sch.RunEndTimeUpdate{
-		RunID:  &sch.RunID{Id: runID.Value().(uint64)},
-		TaskID: &sch.TaskID{Id: taskID.Value().(uint64)},
+		RunID:  &sch.RunID{Id: runID.String()},
+		TaskID: &sch.TaskID{Id: taskID.String()},
 		End:    tspb.Now(),
 	}
 	_, err := t.GrpcConn.SetRunEndTime(context.Background(), update)

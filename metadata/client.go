@@ -7,7 +7,6 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"github.com/featureform/ffsync"
 	"github.com/featureform/scheduling"
 	sch "github.com/featureform/scheduling/proto"
 	"io"
@@ -2056,8 +2055,7 @@ func (variant *SourceVariant) DFTransformationQuerySource() string {
 }
 
 func (variant *SourceVariant) TaskID() scheduling.TaskID {
-	id := ffsync.Uint64OrderedId(variant.serialized.TaskId)
-	return scheduling.TaskID(&id)
+	return scheduling.NewTaskIdFromString(variant.serialized.TaskId)
 }
 
 func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {

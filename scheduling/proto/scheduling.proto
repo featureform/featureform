@@ -22,11 +22,11 @@ service Tasks {
 }
 
 message TaskID {
-  uint64 id = 1;
+  string id = 1;
 }
 
 message RunID {
-  uint64 id = 1;
+  string id = 1;
 }
 
 message StatusUpdate {

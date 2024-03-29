@@ -564,7 +564,7 @@ func (resource *sourceVariantResource) SetStatus(status *scheduling.Status, msg 
 }
 
 func (resource *sourceVariantResource) TaskID() scheduling.TaskID {
-	return scheduling.NewUint64TaskId(resource.serialized.TaskId)
+	return scheduling.NewTaskIdFromString(resource.serialized.TaskId)
 }
 
 func isSourceProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transformation) (bool, error) {
@@ -806,7 +806,7 @@ func (resource *featureVariantResource) SetStatus(status *scheduling.Status, msg
 }
 
 func (resource *featureVariantResource) TaskID() scheduling.TaskID {
-	return scheduling.NewUint64TaskId(resource.serialized.TaskId)
+	return scheduling.NewTaskIdFromString(resource.serialized.TaskId)
 }
 
 type labelResource struct {
@@ -958,7 +958,7 @@ func (resource *labelVariantResource) SetStatus(status *scheduling.Status, msg s
 }
 
 func (resource *labelVariantResource) TaskID() scheduling.TaskID {
-	return scheduling.NewUint64TaskId(resource.serialized.TaskId)
+	return scheduling.NewTaskIdFromString(resource.serialized.TaskId)
 }
 
 func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
@@ -1143,7 +1143,7 @@ func (resource *trainingSetVariantResource) SetStatus(status *scheduling.Status,
 }
 
 func (resource *trainingSetVariantResource) TaskID() scheduling.TaskID {
-	return scheduling.NewUint64TaskId(resource.serialized.TaskId)
+	return scheduling.NewTaskIdFromString(resource.serialized.TaskId)
 }
 
 func (resource *trainingSetVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
@@ -1576,7 +1576,7 @@ func setTargetProto(proto *sch.TaskMetadata, target scheduling.TaskTarget) (*sch
 
 func wrapTaskMetadataProto(task scheduling.TaskMetadata) (*sch.TaskMetadata, error) {
 	taskMetadata := &sch.TaskMetadata{
-		Id:         &sch.TaskID{Id: task.ID.Value().(uint64)},
+		Id:         &sch.TaskID{Id: task.ID.String()},
 		Name:       task.Name,
 		Type:       task.TaskType.Proto(),
 		TargetType: task.TargetType.Proto(),
@@ -1629,8 +1629,8 @@ func wrapTimestampProto(ts time.Time) *tspb.Timestamp {
 
 func wrapTaskRunMetadataProto(run scheduling.TaskRunMetadata) (*sch.TaskRunMetadata, error) {
 	taskRunMetadata := &sch.TaskRunMetadata{
-		RunID:       &sch.RunID{Id: run.ID.Value().(uint64)},
-		TaskID:      &sch.TaskID{Id: run.TaskId.Value().(uint64)},
+		RunID:       &sch.RunID{Id: run.ID.String()},
+		TaskID:      &sch.TaskID{Id: run.TaskId.String()},
 		Name:        run.Name,
 		TriggerType: run.TriggerType.Proto(),
 		StartTime:   wrapTimestampProto(run.StartTime),
@@ -1652,7 +1652,7 @@ func wrapTaskRunMetadataProto(run scheduling.TaskRunMetadata) (*sch.TaskRunMetad
 }
 
 func (serv *MetadataServer) GetTaskByID(ctx context.Context, taskID *sch.TaskID) (*sch.TaskMetadata, error) {
-	tid := scheduling.NewUint64TaskId(taskID.GetId())
+	tid := scheduling.NewTaskIdFromString(taskID.GetId())
 	task, err := serv.taskManager.GetTaskByID(tid)
 	if err != nil {
 		return nil, err
@@ -1665,7 +1665,7 @@ func (serv *MetadataServer) GetTaskByID(ctx context.Context, taskID *sch.TaskID)
 }
 
 func (serv *MetadataServer) GetRuns(id *sch.TaskID, stream sch.Tasks_GetRunsServer) error {
-	tid := scheduling.NewUint64TaskId(id.GetId())
+	tid := scheduling.NewTaskIdFromString(id.GetId())
 	runs, err := serv.taskManager.GetTaskRunMetadata(tid)
 	if err != nil {
 		return err
@@ -1704,7 +1704,7 @@ func (serv *MetadataServer) GetAllRuns(_ *sch.Empty, stream sch.Tasks_GetAllRuns
 }
 
 func (serv *MetadataServer) GetLatestRun(ctx context.Context, taskID *sch.TaskID) (*sch.TaskRunMetadata, error) {
-	run, err := serv.taskManager.GetLatestRun(scheduling.NewUint64TaskId(taskID.GetId()))
+	run, err := serv.taskManager.GetLatestRun(scheduling.NewTaskIdFromString(taskID.GetId()))
 	if err != nil {
 		return nil, err
 	}
@@ -1718,8 +1718,8 @@ func (serv *MetadataServer) GetLatestRun(ctx context.Context, taskID *sch.TaskID
 }
 
 func (serv *MetadataServer) SetRunStatus(ctx context.Context, update *sch.StatusUpdate) (*sch.Empty, error) {
-	rid := scheduling.NewUint64TaskRunId(update.GetRunID().GetId())
-	tid := scheduling.NewUint64TaskId(update.GetTaskID().GetId())
+	rid := scheduling.NewTaskRunIdFromString(update.GetRunID().GetId())
+	tid := scheduling.NewTaskIdFromString(update.GetTaskID().GetId())
 
 	err := serv.taskManager.SetRunStatus(rid, tid, update.Status)
 	if err != nil {
@@ -1728,8 +1728,8 @@ func (serv *MetadataServer) SetRunStatus(ctx context.Context, update *sch.Status
 	return &sch.Empty{}, nil
 }
 func (serv *MetadataServer) AddRunLog(ctx context.Context, log *sch.Log) (*sch.Empty, error) {
-	rid := scheduling.NewUint64TaskRunId(log.GetRunID().GetId())
-	tid := scheduling.NewUint64TaskId(log.GetTaskID().GetId())
+	rid := scheduling.NewTaskRunIdFromString(log.GetRunID().GetId())
+	tid := scheduling.NewTaskIdFromString(log.GetTaskID().GetId())
 	err := serv.taskManager.AppendRunLog(rid, tid, log.Log)
 	if err != nil {
 		return nil, err
@@ -1737,8 +1737,8 @@ func (serv *MetadataServer) AddRunLog(ctx context.Context, log *sch.Log) (*sch.E
 	return &sch.Empty{}, nil
 }
 func (serv *MetadataServer) SetRunEndTime(ctx context.Context, update *sch.RunEndTimeUpdate) (*sch.Empty, error) {
-	rid := scheduling.NewUint64TaskRunId(update.GetRunID().GetId())
-	tid := scheduling.NewUint64TaskId(update.GetTaskID().GetId())
+	rid := scheduling.NewTaskRunIdFromString(update.GetRunID().GetId())
+	tid := scheduling.NewTaskIdFromString(update.GetTaskID().GetId())
 	err := serv.taskManager.SetRunEndTime(rid, tid, update.End.AsTime())
 	if err != nil {
 		return nil, err
@@ -1854,7 +1854,7 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *p
 	if err != nil {
 		return nil, err
 	}
-	variant.TaskId = task.ID.Value().(uint64)
+	variant.TaskId = task.ID.String()
 	return serv.genericCreate(ctx, &featureVariantResource{variant}, func(name, variant string) Resource {
 		return &featureResource{
 			&pb.Feature{
@@ -1892,7 +1892,7 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variant *pb.
 	if err != nil {
 		return nil, err
 	}
-	variant.TaskId = task.ID.Value().(uint64)
+	variant.TaskId = task.ID.String()
 	return serv.genericCreate(ctx, &labelVariantResource{variant}, func(name, variant string) Resource {
 		return &labelResource{
 			&pb.Label{
@@ -1930,7 +1930,7 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, varian
 	if err != nil {
 		return nil, err
 	}
-	variant.TaskId = task.ID.Value().(uint64)
+	variant.TaskId = task.ID.String()
 	return serv.genericCreate(ctx, &trainingSetVariantResource{variant}, func(name, variant string) Resource {
 		return &trainingSetResource{
 			&pb.TrainingSet{
@@ -1968,7 +1968,7 @@ func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variant *pb
 	if err != nil {
 		return nil, err
 	}
-	variant.TaskId = task.ID.Value().(uint64)
+	variant.TaskId = task.ID.String()
 	return serv.genericCreate(ctx, &sourceVariantResource{variant}, func(name, variant string) Resource {
 		return &SourceResource{
 			&pb.Source{

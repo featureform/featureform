@@ -1382,7 +1382,7 @@ func (c *Coordinator) ExecuteJob(taskRun scheduling.TaskRunMetadata) error {
 			if setErr != nil {
 				return fferr.NewInternalErrorf("set run end time in task manager: %v", err)
 			}
-			return fferr.NewResourceTaskFailed(job.Resource.Name, job.Resource.Variant, job.Resource.Type.String(), nil)
+			return fferr.NewResourceTaskFailedError(job.Resource.Name, job.Resource.Variant, job.Resource.Type.String(), nil)
 		}
 	}
 	err = c.Metadata.Tasks.EndRun(taskRun.TaskId, taskRun.ID)

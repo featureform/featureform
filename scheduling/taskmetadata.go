@@ -29,10 +29,10 @@ type TaskMetadataManager struct {
 	idGenerator ffsync.OrderedIdGenerator
 }
 
-func NewTaskMetadataManager(storage ss.MetadataStorage) TaskMetadataManager {
+func NewTaskMetadataManager(storage ss.MetadataStorage, generator ffsync.OrderedIdGenerator) TaskMetadataManager {
 	return TaskMetadataManager{
 		storage:     storage,
-		idGenerator: ffsync.NewMemoryOrderedIdGenerator(),
+		idGenerator: generator,
 	}
 }
 
@@ -195,10 +195,6 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 }
 
 func (m *TaskMetadataManager) latestTaskRun(runs TaskRuns) (TaskRunID, error) {
-	if len(runs.Runs) == 0 {
-		//Fix this error later
-		return TaskRunID(uint64(0)), fmt.Errorf("No runs")
-	}
 
 	var latestTime time.Time
 	var latestRunIdx int
@@ -220,6 +216,10 @@ func (m *TaskMetadataManager) GetLatestRun(taskID TaskID) (TaskRunMetadata, erro
 	runs, err := m.getTaskRunRecords(taskID)
 	if err != nil {
 		return TaskRunMetadata{}, err
+	}
+
+	if len(runs.Runs) == 0 {
+		return TaskRunMetadata{}, fferr.NewNoRunsForTaskError(taskID.String())
 	}
 
 	latest, err := m.latestTaskRun(runs)

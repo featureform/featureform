@@ -78,6 +78,7 @@ const (
 
 	// TASKS
 	RESOURCE_TASK_FAILED = "Resource Task Failed"
+	NO_RUNS_FOR_TASK     = "No Runs For Task"
 )
 
 type JSONStackTrace map[string]interface{}

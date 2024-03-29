@@ -32,7 +32,7 @@ func main() {
 		Locker:  &locker,
 		Storage: &mstorage,
 	}
-	meta := scheduling.NewTaskMetadataManager(storage)
+	meta := scheduling.NewTaskMetadataManager(storage, ffsync.NewMemoryOrderedIdGenerator())
 
 	local := help.GetEnvBool("FEATUREFORM_LOCAL", true)
 	/****************************************** API Server ************************************************************/

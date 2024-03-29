@@ -5,17 +5,30 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-type ResourceTaskFailed struct {
+type ResourceTaskFailedError struct {
 	baseGRPCError
 }
 
-func NewResourceTaskFailed(name, variant, resType string, err error) *ResourceTaskFailed {
+func NewResourceTaskFailedError(name, variant, resType string, err error) *ResourceTaskFailedError {
 	if err == nil {
 		err = fmt.Errorf("resource %s (%s) type %s failed to run: %w", name, variant, resType, err)
 	}
 	baseError := newBaseGRPCError(err, RESOURCE_TASK_FAILED, codes.Internal)
 
-	return &ResourceTaskFailed{
+	return &ResourceTaskFailedError{
+		baseError,
+	}
+}
+
+type NoRunsForTaskError struct {
+	baseGRPCError
+}
+
+func NewNoRunsForTaskError(taskID string) *NoRunsForTaskError {
+	err := fmt.Errorf("no runs found for task %s", taskID)
+	baseError := newBaseGRPCError(err, NO_RUNS_FOR_TASK, codes.Internal)
+
+	return &NoRunsForTaskError{
 		baseError,
 	}
 }

@@ -2,7 +2,6 @@ package metadata
 
 import (
 	"context"
-	"fmt"
 	"github.com/featureform/fferr"
 	"github.com/featureform/ffsync"
 	"github.com/featureform/metadata/proto"
@@ -228,7 +227,7 @@ type TaskLocker struct {
 }
 
 func (tl *TaskLocker) LockRun(id s.TaskRunID) (ffsync.Key, error) {
-	runKey := fmt.Sprintf("/runlock/%s", id.String())
+	runKey := ExecutorTaskRunLockPath(id)
 	return tl.Locker.Lock(runKey)
 }
 

@@ -28,9 +28,6 @@ class FFGrpcErrorDetails:
         """
         status_proto = _extract_error_details(e)
 
-        if status_proto is None:
-            return None
-
         for detail in status_proto.details:
             # should only be one detail
             if detail.Is(error_details_pb2.ErrorInfo.DESCRIPTOR):

@@ -2,6 +2,8 @@ package storage
 
 import (
 	"testing"
+
+	"github.com/featureform/helpers"
 )
 
 func TestETCDMetadataStorage(t *testing.T) {
@@ -9,7 +11,15 @@ func TestETCDMetadataStorage(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
-	etcdStorage, err := NewETCDStorageImplementation()
+	etcdHost := helpers.GetEnv("ETCD_HOST", "localhost")
+	etcdPort := helpers.GetEnv("ETCD_PORT", "2379")
+
+	etcdConfig := helpers.ETCDConfig{
+		Host: etcdHost,
+		Port: etcdPort,
+	}
+
+	etcdStorage, err := NewETCDStorageImplementation(etcdConfig)
 	if err != nil {
 		t.Fatalf("Failed to create ETCD storage: %v", err)
 	}

@@ -25,14 +25,9 @@ func (k etcdKey) Key() string {
 	return k.key
 }
 
-func NewETCDLocker() (Locker, error) {
-	etcdHost := helpers.GetEnv("ETCD_HOST", "localhost")
-	etcdPort := helpers.GetEnv("ETCD_PORT", "2379")
-
-	etcdURL := fmt.Sprintf("http://%s:%s", etcdHost, etcdPort)
-
+func NewETCDLocker(config helpers.ETCDConfig) (Locker, error) {
 	client, err := clientv3.New(clientv3.Config{
-		Endpoints: []string{etcdURL},
+		Endpoints: []string{config.URL()},
 	})
 	if err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to create etcd client: %w", err))

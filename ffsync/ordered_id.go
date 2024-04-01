@@ -98,14 +98,9 @@ func (m *memoryIdGenerator) Close() {
 	// No-op
 }
 
-func NewETCDOrderedIdGenerator() (OrderedIdGenerator, error) {
-	etcdHost := helpers.GetEnv("ETCD_HOST", "localhost")
-	etcdPort := helpers.GetEnv("ETCD_PORT", "2379")
-
-	etcdURL := fmt.Sprintf("http://%s:%s", etcdHost, etcdPort)
-
+func NewETCDOrderedIdGenerator(config helpers.ETCDConfig) (OrderedIdGenerator, error) {
 	client, err := clientv3.New(clientv3.Config{
-		Endpoints: []string{etcdURL},
+		Endpoints: []string{config.URL()},
 	})
 	if err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to create etcd client: %w", err))

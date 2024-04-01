@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
+// Postgres
 func getPostgresConfig(connectionString string) (*pgxpool.Config, error) {
 	const defaultMaxConns = 10
 	const defaultMinConns = 0
@@ -73,4 +74,18 @@ func (c RDSConfig) ConnectionString() string {
 
 func SanitizePostgres(ident string) string {
 	return psql.Identifier{ident}.Sanitize()
+}
+
+// ETCD
+type ETCDConfig struct {
+	Host string
+	Port string
+}
+
+func (c ETCDConfig) URL() string {
+	u := &url.URL{
+		Scheme: "http",
+		Host:   fmt.Sprintf("%s:%s", c.Host, c.Port),
+	}
+	return u.String()
 }

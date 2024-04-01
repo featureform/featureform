@@ -60,13 +60,13 @@ func NewMemoryTaskMetadataManager() (TaskMetadataManager, error) {
 	}, nil
 }
 
-func NewETCDTaskMetadataManager() (TaskMetadataManager, error) {
-	etcdLocker, err := ffsync.NewETCDLocker()
+func NewETCDTaskMetadataManager(config helpers.ETCDConfig) (TaskMetadataManager, error) {
+	etcdLocker, err := ffsync.NewETCDLocker(config)
 	if err != nil {
 		return TaskMetadataManager{}, err
 	}
 
-	etcdStorage, err := ss.NewETCDStorageImplementation()
+	etcdStorage, err := ss.NewETCDStorageImplementation(config)
 	if err != nil {
 		return TaskMetadataManager{}, err
 	}
@@ -76,7 +76,7 @@ func NewETCDTaskMetadataManager() (TaskMetadataManager, error) {
 		Storage: etcdStorage,
 	}
 
-	idGenerator, err := ffsync.NewETCDOrderedIdGenerator()
+	idGenerator, err := ffsync.NewETCDOrderedIdGenerator(config)
 	if err != nil {
 		return TaskMetadataManager{}, err
 	}

@@ -72,7 +72,15 @@ func TestMemoryIdGenerator(t *testing.T) {
 }
 
 func TestETCDIdGenerator(t *testing.T) {
-	generator, err := NewETCDOrderedIdGenerator()
+	host := helpers.GetEnv("ETCD_HOST", "localhost")
+	port := helpers.GetEnv("ETCD_PORT", "2379")
+
+	etcdConfig := helpers.ETCDConfig{
+		Host: host,
+		Port: port,
+	}
+
+	generator, err := NewETCDOrderedIdGenerator(etcdConfig)
 	if err != nil {
 		t.Fatalf("Failed to create ETCD ID generator: %v", err)
 	}

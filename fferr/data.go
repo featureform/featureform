@@ -57,7 +57,7 @@ func NewDataTypeNotFoundError(value any, err error) *DataTypeNotFoundError {
 		err = fmt.Errorf("datatype not found")
 	}
 	baseError := newBaseError(err, DATATYPE_NOT_FOUND, codes.NotFound)
-	baseError.AddDetail("value_type", fmt.Sprintf("%#v %T", value))
+	baseError.AddDetail("value_and_type", fmt.Sprintf("%#v %T", value, value))
 	return &DataTypeNotFoundError{
 		baseError,
 	}

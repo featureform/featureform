@@ -6,6 +6,7 @@ import (
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/ffsync"
+	"github.com/featureform/helpers"
 	ss "github.com/featureform/storage"
 )
 
@@ -86,13 +87,13 @@ func NewETCDTaskMetadataManager() (TaskMetadataManager, error) {
 	}, nil
 }
 
-func NewRDSTaskMetadataManager() (TaskMetadataManager, error) {
-	rdsLocker, err := ffsync.NewRDSLocker()
+func NewRDSTaskMetadataManager(config helpers.RDSConfig) (TaskMetadataManager, error) {
+	rdsLocker, err := ffsync.NewRDSLocker(config)
 	if err != nil {
 		return TaskMetadataManager{}, err
 	}
 
-	rdsStorage, err := ss.NewRDSStorageImplementation("ff_task_metadata")
+	rdsStorage, err := ss.NewRDSStorageImplementation(config, "ff_task_metadata")
 	if err != nil {
 		return TaskMetadataManager{}, err
 	}
@@ -102,7 +103,7 @@ func NewRDSTaskMetadataManager() (TaskMetadataManager, error) {
 		Storage: rdsStorage,
 	}
 
-	idGenerator, err := ffsync.NewRDSOrderedIdGenerator()
+	idGenerator, err := ffsync.NewRDSOrderedIdGenerator(config)
 	if err != nil {
 		return TaskMetadataManager{}, err
 	}

@@ -1046,15 +1046,18 @@ func convertToParquetBytes(schema TableSchema, list []GenericRecord) ([]byte, er
 	if len(list) == 0 {
 		return nil, fmt.Errorf("list is empty")
 	}
-	parquetRecords := schema.ToParquetRecords(list)
-	parquetSchema := parquet.SchemaOf(schema.Interface())
+	parquetRecords, err := schema.ToParquetRecords(list)
+	if err != nil {
+		return nil, err
+	}
+	parquetSchema := schema.AsParquetSchema()
 	buf := new(bytes.Buffer)
-	err := parquet.Write[any](
+	writeErr := parquet.Write[any](
 		buf,
 		parquetRecords,
 		parquetSchema,
 	)
-	if err != nil {
+	if writeErr != nil {
 		return nil, fmt.Errorf("could not write parquet file to bytes: %v", err)
 	}
 	return buf.Bytes(), nil

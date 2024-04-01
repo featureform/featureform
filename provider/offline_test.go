@@ -3724,7 +3724,7 @@ func TestTableSchemaValue(t *testing.T) {
 		},
 	}
 
-	value := tableSchema.Value().Elem()
+	value := tableSchema.AsReflectedStruct().Elem()
 	typ := value.Type()
 
 	if typ.Kind() != reflect.Struct {
@@ -4322,16 +4322,19 @@ func TestTableSchemaToParquetRecords(t *testing.T) {
 
 	testSchema := func(t *testing.T, test TableSchemaTest) {
 		testFilename := fmt.Sprintf("generic_records_%s.parquet", uuid.NewString())
-		schema := parquet.SchemaOf(test.Schema.Interface())
-		parquetRecords := test.Schema.ToParquetRecords(test.Records)
-		buf := new(bytes.Buffer)
-		err := parquet.Write[any](buf, parquetRecords, schema)
+		schema := test.Schema.AsParquetSchema()
+		parquetRecords, err := test.Schema.ToParquetRecords(test.Records)
 		if err != nil {
 			t.Fatalf("Could not write parquet records: %v", err)
 		}
-		err = ioutil.WriteFile(testFilename, buf.Bytes(), 0644)
-		if err != nil {
-			t.Fatalf("Could not write parquet file: %v", err)
+		buf := new(bytes.Buffer)
+		writeErr := parquet.Write[any](buf, parquetRecords, schema)
+		if writeErr != nil {
+			t.Fatalf("Could not write parquet records: %v", writeErr)
+		}
+		wFileErr := ioutil.WriteFile(testFilename, buf.Bytes(), 0644)
+		if wFileErr != nil {
+			t.Fatalf("Could not write parquet file: %v", wFileErr)
 		}
 		data, err := ioutil.ReadFile(testFilename)
 		if err != nil {

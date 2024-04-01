@@ -29,28 +29,29 @@ func TestMultipleFileParquetIterator(t *testing.T) {
 			{Name: "str", ValueType: String},
 			{Name: "bool", ValueType: Bool},
 			{Name: "ts", ValueType: Timestamp},
+			{Name: "fltvec", ValueType: VectorType{Float32, 3, false}},
 		},
 	}
 
 	allRecords := []GenericRecord{
-		[]interface{}{nil, 1, 1.1, "test string", true, time.UnixMilli(0).UTC()},
-		[]interface{}{"b", nil, 1.2, "second string", false, time.UnixMilli(0).UTC()},
-		[]interface{}{"c", 3, nil, "third string", true, time.UnixMilli(0).UTC()},
-		[]interface{}{"d", 4, 1.4, nil, false, time.UnixMilli(0).UTC()},
-		[]interface{}{"e", 5, 1.5, "fifth string", nil, time.UnixMilli(0).UTC()},
-		[]interface{}{"f", 6, 1.6, "sixth string", false, nil},
-		[]interface{}{"g", 7, 1.7, "seventh string", true, time.UnixMilli(0).UTC()},
-		[]interface{}{"h", 8, 1.8, "eighth string", false, time.UnixMilli(0).UTC()},
-		[]interface{}{"i", 9, 1.9, "ninth string", true, time.UnixMilli(0).UTC()},
-		[]interface{}{"j", 10, 2.0, "tenth string", false, time.UnixMilli(0).UTC()},
-		[]interface{}{"k", 11, 2.1, "eleventh string", true, time.UnixMilli(0).UTC()},
-		[]interface{}{"l", 12, 2.2, "twelfth string", false, time.UnixMilli(0).UTC()},
-		[]interface{}{"m", 13, 2.3, "thirteenth string", true, time.UnixMilli(0).UTC()},
-		[]interface{}{"n", 14, 2.4, "fourteenth string", false, time.UnixMilli(0).UTC()},
-		[]interface{}{"o", 15, 2.5, "fifteenth string", true, time.UnixMilli(0).UTC()},
+		[]interface{}{nil, 1, 1.1, "test string", true, time.UnixMilli(0).UTC(), nil},
+		[]interface{}{"b", nil, 1.2, "second string", false, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"c", 3, nil, "third string", true, time.UnixMilli(0).UTC(), []float32{0, 0, 0}},
+		[]interface{}{"d", -4, 1.4, nil, false, time.UnixMilli(0).UTC(), []float32{-1, -2, -3}},
+		[]interface{}{"e", 5, 1.5, "fifth string", nil, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"f", 6, 1.6, "sixth string", false, nil, []float32{1, 2, 3}},
+		[]interface{}{"g", 7, 1.7, "seventh string", true, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"h", 8, 1.8, "eighth string", false, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"i", 9, 1.9, "ninth string", true, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"j", 10, 2.0, "tenth string", false, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"k", 11, 2.1, "eleventh string", true, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"l", 12, 2.2, "twelfth string", false, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"m", 13, 2.3, "thirteenth string", true, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"n", 14, 2.4, "fourteenth string", false, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"o", 15, 2.5, "fifteenth string", true, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
 	}
 
-	schema := parquet.SchemaOf(tableSchema.Interface())
+	schema := tableSchema.AsParquetSchema()
 	fileCount := 0
 	records := make([]GenericRecord, 0)
 	files := make([]filestore.Filepath, 0)
@@ -61,7 +62,10 @@ func TestMultipleFileParquetIterator(t *testing.T) {
 	for _, record := range allRecords {
 		records = append(records, record)
 		if len(records) == 5 {
-			parquetRecords := tableSchema.ToParquetRecords(records)
+			parquetRecords, err := tableSchema.ToParquetRecords(records)
+			if err != nil {
+				t.Fatalf("error writing parquet file: %v", err)
+			}
 			buf := new(bytes.Buffer)
 			if err := parquet.Write[any](buf, parquetRecords, schema); err != nil {
 				t.Fatalf("error writing parquet file: %v", err)

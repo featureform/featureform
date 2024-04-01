@@ -1170,7 +1170,7 @@ func determineColumnType(valueType ValueType) (string, error) {
 	case NilType:
 		return "VARCHAR", nil
 	default:
-		return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", valueType), fmt.Errorf("could not determine column type"))
+		return "", fferr.NewDataTypeNotFoundErrorf(valueType, "could not determine column type")
 	}
 }
 
@@ -1546,7 +1546,7 @@ func (q defaultOfflineSQLQueries) determineColumnType(valueType ValueType) (stri
 	case NilType:
 		return "VARCHAR", nil
 	default:
-		return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", valueType), fmt.Errorf("could not determine column type"))
+		return "", fferr.NewDataTypeNotFoundErrorf(valueType, "could not determine column type")
 	}
 }
 

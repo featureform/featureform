@@ -301,7 +301,7 @@ func (q defaultBQQueries) determineColumnType(valueType ValueType) (string, erro
 	case NilType:
 		return "STRING", nil
 	default:
-		return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", valueType), fmt.Errorf("cannot find column type for value type: %s", valueType))
+		return "", fferr.NewDataTypeNotFoundErrorf(valueType, "cannot find column type for value type")
 	}
 }
 

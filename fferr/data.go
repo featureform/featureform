@@ -52,16 +52,20 @@ type DatasetAlreadyExistsError struct {
 	baseError
 }
 
-func NewDataTypeNotFoundError(valueType string, err error) *DataTypeNotFoundError {
+func NewDataTypeNotFoundError(value any, err error) *DataTypeNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("datatype not found")
 	}
 	baseError := newBaseError(err, DATATYPE_NOT_FOUND, codes.NotFound)
-	baseError.AddDetail("value_type", valueType)
+	baseError.AddDetail("value_type", fmt.Sprintf("%#v %T", value))
 
 	return &DataTypeNotFoundError{
 		baseError,
 	}
+}
+
+func NewDataTypeNotFoundErrorf(value any, format string, args ...any) *DataTypeNotFoundError {
+	return NewDataTypeNotFoundError(value, fmt.Errorf(format, args...))
 }
 
 type DataTypeNotFoundError struct {

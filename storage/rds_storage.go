@@ -12,8 +12,6 @@ import (
 )
 
 func NewRDSStorageImplementation(config helpers.RDSConfig, tableName string) (metadataStorageImplementation, error) {
-	tableName = helpers.SanitizePostgres(tableName)
-
 	db, err := helpers.NewRDSPoolConnection(config)
 	if err != nil {
 		return nil, err
@@ -30,7 +28,7 @@ func NewRDSStorageImplementation(config helpers.RDSConfig, tableName string) (me
 	}
 
 	// Create a table to store the key-value pairs
-	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (key VARCHAR(255) PRIMARY KEY, value TEXT)", tableName)
+	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (key VARCHAR(2048) PRIMARY KEY, value TEXT)", helpers.SanitizePostgres(tableName))
 	_, err = db.Exec(context.Background(), tableCreationSQL)
 	if err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to create table %s: %w", tableName, err))
@@ -126,17 +124,17 @@ func (rds *rdsStorageImplementation) Close() {
 
 // SQL Queries
 func (rds *rdsStorageImplementation) setQuery() string {
-	return fmt.Sprintf("INSERT INTO %s (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", rds.tableName)
+	return fmt.Sprintf("INSERT INTO %s (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", helpers.SanitizePostgres(rds.tableName))
 }
 
 func (rds *rdsStorageImplementation) getQuery() string {
-	return fmt.Sprintf("SELECT value FROM %s WHERE key = $1", rds.tableName)
+	return fmt.Sprintf("SELECT value FROM %s WHERE key = $1", helpers.SanitizePostgres(rds.tableName))
 }
 
 func (rds *rdsStorageImplementation) listQuery() string {
-	return fmt.Sprintf("SELECT key, value FROM %s WHERE key LIKE $1", rds.tableName)
+	return fmt.Sprintf("SELECT key, value FROM %s WHERE key LIKE $1", helpers.SanitizePostgres(rds.tableName))
 }
 
 func (rds *rdsStorageImplementation) deleteQuery() string {
-	return fmt.Sprintf("DELETE FROM %s WHERE key = $1 RETURNING value", rds.tableName)
+	return fmt.Sprintf("DELETE FROM %s WHERE key = $1 RETURNING value", helpers.SanitizePostgres(rds.tableName))
 }

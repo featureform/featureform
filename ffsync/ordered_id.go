@@ -197,7 +197,7 @@ func NewRDSOrderedIdGenerator(config helpers.RDSConfig) (OrderedIdGenerator, err
 	}
 
 	// Create the id table if it doesn't exist
-	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (namespace VARCHAR(255) PRIMARY KEY, current_id BIGINT)", helpers.SanitizePostgres(tableName))
+	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (namespace VARCHAR(2048) PRIMARY KEY, current_id BIGINT)", helpers.SanitizePostgres(tableName))
 	_, err = db.Exec(context.Background(), tableCreationSQL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create table %s: %w", tableName, err)
@@ -205,7 +205,7 @@ func NewRDSOrderedIdGenerator(config helpers.RDSConfig) (OrderedIdGenerator, err
 
 	return &rdsIdGenerator{
 		db:         db,
-		tableName:  helpers.SanitizePostgres(tableName),
+		tableName:  tableName,
 		connection: connection,
 	}, nil
 }
@@ -258,9 +258,9 @@ func (rds *rdsIdGenerator) Close() {
 
 // SQL Queries
 func (rds *rdsIdGenerator) updateIdQuery() string {
-	return fmt.Sprintf("UPDATE %s SET current_id = current_id + 1 WHERE namespace = $1 RETURNING current_id", rds.tableName)
+	return fmt.Sprintf("UPDATE %s SET current_id = current_id + 1 WHERE namespace = $1 RETURNING current_id", helpers.SanitizePostgres(rds.tableName))
 }
 
 func (rds *rdsIdGenerator) insertIdQuery() string {
-	return fmt.Sprintf("INSERT INTO %s (namespace, current_id) VALUES ($1, $2)", rds.tableName)
+	return fmt.Sprintf("INSERT INTO %s (namespace, current_id) VALUES ($1, $2)", helpers.SanitizePostgres(rds.tableName))
 }

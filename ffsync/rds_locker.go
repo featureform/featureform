@@ -14,7 +14,7 @@ import (
 
 const (
 	lock_expiration_time = "5 minutes"
-	key_length           = 255
+	key_length           = 2048
 )
 
 type rdsKey struct {
@@ -58,7 +58,7 @@ func NewRDSLocker(config helpers.RDSConfig) (Locker, error) {
 
 	return &rdsLocker{
 		db:         db,
-		tableName:  helpers.SanitizePostgres(tableName),
+		tableName:  tableName,
 		connection: connection,
 	}, nil
 }
@@ -122,8 +122,6 @@ func (l *rdsLocker) updateLockTime(key *rdsKey) {
 				return
 			}
 		}
-
-		time.Sleep(3 * time.Minute)
 	}
 }
 
@@ -160,13 +158,16 @@ func createTableQuery(tableName string) string {
 }
 
 func (l *rdsLocker) lockQuery() string {
-	return fmt.Sprintf("INSERT INTO %s (owner, key, expiration) VALUES ($1, $2, NOW() + INTERVAL '%s') ON CONFLICT (key) DO UPDATE SET owner = EXCLUDED.owner, expiration = NOW() + INTERVAL '%s' WHERE %s.expiration < NOW();", l.tableName, lock_expiration_time, lock_expiration_time, l.tableName)
+	tableName := helpers.SanitizePostgres(l.tableName)
+	return fmt.Sprintf("INSERT INTO %s (owner, key, expiration) VALUES ($1, $2, NOW() + INTERVAL '%s') ON CONFLICT (key) DO UPDATE SET owner = EXCLUDED.owner, expiration = NOW() + INTERVAL '%s' WHERE %s.expiration < NOW();", tableName, lock_expiration_time, lock_expiration_time, tableName)
 }
 
 func (l *rdsLocker) unlockQuery() string {
-	return fmt.Sprintf("DELETE FROM %s WHERE owner = $1 AND key = $2", l.tableName)
+	tableName := helpers.SanitizePostgres(l.tableName)
+	return fmt.Sprintf("DELETE FROM %s WHERE owner = $1 AND key = $2", tableName)
 }
 
 func (l *rdsLocker) updateLockExpirationQuery() string {
-	return fmt.Sprintf("UPDATE %s SET expiration = CURRENT_TIMESTAMP + INTERVAL '%s' WHERE owner = $1 AND key = $2 FOR UPDATE", l.tableName, lock_expiration_time)
+	tableName := helpers.SanitizePostgres(l.tableName)
+	return fmt.Sprintf("UPDATE %s SET expiration = CURRENT_TIMESTAMP + INTERVAL '%s' WHERE owner = $1 AND key = $2 FOR UPDATE", tableName, lock_expiration_time)
 }

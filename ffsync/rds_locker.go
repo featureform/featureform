@@ -73,7 +73,7 @@ func (l *rdsLocker) Lock(key string) (Key, error) {
 	if key == "" {
 		return nil, fferr.NewInternalError(fmt.Errorf("cannot lock an empty key"))
 	} else if len(key) > key_length {
-		return nil, fferr.NewInternalError(fmt.Errorf("key is too long: %d", len(key)))
+		return nil, fferr.NewInternalError(fmt.Errorf("key is too long: %d, max length: %d", len(key), key_length))
 	}
 
 	id := uuid.New().String()
@@ -115,9 +115,10 @@ func (l *rdsLocker) updateLockTime(key *rdsKey) {
 
 			r, err := l.db.Exec(context.Background(), updateQueryTime, key.id, key.key)
 			if err != nil {
-				// Key no longer exists, stop updating
 				return
 			}
+
+			// Key no longer exists, stop updating
 			if r.RowsAffected() == 0 {
 				return
 			}
@@ -130,15 +131,15 @@ func (l *rdsLocker) Unlock(key Key) error {
 		return fferr.NewInternalError(fmt.Errorf("cannot unlock an empty key"))
 	}
 
+	rdsKey, ok := key.(rdsKey)
+	if !ok {
+		return fferr.NewInternalError(fmt.Errorf("key is not an RDS key: %v", key.Key()))
+	}
+
 	unlockSQLCommand := l.unlockQuery()
 	_, err := l.db.Exec(context.Background(), unlockSQLCommand, key.ID(), key.Key())
 	if err != nil {
 		return fferr.NewInternalError(fmt.Errorf("failed to unlock key %s: %v", key.Key(), err))
-	}
-
-	rdsKey, ok := key.(rdsKey)
-	if !ok {
-		return fferr.NewInternalError(fmt.Errorf("key is not an RDS key: %v", key.Key()))
 	}
 
 	close(rdsKey.done)

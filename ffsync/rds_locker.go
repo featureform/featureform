@@ -27,10 +27,10 @@ func (k rdsKey) Key() string {
 	return k.key
 }
 
-func NewRDSLocker() (Locker, error) {
+func NewRDSLocker(config helpers.RDSConfig) (Locker, error) {
 	const tableName = "ff_locks"
 
-	db, err := helpers.NewRDSPoolConnection()
+	db, err := helpers.NewRDSPoolConnection(config)
 	if err != nil {
 		return nil, err
 	}

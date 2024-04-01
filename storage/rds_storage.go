@@ -11,8 +11,8 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func NewRDSStorageImplementation(tableName string) (metadataStorageImplementation, error) {
-	db, err := helpers.NewRDSPoolConnection()
+func NewRDSStorageImplementation(config helpers.RDSConfig, tableName string) (metadataStorageImplementation, error) {
+	db, err := helpers.NewRDSPoolConnection(config)
 	if err != nil {
 		return nil, err
 	}

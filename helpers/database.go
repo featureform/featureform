@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-func GetPostgresConfig(connectionString string) (*pgxpool.Config, error) {
+func getPostgresConfig(connectionString string) (*pgxpool.Config, error) {
 	const defaultMaxConns = 100
 	const defaultMinConns = 0
 	const defaultMaxConnLifetime = time.Hour
@@ -33,25 +33,8 @@ func GetPostgresConfig(connectionString string) (*pgxpool.Config, error) {
 	return dbConfig, nil
 }
 
-func NewRDSPoolConnection() (*pgxpool.Pool, error) {
-	host := GetEnv("POSTGRES_HOST", "localhost")
-	port := GetEnv("POSTGRES_PORT", "5432")
-	username := GetEnv("POSTGRES_USER", "postgres")
-	password := GetEnv("POSTGRES_PASSWORD", "mysecretpassword")
-	dbName := GetEnv("POSTGRES_DB", "postgres")
-	sslMode := GetEnv("POSTGRES_SSL_MODE", "disable")
-
-	u := &url.URL{
-		Scheme: "postgres",
-		User:   url.UserPassword(username, password),
-		Host:   fmt.Sprintf("%s:%s", host, port),
-		Path:   dbName,
-		RawQuery: (url.Values{
-			"sslmode": []string{sslMode},
-		}).Encode(),
-	}
-
-	poolConfig, err := GetPostgresConfig(u.String())
+func NewRDSPoolConnection(config RDSConfig) (*pgxpool.Pool, error) {
+	poolConfig, err := getPostgresConfig(config.ConnectionString())
 	if err != nil {
 		return nil, err
 	}
@@ -62,4 +45,27 @@ func NewRDSPoolConnection() (*pgxpool.Pool, error) {
 	}
 
 	return db, nil
+}
+
+type RDSConfig struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	DBName   string
+	SSLMode  string
+}
+
+func (c RDSConfig) ConnectionString() string {
+	u := &url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(c.User, c.Password),
+		Host:   fmt.Sprintf("%s:%s", c.Host, c.Port),
+		Path:   c.DBName,
+		RawQuery: (url.Values{
+			"sslmode": []string{c.SSLMode},
+		}).Encode(),
+	}
+
+	return u.String()
 }

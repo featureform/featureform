@@ -176,10 +176,10 @@ func (etcd *etcdIdGenerator) Close() {
 	etcd.client.Close()
 }
 
-func NewRDSOrderedIdGenerator() (OrderedIdGenerator, error) {
+func NewRDSOrderedIdGenerator(config helpers.RDSConfig) (OrderedIdGenerator, error) {
 	const tableName = "ff_ordered_id"
 
-	db, err := helpers.NewRDSPoolConnection()
+	db, err := helpers.NewRDSPoolConnection(config)
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"testing"
+
+	"github.com/featureform/helpers"
 )
 
 func TestUint64OrderedId(t *testing.T) {
@@ -104,7 +106,23 @@ func TestETCDIdGenerator(t *testing.T) {
 }
 
 func TestRDSIdGenerator(t *testing.T) {
-	generator, err := NewRDSOrderedIdGenerator()
+	host := helpers.GetEnv("POSTGRES_HOST", "localhost")
+	port := helpers.GetEnv("POSTGRES_PORT", "5432")
+	username := helpers.GetEnv("POSTGRES_USER", "postgres")
+	password := helpers.GetEnv("POSTGRES_PASSWORD", "mysecretpassword")
+	dbName := helpers.GetEnv("POSTGRES_DB", "postgres")
+	sslMode := helpers.GetEnv("POSTGRES_SSL_MODE", "disable")
+
+	config := helpers.RDSConfig{
+		Host:     host,
+		Port:     port,
+		User:     username,
+		Password: password,
+		DBName:   dbName,
+		SSLMode:  sslMode,
+	}
+
+	generator, err := NewRDSOrderedIdGenerator(config)
 	if err != nil {
 		t.Fatalf("Failed to create RDS ID generator: %v", err)
 	}

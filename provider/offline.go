@@ -496,7 +496,7 @@ func (schema *TableSchema) AsReflectedStruct() reflect.Value {
 		if col.IsVector() {
 			f.Tag = reflect.StructTag(fmt.Sprintf(`parquet:"%s,optional,list"`, col.Name))
 		}
-		// TODO: use a better way of determining if a column is a timestamp
+		// This checks if the column type via reflection is Time, such as with time.Time.
 		if colType.Name() == "Time" {
 			f.Tag = reflect.StructTag(fmt.Sprintf(`parquet:"%s,optional,timestamp"`, col.Name))
 		}

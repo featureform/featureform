@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/featureform/helpers"
 )
@@ -31,12 +30,6 @@ func TestRDSLocker(t *testing.T) {
 		t.Fatalf("Failed to create RDS locker: %v", err)
 	}
 
-	test := LockerTest{
-		t:      t,
-		locker: locker,
-	}
-	test.Run()
-
 	// clean up
 	defer func() {
 		rLocker := locker.(*rdsLocker)
@@ -46,8 +39,13 @@ func TestRDSLocker(t *testing.T) {
 			t.Fatalf("Failed to drop table: %v", err)
 		}
 
-		// Close the connection
-		rLocker.Close()
+		locker.Close()
 	}()
-	time.Sleep(1 * time.Second)
+
+	test := LockerTest{
+		t:          t,
+		locker:     locker,
+		lockerType: "rds",
+	}
+	test.Run()
 }

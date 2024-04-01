@@ -10,8 +10,9 @@ import (
 )
 
 type LockerTest struct {
-	t      *testing.T
-	locker Locker
+	t          *testing.T
+	locker     Locker
+	lockerType string
 }
 
 func (test *LockerTest) Run() {
@@ -22,10 +23,14 @@ func (test *LockerTest) Run() {
 		"LockAndUnlock":               LockAndUnlock,
 		"LockAndUnlockWithGoRoutines": LockAndUnlockWithGoRoutines,
 		"StressTestLockAndUnlock":     StressTestLockAndUnlock,
+		"TestLockTimeUpdates":         LockTimeUpdates,
 	}
 
 	for name, fn := range testFns {
 		t.Run(name, func(t *testing.T) {
+			if name == "TestLockTimeUpdates" && test.lockerType == "etcd" {
+				t.Skip("TestLockTimeUpdates is not supported for etcd locker")
+			}
 			fn(t, locker)
 		})
 	}
@@ -161,12 +166,7 @@ func TestLockAndUnlockPrefixes(t *testing.T) {
 	}
 }
 
-func TestMemoryLockTimeUpdates(t *testing.T) {
-	locker, err := NewMemoryLocker()
-	if err != nil {
-		t.Fatalf("Failed to create memory locker: %v", err)
-	}
-
+func LockTimeUpdates(t *testing.T, locker Locker) {
 	key := "/tasks/metadata/task_id=3"
 	lock, err := locker.Lock(key)
 	if err != nil {
@@ -176,10 +176,10 @@ func TestMemoryLockTimeUpdates(t *testing.T) {
 	// Wait for 2 x ValidTimePeriod
 	time.Sleep(2 * ValidTimePeriod)
 
-	// Test the lock has been released
+	// Lock the key again
 	_, err = locker.Lock(key)
 	if err == nil {
-		t.Fatal("Second Lock should have failed but didn't")
+		t.Fatalf("Locking the key should have failed because it is already locked")
 	}
 
 	// Release the lock

@@ -11,8 +11,9 @@ func TestETCDLocker(t *testing.T) {
 	}
 
 	test := LockerTest{
-		t:      t,
-		locker: locker,
+		t:          t,
+		locker:     locker,
+		lockerType: "etcd",
 	}
 	test.Run()
 }

@@ -7,16 +7,17 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	psql "github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 func getPostgresConfig(connectionString string) (*pgxpool.Config, error) {
-	const defaultMaxConns = 100
+	const defaultMaxConns = 10
 	const defaultMinConns = 0
 	const defaultMaxConnLifetime = time.Hour
 	const defaultMaxConnIdleTime = time.Minute
 	const defaultHealthCheckPeriod = time.Minute
-	const defaultConnectTimeout = time.Second * 5
+	const defaultConnectTimeout = time.Minute * 5
 
 	dbConfig, err := pgxpool.ParseConfig(connectionString)
 	if err != nil {
@@ -68,4 +69,8 @@ func (c RDSConfig) ConnectionString() string {
 	}
 
 	return u.String()
+}
+
+func SanitizePostgres(ident string) string {
+	return psql.Identifier{ident}.Sanitize()
 }

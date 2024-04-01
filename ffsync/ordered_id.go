@@ -197,7 +197,7 @@ func NewRDSOrderedIdGenerator(config helpers.RDSConfig) (OrderedIdGenerator, err
 	}
 
 	// Create the id table if it doesn't exist
-	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (namespace VARCHAR(255) PRIMARY KEY, current_id BIGINT)", tableName)
+	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (namespace VARCHAR(255) PRIMARY KEY, current_id BIGINT)", helpers.SanitizePostgres(tableName))
 	_, err = db.Exec(context.Background(), tableCreationSQL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create table %s: %w", tableName, err)
@@ -205,7 +205,7 @@ func NewRDSOrderedIdGenerator(config helpers.RDSConfig) (OrderedIdGenerator, err
 
 	return &rdsIdGenerator{
 		db:         db,
-		tableName:  tableName,
+		tableName:  helpers.SanitizePostgres(tableName),
 		connection: connection,
 	}, nil
 }

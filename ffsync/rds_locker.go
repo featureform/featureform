@@ -3,7 +3,6 @@ package ffsync
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/featureform/fferr"
@@ -13,10 +12,15 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const (
+	lock_expiration_time = "5 minutes"
+	key_length           = 255
+)
+
 type rdsKey struct {
 	id   string
 	key  string
-	done *chan error
+	done chan error
 }
 
 func (k rdsKey) ID() string {
@@ -46,7 +50,7 @@ func NewRDSLocker(config helpers.RDSConfig) (Locker, error) {
 	}
 
 	// Create a table to store the locks
-	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (lock_id VARCHAR(255), resource_key VARCHAR(255) NOT NULL, lock_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (resource_key));", tableName)
+	tableCreationSQL := createTableQuery(tableName)
 	_, err = db.Exec(context.Background(), tableCreationSQL)
 	if err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to create table %s: %w", tableName, err))
@@ -54,7 +58,7 @@ func NewRDSLocker(config helpers.RDSConfig) (Locker, error) {
 
 	return &rdsLocker{
 		db:         db,
-		tableName:  tableName,
+		tableName:  helpers.SanitizePostgres(tableName),
 		connection: connection,
 	}, nil
 }
@@ -68,43 +72,26 @@ type rdsLocker struct {
 func (l *rdsLocker) Lock(key string) (Key, error) {
 	if key == "" {
 		return nil, fferr.NewInternalError(fmt.Errorf("cannot lock an empty key"))
+	} else if len(key) > key_length {
+		return nil, fferr.NewInternalError(fmt.Errorf("key is too long: %d", len(key)))
 	}
 
 	id := uuid.New().String()
 
 	// Get the lock
-	var existingLockID, existingResourceKey string
-	var existingTimestamp time.Time
-	selectQuery := l.getLockQuery()
-	err := l.db.QueryRow(context.Background(), selectQuery, key).Scan(&existingLockID, &existingResourceKey, &existingTimestamp)
+	lockQuery := l.lockQuery()
+	r, err := l.db.Exec(context.Background(), lockQuery, id, key)
 	if err != nil {
-		if strings.Contains(err.Error(), "no rows in result set") {
-			insertQuery := l.insertLockQuery()
-			_, err := l.db.Exec(context.Background(), insertQuery, id, key)
-			if err != nil {
-				return nil, fferr.NewInternalError(fmt.Errorf("failed to insert lock: %w", err))
-			}
-		} else {
-			return nil, fferr.NewInternalError(fmt.Errorf("failed to fetch lock: %w", err))
-		}
-	}
-
-	if time.Since(existingTimestamp) < 5*time.Second {
-		return nil, fferr.NewKeyAlreadyLockedError(key, existingLockID, nil)
-	} else {
-		// Update the lock
-		updateQuery := l.updateLockQuery()
-		_, err = l.db.Exec(context.Background(), updateQuery, id, key)
-		if err != nil {
-			return nil, fferr.NewInternalError(fmt.Errorf("failed to update lock: %w", err))
-		}
+		return nil, fferr.NewInternalError(fmt.Errorf("failed to lock key %s: %v", key, err))
+	} else if r.RowsAffected() == 0 {
+		return nil, fferr.NewKeyAlreadyLockedError(key, id, nil)
 	}
 
 	done := make(chan error)
 	lockKey := rdsKey{
 		id:   id,
 		key:  key,
-		done: &done,
+		done: done,
 	}
 
 	go l.updateLockTime(&lockKey)
@@ -118,19 +105,25 @@ func (l *rdsLocker) updateLockTime(key *rdsKey) {
 
 	for {
 		select {
-		case <-*key.done:
+		case <-key.done:
 			// Received signal to stop
 			return
 		case <-ticker.C:
 			// Continue updating lock time
 			// We need to check if the key still exists because it could have been deleted
-			updateQueryTime := l.updateTimeLockQuery()
-			_, err := l.db.Exec(context.Background(), updateQueryTime, key.id, key.key)
+			updateQueryTime := l.updateLockExpirationQuery()
+
+			r, err := l.db.Exec(context.Background(), updateQueryTime, key.id, key.key)
 			if err != nil {
 				// Key no longer exists, stop updating
 				return
 			}
+			if r.RowsAffected() == 0 {
+				return
+			}
 		}
+
+		time.Sleep(3 * time.Minute)
 	}
 }
 
@@ -150,7 +143,7 @@ func (l *rdsLocker) Unlock(key Key) error {
 		return fferr.NewInternalError(fmt.Errorf("key is not an RDS key: %v", key.Key()))
 	}
 
-	close(*rdsKey.done)
+	close(rdsKey.done)
 
 	return nil
 }
@@ -161,22 +154,19 @@ func (l *rdsLocker) Close() {
 }
 
 // SQL Queries
-func (l *rdsLocker) getLockQuery() string {
-	return fmt.Sprintf("SELECT lock_id, resource_key, lock_timestamp FROM %s WHERE resource_key = $1 FOR UPDATE", l.tableName)
+func createTableQuery(tableName string) string {
+	tableName = helpers.SanitizePostgres(tableName)
+	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (owner VARCHAR(255), key VARCHAR(%d) NOT NULL, expiration TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP + INTERVAL '%s', PRIMARY KEY (key));", tableName, key_length, lock_expiration_time)
 }
 
-func (l *rdsLocker) insertLockQuery() string {
-	return fmt.Sprintf("INSERT INTO %s (lock_id, resource_key, lock_timestamp) VALUES ($1, $2, CURRENT_TIMESTAMP)", l.tableName)
-}
-
-func (l *rdsLocker) updateLockQuery() string {
-	return fmt.Sprintf("UPDATE %s SET lock_id = $1, lock_timestamp = CURRENT_TIMESTAMP WHERE resource_key = $2", l.tableName)
+func (l *rdsLocker) lockQuery() string {
+	return fmt.Sprintf("INSERT INTO %s (owner, key, expiration) VALUES ($1, $2, NOW() + INTERVAL '%s') ON CONFLICT (key) DO UPDATE SET owner = EXCLUDED.owner, expiration = NOW() + INTERVAL '%s' WHERE %s.expiration < NOW();", l.tableName, lock_expiration_time, lock_expiration_time, l.tableName)
 }
 
 func (l *rdsLocker) unlockQuery() string {
-	return fmt.Sprintf("DELETE FROM %s WHERE lock_id = $1 AND resource_key = $2", l.tableName)
+	return fmt.Sprintf("DELETE FROM %s WHERE owner = $1 AND key = $2", l.tableName)
 }
 
-func (l *rdsLocker) updateTimeLockQuery() string {
-	return fmt.Sprintf("UPDATE %s SET lock_timestamp = CURRENT_TIMESTAMP WHERE lock_id = $1 AND resource_key = $2 FOR UPDATE", l.tableName)
+func (l *rdsLocker) updateLockExpirationQuery() string {
+	return fmt.Sprintf("UPDATE %s SET expiration = CURRENT_TIMESTAMP + INTERVAL '%s' WHERE owner = $1 AND key = $2 FOR UPDATE", l.tableName, lock_expiration_time)
 }

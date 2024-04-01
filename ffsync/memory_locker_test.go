@@ -11,9 +11,9 @@ func TestMemoryLocker(t *testing.T) {
 	}
 
 	test := LockerTest{
-		t:      t,
-		locker: &locker,
+		t:          t,
+		locker:     &locker,
+		lockerType: "memory",
 	}
 	test.Run()
-
 }

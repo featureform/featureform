@@ -94,7 +94,6 @@ func StressTestLockAndUnlock(t *testing.T, locker Locker) {
 			err = locker.Unlock(lock)
 			if err != nil {
 				errorCount++
-				fmt.Println("FUCKKK", lock.ID(), err)
 				return
 			}
 		}(t, i)

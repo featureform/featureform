@@ -75,11 +75,11 @@ func (l *rdsLocker) Lock(key string) (Key, error) {
 	// Get the lock
 	var existingLockID, existingResourceKey string
 	var existingTimestamp time.Time
-	selectQuery := fmt.Sprintf("SELECT lock_id, resource_key, lock_timestamp FROM %s WHERE resource_key = $1 FOR UPDATE", l.tableName)
+	selectQuery := l.getLockQuery()
 	err := l.db.QueryRow(context.Background(), selectQuery, key).Scan(&existingLockID, &existingResourceKey, &existingTimestamp)
 	if err != nil {
 		if strings.Contains(err.Error(), "no rows in result set") {
-			insertQuery := fmt.Sprintf("INSERT INTO %s (lock_id, resource_key, lock_timestamp) VALUES ($1, $2, CURRENT_TIMESTAMP)", l.tableName)
+			insertQuery := l.insertLockQuery()
 			_, err := l.db.Exec(context.Background(), insertQuery, id, key)
 			if err != nil {
 				return nil, fferr.NewInternalError(fmt.Errorf("failed to insert lock: %w", err))
@@ -93,7 +93,7 @@ func (l *rdsLocker) Lock(key string) (Key, error) {
 		return nil, fferr.NewKeyAlreadyLockedError(key, existingLockID, nil)
 	} else {
 		// Update the lock
-		updateQuery := fmt.Sprintf("UPDATE %s SET lock_id = $1, lock_timestamp = CURRENT_TIMESTAMP WHERE resource_key = $2", l.tableName)
+		updateQuery := l.updateLockQuery()
 		_, err = l.db.Exec(context.Background(), updateQuery, id, key)
 		if err != nil {
 			return nil, fferr.NewInternalError(fmt.Errorf("failed to update lock: %w", err))
@@ -112,7 +112,7 @@ func (l *rdsLocker) Lock(key string) (Key, error) {
 	return lockKey, nil
 }
 
-func (m *rdsLocker) updateLockTime(key *rdsKey) {
+func (l *rdsLocker) updateLockTime(key *rdsKey) {
 	ticker := time.NewTicker(UpdateSleepTime)
 	defer ticker.Stop()
 
@@ -124,8 +124,8 @@ func (m *rdsLocker) updateLockTime(key *rdsKey) {
 		case <-ticker.C:
 			// Continue updating lock time
 			// We need to check if the key still exists because it could have been deleted
-			updateQueryTime := fmt.Sprintf("UPDATE %s SET lock_timestamp = CURRENT_TIMESTAMP WHERE lock_id = $1 AND resource_key = $2 FOR UPDATE", m.tableName)
-			_, err := m.db.Exec(context.Background(), updateQueryTime, key.id, key.key)
+			updateQueryTime := l.updateTimeLockQuery()
+			_, err := l.db.Exec(context.Background(), updateQueryTime, key.id, key.key)
 			if err != nil {
 				// Key no longer exists, stop updating
 				return
@@ -139,7 +139,7 @@ func (l *rdsLocker) Unlock(key Key) error {
 		return fferr.NewInternalError(fmt.Errorf("cannot unlock an empty key"))
 	}
 
-	unlockSQLCommand := fmt.Sprintf("DELETE FROM %s WHERE lock_id = $1 AND resource_key = $2", l.tableName)
+	unlockSQLCommand := l.unlockQuery()
 	_, err := l.db.Exec(context.Background(), unlockSQLCommand, key.ID(), key.Key())
 	if err != nil {
 		return fferr.NewInternalError(fmt.Errorf("failed to unlock key %s: %v", key.Key(), err))
@@ -158,4 +158,25 @@ func (l *rdsLocker) Unlock(key Key) error {
 func (l *rdsLocker) Close() {
 	l.connection.Release()
 	l.db.Close()
+}
+
+// SQL Queries
+func (l *rdsLocker) getLockQuery() string {
+	return fmt.Sprintf("SELECT lock_id, resource_key, lock_timestamp FROM %s WHERE resource_key = $1 FOR UPDATE", l.tableName)
+}
+
+func (l *rdsLocker) insertLockQuery() string {
+	return fmt.Sprintf("INSERT INTO %s (lock_id, resource_key, lock_timestamp) VALUES ($1, $2, CURRENT_TIMESTAMP)", l.tableName)
+}
+
+func (l *rdsLocker) updateLockQuery() string {
+	return fmt.Sprintf("UPDATE %s SET lock_id = $1, lock_timestamp = CURRENT_TIMESTAMP WHERE resource_key = $2", l.tableName)
+}
+
+func (l *rdsLocker) unlockQuery() string {
+	return fmt.Sprintf("DELETE FROM %s WHERE lock_id = $1 AND resource_key = $2", l.tableName)
+}
+
+func (l *rdsLocker) updateTimeLockQuery() string {
+	return fmt.Sprintf("UPDATE %s SET lock_timestamp = CURRENT_TIMESTAMP WHERE lock_id = $1 AND resource_key = $2 FOR UPDATE", l.tableName)
 }

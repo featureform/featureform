@@ -1,6 +1,7 @@
 package ffsync
 
 import (
+	"context"
 	"fmt"
 	"testing"
 )
@@ -110,7 +111,7 @@ func TestRDSIdGenerator(t *testing.T) {
 	defer func() {
 		// Clean up the RDS table
 		rds := generator.(*rdsIdGenerator)
-		_, err := rds.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", rds.tableName))
+		_, err := rds.db.Exec(context.Background(), fmt.Sprintf("DROP TABLE IF EXISTS %s", rds.tableName))
 		if err != nil {
 			t.Fatalf("Failed to drop table %s: %v", rds.tableName, err)
 		}

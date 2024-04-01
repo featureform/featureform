@@ -2,7 +2,6 @@ package ffsync
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -229,11 +228,11 @@ func (rds *rdsIdGenerator) NextId(namespace string) (OrderedId, error) {
 	defer tx.Rollback(context.Background())
 
 	var nextId int64
-	updateSQL := fmt.Sprintf("UPDATE %s SET current_id = current_id + 1 WHERE namespace = $1 RETURNING current_id", rds.tableName)
+	updateSQL := rds.updateIdQuery()
 	err = tx.QueryRow(context.Background(), updateSQL, namespace).Scan(&nextId)
-	if err == sql.ErrNoRows {
+	if err == pgx.ErrNoRows {
 		nextId = 1
-		insertSQL := fmt.Sprintf("INSERT INTO %s (namespace, current_id) VALUES ($1, $2)", rds.tableName)
+		insertSQL := rds.insertIdQuery()
 		_, err = tx.Exec(context.Background(), insertSQL, namespace, nextId)
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert new namespace %s: %w", namespace, err)
@@ -255,4 +254,13 @@ func (rds *rdsIdGenerator) NextId(namespace string) (OrderedId, error) {
 func (rds *rdsIdGenerator) Close() {
 	rds.connection.Release()
 	rds.db.Close()
+}
+
+// SQL Queries
+func (rds *rdsIdGenerator) updateIdQuery() string {
+	return fmt.Sprintf("UPDATE %s SET current_id = current_id + 1 WHERE namespace = $1 RETURNING current_id", rds.tableName)
+}
+
+func (rds *rdsIdGenerator) insertIdQuery() string {
+	return fmt.Sprintf("INSERT INTO %s (namespace, current_id) VALUES ($1, $2)", rds.tableName)
 }

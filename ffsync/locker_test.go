@@ -69,7 +69,7 @@ func LockAndUnlockWithGoRoutines(t *testing.T, locker Locker) {
 }
 
 func StressTestLockAndUnlock(t *testing.T, locker Locker) {
-	key := "/tasks/metadata/task_id=5"
+	key := "/tasks/metadata/task_id=6"
 
 	var wg sync.WaitGroup
 	// Use a counter to track the number of errors
@@ -84,7 +84,6 @@ func StressTestLockAndUnlock(t *testing.T, locker Locker) {
 			// if multiple threads are able to lock the key, it means
 			// there is a race condition. And we are able to detect it because
 			// we will fail to unlock the key
-
 			lock, err := locker.Lock(key)
 			if err != nil {
 				return
@@ -95,6 +94,7 @@ func StressTestLockAndUnlock(t *testing.T, locker Locker) {
 			err = locker.Unlock(lock)
 			if err != nil {
 				errorCount++
+				fmt.Println("FUCKKK", lock.ID(), err)
 				return
 			}
 		}(t, i)

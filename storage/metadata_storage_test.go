@@ -260,7 +260,7 @@ func StorageDelete(t *testing.T, storage metadataStorageImplementation) {
 
 			value, err := storage.Delete(test.deleteKey)
 			if err != nil && err.Error() != test.expectedError.Error() {
-				t.Fatalf("Delete(%s) failed: %v", test.deleteKey, err)
+				t.Fatalf("Delete(%s) failed expected error: %v, got: %v", test.deleteKey, test.expectedError, err)
 			} else if err != nil && err.Error() == test.expectedError.Error() {
 				return
 			}

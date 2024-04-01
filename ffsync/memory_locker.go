@@ -160,3 +160,7 @@ func (m *memoryLocker) Unlock(key Key) error {
 
 	return nil
 }
+
+func (m *memoryLocker) Close() {
+	// Do nothing
+}

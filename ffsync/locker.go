@@ -67,6 +67,7 @@ example: etcd, memory, etc.
 type Locker interface {
 	Lock(lock string) (Key, error)
 	Unlock(key Key) error
+	Close()
 }
 
 type Key interface {

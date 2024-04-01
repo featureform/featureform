@@ -66,3 +66,7 @@ func (m *memoryStorageImplementation) Delete(key string) (string, error) {
 
 	return value, nil
 }
+
+func (m *memoryStorageImplementation) Close() {
+	// Do nothing
+}

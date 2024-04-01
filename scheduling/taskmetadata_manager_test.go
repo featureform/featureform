@@ -753,7 +753,7 @@ func TestSetStatusByRunID(t *testing.T) {
 			}
 		}
 
-		err := manager.SetRunStatus(test.ForRun, test.ForTask, test.SetStatus, test.SetError)
+		err = manager.SetRunStatus(test.ForRun, test.ForTask, test.SetStatus, test.SetError)
 		if err != nil && test.shouldError {
 			return
 		} else if err != nil && !test.shouldError {
@@ -889,7 +889,7 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			}
 		}
 
-		err := manager.SetRunEndTime(test.ForRun, test.ForTask, test.SetTime)
+		err = manager.SetRunEndTime(test.ForRun, test.ForTask, test.SetTime)
 		if err != nil && test.shouldError {
 			return
 		} else if err != nil && !test.shouldError {

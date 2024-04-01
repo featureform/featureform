@@ -1,46 +1,50 @@
 package storage
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/helpers"
+	"github.com/jackc/pgx/v4/pgxpool"
 	_ "github.com/lib/pq"
 )
 
 func NewRDSStorageImplementation(tableName string) (metadataStorageImplementation, error) {
-	host := helpers.GetEnv("POSTGRES_HOST", "localhost")
-	port := helpers.GetEnv("POSTGRES_PORT", "5432")
-	username := helpers.GetEnv("POSTGRES_USER", "postgres")
-	password := helpers.GetEnv("POSTGRES_PASSWORD", "mysecretpassword")
-	dbName := helpers.GetEnv("POSTGRES_DB", "postgres")
-	sslMode := helpers.GetEnv("POSTGRES_SSL_MODE", "disable")
-
-	connectionString := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", host, port, username, password, dbName, sslMode)
-
-	db, err := sql.Open("postgres", connectionString)
+	db, err := helpers.NewRDSPoolConnection()
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("failed to open connection to Postgres: %w", err))
+		return nil, err
+	}
+
+	connection, err := db.Acquire(context.Background())
+	if err != nil {
+		return nil, fferr.NewInternalError(fmt.Errorf("failed to acquire connection from the database pool: %w", err))
+	}
+
+	err = connection.Ping(context.Background())
+	if err != nil {
+		return nil, fferr.NewInternalError(fmt.Errorf("failed to ping the database: %w", err))
 	}
 
 	// Create a table to store the key-value pairs
 	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (key VARCHAR(255) PRIMARY KEY, value TEXT)", tableName)
-	_, err = db.Exec(tableCreationSQL)
+	_, err = db.Exec(context.Background(), tableCreationSQL)
 	if err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to create table %s: %w", tableName, err))
 	}
 
 	return &rdsStorageImplementation{
-		db:        db,
-		tableName: tableName,
+		db:         db,
+		tableName:  tableName,
+		connection: connection,
 	}, nil
 }
 
 type rdsStorageImplementation struct {
-	db        *sql.DB
-	tableName string
+	db         *pgxpool.Pool
+	tableName  string
+	connection *pgxpool.Conn
 }
 
 func (rds *rdsStorageImplementation) Set(key string, value string) error {
@@ -49,7 +53,7 @@ func (rds *rdsStorageImplementation) Set(key string, value string) error {
 	}
 
 	insertSQL := fmt.Sprintf("INSERT INTO %s (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", rds.tableName)
-	_, err := rds.db.Exec(insertSQL, key, value)
+	_, err := rds.db.Exec(context.Background(), insertSQL, key, value)
 	if err != nil {
 		return fferr.NewInternalError(fmt.Errorf("failed to set key %s: %w", key, err))
 	}
@@ -63,7 +67,7 @@ func (rds *rdsStorageImplementation) Get(key string) (string, error) {
 	}
 
 	selectSQL := fmt.Sprintf("SELECT value FROM %s WHERE key = $1", rds.tableName)
-	row := rds.db.QueryRow(selectSQL, key)
+	row := rds.db.QueryRow(context.Background(), selectSQL, key)
 
 	var value string
 	err := row.Scan(&value)
@@ -76,7 +80,7 @@ func (rds *rdsStorageImplementation) Get(key string) (string, error) {
 
 func (rds *rdsStorageImplementation) List(prefix string) (map[string]string, error) {
 	selectSQL := fmt.Sprintf("SELECT key, value FROM %s WHERE key LIKE $1", rds.tableName)
-	rows, err := rds.db.Query(selectSQL, prefix+"%")
+	rows, err := rds.db.Query(context.Background(), selectSQL, prefix+"%")
 	if err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to list keys with prefix %s: %w", prefix, err))
 	}
@@ -100,15 +104,20 @@ func (rds *rdsStorageImplementation) Delete(key string) (string, error) {
 	}
 
 	deleteSQL := fmt.Sprintf("DELETE FROM %s WHERE key = $1 RETURNING value", rds.tableName)
-	row := rds.db.QueryRow(deleteSQL, key)
+	row := rds.db.QueryRow(context.Background(), deleteSQL, key)
 
 	var value string
 	err := row.Scan(&value)
-	if err != nil && strings.Contains(err.Error(), "sql: no rows in result set") {
+	if err != nil && strings.Contains(err.Error(), "no rows in result set") {
 		return "", fferr.NewKeyNotFoundError(key, nil)
 	} else if err != nil {
 		return "", fferr.NewInternalError(fmt.Errorf("failed to delete key %s: %v", key, err))
 	}
 
 	return value, nil
+}
+
+func (rds *rdsStorageImplementation) Close() {
+	rds.connection.Release()
+	rds.db.Close()
 }

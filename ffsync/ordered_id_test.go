@@ -1,6 +1,9 @@
 package ffsync
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestUint64OrderedId(t *testing.T) {
 	id1 := Uint64OrderedId(1)
@@ -70,6 +73,7 @@ func TestETCDIdGenerator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create ETCD ID generator: %v", err)
 	}
+	defer generator.Close()
 
 	prevId, err := generator.NextId("testNamespace")
 	if err != nil {
@@ -103,6 +107,15 @@ func TestRDSIdGenerator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create RDS ID generator: %v", err)
 	}
+	defer func() {
+		// Clean up the RDS table
+		rds := generator.(*rdsIdGenerator)
+		_, err := rds.db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", rds.tableName))
+		if err != nil {
+			t.Fatalf("Failed to drop table %s: %v", rds.tableName, err)
+		}
+		rds.Close()
+	}()
 
 	prevId, err := generator.NextId("testNamespace")
 	if err != nil {
@@ -115,7 +128,7 @@ func TestRDSIdGenerator(t *testing.T) {
 	}
 
 	if !prevId.Equals(diffNamespaceId) {
-		t.Errorf("Expected id '%s' to equal id '%s'", prevId, diffNamespaceId)
+		t.Errorf("Expected id: '%s' Received Id: '%s'", diffNamespaceId, prevId)
 	}
 
 	for i := 0; i < 10; i++ {

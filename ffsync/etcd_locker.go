@@ -93,3 +93,8 @@ func (m *etcdLocker) Unlock(key Key) error {
 
 	return nil
 }
+
+func (m *etcdLocker) Close() {
+	m.session.Close()
+	m.client.Close()
+}

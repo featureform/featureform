@@ -10,6 +10,8 @@ import (
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/helpers"
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	_ "github.com/lib/pq"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
@@ -63,6 +65,7 @@ func (id *Uint64OrderedId) MarshalJSON() ([]byte, error) {
 
 type OrderedIdGenerator interface {
 	NextId(namespace string) (OrderedId, error)
+	Close()
 }
 
 func NewMemoryOrderedIdGenerator() (OrderedIdGenerator, error) {
@@ -90,6 +93,10 @@ func (m *memoryIdGenerator) NextId(namespace string) (OrderedId, error) {
 	// Atomically increment the counter and return the next ID
 	nextId := atomic.AddUint64((*uint64)(m.counters[namespace]), 1)
 	return (*Uint64OrderedId)(&nextId), nil
+}
+
+func (m *memoryIdGenerator) Close() {
+	// No-op
 }
 
 func NewETCDOrderedIdGenerator() (OrderedIdGenerator, error) {
@@ -165,69 +172,87 @@ func (etcd *etcdIdGenerator) NextId(namespace string) (OrderedId, error) {
 	return (*Uint64OrderedId)(&nextId), nil
 }
 
+func (etcd *etcdIdGenerator) Close() {
+	etcd.session.Close()
+	etcd.client.Close()
+}
+
 func NewRDSOrderedIdGenerator() (OrderedIdGenerator, error) {
-	tableName := "ff_ordered_id"
-	host := helpers.GetEnv("POSTGRES_HOST", "localhost")
-	port := helpers.GetEnv("POSTGRES_PORT", "5432")
-	username := helpers.GetEnv("POSTGRES_USER", "postgres")
-	password := helpers.GetEnv("POSTGRES_PASSWORD", "mysecretpassword")
-	dbName := helpers.GetEnv("POSTGRES_DB", "postgres")
-	sslMode := helpers.GetEnv("POSTGRES_SSL_MODE", "disable")
+	const tableName = "ff_ordered_id"
 
-	connectionString := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", host, port, username, password, dbName, sslMode)
-
-	db, err := sql.Open("postgres", connectionString)
+	db, err := helpers.NewRDSPoolConnection()
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("failed to open connection to Postgres: %w", err))
+		return nil, err
 	}
 
-	// Create a table to store the key-value pairs
-	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (key VARCHAR(255) PRIMARY KEY, value TEXT)", tableName)
-	_, err = db.Exec(tableCreationSQL)
+	// acquire a connection pool
+	connection, err := db.Acquire(context.Background())
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("failed to create table %s: %w", tableName, err))
+		return nil, fferr.NewInternalError(fmt.Errorf("failed to acquire connection from the database pool: %w", err))
+	}
+
+	// ping the database
+	err = connection.Ping(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to ping the database: %w", err)
+	}
+
+	// Create the id table if it doesn't exist
+	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (namespace VARCHAR(255) PRIMARY KEY, current_id BIGINT)", tableName)
+	_, err = db.Exec(context.Background(), tableCreationSQL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create table %s: %w", tableName, err)
 	}
 
 	return &rdsIdGenerator{
-		db:        db,
-		tableName: tableName,
+		db:         db,
+		tableName:  tableName,
+		connection: connection,
 	}, nil
 }
 
 type rdsIdGenerator struct {
-	db        *sql.DB
-	tableName string
+	db         *pgxpool.Pool
+	tableName  string
+	connection *pgxpool.Conn
 }
 
 func (rds *rdsIdGenerator) NextId(namespace string) (OrderedId, error) {
 	if namespace == "" {
-		return nil, fferr.NewInternalError(fmt.Errorf("cannot generate ID for empty namespace"))
+		return nil, fmt.Errorf("cannot generate ID for empty namespace")
 	}
 
-	// TODO: Lock the namespace to prevent concurrent ID generation
-
-	// Get the current ID
-	selectSQL := fmt.Sprintf("SELECT value FROM %s WHERE key = $1", rds.tableName)
-	row := rds.db.QueryRow(selectSQL, namespace)
-
-	var nextId uint64
-	err := row.Scan(&nextId)
+	tx, err := rds.db.BeginTx(context.Background(), pgx.TxOptions{})
 	if err != nil {
-		if err == sql.ErrNoRows {
-			nextId = 1
-		} else {
-			return nil, fferr.NewInternalError(fmt.Errorf("failed to get key %s: %w", namespace, err))
+		return nil, err
+	}
+	defer tx.Rollback(context.Background())
+
+	var nextId int64
+	updateSQL := fmt.Sprintf("UPDATE %s SET current_id = current_id + 1 WHERE namespace = $1 RETURNING current_id", rds.tableName)
+	err = tx.QueryRow(context.Background(), updateSQL, namespace).Scan(&nextId)
+	if err == sql.ErrNoRows {
+		nextId = 1
+		insertSQL := fmt.Sprintf("INSERT INTO %s (namespace, current_id) VALUES ($1, $2)", rds.tableName)
+		_, err = tx.Exec(context.Background(), insertSQL, namespace, nextId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to insert new namespace %s: %w", namespace, err)
 		}
-	} else {
-		nextId++
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to update key %s: %w", namespace, err)
 	}
 
-	// Update the ID
-	insertSQL := fmt.Sprintf("INSERT INTO %s (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", rds.tableName)
-	_, err = rds.db.Exec(insertSQL, namespace, nextId)
+	err = tx.Commit(context.Background())
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("failed to set key %s: %w", namespace, err))
+		return nil, fmt.Errorf("transaction commit failed: %w", err)
 	}
 
-	return (*Uint64OrderedId)(&nextId), nil
+	id := Uint64OrderedId(nextId)
+
+	return &id, nil
+}
+
+func (rds *rdsIdGenerator) Close() {
+	rds.connection.Release()
+	rds.db.Close()
 }

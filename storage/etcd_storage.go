@@ -100,3 +100,7 @@ func (etcd *etcdStorageImplementation) Delete(key string) (string, error) {
 
 	return string(resp.Kvs[0].Value), nil
 }
+
+func (etcd *etcdStorageImplementation) Close() {
+	etcd.client.Close()
+}

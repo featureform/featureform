@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"bytes"
@@ -13,8 +13,6 @@ import (
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/helpers"
-	"github.com/featureform/logging"
-
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/sirupsen/logrus"
@@ -23,12 +21,9 @@ import (
 	"google.golang.org/grpc/reflection"
 	grpc_status "google.golang.org/grpc/status"
 
-	"github.com/joho/godotenv"
-
 	"google.golang.org/grpc/credentials/insecure"
 
 	health "github.com/featureform/health"
-	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
 	srv "github.com/featureform/proto"
@@ -699,7 +694,7 @@ func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, source *pb.
 	case *pb.SourceVariant_Transformation:
 		switch transformationType := casted.Transformation.Type.(type) {
 		case *pb.Transformation_SQLTransformation:
-			serv.Logger.Infow("Retreiving the sources from SQL Transformation", transformationType)
+			serv.Logger.Infow("Retreiving the sources from SQL Transformation", "type", transformationType)
 			transformation := casted.Transformation.Type.(*pb.Transformation_SQLTransformation).SQLTransformation
 			qry := transformation.Query
 			numEscapes := strings.Count(qry, "{{")
@@ -1060,7 +1055,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func startHttpsServer(port string) error {
+func StartHttpsServer(port string) error {
 	mux := &http.ServeMux{}
 
 	// Health check endpoint will handle all /_ah/* requests
@@ -1082,32 +1077,4 @@ func startHttpsServer(port string) error {
 	fmt.Printf("starting HTTP server on port %s", port)
 
 	return httpsSrv.ListenAndServe()
-}
-
-func main() {
-	err := godotenv.Load(".env")
-	if err != nil {
-		fmt.Println("Error loading .env file")
-	}
-	apiPort := help.GetEnv("API_PORT", "7878")
-	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
-	metadataPort := help.GetEnv("METADATA_PORT", "8080")
-	servingHost := help.GetEnv("SERVING_HOST", "localhost")
-	servingPort := help.GetEnv("SERVING_PORT", "8080")
-	apiConn := fmt.Sprintf("0.0.0.0:%s", apiPort)
-	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
-	servingConn := fmt.Sprintf("%s:%s", servingHost, servingPort)
-	logger := logging.NewLogger("api")
-	go func() {
-		err := startHttpsServer(":8443")
-		if err != nil && err != http.ErrServerClosed {
-			panic(fmt.Sprintf("health check HTTP server failed: %+v", err))
-		}
-	}()
-	serv, err := NewApiServer(logger, apiConn, metadataConn, servingConn)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Println(serv.Serve())
 }

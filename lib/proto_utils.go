@@ -1,7 +1,7 @@
 package lib
 
 import (
-	"fmt"
+	"github.com/featureform/fferr"
 	"github.com/repeale/fp-go"
 	"google.golang.org/protobuf/proto"
 )
@@ -28,7 +28,7 @@ func EqualProtoContents[T proto.Message](a, b []T) (bool, error) {
 	})(b)
 
 	if errors != nil {
-		return false, fmt.Errorf("errors marshaling proto messages: %v", errors)
+		return false, fferr.NewInternalErrorf("errors marshaling proto messages: %v", errors)
 	}
 
 	setA := ToSet[string](marshaledA)

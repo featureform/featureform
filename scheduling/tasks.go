@@ -3,11 +3,14 @@ package scheduling
 import (
 	"encoding/json"
 	"fmt"
+
 	"slices"
+
 	"time"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/ffsync"
+	pb "github.com/featureform/scheduling/proto"
 )
 
 type Key interface {
@@ -27,20 +30,45 @@ func (tmk TaskMetadataKey) String() string {
 
 type TaskID ffsync.OrderedId
 
-type TaskType string
+func NewTaskIdFromString(id string) (TaskID, error) {
+	var uint64ID ffsync.Uint64OrderedId
+	err := uint64ID.FromString(id)
+	if err != nil {
+		return nil, err
+	}
+	return TaskID(&uint64ID), nil
+}
+
+type TaskType int32
 
 const (
-	ResourceCreation TaskType = "ResourceCreation"
-	HealthCheck      TaskType = "HealthCheck"
-	Monitoring       TaskType = "Monitoring"
+	ResourceCreation TaskType = TaskType(pb.TaskType_RESOURCE_CREATION)
+	HealthCheck      TaskType = TaskType(pb.TaskType_HEALTH_CHECK)
+	Monitoring       TaskType = TaskType(pb.TaskType_METRICS)
 )
 
-type TargetType string
+func (tt TaskType) String() string {
+	return pb.TaskType_name[int32(tt)]
+}
+
+func (tt TaskType) Proto() pb.TaskType {
+	return pb.TaskType(tt)
+}
+
+type TargetType int32
 
 const (
-	ProviderTarget    TargetType = "Provider"
-	NameVariantTarget TargetType = "NameVariant"
+	ProviderTarget    TargetType = TargetType(pb.TargetType_PROVIDER)
+	NameVariantTarget TargetType = TargetType(pb.TargetType_NAME_VARIANT)
 )
+
+func (tt TargetType) String() string {
+	return pb.TargetType_name[int32(tt)]
+}
+
+func (tt TargetType) Proto() pb.TargetType {
+	return pb.TargetType(tt)
+}
 
 type Provider struct {
 	Name string `json:"name"`
@@ -106,7 +134,7 @@ func (t *TaskMetadata) Unmarshal(data []byte) error {
 	}
 	t.Name = temp.Name
 
-	if temp.TaskType == "" {
+	if temp.TaskType.String() == "" {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("task metadata is missing TaskType"))
 	}
 

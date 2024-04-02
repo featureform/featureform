@@ -228,7 +228,7 @@ func (s EtcdStorage) GetCountWithPrefix(key string) (int64, error) {
 }
 
 // Takes a populated ETCD storage struct and a resource
-// Checks to make sure the given ETCD Storage Object contains a Resource, not job
+// Checks to make sure the given ETCD storage Object contains a Resource, not job
 // Deserializes Resource value into the provided Resource object
 func (s EtcdStorage) ParseResource(res EtcdRow, resType Resource) (Resource, error) {
 	if res.StorageType != RESOURCE {
@@ -296,7 +296,7 @@ func (lookup EtcdResourceLookup) createEmptyResource(t ResourceType) (Resource, 
 	return resource, nil
 }
 
-// Serializes the entire ETCD Storage Object to be put into ETCD
+// Serializes the entire ETCD storage Object to be put into ETCD
 func (lookup EtcdResourceLookup) serializeResource(res Resource) ([]byte, error) {
 	p, err := proto.Marshal(res.Proto())
 	if err != nil {

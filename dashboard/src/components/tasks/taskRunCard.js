@@ -15,12 +15,11 @@ import { useDataAPI } from '../../hooks/dataAPI';
 import StatusChip from './statusChip';
 import { useStyles } from './styles';
 
-export default function TaskRunCard({ handleClose, searchId }) {
+export default function TaskRunCard({ handleClose, taskId, taskRunId }) {
   const classes = useStyles();
   const dataAPI = useDataAPI();
   const [taskRunRecord, setTaskRecord] = useState({});
   const [loading, setLoading] = useState(true);
-
   const columns = [
     {
       field: 'runId',
@@ -65,8 +64,9 @@ export default function TaskRunCard({ handleClose, searchId }) {
   ];
 
   useEffect(async () => {
-    if (searchId && loading) {
-      let data = await dataAPI.getTaskRunDetails(searchId);
+    let timeout = null;
+    if (taskId && taskRunId && loading) {
+      let data = await dataAPI.getTaskRunDetails(taskId, taskRunId);
       setTaskRecord(data);
       const timeout = setTimeout(() => {
         setLoading(false);
@@ -77,7 +77,12 @@ export default function TaskRunCard({ handleClose, searchId }) {
         }
       };
     }
-  }, [searchId, loading]);
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
+  }, [taskId, taskRunId, loading]);
 
   const handleReloadRequest = () => {
     if (!loading) {
@@ -123,7 +128,7 @@ export default function TaskRunCard({ handleClose, searchId }) {
             style={{ width: '100%' }}
             variant='filled'
             disabled
-            value={taskRunRecord?.taskRun?.logs}
+            value={taskRunRecord?.taskRun?.logs?.join('\n') + '\n' + taskRunRecord?.taskRun?.error}
             multiline
             minRows={3}
           ></TextField>

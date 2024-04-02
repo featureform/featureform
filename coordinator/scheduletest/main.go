@@ -152,7 +152,7 @@ func initializeTestingEnvironment() error {
 		return fmt.Errorf("Could not convert provider to online store: %v", err)
 	}
 	kubeJobSpawner := coordinator.KubernetesJobSpawner{}
-	coord, err = coordinator.NewCoordinator(metadataClient, logger, etcdClient, &kubeJobSpawner)
+	coord, err = coordinator.NewCoordinator(metadataClient, logger, &kubeJobSpawner)
 	if err != nil {
 		return fmt.Errorf("Could not initialize coordinator: %v", err)
 	}

@@ -232,9 +232,15 @@ type TaskLocker struct {
 	Locker ffsync.Locker
 }
 
-func (tl *TaskLocker) LockRun(id s.TaskRunID) (ffsync.Key, error) {
+func (tl *TaskLocker) LockRun(id s.TaskRunID) (unlock func() error, err error) {
 	runKey := ExecutorTaskRunLockPath(id)
-	return tl.Locker.Lock(runKey)
+	lock, err := tl.Locker.Lock(runKey)
+	if err != nil {
+		return nil, err
+	}
+	return func() error {
+		return tl.UnlockRun(lock)
+	}, nil
 }
 
 func (tl *TaskLocker) UnlockRun(key ffsync.Key) error {

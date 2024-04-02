@@ -79,7 +79,7 @@ func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client, stora
 		client:          client,
 		logger:          logger,
 		StorageProvider: storageProvider,
-		lookup:          metadata.MemoryResourceLookup{Connection: storageProvider},
+		lookup:          &metadata.MemoryResourceLookup{Connection: storageProvider},
 	}, nil
 }
 

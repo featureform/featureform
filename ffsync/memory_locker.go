@@ -129,6 +129,10 @@ func (m *memoryLocker) updateLockTime(key *memoryKey) {
 			}
 
 			lock, ok := lockInfo.(LockInformation)
+			// This will cause lock to fail but shouldn't be possible
+			if !ok {
+				return
+			}
 			if lock.ID == key.id {
 				lock.Date = time.Now().UTC()
 				// Update lock time

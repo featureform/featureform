@@ -18,7 +18,7 @@ func NewInternalError(err error) *InternalError {
 }
 
 func NewInternalErrorf(format string, a ...any) *InternalError {
-	err := fmt.Errorf(format, a)
+	err := fmt.Errorf(format, a...)
 	baseError := newBaseGRPCError(err, INTERNAL_ERROR, codes.Internal)
 
 	return &InternalError{
@@ -82,7 +82,7 @@ type UnimplementedError struct {
 }
 
 func NewUnimplementedErrorf(format string, a ...any) *UnimplementedError {
-	err := fmt.Errorf(format, a)
+	err := fmt.Errorf(format, a...)
 	return NewUnimplementedError(err)
 }
 

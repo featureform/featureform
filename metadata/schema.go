@@ -21,7 +21,7 @@ func ExecutorTaskRunLockPath(id s.TaskRunID) string {
 	return templ
 }
 
-// Need to add storage field to this
+// For future upgrades
 type executorTaskRunLockPathUpgrader struct {
 	executorTaskRunLockPathSchema
 }

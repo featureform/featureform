@@ -279,18 +279,20 @@ func (c *Coordinator) WatchForNewJobs() error {
 
 	for _, run := range runs {
 		go func(run scheduling.TaskRunMetadata) {
-			lock, err := c.Locker.LockRun(run.ID)
-			if err != nil {
-				c.Logger.Errorw("Error locking task run", "error", err)
+			unlock, err := c.Locker.LockRun(run.ID)
+			if _, ok := err.(*fferr.KeyAlreadyLockedError); ok {
+				c.Logger.Debugw("Skipping task", "error", err)
+				return
+			} else if err != nil {
+				c.Logger.Errorw("Failed to lock task run", "error", err)
 				return
 			}
-			defer func(runId scheduling.TaskRunID, key ffsync.Key) {
-				err := c.Locker.UnlockRun(lock)
-				if err != nil {
-					fmt.Printf("failed to unlock task: %v", err)
+			defer func() {
+				if err := unlock(); err != nil {
+					c.Logger.Errorw("Failed to unlock task run", "error", err)
 					return
 				}
-			}(run.ID, lock)
+			}()
 			err = c.Metadata.Tasks.SetRunStatus(run.TaskId, run.ID, scheduling.RUNNING, err)
 			if err != nil {
 				fmt.Printf("failed to set status to Running: %v", err)
@@ -315,20 +317,20 @@ func (c *Coordinator) WatchForNewJobs() error {
 				// LOCK and pass the key to the worker; if lock fails then skip
 				// UNLOCK after the worker is done
 				// LockTaskRun(taskID TaskID, runId TaskRunID) (sp.LockObject, error)
-				lock, err := c.Locker.LockRun(run.ID)
+				unlock, err := c.Locker.LockRun(run.ID)
 				if _, ok := err.(*fferr.KeyAlreadyLockedError); ok {
+					c.Logger.Debugw("Skipping task", "error", err)
 					return
 				} else if err != nil {
-					c.Logger.Errorw("Error locking task run", "error", err)
+					c.Logger.Errorw("Failed to lock task run", "error", err)
 					return
 				}
-				defer func(runId scheduling.TaskRunID, key ffsync.Key) {
-					err := c.Locker.UnlockRun(lock)
-					if err != nil {
-						fmt.Printf("failed to unlock task: %v", err)
+				defer func() {
+					if err := unlock(); err != nil {
+						c.Logger.Errorw("Failed to unlock task run", "error", err)
 						return
 					}
-				}(run.ID, lock)
+				}()
 				err = c.ExecuteJob(run)
 				if err != nil {
 					c.checkError(err, run.Name)
@@ -1261,7 +1263,11 @@ func (c *Coordinator) getJob(taskRun scheduling.TaskRunMetadata) (*metadata.Coor
 		return nil, fferr.NewInternalErrorf("task target type is not name variant for task %s: instead got: %T", taskRun.TaskId, taskMetadata.TargetType)
 	}
 
-	targetResource := taskMetadata.Target.(scheduling.NameVariant)
+	targetResource, ok := taskMetadata.Target.(scheduling.NameVariant)
+	if !ok {
+		return nil, fferr.NewInternalErrorf("could not check target: expected NameVariant %s: instead got: %T", taskRun.TaskId, taskMetadata.TargetType)
+
+	}
 	resourceType := pb.ResourceType_value[targetResource.ResourceType]
 
 	job := &metadata.CoordinatorJob{

@@ -11,6 +11,10 @@ import (
 
 func main() {
 	err := godotenv.Load(".env")
+	if err != nil {
+		fmt.Printf("could not fetch .env file: %s", err.Error())
+	}
+	
 	apiPort := help.GetEnv("API_PORT", "7878")
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")

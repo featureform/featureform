@@ -26,7 +26,6 @@ func main() {
 	if err != nil {
 		logger.Panicw("Failed to create new meil search", err)
 	}
-	dm.CreateDummyTaskRuns(360)
 	dm.SearchClient = sc
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	logger.Infof("Looking for metadata at: %s\n", metadataAddress)
@@ -45,6 +44,7 @@ func main() {
 		},
 	}
 
+	// TODO: Reimplement ETCD after merging
 	metadataServer, err := dm.NewMetadataServer(logger, client, &storageProvider)
 	if err != nil {
 		logger.Panicw("Failed to create server", "error", err)
@@ -52,5 +52,8 @@ func main() {
 	metadataHTTPPort := help.GetEnv("METADATA_HTTP_PORT", "3001")
 	metadataServingPort := fmt.Sprintf(":%s", metadataHTTPPort)
 	logger.Infof("Serving HTTP Metadata on port: %s\n", metadataServingPort)
-	metadataServer.Start(metadataServingPort)
+	err = metadataServer.Start(metadataServingPort, false)
+	if err != nil {
+		panic(err)
+	}
 }

@@ -40,13 +40,24 @@ func main() {
 	servingConn := fmt.Sprintf("%s:%s", servingHost, servingPort)
 	local := help.GetEnvBool("FEATUREFORM_LOCAL", true)
 
-	locker := ffsync.NewMemoryLocker()
-	mstorage := ss.NewMemoryStorageImplementation()
+	locker, err := ffsync.NewMemoryLocker()
+	if err != nil {
+		panic(err.Error())
+	}
+	mstorage, err := ss.NewMemoryStorageImplementation()
+	if err != nil {
+		panic(err.Error())
+	}
 	storage := ss.MetadataStorage{
 		Locker:  &locker,
 		Storage: &mstorage,
 	}
-	meta := scheduling.NewTaskMetadataManager(storage, ffsync.NewMemoryOrderedIdGenerator())
+
+	generator, err := ffsync.NewMemoryOrderedIdGenerator()
+	if err != nil {
+		panic(err.Error())
+	}
+	meta := scheduling.NewTaskMetadataManager(storage, generator)
 
 	/****************************************** API Server ************************************************************/
 
@@ -65,7 +76,7 @@ func main() {
 	config := &metadata.Config{
 		Logger:          mLogger,
 		Address:         fmt.Sprintf(":%s", metadataPort),
-		StorageProvider: &mstorage,
+		StorageProvider: storage,
 		TaskManager:     meta,
 	}
 
@@ -118,7 +129,7 @@ func main() {
 
 	dbLogger.Infof("Looking for metadata at: %s\n", metadataConn)
 
-	metadataServer, err := dm.NewMetadataServer(dbLogger, client, &mstorage)
+	metadataServer, err := dm.NewMetadataServer(dbLogger, client, storage)
 	if err != nil {
 		logger.Panicw("Failed to create server", "error", err)
 	}

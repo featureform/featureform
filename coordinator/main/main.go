@@ -30,6 +30,11 @@ func main() {
 		DialTimeout: time.Second * 1,
 	}
 
+	cli, err := clientv3.New(etcdConfig)
+	if err != nil {
+		panic(err)
+	}
+
 	defer func(cli *clientv3.Client) {
 		err := cli.Close()
 		if err != nil {

@@ -35,10 +35,6 @@ import (
 
 var SearchClient search.Searcher
 
-// todox: remove later
-var taskRunStaticList []sc.TaskRunMetadata
-var taskMetadataStaticList []sc.TaskMetadata
-
 type StorageProvider interface {
 	GetResourceLookup() (metadata.ResourceLookup, error)
 }
@@ -73,10 +69,10 @@ type MetadataServer struct {
 	lookup          metadata.ResourceLookup
 	client          *metadata.Client
 	logger          *zap.SugaredLogger
-	StorageProvider storage.MetadataStorage
+	StorageProvider storage.MetadataStorageImplementation
 }
 
-func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client, storageProvider storage.MetadataStorage) (*MetadataServer, error) {
+func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client, storageProvider storage.MetadataStorageImplementation) (*MetadataServer, error) {
 	logger.Debug("Creating new metadata server")
 
 	return &MetadataServer{
@@ -274,7 +270,11 @@ func trainingSetShallowMap(variant *metadata.TrainingSetVariant) metadata.Traini
 }
 
 func (m *MetadataServer) sourceShallowMap(variant *metadata.SourceVariant) (metadata.SourceVariantResource, error) {
-	taskRun, err := m.client.Tasks.GetLatestRun(variant.TaskID())
+	tid, err := variant.TaskID()
+	if err != nil {
+		return metadata.SourceVariantResource{}, err
+	}
+	taskRun, err := m.client.Tasks.GetLatestRun(tid)
 	if err != nil {
 		return metadata.SourceVariantResource{}, err
 	}

@@ -730,15 +730,15 @@ type TransformationSourceDef struct {
 	Def interface{}
 }
 
-func (s TransformationSource) Serialize() (*pb.SourceVariant_Transformation, error) {
+func (t TransformationSource) Serialize() (*pb.SourceVariant_Transformation, error) {
 	var transformation *pb.Transformation
-	switch x := s.TransformationType.(type) {
+	switch x := t.TransformationType.(type) {
 	case SQLTransformationType:
 		transformation = &pb.Transformation{
 			Type: &pb.Transformation_SQLTransformation{
 				SQLTransformation: &pb.SQLTransformation{
-					Query:  s.TransformationType.(SQLTransformationType).Query,
-					Source: s.TransformationType.(SQLTransformationType).Sources.Serialize(),
+					Query:  t.TransformationType.(SQLTransformationType).Query,
+					Source: t.TransformationType.(SQLTransformationType).Sources.Serialize(),
 				},
 			},
 		}
@@ -752,14 +752,14 @@ func (s TransformationSource) Serialize() (*pb.SourceVariant_Transformation, err
 	}, nil
 }
 
-func (s PrimaryDataSource) Serialize() (*pb.SourceVariant_PrimaryData, error) {
+func (t PrimaryDataSource) Serialize() (*pb.SourceVariant_PrimaryData, error) {
 	var primaryData *pb.PrimaryData
-	switch x := s.Location.(type) {
+	switch x := t.Location.(type) {
 	case SQLTable:
 		primaryData = &pb.PrimaryData{
 			Location: &pb.PrimaryData_Table{
 				Table: &pb.PrimarySQLTable{
-					Name: s.Location.(SQLTable).Name,
+					Name: t.Location.(SQLTable).Name,
 				},
 			},
 		}
@@ -2054,7 +2054,7 @@ func (variant *SourceVariant) DFTransformationQuerySource() string {
 	return variant.serialized.GetTransformation().GetDFTransformation().GetSourceText()
 }
 
-func (variant *SourceVariant) TaskID() scheduling.TaskID {
+func (variant *SourceVariant) TaskID() (scheduling.TaskID, error) {
 	return scheduling.NewTaskIdFromString(variant.serialized.TaskId)
 }
 
@@ -2219,7 +2219,7 @@ type Entity struct {
 	fetchPropertiesFn
 }
 
-func (e Entity) Variant() string {
+func (entity Entity) Variant() string {
 	return ""
 }
 

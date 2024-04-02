@@ -47,10 +47,13 @@ func (trmk TaskRunMetadataKey) String() string {
 
 type TaskRunID ffsync.OrderedId
 
-func NewTaskRunIdFromString(id string) TaskRunID {
+func NewTaskRunIdFromString(id string) (TaskRunID, error) {
 	var orderedID ffsync.Uint64OrderedId
-	orderedID.FromString(id)
-	return TaskRunID(&orderedID)
+	err := orderedID.FromString(id)
+	if err != nil {
+		return nil, err
+	}
+	return TaskRunID(&orderedID), nil
 }
 
 type Status int32

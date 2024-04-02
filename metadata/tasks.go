@@ -51,7 +51,10 @@ func convertProtoTarget(target interface{}) (s.TaskTarget, error) {
 }
 
 func wrapProtoTaskMetadata(task *sch.TaskMetadata) (s.TaskMetadata, error) {
-	tid := s.NewTaskRunIdFromString(task.GetId().Id)
+	tid, err := s.NewTaskRunIdFromString(task.GetId().Id)
+	if err != nil {
+		return s.TaskMetadata{}, err
+	}
 
 	t, err := convertProtoTarget(task.Target)
 	if err != nil {
@@ -69,8 +72,14 @@ func wrapProtoTaskMetadata(task *sch.TaskMetadata) (s.TaskMetadata, error) {
 }
 
 func wrapProtoTaskRunMetadata(run *sch.TaskRunMetadata) (s.TaskRunMetadata, error) {
-	rid := s.NewTaskRunIdFromString(run.RunID.Id)
-	tid := s.NewTaskIdFromString(run.TaskID.Id)
+	rid, err := s.NewTaskRunIdFromString(run.RunID.Id)
+	if err != nil {
+		return s.TaskRunMetadata{}, err
+	}
+	tid, err := s.NewTaskIdFromString(run.TaskID.Id)
+	if err != nil {
+		return s.TaskRunMetadata{}, err
+	}
 
 	t, err := convertProtoTriggerType(run.GetTrigger())
 	if err != nil {

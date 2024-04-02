@@ -247,7 +247,7 @@ type resourceStatusImplementation interface {
 }
 
 type resourceTaskImplementation interface {
-	TaskID() scheduling.TaskID
+	TaskID() (scheduling.TaskID, error)
 }
 
 type SearchWrapper struct {
@@ -563,7 +563,7 @@ func (resource *sourceVariantResource) SetStatus(status *scheduling.Status, msg 
 	resource.serialized.Status.ErrorMessage = msg
 }
 
-func (resource *sourceVariantResource) TaskID() scheduling.TaskID {
+func (resource *sourceVariantResource) TaskID() (scheduling.TaskID, error) {
 	return scheduling.NewTaskIdFromString(resource.serialized.TaskId)
 }
 
@@ -805,7 +805,7 @@ func (resource *featureVariantResource) SetStatus(status *scheduling.Status, msg
 	resource.serialized.Status.ErrorMessage = msg
 }
 
-func (resource *featureVariantResource) TaskID() scheduling.TaskID {
+func (resource *featureVariantResource) TaskID() (scheduling.TaskID, error) {
 	return scheduling.NewTaskIdFromString(resource.serialized.TaskId)
 }
 
@@ -957,7 +957,7 @@ func (resource *labelVariantResource) SetStatus(status *scheduling.Status, msg s
 	resource.serialized.Status.ErrorMessage = msg
 }
 
-func (resource *labelVariantResource) TaskID() scheduling.TaskID {
+func (resource *labelVariantResource) TaskID() (scheduling.TaskID, error) {
 	return scheduling.NewTaskIdFromString(resource.serialized.TaskId)
 }
 
@@ -1142,7 +1142,7 @@ func (resource *trainingSetVariantResource) SetStatus(status *scheduling.Status,
 	resource.serialized.Status.ErrorMessage = msg
 }
 
-func (resource *trainingSetVariantResource) TaskID() scheduling.TaskID {
+func (resource *trainingSetVariantResource) TaskID() (scheduling.TaskID, error) {
 	return scheduling.NewTaskIdFromString(resource.serialized.TaskId)
 }
 
@@ -1652,7 +1652,10 @@ func wrapTaskRunMetadataProto(run scheduling.TaskRunMetadata) (*sch.TaskRunMetad
 }
 
 func (serv *MetadataServer) GetTaskByID(ctx context.Context, taskID *sch.TaskID) (*sch.TaskMetadata, error) {
-	tid := scheduling.NewTaskIdFromString(taskID.GetId())
+	tid, err := scheduling.NewTaskIdFromString(taskID.GetId())
+	if err != nil {
+		return nil, err
+	}
 	task, err := serv.taskManager.GetTaskByID(tid)
 	if err != nil {
 		return nil, err
@@ -1665,7 +1668,10 @@ func (serv *MetadataServer) GetTaskByID(ctx context.Context, taskID *sch.TaskID)
 }
 
 func (serv *MetadataServer) GetRuns(id *sch.TaskID, stream sch.Tasks_GetRunsServer) error {
-	tid := scheduling.NewTaskIdFromString(id.GetId())
+	tid, err := scheduling.NewTaskIdFromString(id.GetId())
+	if err != nil {
+		return err
+	}
 	runs, err := serv.taskManager.GetTaskRunMetadata(tid)
 	if err != nil {
 		return err
@@ -1704,7 +1710,11 @@ func (serv *MetadataServer) GetAllRuns(_ *sch.Empty, stream sch.Tasks_GetAllRuns
 }
 
 func (serv *MetadataServer) GetLatestRun(ctx context.Context, taskID *sch.TaskID) (*sch.TaskRunMetadata, error) {
-	run, err := serv.taskManager.GetLatestRun(scheduling.NewTaskIdFromString(taskID.GetId()))
+	tid, err := scheduling.NewTaskIdFromString(taskID.GetId())
+	if err != nil {
+		return nil, err
+	}
+	run, err := serv.taskManager.GetLatestRun(tid)
 	if err != nil {
 		return nil, err
 	}
@@ -1718,28 +1728,46 @@ func (serv *MetadataServer) GetLatestRun(ctx context.Context, taskID *sch.TaskID
 }
 
 func (serv *MetadataServer) SetRunStatus(ctx context.Context, update *sch.StatusUpdate) (*sch.Empty, error) {
-	rid := scheduling.NewTaskRunIdFromString(update.GetRunID().GetId())
-	tid := scheduling.NewTaskIdFromString(update.GetTaskID().GetId())
+	rid, err := scheduling.NewTaskRunIdFromString(update.GetRunID().GetId())
+	if err != nil {
+		return nil, err
+	}
+	tid, err := scheduling.NewTaskIdFromString(update.GetTaskID().GetId())
+	if err != nil {
+		return nil, err
+	}
 
-	err := serv.taskManager.SetRunStatus(rid, tid, update.Status)
+	err = serv.taskManager.SetRunStatus(rid, tid, update.Status)
 	if err != nil {
 		return nil, err
 	}
 	return &sch.Empty{}, nil
 }
 func (serv *MetadataServer) AddRunLog(ctx context.Context, log *sch.Log) (*sch.Empty, error) {
-	rid := scheduling.NewTaskRunIdFromString(log.GetRunID().GetId())
-	tid := scheduling.NewTaskIdFromString(log.GetTaskID().GetId())
-	err := serv.taskManager.AppendRunLog(rid, tid, log.Log)
+	rid, err := scheduling.NewTaskRunIdFromString(log.GetRunID().GetId())
+	if err != nil {
+		return nil, err
+	}
+	tid, err := scheduling.NewTaskIdFromString(log.GetTaskID().GetId())
+	if err != nil {
+		return nil, err
+	}
+	err = serv.taskManager.AppendRunLog(rid, tid, log.Log)
 	if err != nil {
 		return nil, err
 	}
 	return &sch.Empty{}, nil
 }
 func (serv *MetadataServer) SetRunEndTime(ctx context.Context, update *sch.RunEndTimeUpdate) (*sch.Empty, error) {
-	rid := scheduling.NewTaskRunIdFromString(update.GetRunID().GetId())
-	tid := scheduling.NewTaskIdFromString(update.GetTaskID().GetId())
-	err := serv.taskManager.SetRunEndTime(rid, tid, update.End.AsTime())
+	rid, err := scheduling.NewTaskRunIdFromString(update.GetRunID().GetId())
+	if err != nil {
+		return nil, err
+	}
+	tid, err := scheduling.NewTaskIdFromString(update.GetTaskID().GetId())
+	if err != nil {
+		return nil, err
+	}
+	err = serv.taskManager.SetRunEndTime(rid, tid, update.End.AsTime())
 	if err != nil {
 		return nil, err
 	}
@@ -1820,7 +1848,7 @@ func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 type Config struct {
 	Logger          *zap.SugaredLogger
 	SearchParams    *search.MeilisearchParams
-	StorageProvider storage.MetadataStorage
+	StorageProvider storage.MetadataStorageImplementation
 	TaskManager     scheduling.TaskMetadataManager
 	Address         string
 }
@@ -2183,7 +2211,10 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 
 		var taskID scheduling.TaskID
 		if r, ok := res.(resourceTaskImplementation); ok {
-			taskID = r.TaskID()
+			taskID, err = r.TaskID()
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
@@ -2369,7 +2400,10 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 		// Can improve on this by linking the request to a specific run but that requires
 		// additional changes
 		if res, ok := resource.(resourceStatusImplementation); ok {
-			taskID := resource.(resourceTaskImplementation).TaskID()
+			taskID, err := resource.(resourceTaskImplementation).TaskID()
+			if err != nil {
+				return err
+			}
 			status, msg, err := serv.fetchStatus(taskID)
 			if err != nil {
 				serv.Logger.Errorw("Failed to set status", "error", err)

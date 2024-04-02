@@ -16,7 +16,7 @@ type etcdKey struct {
 	id        string
 	key       string
 	lockMutex *concurrency.Mutex
-	session   *concurrency.Session
+	leaseID   clientv3.LeaseID
 }
 
 func (k etcdKey) ID() string {
@@ -63,10 +63,26 @@ func (m *etcdLocker) Lock(key string) (Key, error) {
 
 	id := uuid.New().String()
 
-	lease, err := m.client.Grant(m.ctx, 5)
+	lease, err := m.client.Grant(m.ctx, int64(ValidTimePeriod))
 	if err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to grant lease: %w", err))
 	}
+
+	leaseKeepAliveChan, err := m.client.KeepAlive(m.ctx, lease.ID)
+	if err != nil {
+		return nil, fferr.NewInternalError(fmt.Errorf("failed to keep alive lease: %w", err))
+	}
+
+	go func() {
+		for {
+			select {
+			case _, ok := <-leaseKeepAliveChan:
+				if !ok {
+					return
+				}
+			}
+		}
+	}()
 
 	session, err := concurrency.NewSession(m.client, concurrency.WithLease(lease.ID))
 	if err != nil {
@@ -82,7 +98,7 @@ func (m *etcdLocker) Lock(key string) (Key, error) {
 		id:        id,
 		key:       key,
 		lockMutex: lockMutex,
-		session:   session,
+		leaseID:   lease.ID,
 	}
 
 	return lockKey, nil
@@ -102,8 +118,8 @@ func (m *etcdLocker) Unlock(key Key) error {
 		return fferr.NewInternalError(fmt.Errorf("failed to unlock key %s: %w", key.Key(), err))
 	}
 
-	if err := etcdKey.session.Close(); err != nil {
-		return fferr.NewInternalError(fmt.Errorf("failed to close session: %w", err))
+	if _, err := m.client.Revoke(m.ctx, etcdKey.leaseID); err != nil {
+		return fferr.NewInternalError(fmt.Errorf("failed to revoke lease: %w", err))
 	}
 
 	return nil

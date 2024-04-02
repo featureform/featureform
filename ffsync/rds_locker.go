@@ -12,10 +12,9 @@ import (
 	_ "github.com/lib/pq"
 )
 
-const (
-	lock_expiration_time = "5 minutes"
-	key_length           = 2048
-)
+const key_length = 2048
+
+var lock_expiration_time = ValidTimePeriod.AsRDSString()
 
 type rdsKey struct {
 	id   string
@@ -100,7 +99,7 @@ func (l *rdsLocker) Lock(key string) (Key, error) {
 }
 
 func (l *rdsLocker) updateLockTime(key *rdsKey) {
-	ticker := time.NewTicker(UpdateSleepTime)
+	ticker := time.NewTicker(UpdateSleepTime.Duration())
 	defer ticker.Stop()
 
 	for {

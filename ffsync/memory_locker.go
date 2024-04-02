@@ -57,7 +57,7 @@ func (m *memoryLocker) Lock(key string) (Key, error) {
 	id := uuid.New().String()
 
 	if lockInfo, ok := m.lockedItems[key]; ok {
-		if time.Since(lockInfo.Date) < ValidTimePeriod {
+		if time.Since(lockInfo.Date) < ValidTimePeriod.Duration() {
 			return nil, fferr.NewKeyAlreadyLockedError(key, lockInfo.ID, nil)
 		}
 	}
@@ -106,7 +106,7 @@ func (m *memoryLocker) hasPrefixLocked(key string) (string, bool) {
 }
 
 func (m *memoryLocker) updateLockTime(key *memoryKey) {
-	ticker := time.NewTicker(UpdateSleepTime)
+	ticker := time.NewTicker(UpdateSleepTime.Duration())
 	defer ticker.Stop()
 
 	for {

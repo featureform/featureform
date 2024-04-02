@@ -173,8 +173,7 @@ func LockTimeUpdates(t *testing.T, locker Locker) {
 		t.Fatalf("Lock failed: %v", err)
 	}
 
-	// Wait for 2 x ValidTimePeriod
-	time.Sleep(2 * ValidTimePeriod)
+	time.Sleep(ValidTimePeriod.Duration() / 2)
 
 	// Lock the key again
 	_, err = locker.Lock(key)

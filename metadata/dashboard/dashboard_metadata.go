@@ -2,22 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package main
+package dashboard_metadata
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"reflect"
-	"slices"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
-
-	rand "math/rand"
-
 	"github.com/featureform/ffsync"
 	filestore "github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
@@ -30,18 +20,20 @@ import (
 	"github.com/featureform/scheduling"
 	sc "github.com/featureform/scheduling"
 	"github.com/featureform/serving"
+	"github.com/featureform/storage"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+	"net/http"
+	"reflect"
+	"slices"
+	"sort"
+	"strings"
 )
 
 var SearchClient search.Searcher
-
-// todox: remove later
-var taskRunStaticList []sc.TaskRunMetadata
-var taskMetadataStaticList []sc.TaskMetadata
 
 type StorageProvider interface {
 	GetResourceLookup() (metadata.ResourceLookup, error)
@@ -77,20 +69,17 @@ type MetadataServer struct {
 	lookup          metadata.ResourceLookup
 	client          *metadata.Client
 	logger          *zap.SugaredLogger
-	StorageProvider StorageProvider
+	StorageProvider storage.MetadataStorageImplementation
 }
 
-func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client, storageProvider *metadata.EtcdStorageProvider) (*MetadataServer, error) {
+func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client, storageProvider storage.MetadataStorageImplementation) (*MetadataServer, error) {
 	logger.Debug("Creating new metadata server")
-	lookup, err := storageProvider.GetResourceLookup()
-	if err != nil {
-		return nil, fmt.Errorf("could not configure storage provider: %v", err)
-	}
+
 	return &MetadataServer{
 		client:          client,
 		logger:          logger,
 		StorageProvider: storageProvider,
-		lookup:          lookup,
+		lookup:          metadata.MemoryResourceLookup{Connection: storageProvider},
 	}, nil
 }
 
@@ -280,7 +269,16 @@ func trainingSetShallowMap(variant *metadata.TrainingSetVariant) metadata.Traini
 	}
 }
 
-func sourceShallowMap(variant *metadata.SourceVariant) metadata.SourceVariantResource {
+func (m *MetadataServer) sourceShallowMap(variant *metadata.SourceVariant) (metadata.SourceVariantResource, error) {
+	tid, err := variant.TaskID()
+	if err != nil {
+		return metadata.SourceVariantResource{}, err
+	}
+	taskRun, err := m.client.Tasks.GetLatestRun(tid)
+	if err != nil {
+		return metadata.SourceVariantResource{}, err
+	}
+
 	return metadata.SourceVariantResource{
 		Name:           variant.Name(),
 		Variant:        variant.Variant(),
@@ -289,16 +287,16 @@ func sourceShallowMap(variant *metadata.SourceVariant) metadata.SourceVariantRes
 		Description:    variant.Description(),
 		Provider:       variant.Provider(),
 		Created:        variant.Created(),
-		Status:         variant.Status().String(),
+		Status:         taskRun.Status.String(),
 		LastUpdated:    variant.LastUpdated(),
 		Schedule:       variant.Schedule(),
 		Tags:           variant.Tags(),
 		SourceType:     getSourceType(variant),
 		Properties:     variant.Properties(),
-		Error:          variant.Error(),
+		Error:          taskRun.Error,
 		Specifications: getSourceArgs(variant),
 		Inputs:         getInputs(variant),
-	}
+	}, nil
 }
 
 func getInputs(variant *metadata.SourceVariant) []metadata.NameVariant {
@@ -393,7 +391,11 @@ func (m *MetadataServer) getSources(nameVariants []metadata.NameVariant) (map[st
 		if _, has := sourceMap[variant.Name()]; !has {
 			sourceMap[variant.Name()] = []metadata.SourceVariantResource{}
 		}
-		sourceMap[variant.Name()] = append(sourceMap[variant.Name()], sourceShallowMap(variant))
+		smap, err := m.sourceShallowMap(variant)
+		if err != nil {
+			return nil, err
+		}
+		sourceMap[variant.Name()] = append(sourceMap[variant.Name()], smap)
 	}
 	return sourceMap, nil
 }
@@ -458,7 +460,12 @@ func (m *MetadataServer) readFromSource(source *metadata.Source, deepCopy bool) 
 	}
 	for _, variant := range variants {
 
-		sourceResource := sourceShallowMap(variant)
+		sourceResource, err := m.sourceShallowMap(variant)
+		if err != nil {
+			fetchError := &FetchError{StatusCode: 500, Type: "source variants"}
+			m.logger.Errorw(fetchError.Error(), "Internal Error", err)
+			return nil, fetchError
+		}
 		if deepCopy {
 			fetchGroup := new(errgroup.Group)
 			fetchGroup.Go(func() error {
@@ -1536,64 +1543,6 @@ func replaceTags(resourceTypeParam string, currentResource metadata.Resource, ne
 	return nil
 }
 
-// todox: eventually remove
-func CreateDummyTaskRuns(count int) {
-	id1 := ffsync.Uint64OrderedId(1)
-	id2 := ffsync.Uint64OrderedId(2)
-	id3 := ffsync.Uint64OrderedId(3)
-	id4 := ffsync.Uint64OrderedId(4)
-	id5 := ffsync.Uint64OrderedId(5)
-
-	taskMetadataStaticList = []sc.TaskMetadata{
-		{ID: scheduling.TaskID(&id1), Name: "Test_job", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
-			Name:    "transaction",
-			Variant: "default",
-		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
-		{ID: scheduling.TaskID(&id2), Name: "Nicole_Puppers", TaskType: sc.Monitoring, Target: sc.NameVariant{
-			Name:    "avg_transactions",
-			Variant: "v1",
-		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
-		{ID: scheduling.TaskID(&id3), Name: "Sandbox_Test", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
-			Name:    "transaction",
-			Variant: "default",
-		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
-		{ID: scheduling.TaskID(&id4), Name: "Production_Data_Set", TaskType: sc.HealthCheck, Target: sc.NameVariant{
-			Name:    "speed_dating",
-			Variant: "left_overs",
-		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
-		{ID: scheduling.TaskID(&id5), Name: "MySQL Task", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
-			Name:    "testing_name",
-			Variant: "testing_variant",
-		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
-	}
-	taskRunStaticList = []sc.TaskRunMetadata{}
-	dummyStates := []sc.Status{sc.Failed, sc.Pending, sc.Running, sc.Success}
-	for i := 1; i <= count; i++ {
-		status := dummyStates[rand.Intn(len(dummyStates))]
-		runTime := time.Now()
-		taskRunStaticList = append(taskRunStaticList, (createTaskRun(i, status, runTime)))
-	}
-}
-
-func createTaskRun(id int, status sc.Status, timeParam time.Time) sc.TaskRunMetadata {
-
-	//todox: check against existing task metadata list
-	foundTaskMetadata := taskMetadataStaticList[rand.Intn(len(taskMetadataStaticList))]
-	uint64Id := ffsync.Uint64OrderedId(id)
-	return sc.TaskRunMetadata{
-		ID:          sc.TaskRunID(&uint64Id),
-		TaskId:      foundTaskMetadata.ID,
-		Name:        foundTaskMetadata.Name,
-		Trigger:     sc.OneOffTrigger{TriggerName: "Apply"},
-		TriggerType: sc.OneOffTriggerType,
-		Status:      status,
-		StartTime:   timeParam.Add(-5 * time.Minute),
-		EndTime:     timeParam.Add(10 * time.Minute),
-		Logs:        []string{"log 1", "log 2"},
-		Error:       "No errors for now.",
-	}
-}
-
 func filter[T any](ss []T, test func(T) bool) (ret []T) {
 	for _, s := range ss {
 		if test(s) {
@@ -1601,34 +1550,6 @@ func filter[T any](ss []T, test func(T) bool) (ret []T) {
 		}
 	}
 	return ret
-}
-
-func mockTaskRunFind(searchId int) sc.TaskRunMetadata {
-	id := ffsync.Uint64OrderedId(0)
-	uint64SearchId := ffsync.Uint64OrderedId(searchId)
-	result := sc.TaskRunMetadata{ID: sc.TaskRunID(&id)} //sentinel result
-	searchTaskId := sc.TaskRunID(&uint64SearchId)
-	for _, n := range taskRunStaticList {
-		if n.ID == searchTaskId {
-			result = n
-			break
-		}
-	}
-	return result
-}
-
-func mockTaskFind(searchId int) sc.TaskMetadata {
-	id := ffsync.Uint64OrderedId(0)
-	uint64SearchId := ffsync.Uint64OrderedId(searchId)
-	result := sc.TaskMetadata{ID: sc.TaskID(&id)} //sentinel result
-	searchTaskId := sc.TaskID(&uint64SearchId)
-	for _, n := range taskMetadataStaticList {
-		if n.ID == searchTaskId {
-			result = n
-			break
-		}
-	}
-	return result
 }
 
 type TaskRunResponse struct {
@@ -1650,31 +1571,46 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 		return
 	}
 
-	// todox: swap for api call
-	taskListCopy := make([]sc.TaskRunMetadata, len(taskRunStaticList))
-	_ = copy(taskListCopy, taskRunStaticList)
+	runs, err := m.client.Tasks.GetAllRuns()
+	if err != nil {
+		fetchError := m.GetRequestError(500, err, c, "GetTaskRuns - Failed to fetch task runs")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	taskListResponse := make([]TaskRunResponse, 0)
+	for _, run := range runs {
+		task, err := m.client.Tasks.GetTaskByID(run.TaskId)
+		if err != nil {
+			fetchError := m.GetRequestError(500, err, c, "GetTaskRuns - Failed to fetch task")
+			c.JSON(fetchError.StatusCode, fetchError.Error())
+			return
+		}
+
+		taskListResponse = append(taskListResponse, TaskRunResponse{Task: task, TaskRun: run})
+	}
 
 	// status filter, break out
-	taskListCopy = filter(taskListCopy, func(t sc.TaskRunMetadata) bool {
+	taskListResponse = filter(taskListResponse, func(t TaskRunResponse) bool {
 		result := false
 		if requestBody.Status == "ALL" {
 			result = true
 		} else if requestBody.Status == "ACTIVE" {
-			activeStates := []sc.Status{sc.Pending, sc.Running}
-			result = slices.Contains(activeStates, t.Status)
+			activeStates := []sc.Status{sc.PENDING, sc.RUNNING, sc.CREATED}
+			result = slices.Contains(activeStates, t.TaskRun.Status)
 		} else if requestBody.Status == "COMPLETE" {
-			completeStates := []sc.Status{sc.Failed, sc.Success}
-			result = slices.Contains(completeStates, t.Status)
+			completeStates := []sc.Status{sc.FAILED, sc.READY}
+			result = slices.Contains(completeStates, t.TaskRun.Status)
 		}
 		return result
 	})
 
 	// name filter
-	taskListCopy = filter(taskListCopy, func(t sc.TaskRunMetadata) bool {
+	taskListResponse = filter(taskListResponse, func(t TaskRunResponse) bool {
 		result := false
 		if requestBody.SearchText == "" {
 			result = true
-		} else if strings.Contains(strings.ToLower(t.Name), strings.ToLower(requestBody.SearchText)) {
+		} else if strings.Contains(strings.ToLower(t.TaskRun.Name), strings.ToLower(requestBody.SearchText)) {
 			result = true
 		}
 		return result
@@ -1682,29 +1618,23 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 
 	// date sort
 	if requestBody.SortBy == "STATUS_DATE" {
-		sort.Slice(taskListCopy, func(i, j int) bool {
-			return taskListCopy[i].StartTime.UnixMilli() > taskListCopy[j].StartTime.UnixMilli()
+		sort.Slice(taskListResponse, func(i, j int) bool {
+			return taskListResponse[i].TaskRun.StartTime.UnixMilli() > taskListResponse[j].TaskRun.StartTime.UnixMilli()
 		})
 	}
 
 	// status sort
 	if requestBody.SortBy == "STATUS" {
-		sort.Slice(taskListCopy, func(i, j int) bool {
-			l1, l2 := len(taskListCopy[i].Status), len(taskListCopy[j].Status)
+		sort.Slice(taskListResponse, func(i, j int) bool {
+			l1, l2 := len(taskListResponse[i].TaskRun.Status.String()), len(taskListResponse[j].TaskRun.Status.String())
 			if l1 != l2 {
 				return l1 < l2
 			}
-			return taskListCopy[i].Status < taskListCopy[j].Status
+			return taskListResponse[i].TaskRun.Status < taskListResponse[j].TaskRun.Status
 		})
 	}
 
-	taskRunResponse := []TaskRunResponse{}
-	for _, loopRunItem := range taskListCopy {
-		taskRunResult := mockTaskFind(loopRunItem.TaskId.Value().(int))
-		taskRunResponse = append(taskRunResponse, TaskRunResponse{Task: taskRunResult, TaskRun: loopRunItem})
-	}
-
-	c.JSON(http.StatusOK, taskRunResponse)
+	c.JSON(http.StatusOK, taskListResponse)
 }
 
 type TaskRunDetailResponse struct {
@@ -1713,50 +1643,69 @@ type TaskRunDetailResponse struct {
 }
 
 func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
-	taskRunId := c.Param("taskRunId")
+	strTaskID := c.Param("taskId")
+	strTaskRunId := c.Param("taskRunId")
 
-	if taskRunId == "" {
+	var taskID scheduling.TaskID
+	var taskRunID scheduling.TaskRunID
+
+	var id ffsync.Uint64OrderedId
+	err := id.FromString(strTaskID)
+	if err != nil {
 		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
+	taskID = scheduling.TaskID(&id)
 
-	searchId, err := strconv.Atoi(taskRunId)
+	err = id.FromString(strTaskRunId)
 	if err != nil {
-		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetTaskRunDetails - taskRunId is not a number!"}
+		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not convert the given taskRunId"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 
-	noResultId := ffsync.Uint64OrderedId(0)
-	noResultTaskId := sc.TaskRunID(&noResultId)
+	taskRunID = scheduling.TaskRunID(&id)
 
-	//todox: replace mock find with lib call
-	taskRunResult := mockTaskRunFind(searchId)
+	runs, err := m.client.Tasks.GetRuns(taskID)
+	if err != nil {
+		fetchError := m.GetRequestError(500, err, c, "GetTaskRuns - Failed to fetch task")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
 
-	//todox: create mock collect
-	otherRuns := []sc.TaskRunMetadata{}
-	if taskRunResult.ID != noResultTaskId {
-		for _, loopRunItem := range taskRunStaticList {
-			if loopRunItem.TaskId == taskRunResult.TaskId && loopRunItem.ID != taskRunResult.ID {
-				otherRuns = append(otherRuns, loopRunItem)
-			}
+	var otherRuns []sc.TaskRunMetadata
+	var selectedRun scheduling.TaskRunMetadata
+	for _, run := range runs {
+		if run.ID != taskRunID {
+			otherRuns = append(otherRuns, run)
+		} else {
+			selectedRun = run
 		}
 	}
 
 	resp := TaskRunDetailResponse{
-		TaskRun:   taskRunResult,
+		TaskRun:   selectedRun,
 		OtherRuns: otherRuns,
 	}
 
 	c.JSON(http.StatusOK, resp)
 }
 
-func (m *MetadataServer) Start(port string) {
+func (m *MetadataServer) Start(port string, local bool) error {
 	router := gin.Default()
-	router.Use(cors.Default())
+	if local {
+		router.Use(cors.New(cors.Config{
+			AllowOrigins:     []string{"*"},
+			AllowCredentials: true,
+			AllowMethods:     []string{"PUT", "PATCH", "GET"},
+			AllowHeaders:     []string{"Content-Type,access-control-allow-origin, access-control-allow-headers"},
+		}))
+	} else {
+		router.Use(cors.Default())
+	}
 	router.GET("/data/:type", m.GetMetadataList)
 	router.GET("/data/:type/:resource", m.GetMetadata)
 	router.GET("/data/search", m.GetSearch)
@@ -1766,54 +1715,6 @@ func (m *MetadataServer) Start(port string) {
 	router.POST("/data/:type/:resource/gettags", m.GetTags)
 	router.POST("/data/:type/:resource/tags", m.PostTags)
 	router.POST("/data/taskruns", m.GetTaskRuns)
-	router.GET("/data/taskruns/taskrundetail/:taskRunId", m.GetTaskRunDetails)
-
-	router.Run(port)
-}
-
-func main() {
-	logger := zap.NewExample().Sugar()
-	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
-	metadataPort := help.GetEnv("METADATA_PORT", "8080")
-	searchHost := help.GetEnv("MEILISEARCH_HOST", "localhost")
-	searchPort := help.GetEnv("MEILISEARCH_PORT", "7700")
-	searchEndpoint := fmt.Sprintf("http://%s:%s", searchHost, searchPort)
-	searchApiKey := help.GetEnv("MEILISEARCH_APIKEY", "xyz")
-	logger.Infof("Connecting to typesense at: %s\n", searchEndpoint)
-	sc, err := search.NewMeilisearch(&search.MeilisearchParams{
-		Host:   searchHost,
-		Port:   searchPort,
-		ApiKey: searchApiKey,
-	})
-	if err != nil {
-		logger.Panicw("Failed to create new meil search", err)
-	}
-	CreateDummyTaskRuns(360)
-
-	SearchClient = sc
-	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
-	logger.Infof("Looking for metadata at: %s\n", metadataAddress)
-	client, err := metadata.NewClient(metadataAddress, logger)
-	if err != nil {
-		logger.Panicw("Failed to connect", "error", err)
-	}
-
-	etcdHost := help.GetEnv("ETCD_HOST", "localhost")
-	etcdPort := help.GetEnv("ETCD_PORT", "2379")
-	storageProvider := metadata.EtcdStorageProvider{
-		Config: metadata.EtcdConfig{
-			Nodes: []metadata.EtcdNode{
-				{Host: etcdHost, Port: etcdPort},
-			},
-		},
-	}
-
-	metadataServer, err := NewMetadataServer(logger, client, &storageProvider)
-	if err != nil {
-		logger.Panicw("Failed to create server", "error", err)
-	}
-	metadataHTTPPort := help.GetEnv("METADATA_HTTP_PORT", "3001")
-	metadataServingPort := fmt.Sprintf(":%s", metadataHTTPPort)
-	logger.Infof("Serving HTTP Metadata on port: %s\n", metadataServingPort)
-	metadataServer.Start(metadataServingPort)
+	router.GET("/data/taskruns/taskrundetail/:taskId/:taskRunId", m.GetTaskRunDetails)
+	return router.Run(port)
 }

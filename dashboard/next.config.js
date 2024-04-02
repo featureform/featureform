@@ -3,7 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   output: 'standalone',
-  productionBrowserSourceMaps: true,
+  // productionBrowserSourceMaps: true,
   compiler: {
     styledComponents: true,
   },

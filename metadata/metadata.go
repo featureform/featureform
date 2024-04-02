@@ -15,10 +15,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/featureform/ffsync"
-	"github.com/featureform/helpers"
+	sch "github.com/featureform/scheduling/proto"
+	"github.com/featureform/storage"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/helpers"
 	"github.com/featureform/lib"
 
 	"github.com/pkg/errors"
@@ -30,7 +31,6 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -70,22 +70,36 @@ func (r ResourceType) Serialized() pb.ResourceType {
 	return pb.ResourceType(r)
 }
 
-type ResourceStatus int32
-
-const (
-	NO_STATUS ResourceStatus = ResourceStatus(pb.ResourceStatus_NO_STATUS)
-	CREATED                  = ResourceStatus(pb.ResourceStatus_CREATED)
-	PENDING                  = ResourceStatus(pb.ResourceStatus_PENDING)
-	READY                    = ResourceStatus(pb.ResourceStatus_READY)
-	FAILED                   = ResourceStatus(pb.ResourceStatus_FAILED)
-)
-
-func (r ResourceStatus) String() string {
-	return pb.ResourceStatus_Status_name[int32(r)]
-}
-
-func (r ResourceStatus) Serialized() pb.ResourceStatus_Status {
-	return pb.ResourceStatus_Status(r)
+// Returns an empty Resource Object of the given type to unmarshal etcd value into
+func createEmptyResource(t ResourceType) (Resource, error) {
+	switch t {
+	case FEATURE:
+		return &featureResource{&pb.Feature{}}, nil
+	case FEATURE_VARIANT:
+		return &featureVariantResource{&pb.FeatureVariant{}}, nil
+	case LABEL:
+		return &labelResource{&pb.Label{}}, nil
+	case LABEL_VARIANT:
+		return &labelVariantResource{&pb.LabelVariant{}}, nil
+	case USER:
+		return &userResource{&pb.User{}}, nil
+	case ENTITY:
+		return &entityResource{&pb.Entity{}}, nil
+	case PROVIDER:
+		return &providerResource{&pb.Provider{}}, nil
+	case SOURCE:
+		return &SourceResource{&pb.Source{}}, nil
+	case SOURCE_VARIANT:
+		return &sourceVariantResource{&pb.SourceVariant{}}, nil
+	case TRAINING_SET:
+		return &trainingSetResource{&pb.TrainingSet{}}, nil
+	case TRAINING_SET_VARIANT:
+		return &trainingSetVariantResource{&pb.TrainingSetVariant{}}, nil
+	case MODEL:
+		return &modelResource{&pb.Model{}}, nil
+	default:
+		return nil, fferr.NewUnimplementedErrorf("unable to create empty resource of type %T", t)
+	}
 }
 
 type ComputationMode int32
@@ -227,6 +241,14 @@ type ResourceLookup interface {
 	SetJob(ResourceID, string) error
 	SetStatus(ResourceID, pb.ResourceStatus) error
 	SetSchedule(ResourceID, string) error
+}
+
+type resourceStatusImplementation interface {
+	SetStatus(status *scheduling.Status, msg string)
+}
+
+type resourceTaskImplementation interface {
+	TaskID() (scheduling.TaskID, error)
 }
 
 type SearchWrapper struct {
@@ -537,6 +559,15 @@ func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) (bool
 	return false, nil
 }
 
+func (resource *sourceVariantResource) SetStatus(status *scheduling.Status, msg string) {
+	resource.serialized.Status.Status = status.Proto()
+	resource.serialized.Status.ErrorMessage = msg
+}
+
+func (resource *sourceVariantResource) TaskID() (scheduling.TaskID, error) {
+	return scheduling.NewTaskIdFromString(resource.serialized.TaskId)
+}
+
 func isSourceProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transformation) (bool, error) {
 	isDefinitionEqual := false
 	switch thisDef.Transformation.Type.(type) {
@@ -770,6 +801,15 @@ func (resource *featureVariantResource) GetDefinition() string {
 	return def
 }
 
+func (resource *featureVariantResource) SetStatus(status *scheduling.Status, msg string) {
+	resource.serialized.Status.Status = status.Proto()
+	resource.serialized.Status.ErrorMessage = msg
+}
+
+func (resource *featureVariantResource) TaskID() (scheduling.TaskID, error) {
+	return scheduling.NewTaskIdFromString(resource.serialized.TaskId)
+}
+
 type labelResource struct {
 	serialized *pb.Label
 }
@@ -911,6 +951,15 @@ func (resource *labelVariantResource) Update(lookup ResourceLookup, updateRes Re
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
+}
+
+func (resource *labelVariantResource) SetStatus(status *scheduling.Status, msg string) {
+	resource.serialized.Status.Status = status.Proto()
+	resource.serialized.Status.ErrorMessage = msg
+}
+
+func (resource *labelVariantResource) TaskID() (scheduling.TaskID, error) {
+	return scheduling.NewTaskIdFromString(resource.serialized.TaskId)
 }
 
 func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
@@ -1087,6 +1136,15 @@ func (resource *trainingSetVariantResource) Update(lookup ResourceLookup, update
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
 	return nil
+}
+
+func (resource *trainingSetVariantResource) SetStatus(status *scheduling.Status, msg string) {
+	resource.serialized.Status.Status = status.Proto()
+	resource.serialized.Status.ErrorMessage = msg
+}
+
+func (resource *trainingSetVariantResource) TaskID() (scheduling.TaskID, error) {
+	return scheduling.NewTaskIdFromString(resource.serialized.TaskId)
 }
 
 func (resource *trainingSetVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
@@ -1457,48 +1515,273 @@ type MetadataServer struct {
 	listener    net.Listener
 	taskManager *scheduling.TaskMetadataManager
 	pb.UnimplementedMetadataServer
+	sch.UnimplementedTasksServer
 }
 
 func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	config.Logger.Debug("Creating new metadata server", "Address:", config.Address)
-	lookup, err := config.StorageProvider.GetResourceLookup()
-
-	if err != nil {
-		return nil, err
-	}
-	if config.SearchParams != nil {
-		searcher, errInitializeSearch := search.NewMeilisearch(config.SearchParams)
-		if errInitializeSearch != nil {
-			return nil, errInitializeSearch
-		}
-		lookup = &SearchWrapper{
-			Searcher:       searcher,
-			ResourceLookup: lookup,
-		}
-	}
-
-	// Create the task manager for the server
-	// TODO: need to modify it so it can be any provider
-	taskManager, err := scheduling.NewMemoryTaskMetadataManager()
-	if err != nil {
-		return nil, err
-	}
+	lookup := MemoryResourceLookup{config.StorageProvider}
+	//
+	//if config.SearchParams != nil {
+	//	searcher, errInitializeSearch := search.NewMeilisearch(config.SearchParams)
+	//	if errInitializeSearch != nil {
+	//		return nil, errInitializeSearch
+	//	}
+	//	lookup = &SearchWrapper{
+	//		Searcher:       searcher,
+	//		ResourceLookup: lookup,
+	//	}
+	//}
 
 	return &MetadataServer{
 		lookup:      lookup,
 		address:     config.Address,
 		Logger:      config.Logger,
-		taskManager: &taskManager,
+		taskManager: &config.TaskManager,
 	}, nil
+}
+
+func getNameVariantTargetProto(target scheduling.NameVariant) *sch.TaskMetadata_NameVariant {
+	return &sch.TaskMetadata_NameVariant{
+		NameVariant: &sch.NameVariantTarget{
+			ResourceID: &pb.ResourceID{
+				Resource: &pb.NameVariant{
+					Name:    target.Name,
+					Variant: target.Variant,
+				},
+				ResourceType: pb.ResourceType(pb.ResourceType_value[target.ResourceType]),
+			},
+		},
+	}
+}
+
+func getProviderTargetProto(target scheduling.Provider) *sch.TaskMetadata_Provider {
+	return &sch.TaskMetadata_Provider{
+		Provider: &sch.ProviderTarget{
+			Name: target.Name,
+		},
+	}
+}
+
+func setTargetProto(proto *sch.TaskMetadata, target scheduling.TaskTarget) (*sch.TaskMetadata, error) {
+	switch t := target.(type) {
+	case scheduling.NameVariant:
+		proto.Target = getNameVariantTargetProto(t)
+	case scheduling.Provider:
+		proto.Target = getProviderTargetProto(t)
+	default:
+		return nil, fferr.NewUnimplementedErrorf("could not convert target to proto: type: %T", target)
+	}
+	return proto, nil
+}
+
+func wrapTaskMetadataProto(task scheduling.TaskMetadata) (*sch.TaskMetadata, error) {
+	taskMetadata := &sch.TaskMetadata{
+		Id:         &sch.TaskID{Id: task.ID.String()},
+		Name:       task.Name,
+		Type:       task.TaskType.Proto(),
+		TargetType: task.TargetType.Proto(),
+		Created:    wrapTimestampProto(task.DateCreated),
+	}
+
+	taskMetadata, err := setTargetProto(taskMetadata, task.Target)
+	if err != nil {
+		return nil, err
+	}
+
+	return taskMetadata, nil
+}
+
+func getApplyTrigger(trigger scheduling.OnApplyTrigger) *sch.TaskRunMetadata_Apply {
+	return &sch.TaskRunMetadata_Apply{
+		Apply: &sch.OnApply{
+			Name: trigger.Name(),
+		},
+	}
+}
+
+func getScheduleTrigger(trigger scheduling.ScheduleTrigger) *sch.TaskRunMetadata_Schedule {
+	return &sch.TaskRunMetadata_Schedule{
+		Schedule: &sch.ScheduleTrigger{
+			Name:     trigger.Name(),
+			Schedule: trigger.Schedule,
+		},
+	}
+}
+
+func setTriggerProto(proto *sch.TaskRunMetadata, trigger scheduling.Trigger) (*sch.TaskRunMetadata, error) {
+	switch t := trigger.(type) {
+	case scheduling.OnApplyTrigger:
+		proto.Trigger = getApplyTrigger(t)
+	case scheduling.ScheduleTrigger:
+		proto.Trigger = getScheduleTrigger(t)
+	default:
+		return nil, fferr.NewUnimplementedErrorf("could not convert trigger to proto: type: %T", trigger)
+	}
+	return proto, nil
+}
+
+func wrapTimestampProto(ts time.Time) *tspb.Timestamp {
+	return &tspb.Timestamp{
+		Seconds: ts.Unix(),
+		Nanos:   int32(ts.Nanosecond()),
+	}
+}
+
+func wrapTaskRunMetadataProto(run scheduling.TaskRunMetadata) (*sch.TaskRunMetadata, error) {
+	taskRunMetadata := &sch.TaskRunMetadata{
+		RunID:       &sch.RunID{Id: run.ID.String()},
+		TaskID:      &sch.TaskID{Id: run.TaskId.String()},
+		Name:        run.Name,
+		TriggerType: run.TriggerType.Proto(),
+		StartTime:   wrapTimestampProto(run.StartTime),
+		EndTime:     wrapTimestampProto(run.EndTime),
+		Logs:        run.Logs,
+		Status: &pb.ResourceStatus{
+			Status:       pb.ResourceStatus_Status(run.Status),
+			ErrorMessage: run.Error,
+			ErrorStatus:  run.ErrorProto,
+		},
+	}
+
+	taskRunMetadata, err := setTriggerProto(taskRunMetadata, run.Trigger)
+	if err != nil {
+		return nil, err
+	}
+
+	return taskRunMetadata, nil
+}
+
+func (serv *MetadataServer) GetTaskByID(ctx context.Context, taskID *sch.TaskID) (*sch.TaskMetadata, error) {
+	tid, err := scheduling.NewTaskIdFromString(taskID.GetId())
+	if err != nil {
+		return nil, err
+	}
+	task, err := serv.taskManager.GetTaskByID(tid)
+	if err != nil {
+		return nil, err
+	}
+	p, err := wrapTaskMetadataProto(task)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+func (serv *MetadataServer) GetRuns(id *sch.TaskID, stream sch.Tasks_GetRunsServer) error {
+	tid, err := scheduling.NewTaskIdFromString(id.GetId())
+	if err != nil {
+		return err
+	}
+	runs, err := serv.taskManager.GetTaskRunMetadata(tid)
+	if err != nil {
+		return err
+	}
+	for _, run := range runs {
+		wrapped, err := wrapTaskRunMetadataProto(run)
+		if err != nil {
+			return err
+		}
+		err = stream.Send(wrapped)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (serv *MetadataServer) GetAllRuns(_ *sch.Empty, stream sch.Tasks_GetAllRunsServer) error {
+	runs, err := serv.taskManager.GetAllTaskRuns()
+	if err != nil {
+		return err
+	}
+
+	for _, run := range runs {
+		wrapped, err := wrapTaskRunMetadataProto(run)
+		if err != nil {
+			return err
+		}
+		err = stream.Send(wrapped)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (serv *MetadataServer) GetLatestRun(ctx context.Context, taskID *sch.TaskID) (*sch.TaskRunMetadata, error) {
+	tid, err := scheduling.NewTaskIdFromString(taskID.GetId())
+	if err != nil {
+		return nil, err
+	}
+	run, err := serv.taskManager.GetLatestRun(tid)
+	if err != nil {
+		return nil, err
+	}
+
+	wrapped, err := wrapTaskRunMetadataProto(run)
+	if err != nil {
+		return nil, err
+	}
+
+	return wrapped, nil
+}
+
+func (serv *MetadataServer) SetRunStatus(ctx context.Context, update *sch.StatusUpdate) (*sch.Empty, error) {
+	rid, err := scheduling.NewTaskRunIdFromString(update.GetRunID().GetId())
+	if err != nil {
+		return nil, err
+	}
+	tid, err := scheduling.NewTaskIdFromString(update.GetTaskID().GetId())
+	if err != nil {
+		return nil, err
+	}
+
+	err = serv.taskManager.SetRunStatus(rid, tid, update.Status)
+	if err != nil {
+		return nil, err
+	}
+	return &sch.Empty{}, nil
+}
+func (serv *MetadataServer) AddRunLog(ctx context.Context, log *sch.Log) (*sch.Empty, error) {
+	rid, err := scheduling.NewTaskRunIdFromString(log.GetRunID().GetId())
+	if err != nil {
+		return nil, err
+	}
+	tid, err := scheduling.NewTaskIdFromString(log.GetTaskID().GetId())
+	if err != nil {
+		return nil, err
+	}
+	err = serv.taskManager.AppendRunLog(rid, tid, log.Log)
+	if err != nil {
+		return nil, err
+	}
+	return &sch.Empty{}, nil
+}
+func (serv *MetadataServer) SetRunEndTime(ctx context.Context, update *sch.RunEndTimeUpdate) (*sch.Empty, error) {
+	rid, err := scheduling.NewTaskRunIdFromString(update.GetRunID().GetId())
+	if err != nil {
+		return nil, err
+	}
+	tid, err := scheduling.NewTaskIdFromString(update.GetTaskID().GetId())
+	if err != nil {
+		return nil, err
+	}
+	err = serv.taskManager.SetRunEndTime(rid, tid, update.End.AsTime())
+	if err != nil {
+		return nil, err
+	}
+	return &sch.Empty{}, nil
 }
 
 func (serv *MetadataServer) Serve() error {
 	if serv.grpcServer != nil {
-		return fferr.NewInternalError(fmt.Errorf("server already running"))
+		return fferr.NewInternalErrorf("server already running")
 	}
 	lis, err := net.Listen("tcp", serv.address)
 	if err != nil {
-		return fferr.NewInternalError(fmt.Errorf("cannot listen to server address %s", serv.address))
+		return fferr.NewInternalErrorf("cannot listen to server address %s", serv.address)
 	}
 	return serv.ServeOnListener(lis)
 }
@@ -1507,6 +1790,7 @@ func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
 	serv.listener = lis
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(helpers.UnaryServerErrorInterceptor), grpc.StreamInterceptor(helpers.StreamServerErrorInterceptor))
 	pb.RegisterMetadataServer(grpcServer, serv)
+	sch.RegisterTasksServer(grpcServer, serv)
 	serv.grpcServer = grpcServer
 	serv.Logger.Infow("Server starting", "Address", serv.listener.Addr().String())
 	return grpcServer.Serve(lis)
@@ -1514,7 +1798,7 @@ func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
 
 func (serv *MetadataServer) GracefulStop() error {
 	if serv.grpcServer == nil {
-		return fferr.NewInternalError(fmt.Errorf("server not running"))
+		return fferr.NewInternalErrorf("server not running")
 	}
 	serv.grpcServer.GracefulStop()
 	serv.grpcServer = nil
@@ -1565,7 +1849,8 @@ func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 type Config struct {
 	Logger          *zap.SugaredLogger
 	SearchParams    *search.MeilisearchParams
-	StorageProvider StorageProvider
+	StorageProvider storage.MetadataStorageImplementation
+	TaskManager     scheduling.TaskMetadataManager
 	Address         string
 }
 
@@ -1593,6 +1878,12 @@ func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFea
 
 func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *pb.FeatureVariant) (*pb.Empty, error) {
 	variant.Created = tspb.New(time.Now())
+	taskTarget := scheduling.NameVariant{Name: variant.Name, Variant: variant.Variant, ResourceType: FEATURE_VARIANT.String()}
+	task, err := serv.taskManager.CreateTask("mytask", scheduling.ResourceCreation, taskTarget)
+	if err != nil {
+		return nil, err
+	}
+	variant.TaskId = task.ID.String()
 	return serv.genericCreate(ctx, &featureVariantResource{variant}, func(name, variant string) Resource {
 		return &featureResource{
 			&pb.Feature{
@@ -1625,6 +1916,12 @@ func (serv *MetadataServer) ListLabels(_ *pb.Empty, stream pb.Metadata_ListLabel
 
 func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variant *pb.LabelVariant) (*pb.Empty, error) {
 	variant.Created = tspb.New(time.Now())
+	taskTarget := scheduling.NameVariant{Name: variant.Name, Variant: variant.Variant, ResourceType: LABEL_VARIANT.String()}
+	task, err := serv.taskManager.CreateTask("mytask", scheduling.ResourceCreation, taskTarget)
+	if err != nil {
+		return nil, err
+	}
+	variant.TaskId = task.ID.String()
 	return serv.genericCreate(ctx, &labelVariantResource{variant}, func(name, variant string) Resource {
 		return &labelResource{
 			&pb.Label{
@@ -1657,6 +1954,12 @@ func (serv *MetadataServer) ListTrainingSets(_ *pb.Empty, stream pb.Metadata_Lis
 
 func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, variant *pb.TrainingSetVariant) (*pb.Empty, error) {
 	variant.Created = tspb.New(time.Now())
+	taskTarget := scheduling.NameVariant{Name: variant.Name, Variant: variant.Variant, ResourceType: TRAINING_SET_VARIANT.String()}
+	task, err := serv.taskManager.CreateTask("mytask", scheduling.ResourceCreation, taskTarget)
+	if err != nil {
+		return nil, err
+	}
+	variant.TaskId = task.ID.String()
 	return serv.genericCreate(ctx, &trainingSetVariantResource{variant}, func(name, variant string) Resource {
 		return &trainingSetResource{
 			&pb.TrainingSet{
@@ -1689,6 +1992,12 @@ func (serv *MetadataServer) ListSources(_ *pb.Empty, stream pb.Metadata_ListSour
 
 func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variant *pb.SourceVariant) (*pb.Empty, error) {
 	variant.Created = tspb.New(time.Now())
+	taskTarget := scheduling.NameVariant{Name: variant.Name, Variant: variant.Variant, ResourceType: SOURCE_VARIANT.String()}
+	task, err := serv.taskManager.CreateTask("mytask", scheduling.ResourceCreation, taskTarget)
+	if err != nil {
+		return nil, err
+	}
+	variant.TaskId = task.ID.String()
 	return serv.genericCreate(ctx, &sourceVariantResource{variant}, func(name, variant string) Resource {
 		return &SourceResource{
 			&pb.Source{
@@ -1885,28 +2194,6 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, fferr.NewInternalError(err)
 	}
 
-	var taskId scheduling.TaskID
-	if existing == nil {
-		// TODO: create task with ID
-		// update res with task id
-		// name string, tType TaskType, target TaskTarget
-		name := fmt.Sprintf("%s__%s__%s", res.ID().Type, res.ID().Name, res.ID().Variant)
-		taskTarget := scheduling.NameVariant{Name: res.ID().Name, Variant: res.ID().Variant, ResourceType: res.ID().Type.String()}
-		taskMetadata, err := serv.taskManager.CreateTask(name, scheduling.ResourceCreation, taskTarget)
-		if err != nil {
-			return nil, err
-		}
-
-		// TODO: update with task id
-		taskId = taskMetadata.ID
-		fmt.Println("need to update protos to have the task ids")
-	} else {
-		// TODO: create a method to get the task id from the name and variant and type
-		// taskId = res.Proto().GetTaskId()
-		id1 := ffsync.Uint64OrderedId(1)
-		taskId = scheduling.TaskID(&id1)
-	}
-
 	if existing != nil {
 		err = serv.validateExisting(res, existing)
 		if err != nil {
@@ -1922,17 +2209,24 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	}
 
 	if serv.needsJob(res) && existing == nil {
+
+		var taskID scheduling.TaskID
+		if r, ok := res.(resourceTaskImplementation); ok {
+			taskID, err = r.TaskID()
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
-		// TODO: add task run id name string, taskID TaskID, trigger Trigger
-		name := fmt.Sprintf("%s__%s__%s", res.ID().Type, res.ID().Name, res.ID().Variant)
-		triggerName := fmt.Sprintf("%s__%s", name, uuid.New().String())
-		trigger := scheduling.OneOffTrigger{TriggerName: triggerName}
-		taskRun, err := serv.taskManager.CreateTaskRun(name, taskId, trigger)
+		trigger := scheduling.OnApplyTrigger{TriggerName: "Apply"}
+		taskName := fmt.Sprintf("Create Resource %s (%s)", res.ID().Name, res.ID().Variant)
+		taskRun, err := serv.taskManager.CreateTaskRun(taskName, taskID, trigger)
 		if err != nil {
 			return nil, err
 		}
 
-		serv.Logger.Infof("Successfully Created Task %s with Run %s for Resource: ", taskRun.TaskId, taskRun.ID, res.ID().Name, res.ID().Variant)
+		serv.Logger.Infof("Successfully Created Task %s with Run %s for Resource: %s (%s)", taskRun.TaskId, taskRun.ID, res.ID().Name, res.ID().Variant)
 	}
 	parentId, hasParent := id.Parent()
 	if hasParent {
@@ -2060,6 +2354,14 @@ func (serv *MetadataServer) propagateChange(newRes Resource) error {
 	return propagateChange(newRes)
 }
 
+func (serv *MetadataServer) fetchStatus(taskId scheduling.TaskID) (*scheduling.Status, string, error) {
+	run, err := serv.taskManager.GetLatestRun(taskId)
+	if err != nil {
+		return nil, "", err
+	}
+	return &run.Status, run.Error, nil
+}
+
 func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send sendFn) error {
 	for {
 		var recvErr error
@@ -2087,13 +2389,30 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 			return nil
 		}
 		if recvErr != nil {
-			return fferr.NewInternalError(recvErr)
+			return recvErr
 		}
 		serv.Logger.Infow("Looking up Resource", "id", id)
 		resource, err := serv.lookup.Lookup(id)
 		if err != nil {
 			return err
 		}
+
+		// Fetches the latest run for the task and returns it for the CLI status watcher.
+		// Can improve on this by linking the request to a specific run but that requires
+		// additional changes
+		if res, ok := resource.(resourceStatusImplementation); ok {
+			taskID, err := resource.(resourceTaskImplementation).TaskID()
+			if err != nil {
+				return err
+			}
+			status, msg, err := serv.fetchStatus(taskID)
+			if err != nil {
+				serv.Logger.Errorw("Failed to set status", "error", err)
+				return err
+			}
+			res.SetStatus(status, msg)
+		}
+
 		serv.Logger.Infow("Sending Resource", "id", id)
 		serialized := resource.Proto()
 		if err := send(serialized); err != nil {

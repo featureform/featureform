@@ -33,15 +33,38 @@ func NewETCDLocker(config helpers.ETCDConfig) (Locker, error) {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to create etcd client: %w", err))
 	}
 
-	session, err := concurrency.NewSession(client)
+	ctx := context.Background()
+	lease, err := client.Grant(ctx, int64(ValidTimePeriod))
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("failed to create etcd session: %w", err))
+		return nil, fferr.NewInternalError(fmt.Errorf("failed to grant lease: %w", err))
+	}
+
+	leaseKeepAliveChan, err := client.KeepAlive(ctx, lease.ID)
+	if err != nil {
+		return nil, fferr.NewInternalError(fmt.Errorf("failed to keep alive lease: %w", err))
+	}
+
+	go func() {
+		for {
+			select {
+			case _, ok := <-leaseKeepAliveChan:
+				if !ok {
+					return
+				}
+			}
+		}
+	}()
+
+	session, err := concurrency.NewSession(client, concurrency.WithLease(lease.ID))
+	if err != nil {
+		return nil, fferr.NewInternalError(fmt.Errorf("failed to create session: %w", err))
 	}
 
 	return &etcdLocker{
 		client:  client,
+		ctx:     ctx,
 		session: session,
-		ctx:     context.Background(),
+		lease:   lease,
 	}, nil
 }
 
@@ -49,11 +72,12 @@ type etcdLocker struct {
 	client  *clientv3.Client
 	session *concurrency.Session
 	ctx     context.Context
+	lease   *clientv3.LeaseGrantResponse
 }
 
 func (m *etcdLocker) Lock(key string) (Key, error) {
 	if key == "" {
-		return nil, fferr.NewInternalError(fmt.Errorf("cannot lock an empty key"))
+		return nil, fferr.NewLockEmptyKeyError()
 	}
 
 	id := uuid.New().String()
@@ -77,7 +101,7 @@ func (m *etcdLocker) Unlock(key Key) error {
 		return fferr.NewInternalError(fmt.Errorf("cannot unlock a nil key"))
 	}
 	if key.Key() == "" {
-		return fferr.NewInternalError(fmt.Errorf("cannot unlock an empty key"))
+		return fferr.NewUnlockEmptyKeyError()
 	}
 
 	etcdKey, ok := key.(etcdKey)

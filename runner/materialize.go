@@ -122,7 +122,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		m.Logger.Infow("Creating Index", "name", m.ID.Name, "variant", m.ID.Variant)
 		vectorStore, ok := m.Online.(provider.VectorStore)
 		if !ok {
-			return nil, fferr.NewInternalError(fmt.Errorf("cannot create index on non-vector store: %s", m.Online.Type().String()))
+			return nil, fferr.NewInternalErrorf("cannot create index on non-vector store: %s", m.Online.Type().String())
 		}
 		_, err := vectorStore.CreateIndex(m.ID.Name, m.ID.Variant, vectorType)
 		if err != nil {

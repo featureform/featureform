@@ -40,9 +40,10 @@ const (
 	RESOURCE_CHANGED              = "Resource Changed"
 
 	// MISCELLANEOUS:
-	INTERNAL_ERROR   = "Internal Error"
-	INVALID_ARGUMENT = "Invalid Argument"
-	PARSING_ERROR    = "Parsing Error"
+	INTERNAL_ERROR      = "Internal Error"
+	INVALID_ARGUMENT    = "Invalid Argument"
+	PARSING_ERROR       = "Parsing Error"
+	UNIMPLEMENTED_ERROR = "Unimplemented"
 
 	// JOBS:
 	JOB_DOES_NOT_EXIST        = "Job Does Not Exist"
@@ -58,6 +59,8 @@ const (
 	// LOCKING
 	KEY_ALREADY_LOCKED = "Key Already Locked"
 	KEY_NOT_LOCKED     = "Key Not Locked"
+	LOCK_EMPTY_KEY     = "Cannot Lock Empty Key"
+	UNLOCK_EMPTY_KEY   = "Cannot Unlock Empty Key"
 
 	// RESOURCE TYPES:
 	PRIMARY_DATASET      ResourceType = "PRIMARY_DATASET"
@@ -74,6 +77,10 @@ const (
 	ENTITY               ResourceType = "ENTITY"
 	MODEL                ResourceType = "MODEL"
 	USER                 ResourceType = "USER"
+
+	// TASKS
+	RESOURCE_TASK_FAILED = "Resource Task Failed"
+	NO_RUNS_FOR_TASK     = "No Runs For Task"
 )
 
 type JSONStackTrace map[string]interface{}

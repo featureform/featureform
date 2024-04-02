@@ -76,20 +76,16 @@ func (etcd *etcdStorageImplementation) Delete(key string) (string, error) {
 		return "", fferr.NewInvalidArgumentError(fmt.Errorf("cannot delete empty key"))
 	}
 
-	resp, err := etcd.client.Get(etcd.ctx, key)
+	resp, err := etcd.client.Delete(etcd.ctx, key, clientv3.WithPrevKV())
 	if err != nil {
-		return "", fferr.NewInternalError(fmt.Errorf("failed to get key %s: %w", key, err))
-	}
-	if len(resp.Kvs) == 0 {
-		return "", fferr.NewKeyNotFoundError(key, nil)
+		return "", fferr.NewInternalError(fmt.Errorf("failed to delete key %s: %w", key, err))
 	}
 
-	_, err = etcd.client.Delete(etcd.ctx, key)
-	if err != nil {
-		return "", fferr.NewInternalError(fmt.Errorf("failed to delete key %s", key))
+	if resp.Deleted == 0 {
+		return "", nil
 	}
 
-	return string(resp.Kvs[0].Value), nil
+	return string(resp.PrevKvs[0].Value), nil
 }
 
 func (etcd *etcdStorageImplementation) Close() {

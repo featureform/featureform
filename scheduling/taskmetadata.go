@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/featureform/metadata/proto"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/ffsync"
 	"github.com/featureform/helpers"
@@ -228,7 +230,7 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 		Name:        name,
 		Trigger:     trigger,
 		TriggerType: trigger.Type(),
-		Status:      Pending,
+		Status:      PENDING,
 		StartTime:   startTime,
 	}
 
@@ -258,6 +260,78 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 	}
 
 	return metadata, nil
+}
+
+func (m *TaskMetadataManager) latestTaskRun(runs TaskRuns) (TaskRunID, error) {
+
+	var latestTime time.Time
+	var latestRunIdx int
+	for i, run := range runs.Runs {
+		if i == 0 {
+			latestTime = run.DateCreated
+			latestRunIdx = i
+		} else if run.DateCreated.After(latestTime) {
+			latestTime = run.DateCreated
+			latestRunIdx = i
+		}
+	}
+	return runs.Runs[latestRunIdx].RunID, nil
+}
+
+// GetLatestRun is not guaranteed to be completely accurate. This function should only
+// be used for visual purposes on the Dashboard and CLI rather than internal business logic
+func (m *TaskMetadataManager) GetLatestRun(taskID TaskID) (TaskRunMetadata, error) {
+	runs, err := m.getTaskRunRecords(taskID)
+	if err != nil {
+		return TaskRunMetadata{}, err
+	}
+
+	if len(runs.Runs) == 0 {
+		return TaskRunMetadata{}, fferr.NewNoRunsForTaskError(taskID.String())
+	}
+
+	latest, err := m.latestTaskRun(runs)
+	if err != nil {
+		return TaskRunMetadata{}, err
+	}
+
+	run, err := m.GetRunByID(taskID, latest)
+	if err != nil {
+		return TaskRunMetadata{}, err
+	}
+	return run, nil
+}
+
+func (m *TaskMetadataManager) GetTaskRunMetadata(taskID TaskID) (TaskRunList, error) {
+	runs, err := m.getTaskRunRecords(taskID)
+	if err != nil {
+		return TaskRunList{}, err
+	}
+	runMetadata := TaskRunList{}
+	for _, run := range runs.Runs {
+		meta, err := m.GetRunByID(taskID, run.RunID)
+		if err != nil {
+			return TaskRunList{}, err
+		}
+		runMetadata = append(runMetadata, meta)
+	}
+	return runMetadata, nil
+}
+
+func (m *TaskMetadataManager) getTaskRunRecords(taskID TaskID) (TaskRuns, error) {
+	taskRunKey := TaskRunKey{taskID: taskID}
+	taskRunMetadata, err := m.storage.Get(taskRunKey.String())
+	if err != nil {
+		return TaskRuns{}, err
+	}
+
+	runs := TaskRuns{}
+	err = runs.Unmarshal([]byte(taskRunMetadata))
+	if err != nil {
+		return TaskRuns{}, err
+	}
+
+	return runs, nil
 }
 
 func (m *TaskMetadataManager) GetRunByID(taskID TaskID, runID TaskRunID) (TaskRunMetadata, error) {
@@ -360,7 +434,7 @@ func (m *TaskMetadataManager) GetAllTaskRuns() (TaskRunList, error) {
 	return runs, nil
 }
 
-func (m *TaskMetadataManager) SetRunStatus(runID TaskRunID, taskID TaskID, status Status, err error) error {
+func (m *TaskMetadataManager) SetRunStatus(runID TaskRunID, taskID TaskID, status *proto.ResourceStatus) error {
 	metadata, e := m.GetRunByID(taskID, runID)
 	if e != nil {
 		return e
@@ -373,15 +447,15 @@ func (m *TaskMetadataManager) SetRunStatus(runID TaskRunID, taskID TaskID, statu
 			e := fferr.NewInternalError(unmarshalErr)
 			return "", e
 		}
-		if status == Failed && err == nil {
+		if Status(status.Status) == FAILED && status.ErrorStatus == nil {
 			e := fferr.NewInvalidArgumentError(fmt.Errorf("error is required for failed status"))
 			return "", e
 		}
-		metadata.Status = status
-		if err == nil {
+		metadata.Status = Status(status.Status)
+		if status.ErrorStatus == nil {
 			metadata.Error = ""
 		} else {
-			metadata.Error = err.Error()
+			metadata.Error = fferr.ToDashboardError(status)
 		}
 
 		serializedMetadata, marshalErr := metadata.Marshal()

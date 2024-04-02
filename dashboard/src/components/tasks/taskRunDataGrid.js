@@ -6,14 +6,12 @@ import TaskRunCard from './taskRunCard';
 
 export default function TaskRunDataGrid({ taskRunList = [] }) {
   const [open, setOpen] = useState(false);
-  const [content, setContent] = useState({});
+  const [content, setContent] = useState({taskRun: {taskId: 0, runId:0}});
 
   const handleRowSelect = (selectedRow) => {
-    let foundTaskItem = taskRunList?.find(
-      (q) => q.taskRun.runId === selectedRow.row.taskRun.runId
-    );
-    setContent(foundTaskItem.taskRun ?? {});
-    setOpen((prev) => content !== selectedRow.row.taskRun.name || !prev);
+    let foundTaskRun = taskRunList?.find((q) => q.taskRun.taskId === selectedRow.row.taskRun.taskId && q.taskRun.runId === selectedRow.row.taskRun.runId);
+    setContent(foundTaskRun ?? {taskRun: {taskId: 0, runId:0}});
+    setOpen((prev) => content !== selectedRow.row.id || !prev);
   };
 
   function handleClose() {
@@ -22,8 +20,8 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
 
   const columns = [
     {
-      field: 'runId',
-      headerName: 'Run Id',
+      field: 'id',
+      headerName: 'Id',
       flex: 1,
       width: 100,
       editable: false,
@@ -32,8 +30,34 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
       hide: true,
     },
     {
+      field: 'taskId',
+      headerName: 'Task Id',
+      flex: 1,
+      width: 50,
+      editable: false,
+      sortable: false,
+      filterable: false,
+      hide: false,
+      valueGetter: (params) => {
+        return params?.row?.taskRun?.taskId;
+      },
+    },
+    {
+      field: 'runId',
+      headerName: 'Run Id',
+      flex: 1,
+      width: 50,
+      editable: false,
+      sortable: false,
+      filterable: false,
+      hide: false,
+      valueGetter: (params) => {
+        return params?.row?.taskRun?.runId;
+      },
+    },
+    {
       field: 'name',
-      headerName: 'Job Run Name',
+      headerName: 'Task Name',
       flex: 1,
       width: 200,
       editable: false,
@@ -69,7 +93,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
     },
     {
       field: 'jobType',
-      headerName: 'Job Type',
+      headerName: 'Task Type',
       flex: 1,
       width: 175,
       editable: false,
@@ -146,10 +170,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
           horizontal: 'right',
         }}
       >
-        <TaskRunCard
-          handleClose={handleClose}
-          searchId={content?.runId ?? ''}
-        />
+        <TaskRunCard handleClose={handleClose} taskId={content.taskRun.taskId} taskRunId={content.taskRun.runId} />
       </Popover>
       <DataGrid
         autoHeight
@@ -173,7 +194,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
         }}
         pageSize={mainPageSize}
         getRowId={(row) => {
-          return row.taskRun.runId;
+          return row.id;
         }}
       />
     </>

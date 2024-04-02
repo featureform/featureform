@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -19,14 +21,15 @@ type OrderedId interface {
 	Equals(other OrderedId) bool
 	Less(other OrderedId) bool
 	String() string
+	FromString(id string) error
 	Value() interface{} // Value returns the underlying value of the ordered ID
 	MarshalJSON() ([]byte, error)
 	UnmarshalJSON(data []byte) error
 }
 
-type Uint64OrderedId uint64
+const etcd_id_key = "FFSync/ID" // Key for the etcd ID generator, will add namespace to the end
 
-const etcd_id_key = "FFSync/ID/" // Key for the etcd ID generator, will add namespace to the end
+type Uint64OrderedId uint64
 
 func (id *Uint64OrderedId) Equals(other OrderedId) bool {
 	return id.Value() == other.Value()
@@ -41,6 +44,15 @@ func (id *Uint64OrderedId) Less(other OrderedId) bool {
 
 func (id *Uint64OrderedId) String() string {
 	return fmt.Sprint(id.Value())
+}
+
+func (id *Uint64OrderedId) FromString(strID string) error {
+	tmp, err := strconv.ParseUint(strID, 10, 64)
+	if err != nil {
+		return fferr.NewInternalError(err)
+	}
+	*id = Uint64OrderedId(tmp)
+	return nil
 }
 
 func (id *Uint64OrderedId) Value() interface{} {
@@ -129,7 +141,7 @@ func (etcd *etcdIdGenerator) NextId(namespace string) (OrderedId, error) {
 	}
 
 	// Lock the namespace to prevent concurrent ID generation
-	lockKey := etcd_id_key + namespace
+	lockKey := createLockKey(etcd_id_key, namespace)
 	lockMutex := concurrency.NewMutex(etcd.session, lockKey)
 	if err := lockMutex.Lock(etcd.ctx); err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to lock key %s: %w", lockKey, err))
@@ -143,22 +155,21 @@ func (etcd *etcdIdGenerator) NextId(namespace string) (OrderedId, error) {
 	}
 
 	// Initialize the ID if it doesn't exist
+	idNotInitialized := len(resp.Kvs) == 0
 	var nextId uint64
-	if len(resp.Kvs) == 0 {
+	if idNotInitialized {
 		nextId = 1
 	} else {
-		if err := json.Unmarshal(resp.Kvs[0].Value, &nextId); err != nil {
-			return nil, fferr.NewInternalError(fmt.Errorf("failed to unmarshal ID: %w", err))
+		nextIdStr := string(resp.Kvs[0].Value)
+		nextId, err := strconv.ParseUint(nextIdStr, 10, 64)
+		if err != nil {
+			return nil, fferr.NewInternalError(fmt.Errorf("failed to parse ID as uint64: %s: %v", nextIdStr, err))
 		}
 		nextId++
 	}
 
 	// Update the ID
-	nextIdBytes, err := json.Marshal(nextId)
-	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("failed to marshal ID: %w", err))
-	}
-	if _, err := etcd.client.Put(etcd.ctx, lockKey, string(nextIdBytes)); err != nil {
+	if _, err := etcd.client.Put(etcd.ctx, lockKey, fmt.Sprint(nextId)); err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to set key %s: %w", lockKey, err))
 	}
 
@@ -235,4 +246,8 @@ func (rds *rdsIdGenerator) Close() {
 // SQL Queries
 func (rds *rdsIdGenerator) upsertIdQuery() string {
 	return fmt.Sprintf("INSERT INTO %s (namespace, current_id) VALUES ($1, $2) ON CONFLICT (namespace) DO UPDATE SET current_id = %s.current_id + 1 RETURNING current_id", helpers.SanitizePostgres(rds.tableName), helpers.SanitizePostgres(rds.tableName))
+}
+
+func createLockKey(prefix, namespace string) string {
+	return fmt.Sprintf("%s/%s", strings.TrimSuffix(prefix, "/"), strings.TrimPrefix(namespace, "/"))
 }

@@ -7,6 +7,7 @@ package serving
 import (
 	"context"
 	"fmt"
+	"github.com/featureform/scheduling"
 	"sync"
 
 	"github.com/featureform/fferr"
@@ -177,7 +178,7 @@ func (serv *FeatureServer) handleSplitDataRequest(
 	case pb.RequestType_TEST:
 		thisIter = *testIterator
 	default:
-		return fmt.Errorf("invalid request type")
+		return fferr.NewInternalErrorf("invalid train/test type: %T", req.GetRequestType())
 	}
 
 	if thisIter.Next() {
@@ -419,7 +420,7 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 		return nil, err
 	}
 	// TODO: Determine if we want to add a backoff here to wait for the source
-	if sv.Status() != metadata.READY {
+	if sv.Status() != scheduling.READY {
 		return nil, fferr.NewResourceNotReadyError(name, variant, "SOURCE_VARIANT", fmt.Errorf("current status: %s", sv.Status()))
 	}
 	providerEntry, err := sv.FetchProvider(serv.Metadata, ctx)

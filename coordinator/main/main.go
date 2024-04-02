@@ -28,11 +28,7 @@ func main() {
 		Password:    help.GetEnv("ETCD_PASSWORD", "secretpassword"),
 		DialTimeout: time.Second * 1,
 	}
-	cli, err := clientv3.New(etcdConfig)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("connected to etcd")
+
 	defer func(cli *clientv3.Client) {
 		err := cli.Close()
 		if err != nil {
@@ -69,7 +65,7 @@ func main() {
 	} else {
 		spawner = &coordinator.KubernetesJobSpawner{EtcdConfig: etcdConfig}
 	}
-	coord, err := coordinator.NewCoordinator(client, logger, cli, spawner)
+	coord, err := coordinator.NewCoordinator(client, logger, spawner, )
 	if err != nil {
 		logger.Errorw("Failed to set up coordinator: %v", err)
 		panic(err)

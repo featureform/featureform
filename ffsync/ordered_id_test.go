@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/featureform/helpers"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 func TestUint64OrderedId(t *testing.T) {
@@ -38,40 +39,87 @@ func TestUint64OrderedId(t *testing.T) {
 	}
 }
 
-func TestMemoryIdGenerator(t *testing.T) {
-	generator, err := NewMemoryOrderedIdGenerator()
-	if err != nil {
-		t.Fatalf("Failed to create memory ID generator: %v", err)
+func TestOrderedIdGenerator(t *testing.T) {
+	testCases := []struct {
+		name      string
+		createGen func() (OrderedIdGenerator, error)
+		deferFunc func(generator OrderedIdGenerator, t *testing.T)
+	}{
+		{
+			name:      "Memory",
+			createGen: createMemoryGenerator,
+			deferFunc: func(generator OrderedIdGenerator, t *testing.T) {},
+		},
+		{
+			name:      "ETCD",
+			createGen: createETCDGenerator,
+			deferFunc: func(generator OrderedIdGenerator, t *testing.T) {
+				// Clean up the ETCD keys
+				etcd := generator.(*etcdIdGenerator)
+				_, err := etcd.client.Delete(context.Background(), "", clientv3.WithPrefix())
+				if err != nil {
+					t.Errorf("failed to delete keys with prefix %s: %v", "", err)
+				}
+				etcd.Close()
+			},
+		},
+		{
+			name:      "RDS",
+			createGen: createRDSGenerator,
+			deferFunc: func(generator OrderedIdGenerator, t *testing.T) {
+				// Clean up the RDS table
+				rds := generator.(*rdsIdGenerator)
+				_, err := rds.db.Exec(context.Background(), fmt.Sprintf("DROP TABLE IF EXISTS %s", rds.tableName))
+				if err != nil {
+					t.Errorf("failed to drop table %s: %v", rds.tableName, err)
+				}
+				rds.Close()
+			},
+		},
 	}
 
-	prevId, err := generator.NextId("testNamespace")
-	if err != nil {
-		t.Fatalf("Failed to get next id for testNamespace: %v", err)
-	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			generator, err := tc.createGen()
+			if err != nil {
+				t.Fatalf("failed to create %s ID generator: %v", tc.name, err)
+			}
+			defer tc.deferFunc(generator, t)
 
-	diffNamespaceId, err := generator.NextId("diffNamespace")
-	if err != nil {
-		t.Fatalf("Failed to get next id for diffNamespace: %v", err)
-	}
+			prevId, err := generator.NextId("testNamespace")
+			if err != nil {
+				t.Errorf("failed to get next id: %v", err)
+			}
 
-	if !prevId.Equals(diffNamespaceId) {
-		t.Errorf("Expected id '%s' to equal id '%s'", prevId, diffNamespaceId)
-	}
+			diffNamespaceId, err := generator.NextId("diffNamespace")
+			if err != nil {
+				t.Errorf("failed to get next id: %v", err)
+			}
 
-	for i := 0; i < 10; i++ {
-		id, err := generator.NextId("testNamespace")
-		if err != nil {
-			t.Fatalf("Failed to get next id for testNamespace: %v", err)
-		}
+			if !prevId.Equals(diffNamespaceId) {
+				t.Errorf("expected id: '%s' Received Id: '%s'", diffNamespaceId, prevId)
+			}
 
-		if !prevId.Less(id) {
-			t.Errorf("Expected id '%s' to be greater than previous id '%s'", id, prevId)
-		}
-		prevId = id
+			for i := 0; i < 10; i++ {
+				id, err := generator.NextId("testNamespace")
+				if err != nil {
+					t.Errorf("failed to get next id: %v", err)
+				}
+
+				if !prevId.Less(id) {
+					t.Errorf("expected id '%s' to be greater than previous id '%s'", id, prevId)
+				}
+				prevId = id
+			}
+		})
 	}
 }
 
-func TestETCDIdGenerator(t *testing.T) {
+func createMemoryGenerator() (OrderedIdGenerator, error) {
+	return NewMemoryOrderedIdGenerator()
+}
+
+func createETCDGenerator() (OrderedIdGenerator, error) {
 	host := helpers.GetEnv("ETCD_HOST", "localhost")
 	port := helpers.GetEnv("ETCD_PORT", "2379")
 
@@ -80,40 +128,10 @@ func TestETCDIdGenerator(t *testing.T) {
 		Port: port,
 	}
 
-	generator, err := NewETCDOrderedIdGenerator(etcdConfig)
-	if err != nil {
-		t.Fatalf("Failed to create ETCD ID generator: %v", err)
-	}
-	defer generator.Close()
-
-	prevId, err := generator.NextId("testNamespace")
-	if err != nil {
-		t.Fatalf("Failed to get next id: %v", err)
-	}
-
-	diffNamespaceId, err := generator.NextId("diffNamespace")
-	if err != nil {
-		t.Fatalf("Failed to get next id: %v", err)
-	}
-
-	if !prevId.Equals(diffNamespaceId) {
-		t.Errorf("Expected id '%s' to equal id '%s'", prevId, diffNamespaceId)
-	}
-
-	for i := 0; i < 10; i++ {
-		id, err := generator.NextId("testNamespace")
-		if err != nil {
-			t.Fatalf("Failed to get next id: %v", err)
-		}
-
-		if !prevId.Less(id) {
-			t.Errorf("Expected id '%s' to be greater than previous id '%s'", id, prevId)
-		}
-		prevId = id
-	}
+	return NewETCDOrderedIdGenerator(etcdConfig)
 }
 
-func TestRDSIdGenerator(t *testing.T) {
+func createRDSGenerator() (OrderedIdGenerator, error) {
 	host := helpers.GetEnv("POSTGRES_HOST", "localhost")
 	port := helpers.GetEnv("POSTGRES_PORT", "5432")
 	username := helpers.GetEnv("POSTGRES_USER", "postgres")
@@ -130,43 +148,5 @@ func TestRDSIdGenerator(t *testing.T) {
 		SSLMode:  sslMode,
 	}
 
-	generator, err := NewRDSOrderedIdGenerator(config)
-	if err != nil {
-		t.Fatalf("Failed to create RDS ID generator: %v", err)
-	}
-	defer func() {
-		// Clean up the RDS table
-		rds := generator.(*rdsIdGenerator)
-		_, err := rds.db.Exec(context.Background(), fmt.Sprintf("DROP TABLE IF EXISTS %s", rds.tableName))
-		if err != nil {
-			t.Fatalf("Failed to drop table %s: %v", rds.tableName, err)
-		}
-		rds.Close()
-	}()
-
-	prevId, err := generator.NextId("testNamespace")
-	if err != nil {
-		t.Fatalf("Failed to get next id: %v", err)
-	}
-
-	diffNamespaceId, err := generator.NextId("diffNamespace")
-	if err != nil {
-		t.Fatalf("Failed to get next id: %v", err)
-	}
-
-	if !prevId.Equals(diffNamespaceId) {
-		t.Errorf("Expected id: '%s' Received Id: '%s'", diffNamespaceId, prevId)
-	}
-
-	for i := 0; i < 10; i++ {
-		id, err := generator.NextId("testNamespace")
-		if err != nil {
-			t.Fatalf("Failed to get next id: %v", err)
-		}
-
-		if !prevId.Less(id) {
-			t.Errorf("Expected id '%s' to be greater than previous id '%s'", id, prevId)
-		}
-		prevId = id
-	}
+	return NewRDSOrderedIdGenerator(config)
 }

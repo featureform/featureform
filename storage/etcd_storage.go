@@ -63,10 +63,6 @@ func (etcd *etcdStorageImplementation) List(prefix string) (map[string]string, e
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to get keys with prefix %s: %w", prefix, err))
 	}
 
-	if len(resp.Kvs) == 0 {
-		return nil, fferr.NewKeyNotFoundError(prefix, nil)
-	}
-
 	result := make(map[string]string)
 	for _, kv := range resp.Kvs {
 		result[string(kv.Key)] = string(kv.Value)

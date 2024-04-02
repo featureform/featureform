@@ -1479,7 +1479,10 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 
 	// Create the task manager for the server
 	// TODO: need to modify it so it can be any provider
-	taskManager, _ := scheduling.NewMemoryTaskMetadataManager()
+	taskManager, err := scheduling.NewMemoryTaskMetadataManager()
+	if err != nil {
+		return nil, err
+	}
 
 	return &MetadataServer{
 		lookup:      lookup,

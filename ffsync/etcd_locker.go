@@ -117,6 +117,7 @@ func (m *etcdLocker) Unlock(key Key) error {
 }
 
 func (m *etcdLocker) Close() {
+	m.client.Revoke(m.ctx, m.lease.ID)
 	m.session.Close()
 	m.client.Close()
 }

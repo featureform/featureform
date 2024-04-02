@@ -8,17 +8,17 @@ import (
 	"github.com/featureform/fferr"
 )
 
-// TimeWindow is a struct that represents a duration that will be
+// lockDuration is a struct that represents a duration that will be
 // used to sleep as well as valid time period.
-type TimeWindow struct {
+type lockDuration struct {
 	duration time.Duration
 }
 
-func (t TimeWindow) Duration() time.Duration {
+func (t lockDuration) Duration() time.Duration {
 	return t.duration
 }
 
-func (t TimeWindow) AsRDSString() string {
+func (t lockDuration) AsRDSString() string {
 	totalSeconds := int(t.duration.Seconds())
 	if totalSeconds < 60 {
 		return fmt.Sprintf("%d seconds", totalSeconds)
@@ -32,8 +32,8 @@ func (t TimeWindow) AsRDSString() string {
 var (
 	// UpdateSleepTime is used to sleep between each update.
 	// Best to keep it less than half of ValidTimePeriod.
-	UpdateSleepTime = TimeWindow{2 * time.Second}
-	ValidTimePeriod = TimeWindow{5 * time.Second}
+	UpdateSleepTime = lockDuration{10 * time.Second}
+	ValidTimePeriod = lockDuration{1 * time.Minute}
 )
 
 type LockInformation struct {

@@ -245,7 +245,8 @@ func (rds *rdsIdGenerator) Close() {
 
 // SQL Queries
 func (rds *rdsIdGenerator) upsertIdQuery() string {
-	return fmt.Sprintf("INSERT INTO %s (namespace, current_id) VALUES ($1, $2) ON CONFLICT (namespace) DO UPDATE SET current_id = %s.current_id + 1 RETURNING current_id", helpers.SanitizePostgres(rds.tableName), helpers.SanitizePostgres(rds.tableName))
+	sanitizedTableName := helpers.SanitizePostgres(rds.tableName)
+	return fmt.Sprintf("INSERT INTO %s (namespace, current_id) VALUES ($1, $2) ON CONFLICT (namespace) DO UPDATE SET current_id = %s.current_id + 1 RETURNING current_id", sanitizedTableName, sanitizedTableName)
 }
 
 func createLockKey(prefix, namespace string) string {

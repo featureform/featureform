@@ -13,6 +13,7 @@ import (
 )
 
 const key_length = 2048
+const tickerFailedUpdateLimit = 5
 
 var lock_expiration_time = ValidTimePeriod.AsRDSString()
 
@@ -102,6 +103,9 @@ func (l *rdsLocker) updateLockTime(key *rdsKey) {
 	ticker := time.NewTicker(UpdateSleepTime.Duration())
 	defer ticker.Stop()
 
+	// Keep track of failed updates and will return if it exceeds the limit
+	failedUpdatesInARow := 0
+
 	for {
 		select {
 		case <-key.done:
@@ -111,16 +115,21 @@ func (l *rdsLocker) updateLockTime(key *rdsKey) {
 			// Continue updating lock time
 			// We need to check if the key still exists because it could have been deleted
 			updateQueryTime := l.updateLockExpirationQuery()
-
 			r, err := l.db.Exec(context.Background(), updateQueryTime, key.id, key.key)
 			if err != nil {
-				return
+				failedUpdatesInARow++
+				if failedUpdatesInARow >= tickerFailedUpdateLimit {
+					return
+				}
+				continue // Retry
 			}
 
 			// Key no longer exists, stop updating
 			if r.RowsAffected() == 0 {
 				return
 			}
+
+			failedUpdatesInARow = 0
 		}
 	}
 }

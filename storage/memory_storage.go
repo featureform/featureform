@@ -7,10 +7,10 @@ import (
 	"github.com/featureform/fferr"
 )
 
-func NewMemoryStorageImplementation() memoryStorageImplementation {
+func NewMemoryStorageImplementation() (memoryStorageImplementation, error) {
 	return memoryStorageImplementation{
 		storage: make(map[string]string),
-	}
+	}, nil
 }
 
 type memoryStorageImplementation struct {
@@ -19,7 +19,7 @@ type memoryStorageImplementation struct {
 
 func (m *memoryStorageImplementation) Set(key string, value string) error {
 	if key == "" {
-		return fferr.NewInvalidArgumentError(fmt.Errorf("key is empty"))
+		return fferr.NewInvalidArgumentError(fmt.Errorf("cannot set an empty key"))
 	}
 
 	m.storage[key] = value

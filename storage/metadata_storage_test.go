@@ -56,7 +56,7 @@ func StorageSet(t *testing.T, storage metadataStorageImplementation) {
 					"value1",
 				},
 			},
-			fferr.NewInvalidArgumentError(fmt.Errorf("key is empty")),
+			fferr.NewInvalidArgumentError(fmt.Errorf("cannot set an empty key")),
 		},
 		"SetExistingKey": {
 			[]keyValue{
@@ -275,9 +275,9 @@ func StorageDelete(t *testing.T, storage metadataStorageImplementation) {
 }
 
 func TestMetadataStorage(t *testing.T) {
-	locker := ffsync.NewMemoryLocker()
+	locker, _ := ffsync.NewMemoryLocker()
 
-	storage := NewMemoryStorageImplementation()
+	storage, _ := NewMemoryStorageImplementation()
 
 	metadataStorage := MetadataStorage{
 		Locker:  &locker,

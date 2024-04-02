@@ -4,7 +4,8 @@ import stat
 import sys
 
 import featureform as ff
-from featureform import ResourceRedefinedError, InvalidSQLQuery
+from featureform import InvalidSQLQuery
+from featureform.resources import ProjectResource
 
 sys.path.insert(0, "client/src/")
 import pytest
@@ -312,7 +313,7 @@ def test_local_provider_verify_inputs(tuple, error):
         assert str(e) == str(error)
 
 
-def del_rw(action, name, exc):
+def del_rw(name):
     os.chmod(name, stat.S_IWRITE)
     os.remove(name)
 
@@ -491,3 +492,10 @@ def test_register_blob_store(container_name, expected_error, ff_registrar):
         assert str(ve) == str(expected_error)
     except Exception as e:
         raise e
+
+
+@pytest.mark.local
+def test_register_project():
+    resources = [("transaction", "variant")]
+    result = ff.Project("name", resources)
+    assert isinstance(result, ProjectResource)

@@ -157,7 +157,7 @@ func (etcd *etcdIdGenerator) NextId(namespace string) (OrderedId, error) {
 		nextIdStr := string(resp.Kvs[0].Value)
 		nextId, err := strconv.ParseUint(nextIdStr, 10, 64)
 		if err != nil {
-			return nil, fferr.NewInternalError(fmt.Errorf("failed to parse ID as uint64: %s", nextIdStr))
+			return nil, fferr.NewInternalError(fmt.Errorf("failed to parse ID as uint64: %s: %v", nextIdStr, err))
 		}
 		nextId++
 	}

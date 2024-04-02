@@ -97,7 +97,7 @@ func (etcd *etcdStorageImplementation) Delete(key string) (string, error) {
 	}
 
 	if resp.Deleted == 0 {
-		return "", fferr.NewKeyNotFoundError(key, nil)
+		return "", nil
 	}
 
 	return string(resp.PrevKvs[0].Value), nil

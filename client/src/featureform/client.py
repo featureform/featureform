@@ -31,8 +31,15 @@ class Client(ResourceClient, ServingClient):
     ```
     """
 
+    # TODO: What should be the default project name if not provided?
     def __init__(
-        self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
+        self,
+        project: str = None,
+        host=None,
+        local=False,
+        insecure=False,
+        cert_path=None,
+        dry_run=False,
     ):
         if local:
             raise Exception(
@@ -44,6 +51,7 @@ class Client(ResourceClient, ServingClient):
 
         ResourceClient.__init__(
             self,
+            project=project,
             host=host,
             local=local,
             insecure=insecure,
@@ -54,7 +62,12 @@ class Client(ResourceClient, ServingClient):
         # the ServingClient cannot be instantiated due to a conflict the local and host arguments.
         if not dry_run:
             ServingClient.__init__(
-                self, host=host, local=local, insecure=insecure, cert_path=cert_path
+                self,
+                project=project,
+                host=host,
+                local=local,
+                insecure=insecure,
+                cert_path=cert_path,
             )
 
     def dataframe(

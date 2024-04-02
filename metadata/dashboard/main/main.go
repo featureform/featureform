@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/featureform/ffsync"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	dm "github.com/featureform/metadata/dashboard"
 	"github.com/featureform/metadata/search"
+	"github.com/featureform/storage"
 	"go.uber.org/zap"
 )
 
@@ -36,16 +38,21 @@ func main() {
 
 	etcdHost := help.GetEnv("ETCD_HOST", "localhost")
 	etcdPort := help.GetEnv("ETCD_PORT", "2379")
-	storageProvider := metadata.EtcdStorageProvider{
-		Config: metadata.EtcdConfig{
-			Nodes: []metadata.EtcdNode{
-				{Host: etcdHost, Port: etcdPort},
-			},
-		},
+
+	etcdStore, err := storage.NewETCDStorageImplementation(etcdHost, etcdPort)
+	if err != nil {
+		logger.Panicw("Failed to create storage implementation", "error", err)
+	}
+	locker, err := ffsync.NewETCDLocker(etcdHost, etcdPort)
+	if err != nil {
+		logger.Panicw("Failed to create locker implementation", "error", err)
+	}
+	store := storage.MetadataStorage{
+		Locker:  locker,
+		Storage: etcdStore,
 	}
 
-	// TODO: Reimplement ETCD after merging
-	metadataServer, err := dm.NewMetadataServer(logger, client, &storageProvider)
+	metadataServer, err := dm.NewMetadataServer(logger, client, store)
 	if err != nil {
 		logger.Panicw("Failed to create server", "error", err)
 	}

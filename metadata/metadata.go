@@ -1520,15 +1520,17 @@ type MetadataServer struct {
 func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	config.Logger.Debug("Creating new metadata server", "Address:", config.Address)
 	lookup := MemoryResourceLookup{config.StorageProvider}
-	//
+
+	// Need to resolve these interfaces by my tiny brain cant do it right now
+
 	//if config.SearchParams != nil {
 	//	searcher, errInitializeSearch := search.NewMeilisearch(config.SearchParams)
 	//	if errInitializeSearch != nil {
 	//		return nil, errInitializeSearch
 	//	}
-	//	lookup = &SearchWrapper{
+	//	lookup = SearchWrapper{
 	//		Searcher:       searcher,
-	//		ResourceLookup: lookup,
+	//		ResourceLookup: &lookup,
 	//	}
 	//}
 
@@ -1848,7 +1850,7 @@ func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 type Config struct {
 	Logger          *zap.SugaredLogger
 	SearchParams    *search.MeilisearchParams
-	StorageProvider storage.MetadataStorageImplementation
+	StorageProvider storage.MetadataStorage
 	TaskManager     scheduling.TaskMetadataManager
 	Address         string
 }

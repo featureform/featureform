@@ -6,8 +6,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/featureform/ffsync"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata/search"
+	"github.com/featureform/storage"
 	"os"
 
 	help "github.com/featureform/helpers"
@@ -21,17 +23,24 @@ func main() {
 	logger := logging.NewLogger("metadata")
 	addr := help.GetEnv("METADATA_PORT", "8080")
 	enableSearch := help.GetEnv("ENABLE_SEARCH", "true")
-	storageProvider := metadata.EtcdStorageProvider{
-		metadata.EtcdConfig{
-			Nodes: []metadata.EtcdNode{
-				{etcdHost, etcdPort},
-			},
-		},
+
+	etcdStore, err := storage.NewETCDStorageImplementation(etcdHost, etcdPort)
+	if err != nil {
+		logger.Panicw("Failed to create storage implementation", "error", err)
 	}
+	locker, err := ffsync.NewETCDLocker(etcdHost, etcdPort)
+	if err != nil {
+		logger.Panicw("Failed to create locker implementation", "error", err)
+	}
+	store := storage.MetadataStorage{
+		Locker:  locker,
+		Storage: etcdStore,
+	}
+
 	config := &metadata.Config{
 		Logger:          logger,
 		Address:         fmt.Sprintf(":%s", addr),
-		StorageProvider: storageProvider,
+		StorageProvider: store,
 	}
 	if enableSearch == "true" {
 		logger.Infow("Connecting to search", "host", os.Getenv("MEILISEARCH_HOST"), "port", os.Getenv("MEILISEARCH_PORT"))

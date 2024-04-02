@@ -6,15 +6,11 @@ import (
 	"net/url"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/helpers"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func NewETCDStorageImplementation() (metadataStorageImplementation, error) {
-	etcdHost := helpers.GetEnv("ETCD_HOST", "localhost")
-	etcdPort := helpers.GetEnv("ETCD_PORT", "2379")
-
-	etcdHostPort := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
+func NewETCDStorageImplementation(host, port string) (metadataStorageImplementation, error) {
+	etcdHostPort := fmt.Sprintf("%s:%s", host, port)
 
 	etcdURL := url.URL{
 		Scheme: "http",

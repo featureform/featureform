@@ -69,10 +69,10 @@ type MetadataServer struct {
 	lookup          metadata.ResourceLookup
 	client          *metadata.Client
 	logger          *zap.SugaredLogger
-	StorageProvider storage.MetadataStorageImplementation
+	StorageProvider storage.MetadataStorage
 }
 
-func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client, storageProvider storage.MetadataStorageImplementation) (*MetadataServer, error) {
+func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client, storageProvider storage.MetadataStorage) (*MetadataServer, error) {
 	logger.Debug("Creating new metadata server")
 
 	return &MetadataServer{

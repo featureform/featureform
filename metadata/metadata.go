@@ -216,7 +216,7 @@ type Resource interface {
 	Dependencies(ResourceLookup) (ResourceLookup, error)
 	Proto() proto.Message
 	GetStatus() *pb.ResourceStatus
-	UpdateStatus(pb.ResourceStatus) error
+	UpdateStatus(*pb.ResourceStatus) error
 	UpdateSchedule(string) error
 	Update(ResourceLookup, Resource) error
 }
@@ -239,7 +239,7 @@ type ResourceLookup interface {
 	List() ([]Resource, error)
 	HasJob(ResourceID) (bool, error)
 	SetJob(ResourceID, string) error
-	SetStatus(ResourceID, pb.ResourceStatus) error
+	SetStatus(ResourceID, *pb.ResourceStatus) error
 	SetSchedule(ResourceID, string) error
 }
 
@@ -339,7 +339,7 @@ func (lookup LocalResourceLookup) List() ([]Resource, error) {
 	return resources, nil
 }
 
-func (lookup LocalResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
+func (lookup LocalResourceLookup) SetStatus(id ResourceID, status *pb.ResourceStatus) error {
 	res, has := lookup[id]
 	if !has {
 		wrapped := fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("resource not found"))
@@ -416,8 +416,8 @@ func (resource *SourceResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *SourceResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
+func (resource *SourceResource) UpdateStatus(status *pb.ResourceStatus) error {
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -494,9 +494,9 @@ func (resource *sourceVariantResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *sourceVariantResource) UpdateStatus(status pb.ResourceStatus) error {
+func (resource *sourceVariantResource) UpdateStatus(status *pb.ResourceStatus) error {
 	resource.serialized.LastUpdated = tspb.Now()
-	resource.serialized.Status = &status
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -636,8 +636,8 @@ func (resource *featureResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *featureResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
+func (resource *featureResource) UpdateStatus(status *pb.ResourceStatus) error {
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -727,9 +727,9 @@ func (resource *featureVariantResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *featureVariantResource) UpdateStatus(status pb.ResourceStatus) error {
+func (resource *featureVariantResource) UpdateStatus(status *pb.ResourceStatus) error {
 	resource.serialized.LastUpdated = tspb.Now()
-	resource.serialized.Status = &status
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -851,8 +851,8 @@ func (resource *labelResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *labelResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
+func (resource *labelResource) UpdateStatus(status *pb.ResourceStatus) error {
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -933,8 +933,8 @@ func (resource *labelVariantResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *labelVariantResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
+func (resource *labelVariantResource) UpdateStatus(status *pb.ResourceStatus) error {
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -1038,8 +1038,8 @@ func (resource *trainingSetResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *trainingSetResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
+func (resource *trainingSetResource) UpdateStatus(status *pb.ResourceStatus) error {
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -1116,9 +1116,9 @@ func (resource *trainingSetVariantResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *trainingSetVariantResource) UpdateStatus(status pb.ResourceStatus) error {
+func (resource *trainingSetVariantResource) UpdateStatus(status *pb.ResourceStatus) error {
 	resource.serialized.LastUpdated = tspb.Now()
-	resource.serialized.Status = &status
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -1241,7 +1241,7 @@ func (resource *modelResource) GetStatus() *pb.ResourceStatus {
 	return &pb.ResourceStatus{Status: pb.ResourceStatus_NO_STATUS}
 }
 
-func (resource *modelResource) UpdateStatus(status pb.ResourceStatus) error {
+func (resource *modelResource) UpdateStatus(status *pb.ResourceStatus) error {
 	return nil
 }
 
@@ -1312,8 +1312,8 @@ func (resource *userResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *userResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
+func (resource *userResource) UpdateStatus(status *pb.ResourceStatus) error {
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -1382,8 +1382,8 @@ func (resource *providerResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *providerResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
+func (resource *providerResource) UpdateStatus(status *pb.ResourceStatus) error {
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -1487,8 +1487,8 @@ func (resource *entityResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *entityResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
+func (resource *entityResource) UpdateStatus(status *pb.ResourceStatus) error {
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -1521,20 +1521,22 @@ type MetadataServer struct {
 func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	config.Logger.Debug("Creating new metadata server", "Address:", config.Address)
 	lookup := MemoryResourceLookup{config.StorageProvider}
-	//
+
+	// Need to resolve these interfaces by my tiny brain cant do it right now
+
 	//if config.SearchParams != nil {
 	//	searcher, errInitializeSearch := search.NewMeilisearch(config.SearchParams)
 	//	if errInitializeSearch != nil {
 	//		return nil, errInitializeSearch
 	//	}
-	//	lookup = &SearchWrapper{
+	//	lookup = SearchWrapper{
 	//		Searcher:       searcher,
-	//		ResourceLookup: lookup,
+	//		ResourceLookup: &lookup,
 	//	}
 	//}
 
 	return &MetadataServer{
-		lookup:      lookup,
+		lookup:      &lookup,
 		address:     config.Address,
 		Logger:      config.Logger,
 		taskManager: &config.TaskManager,
@@ -1849,7 +1851,7 @@ func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 type Config struct {
 	Logger          *zap.SugaredLogger
 	SearchParams    *search.MeilisearchParams
-	StorageProvider storage.MetadataStorageImplementation
+	StorageProvider storage.MetadataStorage
 	TaskManager     scheduling.TaskMetadataManager
 	Address         string
 }
@@ -1863,7 +1865,7 @@ func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.S
 func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetStatusRequest) (*pb.Empty, error) {
 	serv.Logger.Infow("Setting resource status", "resource_id", req.ResourceId, "status", req.Status.Status)
 	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
-	err := serv.lookup.SetStatus(resID, *req.Status)
+	err := serv.lookup.SetStatus(resID, req.Status)
 	if err != nil {
 		serv.Logger.Errorw("Could not set resource status", "error", err.Error())
 	}

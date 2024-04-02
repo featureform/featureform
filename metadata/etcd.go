@@ -510,7 +510,7 @@ func (lookup EtcdResourceLookup) List() ([]Resource, error) {
 	return resources, nil
 }
 
-func (lookup EtcdResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
+func (lookup EtcdResourceLookup) SetStatus(id ResourceID, status *pb.ResourceStatus) error {
 	res, err := lookup.Lookup(id)
 	if err != nil {
 		return err

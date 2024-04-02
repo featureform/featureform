@@ -17,19 +17,17 @@ import (
 
 // Create Resource Lookup Using ETCD
 type MemoryResourceLookup struct {
-	Connection storage.MetadataStorageImplementation
+	Connection storage.MetadataStorage
 }
 
 // Wrapper around Resource/Job messages. Allows top level storage for info about saved value
 type MemoryRow struct {
 	ResourceType ResourceType //Resource Type. For use when getting stored keys
-	//ResourceType string
-	StorageType StorageType //Type of storage. Resource or Job
-	Message     []byte      //Contents to be stored
+	StorageType  StorageType  //Type of storage. Resource or Job
+	Message      []byte       //Contents to be stored
 }
 
 type MemoryRowTemp struct {
-	//ResourceType ResourceType //Resource Type. For use when getting stored keys
 	ResourceType ResourceType
 	StorageType  StorageType //Type of storage. Resource or Job
 	Message      []byte      //Contents to be stored
@@ -39,20 +37,21 @@ type MemoryRowTemp struct {
 // Checks to make sure the given ETCD Storage Object contains a Resource, not job
 // Deserializes Resource value into the provided Resource object
 func (s MemoryResourceLookup) ParseResource(res EtcdRow, resType Resource) (Resource, error) {
+	id := resType.ID()
 	if res.StorageType != RESOURCE {
-		return nil, fmt.Errorf("payload is not resource type")
+		return nil, fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), nil)
 	}
 
 	if !resType.Proto().ProtoReflect().IsValid() {
-		return nil, fmt.Errorf("cannot parse to invalid resource")
+		return nil, fferr.NewInvalidResourceTypeErrorf(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), "invalid proto")
 	}
 
 	if res.Message == nil {
-		return nil, fmt.Errorf("cannot parse invalid message")
+		return nil, fferr.NewInvalidResourceTypeErrorf(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), "invalid message")
 	}
 
 	if err := proto.Unmarshal(res.Message, resType.Proto()); err != nil {
-		return nil, err
+		return nil, fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 
 	return resType, nil
@@ -101,17 +100,17 @@ func (lookup MemoryResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	logger.Infow("Deserialize", "key", key)
 	msg, err := lookup.deserialize([]byte(resp))
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("failed to deserialize: %s", id))
+		return nil, err
 	}
 	logger.Infow("Create empty resource", "key", key)
 	resType, err := createEmptyResource(msg.ResourceType)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("failed to create empty resource: %s", id))
+		return nil, err
 	}
 	logger.Infow("Parse resource", "key", key)
 	resource, err := lookup.ParseResource(msg, resType)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("failed to parse resource: %s", id))
+		return nil, err
 	}
 	logger.Infow("Return", "key", key)
 	return resource, nil
@@ -151,7 +150,7 @@ func (lookup MemoryResourceLookup) HasJob(id ResourceID) (bool, error) {
 
 func (lookup MemoryResourceLookup) SetJob(id ResourceID, schedule string) error {
 	if jobAlreadySet, _ := lookup.HasJob(id); jobAlreadySet {
-		return fmt.Errorf("Job already set")
+		return fferr.NewInternalErrorf("job %v has already been created", id)
 	}
 	coordinatorJob := CoordinatorJob{
 		Attempts: 0,
@@ -163,7 +162,7 @@ func (lookup MemoryResourceLookup) SetJob(id ResourceID, schedule string) error 
 		return err
 	}
 	jobKey := GetJobKey(id)
-	if err := lookup.Connection.Set(jobKey, string(serialized)); err != nil {
+	if err := lookup.Connection.Create(jobKey, string(serialized)); err != nil {
 		return err
 	}
 
@@ -181,7 +180,7 @@ func (lookup MemoryResourceLookup) SetSchedule(id ResourceID, schedule string) e
 		return err
 	}
 	jobKey := GetScheduleJobKey(id)
-	if err := lookup.Connection.Set(jobKey, string(serialized)); err != nil {
+	if err := lookup.Connection.Create(jobKey, string(serialized)); err != nil {
 		return err
 	}
 	return nil
@@ -194,7 +193,7 @@ func (lookup MemoryResourceLookup) Set(id ResourceID, res Resource) error {
 		return err
 	}
 	key := createKey(id)
-	if err := lookup.Connection.Set(key, string(serRes)); err != nil {
+	if err := lookup.Connection.Create(key, string(serRes)); err != nil {
 		return err
 	}
 	return nil
@@ -211,17 +210,17 @@ func (lookup MemoryResourceLookup) Submap(ids []ResourceID) (ResourceLookup, err
 		}
 		etcdStore, err := lookup.deserialize([]byte(resp))
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("submap deserialize: %s", id))
+			return nil, err
 		}
 
 		resource, err := createEmptyResource(etcdStore.ResourceType)
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("submap create empty resource: %s", id))
+			return nil, err
 		}
 
 		res, err := lookup.ParseResource(etcdStore, resource)
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("submap parse resource: %s", id))
+			return nil, err
 		}
 		resources[id] = res
 	}
@@ -232,18 +231,21 @@ func (lookup MemoryResourceLookup) ListForType(t ResourceType) ([]Resource, erro
 	resources := make([]Resource, 0)
 	resp, err := lookup.Connection.List(t.String())
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not get prefix: %s", t))
+		return nil, err
 	}
-	for k, v := range resp {
+	for _, v := range resp {
 		etcdStore, err := lookup.deserialize([]byte(v))
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("could not deserialize: %s", k))
+			return nil, err
 		}
 		resource, err := createEmptyResource(etcdStore.ResourceType)
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("could not create empty resource: %s", k))
+			return nil, err
 		}
 		resource, err = lookup.ParseResource(etcdStore, resource)
+		if err != nil {
+			return nil, err
+		}
 		if resource.ID().Type == t {
 			resources = append(resources, resource)
 		}
@@ -255,33 +257,36 @@ func (lookup MemoryResourceLookup) List() ([]Resource, error) {
 	resources := make([]Resource, 0)
 	resp, err := lookup.Connection.List("")
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("could not get prefix: %v", resources))
+		return nil, err
 	}
-	for k, v := range resp {
+	for _, v := range resp {
 		etcdStore, err := lookup.deserialize([]byte(v))
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("list deserialize: %s", k))
+			return nil, err
 		}
 		resource, err := createEmptyResource(etcdStore.ResourceType)
 		if err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("list create empty resource: %s", k))
+			return nil, err
 		}
 		resource, err = lookup.ParseResource(etcdStore, resource)
+		if err != nil {
+			return nil, err
+		}
 		resources = append(resources, resource)
 	}
 	return resources, nil
 }
 
-func (lookup MemoryResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
+func (lookup *MemoryResourceLookup) SetStatus(id ResourceID, status *pb.ResourceStatus) error {
 	res, err := lookup.Lookup(id)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("could not lookup ID: %v", id))
+		return err
 	}
 	if err := res.UpdateStatus(status); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("could not update ID: %v", id))
+		return err
 	}
 	if err := lookup.Set(id, res); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("could not set ID: %v", id))
+		return err
 	}
 	return nil
 }

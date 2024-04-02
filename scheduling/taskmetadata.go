@@ -57,9 +57,9 @@ func NewMemoryTaskMetadataManager() (TaskMetadataManager, error) {
 	}
 
 	return TaskMetadataManager{
-		storage:     memoryMetadataStorage,
-		idGenerator: idGenerator,
-	}, nil
+		storage:     storage,
+		idGenerator: generator,
+	}
 }
 
 func NewETCDTaskMetadataManager(config helpers.ETCDConfig) (TaskMetadataManager, error) {
@@ -451,10 +451,12 @@ func (m *TaskMetadataManager) SetRunStatus(runID TaskRunID, taskID TaskID, statu
 			e := fferr.NewInvalidArgumentError(fmt.Errorf("error is required for failed status"))
 			return "", e
 		}
+
 		metadata.Status = Status(status.Status)
 		if status.ErrorStatus == nil {
 			metadata.Error = ""
 		} else {
+			// Set the error for use in the CLI and dashboard. Should move this logic out
 			metadata.Error = fferr.ToDashboardError(status)
 		}
 

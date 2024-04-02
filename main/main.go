@@ -9,7 +9,6 @@ import (
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	dm "github.com/featureform/metadata/dashboard"
-	"github.com/featureform/metadata/search"
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/runner"
@@ -21,30 +20,47 @@ import (
 	"google.golang.org/grpc"
 	"net"
 	"net/http"
-	"os"
 	"time"
 )
 
 func main() {
-	locker := ffsync.NewMemoryLocker()
-	mstorage := ss.NewMemoryStorageImplementation()
-	storage := ss.MetadataStorage{
-		Locker:  &locker,
-		Storage: &mstorage,
-	}
-	meta := scheduling.NewTaskMetadataManager(storage, ffsync.NewMemoryOrderedIdGenerator())
-
-	local := help.GetEnvBool("FEATUREFORM_LOCAL", true)
-	/****************************************** API Server ************************************************************/
+	/******************************************    Vars    ************************************************************/
 	err := godotenv.Load(".env")
+	if err != nil {
+		fmt.Printf("could not fetch .env file: %s", err.Error())
+	}
 	apiPort := help.GetEnv("API_PORT", "7878")
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")
-	servingHost := help.GetEnv("SERVING_HOST", "localhost")
+	metadataHTTPPort := help.GetEnv("METADATA_HTTP_PORT", "3001")
+	servingHost := help.GetEnv("SERVING_HOST", "0.0.0.0")
 	servingPort := help.GetEnv("SERVING_PORT", "8081")
 	apiConn := fmt.Sprintf("0.0.0.0:%s", apiPort)
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	servingConn := fmt.Sprintf("%s:%s", servingHost, servingPort)
+	local := help.GetEnvBool("FEATUREFORM_LOCAL", true)
+
+	locker, err := ffsync.NewMemoryLocker()
+	if err != nil {
+		panic(err.Error())
+	}
+	mstorage, err := ss.NewMemoryStorageImplementation()
+	if err != nil {
+		panic(err.Error())
+	}
+	storage := ss.MetadataStorage{
+		Locker:  &locker,
+		Storage: &mstorage,
+	}
+
+	generator, err := ffsync.NewMemoryOrderedIdGenerator()
+	if err != nil {
+		panic(err.Error())
+	}
+	meta := scheduling.NewTaskMetadataManager(storage, generator)
+
+	/****************************************** API Server ************************************************************/
+
 	logger := logging.NewLogger("api")
 	go func() {
 		err := api.StartHttpsServer(":8443")
@@ -56,21 +72,12 @@ func main() {
 	/******************************************** Metadata ************************************************************/
 
 	mLogger := logging.NewLogger("metadata")
-	addr := help.GetEnv("METADATA_PORT", "8080")
-	enableSearch := help.GetEnv("ENABLE_SEARCH", "false")
+
 	config := &metadata.Config{
 		Logger:          mLogger,
-		Address:         fmt.Sprintf(":%s", addr),
-		StorageProvider: &mstorage,
+		Address:         fmt.Sprintf(":%s", metadataPort),
+		StorageProvider: storage,
 		TaskManager:     meta,
-	}
-	if enableSearch == "true" {
-		logger.Infow("Connecting to search", "host", os.Getenv("MEILISEARCH_HOST"), "port", os.Getenv("MEILISEARCH_PORT"))
-		config.SearchParams = &search.MeilisearchParams{
-			Port:   help.GetEnv("MEILISEARCH_PORT", "7700"),
-			Host:   help.GetEnv("MEILISEARCH_HOST", "localhost"),
-			ApiKey: help.GetEnv("MEILISEARCH_APIKEY", ""),
-		}
 	}
 
 	server, err := metadata.NewMetadataServer(config)
@@ -80,8 +87,7 @@ func main() {
 
 	/******************************************** Coordinator ************************************************************/
 
-	metadataUrl := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
-	fmt.Printf("connecting to metadata: %s\n", metadataUrl)
+	fmt.Printf("connecting to metadata: %s\n", metadataConn)
 
 	if err := runner.RegisterFactory(runner.COPY_TO_ONLINE, runner.MaterializedChunkRunnerFactory); err != nil {
 		panic(fmt.Errorf("failed to register 'Copy to Online' runner factory: %w", err))
@@ -102,7 +108,7 @@ func main() {
 	defer cLogger.Sync()
 	cLogger.Debug("Connected to ETCD")
 
-	client, err := metadata.NewClient(metadataUrl, cLogger)
+	client, err := metadata.NewClient(metadataConn, cLogger)
 	if err != nil {
 		cLogger.Errorw("Failed to connect: %v", err)
 		panic(err)
@@ -121,13 +127,13 @@ func main() {
 	/**************************************** Dashboard Backend *******************************************************/
 	dbLogger := zap.NewExample().Sugar()
 
-	dbLogger.Infof("Looking for metadata at: %s\n", metadataUrl)
+	dbLogger.Infof("Looking for metadata at: %s\n", metadataConn)
 
-	metadataServer, err := dm.NewMetadataServer(dbLogger, client, &mstorage)
+	metadataServer, err := dm.NewMetadataServer(dbLogger, client, storage)
 	if err != nil {
 		logger.Panicw("Failed to create server", "error", err)
 	}
-	metadataHTTPPort := help.GetEnv("METADATA_HTTP_PORT", "3001")
+
 	metadataServingPort := fmt.Sprintf(":%s", metadataHTTPPort)
 	dbLogger.Infof("Serving HTTP Metadata on port: %s\n", metadataServingPort)
 
@@ -135,10 +141,7 @@ func main() {
 
 	sLogger := logging.NewLogger("serving")
 
-	host := help.GetEnv("SERVING_HOST", "0.0.0.0")
-	port := help.GetEnv("SERVING_PORT", "8081")
-	address := fmt.Sprintf("%s:%s", host, port)
-	lis, err := net.Listen("tcp", address)
+	lis, err := net.Listen("tcp", servingConn)
 	if err != nil {
 		sLogger.Panicw("Failed to listen on port", "Err", err)
 	}
@@ -150,15 +153,14 @@ func main() {
 	grpcServer := grpc.NewServer()
 
 	pb.RegisterFeatureServer(grpcServer, serv)
-	sLogger.Infow("Server starting", "Port", address)
+	sLogger.Infow("Server starting", "Port", servingConn)
 
 	/******************************************** Start Servers *******************************************************/
 
 	go func() {
 		serv, err := api.NewApiServer(logger, apiConn, metadataConn, servingConn)
 		if err != nil {
-			fmt.Println(err)
-			return
+			panic(err)
 		}
 		fmt.Println(serv.Serve())
 	}()
@@ -166,6 +168,9 @@ func main() {
 	go func() {
 		if err := server.Serve(); err != nil {
 			logger.Errorw("Serve failed with error", "Err", err)
+			if err != nil {
+				panic(err)
+			}
 		}
 	}()
 
@@ -173,18 +178,21 @@ func main() {
 		if err := coord.WatchForNewJobs(); err != nil {
 			cLogger.Errorw(err.Error())
 			panic(err)
-			return
 		}
 	}()
 
 	go func() {
-		metadataServer.Start(metadataServingPort, local)
+		err := metadataServer.Start(metadataServingPort, local)
+		if err != nil {
+			panic(err)
+		}
 	}()
 
 	go func() {
 		serveErr := grpcServer.Serve(lis)
 		if serveErr != nil {
 			logger.Errorw("Serve failed with error", "Err", serveErr)
+			panic(err)
 		}
 	}()
 	for {

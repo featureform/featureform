@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/featureform/ffsync"
 	"time"
 
 	"github.com/featureform/coordinator"
@@ -27,6 +28,11 @@ func main() {
 		Username:    help.GetEnv("ETCD_USERNAME", "root"),
 		Password:    help.GetEnv("ETCD_PASSWORD", "secretpassword"),
 		DialTimeout: time.Second * 1,
+	}
+
+	cli, err := clientv3.New(etcdConfig)
+	if err != nil {
+		panic(err)
 	}
 
 	defer func(cli *clientv3.Client) {
@@ -65,7 +71,11 @@ func main() {
 	} else {
 		spawner = &coordinator.KubernetesJobSpawner{EtcdConfig: etcdConfig}
 	}
-	coord, err := coordinator.NewCoordinator(client, logger, spawner, )
+
+	// Add a switch for locker
+	locker, err := ffsync.NewETCDLocker(etcdHost, etcdPort)
+
+	coord, err := coordinator.NewCoordinator(client, logger, spawner, locker)
 	if err != nil {
 		logger.Errorw("Failed to set up coordinator: %v", err)
 		panic(err)

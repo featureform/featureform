@@ -153,6 +153,11 @@ func NewInvalidResourceTypeError(resourceName, resourceVariant string, resourceT
 	}
 }
 
+func NewInvalidResourceTypeErrorf(resourceName, resourceVariant string, resourceType ResourceType, format string, a ...any) *InvalidResourceTypeError {
+	err := fmt.Errorf(format, a...)
+	return NewInvalidResourceTypeError(resourceName, resourceVariant, resourceType, err)
+}
+
 type InvalidResourceTypeError struct {
 	baseGRPCError
 }

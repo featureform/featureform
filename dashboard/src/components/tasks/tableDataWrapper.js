@@ -270,7 +270,6 @@ export default function TableDataWrapper() {
       </Box>
       <TaskRunDataGrid
         taskRunList={taskRunList?.map(function (object) {
-          console.log(object.taskRun.taskId + '.' + object.taskRun.runId);
           return {
             ...object,
             id: object.taskRun.taskId + '.' + object.taskRun.runId,

@@ -7,9 +7,11 @@ import (
 
 type Version uint32
 
+// Currently not implemented anywhere. Need to implement when creating schema change functionality
 type Schema interface {
 	Upgrade(start, end Version)
 	Downgrade(start, end Version)
+	Version() Version
 }
 
 func Templater(template string, values map[string]interface{}) string {

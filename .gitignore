@@ -63,4 +63,4 @@ quickstart
 .coverage*
 *.out
 
-grpc_debug.log
+*.log

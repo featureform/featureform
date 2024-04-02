@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/featureform/ffsync"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	dm "github.com/featureform/metadata/dashboard"
 	"github.com/featureform/metadata/search"
+	"github.com/featureform/storage"
 	"go.uber.org/zap"
 )
 
@@ -26,7 +28,6 @@ func main() {
 	if err != nil {
 		logger.Panicw("Failed to create new meil search", err)
 	}
-	dm.CreateDummyTaskRuns(360)
 	dm.SearchClient = sc
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	logger.Infof("Looking for metadata at: %s\n", metadataAddress)
@@ -37,20 +38,29 @@ func main() {
 
 	etcdHost := help.GetEnv("ETCD_HOST", "localhost")
 	etcdPort := help.GetEnv("ETCD_PORT", "2379")
-	storageProvider := metadata.EtcdStorageProvider{
-		Config: metadata.EtcdConfig{
-			Nodes: []metadata.EtcdNode{
-				{Host: etcdHost, Port: etcdPort},
-			},
-		},
+
+	etcdStore, err := storage.NewETCDStorageImplementation(etcdHost, etcdPort)
+	if err != nil {
+		logger.Panicw("Failed to create storage implementation", "error", err)
+	}
+	locker, err := ffsync.NewETCDLocker(etcdHost, etcdPort)
+	if err != nil {
+		logger.Panicw("Failed to create locker implementation", "error", err)
+	}
+	store := storage.MetadataStorage{
+		Locker:  locker,
+		Storage: etcdStore,
 	}
 
-	metadataServer, err := dm.NewMetadataServer(logger, client, &storageProvider)
+	metadataServer, err := dm.NewMetadataServer(logger, client, store)
 	if err != nil {
 		logger.Panicw("Failed to create server", "error", err)
 	}
 	metadataHTTPPort := help.GetEnv("METADATA_HTTP_PORT", "3001")
 	metadataServingPort := fmt.Sprintf(":%s", metadataHTTPPort)
 	logger.Infof("Serving HTTP Metadata on port: %s\n", metadataServingPort)
-	metadataServer.Start(metadataServingPort)
+	err = metadataServer.Start(metadataServingPort, false)
+	if err != nil {
+		panic(err)
+	}
 }

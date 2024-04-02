@@ -9,6 +9,10 @@ import (
 )
 
 func TestRDSLocker(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
 	host := helpers.GetEnv("POSTGRES_HOST", "localhost")
 	port := helpers.GetEnv("POSTGRES_PORT", "5432")
 	username := helpers.GetEnv("POSTGRES_USER", "postgres")

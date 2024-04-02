@@ -34,7 +34,7 @@ func NewETCDLocker(config helpers.ETCDConfig) (Locker, error) {
 	}
 
 	ctx := context.Background()
-	lease, err := client.Grant(ctx, int64(ValidTimePeriod))
+	lease, err := client.Grant(ctx, int64(ValidTimePeriod.Duration()))
 	if err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to grant lease: %w", err))
 	}

@@ -7,6 +7,10 @@ import (
 )
 
 func TestETCDLocker(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
 	host := helpers.GetEnv("ETCD_HOST", "localhost")
 	port := helpers.GetEnv("ETCD_PORT", "2379")
 

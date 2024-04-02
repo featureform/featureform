@@ -27,7 +27,7 @@ type OrderedId interface {
 	UnmarshalJSON(data []byte) error
 }
 
-const etcd_id_key = "FFSync/ID" // Key for the etcd ID generator, will add namespace to the end
+const etcd_id_key = "/FFSync/ID" // Key for the etcd ID generator, will add namespace to the end
 
 type Uint64OrderedId uint64
 
@@ -161,7 +161,7 @@ func (etcd *etcdIdGenerator) NextId(namespace string) (OrderedId, error) {
 		nextId = 1
 	} else {
 		nextIdStr := string(resp.Kvs[0].Value)
-		nextId, err := strconv.ParseUint(nextIdStr, 10, 64)
+		nextId, err = strconv.ParseUint(nextIdStr, 10, 64)
 		if err != nil {
 			return nil, fferr.NewInternalError(fmt.Errorf("failed to parse ID as uint64: %s: %v", nextIdStr, err))
 		}

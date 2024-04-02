@@ -32,8 +32,8 @@ func (t TimeWindow) AsRDSString() string {
 var (
 	// UpdateSleepTime is used to sleep between each update.
 	// Best to keep it less than half of ValidTimePeriod.
-	UpdateSleepTime = TimeWindow{2 * time.Minute}
-	ValidTimePeriod = TimeWindow{5 * time.Minute}
+	UpdateSleepTime = TimeWindow{2 * time.Second}
+	ValidTimePeriod = TimeWindow{5 * time.Second}
 )
 
 type LockInformation struct {

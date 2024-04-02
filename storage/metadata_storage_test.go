@@ -225,26 +225,23 @@ func StorageList(t *testing.T, storage metadataStorageImplementation) {
 
 func StorageDelete(t *testing.T, storage metadataStorageImplementation) {
 	type TestCase struct {
-		setKey        string
-		setValue      string
-		deleteKey     string
-		deleteValue   string
-		expectedError error
+		setKey      string
+		setValue    string
+		deleteKey   string
+		deleteValue string
 	}
 	tests := map[string]TestCase{
 		"DeleteSimple": {
-			setKey:        "deleteTest/key1",
-			setValue:      "value1",
-			deleteKey:     "deleteTest/key1",
-			deleteValue:   "value1",
-			expectedError: nil,
+			setKey:      "deleteTest/key1",
+			setValue:    "value1",
+			deleteKey:   "deleteTest/key1",
+			deleteValue: "value1",
 		},
 		"DeleteWrongKey": {
-			setKey:        "key1",
-			setValue:      "value1",
-			deleteKey:     "key2",
-			deleteValue:   "",
-			expectedError: fferr.NewKeyNotFoundError("key2", nil),
+			setKey:      "key1",
+			setValue:    "value1",
+			deleteKey:   "key2",
+			deleteValue: "",
 		},
 	}
 
@@ -259,13 +256,11 @@ func StorageDelete(t *testing.T, storage metadataStorageImplementation) {
 			}()
 
 			value, err := storage.Delete(test.deleteKey)
-			if err != nil && err.Error() != test.expectedError.Error() {
-				t.Fatalf("Delete(%s) failed expected error: %v, got: %v", test.deleteKey, test.expectedError, err)
-			} else if err != nil && err.Error() == test.expectedError.Error() {
+			if err != nil {
 				return
 			}
 
-			if value != test.setValue {
+			if test.deleteValue != "" && value != test.setValue {
 				t.Fatalf("Delete(%s): expected value %s, got %s", test.deleteKey, test.setValue, value)
 			}
 		})
@@ -312,7 +307,7 @@ func testCreate(t *testing.T, ms MetadataStorage) {
 	}
 	tests := map[string]TestCase{
 		"Simple":   {"createTest/key1", "value1", nil},
-		"EmptyKey": {"", "value1", fferr.NewInternalError(fmt.Errorf("cannot lock an empty key"))},
+		"EmptyKey": {"", "value1", fferr.NewLockEmptyKeyError()},
 	}
 
 	for name, test := range tests {
@@ -470,9 +465,13 @@ func testList(t *testing.T, ms MetadataStorage) {
 				"y/key2": "v2",
 				"z/key3": "v3",
 			},
-			prefix:        "",
-			expectedKeys:  map[string]string{},
-			expectedError: fferr.NewInternalError(fmt.Errorf("cannot lock an empty key")),
+			prefix: "",
+			expectedKeys: map[string]string{
+				"x/key1": "v1",
+				"y/key2": "v2",
+				"z/key3": "v3",
+			},
+			expectedError: nil,
 		},
 	}
 

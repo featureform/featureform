@@ -80,6 +80,10 @@ func TestOrderedIdGenerator(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			if testing.Short() && (tc.name == "ETCD" || tc.name == "RDS") {
+				t.Skip("skipping integration test")
+			}
+
 			generator, err := tc.createGen()
 			if err != nil {
 				t.Fatalf("failed to create %s ID generator: %v", tc.name, err)
@@ -120,12 +124,12 @@ func createMemoryGenerator() (OrderedIdGenerator, error) {
 }
 
 func createETCDGenerator() (OrderedIdGenerator, error) {
-	host := helpers.GetEnv("ETCD_HOST", "localhost")
-	port := helpers.GetEnv("ETCD_PORT", "2379")
+	etcdHost := helpers.GetEnv("ETCD_HOST", "localhost")
+	etcdPort := helpers.GetEnv("ETCD_PORT", "2379")
 
 	etcdConfig := helpers.ETCDConfig{
-		Host: host,
-		Port: port,
+		Host: etcdHost,
+		Port: etcdPort,
 	}
 
 	return NewETCDOrderedIdGenerator(etcdConfig)

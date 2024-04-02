@@ -127,6 +127,10 @@ func (l *rdsLocker) updateLockTime(key *rdsKey) {
 }
 
 func (l *rdsLocker) Unlock(key Key) error {
+	if key == nil {
+		return fferr.NewInternalError(fmt.Errorf("cannot unlock a nil key"))
+	}
+
 	if key.Key() == "" {
 		return fferr.NewInternalError(fmt.Errorf("cannot unlock an empty key"))
 	}

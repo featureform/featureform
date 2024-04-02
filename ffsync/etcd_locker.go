@@ -73,6 +73,9 @@ func (m *etcdLocker) Lock(key string) (Key, error) {
 }
 
 func (m *etcdLocker) Unlock(key Key) error {
+	if key == nil {
+		return fferr.NewInternalError(fmt.Errorf("cannot unlock a nil key"))
+	}
 	if key.Key() == "" {
 		return fferr.NewInternalError(fmt.Errorf("cannot unlock an empty key"))
 	}

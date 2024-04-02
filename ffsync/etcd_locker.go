@@ -16,6 +16,7 @@ type etcdKey struct {
 	id        string
 	key       string
 	lockMutex *concurrency.Mutex
+	session   *concurrency.Session
 }
 
 func (k etcdKey) ID() string {
@@ -44,22 +45,15 @@ func NewETCDLocker() (Locker, error) {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to create etcd client: %w", err))
 	}
 
-	session, err := concurrency.NewSession(client)
-	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("failed to create etcd session: %w", err))
-	}
-
 	return &etcdLocker{
-		client:  client,
-		session: session,
-		ctx:     context.Background(),
+		client: client,
+		ctx:    context.Background(),
 	}, nil
 }
 
 type etcdLocker struct {
-	client  *clientv3.Client
-	session *concurrency.Session
-	ctx     context.Context
+	client *clientv3.Client
+	ctx    context.Context
 }
 
 func (m *etcdLocker) Lock(key string) (Key, error) {
@@ -69,7 +63,17 @@ func (m *etcdLocker) Lock(key string) (Key, error) {
 
 	id := uuid.New().String()
 
-	lockMutex := concurrency.NewMutex(m.session, key)
+	lease, err := m.client.Grant(m.ctx, 5)
+	if err != nil {
+		return nil, fferr.NewInternalError(fmt.Errorf("failed to grant lease: %w", err))
+	}
+
+	session, err := concurrency.NewSession(m.client, concurrency.WithLease(lease.ID))
+	if err != nil {
+		return nil, fferr.NewInternalError(fmt.Errorf("failed to create session: %w", err))
+	}
+
+	lockMutex := concurrency.NewMutex(session, key)
 	if err := lockMutex.Lock(m.ctx); err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to lock key %s: %w", key, err))
 	}
@@ -78,6 +82,7 @@ func (m *etcdLocker) Lock(key string) (Key, error) {
 		id:        id,
 		key:       key,
 		lockMutex: lockMutex,
+		session:   session,
 	}
 
 	return lockKey, nil
@@ -95,6 +100,10 @@ func (m *etcdLocker) Unlock(key Key) error {
 
 	if err := etcdKey.lockMutex.Unlock(m.ctx); err != nil {
 		return fferr.NewInternalError(fmt.Errorf("failed to unlock key %s: %w", key.Key(), err))
+	}
+
+	if err := etcdKey.session.Close(); err != nil {
+		return fferr.NewInternalError(fmt.Errorf("failed to close session: %w", err))
 	}
 
 	return nil

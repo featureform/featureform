@@ -92,7 +92,7 @@ class DockerDeployment(Deployment):
             quickstart_deployment.append(
                 DOCKER_CONFIG(
                     name="quickstart-clickhouse",
-                    image="clickhouse/clickhouse-server",
+                    image="featureformcom/clickhouse-server",
                     port={"9000/tcp": 9000, "8123/tcp": 8123},
                     detach_mode=True,
                     env={},

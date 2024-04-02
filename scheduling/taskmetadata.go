@@ -10,6 +10,10 @@ import (
 	ss "github.com/featureform/storage"
 )
 
+const (
+	EmptyList int = iota
+)
+
 type TaskMetadataList []TaskMetadata
 
 type TaskRunList []TaskRunMetadata
@@ -30,24 +34,44 @@ type TaskMetadataManager struct {
 }
 
 func NewTaskMetadataManager(storage ss.MetadataStorage, generator ffsync.OrderedIdGenerator) TaskMetadataManager {
-	return TaskMetadataManager{
-		storage:     storage,
-		idGenerator: generator,
-	}
-}
-
-func NewMemoryTaskMetadataManager() TaskMetadataManager {
-	memoryLocker := ffsync.NewMemoryLocker()
-	memoryStorage := ss.NewMemoryStorageImplementation()
-
 	memoryMetadataStorage := ss.MetadataStorage{
 		Locker:  &memoryLocker,
 		Storage: &memoryStorage,
 	}
+
+	idGenerator, _ := ffsync.NewMemoryOrderedIdGenerator()
+
 	return TaskMetadataManager{
 		storage:     memoryMetadataStorage,
-		idGenerator: ffsync.NewMemoryOrderedIdGenerator(),
+		idGenerator: idGenerator,
+	}, nil
+}
+
+func NewETCDTaskMetadataManager() (TaskMetadataManager, error) {
+	etcdLocker, err := ffsync.NewETCDLocker()
+	if err != nil {
+		return TaskMetadataManager{}, err
 	}
+
+	etcdStorage, err := ss.NewETCDStorageImplementation()
+	if err != nil {
+		return TaskMetadataManager{}, err
+	}
+
+	etcdMetadataStorage := ss.MetadataStorage{
+		Locker:  etcdLocker,
+		Storage: etcdStorage,
+	}
+
+	idGenerator, err := ffsync.NewETCDOrderedIdGenerator()
+	if err != nil {
+		return TaskMetadataManager{}, err
+	}
+
+	return TaskMetadataManager{
+		storage:     etcdMetadataStorage,
+		idGenerator: idGenerator,
+	}, nil
 }
 
 func (m *TaskMetadataManager) CreateTask(name string, tType TaskType, target TaskTarget) (TaskMetadata, error) {
@@ -103,8 +127,7 @@ func (m *TaskMetadataManager) GetTaskByID(id TaskID) (TaskMetadata, error) {
 		return TaskMetadata{}, err
 	}
 
-	// Should enum 0 as EmptyList or something
-	if len(metadata) == 0 {
+	if len(metadata) == EmptyList {
 		return TaskMetadata{}, fferr.NewInternalError(fmt.Errorf("task not found for id: %s", id.String()))
 	}
 
@@ -180,13 +203,16 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 	if err != nil {
 		return TaskRunMetadata{}, err
 	}
-	err = m.storage.Create(taskRunKey.String(), string(serializedRuns))
-	if err != nil {
-		return TaskRunMetadata{}, err
-	}
 
 	taskRunMetaKey := TaskRunMetadataKey{taskID: taskID, runID: metadata.ID, date: startTime}
-	err = m.storage.Create(taskRunMetaKey.String(), string(serializedMetadata))
+
+	// this is used to store the metadata for the run as well as the list of runs for the task
+	taskRunMetadata := map[string]string{
+		taskRunKey.String():     string(serializedRuns),
+		taskRunMetaKey.String(): string(serializedMetadata),
+	}
+
+	err = m.storage.MultiCreate(taskRunMetadata)
 	if err != nil {
 		return TaskRunMetadata{}, err
 	}
@@ -302,11 +328,13 @@ func (m *TaskMetadataManager) GetRunByID(taskID TaskID, runID TaskRunID) (TaskRu
 }
 
 func (m *TaskMetadataManager) GetRunsByDate(start time.Time, end time.Time) (TaskRunList, error) {
-	// TODO: add a comment about the key path
-	// TODO: fix the key to include the 0-23 hours and 0-59 minutes, but loop through for each hour
-	// keyPath := key.TruncateToDay() -> // 2024/03/01 (keep it as this for now)
-	// keyPath := key.TruncateToHour() -> // 2024/03/01/00
-	// keyPath := key.TruncateToMinute() -> // 2024/03/01/00/00
+	/*
+		Given a date range, return all runs that started within that range
+		Currently, we are iterating through each day in the range and getting the runs for that day
+		But in the feature, we can iterate by hour and minute as well. We just need to modify the for loop
+		below to iterate by hour and minute and modify the getRunsForDay function to get runs for that hour or minute.
+	*/
+
 	// the date range is inclusive
 	var runs []TaskRunMetadata
 
@@ -324,7 +352,7 @@ func (m *TaskMetadataManager) GetRunsByDate(start time.Time, end time.Time) (Tas
 
 func (m *TaskMetadataManager) getRunsForDay(date time.Time, start time.Time, end time.Time) ([]TaskRunMetadata, error) {
 	key := TaskRunMetadataKey{date: date}
-	recs, err := m.storage.List(key.String())
+	recs, err := m.storage.List(key.TruncateToDay())
 	if err != nil {
 		return []TaskRunMetadata{}, err
 	}

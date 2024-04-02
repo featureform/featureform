@@ -59,6 +59,8 @@ const (
 	// LOCKING
 	KEY_ALREADY_LOCKED = "Key Already Locked"
 	KEY_NOT_LOCKED     = "Key Not Locked"
+	LOCK_EMPTY_KEY     = "Cannot Lock Empty Key"
+	UNLOCK_EMPTY_KEY   = "Cannot Unlock Empty Key"
 
 	// RESOURCE TYPES:
 	PRIMARY_DATASET      ResourceType = "PRIMARY_DATASET"

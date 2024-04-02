@@ -35,3 +35,29 @@ func NewKeyNotLockedError(key string, err error) *KeyNotLockedError {
 		baseError,
 	}
 }
+
+type LockEmptyKeyError struct {
+	baseGRPCError
+}
+
+func NewLockEmptyKeyError() *LockEmptyKeyError {
+	err := fmt.Errorf("cannot lock an empty key")
+	baseError := newBaseGRPCError(err, LOCK_EMPTY_KEY, codes.NotFound)
+
+	return &LockEmptyKeyError{
+		baseError,
+	}
+}
+
+type UnlockEmptyKeyError struct {
+	baseGRPCError
+}
+
+func NewUnlockEmptyKeyError() *UnlockEmptyKeyError {
+	err := fmt.Errorf("cannot unlock an empty key")
+	baseError := newBaseGRPCError(err, UNLOCK_EMPTY_KEY, codes.NotFound)
+
+	return &UnlockEmptyKeyError{
+		baseError,
+	}
+}

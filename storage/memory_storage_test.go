@@ -7,7 +7,7 @@ func TestMemoryMetadataStorage(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
-	storage := NewMemoryStorageImplementation()
+	storage, _ := NewMemoryStorageImplementation()
 
 	test := MetadataStorageTest{
 		t:       t,

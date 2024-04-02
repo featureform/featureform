@@ -20,14 +20,18 @@ func (s *MetadataStorage) Create(key string, value string) error {
 }
 
 func (s *MetadataStorage) MultiCreate(data map[string]string) error {
-	for key, value := range data {
+	// Lock all keys before setting any values
+	for key := range data {
 		lock, err := s.Locker.Lock(key)
 		if err != nil {
 			return err
 		}
 		defer s.Locker.Unlock(lock)
+	}
 
-		err = s.Storage.Set(key, value)
+	// Set all values
+	for key, value := range data {
+		err := s.Storage.Set(key, value)
 		if err != nil {
 			return err
 		}

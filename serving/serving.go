@@ -7,8 +7,9 @@ package serving
 import (
 	"context"
 	"fmt"
-	"github.com/featureform/scheduling"
 	"sync"
+
+	"github.com/featureform/scheduling"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"

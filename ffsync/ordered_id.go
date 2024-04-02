@@ -9,7 +9,6 @@ import (
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/helpers"
-	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	_ "github.com/lib/pq"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -216,29 +215,11 @@ func (rds *rdsIdGenerator) NextId(namespace string) (OrderedId, error) {
 		return nil, fmt.Errorf("cannot generate ID for empty namespace")
 	}
 
-	tx, err := rds.db.BeginTx(context.Background(), pgx.TxOptions{})
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback(context.Background())
-
 	var nextId int64
-	updateSQL := rds.updateIdQuery()
-	err = tx.QueryRow(context.Background(), updateSQL, namespace).Scan(&nextId)
-	if err == pgx.ErrNoRows {
-		nextId = 1
-		insertSQL := rds.insertIdQuery()
-		_, err = tx.Exec(context.Background(), insertSQL, namespace, nextId)
-		if err != nil {
-			return nil, fmt.Errorf("failed to insert new namespace %s: %w", namespace, err)
-		}
-	} else if err != nil {
-		return nil, fmt.Errorf("failed to update key %s: %w", namespace, err)
-	}
-
-	err = tx.Commit(context.Background())
+	upsertIdQuery := rds.upsertIdQuery()
+	err := rds.db.QueryRow(context.Background(), upsertIdQuery, namespace, 1).Scan(&nextId)
 	if err != nil {
-		return nil, fmt.Errorf("transaction commit failed: %w", err)
+		return nil, fmt.Errorf("failed to update key %s: %w", namespace, err)
 	}
 
 	id := Uint64OrderedId(nextId)
@@ -252,10 +233,6 @@ func (rds *rdsIdGenerator) Close() {
 }
 
 // SQL Queries
-func (rds *rdsIdGenerator) updateIdQuery() string {
-	return fmt.Sprintf("UPDATE %s SET current_id = current_id + 1 WHERE namespace = $1 RETURNING current_id", helpers.SanitizePostgres(rds.tableName))
-}
-
-func (rds *rdsIdGenerator) insertIdQuery() string {
-	return fmt.Sprintf("INSERT INTO %s (namespace, current_id) VALUES ($1, $2)", helpers.SanitizePostgres(rds.tableName))
+func (rds *rdsIdGenerator) upsertIdQuery() string {
+	return fmt.Sprintf("INSERT INTO %s (namespace, current_id) VALUES ($1, $2) ON CONFLICT (namespace) DO UPDATE SET current_id = %s.current_id + 1 RETURNING current_id", helpers.SanitizePostgres(rds.tableName), helpers.SanitizePostgres(rds.tableName))
 }

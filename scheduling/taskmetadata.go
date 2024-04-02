@@ -34,26 +34,19 @@ type TaskMetadataManager struct {
 }
 
 func NewTaskMetadataManager(storage ss.MetadataStorage, generator ffsync.OrderedIdGenerator) TaskMetadataManager {
-	memoryMetadataStorage := ss.MetadataStorage{
-		Locker:  &memoryLocker,
-		Storage: &memoryStorage,
-	}
-
-	idGenerator, _ := ffsync.NewMemoryOrderedIdGenerator()
-
 	return TaskMetadataManager{
-		storage:     memoryMetadataStorage,
-		idGenerator: idGenerator,
-	}, nil
+		storage:     storage,
+		idGenerator: generator,
+	}
 }
 
-func NewETCDTaskMetadataManager() (TaskMetadataManager, error) {
-	etcdLocker, err := ffsync.NewETCDLocker()
+func NewETCDTaskMetadataManager(host, port string) (TaskMetadataManager, error) {
+	etcdLocker, err := ffsync.NewETCDLocker(host, port)
 	if err != nil {
 		return TaskMetadataManager{}, err
 	}
 
-	etcdStorage, err := ss.NewETCDStorageImplementation()
+	etcdStorage, err := ss.NewETCDStorageImplementation(host, port)
 	if err != nil {
 		return TaskMetadataManager{}, err
 	}

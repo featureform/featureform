@@ -1848,7 +1848,7 @@ func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 type Config struct {
 	Logger          *zap.SugaredLogger
 	SearchParams    *search.MeilisearchParams
-	StorageProvider storage.MetadataStorageImplementation
+	StorageProvider storage.MetadataStorage
 	TaskManager     scheduling.TaskMetadataManager
 	Address         string
 }

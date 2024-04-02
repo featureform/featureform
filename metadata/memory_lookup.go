@@ -17,7 +17,7 @@ import (
 
 // Create Resource Lookup Using ETCD
 type MemoryResourceLookup struct {
-	Connection storage.MetadataStorageImplementation
+	Connection storage.MetadataStorage
 }
 
 // Wrapper around Resource/Job messages. Allows top level storage for info about saved value
@@ -162,7 +162,7 @@ func (lookup MemoryResourceLookup) SetJob(id ResourceID, schedule string) error 
 		return err
 	}
 	jobKey := GetJobKey(id)
-	if err := lookup.Connection.Set(jobKey, string(serialized)); err != nil {
+	if err := lookup.Connection.Create(jobKey, string(serialized)); err != nil {
 		return err
 	}
 
@@ -180,7 +180,7 @@ func (lookup MemoryResourceLookup) SetSchedule(id ResourceID, schedule string) e
 		return err
 	}
 	jobKey := GetScheduleJobKey(id)
-	if err := lookup.Connection.Set(jobKey, string(serialized)); err != nil {
+	if err := lookup.Connection.Create(jobKey, string(serialized)); err != nil {
 		return err
 	}
 	return nil
@@ -193,7 +193,7 @@ func (lookup MemoryResourceLookup) Set(id ResourceID, res Resource) error {
 		return err
 	}
 	key := createKey(id)
-	if err := lookup.Connection.Set(key, string(serRes)); err != nil {
+	if err := lookup.Connection.Create(key, string(serRes)); err != nil {
 		return err
 	}
 	return nil

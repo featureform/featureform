@@ -11,7 +11,7 @@ import (
 func NewMemoryStorageImplementation() (memoryStorageImplementation, error) {
 	return memoryStorageImplementation{
 		storage: &sync.Map{},
-	}
+	}, nil
 }
 
 type memoryStorageImplementation struct {

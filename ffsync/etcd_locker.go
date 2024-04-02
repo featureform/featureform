@@ -6,7 +6,6 @@ import (
 	"net/url"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/helpers"
 	"github.com/google/uuid"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
@@ -26,11 +25,9 @@ func (k etcdKey) Key() string {
 	return k.key
 }
 
-func NewETCDLocker() (Locker, error) {
-	etcdHost := helpers.GetEnv("ETCD_HOST", "localhost")
-	etcdPort := helpers.GetEnv("ETCD_PORT", "2379")
+func NewETCDLocker(host, port string) (Locker, error) {
 
-	etcdHostPort := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
+	etcdHostPort := fmt.Sprintf("%s:%s", host, port)
 
 	etcdURL := url.URL{
 		Scheme: "http",

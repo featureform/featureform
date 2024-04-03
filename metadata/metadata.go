@@ -54,6 +54,7 @@ const (
 	TRAINING_SET                      = ResourceType(pb.ResourceType_TRAINING_SET)
 	TRAINING_SET_VARIANT              = ResourceType(pb.ResourceType_TRAINING_SET_VARIANT)
 	MODEL                             = ResourceType(pb.ResourceType_MODEL)
+	PROJECT						      = ResourceType(pb.ResourceType_PROJECT)
 )
 
 func (r ResourceType) String() string {
@@ -1710,6 +1711,12 @@ func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.
 
 func (serv *MetadataServer) GetUsers(stream pb.Metadata_GetUsersServer) error {
 	return serv.genericGet(stream, USER, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.User))
+	})
+}
+
+func (serv *MetadataServer) GetProjects(stream pb.Metadata_GetProjectsServer) error {
+	return serv.genericGet(stream, PROJECT, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.User))
 	})
 }

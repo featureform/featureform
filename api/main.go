@@ -111,6 +111,35 @@ func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
 	}
 }
 
+func (serv *MetadataServer) GetProjects(stream pb.Api_GetProjectsServer) error {
+	for {
+		name, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
+		}
+		proxyStream, err := serv.meta.GetProjects(stream.Context())
+		if err != nil {
+			return err
+		}
+		sErr := proxyStream.Send(name)
+		if sErr != nil {
+			return sErr
+		}
+		res, err := proxyStream.Recv()
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
 func (serv *MetadataServer) GetFeatures(stream pb.Api_GetFeaturesServer) error {
 	for {
 		name, err := stream.Recv()

@@ -4280,6 +4280,19 @@ class ResourceClient:
         """
         return get_user_info(self._stub, name)
 
+    def get_project(self, name, local=False):
+        """Get a project. Prints out name of user, and all resources associated with the user.
+        TODO: Add example
+        ```
+
+        Args:
+            name (str): Name of project to be retrieved
+
+        Returns:
+            project (Project): Project
+        """
+        return get_project_info(self._stub, name)
+
     def get_entity(self, name, local=False):
         """Get an entity. Prints out information on entity, and all resources associated with the entity.
 

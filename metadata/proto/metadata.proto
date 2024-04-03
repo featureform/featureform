@@ -25,6 +25,7 @@ service Metadata {
     rpc CreateProject(Project) returns (Empty);
 
     rpc GetUsers(stream Name) returns (stream User);
+    rpc GetProjects(stream Name) returns (stream Project);
     rpc GetFeatures(stream Name) returns (stream Feature);
     rpc GetFeatureVariants(stream NameVariant) returns (stream FeatureVariant);
     rpc GetLabels(stream Name) returns (stream Label);
@@ -73,6 +74,7 @@ service Api {
     rpc CreateProject(Project) returns (Empty);
 
     rpc GetUsers(stream Name) returns (stream User);
+    rpc GetProjects(stream Name) returns (stream Project);
     rpc GetFeatures(stream Name) returns (stream Feature);
     rpc GetFeatureVariants(stream NameVariant) returns (stream FeatureVariant);
     rpc GetLabels(stream Name) returns (stream Label);

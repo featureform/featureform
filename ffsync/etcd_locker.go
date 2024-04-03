@@ -3,7 +3,6 @@ package ffsync
 import (
 	"context"
 	"fmt"
-	"net/url"
 
 	"github.com/featureform/fferr"
 	"github.com/google/uuid"
@@ -25,24 +24,16 @@ func (k etcdKey) Key() string {
 	return k.key
 }
 
-func NewETCDLocker(host, port string) (Locker, error) {
-
-	etcdHostPort := fmt.Sprintf("%s:%s", host, port)
-
-	etcdURL := url.URL{
-		Scheme: "http",
-		Host:   etcdHostPort,
-	}
-
+func NewETCDLocker(config helpers.ETCDConfig) (Locker, error) {
 	client, err := clientv3.New(clientv3.Config{
-		Endpoints: []string{etcdURL.String()},
+		Endpoints: []string{config.URL()},
 	})
 	if err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to create etcd client: %w", err))
 	}
 
 	ctx := context.Background()
-	lease, err := client.Grant(ctx, int64(ValidTimePeriod))
+	lease, err := client.Grant(ctx, int64(ValidTimePeriod.Duration()))
 	if err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to grant lease: %w", err))
 	}
@@ -105,6 +96,9 @@ func (m *etcdLocker) Lock(key string) (Key, error) {
 }
 
 func (m *etcdLocker) Unlock(key Key) error {
+	if key == nil {
+		return fferr.NewInternalError(fmt.Errorf("cannot unlock a nil key"))
+	}
 	if key.Key() == "" {
 		return fferr.NewUnlockEmptyKeyError()
 	}
@@ -119,4 +113,10 @@ func (m *etcdLocker) Unlock(key Key) error {
 	}
 
 	return nil
+}
+
+func (m *etcdLocker) Close() {
+	m.client.Revoke(m.ctx, m.lease.ID)
+	m.session.Close()
+	m.client.Close()
 }

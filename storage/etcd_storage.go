@@ -3,22 +3,14 @@ package storage
 import (
 	"context"
 	"fmt"
-	"net/url"
 
 	"github.com/featureform/fferr"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func NewETCDStorageImplementation(host, port string) (metadataStorageImplementation, error) {
-	etcdHostPort := fmt.Sprintf("%s:%s", host, port)
-
-	etcdURL := url.URL{
-		Scheme: "http",
-		Host:   etcdHostPort,
-	}
-
+func NewETCDStorageImplementation(config helpers.ETCDConfig) (metadataStorageImplementation, error) {
 	client, err := clientv3.New(clientv3.Config{
-		Endpoints: []string{etcdURL.String()},
+		Endpoints: []string{config.URL()},
 	})
 	if err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to create etcd client: %w", err))
@@ -70,10 +62,6 @@ func (etcd *etcdStorageImplementation) List(prefix string) (map[string]string, e
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to get keys with prefix %s: %w", prefix, err))
 	}
 
-	if len(resp.Kvs) == 0 {
-		return nil, fferr.NewKeyNotFoundError(prefix, nil)
-	}
-
 	result := make(map[string]string)
 	for _, kv := range resp.Kvs {
 		result[string(kv.Key)] = string(kv.Value)
@@ -97,4 +85,8 @@ func (etcd *etcdStorageImplementation) Delete(key string) (string, error) {
 	}
 
 	return string(resp.PrevKvs[0].Value), nil
+}
+
+func (etcd *etcdStorageImplementation) Close() {
+	etcd.client.Close()
 }

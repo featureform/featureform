@@ -153,13 +153,6 @@ func (t *TaskMetadata) Unmarshal(data []byte) error {
 
 	t.TargetType = temp.TargetType
 
-	// TODO: ask Riddhi if there was purpose for this
-	targetMap := make(map[string]interface{})
-	if err := json.Unmarshal(temp.Target, &targetMap); err != nil {
-		errMessage := fmt.Errorf("failed to deserialize target data: %w", err)
-		return fferr.NewInternalError(errMessage)
-	}
-
 	switch temp.TargetType {
 	case ProviderTarget:
 		var provider Provider

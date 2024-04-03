@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -12,6 +11,8 @@ import (
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/helpers"
+	"github.com/jackc/pgx/v4/pgxpool"
+	_ "github.com/lib/pq"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
 )
@@ -26,7 +27,7 @@ type OrderedId interface {
 	UnmarshalJSON(data []byte) error
 }
 
-const etcd_id_key = "FFSync/ID" // Key for the etcd ID generator, will add namespace to the end
+const etcd_id_key = "/FFSync/ID" // Key for the etcd ID generator, will add namespace to the end
 
 type Uint64OrderedId uint64
 
@@ -74,6 +75,7 @@ func (id *Uint64OrderedId) MarshalJSON() ([]byte, error) {
 
 type OrderedIdGenerator interface {
 	NextId(namespace string) (OrderedId, error)
+	Close()
 }
 
 func NewMemoryOrderedIdGenerator() (OrderedIdGenerator, error) {
@@ -103,19 +105,13 @@ func (m *memoryIdGenerator) NextId(namespace string) (OrderedId, error) {
 	return (*Uint64OrderedId)(&nextId), nil
 }
 
-func NewETCDOrderedIdGenerator() (OrderedIdGenerator, error) {
-	etcdHost := helpers.GetEnv("ETCD_HOST", "localhost")
-	etcdPort := helpers.GetEnv("ETCD_PORT", "2379")
+func (m *memoryIdGenerator) Close() {
+	// No-op
+}
 
-	etcdHostPort := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
-
-	etcdURL := url.URL{
-		Scheme: "http",
-		Host:   etcdHostPort,
-	}
-
+func NewETCDOrderedIdGenerator(config helpers.ETCDConfig) (OrderedIdGenerator, error) {
 	client, err := clientv3.New(clientv3.Config{
-		Endpoints: []string{etcdURL.String()},
+		Endpoints: []string{config.URL()},
 	})
 	if err != nil {
 		return nil, fferr.NewInternalError(fmt.Errorf("failed to create etcd client: %w", err))
@@ -165,7 +161,7 @@ func (etcd *etcdIdGenerator) NextId(namespace string) (OrderedId, error) {
 		nextId = 1
 	} else {
 		nextIdStr := string(resp.Kvs[0].Value)
-		nextId, err := strconv.ParseUint(nextIdStr, 10, 64)
+		nextId, err = strconv.ParseUint(nextIdStr, 10, 64)
 		if err != nil {
 			return nil, fferr.NewInternalError(fmt.Errorf("failed to parse ID as uint64: %s: %v", nextIdStr, err))
 		}
@@ -178,6 +174,79 @@ func (etcd *etcdIdGenerator) NextId(namespace string) (OrderedId, error) {
 	}
 
 	return (*Uint64OrderedId)(&nextId), nil
+}
+
+func (etcd *etcdIdGenerator) Close() {
+	etcd.session.Close()
+	etcd.client.Close()
+}
+
+func NewRDSOrderedIdGenerator(config helpers.RDSConfig) (OrderedIdGenerator, error) {
+	const tableName = "ff_ordered_id"
+
+	db, err := helpers.NewRDSPoolConnection(config)
+	if err != nil {
+		return nil, err
+	}
+
+	// acquire a connection pool
+	connection, err := db.Acquire(context.Background())
+	if err != nil {
+		return nil, fferr.NewInternalError(fmt.Errorf("failed to acquire connection from the database pool: %w", err))
+	}
+
+	// ping the database
+	err = connection.Ping(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to ping the database: %w", err)
+	}
+
+	// Create the id table if it doesn't exist
+	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (namespace VARCHAR(2048) PRIMARY KEY, current_id BIGINT)", helpers.SanitizePostgres(tableName))
+	_, err = db.Exec(context.Background(), tableCreationSQL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create table %s: %w", tableName, err)
+	}
+
+	return &rdsIdGenerator{
+		db:         db,
+		tableName:  tableName,
+		connection: connection,
+	}, nil
+}
+
+type rdsIdGenerator struct {
+	db         *pgxpool.Pool
+	tableName  string
+	connection *pgxpool.Conn
+}
+
+func (rds *rdsIdGenerator) NextId(namespace string) (OrderedId, error) {
+	if namespace == "" {
+		return nil, fmt.Errorf("cannot generate ID for empty namespace")
+	}
+
+	var nextId int64
+	upsertIdQuery := rds.upsertIdQuery()
+	err := rds.db.QueryRow(context.Background(), upsertIdQuery, namespace, 1).Scan(&nextId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update key %s: %w", namespace, err)
+	}
+
+	id := Uint64OrderedId(nextId)
+
+	return &id, nil
+}
+
+func (rds *rdsIdGenerator) Close() {
+	rds.connection.Release()
+	rds.db.Close()
+}
+
+// SQL Queries
+func (rds *rdsIdGenerator) upsertIdQuery() string {
+	sanitizedTableName := helpers.SanitizePostgres(rds.tableName)
+	return fmt.Sprintf("INSERT INTO %s (namespace, current_id) VALUES ($1, $2) ON CONFLICT (namespace) DO UPDATE SET current_id = %s.current_id + 1 RETURNING current_id", sanitizedTableName, sanitizedTableName)
 }
 
 func createLockKey(prefix, namespace string) string {

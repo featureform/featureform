@@ -58,7 +58,7 @@ func (m *memoryLocker) Lock(key string) (Key, error) {
 
 	if lockInfo, ok := m.lockedItems.Load(key); ok {
 		keyLock := lockInfo.(LockInformation)
-		if time.Since(keyLock.Date) < ValidTimePeriod {
+		if time.Since(keyLock.Date) < ValidTimePeriod.Duration() {
 			return nil, fferr.NewKeyAlreadyLockedError(key, keyLock.ID, nil)
 		}
 	}
@@ -111,7 +111,7 @@ func (m *memoryLocker) hasPrefixLocked(key string) (string, bool) {
 }
 
 func (m *memoryLocker) updateLockTime(key *memoryKey) {
-	ticker := time.NewTicker(UpdateSleepTime)
+	ticker := time.NewTicker(UpdateSleepTime.Duration())
 	defer ticker.Stop()
 
 	for {
@@ -143,6 +143,10 @@ func (m *memoryLocker) updateLockTime(key *memoryKey) {
 }
 
 func (m *memoryLocker) Unlock(key Key) error {
+	if key == nil {
+		return fferr.NewInternalError(fmt.Errorf("cannot unlock a nil key"))
+	}
+
 	if key.Key() == "" {
 		return fferr.NewUnlockEmptyKeyError()
 	}
@@ -176,4 +180,8 @@ func (m *memoryLocker) Unlock(key Key) error {
 	close(mKey.Done)
 
 	return nil
+}
+
+func (m *memoryLocker) Close() {
+	// Do nothing
 }

@@ -8,6 +8,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"reflect"
+	"slices"
+	"sort"
+	"strings"
+
 	"github.com/featureform/ffsync"
 	filestore "github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
@@ -26,11 +32,6 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
-	"net/http"
-	"reflect"
-	"slices"
-	"sort"
-	"strings"
 )
 
 var SearchClient search.Searcher

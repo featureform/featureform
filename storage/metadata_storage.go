@@ -20,14 +20,18 @@ func (s *MetadataStorage) Create(key string, value string) error {
 }
 
 func (s *MetadataStorage) MultiCreate(data map[string]string) error {
-	for key, value := range data {
+	// Lock all keys before setting any values
+	for key := range data {
 		lock, err := s.Locker.Lock(key)
 		if err != nil {
 			return err
 		}
 		defer s.Locker.Unlock(lock)
+	}
 
-		err = s.Storage.Set(key, value)
+	// Set all values
+	for key, value := range data {
+		err := s.Storage.Set(key, value)
 		if err != nil {
 			return err
 		}
@@ -89,9 +93,15 @@ func (s *MetadataStorage) Delete(key string) (string, error) {
 	return value, nil
 }
 
+func (s *MetadataStorage) Close() {
+	s.Locker.Close()
+	s.Storage.Close()
+}
+
 type metadataStorageImplementation interface {
 	Set(key string, value string) error            // Set stores the value for the key and updates it if it already exists
 	Get(key string) (string, error)                // Get returns the value for the key
 	List(prefix string) (map[string]string, error) // List returns all the keys and values with the given prefix
 	Delete(key string) (string, error)             // Delete removes the key and its value from the store
+	Close()                                        // Close closes the storage
 }

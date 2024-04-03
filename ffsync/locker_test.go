@@ -10,8 +10,9 @@ import (
 )
 
 type LockerTest struct {
-	t      *testing.T
-	locker Locker
+	t          *testing.T
+	locker     Locker
+	lockerType string
 }
 
 func (test *LockerTest) Run() {
@@ -22,10 +23,14 @@ func (test *LockerTest) Run() {
 		"LockAndUnlock":               LockAndUnlock,
 		"LockAndUnlockWithGoRoutines": LockAndUnlockWithGoRoutines,
 		"StressTestLockAndUnlock":     StressTestLockAndUnlock,
+		"TestLockTimeUpdates":         LockTimeUpdates,
 	}
 
 	for name, fn := range testFns {
 		t.Run(name, func(t *testing.T) {
+			if name == "TestLockTimeUpdates" && test.lockerType == "etcd" {
+				t.Skip("TestLockTimeUpdates is not supported for etcd locker")
+			}
 			fn(t, locker)
 		})
 	}
@@ -69,7 +74,7 @@ func LockAndUnlockWithGoRoutines(t *testing.T, locker Locker) {
 }
 
 func StressTestLockAndUnlock(t *testing.T, locker Locker) {
-	key := "/tasks/metadata/task_id=5"
+	key := "/tasks/metadata/task_id=6"
 
 	var wg sync.WaitGroup
 	// Use a counter to track the number of errors
@@ -84,7 +89,6 @@ func StressTestLockAndUnlock(t *testing.T, locker Locker) {
 			// if multiple threads are able to lock the key, it means
 			// there is a race condition. And we are able to detect it because
 			// we will fail to unlock the key
-
 			lock, err := locker.Lock(key)
 			if err != nil {
 				return
@@ -118,7 +122,10 @@ func unlockGoRoutine(locker Locker, lock Key, errChan chan<- error) {
 }
 
 func TestLockAndUnlockPrefixes(t *testing.T) {
-	locker, _ := NewMemoryLocker()
+	locker, err := NewMemoryLocker()
+	if err != nil {
+		t.Fatalf("Failed to create memory locker: %v", err)
+	}
 
 	prefix := "/tasks/metadata"
 	taskId := "task_id=5"
@@ -159,22 +166,19 @@ func TestLockAndUnlockPrefixes(t *testing.T) {
 	}
 }
 
-func TestMemoryLockTimeUpdates(t *testing.T) {
-	locker, _ := NewMemoryLocker()
-
+func LockTimeUpdates(t *testing.T, locker Locker) {
 	key := "/tasks/metadata/task_id=3"
 	lock, err := locker.Lock(key)
 	if err != nil {
 		t.Fatalf("Lock failed: %v", err)
 	}
 
-	// Wait for 2 x ValidTimePeriod
-	time.Sleep(2 * ValidTimePeriod)
+	time.Sleep(ValidTimePeriod.Duration() / 2)
 
-	// Test the lock has been released
+	// Lock the key again
 	_, err = locker.Lock(key)
 	if err == nil {
-		t.Fatal("Second Lock should have failed but didn't")
+		t.Fatalf("Locking the key should have failed because it is already locked")
 	}
 
 	// Release the lock

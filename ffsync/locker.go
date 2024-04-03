@@ -8,9 +8,32 @@ import (
 	"github.com/featureform/fferr"
 )
 
-const (
-	UpdateSleepTime = 2 * time.Second
-	ValidTimePeriod = 5 * time.Second
+// lockDuration is a struct that represents a duration that will be
+// used to sleep as well as valid time period.
+type lockDuration struct {
+	duration time.Duration
+}
+
+func (t lockDuration) Duration() time.Duration {
+	return t.duration
+}
+
+func (t lockDuration) AsRDSString() string {
+	totalSeconds := int(t.duration.Seconds())
+	if totalSeconds < 60 {
+		return fmt.Sprintf("%d seconds", totalSeconds)
+	} else if totalSeconds < 3600 {
+		return fmt.Sprintf("%d minutes", totalSeconds/60)
+	} else {
+		return fmt.Sprintf("%d hours", totalSeconds/3600)
+	}
+}
+
+var (
+	// UpdateSleepTime is used to sleep between each update.
+	// Best to keep it less than half of ValidTimePeriod.
+	UpdateSleepTime = lockDuration{2 * time.Second}
+	ValidTimePeriod = lockDuration{1 * time.Minute}
 )
 
 type LockInformation struct {
@@ -67,6 +90,7 @@ example: etcd, memory, etc.
 type Locker interface {
 	Lock(lock string) (Key, error)
 	Unlock(key Key) error
+	Close()
 }
 
 type Key interface {

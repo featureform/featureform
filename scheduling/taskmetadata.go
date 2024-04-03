@@ -2,11 +2,13 @@ package scheduling
 
 import (
 	"fmt"
-	"github.com/featureform/metadata/proto"
 	"time"
+
+	"github.com/featureform/metadata/proto"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/ffsync"
+	"github.com/featureform/helpers"
 	ss "github.com/featureform/storage"
 )
 
@@ -33,20 +35,40 @@ type TaskMetadataManager struct {
 	idGenerator ffsync.OrderedIdGenerator
 }
 
-func NewTaskMetadataManager(storage ss.MetadataStorage, generator ffsync.OrderedIdGenerator) TaskMetadataManager {
+func NewMemoryTaskMetadataManager() (TaskMetadataManager, error) {
+	memoryLocker, err := ffsync.NewMemoryLocker()
+	if err != nil {
+		return TaskMetadataManager{}, err
+	}
+
+	memoryStorage, err := ss.NewMemoryStorageImplementation()
+	if err != nil {
+		return TaskMetadataManager{}, err
+	}
+
+	memoryMetadataStorage := ss.MetadataStorage{
+		Locker:  &memoryLocker,
+		Storage: &memoryStorage,
+	}
+
+	idGenerator, err := ffsync.NewMemoryOrderedIdGenerator()
+	if err != nil {
+		return TaskMetadataManager{}, err
+	}
+
 	return TaskMetadataManager{
 		storage:     storage,
 		idGenerator: generator,
 	}
 }
 
-func NewETCDTaskMetadataManager(host, port string) (TaskMetadataManager, error) {
-	etcdLocker, err := ffsync.NewETCDLocker(host, port)
+func NewETCDTaskMetadataManager(config helpers.ETCDConfig) (TaskMetadataManager, error) {
+	etcdLocker, err := ffsync.NewETCDLocker(config)
 	if err != nil {
 		return TaskMetadataManager{}, err
 	}
 
-	etcdStorage, err := ss.NewETCDStorageImplementation(host, port)
+	etcdStorage, err := ss.NewETCDStorageImplementation(config)
 	if err != nil {
 		return TaskMetadataManager{}, err
 	}
@@ -56,13 +78,40 @@ func NewETCDTaskMetadataManager(host, port string) (TaskMetadataManager, error) 
 		Storage: etcdStorage,
 	}
 
-	idGenerator, err := ffsync.NewETCDOrderedIdGenerator()
+	idGenerator, err := ffsync.NewETCDOrderedIdGenerator(config)
 	if err != nil {
 		return TaskMetadataManager{}, err
 	}
 
 	return TaskMetadataManager{
 		storage:     etcdMetadataStorage,
+		idGenerator: idGenerator,
+	}, nil
+}
+
+func NewRDSTaskMetadataManager(config helpers.RDSConfig) (TaskMetadataManager, error) {
+	rdsLocker, err := ffsync.NewRDSLocker(config)
+	if err != nil {
+		return TaskMetadataManager{}, err
+	}
+
+	rdsStorage, err := ss.NewRDSStorageImplementation(config, "ff_task_metadata")
+	if err != nil {
+		return TaskMetadataManager{}, err
+	}
+
+	rdsMetadataStorage := ss.MetadataStorage{
+		Locker:  rdsLocker,
+		Storage: rdsStorage,
+	}
+
+	idGenerator, err := ffsync.NewRDSOrderedIdGenerator(config)
+	if err != nil {
+		return TaskMetadataManager{}, err
+	}
+
+	return TaskMetadataManager{
+		storage:     rdsMetadataStorage,
 		idGenerator: idGenerator,
 	}, nil
 }

@@ -52,12 +52,24 @@ func (id *MockOrderedID) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (id *MockOrderedID) FromString(idStr string) error {
+	tmp, err := fmt.Sscan(idStr, &id.Id)
+	if err != nil {
+		return fmt.Errorf("failed to convert string to uint64: %v", err)
+	}
+	id.Id = uint64(tmp)
+	return nil
+}
+
 func TestTaskMetadataManager(t *testing.T) {
 	testFns := map[string]func(*testing.T, TaskMetadataManager){
 		"CreateTask": testCreateTask,
 	}
 
-	memoryTaskMetadataManager, _ := NewMemoryTaskMetadataManager()
+	memoryTaskMetadataManager, err := NewMemoryTaskMetadataManager()
+	if err != nil {
+		t.Fatalf("failed to create memory task metadata manager: %v", err)
+	}
 
 	for name, fn := range testFns {
 		t.Run(name, func(t *testing.T) {
@@ -97,7 +109,11 @@ func testCreateTask(t *testing.T, manager TaskMetadataManager) {
 	}
 
 	fn := func(t *testing.T, tasks []taskInfo, shouldError bool) {
-		manager, _ := NewMemoryTaskMetadataManager() // TODO: will need to modify this to use any store and deletes tasks after job was done
+		manager, err := NewMemoryTaskMetadataManager() // TODO: will need to modify this to use any store and deletes tasks after job was done
+		if err != nil {
+			t.Fatalf("failed to create memory task metadata manager: %v", err)
+		}
+
 		for _, task := range tasks {
 			taskDef, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && shouldError {
@@ -171,7 +187,10 @@ func TestTaskGetByID(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		manager, _ := NewMemoryTaskMetadataManager()
+		manager, err := NewMemoryTaskMetadataManager()
+		if err != nil {
+			t.Fatalf("failed to create memory task metadata manager: %v", err)
+		}
 
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
@@ -247,7 +266,11 @@ func TestTaskGetAll(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		manager, _ := NewMemoryTaskMetadataManager()
+		manager, err := NewMemoryTaskMetadataManager()
+		if err != nil {
+			t.Fatalf("failed to create memory task metadata manager: %v", err)
+		}
+
 		var definitions []TaskMetadata
 		for _, task := range test.Tasks {
 			taskDef, err := manager.CreateTask(task.Name, task.Type, task.Target)
@@ -355,7 +378,11 @@ func TestCreateTaskRun(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		manager, _ := NewMemoryTaskMetadataManager()
+		manager, err := NewMemoryTaskMetadataManager()
+		if err != nil {
+			t.Fatalf("failed to create memory task metadata manager: %v", err)
+		}
+
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -455,7 +482,11 @@ func TestGetRunByID(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		manager, _ := NewMemoryTaskMetadataManager()
+		manager, err := NewMemoryTaskMetadataManager()
+		if err != nil {
+			t.Fatalf("failed to create memory task metadata manager: %v", err)
+		}
+
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -555,7 +586,11 @@ func TestGetRunAll(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		manager, _ := NewMemoryTaskMetadataManager()
+		manager, err := NewMemoryTaskMetadataManager()
+		if err != nil {
+			t.Fatalf("failed to create memory task metadata manager: %v", err)
+		}
+
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -708,7 +743,11 @@ func TestSetStatusByRunID(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		manager, _ := NewMemoryTaskMetadataManager()
+		manager, err := NewMemoryTaskMetadataManager()
+		if err != nil {
+			t.Fatalf("failed to create memory task metadata manager: %v", err)
+		}
+
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -723,7 +762,7 @@ func TestSetStatusByRunID(t *testing.T) {
 			}
 		}
 
-		err := manager.SetRunStatus(test.ForRun, test.ForTask, test.SetStatus, test.SetError)
+		err = manager.SetRunStatus(test.ForRun, test.ForTask, test.SetStatus, test.SetError)
 		if err != nil && test.shouldError {
 			return
 		} else if err != nil && !test.shouldError {
@@ -840,7 +879,11 @@ func TestSetEndTimeByRunID(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		manager, _ := NewMemoryTaskMetadataManager()
+		manager, err := NewMemoryTaskMetadataManager()
+		if err != nil {
+			t.Fatalf("failed to create memory task metadata manager: %v", err)
+		}
+
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {
@@ -855,7 +898,7 @@ func TestSetEndTimeByRunID(t *testing.T) {
 			}
 		}
 
-		err := manager.SetRunEndTime(test.ForRun, test.ForTask, test.SetTime)
+		err = manager.SetRunEndTime(test.ForRun, test.ForTask, test.SetTime)
 		if err != nil && test.shouldError {
 			return
 		} else if err != nil && !test.shouldError {
@@ -978,7 +1021,11 @@ func TestGetRunsByDate(t *testing.T) {
 	}
 
 	fn := func(t *testing.T, test TestCase) {
-		manager, _ := NewMemoryTaskMetadataManager()
+		manager, err := NewMemoryTaskMetadataManager()
+		if err != nil {
+			t.Fatalf("failed to create memory task metadata manager: %v", err)
+		}
+
 		for _, task := range test.Tasks {
 			_, err := manager.CreateTask(task.Name, task.Type, task.Target)
 			if err != nil && !test.shouldError {

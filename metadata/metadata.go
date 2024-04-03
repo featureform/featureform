@@ -10,12 +10,13 @@ package metadata
 import (
 	"context"
 	"fmt"
-	sch "github.com/featureform/scheduling/proto"
-	"github.com/featureform/storage"
 	"io"
 	"net"
 	"strings"
 	"time"
+
+	sch "github.com/featureform/scheduling/proto"
+	"github.com/featureform/storage"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/helpers"

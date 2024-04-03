@@ -41,8 +41,7 @@ type LockEmptyKeyError struct {
 }
 
 func NewLockEmptyKeyError() *LockEmptyKeyError {
-	err := fmt.Errorf("cannot lock an empty key")
-	baseError := newBaseGRPCError(err, LOCK_EMPTY_KEY, codes.NotFound)
+	baseError := newBaseGRPCError(nil, LOCK_EMPTY_KEY, codes.NotFound)
 
 	return &LockEmptyKeyError{
 		baseError,

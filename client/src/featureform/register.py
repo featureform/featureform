@@ -9,7 +9,7 @@ from abc import ABC
 from collections.abc import Iterable
 from datetime import timedelta
 from typing import Callable, Dict, List, Optional, Tuple, Union
-
+import json
 import dill
 import pandas as pd
 from dataclasses import dataclass, field

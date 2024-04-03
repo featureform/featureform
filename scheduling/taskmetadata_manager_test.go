@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/featureform/ffsync"
+	"github.com/featureform/metadata/proto"
 )
 
 type MockOrderedID struct {
@@ -653,8 +654,7 @@ func TestSetStatusByRunID(t *testing.T) {
 		Runs        []runInfo
 		ForTask     TaskID
 		ForRun      TaskRunID
-		SetStatus   Status
-		SetError    error
+		SetStatus   *proto.ResourceStatus
 		shouldError bool
 	}
 	tests := []TestCase{
@@ -664,8 +664,7 @@ func TestSetStatusByRunID(t *testing.T) {
 			[]runInfo{{"name", TaskID(&MockOrderedID{Id: 1}), OnApplyTrigger{"name"}}},
 			TaskID(&MockOrderedID{Id: 1}),
 			TaskRunID(&MockOrderedID{Id: 1}),
-			READY,
-			nil,
+			&proto.ResourceStatus{Status: proto.ResourceStatus_PENDING},
 			false,
 		},
 		{
@@ -678,8 +677,7 @@ func TestSetStatusByRunID(t *testing.T) {
 			},
 			TaskID(&MockOrderedID{Id: 1}),
 			TaskRunID(&MockOrderedID{Id: 2}),
-			PENDING,
-			nil,
+			&proto.ResourceStatus{Status: proto.ResourceStatus_PENDING},
 			false,
 		},
 		{
@@ -690,8 +688,7 @@ func TestSetStatusByRunID(t *testing.T) {
 			},
 			TaskID(&MockOrderedID{Id: 1}),
 			TaskRunID(&MockOrderedID{Id: 2}),
-			PENDING,
-			nil,
+			&proto.ResourceStatus{Status: proto.ResourceStatus_PENDING},
 			true,
 		},
 		{
@@ -702,8 +699,7 @@ func TestSetStatusByRunID(t *testing.T) {
 			},
 			TaskID(&MockOrderedID{Id: 1}),
 			TaskRunID(&MockOrderedID{Id: 2}),
-			RUNNING,
-			nil,
+			&proto.ResourceStatus{Status: proto.ResourceStatus_PENDING},
 			true,
 		},
 		{
@@ -720,8 +716,7 @@ func TestSetStatusByRunID(t *testing.T) {
 			},
 			TaskID(&MockOrderedID{Id: 2}),
 			TaskRunID(&MockOrderedID{Id: 3}),
-			FAILED,
-			fmt.Errorf("Failed to create task"),
+			&proto.ResourceStatus{Status: proto.ResourceStatus_FAILED},
 			false,
 		},
 		{
@@ -736,8 +731,7 @@ func TestSetStatusByRunID(t *testing.T) {
 			},
 			TaskID(&MockOrderedID{Id: 2}),
 			TaskRunID(&MockOrderedID{Id: 2}),
-			FAILED,
-			nil,
+			&proto.ResourceStatus{Status: proto.ResourceStatus_FAILED},
 			true,
 		},
 	}
@@ -762,7 +756,7 @@ func TestSetStatusByRunID(t *testing.T) {
 			}
 		}
 
-		err = manager.SetRunStatus(test.ForRun, test.ForTask, test.SetStatus, test.SetError)
+		err = manager.SetRunStatus(test.ForRun, test.ForTask, test.SetStatus)
 		if err != nil && test.shouldError {
 			return
 		} else if err != nil && !test.shouldError {
@@ -777,7 +771,7 @@ func TestSetStatusByRunID(t *testing.T) {
 		}
 
 		recvStatus := recvRun.Status
-		if recvStatus != test.SetStatus {
+		if recvStatus.Proto() != test.SetStatus.Status {
 			t.Fatalf("Expcted %v, got: %v", test.SetStatus, recvStatus)
 		}
 	}
@@ -969,7 +963,7 @@ func TestGetRunsByDate(t *testing.T) {
 		{
 			"Single",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
-			[]runInfo{{"name", TaskID(&id1), OneOffTrigger{"name"}, time.Now().UTC().Add(3 * time.Minute).Truncate(0).UTC()}},
+			[]runInfo{{"name", TaskID(&id1), OnApplyTrigger{"name"}, time.Now().UTC().Add(3 * time.Minute).Truncate(0).UTC()}},
 			[]expectedRunInfo{{TaskID(&id1), TaskRunID(&id1)}},
 			TaskID(&id1),
 			time.Now().UTC(),
@@ -979,9 +973,9 @@ func TestGetRunsByDate(t *testing.T) {
 			"Multiple",
 			[]taskInfo{{"name", ResourceCreation, NameVariant{"name", "variant", "type"}}},
 			[]runInfo{
-				{"name", TaskID(&id1), OneOffTrigger{"name"}, time.Now().UTC().Add(1 * time.Minute).Truncate(0).UTC()},
-				{"name", TaskID(&id1), OneOffTrigger{"name"}, time.Now().UTC().Add(2 * time.Minute).Truncate(0).UTC()},
-				{"name", TaskID(&id1), OneOffTrigger{"name"}, time.Now().UTC().Add(3 * time.Minute).Truncate(0).UTC()},
+				{"name", TaskID(&id1), OnApplyTrigger{"name"}, time.Now().UTC().Add(1 * time.Minute).Truncate(0).UTC()},
+				{"name", TaskID(&id1), OnApplyTrigger{"name"}, time.Now().UTC().Add(2 * time.Minute).Truncate(0).UTC()},
+				{"name", TaskID(&id1), OnApplyTrigger{"name"}, time.Now().UTC().Add(3 * time.Minute).Truncate(0).UTC()},
 			},
 			[]expectedRunInfo{
 				{TaskID(&id1), TaskRunID(&id1)},
@@ -999,13 +993,13 @@ func TestGetRunsByDate(t *testing.T) {
 				{"name", ResourceCreation, NameVariant{"name", "variant", "type"}},
 			},
 			[]runInfo{
-				{"name", TaskID(&id1), OneOffTrigger{"name"}, time.Now().
+				{"name", TaskID(&id1), OnApplyTrigger{"name"}, time.Now().
 					Add(1 * time.Minute).Truncate(0).UTC()},
-				{"name", TaskID(&id1), OneOffTrigger{"name"}, time.Now().
+				{"name", TaskID(&id1), OnApplyTrigger{"name"}, time.Now().
 					Add(2 * time.Minute).Truncate(0).UTC()},
-				{"name", TaskID(&id2), OneOffTrigger{"name"}, time.Now().
+				{"name", TaskID(&id2), OnApplyTrigger{"name"}, time.Now().
 					Add(3 * time.Minute).Truncate(0).UTC()},
-				{"name", TaskID(&id2), OneOffTrigger{"name"}, time.Now().
+				{"name", TaskID(&id2), OnApplyTrigger{"name"}, time.Now().
 					Add(4 * time.Minute).Truncate(0).UTC()},
 			},
 			[]expectedRunInfo{
@@ -1107,16 +1101,16 @@ func TestKeyPaths(t *testing.T) {
 			Key: TaskRunMetadataKey{
 				taskID: TaskID(&MockOrderedID{Id: 1}),
 				runID:  TaskRunID(&MockOrderedID{Id: 1}),
-				date:   time.Date(2023, time.January, 20, 23, 0, 0, 0, time.UTC),
+				date:   time.Date(2023, time.January, 20, 1, 1, 0, 0, time.UTC),
 			},
-			ExpectedKey: "/tasks/runs/metadata/2023/01/20/task_id=1/run_id=1",
+			ExpectedKey: "/tasks/runs/metadata/2023/01/20/01/01/task_id=1/run_id=1",
 		},
 		{
 			Name: "TaskRunMetadataKeyYearOnly",
 			Key: TaskRunMetadataKey{
-				date: time.Date(2023, time.January, 20, 23, 0, 0, 0, time.UTC),
+				date: time.Date(2023, time.January, 20, 2, 2, 0, 0, time.UTC),
 			},
-			ExpectedKey: "/tasks/runs/metadata/2023/01/20",
+			ExpectedKey: "/tasks/runs/metadata/2023/01/20/02/02",
 		},
 	}
 

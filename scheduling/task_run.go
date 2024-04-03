@@ -70,14 +70,7 @@ func (trmk TaskRunMetadataKey) pathWithDateFormat(dateFormat string) string {
 
 	// adds the date to the key if it's not zero
 	if !trmk.date.IsZero() {
-		key += fmt.Sprintf("/%s", trmk.date.Format("2006/01/02/15/04"))
-
-		// adds the task_id and run_id to the key if they're not null
-		taskIdIsNotNil := trmk.taskID != nil
-		runIdIsNotNil := trmk.runID != nil
-		if taskIdIsNotNil && runIdIsNotNil {
-			key += fmt.Sprintf("/task_id=%s/run_id=%s", trmk.taskID.String(), trmk.runID.String())
-		}
+		key += fmt.Sprintf("/%s", trmk.date.UTC().Format(dateFormat))
 	}
 	return key
 }

@@ -17,13 +17,13 @@ func TestTriggerName(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "OneOffTriggerName",
+			name:     "OnApplyTriggerName",
 			trigger:  OnApplyTrigger{TriggerName: "name1"},
 			expected: "name1",
 		},
 		{
-			name:     "DummyTriggerName",
-			trigger:  DummyTrigger{TriggerName: "name2", DummyField: true},
+			name:     "OnApplyTriggerName2",
+			trigger:  OnApplyTrigger{TriggerName: "name2"},
 			expected: "name2",
 		},
 	}
@@ -127,7 +127,7 @@ func TestSerializeTaskRunMetadata(t *testing.T) {
 				Logs:        nil,
 				Error:       "",
 			},
-			triggerType: "OnApplyTrigger",
+			triggerType: OnApplyTriggerType,
 		},
 		{
 			name: "WithDummyTrigger",
@@ -135,18 +135,17 @@ func TestSerializeTaskRunMetadata(t *testing.T) {
 				ID:     TaskRunID(&id1),
 				TaskId: TaskID(&id1),
 				Name:   "dummy_taskrun",
-				Trigger: DummyTrigger{
+				Trigger: OnApplyTrigger{
 					TriggerName: "name2",
-					DummyField:  true,
 				},
-				TriggerType: DummyTriggerType,
+				TriggerType: OnApplyTriggerType,
 				Status:      FAILED,
 				StartTime:   time.Now().Truncate(0).UTC(),
 				EndTime:     time.Now().Truncate(0).UTC(),
 				Logs:        nil,
 				Error:       "",
 			},
-			triggerType: "DummyTrigger",
+			triggerType: OnApplyTriggerType,
 		},
 	}
 
@@ -184,10 +183,9 @@ func TestIncorrectTaskRunMetadata(t *testing.T) {
 			task: TaskRunMetadata{
 				ID:     TaskRunID(&id),
 				TaskId: TaskID(&id),
-				Name:   "dummy_and_oneoff",
-				Trigger: DummyTrigger{
+				Name:   "OnApplyTrigger",
+				Trigger: OnApplyTrigger{
 					TriggerName: "name3",
-					DummyField:  false,
 				},
 				TriggerType: OnApplyTriggerType,
 				Status:      FAILED,
@@ -228,7 +226,7 @@ func TestIncorrectTaskRunMetadata(t *testing.T) {
 			}
 
 			if reflect.DeepEqual(deserializedTask, currTest.task) {
-				t.Fatalf("Expected trigger should be present and different from output trigger")
+				t.Fatalf("Expected trigger should be present and different from output trigger, expected: %v\n Got: %v", currTest.task, deserializedTask)
 			}
 		})
 	}

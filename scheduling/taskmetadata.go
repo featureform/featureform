@@ -46,12 +46,12 @@ func NewMemoryTaskMetadataManager() (TaskMetadataManager, error) {
 		return TaskMetadataManager{}, err
 	}
 
-	memoryMetadataStorage := ss.MetadataStorage{
+	storage := ss.MetadataStorage{
 		Locker:  &memoryLocker,
 		Storage: &memoryStorage,
 	}
 
-	idGenerator, err := ffsync.NewMemoryOrderedIdGenerator()
+	generator, err := ffsync.NewMemoryOrderedIdGenerator()
 	if err != nil {
 		return TaskMetadataManager{}, err
 	}
@@ -59,7 +59,7 @@ func NewMemoryTaskMetadataManager() (TaskMetadataManager, error) {
 	return TaskMetadataManager{
 		storage:     storage,
 		idGenerator: generator,
-	}
+	}, nil
 }
 
 func NewETCDTaskMetadataManager(config helpers.ETCDConfig) (TaskMetadataManager, error) {

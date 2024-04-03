@@ -53,11 +53,10 @@ func main() {
 		Storage: &mstorage,
 	}
 
-	generator, err := ffsync.NewMemoryOrderedIdGenerator()
+	meta, err := scheduling.NewMemoryTaskMetadataManager()
 	if err != nil {
 		panic(err.Error())
 	}
-	meta := scheduling.NewTaskMetadataManager(storage, generator)
 
 	/****************************************** API Server ************************************************************/
 

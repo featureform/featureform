@@ -27,7 +27,7 @@ func TestSerializeTaskMetadata(t *testing.T) {
 				TargetType:  ProviderTarget,
 				DateCreated: time.Now().Truncate(0).UTC(),
 			},
-			targettype: "Provider",
+			targettype: ProviderTarget,
 		},
 		{
 			name: "WithNameVariantTarget",
@@ -42,7 +42,7 @@ func TestSerializeTaskMetadata(t *testing.T) {
 				TargetType:  NameVariantTarget,
 				DateCreated: time.Now().Truncate(0).UTC(),
 			},
-			targettype: "NameVariant",
+			targettype: NameVariantTarget,
 		},
 	}
 

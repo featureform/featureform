@@ -8,13 +8,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/featureform/ffsync"
+	"github.com/featureform/scheduling"
+	ss "github.com/featureform/storage"
 	"math/rand"
 	"net"
 	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 	grpcmeta "google.golang.org/grpc/metadata"
 
@@ -447,7 +449,7 @@ type onlineTestContext struct {
 
 func (ctx *onlineTestContext) Create(t *testing.T) *FeatureServer {
 	var addr string
-	ctx.metaServ, addr = startMetadata()
+	ctx.metaServ, addr = startMetadata(t)
 	providerType := uuid.NewString()
 	if ctx.FactoryFn != nil {
 		if err := provider.RegisterFactory(pt.Type(providerType), ctx.FactoryFn); err != nil {
@@ -532,14 +534,29 @@ func onlineStoreNoTables(cfg pc.SerializedConfig) (provider.Provider, error) {
 	return store, nil
 }
 
-func startMetadata() (*metadata.MetadataServer, string) {
-	logger, err := zap.NewDevelopment()
+func startMetadata(t *testing.T) (*metadata.MetadataServer, string) {
+	locker, err := ffsync.NewMemoryLocker()
+	if err != nil {
+		panic(err.Error())
+	}
+	mstorage, err := ss.NewMemoryStorageImplementation()
+	if err != nil {
+		panic(err.Error())
+	}
+	storage := ss.MetadataStorage{
+		Locker:  &locker,
+		Storage: &mstorage,
+	}
+
+	manager, err := scheduling.NewMemoryTaskMetadataManager()
+	logger := zaptest.NewLogger(t)
 	if err != nil {
 		panic(err)
 	}
 	config := &metadata.Config{
 		Logger:          logger.Sugar(),
-		StorageProvider: metadata.LocalStorageProvider{},
+		StorageProvider: storage,
+		TaskManager:     manager,
 	}
 	serv, err := metadata.NewMetadataServer(config)
 	if err != nil {

@@ -218,6 +218,11 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 		return TaskRunMetadata{}, err
 	}
 
+	parentTask, err := m.GetTaskByID(taskID)
+	if err != nil {
+		return TaskRunMetadata{}, err
+	}
+
 	id, err := m.idGenerator.NextId("task_run")
 	if err != nil {
 		return TaskRunMetadata{}, err
@@ -230,9 +235,13 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 		Name:        name,
 		Trigger:     trigger,
 		TriggerType: trigger.Type(),
+		Target:      parentTask.Target,
+		TargetType:  parentTask.TargetType,
 		Status:      PENDING,
 		StartTime:   startTime,
 	}
+
+	fmt.Printf("Taskskss: %#v\n", metadata)
 
 	runs.Runs = append(runs.Runs, TaskRunSimple{RunID: metadata.ID, DateCreated: startTime})
 

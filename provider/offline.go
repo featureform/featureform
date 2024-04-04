@@ -583,8 +583,16 @@ type memoryOfflineStore struct {
 	BaseProvider
 }
 
+var memoryFactorySingleton Provider
+
 func memoryOfflineStoreFactory(serializedConfig pc.SerializedConfig) (Provider, error) {
-	return NewMemoryOfflineStore(), nil
+	// Add mutex
+	if memoryFactorySingleton == nil {
+		memoryFactorySingleton = NewMemoryOfflineStore()
+		return memoryFactorySingleton, nil
+	} else {
+		return memoryFactorySingleton, nil
+	}
 }
 
 func NewMemoryOfflineStore() *memoryOfflineStore {
@@ -604,19 +612,50 @@ func (store *memoryOfflineStore) AsOfflineStore() (OfflineStore, error) {
 }
 
 func (store *memoryOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
-	return nil, fferr.NewInternalError(fmt.Errorf("not implemented"))
+	store.tables.Store(id, &memoryOfflineTable{})
+	return &memoryOfflineTable{}, nil
 }
 
 func (store *memoryOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
-	return nil, fferr.NewInternalError(fmt.Errorf("not implemented"))
+	store.tables.Store(id, &memoryPrimaryTable{})
+	return &memoryPrimaryTable{}, nil
 }
 
 func (store *memoryOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
-	return nil, fferr.NewInternalError(fmt.Errorf("primary table unsupported for this provider"))
+	store.tables.Store(id, &memoryPrimaryTable{})
+	return &memoryPrimaryTable{}, nil
+}
+
+type memoryPrimaryTable struct {
+}
+
+func (m *memoryPrimaryTable) Write(record GenericRecord) error {
+	return nil
+}
+
+func (m *memoryPrimaryTable) WriteBatch(record []GenericRecord) error {
+	return nil
+}
+
+func (m *memoryPrimaryTable) GetName() string {
+	return "memoryTableName"
+}
+
+func (m *memoryPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
+	return nil, nil
+}
+
+func (m *memoryPrimaryTable) NumRows() (int64, error) {
+	return 0, nil
 }
 
 func (store *memoryOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
-	return nil, fferr.NewInternalError(fmt.Errorf("primary table unsupported for this provider"))
+	table, has := store.tables.Load(id)
+	if !has {
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
+	}
+	memoryTable := table.(*memoryPrimaryTable)
+	return memoryTable, nil
 }
 
 func (store *memoryOfflineStore) CreateTransformation(config TransformationConfig) error {
@@ -652,7 +691,8 @@ func (store *memoryOfflineStore) getMemoryResourceTable(id ResourceID) (*memoryO
 	if !has {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
-	return table.(*memoryOfflineTable), nil
+	memTable := table.(*memoryOfflineTable)
+	return memTable, nil
 }
 
 func (store *memoryOfflineStore) ResourceLocation(id ResourceID) (string, error) {

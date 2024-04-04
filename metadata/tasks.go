@@ -33,7 +33,7 @@ func convertProtoTriggerType(trigger interface{}) (s.Trigger, error) {
 	}
 }
 
-func convertProtoTarget(target interface{}) (s.TaskTarget, error) {
+func convertTaskProtoTarget(target interface{}) (s.TaskTarget, error) {
 	switch t := target.(type) {
 	case *sch.TaskMetadata_NameVariant:
 		return s.NameVariant{
@@ -50,13 +50,30 @@ func convertProtoTarget(target interface{}) (s.TaskTarget, error) {
 	}
 }
 
+func convertTaskRunProtoTarget(target interface{}) (s.TaskTarget, error) {
+	switch t := target.(type) {
+	case *sch.TaskRunMetadata_NameVariant:
+		return s.NameVariant{
+			Name:         t.NameVariant.ResourceID.Resource.Name,
+			Variant:      t.NameVariant.ResourceID.Resource.Variant,
+			ResourceType: t.NameVariant.ResourceID.ResourceType.String(),
+		}, nil
+	case *sch.TaskRunMetadata_Provider:
+		return s.Provider{
+			Name: t.Provider.Name,
+		}, nil
+	default:
+		return nil, fferr.NewUnimplementedErrorf("could not convert target proto type: %T", target)
+	}
+}
+
 func wrapProtoTaskMetadata(task *sch.TaskMetadata) (s.TaskMetadata, error) {
 	tid, err := s.NewTaskRunIdFromString(task.GetId().Id)
 	if err != nil {
 		return s.TaskMetadata{}, err
 	}
 
-	t, err := convertProtoTarget(task.Target)
+	t, err := convertTaskProtoTarget(task.Target)
 	if err != nil {
 		return s.TaskMetadata{}, err
 	}
@@ -85,12 +102,18 @@ func wrapProtoTaskRunMetadata(run *sch.TaskRunMetadata) (s.TaskRunMetadata, erro
 	if err != nil {
 		return s.TaskRunMetadata{}, err
 	}
+	target, err := convertTaskRunProtoTarget(run.Target)
+	if err != nil {
+		return s.TaskRunMetadata{}, err
+	}
 	return s.TaskRunMetadata{
 		ID:          rid,
 		TaskId:      tid,
 		Name:        run.Name,
 		Trigger:     t,
 		TriggerType: s.TriggerType(run.TriggerType),
+		Target:      target,
+		TargetType:  s.TargetType(run.TargetType),
 		Status:      s.Status(run.Status.Status),
 		StartTime:   run.StartTime.AsTime(),
 		EndTime:     run.EndTime.AsTime(),

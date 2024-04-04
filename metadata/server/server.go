@@ -24,11 +24,16 @@ func main() {
 	addr := help.GetEnv("METADATA_PORT", "8080")
 	enableSearch := help.GetEnv("ENABLE_SEARCH", "true")
 
-	etcdStore, err := storage.NewETCDStorageImplementation(etcdHost, etcdPort)
+	etcdConfig := help.ETCDConfig{
+		Host: etcdHost,
+		Port: etcdPort,
+	}
+
+	etcdStore, err := storage.NewETCDStorageImplementation(etcdConfig)
 	if err != nil {
 		logger.Panicw("Failed to create storage implementation", "error", err)
 	}
-	locker, err := ffsync.NewETCDLocker(etcdHost, etcdPort)
+	locker, err := ffsync.NewETCDLocker(etcdConfig)
 	if err != nil {
 		logger.Panicw("Failed to create locker implementation", "error", err)
 	}

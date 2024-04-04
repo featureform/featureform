@@ -1543,8 +1543,22 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	}, nil
 }
 
-func getNameVariantTargetProto(target scheduling.NameVariant) *sch.TaskMetadata_NameVariant {
+func getTaskNameVariantTargetProto(target scheduling.NameVariant) *sch.TaskMetadata_NameVariant {
 	return &sch.TaskMetadata_NameVariant{
+		NameVariant: &sch.NameVariantTarget{
+			ResourceID: &pb.ResourceID{
+				Resource: &pb.NameVariant{
+					Name:    target.Name,
+					Variant: target.Variant,
+				},
+				ResourceType: pb.ResourceType(pb.ResourceType_value[target.ResourceType]),
+			},
+		},
+	}
+}
+
+func getTaskRunNameVariantTargetProto(target scheduling.NameVariant) *sch.TaskRunMetadata_NameVariant {
+	return &sch.TaskRunMetadata_NameVariant{
 		NameVariant: &sch.NameVariantTarget{
 			ResourceID: &pb.ResourceID{
 				Resource: &pb.NameVariant{
@@ -1565,12 +1579,32 @@ func getProviderTargetProto(target scheduling.Provider) *sch.TaskMetadata_Provid
 	}
 }
 
-func setTargetProto(proto *sch.TaskMetadata, target scheduling.TaskTarget) (*sch.TaskMetadata, error) {
+func getTaskRunProviderTargetProto(target scheduling.Provider) *sch.TaskRunMetadata_Provider {
+	return &sch.TaskRunMetadata_Provider{
+		Provider: &sch.ProviderTarget{
+			Name: target.Name,
+		},
+	}
+}
+
+func setTaskMetadataTargetProto(proto *sch.TaskMetadata, target scheduling.TaskTarget) (*sch.TaskMetadata, error) {
 	switch t := target.(type) {
 	case scheduling.NameVariant:
-		proto.Target = getNameVariantTargetProto(t)
+		proto.Target = getTaskNameVariantTargetProto(t)
 	case scheduling.Provider:
 		proto.Target = getProviderTargetProto(t)
+	default:
+		return nil, fferr.NewUnimplementedErrorf("could not convert target to proto: type: %T", target)
+	}
+	return proto, nil
+}
+
+func setTaskRunMetadataTargetProto(proto *sch.TaskRunMetadata, target scheduling.TaskTarget) (*sch.TaskRunMetadata, error) {
+	switch t := target.(type) {
+	case scheduling.NameVariant:
+		proto.Target = getTaskRunNameVariantTargetProto(t)
+	case scheduling.Provider:
+		proto.Target = getTaskRunProviderTargetProto(t)
 	default:
 		return nil, fferr.NewUnimplementedErrorf("could not convert target to proto: type: %T", target)
 	}
@@ -1586,7 +1620,7 @@ func wrapTaskMetadataProto(task scheduling.TaskMetadata) (*sch.TaskMetadata, err
 		Created:    wrapTimestampProto(task.DateCreated),
 	}
 
-	taskMetadata, err := setTargetProto(taskMetadata, task.Target)
+	taskMetadata, err := setTaskMetadataTargetProto(taskMetadata, task.Target)
 	if err != nil {
 		return nil, err
 	}
@@ -1636,6 +1670,7 @@ func wrapTaskRunMetadataProto(run scheduling.TaskRunMetadata) (*sch.TaskRunMetad
 		TaskID:      &sch.TaskID{Id: run.TaskId.String()},
 		Name:        run.Name,
 		TriggerType: run.TriggerType.Proto(),
+		TargetType:  run.TargetType.Proto(),
 		StartTime:   wrapTimestampProto(run.StartTime),
 		EndTime:     wrapTimestampProto(run.EndTime),
 		Logs:        run.Logs,
@@ -1647,6 +1682,11 @@ func wrapTaskRunMetadataProto(run scheduling.TaskRunMetadata) (*sch.TaskRunMetad
 	}
 
 	taskRunMetadata, err := setTriggerProto(taskRunMetadata, run.Trigger)
+	if err != nil {
+		return nil, err
+	}
+
+	taskRunMetadata, err = setTaskRunMetadataTargetProto(taskRunMetadata, run.Target)
 	if err != nil {
 		return nil, err
 	}
@@ -2210,26 +2250,6 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 
-	if serv.needsJob(res) && existing == nil {
-
-		var taskID scheduling.TaskID
-		if r, ok := res.(resourceTaskImplementation); ok {
-			taskID, err = r.TaskID()
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
-		trigger := scheduling.OnApplyTrigger{TriggerName: "Apply"}
-		taskName := fmt.Sprintf("Create Resource %s (%s)", res.ID().Name, res.ID().Variant)
-		taskRun, err := serv.taskManager.CreateTaskRun(taskName, taskID, trigger)
-		if err != nil {
-			return nil, err
-		}
-
-		serv.Logger.Infof("Successfully Created Task %s with Run %s for Resource: %s (%s)", taskRun.TaskId, taskRun.ID, res.ID().Name, res.ID().Variant)
-	}
 	parentId, hasParent := id.Parent()
 	if hasParent {
 		parentExists, err := serv.lookup.Has(parentId)
@@ -2252,6 +2272,26 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if err := serv.propagateChange(res); err != nil {
 		serv.Logger.Error(err)
 		return nil, err
+	}
+	if serv.needsJob(res) && existing == nil {
+
+		var taskID scheduling.TaskID
+		if r, ok := res.(resourceTaskImplementation); ok {
+			taskID, err = r.TaskID()
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
+		trigger := scheduling.OnApplyTrigger{TriggerName: "Apply"}
+		taskName := fmt.Sprintf("Create Resource %s (%s)", res.ID().Name, res.ID().Variant)
+		taskRun, err := serv.taskManager.CreateTaskRun(taskName, taskID, trigger)
+		if err != nil {
+			return nil, err
+		}
+
+		serv.Logger.Infof("Successfully Created Task %s with Run %s for Resource: %s (%s)", taskRun.TaskId, taskRun.ID, res.ID().Name, res.ID().Variant)
 	}
 	return &pb.Empty{}, nil
 }
@@ -2402,17 +2442,19 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 		// Fetches the latest run for the task and returns it for the CLI status watcher.
 		// Can improve on this by linking the request to a specific run but that requires
 		// additional changes
-		if res, ok := resource.(resourceStatusImplementation); ok {
-			taskID, err := resource.(resourceTaskImplementation).TaskID()
-			if err != nil {
-				return err
+		if serv.needsJob(resource) {
+			if res, ok := resource.(resourceStatusImplementation); ok {
+				taskID, err := resource.(resourceTaskImplementation).TaskID()
+				if err != nil {
+					return err
+				}
+				status, msg, err := serv.fetchStatus(taskID)
+				if err != nil {
+					serv.Logger.Errorw("Failed to set status", "error", err)
+					return err
+				}
+				res.SetStatus(status, msg)
 			}
-			status, msg, err := serv.fetchStatus(taskID)
-			if err != nil {
-				serv.Logger.Errorw("Failed to set status", "error", err)
-				return err
-			}
-			res.SetStatus(status, msg)
 		}
 
 		serv.Logger.Infow("Sending Resource", "id", id)

@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/featureform/fferr"
+	"github.com/featureform/ffsync"
+	"github.com/featureform/scheduling"
+	ss "github.com/featureform/storage"
 	"net"
 	"reflect"
 	"testing"
@@ -401,10 +404,25 @@ func (ctx *testContext) Destroy() {
 }
 
 func startServ(t *testing.T) (*MetadataServer, string) {
+	locker, err := ffsync.NewMemoryLocker()
+	if err != nil {
+		panic(err.Error())
+	}
+	mstorage, err := ss.NewMemoryStorageImplementation()
+	if err != nil {
+		panic(err.Error())
+	}
+	storage := ss.MetadataStorage{
+		Locker:  &locker,
+		Storage: &mstorage,
+	}
+
+	manager, err := scheduling.NewMemoryTaskMetadataManager()
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger: logger.Sugar(),
-		//StorageProvider: LocalStorageProvider{},
+		Logger:          logger.Sugar(),
+		StorageProvider: storage,
+		TaskManager:     manager,
 	}
 	serv, err := NewMetadataServer(config)
 	if err != nil {
@@ -424,10 +442,25 @@ func startServ(t *testing.T) (*MetadataServer, string) {
 }
 
 func startServNoPanic(t *testing.T) (*MetadataServer, string) {
+	locker, err := ffsync.NewMemoryLocker()
+	if err != nil {
+		panic(err.Error())
+	}
+	mstorage, err := ss.NewMemoryStorageImplementation()
+	if err != nil {
+		panic(err.Error())
+	}
+	storage := ss.MetadataStorage{
+		Locker:  &locker,
+		Storage: &mstorage,
+	}
+
+	manager, err := scheduling.NewMemoryTaskMetadataManager()
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger: logger.Sugar(),
-		//StorageProvider: LocalStorageProvider{},
+		Logger:          logger.Sugar(),
+		StorageProvider: storage,
+		TaskManager:     manager,
 	}
 	serv, err := NewMetadataServer(config)
 	if err != nil {
@@ -503,11 +536,26 @@ func TestClosedServer(t *testing.T) {
 }
 
 func TestServeGracefulStop(t *testing.T) {
+	locker, err := ffsync.NewMemoryLocker()
+	if err != nil {
+		panic(err.Error())
+	}
+	mstorage, err := ss.NewMemoryStorageImplementation()
+	if err != nil {
+		panic(err.Error())
+	}
+	storage := ss.MetadataStorage{
+		Locker:  &locker,
+		Storage: &mstorage,
+	}
+
+	manager, err := scheduling.NewMemoryTaskMetadataManager()
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger: logger.Sugar(),
-		//StorageProvider: LocalStorageProvider{},
-		Address: ":0",
+		Logger:          logger.Sugar(),
+		StorageProvider: storage,
+		Address:         ":0",
+		TaskManager:     manager,
 	}
 	serv, err := NewMetadataServer(config)
 	if err != nil {

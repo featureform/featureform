@@ -39,11 +39,13 @@ func main() {
 	etcdHost := help.GetEnv("ETCD_HOST", "localhost")
 	etcdPort := help.GetEnv("ETCD_PORT", "2379")
 
-	etcdStore, err := storage.NewETCDStorageImplementation(etcdHost, etcdPort)
+	config := help.ETCDConfig{Host: etcdHost, Port: etcdPort}
+
+	etcdStore, err := storage.NewETCDStorageImplementation(config)
 	if err != nil {
 		logger.Panicw("Failed to create storage implementation", "error", err)
 	}
-	locker, err := ffsync.NewETCDLocker(etcdHost, etcdPort)
+	locker, err := ffsync.NewETCDLocker(config)
 	if err != nil {
 		logger.Panicw("Failed to create locker implementation", "error", err)
 	}

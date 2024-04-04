@@ -112,7 +112,7 @@ func TestSerializeTaskRunMetadata(t *testing.T) {
 		triggerType TriggerType
 	}{
 		{
-			name: "WithOneOffTrigger",
+			name: "WithOnApplyTrigger",
 			task: TaskRunMetadata{
 				ID:     TaskRunID(&id1),
 				TaskId: TaskID(&id1),
@@ -121,31 +121,41 @@ func TestSerializeTaskRunMetadata(t *testing.T) {
 					TriggerName: "name1",
 				},
 				TriggerType: OnApplyTriggerType,
-				Status:      PENDING,
-				StartTime:   time.Now().Truncate(0).UTC(),
-				EndTime:     time.Now().Truncate(0).UTC(),
-				Logs:        nil,
-				Error:       "",
+				Target: NameVariant{
+					Name:    "name",
+					Variant: "variant",
+				},
+				TargetType: NameVariantTarget,
+				Status:     PENDING,
+				StartTime:  time.Now().Truncate(0).UTC(),
+				EndTime:    time.Now().Truncate(0).UTC(),
+				Logs:       nil,
+				Error:      "",
 			},
 			triggerType: OnApplyTriggerType,
 		},
 		{
-			name: "WithDummyTrigger",
+			name: "WithScheduleTrigger",
 			task: TaskRunMetadata{
 				ID:     TaskRunID(&id1),
 				TaskId: TaskID(&id1),
 				Name:   "dummy_taskrun",
-				Trigger: OnApplyTrigger{
+				Trigger: ScheduleTrigger{
 					TriggerName: "name2",
+					Schedule:    "* * * * *",
 				},
-				TriggerType: OnApplyTriggerType,
-				Status:      FAILED,
-				StartTime:   time.Now().Truncate(0).UTC(),
-				EndTime:     time.Now().Truncate(0).UTC(),
-				Logs:        nil,
-				Error:       "",
+				TriggerType: ScheduleTriggerType,
+				Target: Provider{
+					Name: "name",
+				},
+				TargetType: ProviderTarget,
+				Status:     FAILED,
+				StartTime:  time.Now().Truncate(0).UTC(),
+				EndTime:    time.Now().Truncate(0).UTC(),
+				Logs:       nil,
+				Error:      "",
 			},
-			triggerType: OnApplyTriggerType,
+			triggerType: ScheduleTriggerType,
 		},
 	}
 
@@ -162,10 +172,10 @@ func TestSerializeTaskRunMetadata(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(deserializedTask, currTest.task) {
-				t.Fatalf("Wrong struct values: %v\nExpected: %v", deserializedTask, currTest.task)
+				t.Fatalf("Wrong struct values, \ngot: %#v\nExpected: %#v", deserializedTask, currTest.task)
 			}
 			if deserializedTask.Trigger.Type() != currTest.triggerType {
-				t.Fatalf("Got trigger type: %v\n Expected:%v", deserializedTask.Trigger.Type(), currTest.triggerType)
+				t.Fatalf("Wrong trigger type, got: %#v\n Expected:%#v", deserializedTask.Trigger.Type(), currTest.triggerType)
 			}
 		})
 	}
@@ -187,7 +197,7 @@ func TestIncorrectTaskRunMetadata(t *testing.T) {
 				Trigger: OnApplyTrigger{
 					TriggerName: "name3",
 				},
-				TriggerType: OnApplyTriggerType,
+				TriggerType: ScheduleTriggerType,
 				Status:      FAILED,
 				StartTime:   time.Now().Truncate(0).UTC(),
 				EndTime:     time.Now().Truncate(0).UTC(),
@@ -226,7 +236,7 @@ func TestIncorrectTaskRunMetadata(t *testing.T) {
 			}
 
 			if reflect.DeepEqual(deserializedTask, currTest.task) {
-				t.Fatalf("Expected trigger should be present and different from output trigger, expected: %v\n Got: %v", currTest.task, deserializedTask)
+				t.Fatalf("Expected trigger should be present and different from output trigger, \nexpected: %#v\n     Got: %#v", currTest.task, deserializedTask)
 			}
 		})
 	}

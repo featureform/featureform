@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/featureform/ffsync"
+	"github.com/featureform/scheduling"
+	ss "github.com/featureform/storage"
 	"net"
 	"os"
 	"strings"
@@ -165,10 +168,25 @@ func TestHealth_Check(t *testing.T) {
 }
 
 func initMetadataServer(t *testing.T) (*metadata.MetadataServer, string) {
+	locker, err := ffsync.NewMemoryLocker()
+	if err != nil {
+		panic(err.Error())
+	}
+	mstorage, err := ss.NewMemoryStorageImplementation()
+	if err != nil {
+		panic(err.Error())
+	}
+	storage := ss.MetadataStorage{
+		Locker:  &locker,
+		Storage: &mstorage,
+	}
+
+	manager, err := scheduling.NewMemoryTaskMetadataManager()
 	logger := zaptest.NewLogger(t)
 	config := &metadata.Config{
 		Logger:          logger.Sugar(),
-		StorageProvider: metadata.LocalStorageProvider{},
+		StorageProvider: storage,
+		TaskManager:     manager,
 	}
 	server, err := metadata.NewMetadataServer(config)
 	if err != nil {

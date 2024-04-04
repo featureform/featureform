@@ -471,7 +471,7 @@ func testList(t *testing.T, ms MetadataStorage) {
 				"y/key2": "v2",
 				"z/key3": "v3",
 			},
-			expectedError: nil,
+			expectedError: fferr.NewLockEmptyKeyError(),
 		},
 	}
 

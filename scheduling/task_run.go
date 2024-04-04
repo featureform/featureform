@@ -151,17 +151,20 @@ func (t ScheduleTrigger) Name() string {
 }
 
 type TaskRunMetadata struct {
-	ID          TaskRunID   `json:"runId"`
-	TaskId      TaskID      `json:"taskId"`
-	Name        string      `json:"name"`
-	Trigger     Trigger     `json:"trigger"`
-	TriggerType TriggerType `json:"triggerType"`
-	Status      Status      `json:"status"`
-	StartTime   time.Time   `json:"startTime"`
-	EndTime     time.Time   `json:"endTime"`
-	Logs        []string    `json:"logs"`
-	Error       string      `json:"error"`
-	ErrorProto  *pb.ErrorStatus
+	ID           TaskRunID   `json:"runId"`
+	TaskId       TaskID      `json:"taskId"`
+	Name         string      `json:"name"`
+	Trigger      Trigger     `json:"trigger"`
+	TriggerType  TriggerType `json:"triggerType"`
+	Target       TaskTarget  `json:"target"`
+	TargetType   TargetType  `json:"targetType"`
+	Dependencies []TaskRunID `json:"dependencies"`
+	Status       Status      `json:"status"`
+	StartTime    time.Time   `json:"startTime"`
+	EndTime      time.Time   `json:"endTime"`
+	Logs         []string    `json:"logs"`
+	Error        string      `json:"error"`
+	ErrorProto   *pb.ErrorStatus
 }
 
 func (t *TaskRunMetadata) Marshal() ([]byte, error) {
@@ -178,6 +181,8 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 		Name        string          `json:"name"`
 		Trigger     json.RawMessage `json:"trigger"`
 		TriggerType TriggerType     `json:"triggerType"`
+		Target      json.RawMessage `json:"target"`
+		TargetType  TargetType      `json:"targetType"`
 		Status      Status          `json:"status"`
 		StartTime   time.Time       `json:"startTime"`
 		EndTime     time.Time       `json:"endTime"`
@@ -201,6 +206,7 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 	if temp.Name == "" {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("task run metadata is missing Name"))
 	}
+
 	t.Name = temp.Name
 
 	t.Status = temp.Status
@@ -211,6 +217,7 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 	t.StartTime = temp.StartTime
 
 	t.TriggerType = temp.TriggerType
+	t.TargetType = temp.TargetType
 
 	t.EndTime = temp.EndTime
 	t.Logs = temp.Logs
@@ -241,5 +248,32 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 		errMessage := fmt.Errorf("unknown trigger type: %s", temp.TriggerType)
 		return fferr.NewInvalidArgumentError(errMessage)
 	}
+
+	targetMap := make(map[string]interface{})
+	if err := json.Unmarshal(temp.Target, &targetMap); err != nil {
+		errMessage := fmt.Errorf("failed to deserialize target data: %w", err)
+		return fferr.NewInternalError(errMessage)
+	}
+
+	switch temp.TargetType {
+	case NameVariantTarget:
+		var nvTarget NameVariant
+		if err := json.Unmarshal(temp.Target, &nvTarget); err != nil {
+			errMessage := fmt.Errorf("failed to deserialize NameVariant target data: %w", err)
+			return fferr.NewInternalError(errMessage)
+		}
+		t.Target = nvTarget
+	case ProviderTarget:
+		var providerTarget Provider
+		if err := json.Unmarshal(temp.Target, &providerTarget); err != nil {
+			errMessage := fmt.Errorf("failed to deserialize Schedule Trigger data: %w", err)
+			return fferr.NewInternalError(errMessage)
+		}
+		t.Target = providerTarget
+	default:
+		errMessage := fmt.Errorf("unknown target type: %s", temp.Target)
+		return fferr.NewInvalidArgumentError(errMessage)
+	}
+
 	return nil
 }

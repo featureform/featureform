@@ -1,7 +1,9 @@
 package coordinator
 
-import "github.com/featureform/coordinator/tasks"
+import (
+	"github.com/featureform/scheduling"
+)
 
-func (c *Coordinator) Run(task tasks.Task) error {
+func (c *Coordinator) Run(id scheduling.TaskRunID) error {
 	return nil
 }

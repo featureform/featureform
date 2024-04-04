@@ -136,16 +136,6 @@ func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, e
 	if err := waitForDynamoDB(client); err != nil {
 		return nil, fferr.NewConnectionError("DynamoDB", err)
 	}
-	sess := session.Must(session.NewSession(config))
-	dynamodbClient := dynamodb.New(sess)
-	logger := logging.NewLogger("dynamodb")
-	if err := CreateMetadataTable(dynamodbClient, logger); err != nil {
-		return nil, err
-	}
-	client := dynamodb.NewFromConfig(cfg)
-	if err := waitForDynamoDB(client); err != nil {
-		return nil, fferr.NewConnectionError("DynamoDB", err)
-	}
 	logger := logging.NewLogger("dynamodb")
 	if err := CreateMetadataTable(client, logger); err != nil {
 		return nil, err

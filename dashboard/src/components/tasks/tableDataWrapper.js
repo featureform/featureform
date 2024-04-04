@@ -27,18 +27,26 @@ export default function TableDataWrapper() {
   const FILTER_STATUS_ALL = 'ALL';
   const FILTER_STATUS_ACTIVE = 'ACTIVE';
   const FILTER_STATUS_COMPLETE = 'COMPLETE';
-  const JOB_STATUS_RUNNING = 'RUNNING';
-  const JOB_STATUS_PENDING = 'PENDING';
-  const JOB_STATUS_SUCCESS = 'SUCCESS';
-  const JOB_STATUS_FAILED = 'FAILED';
   const SORT_STATUS = 'STATUS';
   const SORT_DATE = 'STATUS_DATE';
   const ENTER_KEY = 'Enter';
-  const [searchParams, setSearchParams] = useState({
+
+  const STATUS_MAP = {
+    NO_STATUS: 0,
+    CREATED: 1,
+    PENDING: 2,
+    READY: 3,
+    FAILED: 4,
+    RUNNING: 5,
+  };
+
+  const DEFAULT_PARAMS = {
     status: FILTER_STATUS_ALL,
-    sortBy: '',
+    sortBy: SORT_DATE,
     searchText: '',
-  });
+  };
+
+  const [searchParams, setSearchParams] = useState({ ...DEFAULT_PARAMS });
   const [searchQuery, setSearchQuery] = useState('');
   const [taskRunList, setTaskRunList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,26 +57,23 @@ export default function TableDataWrapper() {
   useEffect(async () => {
     if (loading) {
       let data = await dataAPI.getTaskRuns(searchParams);
-      //if the search are in all state. run the counts again
       if (
         !searchParams.searchText &&
-        !searchParams.sortBy &&
+        searchParams.sortBy == SORT_DATE &&
         searchParams.status == FILTER_STATUS_ALL
       ) {
         if (data?.length) {
           setAllCount(data.length);
           setActiveCount(
             data.filter((q) =>
-              [JOB_STATUS_PENDING, JOB_STATUS_RUNNING].includes(
+              [STATUS_MAP.PENDING, STATUS_MAP.RUNNING].includes(
                 q?.taskRun?.status
               )
             )?.length ?? 0
           );
           setCompleteCount(
             data.filter((q) =>
-              [JOB_STATUS_FAILED, JOB_STATUS_SUCCESS].includes(
-                q?.taskRun?.status
-              )
+              [STATUS_MAP.FAILED, STATUS_MAP.READY].includes(q?.taskRun?.status)
             )?.length ?? 0
           );
         } else {
@@ -112,11 +117,7 @@ export default function TableDataWrapper() {
   };
 
   const clearInputs = () => {
-    setSearchParams({
-      status: FILTER_STATUS_ALL,
-      sortBy: '',
-      searchText: '',
-    });
+    setSearchParams({ ...DEFAULT_PARAMS });
     setSearchQuery('');
     setLoading(true);
   };

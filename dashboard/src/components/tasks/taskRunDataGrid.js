@@ -6,11 +6,21 @@ import TaskRunCard from './taskRunCard';
 
 export default function TaskRunDataGrid({ taskRunList = [] }) {
   const [open, setOpen] = useState(false);
-  const [content, setContent] = useState({taskRun: {taskId: 0, runId:0}});
+  const [content, setContent] = useState({ taskRun: { taskId: 0, runId: 0 } });
+
+  const TASK_TYPE_MAP = {
+    0: 'Resource Creation',
+    1: 'Health Check',
+    2: 'Metrics',
+  };
 
   const handleRowSelect = (selectedRow) => {
-    let foundTaskRun = taskRunList?.find((q) => q.taskRun.taskId === selectedRow.row.taskRun.taskId && q.taskRun.runId === selectedRow.row.taskRun.runId);
-    setContent(foundTaskRun ?? {taskRun: {taskId: 0, runId:0}});
+    let foundTaskRun = taskRunList?.find(
+      (q) =>
+        q.taskRun.taskId === selectedRow.row.taskRun.taskId &&
+        q.taskRun.runId === selectedRow.row.taskRun.runId
+    );
+    setContent(foundTaskRun ?? { taskRun: { taskId: 0, runId: 0 } });
     setOpen((prev) => content !== selectedRow.row.id || !prev);
   };
 
@@ -59,7 +69,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
       field: 'name',
       headerName: 'Task Name',
       flex: 1,
-      width: 200,
+      minWidth: 250,
       editable: false,
       sortable: false,
       filterable: false,
@@ -71,7 +81,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
       field: 'resource',
       headerName: 'Resource',
       flex: 1,
-      width: 175,
+      minWidth: 150,
       editable: false,
       sortable: false,
       filterable: false,
@@ -83,7 +93,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
       field: 'variant',
       headerName: 'Variant',
       flex: 1,
-      width: 175,
+      minWidth: 175,
       editable: false,
       sortable: false,
       filterable: false,
@@ -95,19 +105,19 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
       field: 'jobType',
       headerName: 'Task Type',
       flex: 1,
-      width: 175,
+      minWidth: 150,
       editable: false,
       sortable: false,
       filterable: false,
       valueGetter: (params) => {
-        return params?.row?.task?.type;
+        return TASK_TYPE_MAP[params?.row?.task?.type] ?? '';
       },
     },
     {
       field: 'status',
       headerName: 'Status',
       flex: 1,
-      width: 125,
+      minWidth: 75,
       editable: false,
       sortable: false,
       filterable: false,
@@ -124,7 +134,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
       flex: 1,
       sortable: false,
       filterable: false,
-      width: 200,
+      minWidth: 175,
       valueGetter: (params) => {
         return new Date(params?.row?.taskRun?.startTime)?.toLocaleString();
       },
@@ -135,7 +145,8 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
       flex: 1,
       sortable: false,
       filterable: false,
-      width: 200,
+      minWidth: 175,
+
       valueGetter: (params) => {
         return new Date(params?.row?.taskRun?.endTime)?.toLocaleString();
       },
@@ -170,7 +181,11 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
           horizontal: 'right',
         }}
       >
-        <TaskRunCard handleClose={handleClose} taskId={content.taskRun.taskId} taskRunId={content.taskRun.runId} />
+        <TaskRunCard
+          handleClose={handleClose}
+          taskId={content.taskRun.taskId}
+          taskRunId={content.taskRun.runId}
+        />
       </Popover>
       <DataGrid
         autoHeight
@@ -185,6 +200,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
         }}
         onRowClick={handleRowSelect}
         rowsPerPageOptions={[5, 10, 15]}
+        disableColumnMenu
         density='compact'
         aria-label='Task Runs'
         rows={taskRunList ?? []}

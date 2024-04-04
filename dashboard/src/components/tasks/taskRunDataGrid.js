@@ -200,6 +200,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
         }}
         onRowClick={handleRowSelect}
         rowsPerPageOptions={[5, 10, 15]}
+        disableColumnMenu
         density='compact'
         aria-label='Task Runs'
         rows={taskRunList ?? []}

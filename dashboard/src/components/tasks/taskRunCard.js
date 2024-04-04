@@ -157,6 +157,7 @@ export default function TaskRunCard({ handleClose, taskId, taskRunId }) {
               },
             }}
             rows={taskRunRecord?.otherRuns ?? []}
+            disableColumnMenu
             rowsPerPageOptions={[5]}
             columns={columns}
             initialState={{

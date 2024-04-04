@@ -1681,6 +1681,9 @@ func (q defaultOfflineSQLQueries) castTableItemType(v interface{}, t interface{}
 			return intVar
 		}
 	case sfFloat:
+		if casted, ok := v.(float64); ok {
+			return casted
+		}
 		if s, err := strconv.ParseFloat(v.(string), 64); err != nil {
 			return v
 		} else {

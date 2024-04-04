@@ -197,6 +197,9 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
           '& .MuiDataGrid-row:hover': {
             cursor: 'pointer',
           },
+          '& .MuiDataGrid-columnHeaderTitle': {
+            fontWeight: 'bold',
+          },
         }}
         onRowClick={handleRowSelect}
         rowsPerPageOptions={[5, 10, 15]}

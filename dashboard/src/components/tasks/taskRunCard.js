@@ -158,6 +158,9 @@ export default function TaskRunCard({ handleClose, taskId, taskRunId }) {
               '& .MuiDataGrid-cell:focus': {
                 outline: 'none',
               },
+              '& .MuiDataGrid-columnHeaderTitle': {
+                fontWeight: 'bold',
+              },
             }}
             rows={taskRunRecord?.otherRuns ?? []}
             disableColumnMenu

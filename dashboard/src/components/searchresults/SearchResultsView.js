@@ -1,7 +1,7 @@
+import { ListItemButton } from '@mui/material';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
 import Typography from '@mui/material/Typography';
 import { makeStyles } from '@mui/styles';
@@ -42,7 +42,7 @@ const useStyles = makeStyles((theme) => ({
   appbar: {
     background: 'transparent',
     boxShadow: 'none',
-    color: '#000000',
+    color: 'black',
     padding: theme.spacing(0),
     paddingLeft: theme.spacing(4),
     paddingRight: theme.spacing(4),
@@ -153,8 +153,7 @@ const SearchResultsItem = ({ content, setVariant }) => {
 
   return (
     <>
-      <ListItem
-        button
+      <ListItemButton
         alignItems='flex-start'
         onClick={() => handleClick(content)}
       >
@@ -163,22 +162,31 @@ const SearchResultsItem = ({ content, setVariant }) => {
             <div>
               <div>
                 <div className={classes.resultTitle}></div>
-                <Typography className={classes.resultTitle} variant='h6'>
+                <Typography className={classes.resultTitle} variant='h8'>
                   {content.Name}
-                </Typography>{' '}
+                </Typography>
               </div>
-              <div style={{ width: '0.5em' }}>{'   '}</div>
               <Typography
                 style={{ opacity: 0.5 }}
                 className={classes.resultTitle}
-                variant='body1'
+                variant='body2'
               >
                 {content.Variant}
               </Typography>
+              <div>
+                <Typography
+                  style={{ opacity: 0.5 }}
+                  className={classes.resultTitle}
+                  variant='body2'
+                >
+                  {content.Type}
+                  <Typography></Typography>
+                </Typography>
+              </div>
             </div>
           }
         />
-      </ListItem>
+      </ListItemButton>
     </>
   );
 };

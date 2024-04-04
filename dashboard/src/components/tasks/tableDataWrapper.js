@@ -1,4 +1,3 @@
-import FilterAltOffIcon from '@mui/icons-material/FilterAltOff';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
 import {
@@ -126,7 +125,7 @@ export default function TableDataWrapper() {
     <>
       <Box className={classes.inputRow}>
         <Button
-          variant='outlined'
+          variant='text'
           className={
             searchParams.status === FILTER_STATUS_ALL
               ? classes.activeButton
@@ -148,7 +147,7 @@ export default function TableDataWrapper() {
           />
         </Button>
         <Button
-          variant='outlined'
+          variant='text'
           className={
             searchParams.status === FILTER_STATUS_ACTIVE
               ? classes.activeButton
@@ -170,7 +169,7 @@ export default function TableDataWrapper() {
           />
         </Button>
         <Button
-          variant='outlined'
+          variant='text'
           className={
             searchParams.status === FILTER_STATUS_COMPLETE
               ? classes.activeButton
@@ -193,15 +192,15 @@ export default function TableDataWrapper() {
         </Button>
 
         <Box style={{ float: 'right' }}>
-          <FormControl
-            className={classes.filterInput}
-            style={{ paddingRight: '15px' }}
-          >
-            <InputLabel id='sortId'>Sort By</InputLabel>
+          <FormControl style={{ paddingRight: '15px' }}>
+            <InputLabel shrink={true} id='sortId'>
+              Sort By
+            </InputLabel>
             <Select
               value={searchParams.sortBy}
               onChange={handleSortBy}
               label='Sort By'
+              notched
               className={classes.filterInput}
             >
               <MenuItem value={SORT_STATUS}>Status</MenuItem>
@@ -210,7 +209,9 @@ export default function TableDataWrapper() {
           </FormControl>
           <FormControl>
             <TextField
-              placeholder='Search Tasks...'
+              size='small'
+              InputLabelProps={{ shrink: true }}
+              label='Search'
               onChange={(event) => {
                 const rawText = event.target.value;
                 if (rawText === '') {
@@ -243,7 +244,6 @@ export default function TableDataWrapper() {
                   </InputAdornment>
                 ),
               }}
-              className={classes.filterInput}
               inputProps={{
                 'aria-label': 'search',
                 'data-testid': 'searcInputId',
@@ -264,7 +264,11 @@ export default function TableDataWrapper() {
           </Tooltip>
           <Tooltip title='Clear filter inputs' placement='top'>
             <IconButton size='large' onClick={clearInputs}>
-              <FilterAltOffIcon data-testid='clearIcon' />
+              <img
+                alt={'CLEAR'}
+                data-testid='clearIcon'
+                src={'/static/clearIcon.svg'}
+              />
             </IconButton>
           </Tooltip>
         </Box>

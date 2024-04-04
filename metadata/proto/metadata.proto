@@ -112,6 +112,7 @@ message ErrorStatus {
     repeated google.protobuf.Any details = 3;
 }
 
+// TODO: Deprecate this field in buildable resources when scheduling is fully implemented
 message ResourceStatus {
     enum Status {
         NO_STATUS = 0;

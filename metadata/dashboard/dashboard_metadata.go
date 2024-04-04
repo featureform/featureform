@@ -13,6 +13,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/featureform/ffsync"
 	filestore "github.com/featureform/filestore"
@@ -1638,9 +1639,16 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 	c.JSON(http.StatusOK, taskListResponse)
 }
 
+type OtherRun struct {
+	ID        sc.TaskRunID `json:"runId"`
+	StartTime time.Time    `json:"startTime"`
+	Status    sc.Status    `json:"status"`
+	Link      string       `json:"link"`
+}
+
 type TaskRunDetailResponse struct {
-	TaskRun   sc.TaskRunMetadata   `json:"taskRun"`
-	OtherRuns []sc.TaskRunMetadata `json:"otherRuns"`
+	TaskRun   sc.TaskRunMetadata `json:"taskRun"`
+	OtherRuns []OtherRun         `json:"otherRuns"`
 }
 
 func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
@@ -1677,11 +1685,11 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 		return
 	}
 
-	var otherRuns []sc.TaskRunMetadata
+	var otherRuns []OtherRun
 	var selectedRun scheduling.TaskRunMetadata
 	for _, run := range runs {
-		if run.ID != taskRunID {
-			otherRuns = append(otherRuns, run)
+		if !run.ID.Equals(taskRunID) {
+			otherRuns = append(otherRuns, OtherRun{ID: run.ID, StartTime: run.StartTime, Status: run.Status, Link: ""})
 		} else {
 			selectedRun = run
 		}

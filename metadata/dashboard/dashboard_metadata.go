@@ -8,10 +8,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1703,6 +1705,127 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+type JobResponse struct {
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	Variant     string    `json:"variant"`
+	Type        int       `json:"type"`
+	Status      sc.Status `json:"status"`
+	Progress    string    `json:"progress"`
+	LastRun     time.Time `json:"lastRun"`
+	TriggeredBy string    `json:"triggeredBy"`
+}
+
+type JobPostBody struct {
+	Status     string `json:"status"`
+	SearchText string `json:"searchtext"`
+	SortBy     string `json:"sortBy"`
+}
+
+var jobStaticList []JobResponse
+
+// todox: eventually remove
+func createDummyJobs(count int) {
+	dummyStates := []sc.Status{sc.FAILED, sc.PENDING, sc.RUNNING, sc.READY}
+	for i := 1; i <= count; i++ {
+		status := dummyStates[rand.Intn(len(dummyStates))]
+		lastRunTime := time.Now()
+		jobStaticList = append(jobStaticList, (createJob(i, status, lastRunTime)))
+	}
+}
+
+func createJob(id int, status sc.Status, timeParam time.Time) JobResponse {
+	return JobResponse{
+		ID:          id,
+		Name:        fmt.Sprintf("job name - %d%d", id, id),
+		Variant:     "job variant",
+		Type:        1,
+		Status:      status,
+		Progress:    "1",
+		LastRun:     timeParam,
+		TriggeredBy: "me",
+	}
+}
+
+func (m *MetadataServer) GetJobs(c *gin.Context) {
+	var requestBody JobPostBody
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "GetJobs - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	jobListCopy := make([]JobResponse, len(jobStaticList))
+	_ = copy(jobListCopy, jobStaticList)
+
+	// status filter, break out
+	jobListCopy = filter(jobListCopy, func(t JobResponse) bool {
+		result := false
+		if requestBody.Status == "ALL" {
+			result = true
+		} else if requestBody.Status == "ACTIVE" {
+			activeStates := []sc.Status{sc.PENDING, sc.RUNNING, sc.CREATED}
+			result = slices.Contains(activeStates, t.Status)
+		} else if requestBody.Status == "COMPLETE" {
+			completeStates := []sc.Status{sc.FAILED, sc.READY}
+			result = slices.Contains(completeStates, t.Status)
+		}
+		return result
+	})
+
+	// name filter
+	jobListCopy = filter(jobListCopy, func(t JobResponse) bool {
+		result := false
+		if requestBody.SearchText == "" {
+			result = true
+		} else if strings.Contains(strings.ToLower(t.Name), strings.ToLower(requestBody.SearchText)) {
+			result = true
+		}
+		return result
+	})
+
+	// date sort
+	if requestBody.SortBy == "STATUS_DATE" {
+		sort.Slice(jobListCopy, func(i, j int) bool {
+			return jobListCopy[i].LastRun.UnixMilli() > jobListCopy[j].LastRun.UnixMilli()
+		})
+	}
+
+	// status sort
+	if requestBody.SortBy == "STATUS" {
+		sort.Slice(jobListCopy, func(i, j int) bool {
+			l1, l2 := len(jobListCopy[i].Status.String()), len(jobListCopy[j].Status.String())
+			if l1 != l2 {
+				return l1 < l2
+			}
+			return jobListCopy[i].Status < jobListCopy[j].Status
+		})
+	}
+
+	c.JSON(http.StatusOK, jobListCopy)
+}
+
+type JobDetailResponse struct {
+	JobResponse JobResponse `json:"job"`
+	OtherRuns   []OtherRun  `json:"otherRuns"`
+}
+
+func (m *MetadataServer) GetJobDetails(c *gin.Context) {
+	strJobId := c.Param("jobId")
+	searchId, _ := strconv.Atoi(strJobId)
+	resp := JobDetailResponse{}
+
+	for _, n := range jobStaticList {
+		if n.ID == searchId {
+			resp.JobResponse = n
+			resp.OtherRuns = []OtherRun{}
+			break
+		}
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
 func (m *MetadataServer) Start(port string, local bool) error {
 	router := gin.Default()
 	if local {
@@ -1715,6 +1838,9 @@ func (m *MetadataServer) Start(port string, local bool) error {
 	} else {
 		router.Use(cors.Default())
 	}
+
+	createDummyJobs(15)
+
 	router.GET("/data/:type", m.GetMetadataList)
 	router.GET("/data/:type/:resource", m.GetMetadata)
 	router.GET("/data/search", m.GetSearch)
@@ -1725,5 +1851,7 @@ func (m *MetadataServer) Start(port string, local bool) error {
 	router.POST("/data/:type/:resource/tags", m.PostTags)
 	router.POST("/data/taskruns", m.GetTaskRuns)
 	router.GET("/data/taskruns/taskrundetail/:taskId/:taskRunId", m.GetTaskRunDetails)
+	router.POST("/data/jobs", m.GetJobs)
+	router.GET("/data/jobs/jobdetail/:jobId", m.GetJobDetails)
 	return router.Run(port)
 }

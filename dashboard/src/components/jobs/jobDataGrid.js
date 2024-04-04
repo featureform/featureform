@@ -5,7 +5,7 @@ import JobCard from './jobCard';
 import StatusChip from './statusChip';
 
 export default function JobDataGrid({ jobList = [] }) {
-  const DEFAULT_JOB = { job: { jobId: 0 } };
+  const DEFAULT_JOB = { id: 0 };
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState({ ...DEFAULT_JOB });
 
@@ -15,9 +15,7 @@ export default function JobDataGrid({ jobList = [] }) {
   };
 
   const handleRowSelect = (selectedRow) => {
-    let foundJob = jobList?.find(
-      (q) => q.job.jobId === selectedRow.row.job.jobId
-    );
+    let foundJob = jobList?.find((q) => q.id === selectedRow.row.id);
     setContent(foundJob ?? { ...DEFAULT_JOB });
     setOpen((prev) => content !== selectedRow.row.id || !prev);
   };
@@ -28,7 +26,7 @@ export default function JobDataGrid({ jobList = [] }) {
 
   const columns = [
     {
-      field: 'jobId',
+      field: 'id',
       headerName: 'Job ID',
       flex: 1,
       width: 50,
@@ -36,9 +34,6 @@ export default function JobDataGrid({ jobList = [] }) {
       sortable: false,
       filterable: false,
       hide: false,
-      valueGetter: (params) => {
-        return params?.row?.job?.jobId;
-      },
     },
     {
       field: 'name',
@@ -49,7 +44,7 @@ export default function JobDataGrid({ jobList = [] }) {
       sortable: false,
       filterable: false,
       valueGetter: (params) => {
-        return params?.row?.job?.name;
+        return params?.row?.name;
       },
     },
     {
@@ -61,7 +56,7 @@ export default function JobDataGrid({ jobList = [] }) {
       sortable: false,
       filterable: false,
       valueGetter: (params) => {
-        return params?.row?.job?.variant;
+        return params?.row?.variant;
       },
     },
     {
@@ -73,7 +68,7 @@ export default function JobDataGrid({ jobList = [] }) {
       sortable: false,
       filterable: false,
       valueGetter: (params) => {
-        return JOB_TYPE_MAP[params?.row?.job?.type] ?? '';
+        return JOB_TYPE_MAP[params?.row?.type] ?? '';
       },
     },
     {
@@ -85,10 +80,10 @@ export default function JobDataGrid({ jobList = [] }) {
       sortable: false,
       filterable: false,
       valueGetter: (params) => {
-        return params?.row?.job?.status;
+        return params?.row?.status;
       },
       renderCell: function (params) {
-        return <StatusChip status={params?.row?.job?.status} />;
+        return <StatusChip status={params?.row?.status} />;
       },
     },
     {
@@ -100,7 +95,7 @@ export default function JobDataGrid({ jobList = [] }) {
       minWidth: 175,
 
       valueGetter: (params) => {
-        return new Date(params?.row?.job?.endTime)?.toLocaleString();
+        return new Date(params?.row?.lastRun)?.toLocaleString();
       },
     },
     {
@@ -110,7 +105,7 @@ export default function JobDataGrid({ jobList = [] }) {
       width: 125,
       editable: false,
       valueGetter: (params) => {
-        return params?.row?.job?.trigger?.triggerName;
+        return params?.row?.triggeredBy;
       },
     },
   ];
@@ -133,7 +128,7 @@ export default function JobDataGrid({ jobList = [] }) {
           horizontal: 'right',
         }}
       >
-        <JobCard handleClose={handleClose} jobId={content.job.jobId} />
+        <JobCard handleClose={handleClose} jobId={content.id} />
       </Popover>
       <DataGrid
         autoHeight

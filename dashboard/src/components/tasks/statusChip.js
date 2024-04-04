@@ -5,6 +5,7 @@ export default function StatusChip({ status }) {
   const chipMap = {
     3: '#D1FAD0',
     2: '#FAECD0',
+    1: '#FAECD0',
     4: '#FAD0F6',
     5: '#FFA500',
   };

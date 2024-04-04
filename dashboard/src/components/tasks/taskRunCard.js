@@ -49,6 +49,9 @@ export default function TaskRunCard({ handleClose, taskId, taskRunId }) {
       editable: false,
       sortable: false,
       filterable: false,
+      renderCell: function (params) {
+        return <StatusChip status={params?.row?.status} />;
+      },
     },
     {
       field: 'link',

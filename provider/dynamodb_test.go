@@ -24,10 +24,12 @@ func TestOnlineStoreDynamoDB(t *testing.T) {
 	if !ok {
 		t.Fatalf("missing DYNAMO_SECRET_KEY variable")
 	}
+	endpoint := os.Getenv("DYNAMO_ENDPOINT")
 	dynamoConfig := &pc.DynamodbConfig{
 		Region:    "us-east-1",
 		AccessKey: dynamoAccessKey,
 		SecretKey: dynamoSecretKey,
+		Endpoint:  endpoint,
 	}
 
 	store, err := GetOnlineStore(pt.DynamoDBOnline, dynamoConfig.Serialized())
@@ -36,8 +38,10 @@ func TestOnlineStoreDynamoDB(t *testing.T) {
 	}
 
 	test := OnlineStoreTest{
-		t:     t,
-		store: store,
+		t:            t,
+		store:        store,
+		testNil:      true,
+		testFloatVec: true,
 	}
 	test.Run()
 }

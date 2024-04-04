@@ -381,9 +381,6 @@ type GenericResourceRecord[T any] struct {
 
 type GenericRecord []interface{}
 
-// Will try using GenericRecord first, if it doesnt work, will move onto BatchRecord
-// type BatchRecord []interface{}
-
 func (rec ResourceRecord) check() error {
 	if rec.Entity == "" {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("ResourceRecord must have Entity set"))
@@ -576,9 +573,6 @@ func (schema *TableSchema) ToParquetRecords(records []GenericRecord) ([]any, err
 			// Lists and timestamps
 			default:
 				reflectValue = reflect.ValueOf(v)
-				fmt.Printf("THERE %v %v\n", v, value)
-				fmt.Printf("THERE %s\n", reflectValue.Type().String())
-				fmt.Printf("THERE %v\n", reflectValue.Interface())
 			}
 			if !reflectValue.Type().AssignableTo(parquetField.Type()) {
 				return nil, fferr.NewInternalErrorf("Writing Invalid Type to Parquet Record. Found %s expected %s", reflectValue.Type().String(), parquetField.Type().String())

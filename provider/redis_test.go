@@ -44,6 +44,8 @@ func TestOnlineStoreRedisMock(t *testing.T) {
 	test := OnlineStoreTest{
 		t:     t,
 		store: store,
+		// TODO(simba) make this work.
+		testNil: false,
 	}
 	test.Run()
 }

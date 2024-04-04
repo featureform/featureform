@@ -217,13 +217,13 @@ func NewAzureFileStore(config Config) (FileStore, error) {
 	}
 
 	serviceURL := azureblob.ServiceURL(fmt.Sprintf("https://%s.blob.core.windows.net", azureStoreConfig.AccountName))
-	client, err := azureblob.NewDefaultServiceClient(serviceURL)
+	client, err := azureblob.NewDefaultClient(serviceURL, azureblob.ContainerName(azureStoreConfig.ContainerName))
 	if err != nil {
 		wrapped := fferr.NewExecutionError(string(filestore.Azure), err)
 		wrapped.AddDetail("service_url", string(serviceURL))
 		return nil, wrapped
 	}
-	bucket, err := azureblob.OpenBucket(context.TODO(), client, azureStoreConfig.ContainerName, nil)
+	bucket, err := azureblob.OpenBucket(context.TODO(), client, nil)
 	if err != nil {
 		wrapped := fferr.NewExecutionError(string(filestore.Azure), err)
 		wrapped.AddDetail("container_name", azureStoreConfig.ContainerName)

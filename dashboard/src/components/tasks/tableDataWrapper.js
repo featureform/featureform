@@ -41,7 +41,7 @@ export default function TableDataWrapper() {
   };
   const [searchParams, setSearchParams] = useState({
     status: FILTER_STATUS_ALL,
-    sortBy: '',
+    sortBy: SORT_DATE,
     searchText: '',
   });
   const [searchQuery, setSearchQuery] = useState('');

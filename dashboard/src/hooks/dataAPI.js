@@ -95,10 +95,49 @@ export function useDataAPI() {
     return result;
   };
 
+  const getJobs = async (searchParams = {}) => {
+    const result = await fetch(`${API_URL}/data/jobs`, {
+      cache: 'no-store',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(searchParams),
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error fetching jobs from server: ', error);
+
+        return [];
+      });
+
+    return result;
+  };
+
+  const getJobDetails = async (jobId = '') => {
+    const result = await fetch(`${API_URL}/data/jobs/jobdetail/${jobId}`, {
+      cache: 'no-store',
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error fetching job details from server: ', error);
+
+        return [];
+      });
+
+    return result;
+  };
+
   return {
     getTags,
     postTags,
     getTaskRuns,
     getTaskRunDetails,
+    getJobs,
+    getJobDetails,
   };
 }

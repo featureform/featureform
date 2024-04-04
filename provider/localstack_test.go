@@ -96,6 +96,7 @@ func teardownLocalstack() {
 
 // TestMain runs setup, calls all tests, and then teardown
 func TestMain(m *testing.M) {
+	flag.Parse()
 	runDocker := *dockerTests && !testing.Short()
 	if runDocker {
 		defer func() {

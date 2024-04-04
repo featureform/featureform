@@ -113,17 +113,33 @@ func dynamodbOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error
 }
 
 func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, error) {
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
+	args := []func(*config.LoadOptions) error{
 		config.WithRegion(options.Region),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(options.AccessKey, options.SecretKey, "")),
-		config.WithEndpointResolver(aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
-			return aws.Endpoint{
-				URL:           options.Endpoint,
-				SigningRegion: options.Region,
-			}, nil
-		})),
-	)
+	}
+	// If we are using a custom endpoint, such as when running localstack, we should point at it. We'd never set this when
+	// directly accessing DynamoDB on AWS.
+	if options.Endpoint != "" {
+		args = append(args,
+			config.WithEndpointResolver(aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+				return aws.Endpoint{
+					URL:           options.Endpoint,
+					SigningRegion: options.Region,
+				}, nil
+			})))
+	}
+	cfg, err := config.LoadDefaultConfig(context.TODO(), args...)
 	if err != nil {
+		return nil, err
+	}
+	client := dynamodb.NewFromConfig(cfg)
+	if err := waitForDynamoDB(client); err != nil {
+		return nil, fferr.NewConnectionError("DynamoDB", err)
+	}
+	sess := session.Must(session.NewSession(config))
+	dynamodbClient := dynamodb.New(sess)
+	logger := logging.NewLogger("dynamodb")
+	if err := CreateMetadataTable(dynamodbClient, logger); err != nil {
 		return nil, err
 	}
 	client := dynamodb.NewFromConfig(cfg)

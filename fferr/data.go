@@ -134,6 +134,28 @@ func NewTrainingSetNotFoundError(resourceName, resourceVariant string, err error
 	}
 }
 
+type TypeError struct {
+	baseError
+}
+
+func NewTypeError(valueType string, value any, err error) *TypeError {
+	if err == nil {
+		err = fmt.Errorf("type error")
+	}
+	baseError := newBaseError(err, TYPE_ERROR, codes.InvalidArgument)
+	baseError.AddDetail("expected type", valueType)
+	baseError.AddDetail("found type", fmt.Sprintf("%T", value))
+	baseError.AddDetail("found value", fmt.Sprintf("%v", value))
+	return &TypeError{
+		baseError,
+	}
+}
+
+func NewTypeErrorf(valueType string, value any, tmp string, args ...any) *TypeError {
+	err := fmt.Errorf(tmp, args...)
+	return NewTypeError(valueType, value, err)
+}
+
 type TrainingSetNotFoundError struct {
 	baseError
 }

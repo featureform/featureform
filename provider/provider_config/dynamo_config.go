@@ -13,6 +13,7 @@ type DynamodbConfig struct {
 	AccessKey    string
 	SecretKey    string
 	ImportFromS3 bool
+	Endpoint     string
 }
 
 func (d DynamodbConfig) Serialized() SerializedConfig {

@@ -35,6 +35,7 @@ const (
 	INVALID_RESOURCE_NAME_VARIANT = "Invalid Resource Name Variant"
 	INVALID_FILE_TYPE             = "Invalid File Type"
 	RESOURCE_CHANGED              = "Resource Changed"
+	TYPE_ERROR                    = "Type Error"
 
 	// MISCELLANEOUS:
 	INTERNAL_ERROR   = "Internal Error"
@@ -75,8 +76,8 @@ type Error interface {
 	GetType() string
 	GRPCStatus() *status.Status
 	ToErr() error
-	AddDetail(key, value string)
-	AddDetails(keysAndValues ...interface{})
+	AddDetail(key, value string) Error
+	AddDetails(keysAndValues ...interface{}) Error
 	Error() string
 	Stack() JSONStackTrace
 }
@@ -153,12 +154,14 @@ func (e *baseError) ToErr() error {
 	return st.Err()
 }
 
-func (e *baseError) AddDetail(key, value string) {
+func (e *baseError) AddDetail(key, value string) Error {
 	e.GenericError.AddDetail(key, value)
+	return e
 }
 
-func (e *baseError) AddDetails(keysAndValues ...interface{}) {
+func (e *baseError) AddDetails(keysAndValues ...interface{}) Error {
 	e.GenericError.AddDetails(keysAndValues...)
+	return e
 }
 
 func (e *baseError) Error() string {

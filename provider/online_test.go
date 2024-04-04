@@ -24,6 +24,9 @@ type OnlineResource struct {
 type OnlineStoreTest struct {
 	t     *testing.T
 	store OnlineStore
+	// TODO(simba) remove once we implement for all providers
+	testNil      bool
+	testFloatVec bool
 }
 
 func (test *OnlineStoreTest) Run() {
@@ -37,6 +40,14 @@ func (test *OnlineStoreTest) Run() {
 		"EntityNotFound":     testEntityNotFound,
 		"MassTableWrite":     testMassTableWrite,
 		"TypeCasting":        testTypeCasting,
+	}
+
+	if test.testNil {
+		testFns["NilValues"] = testNilValues
+	}
+
+	if test.testFloatVec {
+		testFns["FloatVecValues"] = testFloatVecValues
 	}
 
 	store := test.store
@@ -166,6 +177,102 @@ func testMassTableWrite(t *testing.T, store OnlineStore) {
 				t.Fatalf("could not get correct value from entity list. Wanted %v, got %v", 1, val)
 			}
 		}
+	}
+}
+
+func testNilValues(t *testing.T, store OnlineStore) {
+	onlineResources := []OnlineResource{
+		{
+			Entity: "a",
+			Value:  nil,
+			Type:   Int,
+		},
+		{
+			Entity: "b",
+			Value:  nil,
+			Type:   Int64,
+		},
+		{
+			Entity: "c",
+			Value:  nil,
+			Type:   Float32,
+		},
+		{
+			Entity: "d",
+			Value:  nil,
+			Type:   Float64,
+		},
+		{
+			Entity: "e",
+			Value:  nil,
+			Type:   String,
+		},
+		{
+			Entity: "f",
+			Value:  nil,
+			Type:   Bool,
+		},
+	}
+	for _, resource := range onlineResources {
+		featureName := uuid.New().String()
+		tab, err := store.CreateTable(featureName, "", resource.Type)
+		if err != nil {
+			t.Fatalf("Failed to create table: %s", err)
+		}
+		if err := tab.Set(resource.Entity, resource.Value); err != nil {
+			t.Fatalf("Failed to set entity: %s", err)
+		}
+		gotVal, err := tab.Get(resource.Entity)
+		if err != nil {
+			t.Fatalf("Failed to get entity: %s", err)
+		}
+		if !reflect.DeepEqual(resource.Value, gotVal) {
+			t.Fatalf("Values are not the same %v, type %T. %v, type %T", resource.Value, resource.Value, gotVal, gotVal)
+		}
+		store.DeleteTable(featureName, "")
+	}
+}
+
+func testFloatVecValues(t *testing.T, store OnlineStore) {
+	onlineResources := []OnlineResource{
+		{
+			Entity: "a",
+			Value:  nil,
+			Type:   VectorType{ScalarType: Float32, Dimension: 3, IsEmbedding: true},
+		},
+		{
+			Entity: "b",
+			Value:  nil,
+			Type:   VectorType{ScalarType: Float32, Dimension: 3, IsEmbedding: false},
+		},
+		{
+			Entity: "c",
+			Value:  []float32{1, 2, 3},
+			Type:   VectorType{ScalarType: Float32, Dimension: 3, IsEmbedding: true},
+		},
+		{
+			Entity: "d",
+			Value:  []float32{4, 5, 6},
+			Type:   VectorType{ScalarType: Float32, Dimension: 3, IsEmbedding: false},
+		},
+	}
+	for _, resource := range onlineResources {
+		featureName := uuid.New().String()
+		tab, err := store.CreateTable(featureName, "", resource.Type)
+		if err != nil {
+			t.Fatalf("Failed to create table: %s", err)
+		}
+		if err := tab.Set(resource.Entity, resource.Value); err != nil {
+			t.Fatalf("Failed to set entity: %s", err)
+		}
+		gotVal, err := tab.Get(resource.Entity)
+		if err != nil {
+			t.Fatalf("Failed to get entity: %s", err)
+		}
+		if !reflect.DeepEqual(resource.Value, gotVal) {
+			t.Fatalf("Values are not the same %v, type %T. %v, type %T", resource.Value, resource.Value, gotVal, gotVal)
+		}
+		store.DeleteTable(featureName, "")
 	}
 }
 

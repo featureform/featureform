@@ -1711,7 +1711,7 @@ type JobResponse struct {
 	Variant     string    `json:"variant"`
 	Type        int       `json:"type"`
 	Status      sc.Status `json:"status"`
-	Progress    string    `json:"progress"`
+	Progress    int       `json:"progress"`
 	LastRun     time.Time `json:"lastRun"`
 	TriggeredBy string    `json:"triggeredBy"`
 }
@@ -1737,13 +1737,13 @@ func createDummyJobs(count int) {
 func createJob(id int, status sc.Status, timeParam time.Time) JobResponse {
 	return JobResponse{
 		ID:          id,
-		Name:        fmt.Sprintf("job name - %d%d", id, id),
-		Variant:     "job variant",
+		Name:        fmt.Sprintf("Custom Job - %d%d", id, id),
+		Variant:     "A variant",
 		Type:        1,
 		Status:      status,
-		Progress:    "1",
+		Progress:    rand.Intn(10) * 10,
 		LastRun:     timeParam,
-		TriggeredBy: "me",
+		TriggeredBy: "Create Event",
 	}
 }
 
@@ -1805,9 +1805,16 @@ func (m *MetadataServer) GetJobs(c *gin.Context) {
 	c.JSON(http.StatusOK, jobListCopy)
 }
 
+type JobTaskRun struct {
+	ID      int       `json:"id"`
+	LastRun time.Time `json:"lastRun"`
+	Status  sc.Status `json:"status"`
+	Name    string    `json:"name"`
+}
+
 type JobDetailResponse struct {
-	JobResponse JobResponse `json:"job"`
-	OtherRuns   []OtherRun  `json:"otherRuns"`
+	JobResponse JobResponse  `json:"job"`
+	JobTaskRuns []JobTaskRun `json:"jobTaskRuns"`
 }
 
 func (m *MetadataServer) GetJobDetails(c *gin.Context) {
@@ -1818,7 +1825,7 @@ func (m *MetadataServer) GetJobDetails(c *gin.Context) {
 	for _, n := range jobStaticList {
 		if n.ID == searchId {
 			resp.JobResponse = n
-			resp.OtherRuns = []OtherRun{}
+			resp.JobTaskRuns = []JobTaskRun{{ID: 1, LastRun: time.Now(), Status: sc.READY, Name: "Job Task Name"}}
 			break
 		}
 	}

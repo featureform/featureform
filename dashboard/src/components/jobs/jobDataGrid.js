@@ -1,18 +1,38 @@
-import { Popover } from '@mui/material';
+import { LinearProgress, Popover } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import React, { useState } from 'react';
 import JobCard from './jobCard';
 import StatusChip from './statusChip';
 
+export const JOB_TYPE_MAP = {
+  0: 'Feature',
+  1: 'Training',
+};
+
+export const LINEAR_STATUS_MAP = {
+  0: 'inherit',
+  1: 'success',
+  2: 'success',
+  3: 'success',
+  4: 'error',
+  5: 'success',
+};
+
+const getProgress = (params) => {
+  return (
+    <LinearProgress
+      style={{ height: '14px', width: '100%' }}
+      color={LINEAR_STATUS_MAP[params?.row?.status]}
+      variant={'determinate'}
+      value={params?.row?.progress ?? 0}
+    />
+  );
+};
+
 export default function JobDataGrid({ jobList = [] }) {
   const DEFAULT_JOB = { id: 0 };
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState({ ...DEFAULT_JOB });
-
-  const JOB_TYPE_MAP = {
-    0: 'Feature',
-    1: 'Training',
-  };
 
   const handleRowSelect = (selectedRow) => {
     let foundJob = jobList?.find((q) => q.id === selectedRow.row.id);
@@ -85,6 +105,16 @@ export default function JobDataGrid({ jobList = [] }) {
       renderCell: function (params) {
         return <StatusChip status={params?.row?.status} />;
       },
+    },
+    {
+      field: 'progress',
+      headerName: 'Progress',
+      flex: 1,
+      minWidth: 100,
+      editable: false,
+      sortable: false,
+      filterable: false,
+      renderCell: getProgress,
     },
     {
       field: 'lastRun',

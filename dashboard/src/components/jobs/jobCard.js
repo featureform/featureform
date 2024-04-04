@@ -5,15 +5,23 @@ import {
   CircularProgress,
   Grid,
   IconButton,
-  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
+import { makeStyles } from '@mui/styles';
 import { DataGrid } from '@mui/x-data-grid';
 import React, { useEffect, useState } from 'react';
 import { useDataAPI } from '../../hooks/dataAPI';
+import JobData from './jobData';
 import StatusChip from './statusChip';
-import { useStyles } from './styles';
+
+const useStyles = makeStyles((theme) => ({
+  jobData: {
+    padding: theme.spacing(1),
+    borderRadius: '16px',
+    border: `2px solid ${theme.palette.border.main}`,
+  },
+}));
 
 export default function JobCard({ handleClose, jobId }) {
   const classes = useStyles();
@@ -22,8 +30,8 @@ export default function JobCard({ handleClose, jobId }) {
   const [loading, setLoading] = useState(true);
   const columns = [
     {
-      field: 'runId',
-      headerName: 'runId',
+      field: 'id',
+      headerName: 'id',
       width: 1,
       editable: false,
       sortable: false,
@@ -34,12 +42,12 @@ export default function JobCard({ handleClose, jobId }) {
     },
     {
       field: 'startTime',
-      headerName: 'Start Time',
+      headerName: 'Last Run Time',
       sortable: false,
       filterable: false,
       width: 200,
       valueGetter: (params) => {
-        return new Date(params?.row?.startTime)?.toLocaleString();
+        return new Date(params?.row?.lastRun)?.toLocaleString();
       },
     },
     {
@@ -54,15 +62,12 @@ export default function JobCard({ handleClose, jobId }) {
       },
     },
     {
-      field: 'link',
-      headerName: 'Link',
+      field: 'name',
+      headerName: 'Name',
       width: 250,
       editable: false,
       sortable: false,
       filterable: false,
-      valueGetter: () => {
-        return 'Future Link';
-      },
     },
   ];
 
@@ -70,6 +75,8 @@ export default function JobCard({ handleClose, jobId }) {
     let timeout = null;
     if (jobId && loading) {
       let data = await dataAPI.getJobDetails(jobId);
+      console.log('loaded');
+      console.log(data);
       setJobRecord(data);
       const timeout = setTimeout(() => {
         setLoading(false);
@@ -94,7 +101,7 @@ export default function JobCard({ handleClose, jobId }) {
   };
 
   return (
-    <Box className={classes.jobCardBox}>
+    <Box>
       <Box style={{ float: 'right' }}>
         <Tooltip title='Refresh card' placement='bottom'>
           <IconButton variant='' size='large' onClick={handleReloadRequest}>
@@ -110,31 +117,24 @@ export default function JobCard({ handleClose, jobId }) {
         </IconButton>
       </Box>
       <Grid style={{ padding: 12 }} container>
-        <Grid item xs={6} justifyContent='flex-start'>
-          <Typography variant='h5'>{jobRecord?.name}</Typography>
-        </Grid>
-        <Grid item xs={6} justifyContent='center'>
+        <Grid
+          sx={{ paddingBottom: '1.5em' }}
+          item
+          xs={6}
+          justifyContent='flex-start'
+        >
           <Typography variant='h6'>
-            Status: <StatusChip status={jobRecord?.status} />
+            Job Run: <strong>{jobRecord?.job?.name}</strong>
           </Typography>
         </Grid>
+        <Grid item xs={6} justifyContent='center'></Grid>
         <Grid
+          className={classes.jobData}
           item
-          xs={12}
+          xs={8}
           justifyContent='flex-start'
-          style={{ paddingTop: 20 }}
         >
-          <Typography variant='h6'>Logs/Errors</Typography>
-        </Grid>
-        <Grid item xs={12} justifyContent='flex-start'>
-          <TextField
-            style={{ width: '100%' }}
-            variant='filled'
-            disabled
-            value={jobRecord?.logs?.join('\n') + '\n' + jobRecord?.error}
-            multiline
-            minRows={3}
-          ></TextField>
+          <JobData jobRecord={jobRecord} />
         </Grid>
         <Grid
           item
@@ -144,7 +144,6 @@ export default function JobCard({ handleClose, jobId }) {
         >
           <Typography variant='h6'>Task Runs</Typography>
         </Grid>
-        <Grid item xs={12} justifyContent='flex-start'></Grid>
         <Grid item xs={12} justifyContent='center'>
           <DataGrid
             density='compact'
@@ -158,7 +157,7 @@ export default function JobCard({ handleClose, jobId }) {
                 fontWeight: 'bold',
               },
             }}
-            rows={jobRecord?.taskRuns ?? []}
+            rows={jobRecord?.jobTaskRuns ?? []}
             disableColumnMenu
             rowsPerPageOptions={[5]}
             columns={columns}
@@ -166,7 +165,6 @@ export default function JobCard({ handleClose, jobId }) {
               pagination: { paginationModel: { page: 0, pageSize: 5 } },
             }}
             pageSize={5}
-            getRowId={(row) => row.runId}
           />
         </Grid>
       </Grid>

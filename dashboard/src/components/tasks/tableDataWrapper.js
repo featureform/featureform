@@ -27,13 +27,18 @@ export default function TableDataWrapper() {
   const FILTER_STATUS_ALL = 'ALL';
   const FILTER_STATUS_ACTIVE = 'ACTIVE';
   const FILTER_STATUS_COMPLETE = 'COMPLETE';
-  const JOB_STATUS_RUNNING = 'RUNNING';
-  const JOB_STATUS_PENDING = 'PENDING';
-  const JOB_STATUS_SUCCESS = 'SUCCESS';
-  const JOB_STATUS_FAILED = 'FAILED';
   const SORT_STATUS = 'STATUS';
   const SORT_DATE = 'STATUS_DATE';
   const ENTER_KEY = 'Enter';
+
+  const STATUS_MAP = {
+    NO_STATUS: 0,
+    CREATED: 1,
+    PENDING: 2,
+    READY: 3,
+    FAILED: 4,
+    RUNNING: 5,
+  };
   const [searchParams, setSearchParams] = useState({
     status: FILTER_STATUS_ALL,
     sortBy: '',
@@ -59,16 +64,14 @@ export default function TableDataWrapper() {
           setAllCount(data.length);
           setActiveCount(
             data.filter((q) =>
-              [JOB_STATUS_PENDING, JOB_STATUS_RUNNING].includes(
+              [STATUS_MAP.PENDING, STATUS_MAP.RUNNING].includes(
                 q?.taskRun?.status
               )
             )?.length ?? 0
           );
           setCompleteCount(
             data.filter((q) =>
-              [JOB_STATUS_FAILED, JOB_STATUS_SUCCESS].includes(
-                q?.taskRun?.status
-              )
+              [STATUS_MAP.FAILED, STATUS_MAP.READY].includes(q?.taskRun?.status)
             )?.length ?? 0
           );
         } else {

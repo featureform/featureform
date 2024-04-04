@@ -1543,8 +1543,22 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	}, nil
 }
 
-func getNameVariantTargetProto(target scheduling.NameVariant) *sch.TaskMetadata_NameVariant {
+func getTaskNameVariantTargetProto(target scheduling.NameVariant) *sch.TaskMetadata_NameVariant {
 	return &sch.TaskMetadata_NameVariant{
+		NameVariant: &sch.NameVariantTarget{
+			ResourceID: &pb.ResourceID{
+				Resource: &pb.NameVariant{
+					Name:    target.Name,
+					Variant: target.Variant,
+				},
+				ResourceType: pb.ResourceType(pb.ResourceType_value[target.ResourceType]),
+			},
+		},
+	}
+}
+
+func getTaskRunNameVariantTargetProto(target scheduling.NameVariant) *sch.TaskRunMetadata_NameVariant {
+	return &sch.TaskRunMetadata_NameVariant{
 		NameVariant: &sch.NameVariantTarget{
 			ResourceID: &pb.ResourceID{
 				Resource: &pb.NameVariant{
@@ -1565,12 +1579,32 @@ func getProviderTargetProto(target scheduling.Provider) *sch.TaskMetadata_Provid
 	}
 }
 
-func setTargetProto(proto *sch.TaskMetadata, target scheduling.TaskTarget) (*sch.TaskMetadata, error) {
+func getTaskRunProviderTargetProto(target scheduling.Provider) *sch.TaskRunMetadata_Provider {
+	return &sch.TaskRunMetadata_Provider{
+		Provider: &sch.ProviderTarget{
+			Name: target.Name,
+		},
+	}
+}
+
+func setTaskMetadataTargetProto(proto *sch.TaskMetadata, target scheduling.TaskTarget) (*sch.TaskMetadata, error) {
 	switch t := target.(type) {
 	case scheduling.NameVariant:
-		proto.Target = getNameVariantTargetProto(t)
+		proto.Target = getTaskNameVariantTargetProto(t)
 	case scheduling.Provider:
 		proto.Target = getProviderTargetProto(t)
+	default:
+		return nil, fferr.NewUnimplementedErrorf("could not convert target to proto: type: %T", target)
+	}
+	return proto, nil
+}
+
+func setTaskRunMetadataTargetProto(proto *sch.TaskRunMetadata, target scheduling.TaskTarget) (*sch.TaskRunMetadata, error) {
+	switch t := target.(type) {
+	case scheduling.NameVariant:
+		proto.Target = getTaskRunNameVariantTargetProto(t)
+	case scheduling.Provider:
+		proto.Target = getTaskRunProviderTargetProto(t)
 	default:
 		return nil, fferr.NewUnimplementedErrorf("could not convert target to proto: type: %T", target)
 	}
@@ -1586,7 +1620,7 @@ func wrapTaskMetadataProto(task scheduling.TaskMetadata) (*sch.TaskMetadata, err
 		Created:    wrapTimestampProto(task.DateCreated),
 	}
 
-	taskMetadata, err := setTargetProto(taskMetadata, task.Target)
+	taskMetadata, err := setTaskMetadataTargetProto(taskMetadata, task.Target)
 	if err != nil {
 		return nil, err
 	}
@@ -1636,6 +1670,7 @@ func wrapTaskRunMetadataProto(run scheduling.TaskRunMetadata) (*sch.TaskRunMetad
 		TaskID:      &sch.TaskID{Id: run.TaskId.String()},
 		Name:        run.Name,
 		TriggerType: run.TriggerType.Proto(),
+		TargetType:  run.TargetType.Proto(),
 		StartTime:   wrapTimestampProto(run.StartTime),
 		EndTime:     wrapTimestampProto(run.EndTime),
 		Logs:        run.Logs,
@@ -1647,6 +1682,11 @@ func wrapTaskRunMetadataProto(run scheduling.TaskRunMetadata) (*sch.TaskRunMetad
 	}
 
 	taskRunMetadata, err := setTriggerProto(taskRunMetadata, run.Trigger)
+	if err != nil {
+		return nil, err
+	}
+
+	taskRunMetadata, err = setTaskRunMetadataTargetProto(taskRunMetadata, run.Target)
 	if err != nil {
 		return nil, err
 	}

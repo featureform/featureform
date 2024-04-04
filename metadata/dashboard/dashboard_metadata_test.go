@@ -3,12 +3,13 @@ package dashboard_metadata
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/featureform/ffsync"
+	ss "github.com/featureform/storage"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"strconv"
 	"testing"
 
 	"github.com/featureform/metadata"
@@ -100,17 +101,29 @@ func TestPostTags(t *testing.T) {
 	resource :=
 		&metadata.SourceResource{}
 
-	localStorageProvider := LocalStorageProvider{}
-	lookup, _ := localStorageProvider.GetResourceLookup()
+	locker, err := ffsync.NewMemoryLocker()
+	if err != nil {
+		panic(err.Error())
+	}
+	mstorage, err := ss.NewMemoryStorageImplementation()
+	if err != nil {
+		panic(err.Error())
+	}
+	storage := ss.MetadataStorage{
+		Locker:  &locker,
+		Storage: &mstorage,
+	}
+
+	lookup := metadata.MemoryResourceLookup{Connection: storage}
 	lookup.Set(res, resource)
 
 	logger := zap.NewExample().Sugar()
 	client := &metadata.Client{}
 	serv := MetadataServer{
-		lookup:          lookup,
+		lookup:          &lookup,
 		client:          client,
 		logger:          logger,
-		StorageProvider: localStorageProvider,
+		StorageProvider: storage,
 	}
 	serv.PostTags(ctx)
 
@@ -326,12 +339,12 @@ func TestGetTaskRunsZeroResults(t *testing.T) {
 func TestGetTaskRunDetails(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
-	taskRunIdParam := 1
-	taskRunId := sc.TaskRunID(taskRunIdParam)
+	taskRunIdParam := ffsync.Uint64OrderedId(1)
+	taskRunId := sc.TaskRunID(&taskRunIdParam)
 	params := []gin.Param{
 		{
 			Key:   "taskRunId",
-			Value: strconv.Itoa(taskRunIdParam),
+			Value: taskRunIdParam.String(),
 		},
 	}
 	MockJsonGet(ctx, params)
@@ -359,12 +372,12 @@ func TestGetTaskRunDetails(t *testing.T) {
 func TestGetTaskRunDetailZeroResults(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
-	taskRunIdParam := -1
-	taskRunId := sc.TaskRunID(taskRunIdParam)
+	taskRunIdParam := ffsync.Uint64OrderedId(1)
+	taskRunId := sc.TaskRunID(&taskRunIdParam)
 	params := []gin.Param{
 		{
 			Key:   "taskRunId",
-			Value: strconv.Itoa(taskRunIdParam),
+			Value: taskRunIdParam.String(),
 		},
 	}
 	MockJsonGet(ctx, params)

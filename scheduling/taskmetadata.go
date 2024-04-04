@@ -222,7 +222,7 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 	if err != nil {
 		return TaskRunMetadata{}, err
 	}
-	
+
 	id, err := m.idGenerator.NextId("task_run")
 	if err != nil {
 		return TaskRunMetadata{}, err
@@ -240,6 +240,8 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 		Status:      PENDING,
 		StartTime:   startTime,
 	}
+
+	fmt.Printf("Taskskss: %#v\n", metadata)
 
 	runs.Runs = append(runs.Runs, TaskRunSimple{RunID: metadata.ID, DateCreated: startTime})
 

@@ -206,6 +206,7 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 	if temp.Name == "" {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("task run metadata is missing Name"))
 	}
+
 	t.Name = temp.Name
 
 	t.Status = temp.Status
@@ -216,6 +217,7 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 	t.StartTime = temp.StartTime
 
 	t.TriggerType = temp.TriggerType
+	t.TargetType = temp.TargetType
 
 	t.EndTime = temp.EndTime
 	t.Logs = temp.Logs

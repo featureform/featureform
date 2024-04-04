@@ -41,6 +41,11 @@ func NewInvalidArgumentError(err error) *InvalidArgumentError {
 	}
 }
 
+func NewInvalidArgumentErrorf(format string, a ...any) *InvalidArgumentError {
+	err := fmt.Errorf(format, a...)
+	return NewInvalidArgumentError(err)
+}
+
 type InvalidArgumentError struct {
 	baseGRPCError
 }

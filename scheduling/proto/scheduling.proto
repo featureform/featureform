@@ -101,10 +101,15 @@ message TaskRunMetadata {
     ScheduleTrigger schedule = 5;
   }
   TriggerType triggerType = 6;
-  google.protobuf.Timestamp  startTime = 7;
-  google.protobuf.Timestamp  endTime = 8;
-  repeated string logs = 9;
-  featureform.serving.metadata.proto.ResourceStatus status = 10;
+  oneof target {
+    NameVariantTarget nameVariant = 7;
+    ProviderTarget provider = 8;
+  };
+  TargetType targetType = 9;
+  google.protobuf.Timestamp  startTime = 10;
+  google.protobuf.Timestamp  endTime = 11;
+  repeated string logs = 12;
+  featureform.serving.metadata.proto.ResourceStatus status = 13;
 }
 
 message TaskRunList {

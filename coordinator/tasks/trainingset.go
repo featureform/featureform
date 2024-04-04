@@ -17,6 +17,7 @@ type TrainingSetTask struct {
 }
 
 func (t *TrainingSetTask) Run() error {
+	fmt.Printf("%#v\n", t.taskDef.Target)
 	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
 		return fferr.NewInternalErrorf("cannot create a source from target type: %s", t.taskDef.TargetType)

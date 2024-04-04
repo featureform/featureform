@@ -49,6 +49,9 @@ export default function TaskRunCard({ handleClose, taskId, taskRunId }) {
       editable: false,
       sortable: false,
       filterable: false,
+      renderCell: function (params) {
+        return <StatusChip status={params?.row?.status} />;
+      },
     },
     {
       field: 'link',
@@ -128,20 +131,11 @@ export default function TaskRunCard({ handleClose, taskId, taskRunId }) {
             style={{ width: '100%' }}
             variant='filled'
             disabled
-            value={taskRunRecord?.taskRun?.logs?.join('\n') + '\n' + taskRunRecord?.taskRun?.error}
-            multiline
-            minRows={3}
-          ></TextField>
-        </Grid>
-        <Grid item xs={12} justifyContent='center' style={{ paddingTop: 20 }}>
-          <Typography variant='h6'>Task Run Details</Typography>
-        </Grid>
-        <Grid item xs={12} justifyContent='center'>
-          <TextField
-            style={{ width: '100%' }}
-            variant='filled'
-            disabled
-            value={'Todox: Need to fill'}
+            value={
+              taskRunRecord?.taskRun?.logs?.join('\n') +
+              '\n' +
+              taskRunRecord?.taskRun?.error
+            }
             multiline
             minRows={3}
           ></TextField>
@@ -164,8 +158,12 @@ export default function TaskRunCard({ handleClose, taskId, taskRunId }) {
               '& .MuiDataGrid-cell:focus': {
                 outline: 'none',
               },
+              '& .MuiDataGrid-columnHeaderTitle': {
+                fontWeight: 'bold',
+              },
             }}
             rows={taskRunRecord?.otherRuns ?? []}
+            disableColumnMenu
             rowsPerPageOptions={[5]}
             columns={columns}
             initialState={{

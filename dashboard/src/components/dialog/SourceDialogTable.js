@@ -1,5 +1,6 @@
 import {
   Alert,
+  Box,
   Paper,
   Slide,
   Snackbar,
@@ -28,6 +29,11 @@ export default function SourceDialogTable({
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     cursor: 'pointer',
+  };
+
+  const noRecords = {
+    textAlign: 'center',
+    marginTop: 10,
   };
 
   const [open, setOpen] = React.useState(false);
@@ -143,6 +149,13 @@ export default function SourceDialogTable({
           </TableBody>
         </Table>
       </TableContainer>
+      {rowList?.length ? null : (
+        <Box>
+          <Typography style={noRecords} fontWeight={'bold'}>
+            No records to display
+          </Typography>
+        </Box>
+      )}
     </>
   );
 }

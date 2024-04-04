@@ -28,7 +28,11 @@ describe('Task table data wrapper tests', () => {
   const USER_EVENT_ENTER = '{enter}';
   const REFRESH_ICON_ID = 'refreshIcon';
   const CLEAR_ICON_ID = 'clearIcon';
-  const DEFAULT_PARAMS = { searchText: '', sortBy: '', status: 'ALL' };
+  const DEFAULT_PARAMS = {
+    searchText: '',
+    sortBy: 'STATUS_DATE',
+    status: 'ALL',
+  };
 
   // this is just a little hack to silence a warning that we'll get until we
   // upgrade to 16.9. See also: https://github.com/facebook/react/pull/14853

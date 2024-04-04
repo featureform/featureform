@@ -12,7 +12,7 @@ import React from 'react';
 import { connect } from 'react-redux';
 import Resource from '../../api/resources/Resource';
 
-const drawerWidth = 250;
+const drawerWidth = 225;
 const drawerTop = 70;
 
 function SideNav({ sections, children }) {
@@ -53,7 +53,7 @@ function SideNav({ sections, children }) {
                   handleMenuClick(event, resourceType.urlPath)
                 }
               >
-                <ListItemIcon>
+                <ListItemIcon style={{ minWidth: '40px' }}>
                   <Icon>{resourceType.materialIcon}</Icon>
                 </ListItemIcon>
                 <ListItemText primary={resourceType.typePlural} />
@@ -61,7 +61,7 @@ function SideNav({ sections, children }) {
             );
           })}
           <ListItemButton key={20} onClick={handleCollapseClick}>
-            <ListItemIcon>
+            <ListItemIcon style={{ minWidth: '40px' }}>
               <Icon>{'all_inbox'}</Icon>
             </ListItemIcon>
             <ListItemText primary={'Scheduling'} />
@@ -72,7 +72,7 @@ function SideNav({ sections, children }) {
           <List component='div' disablePadding>
             <ListItemButton
               onClick={(event) => handleMenuClick(event, '/tasks')}
-              sx={{ padding: '0 0 0 6em' }}
+              sx={{ padding: '0 0 0 4.5em' }}
             >
               <ListItemText primary='Tasks' />
             </ListItemButton>

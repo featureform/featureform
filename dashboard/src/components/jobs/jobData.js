@@ -65,7 +65,7 @@ export default function JobData({ jobRecord = {} }) {
           <Typography variant='body1' className={classes.typeTitle}>
             Owner:
           </Typography>
-          ?
+          {jobRecord?.job?.owner}
         </Box>
       </Box>
     </>

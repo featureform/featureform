@@ -1714,6 +1714,7 @@ type JobResponse struct {
 	Progress    int       `json:"progress"`
 	LastRun     time.Time `json:"lastRun"`
 	TriggeredBy string    `json:"triggeredBy"`
+	Owner       string    `json:"owner"`
 }
 
 type JobPostBody struct {
@@ -1741,9 +1742,10 @@ func createJob(id int, status sc.Status, timeParam time.Time) JobResponse {
 		Variant:     "A variant",
 		Type:        1,
 		Status:      status,
-		Progress:    rand.Intn(10) * 10,
+		Progress:    rand.Intn(10) * 10, // 0..100
 		LastRun:     timeParam,
 		TriggeredBy: "Create Event",
+		Owner:       "someUser@featureform.com",
 	}
 }
 

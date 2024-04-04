@@ -428,9 +428,9 @@ func (def LabelDef) Serialize() (*pb.LabelVariant, error) {
 	case ResourceVariantColumns:
 		serialized.Location = def.Location.(ResourceVariantColumns).SerializeLabelColumns()
 	case nil:
-		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("LabelDef Primary not set"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("LabelDef Source not set"))
 	default:
-		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("LabelDef Primary has unexpected type %T", x))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("LabelDef Source has unexpected type %T", x))
 	}
 	return serialized, nil
 }

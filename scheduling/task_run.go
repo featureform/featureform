@@ -151,17 +151,19 @@ func (t ScheduleTrigger) Name() string {
 }
 
 type TaskRunMetadata struct {
-	ID          TaskRunID   `json:"runId"`
-	TaskId      TaskID      `json:"taskId"`
-	Name        string      `json:"name"`
-	Trigger     Trigger     `json:"trigger"`
-	TriggerType TriggerType `json:"triggerType"`
-	Status      Status      `json:"status"`
-	StartTime   time.Time   `json:"startTime"`
-	EndTime     time.Time   `json:"endTime"`
-	Logs        []string    `json:"logs"`
-	Error       string      `json:"error"`
-	ErrorProto  *pb.ErrorStatus
+	ID           TaskRunID   `json:"runId"`
+	TaskId       TaskID      `json:"taskId"`
+	Name         string      `json:"name"`
+	Trigger      Trigger     `json:"trigger"`
+	TriggerType  TriggerType `json:"triggerType"`
+	Target       TaskTarget  `json:"target"`
+	Dependencies []TaskRunID `json:"dependencies"`
+	Status       Status      `json:"status"`
+	StartTime    time.Time   `json:"startTime"`
+	EndTime      time.Time   `json:"endTime"`
+	Logs         []string    `json:"logs"`
+	Error        string      `json:"error"`
+	ErrorProto   *pb.ErrorStatus
 }
 
 func (t *TaskRunMetadata) Marshal() ([]byte, error) {

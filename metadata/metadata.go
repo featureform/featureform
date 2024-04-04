@@ -2210,26 +2210,6 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 
-	if serv.needsJob(res) && existing == nil {
-
-		var taskID scheduling.TaskID
-		if r, ok := res.(resourceTaskImplementation); ok {
-			taskID, err = r.TaskID()
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
-		trigger := scheduling.OnApplyTrigger{TriggerName: "Apply"}
-		taskName := fmt.Sprintf("Create Resource %s (%s)", res.ID().Name, res.ID().Variant)
-		taskRun, err := serv.taskManager.CreateTaskRun(taskName, taskID, trigger)
-		if err != nil {
-			return nil, err
-		}
-
-		serv.Logger.Infof("Successfully Created Task %s with Run %s for Resource: %s (%s)", taskRun.TaskId, taskRun.ID, res.ID().Name, res.ID().Variant)
-	}
 	parentId, hasParent := id.Parent()
 	if hasParent {
 		parentExists, err := serv.lookup.Has(parentId)
@@ -2252,6 +2232,26 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if err := serv.propagateChange(res); err != nil {
 		serv.Logger.Error(err)
 		return nil, err
+	}
+	if serv.needsJob(res) && existing == nil {
+
+		var taskID scheduling.TaskID
+		if r, ok := res.(resourceTaskImplementation); ok {
+			taskID, err = r.TaskID()
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		serv.Logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
+		trigger := scheduling.OnApplyTrigger{TriggerName: "Apply"}
+		taskName := fmt.Sprintf("Create Resource %s (%s)", res.ID().Name, res.ID().Variant)
+		taskRun, err := serv.taskManager.CreateTaskRun(taskName, taskID, trigger)
+		if err != nil {
+			return nil, err
+		}
+
+		serv.Logger.Infof("Successfully Created Task %s with Run %s for Resource: %s (%s)", taskRun.TaskId, taskRun.ID, res.ID().Name, res.ID().Variant)
 	}
 	return &pb.Empty{}, nil
 }

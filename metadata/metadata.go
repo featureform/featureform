@@ -2442,17 +2442,19 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 		// Fetches the latest run for the task and returns it for the CLI status watcher.
 		// Can improve on this by linking the request to a specific run but that requires
 		// additional changes
-		if res, ok := resource.(resourceStatusImplementation); ok {
-			taskID, err := resource.(resourceTaskImplementation).TaskID()
-			if err != nil {
-				return err
+		if serv.needsJob(resource) {
+			if res, ok := resource.(resourceStatusImplementation); ok {
+				taskID, err := resource.(resourceTaskImplementation).TaskID()
+				if err != nil {
+					return err
+				}
+				status, msg, err := serv.fetchStatus(taskID)
+				if err != nil {
+					serv.Logger.Errorw("Failed to set status", "error", err)
+					return err
+				}
+				res.SetStatus(status, msg)
 			}
-			status, msg, err := serv.fetchStatus(taskID)
-			if err != nil {
-				serv.Logger.Errorw("Failed to set status", "error", err)
-				return err
-			}
-			res.SetStatus(status, msg)
 		}
 
 		serv.Logger.Infow("Sending Resource", "id", id)

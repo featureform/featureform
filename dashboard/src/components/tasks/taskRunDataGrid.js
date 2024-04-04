@@ -6,11 +6,15 @@ import TaskRunCard from './taskRunCard';
 
 export default function TaskRunDataGrid({ taskRunList = [] }) {
   const [open, setOpen] = useState(false);
-  const [content, setContent] = useState({taskRun: {taskId: 0, runId:0}});
+  const [content, setContent] = useState({ taskRun: { taskId: 0, runId: 0 } });
 
   const handleRowSelect = (selectedRow) => {
-    let foundTaskRun = taskRunList?.find((q) => q.taskRun.taskId === selectedRow.row.taskRun.taskId && q.taskRun.runId === selectedRow.row.taskRun.runId);
-    setContent(foundTaskRun ?? {taskRun: {taskId: 0, runId:0}});
+    let foundTaskRun = taskRunList?.find(
+      (q) =>
+        q.taskRun.taskId === selectedRow.row.taskRun.taskId &&
+        q.taskRun.runId === selectedRow.row.taskRun.runId
+    );
+    setContent(foundTaskRun ?? { taskRun: { taskId: 0, runId: 0 } });
     setOpen((prev) => content !== selectedRow.row.id || !prev);
   };
 
@@ -59,7 +63,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
       field: 'name',
       headerName: 'Task Name',
       flex: 1,
-      width: 200,
+      minWidth: 350,
       editable: false,
       sortable: false,
       filterable: false,
@@ -124,7 +128,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
       flex: 1,
       sortable: false,
       filterable: false,
-      width: 200,
+      minWidth: 175,
       valueGetter: (params) => {
         return new Date(params?.row?.taskRun?.startTime)?.toLocaleString();
       },
@@ -135,7 +139,8 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
       flex: 1,
       sortable: false,
       filterable: false,
-      width: 200,
+      minWidth: 175,
+
       valueGetter: (params) => {
         return new Date(params?.row?.taskRun?.endTime)?.toLocaleString();
       },
@@ -170,7 +175,11 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
           horizontal: 'right',
         }}
       >
-        <TaskRunCard handleClose={handleClose} taskId={content.taskRun.taskId} taskRunId={content.taskRun.runId} />
+        <TaskRunCard
+          handleClose={handleClose}
+          taskId={content.taskRun.taskId}
+          taskRunId={content.taskRun.runId}
+        />
       </Popover>
       <DataGrid
         autoHeight

@@ -187,7 +187,7 @@ func TestIncorrectTaskRunMetadata(t *testing.T) {
 				Trigger: OnApplyTrigger{
 					TriggerName: "name3",
 				},
-				TriggerType: OnApplyTriggerType,
+				TriggerType: ScheduleTriggerType,
 				Status:      FAILED,
 				StartTime:   time.Now().Truncate(0).UTC(),
 				EndTime:     time.Now().Truncate(0).UTC(),
@@ -226,7 +226,7 @@ func TestIncorrectTaskRunMetadata(t *testing.T) {
 			}
 
 			if reflect.DeepEqual(deserializedTask, currTest.task) {
-				t.Fatalf("Expected trigger should be present and different from output trigger, expected: %v\n Got: %v", currTest.task, deserializedTask)
+				t.Fatalf("Expected trigger should be present and different from output trigger, \nexpected: %#v\n     Got: %#v", currTest.task, deserializedTask)
 			}
 		})
 	}

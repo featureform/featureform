@@ -623,10 +623,6 @@ func (store *memoryOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, s
 
 func (store *memoryOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
 	store.tables.Store(id, &memoryPrimaryTable{})
-	store.tables.Range(func(key, value any) bool {
-		fmt.Println(key, value)
-		return true
-	})
 	return &memoryPrimaryTable{}, nil
 }
 
@@ -678,10 +674,6 @@ func (store *memoryOfflineStore) CreateResourceTable(id ResourceID, schema Table
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}
-	store.tables.Range(func(key, value any) bool {
-		fmt.Println(key, value)
-		return true
-	})
 	if _, has := store.tables.Load(id); has {
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
@@ -695,11 +687,6 @@ func (store *memoryOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, 
 }
 
 func (store *memoryOfflineStore) getMemoryResourceTable(id ResourceID) (*memoryOfflineTable, error) {
-	fmt.Println(id)
-	store.tables.Range(func(key, value any) bool {
-		fmt.Println(key, value)
-		return true
-	})
 	table, has := store.tables.Load(id)
 	if !has {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)

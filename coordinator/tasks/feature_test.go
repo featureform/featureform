@@ -72,8 +72,8 @@ func TestFeatureTaskRun(t *testing.T) {
 			metadata: client,
 			taskDef:  featureTaskRun,
 			Spawner:  &spawner.MemoryJobSpawner{},
+			logger:   zaptest.NewLogger(t).Sugar(),
 		},
-		zaptest.NewLogger(t).Sugar(),
 	}
 	err = task.Run()
 	if err != nil {

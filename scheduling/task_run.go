@@ -157,6 +157,7 @@ type TaskRunMetadata struct {
 	Trigger      Trigger     `json:"trigger"`
 	TriggerType  TriggerType `json:"triggerType"`
 	Target       TaskTarget  `json:"target"`
+	TargetType   TargetType  `json:"targetType"`
 	Dependencies []TaskRunID `json:"dependencies"`
 	Status       Status      `json:"status"`
 	StartTime    time.Time   `json:"startTime"`
@@ -180,6 +181,8 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 		Name        string          `json:"name"`
 		Trigger     json.RawMessage `json:"trigger"`
 		TriggerType TriggerType     `json:"triggerType"`
+		Target      json.RawMessage `json:"target"`
+		TargetType  TargetType      `json:"targetType"`
 		Status      Status          `json:"status"`
 		StartTime   time.Time       `json:"startTime"`
 		EndTime     time.Time       `json:"endTime"`
@@ -243,5 +246,32 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 		errMessage := fmt.Errorf("unknown trigger type: %s", temp.TriggerType)
 		return fferr.NewInvalidArgumentError(errMessage)
 	}
+
+	targetMap := make(map[string]interface{})
+	if err := json.Unmarshal(temp.Target, &targetMap); err != nil {
+		errMessage := fmt.Errorf("failed to deserialize target data: %w", err)
+		return fferr.NewInternalError(errMessage)
+	}
+
+	switch temp.TargetType {
+	case NameVariantTarget:
+		var nvTarget NameVariant
+		if err := json.Unmarshal(temp.Target, &nvTarget); err != nil {
+			errMessage := fmt.Errorf("failed to deserialize NameVariant target data: %w", err)
+			return fferr.NewInternalError(errMessage)
+		}
+		t.Target = nvTarget
+	case ProviderTarget:
+		var providerTarget Provider
+		if err := json.Unmarshal(temp.Target, &providerTarget); err != nil {
+			errMessage := fmt.Errorf("failed to deserialize Schedule Trigger data: %w", err)
+			return fferr.NewInternalError(errMessage)
+		}
+		t.Target = providerTarget
+	default:
+		errMessage := fmt.Errorf("unknown target type: %s", temp.Target)
+		return fferr.NewInvalidArgumentError(errMessage)
+	}
+
 	return nil
 }

@@ -11,29 +11,21 @@ import (
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/runner"
 	"github.com/featureform/scheduling"
-	"go.uber.org/zap"
 )
 
 type FeatureTask struct {
 	BaseTask
-	logger *zap.SugaredLogger
 }
 
 func (t *FeatureTask) Run() error {
-	taskMetadata, err := t.metadata.Tasks.GetTaskByID(t.taskDef.TaskId)
-	if err != nil {
-		return err
-	}
-
-	nv, ok := taskMetadata.Target.(scheduling.NameVariant)
+	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
-		return fferr.NewInternalErrorf("cannot create a source from target type: %s", taskMetadata.TargetType)
+		return fferr.NewInternalErrorf("cannot create a feature from target type: %s", t.taskDef.TargetType)
 	}
 
 	t.logger.Info("Running feature materialization job on resource: ", nv)
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Feature details...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Feature details..."); err != nil {
 		return err
 	}
 
@@ -43,8 +35,7 @@ func (t *FeatureTask) Run() error {
 	}
 	t.logger.Infow("feature variant", "name", feature.Name(), "source", feature.Source(), "location", feature.Location(), "location_col", feature.LocationColumns())
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for dependencies to complete...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for dependencies to complete..."); err != nil {
 		return err
 	}
 
@@ -54,8 +45,7 @@ func (t *FeatureTask) Run() error {
 		return err
 	}
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Offline Store...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Offline Store..."); err != nil {
 		return err
 	}
 
@@ -129,13 +119,11 @@ func (t *FeatureTask) Run() error {
 	}
 	t.logger.Debugw("Creating Resource Table", "id", featID, "schema", schema)
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Registering Feature from dataset...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Registering Feature from dataset..."); err != nil {
 		return err
 	}
 
-	_, err = sourceStore.RegisterResourceFromSourceTable(featID, schema)
-	if err != nil {
+	if _, err := sourceStore.RegisterResourceFromSourceTable(featID, schema); err != nil {
 		return err
 	}
 	t.logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
@@ -161,8 +149,7 @@ func (t *FeatureTask) Run() error {
 		return err
 	}
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Starting Materialization...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Starting Materialization..."); err != nil {
 		return err
 	}
 
@@ -178,8 +165,7 @@ func (t *FeatureTask) Run() error {
 	}
 
 	t.logger.Debugw("Setting status to ready", "id", featID)
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Materialization Complete...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Materialization Complete..."); err != nil {
 		return err
 	}
 	return nil

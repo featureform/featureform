@@ -72,8 +72,13 @@ func main() {
 		spawner = &coordinator.KubernetesJobSpawner{EtcdConfig: etcdConfig}
 	}
 
+	etcdStorageConfig := help.ETCDConfig{
+		Host: etcdHost,
+		Port: etcdPort,
+	}
+
 	// Add a switch for locker
-	locker, err := ffsync.NewETCDLocker(etcdHost, etcdPort)
+	locker, err := ffsync.NewETCDLocker(etcdStorageConfig)
 
 	coord, err := coordinator.NewCoordinator(client, logger, spawner, locker)
 	if err != nil {

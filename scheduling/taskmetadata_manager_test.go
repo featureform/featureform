@@ -716,7 +716,7 @@ func TestSetStatusByRunID(t *testing.T) {
 			},
 			TaskID(&MockOrderedID{Id: 2}),
 			TaskRunID(&MockOrderedID{Id: 3}),
-			&proto.ResourceStatus{Status: proto.ResourceStatus_FAILED},
+			&proto.ResourceStatus{Status: proto.ResourceStatus_PENDING},
 			false,
 		},
 		{
@@ -731,7 +731,9 @@ func TestSetStatusByRunID(t *testing.T) {
 			},
 			TaskID(&MockOrderedID{Id: 2}),
 			TaskRunID(&MockOrderedID{Id: 2}),
-			&proto.ResourceStatus{Status: proto.ResourceStatus_FAILED},
+			&proto.ResourceStatus{
+				Status: proto.ResourceStatus_FAILED,
+			},
 			true,
 		},
 	}

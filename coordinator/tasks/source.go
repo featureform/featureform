@@ -11,29 +11,22 @@ import (
 	"github.com/featureform/runner"
 	"github.com/featureform/scheduling"
 	db "github.com/jackc/pgx/v4"
-	"go.uber.org/zap"
 	"strings"
 	"time"
 )
 
 type SourceTask struct {
 	BaseTask
-	logger *zap.SugaredLogger
 }
 
 func (t *SourceTask) Run() error {
-	taskMetadata, err := t.metadata.Tasks.GetTaskByID(t.taskDef.TaskId)
-	if err != nil {
-		return err
-	}
-
-	nv, ok := taskMetadata.Target.(scheduling.NameVariant)
+	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
-		return fferr.NewInternalErrorf("cannot create a source from target type: %s", taskMetadata.TargetType)
+		return fferr.NewInternalErrorf("cannot create a source from target type: %s", t.taskDef.TargetType)
 	}
 
 	t.logger.Info("Running register source job on resource: ", nv)
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Metadata...")
+	err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Metadata...")
 	if err != nil {
 		return err
 	}
@@ -41,8 +34,7 @@ func (t *SourceTask) Run() error {
 	if err != nil {
 		return err
 	}
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Provider...")
-	if err != nil {
+	if err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Provider..."); err != nil {
 		return err
 	}
 	sourceProvider, err := source.FetchProvider(t.metadata, context.Background())
@@ -88,18 +80,15 @@ func (t *SourceTask) runSQLTransformationJob(transformSource *metadata.SourceVar
 	templateString := transformSource.SQLTransformationQuery()
 	sources := transformSource.SQLTransformationSources()
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for dependent jobs to complete...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for dependent jobs to complete..."); err != nil {
 		return err
 	}
 
-	err = t.verifyCompletionOfSources(sources)
-	if err != nil {
+	if err := t.verifyCompletionOfSources(sources); err != nil {
 		return err
 	}
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Mapping Name Variants to Tables...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Mapping Name Variants to Tables..."); err != nil {
 		return err
 	}
 
@@ -128,8 +117,7 @@ func (t *SourceTask) runSQLTransformationJob(transformSource *metadata.SourceVar
 		Args:          transformSource.TransformationArgs(),
 	}
 
-	err = t.runTransformationJob(transformationConfig, resID, sourceProvider)
-	if err != nil {
+	if err := t.runTransformationJob(transformationConfig, resID, sourceProvider); err != nil {
 		return err
 	}
 

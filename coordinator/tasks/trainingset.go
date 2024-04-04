@@ -9,34 +9,25 @@ import (
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/runner"
 	"github.com/featureform/scheduling"
-	"go.uber.org/zap"
 	"time"
 )
 
 type TrainingSetTask struct {
 	BaseTask
-	logger *zap.SugaredLogger
 }
 
 func (t *TrainingSetTask) Run() error {
-	taskMetadata, err := t.metadata.Tasks.GetTaskByID(t.taskDef.TaskId)
-	if err != nil {
-		return err
-	}
-
-	nv, ok := taskMetadata.Target.(scheduling.NameVariant)
+	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
-		return fferr.NewInternalErrorf("cannot create a source from target type: %s", taskMetadata.TargetType)
+		return fferr.NewInternalErrorf("cannot create a source from target type: %s", t.taskDef.TargetType)
 	}
 
 	t.logger.Info("Running training set job on resource: ", "name", nv.Name, "variant", nv.Variant)
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Starting Training Set Creation...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Starting Training Set Creation..."); err != nil {
 		return err
 	}
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Training Set configuration...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Training Set configuration..."); err != nil {
 		return err
 	}
 
@@ -45,8 +36,7 @@ func (t *TrainingSetTask) Run() error {
 		return err
 	}
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Offline Store...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Offline Store..."); err != nil {
 		return err
 	}
 
@@ -74,8 +64,7 @@ func (t *TrainingSetTask) Run() error {
 		return err
 	}
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for dependencies to complete...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for dependencies to complete..."); err != nil {
 		return err
 	}
 
@@ -136,8 +125,7 @@ func (t *TrainingSetTask) Run() error {
 	}
 	serialized, _ := tsRunnerConfig.Serialize()
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Job runner...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Job runner..."); err != nil {
 		return err
 	}
 
@@ -157,8 +145,7 @@ func (t *TrainingSetTask) Run() error {
 		return err
 	}
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for completion...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for completion..."); err != nil {
 		return err
 	}
 
@@ -166,8 +153,7 @@ func (t *TrainingSetTask) Run() error {
 		return err
 	}
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Training Set creation complete...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Training Set creation complete..."); err != nil {
 		return err
 	}
 

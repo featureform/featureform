@@ -75,8 +75,8 @@ func TestTrainingSetTaskRun(t *testing.T) {
 			metadata: client,
 			taskDef:  trainingSetTaskRun,
 			Spawner:  &spawner.MemoryJobSpawner{},
+			logger:   zaptest.NewLogger(t).Sugar(),
 		},
-		zaptest.NewLogger(t).Sugar(),
 	}
 	err = task.Run()
 	if err != nil {

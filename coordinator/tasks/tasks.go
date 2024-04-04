@@ -7,6 +7,7 @@ import (
 	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	"github.com/featureform/scheduling"
+	"go.uber.org/zap"
 	"time"
 )
 
@@ -18,6 +19,7 @@ type BaseTask struct {
 	metadata *metadata.Client
 	taskDef  scheduling.TaskRunMetadata
 	Spawner  spawner.JobSpawner
+	logger   *zap.SugaredLogger
 }
 
 func (bt *BaseTask) waitForRunCompletion(id []scheduling.TaskRunID) error {

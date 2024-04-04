@@ -50,8 +50,8 @@ func TestSourceTaskRun(t *testing.T) {
 			metadata: client,
 			taskDef:  runs[0],
 			Spawner:  &spawner.MemoryJobSpawner{},
+			logger:   zaptest.NewLogger(t).Sugar(),
 		},
-		zaptest.NewLogger(t).Sugar(),
 	}
 	err = task.Run()
 	if err != nil {

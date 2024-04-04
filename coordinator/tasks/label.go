@@ -7,27 +7,20 @@ import (
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
-	"go.uber.org/zap"
 )
 
 type LabelTask struct {
 	BaseTask
-	logger *zap.SugaredLogger
 }
 
 func (t *LabelTask) Run() error {
-	taskMetadata, err := t.metadata.Tasks.GetTaskByID(t.taskDef.TaskId)
-	if err != nil {
-		return err
-	}
-
-	nv, ok := taskMetadata.Target.(scheduling.NameVariant)
+	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
-		return fferr.NewInternalErrorf("cannot create a source from target type: %s", taskMetadata.TargetType)
+		return fferr.NewInternalErrorf("cannot create a label from target type: %s", t.taskDef.TargetType)
 	}
 
 	nameVariant := metadata.NameVariant{Name: nv.Name, Variant: nv.Variant}
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Label details...")
+	err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Label details...")
 	if err != nil {
 		return err
 	}
@@ -40,8 +33,7 @@ func (t *LabelTask) Run() error {
 	sourceNameVariant := label.Source()
 	t.logger.Infow("feature obj", "name", label.Name(), "source", label.Source(), "location", label.Location(), "location_col", label.LocationColumns())
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for dependencies to complete...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for dependencies to complete..."); err != nil {
 		return err
 	}
 
@@ -50,8 +42,7 @@ func (t *LabelTask) Run() error {
 		return err
 	}
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Offline Store...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Offline Store..."); err != nil {
 		return err
 	}
 
@@ -104,19 +95,16 @@ func (t *LabelTask) Run() error {
 	}
 	t.logger.Debugw("Creating Label Resource Table", "id", labelID, "schema", schema)
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Registering Label from dataset...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Registering Label from dataset..."); err != nil {
 		return err
 	}
 
-	_, err = sourceStore.RegisterResourceFromSourceTable(labelID, schema)
-	if err != nil {
+	if _, err := sourceStore.RegisterResourceFromSourceTable(labelID, schema); err != nil {
 		return err
 	}
 	t.logger.Debugw("Resource Table Created", "id", labelID, "schema", schema)
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Registration complete...")
-	if err != nil {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Registration complete..."); err != nil {
 		return err
 	}
 

@@ -7,15 +7,15 @@ export default function StatusChip({ status }) {
     2: '#FAECD0',
     1: '#FAECD0',
     4: '#FAD0F6',
-    5: '#FFA500',
+    5: '#D6D0FA',
   };
   const STATUS_MAP = {
-    0: 'NO_STATUS',
-    1: 'CREATED',
-    2: 'PENDING',
-    3: 'READY',
-    4: 'FAILED',
-    5: 'RUNNING',
+    0: 'No Status',
+    1: 'Created',
+    2: 'Pending',
+    3: 'Ready',
+    4: 'Failed',
+    5: 'Running',
   };
   return (
     <Chip

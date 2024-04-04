@@ -8,17 +8,19 @@ export default function StatusChip({ status }) {
     4: '#FAD0F6',
     5: '#FFA500',
   };
-  const statusMap = {
-    3: 'Ready',
-    2: 'Pending',
-    4: 'Failed',
-    5: 'Running',
+  const STATUS_MAP = {
+    0: 'NO_STATUS',
+    1: 'CREATED',
+    2: 'PENDING',
+    3: 'READY',
+    4: 'FAILED',
+    5: 'RUNNING',
   };
   return (
     <Chip
       sx={{ backgroundColor: chipMap[status] ?? '#FFFFFF' }}
       size='small'
-      label={statusMap[status] ?? 'No Status'}
+      label={STATUS_MAP[status] ?? 'No Status'}
     />
   );
 }

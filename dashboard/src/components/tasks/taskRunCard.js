@@ -128,20 +128,11 @@ export default function TaskRunCard({ handleClose, taskId, taskRunId }) {
             style={{ width: '100%' }}
             variant='filled'
             disabled
-            value={taskRunRecord?.taskRun?.logs?.join('\n') + '\n' + taskRunRecord?.taskRun?.error}
-            multiline
-            minRows={3}
-          ></TextField>
-        </Grid>
-        <Grid item xs={12} justifyContent='center' style={{ paddingTop: 20 }}>
-          <Typography variant='h6'>Task Run Details</Typography>
-        </Grid>
-        <Grid item xs={12} justifyContent='center'>
-          <TextField
-            style={{ width: '100%' }}
-            variant='filled'
-            disabled
-            value={'Todox: Need to fill'}
+            value={
+              taskRunRecord?.taskRun?.logs?.join('\n') +
+              '\n' +
+              taskRunRecord?.taskRun?.error
+            }
             multiline
             minRows={3}
           ></TextField>

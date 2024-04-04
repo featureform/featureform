@@ -37,7 +37,7 @@ const (
 
 const (
 	// Default timeout when waiting for dynamoDB tables to be ready
-	defaultDynamoTableTimeout = 5 * time.Second
+	defaultDynamoTableTimeout = 30 * time.Second
 )
 
 type dynamodbTableKey struct {

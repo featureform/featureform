@@ -527,11 +527,17 @@ const EntityPageView = ({
                     )}
                     {metadata['status'] &&
                       metadata['status'] !== 'NO_STATUS' && (
-                        <div className={classes.resourceItem}>
-                          <Typography variant='body1'>
+                        <div
+                          className={classes.resourceItem}
+                          style={{ display: 'flex' }}
+                        >
+                          <Typography
+                            variant='body1'
+                            style={{ marginRight: 4 }}
+                          >
                             <strong>Status:</strong>{' '}
-                            <StatusChip status={metadata['status']} />
                           </Typography>
+                          <StatusChip status={metadata['status']} />
                         </div>
                       )}
                     {metadata['error'] && metadata['error'] !== '' && (

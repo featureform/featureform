@@ -1,20 +1,25 @@
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import ArrowDropUpIcon from '@mui/icons-material/ArrowDropUp';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import {
   Alert,
   Box,
   Button,
+  IconButton,
+  InputAdornment,
   InputLabel,
+  Popover,
   Slide,
   Snackbar,
+  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
 import FormControl from '@mui/material/FormControl';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
 import { makeStyles } from '@mui/styles';
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { connect } from 'react-redux';
+import VariantView from './VariantView';
 
 const useStyles = makeStyles(() => ({
   formControl: {
@@ -36,8 +41,12 @@ const VariantControl = ({
   handleVariantChange,
 }) => {
   const classes = useStyles();
+  const ref = useRef();
 
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
+  const [openVarDrop, setOpenVarDrop] = useState(false);
+  const [variantList, setVariantList] = useState([]);
+  const [filteredVarList, setFilteredVarList] = useState([]);
   const closeSnackBar = (_, reason) => {
     if (reason === 'clickaway') {
       return;
@@ -56,29 +65,61 @@ const VariantControl = ({
     return <Slide {...props} direction='right' />;
   }
 
-  const handleChange = (event) => {
-    handleVariantChange(event.target.value);
+  const createVariantViewItem = (propItem = {}, id = 0) => {
+    let result = {
+      id: id,
+      name: '---',
+      variant: propItem.variant,
+      owner: propItem.owner,
+      created: new Date(),
+    };
+    const propDate = new Date(propItem.created);
+    if (!isNaN(propDate.getTime())) {
+      //is valid
+      result.created = propDate;
+    } else {
+      console.error(
+        `error on (${propItem?.name} - ${propItem?.variant}) created field`,
+        propItem?.created
+      );
+    }
+    return result;
+  };
+  useEffect(() => {
+    let tempList = [];
+    if (variantListProp.length && resources?.variants) {
+      tempList = variantListProp.map((vr, index) => {
+        const foundRecord = resources.variants[vr];
+        return createVariantViewItem(foundRecord, index);
+      });
+      tempList = tempList.sort((a, b) => b.created - a.created);
+    }
+    setVariantList(tempList);
+  }, [variantListProp]);
+
+  const handleSelect = (variantName = '') => {
+    if (variantName) {
+      handleVariantChange(variantName);
+      setOpenVarDrop(false);
+    }
   };
 
-  let variantList = [];
+  const handleSearch = (searchText = '') => {
+    let filteredList = variantList.filter((vr) => {
+      return vr.name?.includes(searchText) || vr.variant?.includes(searchText);
+    });
+    setFilteredVarList(filteredList);
+  };
 
-  if (variantListProp.length && resources?.variants) {
-    try {
-      variantList = variantListProp.map((vr) => {
-        return {
-          variantName: vr,
-          created: new Date(resources.variants[vr].created),
-        };
-      });
+  const handleClose = () => {
+    setOpenVarDrop(false);
+  };
 
-      variantList = variantList.sort((a, b) => b.created - a.created);
-    } catch (e) {
-      console.error('Error ordering the variants:', e);
-      variantList = variantListProp.map((vr) => {
-        return { variantName: vr, created: null };
-      });
-    }
-  }
+  const handleOpen = () => {
+    //reset the filtered list
+    setFilteredVarList(variantList);
+    setOpenVarDrop(true);
+  };
 
   return (
     <>
@@ -98,25 +139,27 @@ const VariantControl = ({
           <InputLabel shrink id='variantControlId'>
             Variant
           </InputLabel>
-          <Select
+          <TextField
             value={variant}
-            labelId='variantControlId'
             label='Variant'
-            data-testid={'variantControlSelectId'}
-            onChange={handleChange}
-            notched
-            displayEmpty
-          >
-            {variantList.map((vr, index) => (
-              <MenuItem
-                data-testid={`${index}_${vr?.variantName}`}
-                key={vr?.variantName}
-                value={vr?.variantName}
-              >
-                {vr?.variantName}
-              </MenuItem>
-            ))}
-          </Select>
+            onChange={handleSelect}
+            onClick={handleOpen}
+            type='button'
+            ref={ref}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position='end'>
+                  <IconButton>
+                    {openVarDrop ? <ArrowDropUpIcon /> : <ArrowDropDownIcon />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+            inputProps={{
+              'aria-label': 'searchVariant',
+              'data-testid': 'variantControlSelectId',
+            }}
+          ></TextField>
         </FormControl>
         <Tooltip title='Copy to Clipboard'>
           <Button
@@ -127,6 +170,24 @@ const VariantControl = ({
             <ContentCopyIcon fontSize='medium' />
           </Button>
         </Tooltip>
+        <Popover
+          style={{ marginTop: '0.25em' }}
+          open={openVarDrop}
+          anchorReference='anchorEl'
+          onClose={handleClose}
+          anchorEl={ref?.current}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'left',
+          }}
+        >
+          <VariantView
+            variantList={filteredVarList}
+            handleClose={handleClose}
+            handleSelect={handleSelect}
+            handleSearch={handleSearch}
+          />
+        </Popover>
       </Box>
     </>
   );

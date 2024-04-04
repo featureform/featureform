@@ -39,11 +39,14 @@ export default function TableDataWrapper() {
     FAILED: 4,
     RUNNING: 5,
   };
-  const [searchParams, setSearchParams] = useState({
+
+  const DEFAULT_PARAMS = {
     status: FILTER_STATUS_ALL,
     sortBy: SORT_DATE,
     searchText: '',
-  });
+  };
+
+  const [searchParams, setSearchParams] = useState({ ...DEFAULT_PARAMS });
   const [searchQuery, setSearchQuery] = useState('');
   const [taskRunList, setTaskRunList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -54,10 +57,9 @@ export default function TableDataWrapper() {
   useEffect(async () => {
     if (loading) {
       let data = await dataAPI.getTaskRuns(searchParams);
-      //if the search are in all state. run the counts again
       if (
         !searchParams.searchText &&
-        !searchParams.sortBy &&
+        searchParams.sortBy == SORT_DATE &&
         searchParams.status == FILTER_STATUS_ALL
       ) {
         if (data?.length) {
@@ -115,11 +117,7 @@ export default function TableDataWrapper() {
   };
 
   const clearInputs = () => {
-    setSearchParams({
-      status: FILTER_STATUS_ALL,
-      sortBy: '',
-      searchText: '',
-    });
+    setSearchParams({ ...DEFAULT_PARAMS });
     setSearchQuery('');
     setLoading(true);
   };

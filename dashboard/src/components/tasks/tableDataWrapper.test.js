@@ -117,7 +117,6 @@ describe('Task table data wrapper tests', () => {
     expect(dataAPIMock.getTaskRuns).toHaveBeenCalledTimes(2);
     expect(dataAPIMock.getTaskRuns).toHaveBeenNthCalledWith(2, {
       ...DEFAULT_PARAMS,
-      sortBy: '',
     });
   });
 

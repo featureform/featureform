@@ -8,6 +8,12 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState({ taskRun: { taskId: 0, runId: 0 } });
 
+  const TASK_TYPE_MAP = {
+    0: 'Resource Creation',
+    1: 'Health Check',
+    2: 'Metrics',
+  };
+
   const handleRowSelect = (selectedRow) => {
     let foundTaskRun = taskRunList?.find(
       (q) =>
@@ -63,7 +69,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
       field: 'name',
       headerName: 'Task Name',
       flex: 1,
-      minWidth: 350,
+      minWidth: 250,
       editable: false,
       sortable: false,
       filterable: false,
@@ -75,7 +81,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
       field: 'resource',
       headerName: 'Resource',
       flex: 1,
-      width: 175,
+      minWidth: 150,
       editable: false,
       sortable: false,
       filterable: false,
@@ -87,7 +93,7 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
       field: 'variant',
       headerName: 'Variant',
       flex: 1,
-      width: 175,
+      minWidth: 175,
       editable: false,
       sortable: false,
       filterable: false,
@@ -99,19 +105,19 @@ export default function TaskRunDataGrid({ taskRunList = [] }) {
       field: 'jobType',
       headerName: 'Task Type',
       flex: 1,
-      width: 175,
+      minWidth: 150,
       editable: false,
       sortable: false,
       filterable: false,
       valueGetter: (params) => {
-        return params?.row?.task?.type;
+        return TASK_TYPE_MAP[params?.row?.task?.type] ?? '';
       },
     },
     {
       field: 'status',
       headerName: 'Status',
       flex: 1,
-      width: 125,
+      minWidth: 75,
       editable: false,
       sortable: false,
       filterable: false,

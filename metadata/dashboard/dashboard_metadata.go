@@ -1640,9 +1640,10 @@ func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
 }
 
 type OtherRun struct {
-	StartTime time.Time `json:"startTime"`
-	Status    sc.Status `json:"status"`
-	Link      string    `json:"link"`
+	ID        sc.TaskRunID `json:"runId"`
+	StartTime time.Time    `json:"startTime"`
+	Status    sc.Status    `json:"status"`
+	Link      string       `json:"link"`
 }
 
 type TaskRunDetailResponse struct {
@@ -1687,8 +1688,8 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	var otherRuns []OtherRun
 	var selectedRun scheduling.TaskRunMetadata
 	for _, run := range runs {
-		if run.ID != taskRunID {
-			otherRuns = append(otherRuns, OtherRun{StartTime: run.StartTime, Status: run.Status, Link: ""})
+		if !run.ID.Equals(taskRunID) {
+			otherRuns = append(otherRuns, OtherRun{ID: run.ID, StartTime: run.StartTime, Status: run.Status, Link: ""})
 		} else {
 			selectedRun = run
 		}

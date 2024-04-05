@@ -46,6 +46,10 @@ type dynamodbTableKey struct {
 	Prefix, Feature, Variant string
 }
 
+func (t dynamodbTableKey) ToTableName() string {
+	return formatDynamoTableName(t.Prefix, t.Feature, t.Variant)
+}
+
 func (t dynamodbTableKey) String() string {
 	marshalled, err := json.Marshal(t)
 	if err != nil {
@@ -831,7 +835,7 @@ func castNumberToInt(value any) (int, error) {
 	case float64:
 		return int(typed), nil
 	case string:
-		i64, err := strconv.ParseInt(typed, 64)
+		i64, err := strconv.ParseInt(typed, 10, 64)
 		if err != nil {
 			return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
 		}
@@ -859,7 +863,7 @@ func castNumberToInt32(value any) (int32, error) {
 	case float64:
 		return int32(typed), nil
 	case string:
-		i64, err := strconv.ParseInt(typed, 32)
+		i64, err := strconv.ParseInt(typed, 10, 32)
 		if err != nil {
 			return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
 		}
@@ -887,7 +891,7 @@ func castNumberToInt64(value any) (int64, error) {
 	case float64:
 		return int64(typed), nil
 	case string:
-		i64, err := strconv.ParseInt(typed, 64)
+		i64, err := strconv.ParseInt(typed, 10, 64)
 		if err != nil {
 			return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
 		}

@@ -24,9 +24,9 @@ import (
 const resourceRecordBufferSize = 1_000_000
 
 // We create a pool of goroutines per materialization chunk runner to make Set requests to
-// the inference store asynchronously; after some initial testing, 1000 workers appears to
+// the inference store asynchronously; after some initial testing, 500 workers appears to
 // offer the best results
-const workerPoolSize = 1000
+const workerPoolSize = 500
 
 type IndexRunner interface {
 	types.Runner
@@ -37,8 +37,7 @@ type MaterializedChunkRunner struct {
 	Materialized provider.Materialization
 	Table        provider.OnlineStoreTable
 	Store        provider.OnlineStore
-	ChunkSize    int64
-	ChunkIdx     int64
+	ChunkIdx     int
 }
 
 type ResultSync struct {
@@ -62,26 +61,7 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		DoneChannel: done,
 	}
 	go func() {
-		if m.ChunkSize == 0 {
-			jobWatcher.EndWatch(nil)
-			return
-		}
-		numRows, err := m.Materialized.NumRows()
-		if err != nil {
-			jobWatcher.EndWatch(err)
-			return
-		}
-		if numRows == 0 {
-			jobWatcher.EndWatch(nil)
-			return
-		}
-
-		rowStart := m.ChunkIdx * m.ChunkSize
-		rowEnd := rowStart + m.ChunkSize
-		if rowEnd > numRows {
-			rowEnd = numRows
-		}
-		it, err := m.Materialized.IterateSegment(rowStart, rowEnd)
+		it, err := m.Materialized.IterateChunk(m.ChunkIdx)
 		if err != nil {
 			jobWatcher.EndWatch(err)
 			return
@@ -107,9 +87,31 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		errCh := make(chan error, 1)
 		var wg sync.WaitGroup
 		wg.Add(workerPoolSize)
-		// Create a set goroutines that can wait for the inference store to response asynchronously
-		for idx := 0; idx < workerPoolSize; idx++ {
-			go func() {
+		type batchWriter interface {
+			BatchSet([]provider.SetItem) error
+		}
+		batchTable, supportsBatch := m.Table.(batchWriter)
+		var setterFn func()
+		if supportsBatch {
+			setterFn = func() {
+				defer wg.Done()
+				buffer := make([]provider.SetItem, 0, 25)
+				for record := range ch {
+					if len(buffer) == 25 {
+						if err := batchTable.BatchSet(buffer); err != nil {
+							select {
+							case errCh <- err:
+							default:
+							}
+						}
+						buffer = buffer[:0]
+					} else {
+						buffer = append(buffer, provider.SetItem{record.Entity, record.Value})
+					}
+				}
+			}
+		} else {
+			setterFn =  func() {
 				defer wg.Done()
 				for record := range ch {
 					if err := m.Table.Set(record.Entity, record.Value); err != nil {
@@ -119,7 +121,11 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 						}
 					}
 				}
-			}()
+			}
+		}
+		// Create a set goroutines that can wait for the inference store to response asynchronously
+		for idx := 0; idx < workerPoolSize; idx++ {
+			go setterFn()
 		}
 		var chanErr error
 		for it.Next() {
@@ -171,7 +177,7 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 }
 
 func (m *MaterializedChunkRunner) SetIndex(index int) error {
-	m.ChunkIdx = int64(index)
+	m.ChunkIdx = index
 	return nil
 }
 
@@ -236,10 +242,10 @@ type MaterializedChunkRunnerConfig struct {
 	OfflineConfig  pc.SerializedConfig
 	MaterializedID provider.MaterializationID
 	ResourceID     provider.ResourceID
-	ChunkSize      int64
-	ChunkIdx       int64
+	ChunkIdx       int
 	IsUpdate       bool
 	Logger         *zap.SugaredLogger
+	SkipCache      bool
 }
 
 func (m *MaterializedChunkRunnerConfig) Serialize() (Config, error) {
@@ -258,38 +264,64 @@ func (m *MaterializedChunkRunnerConfig) Deserialize(config Config) error {
 	return nil
 }
 
+// We'll often build many MaterializedChunkRunners with the same provider configs, this is an optimization
+// to avoid that. This assumes the providers are thread-safe however. We separate the caches because some
+// tests will create empty configs for both an online and offline store and they'll map to the same thing.
+var onlineProviderCache = &sync.Map{}
+var offlineProviderCache = &sync.Map{}
+
 func MaterializedChunkRunnerFactory(config Config) (types.Runner, error) {
 	runnerConfig := &MaterializedChunkRunnerConfig{}
 	if err := runnerConfig.Deserialize(config); err != nil {
 		return nil, err
 	}
+	var onlineStore provider.OnlineStore
+	var offlineStore provider.OfflineStore
+	onlineCfg := runnerConfig.OnlineConfig
+	offlineCfg := runnerConfig.OfflineConfig
+	onlineCfgStr := string(onlineCfg)
+	offlineCfgStr := string(offlineCfg)
+	useCache := !runnerConfig.SkipCache
 
-	onlineProvider, err := provider.Get(runnerConfig.OnlineType, runnerConfig.OnlineConfig)
-	if err != nil {
-		return nil, err
+	cachedOnline, found := onlineProviderCache.Load(onlineCfgStr)
+	if found && useCache {
+		onlineStore = cachedOnline.(provider.OnlineStore)
+	} else {
+		onlineProvider, err := provider.Get(runnerConfig.OnlineType, onlineCfg)
+		if err != nil {
+			return nil, err
+		}
+		store, err := onlineProvider.AsOnlineStore()
+		if err != nil {
+			return nil, err
+		}
+		onlineStore = store
+		if useCache {
+			onlineProviderCache.Store(onlineCfgStr, onlineStore)
+		}
 	}
-	offlineProvider, err := provider.Get(runnerConfig.OfflineType, runnerConfig.OfflineConfig)
-	if err != nil {
-		return nil, err
+
+	cachedOffline, found := offlineProviderCache.Load(offlineCfgStr)
+	if found && useCache {
+		offlineStore = cachedOffline.(provider.OfflineStore)
+	} else {
+		offlineProvider, err := provider.Get(runnerConfig.OfflineType, offlineCfg)
+		if err != nil {
+			return nil, err
+		}
+		store, err := offlineProvider.AsOfflineStore()
+		if err != nil {
+			return nil, err
+		}
+		offlineStore = store
+		if useCache {
+			offlineProviderCache.Store(offlineCfgStr, offlineStore)
+		}
 	}
-	onlineStore, err := onlineProvider.AsOnlineStore()
-	if err != nil {
-		return nil, err
-	}
-	offlineStore, err := offlineProvider.AsOfflineStore()
-	if err != nil {
-		return nil, err
-	}
+
 	materialization, err := offlineStore.GetMaterialization(runnerConfig.MaterializedID)
 	if err != nil {
 		return nil, err
-	}
-	numRows, err := materialization.NumRows()
-	if err != nil {
-		return nil, err
-	}
-	if runnerConfig.ChunkSize*runnerConfig.ChunkIdx > numRows {
-		return nil, fferr.NewInternalError(fmt.Errorf("chunk runner starts after end of materialization rows"))
 	}
 	table, err := onlineStore.GetTable(runnerConfig.ResourceID.Name, runnerConfig.ResourceID.Variant)
 	if err != nil {
@@ -299,7 +331,6 @@ func MaterializedChunkRunnerFactory(config Config) (types.Runner, error) {
 		Materialized: materialization,
 		Table:        table,
 		Store:        onlineStore,
-		ChunkSize:    runnerConfig.ChunkSize,
 		ChunkIdx:     runnerConfig.ChunkIdx,
 	}, nil
 }

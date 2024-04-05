@@ -22,8 +22,6 @@ import (
 	"github.com/featureform/types"
 )
 
-const MAXIMUM_CHUNK_ROWS int64 = 100000
-
 var WORKER_IMAGE string = helpers.GetEnv("WORKER_IMAGE", "featureformcom/worker:latest")
 
 type JobCloud string
@@ -113,7 +111,11 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	if m.Online == nil {
 		return m.handleNoOnlineStore()
 	}
+	return m.MaterializeToOnline(materialization)
+}
 
+// TODO(simba) make private
+func (m MaterializeRunner) MaterializeToOnline(materialization provider.Materialization) (types.CompletionWatcher, error) {
 	// Create the vector similarity index prior to writing any values to the
 	// inference store. This is currently only required for RediSearch, but other
 	// vector databases allow for manual index configuration even if they support
@@ -124,41 +126,32 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		if !ok {
 			return nil, fferr.NewInternalError(fmt.Errorf("cannot create index on non-vector store: %s", m.Online.Type().String()))
 		}
+		// TODO handle exists error
 		_, err := vectorStore.CreateIndex(m.ID.Name, m.ID.Variant, vectorType)
 		if err != nil {
 			return nil, err
 		}
 	}
 	m.Logger.Infow("Creating Table", "name", m.ID.Name, "variant", m.ID.Variant)
-	_, err = m.Online.CreateTable(m.ID.Name, m.ID.Variant, m.VType)
-	_, exists := err.(*fferr.DatasetAlreadyExistsError)
-	if err != nil && !exists {
-		return nil, err
-	}
-	if exists && !m.IsUpdate {
-		return nil, fferr.NewDatasetAlreadyExistsError(m.ID.Name, m.ID.Variant, fmt.Errorf("table already exists"))
+	_, err := m.Online.CreateTable(m.ID.Name, m.ID.Variant, m.VType)
+	if err != nil {
+		_, isExistsErr := err.(*fferr.DatasetAlreadyExistsError)
+		if !isExistsErr {
+			// Unknown error, pass through
+			return nil, err
+		} else if isExistsErr && !m.IsUpdate {
+			// Table exists
+			return nil, fferr.NewDatasetAlreadyExistsError(m.ID.Name, m.ID.Variant, fmt.Errorf("table already exists"))
+		}
+		// Otherwise it was an exists error, but was an update, so should be ignored.
 	}
 
-	chunkSize := MAXIMUM_CHUNK_ROWS
-	var numChunks int64
-	m.Logger.Debugw("Getting number of rows", "name", m.ID.Name, "variant", m.ID.Variant)
-	numRows, err := materialization.NumRows()
+	m.Logger.Infow("Getting number of chunks", "name", m.ID.Name, "variant", m.ID.Variant)
+	numChunks, err := materialization.NumChunks()
 	if err != nil {
 		return nil, err
 	}
-	m.Logger.Debugw("Got materialization rows", "name", m.ID.Name, "variant", m.ID.Variant, "count", numRows)
-	if numRows <= MAXIMUM_CHUNK_ROWS {
-		chunkSize = numRows
-		numChunks = 1
-	} else if chunkSize == 0 {
-		numChunks = 0
-	} else if numRows > chunkSize {
-		numChunks = numRows / chunkSize
-		if chunkSize*numChunks < numRows {
-			numChunks += 1
-		}
-	}
-	m.Logger.Infow("Creating chunks", "name", m.ID.Name, "variant", m.ID.Variant, "count", numChunks, "chunkSize", chunkSize)
+	m.Logger.Infow("Creating chunks", "name", m.ID.Name, "variant", m.ID.Variant, "count", numChunks)
 	config := &MaterializedChunkRunnerConfig{
 		OnlineType:     m.Online.Type(),
 		OfflineType:    m.Offline.Type(),
@@ -166,16 +159,15 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		OfflineConfig:  m.Offline.Config(),
 		MaterializedID: materialization.ID(),
 		ResourceID:     m.ID,
-		ChunkSize:      chunkSize,
 		Logger:         m.Logger,
-	}
-	serializedConfig, err := config.Serialize()
-	if err != nil {
-		return nil, err
 	}
 	var cloudWatcher types.CompletionWatcher
 	switch m.Cloud {
 	case KubernetesMaterializeRunner:
+		serializedConfig, err := config.Serialize()
+		if err != nil {
+			return nil, err
+		}
 		pandas_image := cfg.GetPandasRunnerImage()
 		envVars := map[string]string{"NAME": string(COPY_TO_ONLINE), "CONFIG": string(serializedConfig), "PANDAS_RUNNER_IMAGE": pandas_image}
 		kubernetesConfig := kubernetes.KubernetesRunnerConfig{
@@ -197,8 +189,8 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 		m.Logger.Infow("Making Local Runner", "name", m.ID.Name, "variant", m.ID.Variant)
 		completionList := make([]types.CompletionWatcher, int(numChunks))
 		for i := 0; i < int(numChunks); i++ {
-			m.Logger.Infow("Creating materialization chunk", "name", m.ID.Name, "variant", m.ID.Variant, "chunkIndex", i, "chunkSize", chunkSize)
-			config.ChunkIdx = int64(i)
+			m.Logger.Infow("Creating materialization chunk", "name", m.ID.Name, "variant", m.ID.Variant, "chunkIndex", i)
+			config.ChunkIdx = i
 			serializedChunkConfig, err := config.Serialize()
 			if err != nil {
 				return nil, err

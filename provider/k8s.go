@@ -1175,6 +1175,7 @@ func (mat FileStoreMaterialization) NumRows() (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	// TODO(simba) THIS IS INCORRECT!
 	latestMaterializationPath, err := mat.store.NewestFileOfType(materializationFilepath, filestore.Parquet)
 	if err != nil {
 		return 0, err
@@ -1206,6 +1207,7 @@ func (mat FileStoreMaterialization) IterateSegment(begin, end int64) (FeatureIte
 	}
 	i := int64(0)
 	for i = 0; i < begin; i++ {
+		// TODO(simba) Can't actually skip the error here
 		_, _ = iter.Next()
 	}
 	return &FileStoreFeatureIterator{

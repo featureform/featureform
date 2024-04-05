@@ -24,7 +24,6 @@ import (
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
-	"github.com/featureform/runner"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/joho/godotenv"
 	clientv3 "go.etcd.io/etcd/client/v3"

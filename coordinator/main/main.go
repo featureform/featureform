@@ -8,7 +8,6 @@ import (
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
-	"github.com/featureform/runner"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 

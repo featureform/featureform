@@ -7,7 +7,6 @@ package main
 import (
 	"log"
 
-	"github.com/featureform/runner"
 	"github.com/featureform/runner/worker"
 )
 

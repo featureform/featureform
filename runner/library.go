@@ -11,6 +11,24 @@ import (
 	"github.com/featureform/types"
 )
 
+func init() {
+	if err := RegisterFactory(COPY_TO_ONLINE, MaterializedChunkRunnerFactory); err != nil {
+		panic(fmt.Errorf("failed to register 'Copy to Online' factory: %w", err))
+	}
+	if err := RegisterFactory(MATERIALIZE, MaterializeRunnerFactory); err != nil {
+		panic(fmt.Errorf("failed to register 'Materialize' factory: %w", err))
+	}
+	if err := RegisterFactory(CREATE_TRANSFORMATION, CreateTransformationRunnerFactory); err != nil {
+		panic(fmt.Errorf("failed to register 'Create Transformation' factory: %w", err))
+	}
+	if err := RegisterFactory(CREATE_TRAINING_SET, TrainingSetRunnerFactory); err != nil {
+		panic(fmt.Errorf("failed to register 'Create Training Set' factory: %w", err))
+	}
+	if err := RegisterFactory(S3_IMPORT_DYNAMODB, S3ImportDynamoDBRunnerFactory); err != nil {
+		panic(fmt.Errorf("failed to register S3 import to DynamoDB factory: %v", err))
+	}
+}
+
 type RunnerName string
 
 func (n RunnerName) String() string {

@@ -28,6 +28,9 @@ import (
 	"golang.org/x/text/language"
 )
 
+// defaultRowsPerChunk is the number of rows in a chunk when using materializations.
+const defaultRowsPerChunk int64 = 100000
+
 type OfflineResourceType int
 
 const (
@@ -324,6 +327,13 @@ type Materialization interface {
 	ID() MaterializationID
 	NumRows() (int64, error)
 	IterateSegment(begin, end int64) (FeatureIterator, error)
+	NumChunks() (int, error)
+	IterateChunk(idx int) (FeatureIterator, error)
+}
+
+type Chunks interface {
+	Size() int
+	ChunkIterator(idx int) (FeatureIterator, error)
 }
 
 type FeatureIterator interface {
@@ -971,6 +981,14 @@ func (mat *memoryMaterialization) IterateSegment(start, end int64) (FeatureItera
 	return newMemoryFeatureIterator(segment), nil
 }
 
+func (mat *memoryMaterialization) NumChunks() (int, error) {
+	return genericNumChunks(mat)
+}
+
+func (mat *memoryMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
+	return genericIterateChunk(mat, idx)
+}
+
 type memoryFeatureIterator struct {
 	data []ResourceRecord
 	idx  int64
@@ -1034,4 +1052,27 @@ func replaceSourceName(query string, mapping []SourceMapping, sanitize sanitizat
 	}
 
 	return replacedQuery, nil
+}
+
+func genericNumChunks(mat Materialization) (int, error) {
+	rows, err := mat.NumRows()
+	if err != nil {
+		return -1, err
+	}
+	numChunks := rows / defaultRowsPerChunk
+	if rows % defaultRowsPerChunk != 0 {
+	    numChunks++
+	}
+	return int(numChunks), nil
+}
+
+func genericIterateChunk(mat Materialization, idx int) (FeatureIterator, error) {
+	chunks, err := mat.NumChunks()
+	if err != nil {
+		return nil, err
+	}
+	if idx >= chunks {
+		return nil, fferr.NewInternalErrorf("Chunk out of range\nIdx: %d\nTotal: %d", idx, chunks)
+	}
+	return nil, nil
 }

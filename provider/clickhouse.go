@@ -1562,6 +1562,14 @@ func (mat *clickHouseMaterialization) IterateSegment(start, end int64) (FeatureI
 	return newClickHouseFeatureIterator(rows, colType, mat.query), nil
 }
 
+func (mat *clickHouseMaterialization) NumChunks() (int, error) {
+	return genericNumChunks(mat)
+}
+
+func (mat *clickHouseMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
+	return genericIterateChunk(mat, idx)
+}
+
 func newClickHouseFeatureIterator(rows *sql.Rows, columnType interface{}, query OfflineTableQueries) FeatureIterator {
 	return &clickHouseFeatureIterator{
 		rows:         rows,

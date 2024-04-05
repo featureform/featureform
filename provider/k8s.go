@@ -1215,17 +1215,69 @@ func (mat FileStoreMaterialization) IterateSegment(begin, end int64) (FeatureIte
 	}, nil
 }
 
+func (mat FileStoreMaterialization) NumChunks() (int, error) {
+	searchPath, err := mat.store.CreateFilePath(fileStoreResourcePath(mat.id))
+	if err != nil {
+		return -1, err
+	}
+	files, err := mat.store.List(searchPath, filestore.Parquet)
+	if err != nil {
+		return -1, err
+	}
+	groups, err := filestore.NewFilePathGroup(files, filestore.DateTimeDirectoryGrouping)
+	if err != nil {
+		return -1, err
+	}
+	newestFiles, err := groups.GetFirst()
+	if err != nil {
+		return -1, err
+	}
+	return len(newestFiles), nil
+}
+
+func (mat FileStoreMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
+	searchPath, err := mat.store.CreateFilePath(fileStoreResourcePath(mat.id))
+	if err != nil {
+		return nil, err
+	}
+	files, err := mat.store.List(searchPath, filestore.Parquet)
+	if err != nil {
+		return nil, err
+	}
+	groups, err := filestore.NewFilePathGroup(files, filestore.DateTimeDirectoryGrouping)
+	if err != nil {
+		return nil, err
+	}
+	newestFiles, err := groups.GetFirst()
+	if err != nil {
+		return nil, err
+	}
+	numChunks := len(newestFiles)
+	if idx >= numChunks {
+		return nil, fferr.NewInternalErrorf("Chunk out of range\nIdx: %d\nChunks: %d\n", idx, numChunks)
+	}
+	iter, err := mat.store.Serve([]filestore.Filepath{newestFiles[idx]})
+	if err != nil {
+		return nil, err
+	}
+	return &FileStoreFeatureIterator{
+		iter:   iter,
+		maxIdx: -1,
+	}, nil
+}
+
 type FileStoreFeatureIterator struct {
 	iter   Iterator
 	err    error
 	cur    ResourceRecord
 	curIdx int64
+	// set to -1 to ignore
 	maxIdx int64
 }
 
 func (iter *FileStoreFeatureIterator) Next() bool {
 	iter.curIdx += 1
-	if iter.curIdx > iter.maxIdx {
+	if iter.maxIdx != -1 && iter.curIdx > iter.maxIdx {
 		return false
 	}
 	nextVal, err := iter.iter.Next()

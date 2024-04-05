@@ -430,6 +430,38 @@ func (store *dynamodbOnlineStore) GetImport(id ImportID) (Import, error) {
 	return S3Import{id: id, status: string(output.ImportTableDescription.ImportStatus), errorMessage: errorMessage}, nil
 }
 
+type SetItem struct {
+	Entity string
+	Value interface{}
+}
+
+func (table dynamodbOnlineTable) BatchSet(items []SetItem) error {
+	serialized := make([]map[string]types.AttributeValue, len(items))
+	for i, item := range items {
+		dynamoValue, err := serializers[table.version].Serialize(table.valueType, item.Value)
+		if err != nil {
+			return err
+		}
+		serialized[i] = map[string]types.AttributeValue{
+			table.key.Feature: &types.AttributeValueMemberS{Value: item.Entity},
+			"FeatureValue": dynamoValue,
+		}
+	}
+	reqs := make([]types.WriteRequest, len(serialized))
+	for i, serItem := range serialized {
+		reqs[i] = types.WriteRequest{PutRequest: &types.PutRequest{Item: serItem}}
+	}
+	batchInput := &dynamodb.BatchWriteItemInput{
+		RequestItems: map[string][]types.WriteRequest{
+			table.key.ToTableName(): reqs,
+		},
+	}
+	if _, err := table.client.BatchWriteItem(context.TODO(), batchInput); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (table dynamodbOnlineTable) Set(entity string, value interface{}) error {
 	dynamoValue, err := serializers[table.version].Serialize(table.valueType, value)
 	if err != nil {

@@ -14,6 +14,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsv2cfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/aws/ratelimit"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
 	hdfs "github.com/colinmarc/hdfs/v2"
 	"github.com/featureform/fferr"
@@ -29,6 +31,11 @@ import (
 	"gocloud.dev/blob/s3blob"
 	"gocloud.dev/gcp"
 	"golang.org/x/oauth2/google"
+)
+
+const (
+	// Default timeout on S3 calls
+	defaultS3Timeout = 30 * time.Second
 )
 
 type FileStore interface {
@@ -268,6 +275,27 @@ func NewS3FileStore(config Config) (FileStore, error) {
 		wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only"))
 		wrapped.AddDetail("bucket_name", trimmedBucket)
 		return nil, wrapped
+	}
+
+	args := []func(*awsv2cfg.LoadOptions) error{
+		awsv2cfg.WithRegion(s3StoreConfig.BucketRegion),
+		awsv2cfg.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s3StoreConfig.Credentials.AWSAccessKeyId, s3StoreConfig.Credentials.AWSSecretKey, "")),
+		awsv2cfg.WithRetryer(func() aws.Retryer {
+		    return retry.AddWithMaxBackoffDelay(retry.NewStandard(func(o *retry.StandardOptions) {
+				o.RateLimiter = ratelimit.None
+			    }), defaultS3Timeout)
+		}),
+	}
+	// If we are using a custom endpoint, such as when running localstack, we should point at it. We'd never set this when
+	// directly accessing DynamoDB on AWS.
+	if s3StoreConfig.Endpoint != "" {
+		args = append(args,
+			awsv2cfg.WithEndpointResolver(aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+				return aws.Endpoint{
+					URL:           s3StoreConfig.Endpoint,
+					SigningRegion: s3StoreConfig.BucketRegion,
+				}, nil
+			})))
 	}
 
 	cfg, err := awsv2cfg.LoadDefaultConfig(context.TODO(),

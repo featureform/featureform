@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/ratelimit"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -116,6 +118,11 @@ func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, e
 	args := []func(*config.LoadOptions) error{
 		config.WithRegion(options.Region),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(options.AccessKey, options.SecretKey, "")),
+		config.WithRetryer(func() aws.Retryer {
+		    return retry.AddWithMaxBackoffDelay(retry.NewStandard(func(o *retry.StandardOptions) {
+				o.RateLimiter = ratelimit.None
+			    }), defaultDynamoTableTimeout)
+		}),
 	}
 	// If we are using a custom endpoint, such as when running localstack, we should point at it. We'd never set this when
 	// directly accessing DynamoDB on AWS.
@@ -735,6 +742,12 @@ func castNumberToFloat32(value any) (float32, error) {
 		return typed, nil
 	case float64:
 		return float32(typed), nil
+	case string:
+		f64, err := strconv.ParseFloat(typed, 32)
+		if err != nil {
+			return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
+		}
+		return float32(f64), nil
 	default:
 		return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
 	}
@@ -757,6 +770,12 @@ func castNumberToFloat64(value any) (float64, error) {
 		return float64(typed), nil
 	case float64:
 		return typed, nil
+	case string:
+		f64, err := strconv.ParseFloat(typed, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
+		}
+		return f64, nil
 	default:
 		return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
 	}
@@ -779,6 +798,12 @@ func castNumberToInt(value any) (int, error) {
 		return int(typed), nil
 	case float64:
 		return int(typed), nil
+	case string:
+		i64, err := strconv.ParseInt(typed, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
+		}
+		return int(i64), nil
 	default:
 		return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
 	}
@@ -801,6 +826,12 @@ func castNumberToInt32(value any) (int32, error) {
 		return int32(typed), nil
 	case float64:
 		return int32(typed), nil
+	case string:
+		i64, err := strconv.ParseInt(typed, 32)
+		if err != nil {
+			return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
+		}
+		return int32(i64), nil
 	default:
 		return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
 	}
@@ -823,6 +854,12 @@ func castNumberToInt64(value any) (int64, error) {
 		return int64(typed), nil
 	case float64:
 		return int64(typed), nil
+	case string:
+		i64, err := strconv.ParseInt(typed, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
+		}
+		return int64(i64), nil
 	default:
 		return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
 	}

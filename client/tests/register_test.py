@@ -10,7 +10,6 @@ from featureform.resources import ProjectResource
 sys.path.insert(0, "client/src/")
 import pytest
 from featureform.register import (
-    Provider,
     Registrar,
     SQLTransformationDecorator,
     DFTransformationDecorator,
@@ -495,7 +494,15 @@ def test_register_blob_store(container_name, expected_error, ff_registrar):
 
 
 @pytest.mark.local
-def test_register_project():
+def test_register_project_object():
+    feature_object = ff.Feature(("name", "variant", "other_info"), ff.String)
+    resources = [(feature_object, "variant")]
+    result = ff.Project("name", resources)
+    assert isinstance(result, ProjectResource)
+
+
+@pytest.mark.local
+def test_register_project_string():
     resources = [("transaction", "variant")]
     result = ff.Project("name", resources)
     assert isinstance(result, ProjectResource)

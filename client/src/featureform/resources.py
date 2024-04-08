@@ -7,8 +7,7 @@ import os
 import re
 import sys
 from abc import ABC
-from typing import Any, Dict
-from typing import List, Tuple, Union, Optional
+from typing import Any, Dict, List, Tuple, Union, Optional
 
 import dill
 import grpc
@@ -1146,7 +1145,7 @@ class SourceVariant(ResourceVariant):
     inputs: list = ([],)
     error: Optional[str] = None
     server_status: Optional[ServerStatus] = None
-    project: List[str] = field(default_factory=list)
+    project: str = ""
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1307,19 +1306,6 @@ class Feature:
         }
 
 
-@typechecked
-@dataclass
-class ProjectResource:
-    name: str
-    resources: Union[List[NameVariant], List[ResourceVariant]] = []
-
-    def to_dictionary(self):
-        return {
-            "name": self.name,
-            "resources": self.resources,
-        }
-
-
 class PrecomputedFeatureParameters:
     pass
 
@@ -1366,7 +1352,7 @@ class FeatureVariant(ResourceVariant):
     error: Optional[str] = None
     additional_parameters: Optional[Additional_Parameters] = None
     server_status: Optional[ServerStatus] = None
-    project: List[str] = field(default_factory=list)
+    project: str = ""
 
     def __post_init__(self):
         col_types = [member.value for member in ScalarType]
@@ -1573,7 +1559,7 @@ class LabelVariant(ResourceVariant):
     status: str = "NO_STATUS"
     error: Optional[str] = None
     server_status: Optional[ServerStatus] = None
-    project: List[str] = field(default_factory=list)
+    project: str = ""
 
     def __post_init__(self):
         col_types = [member.value for member in ScalarType]
@@ -1752,7 +1738,7 @@ class TrainingSetVariant(ResourceVariant):
     status: str = "NO_STATUS"
     error: Optional[str] = None
     server_status: Optional[ServerStatus] = None
-    project: List[str] = field(default_factory=list)
+    project: str = ""
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1903,6 +1889,21 @@ Resource = Union[
     Model,
     OnDemandFeatureVariant,
 ]
+
+
+@typechecked
+@dataclass
+class ProjectResource:
+    name: str
+    resources: Union[List[NameVariant], List[Tuple[Any, str]]] = field(
+        default_factory=list
+    )
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "resources": self.resources,
+        }
 
 
 class ResourceRedefinedError(Exception):

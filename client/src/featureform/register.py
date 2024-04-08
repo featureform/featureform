@@ -8,7 +8,7 @@ import warnings
 from abc import ABC
 from collections.abc import Iterable
 from datetime import timedelta
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union, Any
 import json
 import dill
 import pandas as pd
@@ -57,6 +57,7 @@ from .resources import (
     RedshiftConfig,
     ResourceColumnMapping,
     ResourceRedefinedError,
+    Resource,
     ResourceState,
     ResourceStatus,
     ResourceVariant,
@@ -182,6 +183,7 @@ class OfflineSQLProvider(OfflineProvider):
         inputs: list = None,
         tags: List[str] = [],
         properties: dict = {},
+        project: Union[str, ProjectResource] = "",
     ):
         """
         Register a SQL transformation source.
@@ -207,6 +209,7 @@ class OfflineSQLProvider(OfflineProvider):
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of primary data to be registered
             inputs (list): A list of Source NameVariant Tuples to input into the transformation
+            project (Union[str, ProjectResource]): The project to associate the resource with
 
 
         Returns:
@@ -222,6 +225,7 @@ class OfflineSQLProvider(OfflineProvider):
             inputs=inputs,
             tags=tags,
             properties=properties,
+            project=project,
         )
 
 
@@ -350,6 +354,7 @@ class OfflineSparkProvider(OfflineProvider):
         inputs: list = [],
         tags: List[str] = [],
         properties: dict = {},
+        project: Union[str, ProjectResource] = "",
     ):
         """
         Register a Dataframe transformation source. The spark.df_transformation decorator takes the contents
@@ -372,6 +377,7 @@ class OfflineSparkProvider(OfflineProvider):
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of primary data to be registered
             inputs (list[Tuple(str, str)]): A list of Source NameVariant Tuples to input into the transformation
+            project (Union[str, ProjectResource]): The project to associate the resource with
 
         Returns:
             source (ColumnSourceRegistrar): Source
@@ -1082,6 +1088,7 @@ class ColumnResource(ABC):
         properties: Dict[str, str],
         inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
         variant: str = "",
+        project: Union[str, ProjectResource] = "",
     ):
         registrar, source_name_variant, columns = transformation_args
         self.type = type if isinstance(type, str) else type.value
@@ -1106,6 +1113,7 @@ class ColumnResource(ABC):
         self.tags = tags
         self.properties = properties
         self.variant = variant
+        self.project = project
 
     def register(self):
         features, labels = self.features_and_labels()
@@ -1187,7 +1195,7 @@ class FeatureColumnResource(ColumnResource):
         schedule: str = "",
         tags: Optional[List[str]] = None,
         properties: Optional[Dict[str, str]] = None,
-        project: Union[List[NameVariant], List[ResourceVariant]] = [],
+        project: Union[str, ProjectResource] = "",
     ):
         """
         Feature registration object.
@@ -1398,7 +1406,7 @@ class LabelColumnResource(ColumnResource):
         schedule: str = "",
         tags: List[str] = [],
         properties: Dict[str, str] = {},
-        project: Union[List[NameVariant], List[ResourceVariant]] = [],
+        project: Union[str, ProjectResource] = "",
     ):
         """
         Label registration object.
@@ -3320,7 +3328,7 @@ class Registrar:
         variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
-        project: Union[List[NameVariant], List[ResourceVariant]] = [],
+        project: Union[str, ProjectResource] = "",
     ):
         """Register a primary data source.
 
@@ -3331,6 +3339,7 @@ class Registrar:
             provider (Union[str, OfflineProvider]): Provider
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of primary data to be registered
+            project (Union[str, ProjectResource]): Project
 
         Returns:
             source (ColumnSourceRegistrar): Source
@@ -3373,7 +3382,7 @@ class Registrar:
         inputs: Union[List[NameVariant], List[str], List[ColumnSourceRegistrar]] = None,
         tags: List[str] = [],
         properties: dict = {},
-        project: Union[List[NameVariant], List[ResourceVariant]] = [],
+        project: Union[str, ProjectResource] = "",
     ):
         """Register a SQL transformation source.
 
@@ -3388,7 +3397,7 @@ class Registrar:
             args (K8sArgs): Additional transformation arguments
             tags (List[str]): Optional grouping mechanism for resources
             properties (dict): Optional grouping mechanism for resources
-            project (Union[List[NameVariant], List[ResourceVariant]]): Project
+            project (Union[str, ProjectResource]): Project
 
         Returns:
             source (ColumnSourceRegistrar): Source
@@ -3484,7 +3493,7 @@ class Registrar:
         args: K8sArgs = None,
         tags: List[str] = [],
         properties: dict = {},
-        project: Union[List[NameVariant], List[ResourceVariant]] = [],
+        project: Union[str, ProjectResource] = "",
     ):
         """Register a Dataframe transformation source.
 
@@ -3501,7 +3510,7 @@ class Registrar:
             args (K8sArgs): Additional transformation arguments
             tags (List[str]): Optional grouping mechanism for resources
             properties (dict): Optional grouping mechanism for resources
-            project (Union[List[NameVariant], List[ResourceVariant]]): Project
+            project (Union[str, ProjectResource]): Project
 
         Returns:
             source (ColumnSourceRegistrar): Source
@@ -3678,7 +3687,9 @@ class Registrar:
             return decorator(fn)
 
     def _register_project(
-        self, name: str, resources: Union[List[NameVariant], List[ResourceVariant]] = []
+        self,
+        name: str,
+        resources: Any = None,
     ):
         """Register a project.
         Args:
@@ -4008,7 +4019,7 @@ class Registrar:
         schedule: str = "",
         tags: List[str] = [],
         properties: dict = {},
-        project: Union[List[NameVariant], List[ResourceVariant]] = [],
+        project: Union[str, ProjectResource] = "",
     ):
         """Register a training set.
 
@@ -5345,7 +5356,7 @@ class ColumnResource:
         schedule: str,
         tags: List[str],
         properties: Dict[str, str],
-        project: Union[List[NameVariant], List[ResourceVariant]] = [],
+        project: Union[str, ProjectResource] = "",
     ):
         registrar, source_name_variant, columns = transformation_args
         self.type = type if isinstance(type, str) else type.value

@@ -16,6 +16,7 @@ import (
 type ValueType interface {
 	Scalar() ScalarType
 	IsVector() bool
+	Type() reflect.Type
 }
 
 type VectorType struct {
@@ -30,6 +31,14 @@ func (t VectorType) Scalar() ScalarType {
 
 func (t VectorType) IsVector() bool {
 	return true
+}
+
+func (t VectorType) Type() reflect.Type {
+	scalar := t.Scalar().Type()
+	if scalar.Kind() == reflect.Ptr {
+		scalar = scalar.Elem()
+	}
+	return reflect.SliceOf(scalar)
 }
 
 type ScalarType string

@@ -1250,7 +1250,7 @@ func (q clickhouseSQLQueries) determineColumnType(valueType ValueType) (string, 
 	case NilType:
 		return "Null", nil
 	default:
-		return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", valueType), fmt.Errorf("could not determine column type"))
+		return "", fferr.NewDataTypeNotFoundErrorf(valueType, "could not determine column type")
 	}
 }
 

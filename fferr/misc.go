@@ -17,6 +17,10 @@ func NewInternalError(err error) *InternalError {
 	}
 }
 
+func NewInternalErrorf(format string, args ...any) *InternalError {
+	return NewInternalError(fmt.Errorf(format, args...))
+}
+
 type InternalError struct {
 	baseError
 }

@@ -140,7 +140,7 @@ func (q redshiftSQLQueries) determineColumnType(valueType ValueType) (string, er
 	case NilType:
 		return "VARCHAR", nil
 	default:
-		return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", valueType), fmt.Errorf("could not determine column type"))
+		return "", fferr.NewDataTypeNotFoundErrorf(valueType, "could not determine column type")
 	}
 }
 

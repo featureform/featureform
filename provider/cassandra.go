@@ -235,7 +235,7 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 	case String, NilType:
 		ptr = new(string)
 	default:
-		return nil, fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", table.valueType), fmt.Errorf("could not determine column type"))
+		return nil, fferr.NewDataTypeNotFoundErrorf(table.valueType, "could not determine column type")
 	}
 
 	query := fmt.Sprintf("SELECT value FROM %s WHERE entity = '%s'", tableName, entity)
@@ -266,7 +266,7 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 	case *string:
 		val = *casted
 	default:
-		return nil, fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", table.valueType), fmt.Errorf("could not determine column type"))
+		return nil, fferr.NewDataTypeNotFoundErrorf(table.valueType, "could not determine column type")
 	}
 	return val, nil
 

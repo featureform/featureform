@@ -270,7 +270,7 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 	_, err := store.getFromMetadataTable(tableName)
 	if err == nil {
 		wrapped := fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
-		wrapped.AddDetail("tablename", formatDynamoTableName(store.prefix, feature, variant))
+		wrapped.AddDetail("tablename", tableName)
 		return nil, wrapped
 	}
 	params := &dynamodb.CreateTableInput{
@@ -289,7 +289,7 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 			},
 		},
 	}
-	err = store.updateMetadataTable(formatDynamoTableName(store.prefix, feature, variant), valueType, dynamoSerializationVersion)
+	err = store.updateMetadataTable(tableName, valueType, dynamoSerializationVersion)
 	if err != nil {
 		return nil, err
 	}

@@ -557,6 +557,9 @@ func (ser serializerV0) Version() serializeVersion {
 }
 
 func (ser serializerV0) Serialize(t ValueType, value any) (types.AttributeValue, error) {
+	if t.Scalar() == Timestamp || t.Scalar() == Datetime {
+		return nil, fferr.NewTypeErrorf(t.String(), value, "Type not supported by Dynamo Serializer v0")
+	}
 	if value == nil {
 		return &types.AttributeValueMemberNULL{
 			Value: true,
@@ -569,6 +572,9 @@ func (ser serializerV0) Serialize(t ValueType, value any) (types.AttributeValue,
 }
 
 func (ser serializerV0) Deserialize(t ValueType, value types.AttributeValue) (any, error) {
+	if t.Scalar() == Timestamp || t.Scalar() == Datetime {
+		return nil, fferr.NewInternalErrorf("Unable to deserialize %s", t)
+	}
 	if _, isNil := value.(*types.AttributeValueMemberNULL); isNil {
 		return nil, nil
 	}
@@ -586,6 +592,10 @@ func (ser serializerV0) Deserialize(t ValueType, value types.AttributeValue) (an
 		result, err = valString, nil
 	case Int:
 		result, err = strconv.Atoi(valString)
+	case Int32:
+		res64, perr := strconv.ParseInt(valString, 0, 32)
+		err = perr
+		result = int32(res64)
 	case Int64:
 		result, err = strconv.ParseInt(valString, 0, 64)
 	case Float32:
@@ -596,6 +606,8 @@ func (ser serializerV0) Deserialize(t ValueType, value types.AttributeValue) (an
 		result, err = strconv.ParseFloat(valString, 64)
 	case Bool:
 		result, err = strconv.ParseBool(valString)
+	default:
+		return nil, fferr.NewInternalErrorf("Unsupported type %s", t.String())
 	}
 	if err != nil {
 		return nil, fferr.NewInternalError(err)
@@ -611,12 +623,18 @@ func (ser serializerV1) Version() serializeVersion {
 }
 
 func (ser serializerV1) Serialize(t ValueType, value any) (types.AttributeValue, error) {
+	// TODO support unsigned ints
 	if value == nil {
 		return &types.AttributeValueMemberNULL{Value: true}, nil
 	}
 	if !t.IsVector() {
 		return ser.serializeScalar(t, value)
+	} else {
+		return ser.serializeVector(t, value)
 	}
+}
+
+func (ser serializerV1) serializeVector(t ValueType, value any) (types.AttributeValue, error) {
 	vecT := t.(VectorType)
 	scalar := vecT.Scalar()
 
@@ -735,6 +753,9 @@ func castNumberToFloat32(value any) (float32, error) {
 		return typed, nil
 	case float64:
 		return float32(typed), nil
+	case string:
+		f64, err := strconv.ParseFloat(typed, 32)
+		return float32(f64), err
 	default:
 		return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
 	}
@@ -757,6 +778,8 @@ func castNumberToFloat64(value any) (float64, error) {
 		return float64(typed), nil
 	case float64:
 		return typed, nil
+	case string:
+		return strconv.ParseFloat(typed, 64)
 	default:
 		return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
 	}
@@ -779,6 +802,16 @@ func castNumberToInt(value any) (int, error) {
 		return int(typed), nil
 	case float64:
 		return int(typed), nil
+	case string:
+		val, err := strconv.ParseInt(typed, 10, 64)
+		// Handle cases like 1.0
+		if err != nil {
+			fVal, nErr := strconv.ParseFloat(typed, 64)
+			if nErr == nil {
+				return int(fVal), nil
+			}
+		}
+		return int(val), err
 	default:
 		return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
 	}
@@ -801,6 +834,16 @@ func castNumberToInt32(value any) (int32, error) {
 		return int32(typed), nil
 	case float64:
 		return int32(typed), nil
+	case string:
+		val, err := strconv.ParseInt(typed, 10, 32)
+		// Handle cases like 1.0
+		if err != nil {
+			fVal, nErr := strconv.ParseFloat(typed, 64)
+			if nErr == nil {
+				return int32(fVal), nil
+			}
+		}
+		return int32(val), err
 	default:
 		return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
 	}
@@ -823,12 +866,23 @@ func castNumberToInt64(value any) (int64, error) {
 		return int64(typed), nil
 	case float64:
 		return int64(typed), nil
+	case string:
+		val, err := strconv.ParseInt(typed, 10, 64)
+		// Handle cases like 1.0
+		if err != nil {
+			fVal, nErr := strconv.ParseFloat(typed, 64)
+			if nErr == nil {
+				return int64(fVal), nil
+			}
+		}
+		return val, err
 	default:
 		return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
 	}
 }
 
 func (ser serializerV1) Deserialize(t ValueType, value types.AttributeValue) (any, error) {
+	// TODO support unsigned ints
 	// Dynamo teats all numerical types as strings, so we have to deserialize.
 	version := ser.Version().String()
 	_, ok := value.(*types.AttributeValueMemberNULL)

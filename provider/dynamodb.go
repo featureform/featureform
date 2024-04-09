@@ -123,9 +123,9 @@ func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, e
 		config.WithRegion(options.Region),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(options.AccessKey, options.SecretKey, "")),
 		config.WithRetryer(func() aws.Retryer {
-		    return retry.AddWithMaxBackoffDelay(retry.NewStandard(func(o *retry.StandardOptions) {
+			return retry.AddWithMaxBackoffDelay(retry.NewStandard(func(o *retry.StandardOptions) {
 				o.RateLimiter = ratelimit.None
-			    }), defaultDynamoTableTimeout)
+			}), defaultDynamoTableTimeout)
 		}),
 	}
 	// If we are using a custom endpoint, such as when running localstack, we should point at it. We'd never set this when
@@ -436,7 +436,7 @@ func (store *dynamodbOnlineStore) GetImport(id ImportID) (Import, error) {
 
 type SetItem struct {
 	Entity string
-	Value interface{}
+	Value  interface{}
 }
 
 func (table dynamodbOnlineTable) BatchSet(items []SetItem) error {
@@ -448,7 +448,7 @@ func (table dynamodbOnlineTable) BatchSet(items []SetItem) error {
 		}
 		serialized[i] = map[string]types.AttributeValue{
 			table.key.Feature: &types.AttributeValueMemberS{Value: item.Entity},
-			"FeatureValue": dynamoValue,
+			"FeatureValue":    dynamoValue,
 		}
 	}
 	reqs := make([]types.WriteRequest, len(serialized))

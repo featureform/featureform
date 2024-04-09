@@ -1055,24 +1055,34 @@ func replaceSourceName(query string, mapping []SourceMapping, sanitize sanitizat
 }
 
 func genericNumChunks(mat Materialization) (int, error) {
+	_, numChunks, err := getNumRowsAndChunks(mat)
+	return int(numChunks), err
+}
+
+func getNumRowsAndChunks(mat Materialization) (int64, int, error) {
 	rows, err := mat.NumRows()
 	if err != nil {
-		return -1, err
+		return -1, -1, err
 	}
 	numChunks := rows / defaultRowsPerChunk
-	if rows % defaultRowsPerChunk != 0 {
-	    numChunks++
+	if rows%defaultRowsPerChunk != 0 {
+		numChunks++
 	}
-	return int(numChunks), nil
+	return rows, int(numChunks), nil
 }
 
 func genericIterateChunk(mat Materialization, idx int) (FeatureIterator, error) {
-	chunks, err := mat.NumChunks()
+	rows, chunks, err := getNumRowsAndChunks(mat)
 	if err != nil {
 		return nil, err
 	}
 	if idx >= chunks {
 		return nil, fferr.NewInternalErrorf("Chunk out of range\nIdx: %d\nTotal: %d", idx, chunks)
 	}
-	return nil, nil
+	start := int64(idx) * defaultRowsPerChunk
+	end := (int64(idx) + 1) * defaultRowsPerChunk
+	if rows > end {
+		end = rows
+	}
+	return mat.IterateSegment(start, end)
 }

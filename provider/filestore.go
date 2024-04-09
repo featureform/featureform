@@ -12,10 +12,10 @@ import (
 	re "github.com/avast/retry-go/v4"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsv2cfg "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/aws/ratelimit"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
+	awsv2cfg "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
 	hdfs "github.com/colinmarc/hdfs/v2"
 	"github.com/featureform/fferr"
@@ -281,9 +281,9 @@ func NewS3FileStore(config Config) (FileStore, error) {
 		awsv2cfg.WithRegion(s3StoreConfig.BucketRegion),
 		awsv2cfg.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s3StoreConfig.Credentials.AWSAccessKeyId, s3StoreConfig.Credentials.AWSSecretKey, "")),
 		awsv2cfg.WithRetryer(func() aws.Retryer {
-		    return retry.AddWithMaxBackoffDelay(retry.NewStandard(func(o *retry.StandardOptions) {
+			return retry.AddWithMaxBackoffDelay(retry.NewStandard(func(o *retry.StandardOptions) {
 				o.RateLimiter = ratelimit.None
-			    }), defaultS3Timeout)
+			}), defaultS3Timeout)
 		}),
 	}
 	// If we are using a custom endpoint, such as when running localstack, we should point at it. We'd never set this when

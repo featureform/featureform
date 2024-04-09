@@ -507,7 +507,6 @@ func (mat *sqlMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
 	return genericIterateChunk(mat, idx)
 }
 
-
 type sqlFeatureIterator struct {
 	rows         *sql.Rows
 	err          error

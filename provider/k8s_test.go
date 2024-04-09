@@ -1052,7 +1052,7 @@ func convertToParquetBytes(schema TableSchema, list []GenericRecord) ([]byte, er
 	}
 	parquetSchema := schema.AsParquetSchema()
 	buf := new(bytes.Buffer)
-	writeErr := parquet.Write[any](
+	writeErr := parquet.Write(
 		buf,
 		parquetRecords,
 		parquetSchema,

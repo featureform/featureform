@@ -91,7 +91,7 @@ func (p *parquetIterator) parseFloatVec(val map[string]interface{}) ([]float32, 
 	if !ok {
 		return nil, fferr.NewDataTypeNotFoundErrorf(val, "expected to find field 'list' when parsing float vector")
 	}
-	// To iterate over the list and create a we need to cast it to []interface{}
+	// To iterate over the list, we need to cast it to []interface{}
 	elementsSlice, ok := list.([]interface{})
 	if !ok {
 		return nil, fferr.NewDataTypeNotFoundErrorf(list, "failed to cast to []interface{} when parsing float vector")

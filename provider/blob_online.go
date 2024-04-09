@@ -241,7 +241,7 @@ func castBytesToValue(value []byte, valueType ValueType) (interface{}, error) {
 	case Timestamp:
 		return time.Parse(time.ANSIC, valueString)
 	default:
-		return nil, fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", valueType), fmt.Errorf("cannot cast unknown value type"))
+		return nil, fferr.NewDataTypeNotFoundErrorf(valueType, "cannot cast unknown value type")
 	}
 
 }

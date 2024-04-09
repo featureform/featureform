@@ -254,7 +254,7 @@ func (table mongoDBOnlineTable) Get(entity string) (interface{}, error) {
 	case String, NilType:
 		return row.Value.(string), nil
 	default:
-		return nil, fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", table.valueType), fmt.Errorf("could not get table value"))
+		return nil, fferr.NewDataTypeNotFoundErrorf(table.valueType, "could not get table value")
 	}
 
 }

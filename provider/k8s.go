@@ -468,7 +468,7 @@ func (tbl *BlobOfflineTable) convertToGenericResourceRecord(record *ResourceReco
 	case time.Time:
 		return &GenericResourceRecord[time.Time]{Entity: record.Entity, Value: v, TS: record.TS}, nil
 	default:
-		return nil, fferr.NewDataTypeNotFoundError(fmt.Sprintf("%T", v), nil)
+		return nil, fferr.NewDataTypeNotFoundErrorf(v, "unable to convert to generic resource record")
 	}
 }
 
@@ -568,10 +568,12 @@ func (tbl *FileStorePrimaryTable) WriteBatch(records []GenericRecord) error {
 		}
 	}
 	buf := new(bytes.Buffer)
-	schema := parquet.SchemaOf(tbl.schema.Interface())
-	parquetRecords := tbl.schema.ToParquetRecords(records)
-	err = parquet.Write[any](buf, parquetRecords, schema)
+	schema := tbl.schema.AsParquetSchema()
+	parquetRecords, err := tbl.schema.ToParquetRecords(records)
 	if err != nil {
+		return err
+	}
+	if err = parquet.Write[any](buf, parquetRecords, schema); err != nil {
 		return err
 	}
 	return tbl.store.Write(destination, buf.Bytes())
@@ -1234,7 +1236,7 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 	if nextVal == nil {
 		return false
 	}
-	value, err := iter.parseValue(nextVal["value"])
+	value := nextVal["value"]
 	if err != nil {
 		iter.err = err
 		return false
@@ -1263,52 +1265,10 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 
 func castToTimestamp(timestamp interface{}) (time.Time, error) {
 	if ts, ok := timestamp.(time.Time); !ok {
-		return time.UnixMilli(0).UTC(), fferr.NewDataTypeNotFoundError(fmt.Sprintf("%T", timestamp), fmt.Errorf("expected timestamp to be of type time.Time"))
+		return time.UnixMilli(0).UTC(), fferr.NewDataTypeNotFoundErrorf(timestamp, "expected timestamp to be of type time.Time")
 	} else {
 		return ts, nil
 	}
-}
-
-// Attempts to parse value in one of the following formats:
-// 1. a scalar value (string, int, float, bool)
-// 2. []float32 (i.e. vector32)
-func (iter *FileStoreFeatureIterator) parseValue(value interface{}) (interface{}, error) {
-	valueMap, ok := value.(map[string]interface{})
-	if !ok {
-		if value, ok := value.(int32); ok {
-			return int(value), nil
-		}
-		return value, nil
-	}
-	list, ok := valueMap["list"]
-	if !ok {
-		return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%T", value), fmt.Errorf("expected to find field 'list'"))
-	}
-	// To iterate over the list and create a we need to cast it to []interface{}
-	elementsSlice, ok := list.([]interface{})
-	if !ok {
-		return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%T", list), fmt.Errorf("failed to cast to []interface{}"))
-	}
-	vector32 := make([]float32, len(elementsSlice))
-	for i, e := range elementsSlice {
-		// To access the 'element' field, which holds the float value,
-		// we need to cast it to map[string]interface{}
-		m, ok := e.(map[string]interface{})
-		if !ok {
-			return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%T", e), fmt.Errorf("failed to cast to map[string]interface{}"))
-		}
-		switch element := m["element"].(type) {
-		case float32:
-			vector32[i] = element
-		// Given floats in Python are typically 64-bit, it's possible we'll receive
-		// a vector of float64
-		case float64:
-			vector32[i] = float32(element)
-		default:
-			return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%T", element), fmt.Errorf("unexpected type in parquet vector list"))
-		}
-	}
-	return vector32, nil
 }
 
 func (iter *FileStoreFeatureIterator) Value() ResourceRecord {

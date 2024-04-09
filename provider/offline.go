@@ -23,6 +23,7 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
+	"github.com/parquet-go/parquet-go"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -466,15 +467,19 @@ type TableSchemaJSONWrapper struct {
 // serialized by parquet-go. This is necessary because GenericRecord, which
 // is of type []interface{}, does not hold the necessary metadata information
 // to create a valid parquet-go schema.
-func (schema *TableSchema) Interface() interface{} {
-	return schema.Value().Interface()
+func (schema *TableSchema) AsParquetSchema() *parquet.Schema {
+	return parquet.SchemaOf(schema.AsReflectedStruct().Interface())
 }
 
-func (schema *TableSchema) Value() reflect.Value {
+// This method converts the list of columns into a struct type that can be
+// serialized by parquet-go. This is necessary because GenericRecord, which
+// is of type []interface{}, does not hold the necessary metadata information
+// to create a valid parquet-go schema.
+func (schema *TableSchema) AsReflectedStruct() reflect.Value {
 	fields := make([]reflect.StructField, len(schema.Columns))
 	for i, col := range schema.Columns {
 		caser := cases.Title(language.English)
-		colType := col.Scalar().Type()
+		colType := col.Type()
 
 		f := reflect.StructField{
 			// We need to title case the column name to ensure the fields are public
@@ -488,7 +493,10 @@ func (schema *TableSchema) Value() reflect.Value {
 			Tag: reflect.StructTag(fmt.Sprintf(`parquet:"%s,optional"`, col.Name)),
 		}
 
-		// TODO: use a better way of determining if a column is a timestamp
+		if col.IsVector() {
+			f.Tag = reflect.StructTag(fmt.Sprintf(`parquet:"%s,optional,list"`, col.Name))
+		}
+		// This checks if the column type via reflection is Time, such as with time.Time.
 		if colType.Name() == "Time" {
 			f.Tag = reflect.StructTag(fmt.Sprintf(`parquet:"%s,optional,timestamp"`, col.Name))
 		}
@@ -534,13 +542,14 @@ func (schema *TableSchema) Deserialize(config []byte) error {
 	return nil
 }
 
-// *NOTE:* pointer types are used for all the scalar types to ensure they
-// can be nullable in the parquet file.
-func (schema *TableSchema) ToParquetRecords(records []GenericRecord) []any {
+// ToParquetRecords turn a list of GenericRecords into a list of structs built via
+// reflection. We use structs so that we can add struct tags like optional, timestamp,
+// etc.
+func (schema *TableSchema) ToParquetRecords(records []GenericRecord) ([]any, error) {
 	parquetRecords := make([]any, len(records))
 	caser := cases.Title(language.English)
 	for i, record := range records {
-		parquetRecord := schema.Value()
+		parquetRecord := schema.AsReflectedStruct()
 		for j, value := range record {
 			// if a value is nil, we skip it so that the zero value for the pointer
 			// type is used instead, which will preserve the null value when the parquet
@@ -551,28 +560,31 @@ func (schema *TableSchema) ToParquetRecords(records []GenericRecord) []any {
 			// To ensure the struct fields are public and accessible to other methods,
 			// we need to title case them when setting them.
 			colName := caser.String(schema.Columns[j].Name)
+			parquetField := parquetRecord.Elem().FieldByName(colName)
+			var reflectValue reflect.Value
 			switch v := value.(type) {
-			case int:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case int32:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case int64:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case float32:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case float64:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case string:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case bool:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
+			case int, int32, int64, float32, float64, string, bool:
+				// Pointer types are used for all the scalar types to ensure they
+				// can be nullable in the parquet file.
+				ogVal := reflect.ValueOf(v)
+				if ogVal.CanAddr() {
+					reflectValue = ogVal.Addr()
+				} else {
+					reflectValue = reflect.New(reflect.TypeOf(v))
+					reflectValue.Elem().Set(ogVal)
+				}
+			// Lists and timestamps
 			default:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(value))
+				reflectValue = reflect.ValueOf(v)
 			}
+			if !reflectValue.Type().AssignableTo(parquetField.Type()) {
+				return nil, fferr.NewInternalErrorf("writing invalid type to parquet record.\nFound %s\nexpected %s\n", reflectValue.Type().String(), parquetField.Type().String())
+			}
+			parquetField.Set(reflectValue)
 		}
 		parquetRecords[i] = parquetRecord.Interface()
 	}
-	return parquetRecords
+	return parquetRecords, nil
 }
 
 type TableColumnJSONWrapper struct {

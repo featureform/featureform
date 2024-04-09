@@ -285,7 +285,7 @@ func (table redisOnlineTable) Set(entity string, value interface{}) error {
 	case []float32:
 		value = rueidis.VectorString32(v)
 	default:
-		return fferr.NewDataTypeNotFoundError(fmt.Sprintf("%T", value), fmt.Errorf("unsupported data type"))
+		return fferr.NewDataTypeNotFoundErrorf(value, "unsupported data type")
 	}
 	cmd := table.client.B().
 		Hset().
@@ -395,7 +395,7 @@ func (k redisIndexKey) getVectorField() string {
 func (table redisOnlineIndex) Set(entity string, value interface{}) error {
 	vector, ok := value.([]float32)
 	if !ok {
-		wrapped := fferr.NewDataTypeNotFoundError(fmt.Sprintf("%T", value), fmt.Errorf("value %v is not a vector", value))
+		wrapped := fferr.NewDataTypeNotFoundErrorf(value, "value is not a vector")
 		wrapped.AddDetail("entity", entity)
 		return wrapped
 	}

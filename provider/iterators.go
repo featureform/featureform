@@ -66,6 +66,14 @@ func (p *parquetIterator) Next() bool {
 			} else {
 				recordVal = int(assertedVal)
 			}
+		// This is the type that a []float32 is returned, so we have to parse it.
+		case map[string]interface{}:
+			vec, err := p.parseFloatVec(assertedVal)
+			if err != nil {
+				p.err = err
+				return false
+			}
+			recordVal = vec
 		default:
 			recordVal = assertedVal
 		}
@@ -74,6 +82,40 @@ func (p *parquetIterator) Next() bool {
 	p.currentValues = records
 	p.idx += 1
 	return true
+}
+
+// parseFloatVec parses a generic float array that is received via a parquet file. It shows up in the form:
+// map[list:[map[element: 1] map[element:2] map[element:3]]]
+func (p *parquetIterator) parseFloatVec(val map[string]interface{}) ([]float32, error) {
+	list, ok := val["list"]
+	if !ok {
+		return nil, fferr.NewDataTypeNotFoundErrorf(val, "expected to find field 'list' when parsing float vector")
+	}
+	// To iterate over the list, we need to cast it to []interface{}
+	elementsSlice, ok := list.([]interface{})
+	if !ok {
+		return nil, fferr.NewDataTypeNotFoundErrorf(list, "failed to cast to []interface{} when parsing float vector")
+	}
+	vector32 := make([]float32, len(elementsSlice))
+	for i, e := range elementsSlice {
+		// To access the 'element' field, which holds the float value,
+		// we need to cast it to map[string]interface{}
+		m, ok := e.(map[string]interface{})
+		if !ok {
+			return nil, fferr.NewDataTypeNotFoundErrorf(e, "failed to cast to map[string]interface{} when parsing float vector")
+		}
+		switch element := m["element"].(type) {
+		case float32:
+			vector32[i] = element
+		// Given floats in Python are typically 64-bit, it's possible we'll receive
+		// a vector of float64
+		case float64:
+			vector32[i] = float32(element)
+		default:
+			return nil, fferr.NewDataTypeNotFoundErrorf(element, "unexpected type in parquet vector list when parsing float vector")
+		}
+	}
+	return vector32, nil
 }
 
 func (p *parquetIterator) Values() GenericRecord {

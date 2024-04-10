@@ -1337,17 +1337,25 @@ func testCoordinatorTrainingSet(addr string) error {
 	}
 	startWaitDelete := time.Now()
 	elapsed := time.Since(startWaitDelete)
-	for has, _ := coord.hasJob(tsID); has && elapsed < time.Duration(10)*time.Second; has, _ = coord.hasJob(tsID) {
+	has := true
+	waitTime := time.Second * 10
+	for elapsed <  waitTime {
+		has, err = coord.hasJob(tsID)
+		if err != nil {
+			return err
+		} else if !has {
+			// Job finished
+			break
+		}
 		time.Sleep(1 * time.Second)
 		elapsed = time.Since(startWaitDelete)
-		fmt.Printf("waiting for job %v to be deleted\n", tsID)
 	}
-	if elapsed >= time.Duration(10)*time.Second {
+	if elapsed >= waitTime {
 		return fmt.Errorf("timed out waiting for job to delete")
 	}
 	ts_complete, err := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: tsName, Variant: ""})
 	if err != nil {
-		return fmt.Errorf("could not get training set variant")
+		return fmt.Errorf("could not get training set variant: %v", err)
 	}
 	if metadata.READY != ts_complete.Status() {
 		return fmt.Errorf("Training set not set to ready once job completes")

@@ -281,7 +281,8 @@ func MaterializedChunkRunnerFactory(config Config) (types.Runner, error) {
 	offlineCfg := runnerConfig.OfflineConfig
 	onlineCfgStr := string(onlineCfg)
 	offlineCfgStr := string(offlineCfg)
-	useCache := !runnerConfig.SkipCache
+	// useCache := !runnerConfig.SkipCache
+	useCache := false
 
 	cachedOnline, found := onlineProviderCache.Load(onlineCfgStr)
 	if found && useCache {

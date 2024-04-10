@@ -2,6 +2,7 @@ package provider
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/joho/godotenv"
@@ -80,7 +81,7 @@ func TestParsingTableMetadata(t *testing.T) {
 }
 
 func TestDynamoSerializers(t *testing.T) {
-	type testCases map[ScalarType]any
+	type testCases map[ValueType]any
 	simpleTests := testCases{
 		NilType: nil,
 		Int:     123,
@@ -114,6 +115,18 @@ func TestDynamoSerializers(t *testing.T) {
 		Int16: int16(1),
 	}
 	smallBitSerializers := []serializeVersion{}
+	nilTests := testCases{
+		NilType:                       nil,
+		Int:                           nil,
+		Int32:                         nil,
+		Int64:                         nil,
+		Float32:                       nil,
+		Float64:                       nil,
+		String:                        nil,
+		Bool:                          nil,
+		VectorType{Float32, 1, false}: nil,
+	}
+	nilSerializers := allSerializers
 
 	testSerializer := func(t *testing.T, serializer serializer, typ ValueType, val any) {
 		serial, err := serializer.Serialize(typ, val)
@@ -145,6 +158,7 @@ func TestDynamoSerializers(t *testing.T) {
 	runTestCases(t, timeSerializers, timeTests)
 	runTestCases(t, uintSerializers, uintTests)
 	runTestCases(t, smallBitSerializers, smallBitTests)
+	runTestCases(t, nilSerializers, nilTests)
 }
 
 func TestDynamoNumericCasting(t *testing.T) {
@@ -177,6 +191,82 @@ func TestDynamoNumericCasting(t *testing.T) {
 		t.Run(typ.String(), func(t *testing.T) {
 			for _, numeric := range possibleNumerics {
 				testNumeric(t, typ, numeric, expected)
+			}
+		})
+	}
+}
+
+func TestFailSerializeV1(t *testing.T) {
+	type testCase struct {
+		vt  ValueType
+		val any
+	}
+	tests := []testCase{
+		{Float32, "abc"},
+		{Float64, "abc"},
+		{Int, "abc"},
+		{Int32, "abc"},
+		{Int64, "abc"},
+		{Float32, []float32{1.0}},
+		{Float64, []float64{1.2}},
+		{Int, []int{1}},
+		{Int32, []int32{1}},
+		{Int64, []int64{1}},
+		{Bool, "not"},
+		{String, true},
+		{VectorType{Float32, 1, false}, []string{"abc"}},
+		{VectorType{Float32, 1, false}, []float32{1, 2}},
+		{VectorType{Float32, 1, false}, float32(1.0)},
+	}
+	serializer := serializers[serializeV1]
+	for _, test := range tests {
+		testName := fmt.Sprintf("%s_%v", test.vt.String(), test.val)
+		t.Run(testName, func(t *testing.T) {
+			serial, err := serializer.Serialize(test.vt, test.val)
+			if err == nil {
+				t.Fatalf("Succeeded to serialize: %v as %s\nFound: %v\n", test.val, test.vt.String(), serial)
+			}
+		})
+	}
+}
+
+func TestFailDeserializeV1(t *testing.T) {
+	emptyList := &types.AttributeValueMemberL{Value: nil}
+	unsupported := &types.AttributeValueMemberB{Value: nil}
+	stringList := &types.AttributeValueMemberL{Value: []types.AttributeValue{&types.AttributeValueMemberS{Value: "abc"}}}
+	numList := &types.AttributeValueMemberL{Value: []types.AttributeValue{&types.AttributeValueMemberN{Value: "1"}}}
+	mixedList := &types.AttributeValueMemberL{
+		Value: []types.AttributeValue{&types.AttributeValueMemberN{Value: "1"}, &types.AttributeValueMemberS{Value: "abc"}},
+	}
+	unknownType := ScalarType("Unknown")
+	type testCase struct {
+		vt  ValueType
+		val types.AttributeValue
+	}
+	tests := map[string]testCase{
+		"Unknown type":        {unknownType, unsupported},
+		"Float32 wrong":       {Float32, emptyList},
+		"Float64 wrong":       {Float64, emptyList},
+		"Int wrong":           {Int, emptyList},
+		"Int32 wrong":         {Int32, emptyList},
+		"Int64 wrong":         {Int64, emptyList},
+		"Bool wrong":          {Bool, emptyList},
+		"String wrong":        {String, emptyList},
+		"Vec wrong":           {VectorType{Float32, 1, false}, unsupported},
+		"Vec unknown type":    {VectorType{unknownType, 1, false}, unsupported},
+		"FloatVec wrong size": {VectorType{Float32, 2, false}, numList},
+		"FloatVec type":       {VectorType{Float32, 1, false}, stringList},
+		"FloatVec mixed":      {VectorType{Float32, 2, false}, mixedList},
+		"StringVec size":      {VectorType{String, 2, false}, stringList},
+		"StringVec type":      {VectorType{String, 1, false}, numList},
+		"StringVec mixed":     {VectorType{String, 2, false}, mixedList},
+	}
+	serializer := serializers[serializeV1]
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			found, err := serializer.Deserialize(test.vt, test.val)
+			if err == nil {
+				t.Fatalf("Succeeded to deserialize\nFound: %v\n", found)
 			}
 		})
 	}

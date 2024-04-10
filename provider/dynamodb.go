@@ -898,6 +898,11 @@ func (ser serializerV1) Deserialize(t ValueType, value types.AttributeValue) (an
 			AddDetail("version", ser.Version().String())
 	}
 	values := list.Value
+	dims := t.(VectorType).Dimension
+	if len(values) != int(dims) {
+		return nil, fferr.NewInternalErrorf("unable to deserialize dynamodb value into list, wrong size %d. Expected %d", len(values), dims).
+			AddDetail("version", ser.Version().String())
+	}
 	scalar := t.Scalar()
 	switch scalar {
 	case Int:

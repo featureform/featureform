@@ -1563,11 +1563,11 @@ func (mat *clickHouseMaterialization) IterateSegment(start, end int64) (FeatureI
 }
 
 func (mat *clickHouseMaterialization) NumChunks() (int, error) {
-	return genericNumChunks(mat)
+	return genericNumChunks(mat, defaultRowsPerChunk)
 }
 
 func (mat *clickHouseMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
-	return genericIterateChunk(mat, idx)
+	return genericIterateChunk(mat, defaultRowsPerChunk, idx)
 }
 
 func newClickHouseFeatureIterator(rows *sql.Rows, columnType interface{}, query OfflineTableQueries) FeatureIterator {

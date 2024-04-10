@@ -630,11 +630,11 @@ func (mat *bqMaterialization) IterateSegment(start, end int64) (FeatureIterator,
 }
 
 func (mat *bqMaterialization) NumChunks() (int, error) {
-	return genericNumChunks(mat)
+	return genericNumChunks(mat, defaultRowsPerChunk)
 }
 
 func (mat *bqMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
-	return genericIterateChunk(mat, idx)
+	return genericIterateChunk(mat, defaultRowsPerChunk, idx)
 }
 
 type bqFeatureIterator struct {

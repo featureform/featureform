@@ -500,11 +500,11 @@ func (mat *sqlMaterialization) IterateSegment(start, end int64) (FeatureIterator
 }
 
 func (mat *sqlMaterialization) NumChunks() (int, error) {
-	return genericNumChunks(mat)
+	return genericNumChunks(mat, defaultRowsPerChunk)
 }
 
 func (mat *sqlMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
-	return genericIterateChunk(mat, idx)
+	return genericIterateChunk(mat, defaultRowsPerChunk, idx)
 }
 
 type sqlFeatureIterator struct {

@@ -17,46 +17,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type MockMaterializedFeatures struct {
-	id   provider.MaterializationID
-	Rows []provider.ResourceRecord
-}
-
-func (m *MockMaterializedFeatures) ID() provider.MaterializationID {
-	return m.id
-}
-
-func (m *MockMaterializedFeatures) NumRows() (int64, error) {
-	return int64(len(m.Rows)), nil
-}
-
-func (m *MockMaterializedFeatures) IterateSegment(begin int64, end int64) (provider.FeatureIterator, error) {
-	return &MockFeatureIterator{
-		CurrentIndex: -1,
-		Slice:        m.Rows[begin:end],
-	}, nil
-}
-
 const mockChunkSize = 2
-func (m *MockMaterializedFeatures) NumChunks() (int, error) {
-	chunks := len(m.Rows) / mockChunkSize
-	if len(m.Rows) % mockChunkSize > 0 {
-		chunks++
-	}
-	return chunks, nil
-}
-
-func (m *MockMaterializedFeatures) IterateChunk(idx int) (provider.FeatureIterator, error) {
-	begin := idx * 2
-	end := begin + mockChunkSize
-	if end > len(m.Rows) {
-		end = len(m.Rows)
-	}
-	return &MockFeatureIterator{
-		CurrentIndex: -1,
-		Slice:        m.Rows[begin:end],
-	}, nil
-}
 
 type MaterializedFeaturesNumChunksBroken struct {
 	id provider.MaterializationID
@@ -213,7 +174,7 @@ func (m *TestError) Error() string {
 
 type JobTestParams struct {
 	TestName     string
-	Materialized MockMaterializedFeatures
+	Materialized provider.MemoryMaterialization
 	ChunkIdx     int
 }
 
@@ -229,7 +190,7 @@ func testParams(params JobTestParams) error {
 		DataTable: sync.Map{},
 	}
 	online := NewMockOnlineStore()
-	featureRows := params.Materialized.Rows
+	featureRows := params.Materialized.Data
 	job := &MaterializedChunkRunner{
 		Materialized: &params.Materialized,
 		Table:        table,
@@ -296,12 +257,12 @@ type CopyTestData struct {
 	Rows []interface{}
 }
 
-func CreateMockFeatureRows(data []interface{}) MockMaterializedFeatures {
+func CreateMockFeatureRows(data []interface{}) provider.MemoryMaterialization {
 	featureRows := make([]provider.ResourceRecord, len(data))
 	for i, row := range data {
 		featureRows[i] = provider.ResourceRecord{Entity: fmt.Sprintf("entity_%d", i), Value: row}
 	}
-	return MockMaterializedFeatures{id: provider.MaterializationID(uuid.NewString()), Rows: featureRows}
+	return provider.MemoryMaterialization{Id: provider.MaterializationID(uuid.NewString()), Data: featureRows, RowsPerChunk: mockChunkSize}
 }
 
 func TestErrorCoverage(t *testing.T) {
@@ -651,9 +612,11 @@ func TestJobs(t *testing.T) {
 		},
 	}
 	for _, param := range testJobs {
-		if err := testParams(param); err != nil {
-			t.Fatalf("Test Job Failed: %s, %v\n", param.TestName, err)
-		}
+		t.Run(param.TestName, func(t *testing.T) {
+			if err := testParams(param); err != nil {
+				t.Fatalf("Test Job Failed: %s, %v\n", param.TestName, err)
+			}
+		})
 	}
 }
 

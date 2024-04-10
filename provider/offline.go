@@ -724,9 +724,10 @@ func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, options ..
 	sort.Sort(matData)
 	// Might be used for testing
 	matId := MaterializationID(uuid.NewString())
-	mat := &memoryMaterialization{
-		id:   matId,
-		data: matData,
+	mat := &MemoryMaterialization{
+		Id:   matId,
+		Data: matData,
+		RowsPerChunk: defaultRowsPerChunk,
 	}
 	store.materializations.Store(matId, mat)
 	return mat, nil
@@ -963,30 +964,42 @@ func (table *memoryOfflineTable) WriteBatch(recs []ResourceRecord) error {
 	return nil
 }
 
-type memoryMaterialization struct {
-	id   MaterializationID
-	data []ResourceRecord
+// Used in runner/copy_test.go
+type MemoryMaterialization struct {
+	// Lowercase do so it doesn't name thrash ID()
+	Id MaterializationID
+	Data []ResourceRecord
+	RowsPerChunk int64
 }
 
-func (mat *memoryMaterialization) ID() MaterializationID {
-	return mat.id
+func (mat *MemoryMaterialization) ID() MaterializationID {
+	return mat.Id
 }
 
-func (mat *memoryMaterialization) NumRows() (int64, error) {
-	return int64(len(mat.data)), nil
+func (mat *MemoryMaterialization) NumRows() (int64, error) {
+	return int64(len(mat.Data)), nil
 }
 
-func (mat *memoryMaterialization) IterateSegment(start, end int64) (FeatureIterator, error) {
-	segment := mat.data[start:end]
+func (mat *MemoryMaterialization) IterateSegment(start, end int64) (FeatureIterator, error) {
+	if end > int64(len(mat.Data)) {
+		return nil, fmt.Errorf("Index out of bounds\nStart: %d\nEnd: %d\nLen: %d\n", start, end, len(mat.Data))
+	}
+	segment := mat.Data[start:end]
 	return newMemoryFeatureIterator(segment), nil
 }
 
-func (mat *memoryMaterialization) NumChunks() (int, error) {
-	return genericNumChunks(mat)
+func (mat *MemoryMaterialization) NumChunks() (int, error) {
+	if mat.RowsPerChunk == 0 {
+		mat.RowsPerChunk = defaultRowsPerChunk
+	}
+	return genericNumChunks(mat, mat.RowsPerChunk)
 }
 
-func (mat *memoryMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
-	return genericIterateChunk(mat, idx)
+func (mat *MemoryMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
+	if mat.RowsPerChunk == 0 {
+		mat.RowsPerChunk = defaultRowsPerChunk
+	}
+	return genericIterateChunk(mat, mat.RowsPerChunk, idx)
 }
 
 type memoryFeatureIterator struct {
@@ -1054,34 +1067,37 @@ func replaceSourceName(query string, mapping []SourceMapping, sanitize sanitizat
 	return replacedQuery, nil
 }
 
-func genericNumChunks(mat Materialization) (int, error) {
-	_, numChunks, err := getNumRowsAndChunks(mat)
+func genericNumChunks(mat Materialization, rowsPerChunk int64) (int, error) {
+	_, numChunks, err := getNumRowsAndChunks(mat, rowsPerChunk)
 	return int(numChunks), err
 }
 
-func getNumRowsAndChunks(mat Materialization) (int64, int, error) {
+func getNumRowsAndChunks(mat Materialization, rowsPerChunk int64) (int64, int, error) {
 	rows, err := mat.NumRows()
 	if err != nil {
 		return -1, -1, err
 	}
-	numChunks := rows / defaultRowsPerChunk
-	if rows%defaultRowsPerChunk != 0 {
+	numChunks := rows / rowsPerChunk
+	if rows%rowsPerChunk != 0 {
 		numChunks++
 	}
 	return rows, int(numChunks), nil
 }
 
-func genericIterateChunk(mat Materialization, idx int) (FeatureIterator, error) {
-	rows, chunks, err := getNumRowsAndChunks(mat)
+func genericIterateChunk(mat Materialization, rowsPerChunk int64, idx int) (FeatureIterator, error) {
+	rows, chunks, err := getNumRowsAndChunks(mat, rowsPerChunk)
 	if err != nil {
 		return nil, err
 	}
-	if idx >= chunks {
+	if idx > chunks {
 		return nil, fferr.NewInternalErrorf("Chunk out of range\nIdx: %d\nTotal: %d", idx, chunks)
 	}
-	start := int64(idx) * defaultRowsPerChunk
-	end := (int64(idx) + 1) * defaultRowsPerChunk
-	if rows > end {
+	start := int64(idx) * rowsPerChunk
+	end := (int64(idx) + 1) * rowsPerChunk
+	if start >= rows {
+		start = rows
+	}
+	if end > rows {
 		end = rows
 	}
 	return mat.IterateSegment(start, end)

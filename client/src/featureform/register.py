@@ -1506,7 +1506,7 @@ class Registrar:
             UserRegistrar: User
         """
         user = User(name=name, tags=tags, properties=properties)
-        self.__resources.append(user)
+        self.add_resource(user)
         return UserRegistrar(self, user)
 
     def set_default_owner(self, user: str):
@@ -2190,7 +2190,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OnlineProvider(self, provider)
 
     def register_pinecone(
@@ -2243,7 +2243,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OnlineProvider(self, provider)
 
     def register_weaviate(
@@ -2290,7 +2290,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OnlineProvider(self, provider)
 
     def register_blob_store(
@@ -2364,7 +2364,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return FileStoreProvider(self, provider, azure_config, "AZURE")
 
     def register_s3(
@@ -2440,7 +2440,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return FileStoreProvider(self, provider, s3_config, s3_config.type())
 
     def register_gcs(
@@ -2504,7 +2504,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return FileStoreProvider(self, provider, gcs_config, gcs_config.type())
 
     def register_hdfs(
@@ -2560,7 +2560,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return FileStoreProvider(self, provider, hdfs_config, hdfs_config.type())
 
     # TODO: Set Deprecation Warning For Credentials Path
@@ -2617,7 +2617,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OnlineProvider(self, provider)
 
     # TODO: Check these fields
@@ -2687,7 +2687,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OnlineProvider(self, provider)
 
     def register_dynamodb(
@@ -2742,7 +2742,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OnlineProvider(self, provider)
 
     def register_mongodb(
@@ -2809,7 +2809,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OnlineProvider(self, provider)
 
     def register_snowflake_legacy(
@@ -2878,7 +2878,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OfflineSQLProvider(self, provider)
 
     # TODO: Recheck mutable fields
@@ -2952,7 +2952,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OfflineSQLProvider(self, provider)
 
     def register_postgres(
@@ -3019,7 +3019,7 @@ class Registrar:
             properties=properties or {},
         )
 
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OfflineSQLProvider(self, provider)
 
     def register_clickhouse(
@@ -3085,7 +3085,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OfflineSQLProvider(self, provider)
 
     def register_redshift(
@@ -3151,7 +3151,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OfflineSQLProvider(self, provider)
 
     # TODO: Add deprecated warning for credentials_path
@@ -3209,7 +3209,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OfflineSQLProvider(self, provider)
 
     def register_spark(
@@ -3264,7 +3264,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OfflineSparkProvider(self, provider)
 
     # TODO: Change things to either filestore or store
@@ -3315,7 +3315,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OfflineK8sProvider(self, provider)
 
     def register_primary_data(
@@ -3364,7 +3364,7 @@ class Registrar:
             properties=properties,
             project=project,
         )
-        self.__resources.append(source)
+        self.add_resource(source)
         column_source_registrar = ColumnSourceRegistrar(self, source)
         self.map_client_object_to_resource(column_source_registrar, source)
         return column_source_registrar
@@ -3423,7 +3423,7 @@ class Registrar:
             properties=properties,
             project=project,
         )
-        self.__resources.append(source)
+        self.add_resource(source)
         return ColumnSourceRegistrar(self, source)
 
     def sql_transformation(
@@ -3536,7 +3536,7 @@ class Registrar:
             properties=properties,
             project=project,
         )
-        self.__resources.append(source)
+        self.add_resource(source)
         return ColumnSourceRegistrar(self, source)
 
     def df_transformation(
@@ -3679,7 +3679,7 @@ class Registrar:
             properties=properties or {},
         )
 
-        self.__resources.append(decorator)
+        self.add_resource(decorator)
 
         if fn is None:
             return decorator
@@ -3704,7 +3704,7 @@ class Registrar:
             raise ValueError("Project name cannot be empty")
 
         project = ProjectResource(name, resources)
-        self.__resources.append(project)
+        self.add_resource(project)
         return project
 
     def state(self):
@@ -3804,7 +3804,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(entity)
+        self.add_resource(entity)
         return EntityRegistrar(self, entity)
 
     def register_column_resources(
@@ -3908,7 +3908,7 @@ class Registrar:
                 additional_parameters=additional_Parameters,
                 project=feature.get("project", []),
             )
-            self.__resources.append(resource)
+            self.add_resource(resource)
             self.map_client_object_to_resource(client_object, resource)
             feature_resources.append(resource)
 
@@ -3945,7 +3945,7 @@ class Registrar:
                 properties=label_properties,
                 project=label.get("project", []),
             )
-            self.__resources.append(resource)
+            self.add_resource(resource)
             self.map_client_object_to_resource(client_object, resource)
             label_resources.append(resource)
         return ResourceRegistrar(self, features, labels)
@@ -4106,7 +4106,7 @@ class Registrar:
             properties=properties,
             project=project,
         )
-        self.__resources.append(resource)
+        self.add_resource(resource)
         return resource
 
     def register_model(
@@ -4123,7 +4123,7 @@ class Registrar:
             ModelRegistrar: Model
         """
         model = Model(name, description="", tags=tags, properties=properties)
-        self.__resources.append(model)
+        self.add_resource(model)
         return model
 
 
@@ -4150,7 +4150,12 @@ class ResourceClient:
     """
 
     def __init__(
-        self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
+        self,
+        host=None,
+        local=False,
+        insecure=False,
+        cert_path=None,
+        dry_run=False,
     ):
         if local:
             raise Exception(

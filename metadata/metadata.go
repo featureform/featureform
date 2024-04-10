@@ -1199,6 +1199,58 @@ func (resource *modelResource) Update(lookup ResourceLookup, updateRes Resource)
 	return nil
 }
 
+type projectResource struct {
+	serialized *pb.Project
+}
+
+func (resource *projectResource) ID() ResourceID {
+	return ResourceID{
+		Name: resource.serialized.Name,
+		Type: PROJECT,
+	}
+}
+
+func (resource *projectResource) Schedule() string {
+	return ""
+}
+
+func (resource *projectResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+	return make(LocalResourceLookup), nil
+}
+
+func (resource *projectResource) Proto() proto.Message {
+	return resource.serialized
+}
+
+func (this *projectResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+	// TODO: Implement this
+	return nil
+}
+
+func (resource *projectResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
+}
+
+func (resource *projectResource) UpdateStatus(status pb.ResourceStatus) error {
+	resource.serialized.Status = &status
+	return nil
+}
+
+func (resource *projectResource) UpdateSchedule(schedule string) error {
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
+}
+
+func (resource *projectResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	// TODO: check this implementation
+	deserialized := updateRes.Proto()
+	projectUpdate, ok := deserialized.(*pb.Project)
+	if !ok {
+		return fferr.NewInternalError(errors.New("failed to deserialize existing user record"))
+	}
+	resource.serialized.resources = projectUpdate.Resources
+	return nil
+}
+
 type userResource struct {
 	serialized *pb.User
 }
@@ -1707,6 +1759,10 @@ func (serv *MetadataServer) ListUsers(_ *pb.Empty, stream pb.Metadata_ListUsersS
 
 func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.Empty, error) {
 	return serv.genericCreate(ctx, &userResource{user}, nil)
+}
+
+func (serv *MetadataServer) CreateProject(ctx context.Context, user *pb.Project) (*pb.Empty, error) {
+	return serv.genericCreate(ctx, &projectResource{project}, nil)
 }
 
 func (serv *MetadataServer) GetUsers(stream pb.Metadata_GetUsersServer) error {

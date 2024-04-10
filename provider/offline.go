@@ -585,7 +585,7 @@ func (schema *TableSchema) ToParquetRecords(records []GenericRecord) ([]any, err
 				reflectValue = reflect.ValueOf(v)
 			}
 			if !reflectValue.Type().AssignableTo(parquetField.Type()) {
-				return nil, fferr.NewInternalErrorf("Writing Invalid Type to Parquet Record. Found %s expected %s", reflectValue.Type().String(), parquetField.Type().String())
+				return nil, fferr.NewInternalErrorf("writing invalid type to parquet record.\nFound %s\nexpected %s\n", reflectValue.Type().String(), parquetField.Type().String())
 			}
 			parquetField.Set(reflectValue)
 		}

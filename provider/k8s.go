@@ -468,7 +468,7 @@ func (tbl *BlobOfflineTable) convertToGenericResourceRecord(record *ResourceReco
 	case time.Time:
 		return &GenericResourceRecord[time.Time]{Entity: record.Entity, Value: v, TS: record.TS}, nil
 	default:
-		return nil, fferr.NewDataTypeNotFoundErrorf(v, "Unable to convert to generic resource record")
+		return nil, fferr.NewDataTypeNotFoundErrorf(v, "unable to convert to generic resource record")
 	}
 }
 

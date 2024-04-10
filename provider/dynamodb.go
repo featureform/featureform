@@ -24,6 +24,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const defaultMetadataTableName = "FeatureformMetadata"
+
 func init() {
 	if _, ok := serializers[dynamoSerializationVersion]; !ok {
 		panic("Dynamo serializer not implemented")
@@ -112,6 +114,7 @@ func dynamodbOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error
 	return NewDynamodbOnlineStore(dynamodbConfig)
 }
 
+// TODO(simba) make table name for metadata part of config
 func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, error) {
 	args := []func(*config.LoadOptions) error{
 		config.WithRegion(options.Region),
@@ -121,7 +124,7 @@ func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, e
 	// directly accessing DynamoDB on AWS.
 	if options.Endpoint != "" {
 		args = append(args,
-			config.WithEndpointResolver(aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+			config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(func(service, region string, opts ...interface{}) (aws.Endpoint, error) {
 				return aws.Endpoint{
 					URL:           options.Endpoint,
 					SigningRegion: options.Region,
@@ -156,8 +159,9 @@ func (store *dynamodbOnlineStore) Close() error {
 	return nil
 }
 
+// TODO(simba) make table name a param
 func CreateMetadataTable(client *dynamodb.Client, logger *zap.SugaredLogger) error {
-	tableName := "Metadata"
+	tableName := defaultMetadataTableName
 	params := &dynamodb.CreateTableInput{
 		TableName: aws.String(tableName),
 		AttributeDefinitions: []types.AttributeDefinition{
@@ -201,7 +205,7 @@ func (store *dynamodbOnlineStore) updateMetadataTable(tablename string, valueTyp
 				Value: fmt.Sprintf("%d", version),
 			},
 		},
-		TableName: aws.String("Metadata"),
+		TableName: aws.String(defaultMetadataTableName),
 		Key: map[string]types.AttributeValue{
 			"Tablename": &types.AttributeValueMemberS{
 				Value: tablename,
@@ -220,7 +224,7 @@ func (store *dynamodbOnlineStore) updateMetadataTable(tablename string, valueTyp
 
 func (store *dynamodbOnlineStore) getFromMetadataTable(tablename string) (*dynamodbTableMetadata, error) {
 	input := &dynamodb.GetItemInput{
-		TableName: aws.String("Metadata"),
+		TableName: aws.String(defaultMetadataTableName),
 		Key: map[string]types.AttributeValue{
 			"Tablename": &types.AttributeValueMemberS{
 				Value: tablename,

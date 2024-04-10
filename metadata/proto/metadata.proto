@@ -14,6 +14,7 @@ package featureform.serving.metadata.proto;
 
 service Metadata {
     rpc CreateUser(User) returns (Empty);
+    rpc CreateProject(Project) returns (Empty);
     rpc CreateProvider(Provider) returns (Empty);
     rpc CreateSourceVariant(SourceVariant) returns (Empty);
     rpc CreateEntity(Entity) returns (Empty);
@@ -22,7 +23,6 @@ service Metadata {
     rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
     rpc CreateModel(Model) returns (Empty);
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
-    rpc CreateProject(Project) returns (Empty);
 
     rpc GetUsers(stream Name) returns (stream User);
     rpc GetProjects(stream Name) returns (stream Project);
@@ -45,6 +45,7 @@ service Metadata {
     rpc GetEquivalent(ResourceVariant) returns (ResourceVariant);
 
     rpc ListFeatures(Empty) returns (stream Feature);
+    rpc ListProjects(Empty) returns (stream Project);
     rpc ListLabels(Empty) returns (stream Label);
     rpc ListTrainingSets(Empty) returns (stream TrainingSet);
     rpc ListSources(Empty) returns (stream Source);
@@ -63,6 +64,7 @@ service Metadata {
 
 service Api {
     rpc CreateUser(User) returns (Empty);
+    rpc CreateProject(Project) returns (Empty);
     rpc CreateProvider(Provider) returns (Empty);
     rpc CreateSourceVariant(SourceVariant) returns (Empty);
     rpc CreateEntity(Entity) returns (Empty);
@@ -71,7 +73,6 @@ service Api {
     rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
     rpc CreateModel(Model) returns (Empty);
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
-    rpc CreateProject(Project) returns (Empty);
 
     rpc GetUsers(stream Name) returns (stream User);
     rpc GetProjects(stream Name) returns (stream Project);
@@ -93,6 +94,7 @@ service Api {
     rpc GetEquivalent(ResourceVariant) returns (ResourceVariant);
 
     rpc ListFeatures(Empty) returns (stream Feature);
+    rpc ListProjects(Empty) returns (stream Project);
     rpc ListLabels(Empty) returns (stream Label);
     rpc ListTrainingSets(Empty) returns (stream TrainingSet);
     rpc ListSources(Empty) returns (stream Source);
@@ -443,7 +445,7 @@ message Properties {
 
 message Project {
 	string name = 1;
-	repeated NameVariant inputs = 2;
+	repeated NameVariant resources = 2;
 }
 
 message Projects {

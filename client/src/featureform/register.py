@@ -4130,7 +4130,7 @@ class Registrar:
 class ResourceClient:
     """
     The resource client is used to retrieve information on specific resources
-    (entities, providers, features, labels, training sets, models, users).
+    (entities, providers, features, labels, training sets, models, users, projects).
 
     Args:
         host (str): The hostname of the Featureform instance.

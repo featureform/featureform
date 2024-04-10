@@ -76,8 +76,8 @@ type Error interface {
 	GetType() string
 	GRPCStatus() *status.Status
 	ToErr() error
-	AddDetail(key, value string) Error
-	AddDetails(keysAndValues ...interface{}) Error
+	AddDetail(key, value string)
+	AddDetails(keysAndValues ...interface{})
 	Error() string
 	Stack() JSONStackTrace
 }
@@ -154,14 +154,12 @@ func (e *baseError) ToErr() error {
 	return st.Err()
 }
 
-func (e *baseError) AddDetail(key, value string) Error {
+func (e *baseError) AddDetail(key, value string) {
 	e.GenericError.AddDetail(key, value)
-	return e
 }
 
-func (e *baseError) AddDetails(keysAndValues ...interface{}) Error {
+func (e *baseError) AddDetails(keysAndValues ...interface{}) {
 	e.GenericError.AddDetails(keysAndValues...)
-	return e
 }
 
 func (e *baseError) Error() string {

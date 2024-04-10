@@ -330,12 +330,15 @@ func (store *dynamodbOnlineStore) ImportTable(feature, variant string, valueType
 	tableName := formatDynamoTableName(store.prefix, feature, variant)
 	store.logger.Infof("Checking metadata table for existing table %s\n", tableName)
 	_, err := store.getFromMetadataTable(tableName)
-	if err == nil {
-		return "", err
+	tableExists := err == nil
+	if tableExists {
+		wrapped := fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
+		wrapped.AddDetail("tablename", tableName)
+		return "", wrapped
 	}
 
 	store.logger.Infof("Updating metadata table %s\n", tableName)
-	err = store.updateMetadataTable(tableName, valueType, dynamoSerializationVersion)
+	err = store.updateMetadataTable(tableName, valueType, serializeV0)
 	if err != nil {
 		return "", fferr.NewResourceExecutionError(pt.DynamoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
@@ -584,9 +587,10 @@ func (ser serializerV0) Deserialize(t ValueType, value types.AttributeValue) (an
 	}
 	typed, ok := value.(*types.AttributeValueMemberS)
 	if !ok {
-		return nil, fferr.NewInternalErrorf(
-			"unable to deserialize dynamodb value into string, is %T", value).
-			AddDetail("version", ser.Version().String())
+		wrapped := fferr.NewInternalErrorf(
+			"unable to deserialize dynamodb value into string, is %T", value)
+		wrapped.AddDetail("version", ser.Version().String())
+		return nil, wrapped
 	}
 	valString := typed.Value
 	var result interface{}
@@ -644,14 +648,16 @@ func (ser serializerV1) serializeVector(t ValueType, value any) (types.Attribute
 
 	list := reflect.ValueOf(value)
 	if list.Kind() != reflect.Slice {
-		return nil, fferr.NewTypeError(vecT.String(), value, nil).
-			AddDetail("version", ser.Version().String())
+		wrapped :=fferr.NewTypeError(vecT.String(), value, nil)
+		wrapped.AddDetail("version", ser.Version().String())
+		return nil, wrapped
 	}
 	length := list.Len()
 	if int32(length) != vecT.Dimension {
 		errMsg := "Type error. Wrong length.\nFound %d\nExpected %d"
-		return nil, fferr.NewTypeErrorf(vecT.String(), value, errMsg, vecT.Dimension, length).
-			AddDetail("version", ser.Version().String())
+		wrapped := fferr.NewTypeErrorf(vecT.String(), value, errMsg, vecT.Dimension, length)
+		wrapped.AddDetail("version", ser.Version().String())
+		return nil, wrapped
 	}
 	vals := make([]types.AttributeValue, length)
 	for i := 0; i < length; i++ {
@@ -682,8 +688,9 @@ func (ser serializerV1) serializeScalar(t ValueType, value any) (types.Attribute
 		// This rounds via Go if needed
 		intVal, err := castNumberToInt(value)
 		if err != nil {
-			return nil, fferr.NewTypeError(t.String(), value, err).
-				AddDetail("version", ser.Version().String())
+			wrapped := fferr.NewTypeError(t.String(), value, err)
+			wrapped.AddDetail("version", ser.Version().String())
+			return nil, wrapped
 		}
 		intStr := strconv.FormatInt(int64(intVal), 10)
 		return &types.AttributeValueMemberN{Value: intStr}, nil
@@ -691,52 +698,59 @@ func (ser serializerV1) serializeScalar(t ValueType, value any) (types.Attribute
 		// This rounds via Go if needed
 		intVal, err := castNumberToInt32(value)
 		if err != nil {
-			return nil, fferr.NewTypeError(t.String(), value, err).
-				AddDetail("version", ser.Version().String())
+			wrapped := fferr.NewTypeError(t.String(), value, err)
+			wrapped.AddDetail("version", ser.Version().String())
+			return nil, wrapped
 		}
 		intStr := strconv.FormatInt(int64(intVal), 10)
 		return &types.AttributeValueMemberN{Value: intStr}, nil
 	case Int64:
 		intVal, err := castNumberToInt64(value)
 		if err != nil {
-			return nil, fferr.NewTypeError(t.String(), value, err).
-				AddDetail("version", ser.Version().String())
+			wrapped := fferr.NewTypeError(t.String(), value, err)
+			wrapped.AddDetail("version", ser.Version().String())
+			return nil, wrapped
 		}
 		intStr := strconv.FormatInt(intVal, 10)
 		return &types.AttributeValueMemberN{Value: intStr}, nil
 	case Float32:
 		floatVal, err := castNumberToFloat32(value)
 		if err != nil {
-			return nil, fferr.NewTypeError(t.String(), value, err).
-				AddDetail("version", ser.Version().String())
+			wrapped := fferr.NewTypeError(t.String(), value, err)
+			wrapped.AddDetail("version", ser.Version().String())
+			return nil, wrapped
 		}
 		floatStr := strconv.FormatFloat(float64(floatVal), 'e', -1, 32)
 		return &types.AttributeValueMemberN{Value: floatStr}, nil
 	case Float64:
 		floatVal, err := castNumberToFloat64(value)
 		if err != nil {
-			return nil, fferr.NewTypeError(t.String(), value, err).
-				AddDetail("version", ser.Version().String())
+			wrapped := fferr.NewTypeError(t.String(), value, err)
+			wrapped.AddDetail("version", ser.Version().String())
+			return nil, wrapped
 		}
 		floatStr := strconv.FormatFloat(floatVal, 'e', -1, 64)
 		return &types.AttributeValueMemberN{Value: floatStr}, nil
 	case Bool:
 		casted, ok := value.(bool)
 		if !ok {
-			return nil, fferr.NewTypeError(t.String(), value, nil).
-				AddDetail("version", ser.Version().String())
+			wrapped := fferr.NewTypeError(t.String(), value, err)
+			wrapped.AddDetail("version", ser.Version().String())
+			return nil, wrapped
 		}
 		return &types.AttributeValueMemberBOOL{Value: casted}, nil
 	case String:
 		casted, ok := value.(string)
 		if !ok {
-			return nil, fferr.NewTypeError(t.String(), value, nil).
-				AddDetail("version", ser.Version().String())
+			wrapped := fferr.NewTypeError(t.String(), value, err)
+			wrapped.AddDetail("version", ser.Version().String())
+			return nil, wrapped
 		}
 		return &types.AttributeValueMemberS{Value: casted}, nil
 	default:
-		return nil, fferr.NewInternalErrorf("dynamo doesn't support type").
-			AddDetail("type", serializeType(t))
+		wrapped := fferr.NewInternalErrorf("dynamo doesn't support type")
+		wrapped.AddDetail("type", serializeType(t))
+		return nil, wrapped
 	}
 }
 
@@ -898,14 +912,17 @@ func (ser serializerV1) Deserialize(t ValueType, value types.AttributeValue) (an
 	}
 	list, ok := value.(*types.AttributeValueMemberL)
 	if !ok {
-		return nil, fferr.NewInternalErrorf("unable to deserialize dynamodb value into list, is %T", value).
-			AddDetail("version", ser.Version().String())
+		wrapped := fferr.NewInternalErrorf("unable to deserialize dynamodb value into list, is %T", value)
+		wrapped.AddDetail("version", ser.Version().String())
+		return nil, wrapped
 	}
 	values := list.Value
 	dims := t.(VectorType).Dimension
 	if len(values) != int(dims) {
-		return nil, fferr.NewInternalErrorf("unable to deserialize dynamodb value into list, wrong size %d. Expected %d", len(values), dims).
-			AddDetail("version", ser.Version().String())
+		msg := "unable to deserialize dynamodb value into list, wrong size %d. Expected %d"
+		wrapped := fferr.NewInternalErrorf(msg, len(values), dims)
+		wrapped.AddDetail("version", ser.Version().String())
+		return nil, wrapped
 	}
 	scalar := t.Scalar()
 	switch scalar {
@@ -924,8 +941,9 @@ func (ser serializerV1) Deserialize(t ValueType, value types.AttributeValue) (an
 	case String:
 		return deserializeList[string](scalar, values, version)
 	default:
-		return nil, fferr.NewInternalErrorf("dynamo doesn't support type").
-			AddDetail("type", serializeType(t))
+		wrapped := fferr.NewInternalErrorf("dynamo doesn't support type")
+		wrapped.AddDetail("type", serializeType(t))
+		return nil, wrapped
 	}
 }
 
@@ -941,11 +959,12 @@ func deserializeList[T any](scalar ScalarType, values []types.AttributeValue, ve
 		}
 		casted, ok := deser.(T)
 		if !ok {
-			return nil, fferr.NewInternalErrorf("Deserialize failed due to wrong generic").
-				AddDetail("found_type", fmt.Sprintf("%T", casted)).
-				AddDetail("expected_type", scalar.String()).
-				AddDetail("list_element", strconv.Itoa(i)).
-				AddDetail("version", version)
+			wrapped := fferr.NewInternalErrorf("Deserialize failed due to wrong generic")
+			wrapped.AddDetail("found_type", fmt.Sprintf("%T", casted))
+			wrapped.AddDetail("expected_type", scalar.String())
+			wrapped.AddDetail("list_element", strconv.Itoa(i))
+			wrapped.AddDetail("version", version)
+			return nil, wrapped
 		}
 		deserList[i] = deser.(T)
 	}
@@ -958,57 +977,65 @@ func deserializeScalar(t ScalarType, value types.AttributeValue, version string)
 	case Int:
 		castedValue, ok := value.(*types.AttributeValueMemberN)
 		if !ok {
-			return nil, fferr.NewInternalErrorf("unable to deserialize dynamodb value into numerical, is %T", value).
-				AddDetail("version", version)
+			wrapped := fferr.NewInternalErrorf("unable to deserialize dynamodb value into numerical, is %T", value)
+			wrapped.AddDetail("version", version)
+			return nil, wrapped
 		}
 		val, err := strconv.ParseInt(castedValue.Value, 10, 0)
 		return int(val), err
 	case Int32:
 		castedValue, ok := value.(*types.AttributeValueMemberN)
 		if !ok {
-			return nil, fferr.NewInternalErrorf("unable to deserialize dynamodb value into numerical, is %T", value).
-				AddDetail("version", version)
+			wrapped := fferr.NewInternalErrorf("unable to deserialize dynamodb value into numerical, is %T", value)
+			wrapped.AddDetail("version", version)
+			return nil, wrapped
 		}
 		val, err := strconv.ParseInt(castedValue.Value, 10, 32)
 		return int32(val), err
 	case Int64:
 		castedValue, ok := value.(*types.AttributeValueMemberN)
 		if !ok {
-			return nil, fferr.NewInternalErrorf("unable to deserialize dynamodb value into numerical, is %T", value).
-				AddDetail("version", version)
+			wrapped := fferr.NewInternalErrorf("unable to deserialize dynamodb value into numerical, is %T", value)
+			wrapped.AddDetail("version", version)
+			return nil, wrapped
 		}
 		return strconv.ParseInt(castedValue.Value, 10, 64)
 	case Float32:
 		castedValue, ok := value.(*types.AttributeValueMemberN)
 		if !ok {
-			return nil, fferr.NewInternalErrorf("unable to deserialize dynamodb value into numerical, is %T", value).
-				AddDetail("version", version)
+			wrapped := fferr.NewInternalErrorf("unable to deserialize dynamodb value into numerical, is %T", value)
+			wrapped.AddDetail("version", version)
+			return nil, wrapped
 		}
 		val, err := strconv.ParseFloat(castedValue.Value, 32)
 		return float32(val), err
 	case Float64:
 		castedValue, ok := value.(*types.AttributeValueMemberN)
 		if !ok {
-			return nil, fferr.NewInternalErrorf("unable to deserialize dynamodb value into numerical, is %T", value).
-				AddDetail("version", version)
+			wrapped := fferr.NewInternalErrorf("unable to deserialize dynamodb value into numerical, is %T", value)
+			wrapped.AddDetail("version", version)
+			return nil, wrapped
 		}
 		return strconv.ParseFloat(castedValue.Value, 64)
 	case Bool:
 		castedValue, ok := value.(*types.AttributeValueMemberBOOL)
 		if !ok {
-			return nil, fferr.NewInternalErrorf("unable to deserialize dynamodb value into bool, is %T", value).
-				AddDetail("version", version)
+			wrapped := fferr.NewInternalErrorf("unable to deserialize dynamodb value into bool, is %T", value)
+			wrapped.AddDetail("version", version)
+			return nil, wrapped
 		}
 		return castedValue.Value, nil
 	case String:
 		castedValue, ok := value.(*types.AttributeValueMemberS)
 		if !ok {
-			return nil, fferr.NewInternalErrorf("unable to deserialize dynamodb value into string, is %T", value).
-				AddDetail("version", version)
+			wrapped := fferr.NewInternalErrorf("unable to deserialize dynamodb value into string, is %T", value)
+			wrapped.AddDetail("version", version)
+			return nil, wrapped
 		}
 		return castedValue.Value, nil
 	default:
-		return nil, fferr.NewInternalErrorf("Dynamo doesn't support type").
-			AddDetail("version", version)
+		wrapped := fferr.NewInternalErrorf("Dynamo doesn't support type")
+		wrapped.AddDetail("version", version)
+		return nil, wrapped
 	}
 }

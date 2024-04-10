@@ -1595,7 +1595,7 @@ class LabelVariant(ResourceVariant):
             status=label.status.Status._enum_type.values[label.status.status].name,
             server_status=ServerStatus.from_proto(label.status),
             error=label.status.error_message,
-            project=list(label.project),
+            project=label.project,
         )
 
     def _create(self, stub) -> Optional[str]:
@@ -1873,6 +1873,35 @@ class Model:
         }
 
 
+@typechecked
+@dataclass
+class ProjectResource:
+    name: str
+    resources: Union[List[pb.NameVariant], List[Tuple[Any, str]]] = field(
+        default_factory=list
+    )
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    def type(self) -> str:
+        return "model"
+
+    def _create(self, stub) -> None:
+        serialized = pb.Project(
+            name=self.name,
+            resources=self.resources,
+        )
+        stub.CreateProject(serialized)
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "resources": self.resources,
+        }
+
+
 Resource = Union[
     PrimaryData,
     Provider,
@@ -1888,22 +1917,8 @@ Resource = Union[
     EntityReference,
     Model,
     OnDemandFeatureVariant,
+    ProjectResource,
 ]
-
-
-@typechecked
-@dataclass
-class ProjectResource:
-    name: str
-    resources: Union[List[NameVariant], List[Tuple[Any, str]]] = field(
-        default_factory=list
-    )
-
-    def to_dictionary(self):
-        return {
-            "name": self.name,
-            "resources": self.resources,
-        }
 
 
 class ResourceRedefinedError(Exception):

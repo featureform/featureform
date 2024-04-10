@@ -333,16 +333,20 @@ func (store *dynamodbOnlineStore) CheckHealth() (bool, error) {
 	return true, nil
 }
 
+// TODO(simba) Make this work with Serialize V1
 func (store *dynamodbOnlineStore) ImportTable(feature, variant string, valueType ValueType, source filestore.Filepath) (ImportID, error) {
 	tableName := formatDynamoTableName(store.prefix, feature, variant)
 	store.logger.Infof("Checking metadata table for existing table %s\n", tableName)
 	_, err := store.getFromMetadataTable(tableName)
-	if err == nil {
-		return "", err
+	tableExists := err == nil
+	if tableExists {
+		wrapped := fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
+		wrapped.AddDetail("tablename", tableName)
+		return nil, wrapped
 	}
 
 	store.logger.Infof("Updating metadata table %s\n", tableName)
-	err = store.updateMetadataTable(tableName, valueType, dynamoSerializationVersion)
+	err = store.updateMetadataTable(tableName, valueType, SerializeV0)
 	if err != nil {
 		return "", fferr.NewResourceExecutionError(pt.DynamoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
@@ -352,7 +356,7 @@ func (store *dynamodbOnlineStore) ImportTable(feature, variant string, valueType
 	importInput := &dynamodb.ImportTableInput{
 		// This is optional but it ensures idempotency within an 8-hour window,
 		// so it seems prudent to include it to avoid triggering a duplicate import.
-		ClientToken: aws.String(fmt.Sprintf("%s-%s", feature, variant)),
+		ClientToken: aws.String(fmt.Sprintf("%s__%s", feature, variant)),
 
 		InputCompressionType: types.InputCompressionTypeNone,
 

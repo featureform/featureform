@@ -21,6 +21,7 @@ from featureform.resources import (
     OnlineBlobConfig,
     K8sConfig,
     User,
+    ProjectResource,
     Provider,
     Entity,
     FeatureVariant,
@@ -602,6 +603,9 @@ def all_resources_set(redis_provider):
             tags=[],
             properties={},
         ),
+        ProjectResource(
+            name="project",
+        ),
     ]
 
 
@@ -669,6 +673,9 @@ def all_resources_strange_order(redis_provider):
         ),
         redis_provider,
         User(name="Featureform", tags=[], properties={}),
+        ProjectResource(
+            name="project",
+        ),
     ]
 
 
@@ -793,6 +800,9 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
             feature_lags=[],
             tags=[],
             properties={},
+        ),
+        ProjectResource(
+            name="project",
         ),
     ]
 
@@ -1000,5 +1010,8 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
         ),
         Schedule(
             name="primary", variant="abc", resource_type=7, schedule_string="* * * * *"
+        ),
+        ProjectResource(
+            name="project",
         ),
     ]

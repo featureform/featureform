@@ -1223,7 +1223,6 @@ func (resource *projectResource) Proto() proto.Message {
 }
 
 func (this *projectResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	// TODO: Implement this
 	return nil
 }
 
@@ -1751,6 +1750,22 @@ func (serv *MetadataServer) GetSourceVariants(stream pb.Metadata_GetSourceVarian
 	})
 }
 
+func (serv *MetadataServer) CreateProject(ctx context.Context, project *pb.Project) (*pb.Empty, error) {
+	return serv.genericCreate(ctx, &projectResource{project}, nil)
+}
+
+func (serv *MetadataServer) ListProjects(_ *pb.Empty, stream pb.Metadata_ListProjectsServer) error {
+	return serv.genericList(USER, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Project))
+	})
+}
+
+func (serv *MetadataServer) GetProject(stream pb.Metadata_GetProjectsServer) error {
+	return serv.genericGet(stream, USER, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Project))
+	})
+}
+
 func (serv *MetadataServer) ListUsers(_ *pb.Empty, stream pb.Metadata_ListUsersServer) error {
 	return serv.genericList(USER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.User))
@@ -1761,18 +1776,8 @@ func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.
 	return serv.genericCreate(ctx, &userResource{user}, nil)
 }
 
-func (serv *MetadataServer) CreateProject(ctx context.Context, user *pb.Project) (*pb.Empty, error) {
-	return serv.genericCreate(ctx, &projectResource{project}, nil)
-}
-
 func (serv *MetadataServer) GetUsers(stream pb.Metadata_GetUsersServer) error {
 	return serv.genericGet(stream, USER, func(msg proto.Message) error {
-		return stream.Send(msg.(*pb.User))
-	})
-}
-
-func (serv *MetadataServer) GetProjects(stream pb.Metadata_GetProjectsServer) error {
-	return serv.genericGet(stream, PROJECT, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.User))
 	})
 }
@@ -1974,6 +1979,8 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		serv.Logger.Error(err)
 		return nil, err
 	}
+
+	// TODO: Add project to all resources.
 	return &pb.Empty{}, nil
 }
 

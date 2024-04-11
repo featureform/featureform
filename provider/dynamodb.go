@@ -648,7 +648,7 @@ func (ser serializerV1) serializeVector(t ValueType, value any) (types.Attribute
 
 	list := reflect.ValueOf(value)
 	if list.Kind() != reflect.Slice {
-		wrapped :=fferr.NewTypeError(vecT.String(), value, nil)
+		wrapped := fferr.NewTypeError(vecT.String(), value, nil)
 		wrapped.AddDetail("version", ser.Version().String())
 		return nil, wrapped
 	}

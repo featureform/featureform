@@ -82,6 +82,11 @@ func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.
 	return serv.meta.CreateUser(ctx, user)
 }
 
+func (serv *MetadataServer) CreateProject(ctx context.Context, project *pb.Project) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating Project", "project", project.Name)
+	return serv.meta.CreateProject(ctx, project)
+}
+
 func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
 	for {
 		name, err := stream.Recv()

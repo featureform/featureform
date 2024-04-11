@@ -96,13 +96,13 @@ func TestDynamoSerializers(t *testing.T) {
 	for ver, _ := range serializers {
 		allSerializers = append(allSerializers, ver)
 	}
-	timestamp := time.Now()
-	date := time.Date(timestamp.Year(), timestamp.Month(), timestamp.Day(), 0, 0, 0, 0, timestamp.Location())
+	timestamp := time.Now().UTC().Truncate(time.Second)
+	date := time.Date(timestamp.Year(), timestamp.Month(), timestamp.Day(), 0, 0, 0, 0, time.UTC)
 	timeTests := testCases{
 		Timestamp: timestamp,
 		Datetime:  date,
 	}
-	timeSerializers := []serializeVersion{}
+	timeSerializers := []serializeVersion{serializeV1}
 	uintTests := testCases{
 		UInt8:  uint8(1),
 		UInt16: uint16(1),
@@ -161,6 +161,66 @@ func TestDynamoSerializers(t *testing.T) {
 	runTestCases(t, nilSerializers, nilTests)
 }
 
+func TestDynamoTimeFormatsV1(t *testing.T) {
+	serializer := serializers[serializeV1]
+	expected := time.Unix(1, 0).UTC()
+	differentForms := map[string]any{
+		"unix int string":  "1",
+		"unix int":         1,
+		"timestamp string": expected.Format(time.RFC850),
+	}
+	testTS := func(t *testing.T, val any) {
+		types := []ValueType{Timestamp, Datetime}
+		for _, typ := range types {
+			serial, err := serializer.Serialize(typ, val)
+			if err != nil {
+				t.Fatalf("Failed to serialize: %s %v\n%s\n", typ, val, err)
+			}
+			found, err := serializer.Deserialize(typ, serial)
+			if err != nil {
+				t.Fatalf("Failed to deserialize: %s %v\nDynamo Val: %v\n%s\n", typ, val, serial, err)
+			}
+			if !found.(time.Time).Equal(expected) {
+				t.Fatalf("Value not equal\nFound: %v\n Expected: %v\nSerial: %v\n", found, expected, serial)
+			}
+		}
+	}
+	for name, form := range differentForms {
+		t.Run(name, func(t *testing.T) {
+			testTS(t, form)
+		})
+	}
+}
+
+func TestDynamoBoolFormatsV1(t *testing.T) {
+	serializer := serializers[serializeV1]
+	expected := true
+	differentForms := map[string]any{
+		"bool int string": "1",
+		"bool int":        1,
+		"bool string":     "true",
+	}
+	testTS := func(t *testing.T, val any) {
+		typ := Bool
+		serial, err := serializer.Serialize(typ, val)
+		if err != nil {
+			t.Fatalf("Failed to serialize: %s %v\n%s\n", typ, val, err)
+		}
+		found, err := serializer.Deserialize(typ, serial)
+		if err != nil {
+			t.Fatalf("Failed to deserialize: %s %v\nDynamo Val: %v\n%s\n", typ, val, serial, err)
+		}
+		if found.(bool) != expected {
+			t.Fatalf("Value not equal\nFound: %v\n Expected: %v\nSerial: %v\n", found, expected, serial)
+		}
+	}
+	for name, form := range differentForms {
+		t.Run(name, func(t *testing.T) {
+			testTS(t, form)
+		})
+	}
+}
+
 func TestDynamoNumericCasting(t *testing.T) {
 	canonicalValues := map[ValueType]any{
 		Float32: float32(1.0),
@@ -214,6 +274,8 @@ func TestFailSerializeV1(t *testing.T) {
 		{Int64, []int64{1}},
 		{Bool, "not"},
 		{String, true},
+		{Timestamp, true},
+		{Timestamp, "123/23/2033"},
 		{VectorType{Float32, 1, false}, []string{"abc"}},
 		{VectorType{Float32, 1, false}, []float32{1, 2}},
 		{VectorType{Float32, 1, false}, float32(1.0)},
@@ -233,6 +295,7 @@ func TestFailSerializeV1(t *testing.T) {
 func TestFailDeserializeV1(t *testing.T) {
 	emptyList := &types.AttributeValueMemberL{Value: nil}
 	unsupported := &types.AttributeValueMemberB{Value: nil}
+	wrongNumFormat := &types.AttributeValueMemberN{Value: "not an int"}
 	stringList := &types.AttributeValueMemberL{Value: []types.AttributeValue{&types.AttributeValueMemberS{Value: "abc"}}}
 	numList := &types.AttributeValueMemberL{Value: []types.AttributeValue{&types.AttributeValueMemberN{Value: "1"}}}
 	mixedList := &types.AttributeValueMemberL{
@@ -244,22 +307,29 @@ func TestFailDeserializeV1(t *testing.T) {
 		val types.AttributeValue
 	}
 	tests := map[string]testCase{
-		"Unknown type":        {unknownType, unsupported},
-		"Float32 wrong":       {Float32, emptyList},
-		"Float64 wrong":       {Float64, emptyList},
-		"Int wrong":           {Int, emptyList},
-		"Int32 wrong":         {Int32, emptyList},
-		"Int64 wrong":         {Int64, emptyList},
-		"Bool wrong":          {Bool, emptyList},
-		"String wrong":        {String, emptyList},
-		"Vec wrong":           {VectorType{Float32, 1, false}, unsupported},
-		"Vec unknown type":    {VectorType{unknownType, 1, false}, unsupported},
-		"FloatVec wrong size": {VectorType{Float32, 2, false}, numList},
-		"FloatVec type":       {VectorType{Float32, 1, false}, stringList},
-		"FloatVec mixed":      {VectorType{Float32, 2, false}, mixedList},
-		"StringVec size":      {VectorType{String, 2, false}, stringList},
-		"StringVec type":      {VectorType{String, 1, false}, numList},
-		"StringVec mixed":     {VectorType{String, 2, false}, mixedList},
+		"Unknown type":           {unknownType, unsupported},
+		"Float32 wrong":          {Float32, emptyList},
+		"Float64 wrong":          {Float64, emptyList},
+		"Int wrong":              {Int, emptyList},
+		"Int32 wrong":            {Int32, emptyList},
+		"Int64 wrong":            {Int64, emptyList},
+		"Timestamp wrong":        {Timestamp, emptyList},
+		"Float32 wrong format":   {Float32, wrongNumFormat},
+		"Float64 wrong format":   {Float64, wrongNumFormat},
+		"Int wrong format":       {Int, wrongNumFormat},
+		"Int32 wrong format":     {Int32, wrongNumFormat},
+		"Int64 wrong format":     {Int64, wrongNumFormat},
+		"Timestamp wrong format": {Timestamp, wrongNumFormat},
+		"Bool wrong":             {Bool, emptyList},
+		"String wrong":           {String, emptyList},
+		"Vec wrong":              {VectorType{Float32, 1, false}, unsupported},
+		"Vec unknown type":       {VectorType{unknownType, 1, false}, unsupported},
+		"FloatVec wrong size":    {VectorType{Float32, 2, false}, numList},
+		"FloatVec type":          {VectorType{Float32, 1, false}, stringList},
+		"FloatVec mixed":         {VectorType{Float32, 2, false}, mixedList},
+		"StringVec size":         {VectorType{String, 2, false}, stringList},
+		"StringVec type":         {VectorType{String, 1, false}, numList},
+		"StringVec mixed":        {VectorType{String, 2, false}, mixedList},
 	}
 	serializer := serializers[serializeV1]
 	for name, test := range tests {

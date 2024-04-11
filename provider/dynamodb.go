@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/araddon/dateparse"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -732,8 +733,8 @@ func (ser serializerV1) serializeScalar(t ValueType, value any) (types.Attribute
 		floatStr := strconv.FormatFloat(floatVal, 'e', -1, 64)
 		return &types.AttributeValueMemberN{Value: floatStr}, nil
 	case Bool:
-		casted, ok := value.(bool)
-		if !ok {
+		casted, err := castBool(value)
+		if err != nil {
 			wrapped := fferr.NewTypeError(t.String(), value, err)
 			wrapped.AddDetail("version", ser.Version().String())
 			return nil, wrapped
@@ -742,11 +743,38 @@ func (ser serializerV1) serializeScalar(t ValueType, value any) (types.Attribute
 	case String:
 		casted, ok := value.(string)
 		if !ok {
-			wrapped := fferr.NewTypeError(t.String(), value, err)
+			wrapped := fferr.NewTypeError(t.String(), value, nil)
 			wrapped.AddDetail("version", ser.Version().String())
 			return nil, wrapped
 		}
 		return &types.AttributeValueMemberS{Value: casted}, nil
+	case Timestamp, Datetime:
+		ts, isTs := value.(time.Time)
+		if isTs {
+			intStr := strconv.FormatInt(ts.Unix(), 10)
+			return &types.AttributeValueMemberN{Value: intStr}, nil
+		}
+		unixTime, unixTimeErr := castNumberToInt64(value)
+		isUnixTs := unixTimeErr == nil
+		if isUnixTs {
+			intStr := strconv.FormatInt(unixTime, 10)
+			return &types.AttributeValueMemberN{Value: intStr}, nil
+		}
+		strForm, isString := value.(string)
+		if !isString {
+			wrapped := fferr.NewTypeError(t.String(), value, nil)
+			wrapped.AddDetail("version", ser.Version().String())
+			return nil, wrapped
+		}
+		// If timezone is ambiguous, this makes it UTC
+		dt, err := dateparse.ParseIn(strForm, time.UTC)
+		if err != nil {
+			wrapped := fferr.NewTypeError(t.String(), value, err)
+			wrapped.AddDetail("version", ser.Version().String())
+			return nil, wrapped
+		}
+		intStr := strconv.FormatInt(dt.Unix(), 10)
+		return &types.AttributeValueMemberN{Value: intStr}, nil
 	default:
 		wrapped := fferr.NewInternalErrorf("dynamo doesn't support type")
 		wrapped.AddDetail("type", serializeType(t))
@@ -899,6 +927,20 @@ func castNumberToInt64(value any) (int64, error) {
 	}
 }
 
+func castBool(value any) (bool, error) {
+	switch casted := value.(type) {
+	case bool:
+		return casted, nil
+	case string:
+		return strconv.ParseBool(casted)
+	case int, int32, int64:
+		isFalse := casted == 0
+		return !isFalse, nil
+	default:
+		return false, fmt.Errorf("Type error: Expected numerical type and got %T", casted)
+	}
+}
+
 func (ser serializerV1) Deserialize(t ValueType, value types.AttributeValue) (any, error) {
 	// TODO support unsigned ints
 	// Dynamo teats all numerical types as strings, so we have to deserialize.
@@ -1033,6 +1075,22 @@ func deserializeScalar(t ScalarType, value types.AttributeValue, version string)
 			return nil, wrapped
 		}
 		return castedValue.Value, nil
+	case Timestamp, Datetime:
+		castedValue, ok := value.(*types.AttributeValueMemberN)
+		if !ok {
+			wrapped := fferr.NewInternalErrorf("unable to deserialize dynamodb value into timestamp, is %T", value)
+			wrapped.AddDetail("version", version)
+			return nil, wrapped
+		}
+		val := castedValue.Value
+		i64, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			msg := "unable to deserialize dynamodb value into timestamp, value: %v\nerr: %s"
+			wrapped := fferr.NewInternalErrorf(msg, val, err)
+			wrapped.AddDetail("version", version)
+			return nil, wrapped
+		}
+		return time.Unix(i64, 0).UTC(), nil
 	default:
 		wrapped := fferr.NewInternalErrorf("Dynamo doesn't support type")
 		wrapped.AddDetail("version", version)

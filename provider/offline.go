@@ -381,9 +381,6 @@ type GenericResourceRecord[T any] struct {
 
 type GenericRecord []interface{}
 
-// Will try using GenericRecord first, if it doesnt work, will move onto BatchRecord
-// type BatchRecord []interface{}
-
 func (rec ResourceRecord) check() error {
 	if rec.Entity == "" {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("ResourceRecord must have Entity set"))

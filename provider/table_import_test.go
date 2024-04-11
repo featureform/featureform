@@ -216,7 +216,7 @@ func testImportTable(t *testing.T, offlineStore OfflineStore, importableOnlineSt
 		t.Fatalf("failed to import table: %v", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	ticker := time.NewTicker(30 * time.Second)

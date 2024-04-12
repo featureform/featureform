@@ -1877,6 +1877,7 @@ class Model:
 @dataclass
 class ProjectResource:
     name: str
+    status: str = ""
     resources: Union[List[pb.NameVariant], List[Tuple[Any, str]]] = field(
         default_factory=list
     )

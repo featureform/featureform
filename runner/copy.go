@@ -92,15 +92,24 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		wg.Add(workerPoolSize)
 		type batchWriter interface {
 			BatchSet([]provider.SetItem) error
+			MaxBatchSize() (int, error)
 		}
 		batchTable, supportsBatch := m.Table.(batchWriter)
 		var setterFn func()
 		if supportsBatch {
 			setterFn = func() {
 				defer wg.Done()
-				buffer := make([]provider.SetItem, 0, 25)
+				maxBatch, err := batchTable.MaxBatchSize()
+				if err != nil {
+					select {
+					case errCh <- err:
+					default:
+					}
+					return
+				}
+				buffer := make([]provider.SetItem, 0, maxBatch)
 				for record := range ch {
-					if len(buffer) == 25 {
+					if len(buffer) == maxBatch {
 						if err := batchTable.BatchSet(buffer); err != nil {
 							select {
 							case errCh <- err:
@@ -111,6 +120,16 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 					} else {
 						buffer = append(buffer, provider.SetItem{record.Entity, record.Value})
 					}
+				}
+				// Clear the buffer
+				if len(buffer) != 0 {
+					if err := batchTable.BatchSet(buffer); err != nil {
+						select {
+						case errCh <- err:
+						default:
+						}
+					}
+					buffer = buffer[:0]
 				}
 			}
 		} else {

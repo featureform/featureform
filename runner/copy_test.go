@@ -111,6 +111,33 @@ func (m *MockOnlineTable) Get(entity string) (interface{}, error) {
 	return value, nil
 }
 
+type mockOnlineTableBatch struct {
+	DataTable sync.Map
+}
+
+func (m *mockOnlineTableBatch) BatchSet(items []provider.SetItem) error {
+	for _, item := range items {
+			m.DataTable.Store(item.Entity, item.Value)
+	}
+	return nil
+}
+
+func (m *mockOnlineTableBatch) MaxBatchSize() (int, error) {
+	return 3, nil
+}
+
+func (m *mockOnlineTableBatch) Set(entity string, value interface{}) error {
+    return errors.New("Not using batch set")
+}
+
+func (m *mockOnlineTableBatch) Get(entity string) (interface{}, error) {
+	value, exists := m.DataTable.Load(entity)
+	if !exists {
+		return nil, errors.New("Value does not exist in online table")
+	}
+	return value, nil
+}
+
 type BrokenOnlineTable struct {
 }
 
@@ -189,6 +216,19 @@ func testParams(params JobTestParams) error {
 	table := &MockOnlineTable{
 		DataTable: sync.Map{},
 	}
+	if err := testParamsOnTable(params, table); err != nil {
+		return err
+	}
+	// At the time of writing, batch writes have a different code path
+	batchTable := &mockOnlineTableBatch{
+		DataTable: sync.Map{},
+	}
+	return testParamsOnTable(params, batchTable)
+}
+
+// This exists because we have MockOnlineTable and mockBatchOnlineTable.
+// Once we unify those two, we will not need this anymore.
+func testParamsOnTable(params JobTestParams, table provider.OnlineStoreTable) error {
 	online := NewMockOnlineStore()
 	featureRows := params.Materialized.Data
 	job := &MaterializedChunkRunner{

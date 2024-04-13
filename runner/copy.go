@@ -28,6 +28,9 @@ const resourceRecordBufferSize = 1_000_000
 // offer the best results
 const workerPoolSize = 500
 
+// This breaks tests currently and may have unintended consequences. More work to be done.
+const providerCachingEnabled = false
+
 type IndexRunner interface {
 	types.Runner
 	SetIndex(index int) error
@@ -281,11 +284,9 @@ func MaterializedChunkRunnerFactory(config Config) (types.Runner, error) {
 	offlineCfg := runnerConfig.OfflineConfig
 	onlineCfgStr := string(onlineCfg)
 	offlineCfgStr := string(offlineCfg)
-	// useCache := !runnerConfig.SkipCache
-	useCache := false
 
 	cachedOnline, found := onlineProviderCache.Load(onlineCfgStr)
-	if found && useCache {
+	if found && providerCachingEnabled {
 		onlineStore = cachedOnline.(provider.OnlineStore)
 	} else {
 		onlineProvider, err := provider.Get(runnerConfig.OnlineType, onlineCfg)
@@ -297,13 +298,13 @@ func MaterializedChunkRunnerFactory(config Config) (types.Runner, error) {
 			return nil, err
 		}
 		onlineStore = store
-		if useCache {
+		if providerCachingEnabled {
 			onlineProviderCache.Store(onlineCfgStr, onlineStore)
 		}
 	}
 
 	cachedOffline, found := offlineProviderCache.Load(offlineCfgStr)
-	if found && useCache {
+	if found && providerCachingEnabled {
 		offlineStore = cachedOffline.(provider.OfflineStore)
 	} else {
 		offlineProvider, err := provider.Get(runnerConfig.OfflineType, offlineCfg)
@@ -315,7 +316,7 @@ func MaterializedChunkRunnerFactory(config Config) (types.Runner, error) {
 			return nil, err
 		}
 		offlineStore = store
-		if useCache {
+		if providerCachingEnabled {
 			offlineProviderCache.Store(offlineCfgStr, offlineStore)
 		}
 	}

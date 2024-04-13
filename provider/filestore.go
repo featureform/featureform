@@ -290,7 +290,7 @@ func NewS3FileStore(config Config) (FileStore, error) {
 	// directly accessing DynamoDB on AWS.
 	if s3StoreConfig.Endpoint != "" {
 		args = append(args,
-			awsv2cfg.WithEndpointResolver(aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+			awsv2cfg.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(func(service, region string, opts ...interface{}) (aws.Endpoint, error) {
 				return aws.Endpoint{
 					URL:           s3StoreConfig.Endpoint,
 					SigningRegion: s3StoreConfig.BucketRegion,

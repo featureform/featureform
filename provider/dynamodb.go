@@ -443,12 +443,13 @@ func (store *dynamodbOnlineStore) GetImport(id ImportID) (Import, error) {
 	return S3Import{id: id, status: string(output.ImportTableDescription.ImportStatus), errorMessage: errorMessage}, nil
 }
 
-type SetItem struct {
-	Entity string
-	Value  interface{}
-}
+const maxDynamoBatchSize = 25
 
 func (table dynamodbOnlineTable) BatchSet(items []SetItem) error {
+	if len(items) > maxDynamoBatchSize {
+		return fferr.NewInternalErrorf(
+			"Cannot batch write %d items.\nMax: %d\n", len(items), maxDynamoBatchSize)
+	}
 	serialized := make([]map[string]types.AttributeValue, len(items))
 	for i, item := range items {
 		dynamoValue, err := serializers[table.version].Serialize(table.valueType, item.Value)
@@ -473,6 +474,10 @@ func (table dynamodbOnlineTable) BatchSet(items []SetItem) error {
 		return err
 	}
 	return nil
+}
+
+func (table dynamodbOnlineTable) MaxBatchSize() (int, error) {
+	return maxDynamoBatchSize, nil
 }
 
 func (table dynamodbOnlineTable) Set(entity string, value interface{}) error {

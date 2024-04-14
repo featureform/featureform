@@ -46,6 +46,7 @@ func TestOnlineStoreDynamoDB(t *testing.T) {
 		store:        store,
 		testNil:      true,
 		testFloatVec: true,
+		testBatch:    true,
 	}
 	test.Run()
 }

@@ -725,8 +725,8 @@ func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, options ..
 	// Might be used for testing
 	matId := MaterializationID(uuid.NewString())
 	mat := &MemoryMaterialization{
-		Id:   matId,
-		Data: matData,
+		Id:           matId,
+		Data:         matData,
 		RowsPerChunk: defaultRowsPerChunk,
 	}
 	store.materializations.Store(matId, mat)
@@ -967,8 +967,8 @@ func (table *memoryOfflineTable) WriteBatch(recs []ResourceRecord) error {
 // Used in runner/copy_test.go
 type MemoryMaterialization struct {
 	// Lowercase do so it doesn't name thrash ID()
-	Id MaterializationID
-	Data []ResourceRecord
+	Id           MaterializationID
+	Data         []ResourceRecord
 	RowsPerChunk int64
 }
 

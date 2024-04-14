@@ -27,6 +27,7 @@ type OnlineStoreTest struct {
 	// TODO(simba) remove once we implement for all providers
 	testNil      bool
 	testFloatVec bool
+	testBatch    bool
 }
 
 func (test *OnlineStoreTest) Run() {
@@ -48,6 +49,10 @@ func (test *OnlineStoreTest) Run() {
 
 	if test.testFloatVec {
 		testFns["FloatVecValues"] = testFloatVecValues
+	}
+
+	if test.testBatch {
+		testFns["BatchSetGetEntity"] = testBatchSetGetEntity
 	}
 
 	store := test.store
@@ -107,7 +112,6 @@ func testSetGetEntity(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
 	defer store.DeleteTable(mockFeature, mockVariant)
 	entity, val := "e", "val"
-	defer store.DeleteTable(mockFeature, mockVariant)
 	tab, err := store.CreateTable(mockFeature, mockVariant, String)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
@@ -121,6 +125,59 @@ func testSetGetEntity(t *testing.T, store OnlineStore) {
 	}
 	if !reflect.DeepEqual(val, gotVal) {
 		t.Fatalf("Values are not the same %v %v", val, gotVal)
+	}
+}
+
+func testBatchSetGetEntity(t *testing.T, store OnlineStore) {
+	mockFeature, mockVariant := randomFeatureVariant()
+	defer store.DeleteTable(mockFeature, mockVariant)
+	tab, err := store.CreateTable(mockFeature, mockVariant, String)
+	if err != nil {
+		t.Fatalf("Failed to create table: %s", err)
+	}
+	batchTable, ok := tab.(BatchOnlineTable)
+	if !ok {
+		t.Fatalf("Table does not implement batch interface.")
+	}
+	maxNum, err := batchTable.MaxBatchSize()
+	if err != nil {
+		t.Fatalf("Failed to get max batch size")
+	}
+	singleEnt := "e"
+	singleVal := "val"
+	singleSet := []SetItem{{singleEnt, singleVal}}
+	if err := batchTable.BatchSet(singleSet); err != nil {
+		t.Fatalf("Failed to set single entity: %s", err)
+	}
+	gotVal, err := tab.Get(singleEnt)
+	if err != nil {
+		t.Fatalf("Failed to get entity: %s", err)
+	}
+	if !reflect.DeepEqual(singleVal, gotVal) {
+		t.Fatalf("Values are not the same %v %v", singleVal, gotVal)
+	}
+	maxSet := make([]SetItem, maxNum)
+	for i := 0; i < maxNum; i++ {
+		entity := fmt.Sprintf("entity_%d", i)
+		value := fmt.Sprintf("value_%d", i)
+		maxSet[i] = SetItem{entity, value}
+	}
+	if err := batchTable.BatchSet(maxSet); err != nil {
+		t.Fatalf("Failed to set multi entity: %s", err)
+	}
+	for _, item := range maxSet {
+		entity, val := item.Entity, item.Value
+		gotVal, err = tab.Get(entity)
+		if err != nil {
+			t.Fatalf("Failed to get entity: %s", err)
+		}
+		if !reflect.DeepEqual(val, gotVal) {
+			t.Fatalf("Values are not the same %v %v", val, gotVal)
+		}
+	}
+	overSizedSet := append(maxSet, SetItem{"a", "b"})
+	if err := batchTable.BatchSet(overSizedSet); err == nil {
+		t.Fatalf("Succeeded to batch set over max size")
 	}
 }
 

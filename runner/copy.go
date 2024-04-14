@@ -90,11 +90,7 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		errCh := make(chan error, 1)
 		var wg sync.WaitGroup
 		wg.Add(workerPoolSize)
-		type batchWriter interface {
-			BatchSet([]provider.SetItem) error
-			MaxBatchSize() (int, error)
-		}
-		batchTable, supportsBatch := m.Table.(batchWriter)
+		batchTable, supportsBatch := m.Table.(provider.BatchOnlineTable)
 		var setterFn func()
 		if supportsBatch {
 			setterFn = func() {
@@ -133,7 +129,7 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 				}
 			}
 		} else {
-			setterFn =  func() {
+			setterFn = func() {
 				defer wg.Done()
 				for record := range ch {
 					if err := m.Table.Set(record.Entity, record.Value); err != nil {

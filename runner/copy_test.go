@@ -117,7 +117,7 @@ type mockOnlineTableBatch struct {
 
 func (m *mockOnlineTableBatch) BatchSet(items []provider.SetItem) error {
 	for _, item := range items {
-			m.DataTable.Store(item.Entity, item.Value)
+		m.DataTable.Store(item.Entity, item.Value)
 	}
 	return nil
 }
@@ -127,7 +127,7 @@ func (m *mockOnlineTableBatch) MaxBatchSize() (int, error) {
 }
 
 func (m *mockOnlineTableBatch) Set(entity string, value interface{}) error {
-    return errors.New("Not using batch set")
+	return errors.New("mockOnlineTableBatch Not using batch set")
 }
 
 func (m *mockOnlineTableBatch) Get(entity string) (interface{}, error) {
@@ -533,7 +533,7 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 				OfflineConfig:  []byte{},
 				MaterializedID: "",
 				// Have to skip cache to avoid tests messing with eachother.
-				SkipCache:       false,
+				SkipCache: false,
 			}),
 		},
 		{
@@ -554,7 +554,7 @@ func TestMaterializeRunnerFactoryErrorCoverage(t *testing.T) {
 		t.Fatalf("Could not register chunk runner factory: %v", err)
 	}
 	for _, config := range errorConfigs {
-		t.Run(config.Name, func (t *testing.T) {
+		t.Run(config.Name, func(t *testing.T) {
 			if err := testErrorConfigsFactory(config.ErrorConfig); err == nil {
 				t.Fatalf("Test Job Failed to catch error: %s", config.Name)
 			}

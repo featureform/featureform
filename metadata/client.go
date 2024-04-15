@@ -306,6 +306,7 @@ func (def FeatureDef) Serialize() (*pb.FeatureVariant, error) {
 		Properties:  def.Properties.Serialize(),
 		Mode:        pb.ComputationMode(def.Mode),
 		IsEmbedding: def.IsEmbedding,
+		RequestID:   int32(34323),
 	}
 	switch x := def.Location.(type) {
 	case ResourceVariantColumns:

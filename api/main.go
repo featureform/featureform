@@ -729,7 +729,8 @@ func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.S
 }
 
 func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, feature *pb.FeatureVariant) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Feature Variant", "name", feature.Name, "variant", feature.Variant)
+	childLogger := serv.Logger.With("request id", feature.RequestID)
+	childLogger.Infow("Creating Feature Variant", "name", feature.Name, "variant", feature.Variant)
 	return serv.meta.CreateFeatureVariant(ctx, feature)
 }
 
@@ -774,7 +775,7 @@ func (serv *MetadataServer) CreateModel(ctx context.Context, model *pb.Model) (*
 }
 
 func (serv *OnlineServer) FeatureServe(ctx context.Context, req *srv.FeatureServeRequest) (*srv.FeatureRow, error) {
-	serv.Logger.Infow("Serving Features", "request", req.String())
+	serv.Logger.Infow("Serving Features", "request", req.String(), "id", req.RequestID)
 	return serv.client.FeatureServe(ctx, req)
 }
 

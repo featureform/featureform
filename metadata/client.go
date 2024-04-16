@@ -144,6 +144,9 @@ func (client *Client) CreateAll(ctx context.Context, defs []ResourceDef) error {
 }
 
 func (client *Client) Create(ctx context.Context, def ResourceDef) error {
+	// TODO: Can change this to AddResource but first need to figure out how to get the name and variant
+	childLogger := client.Logger.AddRequestID(logging.RequestID(logging.NewRequestID()))
+	ctxWithValue := context.WithValue(ctx, "logger", childLogger)
 	switch casted := def.(type) {
 	case FeatureDef:
 		return client.CreateFeatureVariant(ctx, casted)
@@ -156,7 +159,7 @@ func (client *Client) Create(ctx context.Context, def ResourceDef) error {
 	case UserDef:
 		return client.CreateUser(ctx, casted)
 	case ProviderDef:
-		return client.CreateProvider(ctx, casted)
+		return client.CreateProvider(ctxWithValue, casted)
 	case EntityDef:
 		return client.CreateEntity(ctx, casted)
 	case ModelDef:
@@ -893,7 +896,7 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 	}()
 	variants, err := client.parseSourceVariantStream(stream)
 	if err != nil {
-		client.Logger.Errorw("Failed to parse source variant stream", "ids", ids)
+		client.Logger.SugaredLogger.Errorw("Failed to parse source variant stream", "ids", ids)
 	}
 	return variants, err
 }
@@ -936,12 +939,12 @@ func (client *Client) parseSourceVariantStream(stream sourceVariantStream) ([]*S
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			client.Logger.Errorw("Error receiving parsed stream", "error", err)
+			client.Logger.SugaredLogger.Errorw("Error receiving parsed stream", "error", err)
 			// print if this is a grpc status error
 			if grpcStatus, ok := grpc_status.FromError(err); ok {
-				client.Logger.Errorw("GRPC status error", "code", grpcStatus.Code(), "message", grpcStatus.Message(), "details", grpcStatus.Details())
+				client.Logger.SugaredLogger.Errorw("GRPC status error", "code", grpcStatus.Code(), "message", grpcStatus.Message(), "details", grpcStatus.Details())
 			} else {
-				client.Logger.Errorw("Error is not a grpc status error", "error", err)
+				client.Logger.SugaredLogger.Errorw("Error is not a grpc status error", "error", err)
 			}
 			return nil, err
 		}

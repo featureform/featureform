@@ -1858,7 +1858,9 @@ type sendFn func(proto.Message) error
 type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
-	serv.Logger.SugaredLogger.Info("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
+	logger := ctx.Value("logger").(logging.Logger)
+	logger.SugaredLogger.Debugw("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
+	// serv.Logger.SugaredLogger.Info("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
 
 	id := res.ID()
 	if err := resourceNamedSafely(id); err != nil {
@@ -1884,11 +1886,11 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 	if serv.needsJob(res) && existing == nil {
-		serv.Logger.SugaredLogger.Info("Creating Job", res.ID().Name, res.ID().Variant)
+		logger.SugaredLogger.Info("Creating Job", res.ID().Name, res.ID().Variant)
 		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
 			return nil, err
 		}
-		serv.Logger.SugaredLogger.Info("Successfully Created Job: ", res.ID().Name, res.ID().Variant)
+		logger.SugaredLogger.Info("Successfully Created Job: ", res.ID().Name, res.ID().Variant)
 	}
 	parentId, hasParent := id.Parent()
 	if hasParent {
@@ -1910,7 +1912,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		}
 	}
 	if err := serv.propagateChange(res); err != nil {
-		serv.Logger.SugaredLogger.Error(err)
+		logger.SugaredLogger.Error(err)
 		return nil, err
 	}
 	return &pb.Empty{}, nil

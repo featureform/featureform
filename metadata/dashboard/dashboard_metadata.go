@@ -13,6 +13,7 @@ import (
 
 	filestore "github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/metadata/search"
@@ -1389,7 +1390,7 @@ func main() {
 	SearchClient = sc
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	logger.Infof("Looking for metadata at: %s\n", metadataAddress)
-	client, err := metadata.NewClient(metadataAddress, logger)
+	client, err := metadata.NewClient(metadataAddress, logging.Logger{SugaredLogger: logger})
 	if err != nil {
 		logger.Panicw("Failed to connect", "error", err)
 	}

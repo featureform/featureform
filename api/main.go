@@ -931,7 +931,7 @@ func (serv *ApiServer) Serve() error {
 		return fferr.NewInternalError(err)
 	}
 	serv.metadata.meta = pb.NewMetadataClient(metaConn)
-	client, err := metadata.NewClient(serv.metadata.address, serv.Logger.SugaredLogger)
+	client, err := metadata.NewClient(serv.metadata.address, logging.Logger{SugaredLogger: serv.Logger.SugaredLogger})
 	if err != nil {
 		return err
 	}

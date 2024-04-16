@@ -120,7 +120,7 @@ func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 
 func createNewCoordinator(addr string) (*Coordinator, error) {
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logger)
+	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger})
 	if err != nil {
 		return nil, err
 	}
@@ -999,7 +999,7 @@ func TestCoordinatorCalls(t *testing.T) {
 	serv, addr := startServ(t)
 	defer serv.Stop()
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logger)
+	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger})
 	if err != nil {
 		t.Fatalf("could not set up metadata client: %v", err)
 	}
@@ -1264,7 +1264,7 @@ func testCoordinatorTrainingSet(addr string) error {
 	}
 	defer runner.UnregisterFactory(runner.CREATE_TRAINING_SET)
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logger)
+	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger})
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
@@ -1399,7 +1399,7 @@ func testCoordinatorMaterializeFeature(addr string) error {
 	}
 	defer runner.UnregisterFactory(runner.MATERIALIZE)
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logger)
+	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger})
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
@@ -1511,7 +1511,7 @@ func CreateOriginalPostgresTable(tableName string) error {
 
 func testRegisterPrimaryTableFromSource(addr string) error {
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logger)
+	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger})
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
@@ -1620,7 +1620,7 @@ func testRegisterTransformationFromSource(addr string) error {
 	}
 	defer runner.UnregisterFactory(runner.CREATE_TRANSFORMATION)
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logger)
+	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger})
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}

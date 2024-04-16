@@ -26,7 +26,7 @@ func main() {
 	address := fmt.Sprintf("%s:%s", host, port)
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
-		logger.Panicw("Failed to listen on port", "Err", err)
+		logger.SugaredLogger.Panicw("Failed to listen on port", "Err", err)
 	}
 
 	promMetrics := metrics.NewMetrics("test")
@@ -38,22 +38,22 @@ func main() {
 
 	meta, err := metadata.NewClient(metadataConn, logger)
 	if err != nil {
-		logger.Panicw("Failed to connect to metadata", "Err", err)
+		logger.SugaredLogger.Panicw("Failed to connect to metadata", "Err", err)
 	}
 
-	serv, err := serving.NewFeatureServer(meta, promMetrics, logger)
+	serv, err := serving.NewFeatureServer(meta, promMetrics, logger.SugaredLogger)
 	if err != nil {
-		logger.Panicw("Failed to create training server", "Err", err)
+		logger.SugaredLogger.Panicw("Failed to create training server", "Err", err)
 	}
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(help.UnaryServerErrorInterceptor), grpc.StreamInterceptor(help.StreamServerErrorInterceptor))
 
 	pb.RegisterFeatureServer(grpcServer, serv)
-	logger.Infow("Serving metrics", "Port", metricsPort)
+	logger.SugaredLogger.Infow("Serving metrics", "Port", metricsPort)
 	go promMetrics.ExposePort(metricsPort)
-	logger.Infow("Server starting", "Port", address)
+	logger.SugaredLogger.Infow("Server starting", "Port", address)
 	serveErr := grpcServer.Serve(lis)
 	if serveErr != nil {
-		logger.Errorw("Serve failed with error", "Err", serveErr)
+		logger.SugaredLogger.Errorw("Serve failed with error", "Err", serveErr)
 	}
 
 }

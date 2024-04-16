@@ -5,12 +5,11 @@ import (
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
-	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
-var logger *zap.SugaredLogger
+var logger logging.Logger
 
 func init() {
 	if shouldUseStackTraceLogger := GetEnvBool("FEATUREFORM_DEBUG", false); shouldUseStackTraceLogger {
@@ -28,7 +27,7 @@ func UnaryServerErrorInterceptor(ctx context.Context, req interface{}, info *grp
 	if err != nil {
 		var grpcErr fferr.Error
 		if errors.As(err, &grpcErr) {
-			logger.Errorw("GRPCError", "error", grpcErr, "method", info.FullMethod, "request", req, "response", h, "stack_trace", grpcErr.Stack())
+			logger.SugaredLogger.Errorw("GRPCError", "error", grpcErr, "method", info.FullMethod, "request", req, "response", h, "stack_trace", grpcErr.Stack())
 			return h, grpcErr.ToErr()
 		}
 	}
@@ -43,7 +42,7 @@ func StreamServerErrorInterceptor(srv interface{}, ss grpc.ServerStream, info *g
 	if err != nil {
 		var grpcErr fferr.Error
 		if errors.As(err, &grpcErr) {
-			logger.Errorw("GRPCError", "error", grpcErr, "method", info.FullMethod, "stackTrace", grpcErr.Stack())
+			logger.SugaredLogger.Errorw("GRPCError", "error", grpcErr, "method", info.FullMethod, "stackTrace", grpcErr.Stack())
 			return grpcErr.ToErr()
 		}
 	}

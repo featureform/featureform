@@ -448,7 +448,7 @@ func startServNoPanic(t *testing.T) (*MetadataServer, string) {
 }
 
 func client(t *testing.T, addr string) *Client {
-	logger := zaptest.NewLogger(t).Sugar()
+	logger := logging.Logger{SugaredLogger: zaptest.NewLogger(t).Sugar()}
 	client, err := NewClient(addr, logger)
 	if err != nil {
 		t.Fatalf("Failed to create client: %s", err)

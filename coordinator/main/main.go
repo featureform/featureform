@@ -39,14 +39,14 @@ func main() {
 		}
 	}(cli)
 	logger := logging.NewLogger("coordinator")
-	defer logger.Sync()
-	logger.Debug("Connected to ETCD")
-	client, err := metadata.NewClient(metadataUrl, logger)
+	defer logger.SugaredLogger.Sync()
+	logger.SugaredLogger.Debug("Connected to ETCD")
+	client, err := metadata.NewClient(metadataUrl, logger.SugaredLogger)
 	if err != nil {
-		logger.Errorw("Failed to connect: %v", err)
+		logger.SugaredLogger.Errorw("Failed to connect: %v", err)
 		panic(err)
 	}
-	logger.Debug("Connected to Metadata")
+	logger.SugaredLogger.Debug("Connected to Metadata")
 	var spawner coordinator.JobSpawner
 	if useK8sRunner == "false" {
 		spawner = &coordinator.MemoryJobSpawner{}
@@ -55,12 +55,12 @@ func main() {
 	}
 	coord, err := coordinator.NewCoordinator(client, logger.SugaredLogger, cli, spawner)
 	if err != nil {
-		logger.Errorw("Failed to set up coordinator: %v", err)
+		logger.SugaredLogger.Errorw("Failed to set up coordinator: %v", err)
 		panic(err)
 	}
-	logger.Debug("Begin Job Watch")
+	logger.SugaredLogger.Debug("Begin Job Watch")
 	if err := coord.WatchForNewJobs(); err != nil {
-		logger.Errorw(err.Error())
+		logger.SugaredLogger.Errorw(err.Error())
 		panic(err)
 		return
 	}

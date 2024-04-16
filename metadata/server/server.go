@@ -6,9 +6,10 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata/search"
-	"os"
 
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
@@ -34,7 +35,7 @@ func main() {
 		StorageProvider: storageProvider,
 	}
 	if enableSearch == "true" {
-		logger.Infow("Connecting to search", "host", os.Getenv("MEILISEARCH_HOST"), "port", os.Getenv("MEILISEARCH_PORT"))
+		logger.SugaredLogger.Infow("Connecting to search", "host", os.Getenv("MEILISEARCH_HOST"), "port", os.Getenv("MEILISEARCH_PORT"))
 		config.SearchParams = &search.MeilisearchParams{
 			Port:   help.GetEnv("MEILISEARCH_PORT", "7700"),
 			Host:   help.GetEnv("MEILISEARCH_HOST", "localhost"),
@@ -44,9 +45,9 @@ func main() {
 
 	server, err := metadata.NewMetadataServer(config)
 	if err != nil {
-		logger.Panicw("Failed to create metadata server", "Err", err)
+		logger.SugaredLogger.Panicw("Failed to create metadata server", "Err", err)
 	}
 	if err := server.Serve(); err != nil {
-		logger.Errorw("Serve failed with error", "Err", err)
+		logger.SugaredLogger.Errorw("Serve failed with error", "Err", err)
 	}
 }

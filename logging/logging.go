@@ -4,11 +4,35 @@ import (
 	"encoding/json"
 	"io"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-func NewLogger(service string) *zap.SugaredLogger {
+type Logger struct {
+	SugaredLogger *zap.SugaredLogger
+}
+
+type RequestID string
+
+func NewRequestID() string {
+	return uuid.New().String()
+}
+
+// Can I change the function name to WithRequestID?
+func (logger Logger) AddRequestID(id RequestID) Logger {
+	return Logger{
+		SugaredLogger: logger.SugaredLogger.With("request-id", id),
+	}
+}
+
+func (logger Logger) AddResource(resourceType, name, variant, id string) Logger {
+	return Logger{
+		SugaredLogger: logger.SugaredLogger.With("request-id", id, "resource-type", resourceType, "name", name, "variant", variant),
+	}
+}
+
+func NewLogger(service string) Logger {
 	baseLogger, err := zap.NewDevelopment(
 		zap.AddStacktrace(zap.ErrorLevel),
 	)
@@ -16,10 +40,12 @@ func NewLogger(service string) *zap.SugaredLogger {
 		panic(err)
 	}
 	logger := baseLogger.Sugar().Named(service)
-	return logger
+	return Logger{
+		SugaredLogger: logger,
+	}
 }
 
-func NewStackTraceLogger(service string) *zap.SugaredLogger {
+func NewStackTraceLogger(service string) Logger {
 	cfg := zap.Config{
 		Encoding:         "json",
 		Level:            zap.NewAtomicLevelAt(zap.DebugLevel),
@@ -39,5 +65,7 @@ func NewStackTraceLogger(service string) *zap.SugaredLogger {
 	if err != nil {
 		panic(err)
 	}
-	return logger.Sugar().Named(service)
+	return Logger{
+		SugaredLogger: logger.Sugar().Named(service),
+	}
 }

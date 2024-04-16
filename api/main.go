@@ -33,12 +33,11 @@ import (
 	pb "github.com/featureform/metadata/proto"
 	srv "github.com/featureform/proto"
 	pt "github.com/featureform/provider/provider_type"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
 type ApiServer struct {
-	Logger     *zap.SugaredLogger
+	Logger     logging.Logger
 	address    string
 	grpcServer *grpc.Server
 	listener   net.Listener
@@ -48,7 +47,7 @@ type ApiServer struct {
 
 type MetadataServer struct {
 	address string
-	Logger  *zap.SugaredLogger
+	Logger  logging.Logger
 	meta    pb.MetadataClient
 	client  *metadata.Client
 	pb.UnimplementedApiServer
@@ -56,13 +55,13 @@ type MetadataServer struct {
 }
 
 type OnlineServer struct {
-	Logger  *zap.SugaredLogger
+	Logger  logging.Logger
 	address string
 	client  srv.FeatureClient
 	srv.UnimplementedFeatureServer
 }
 
-func NewApiServer(logger *zap.SugaredLogger, address string, metaAddr string, srvAddr string) (*ApiServer, error) {
+func NewApiServer(logger logging.Logger, address string, metaAddr string, srvAddr string) (*ApiServer, error) {
 	return &ApiServer{
 		Logger:  logger,
 		address: address,
@@ -78,7 +77,7 @@ func NewApiServer(logger *zap.SugaredLogger, address string, metaAddr string, sr
 }
 
 func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating User", "user", user.Name)
+	serv.Logger.SugaredLogger.Infow("Creating User", "user", user.Name)
 	return serv.meta.CreateUser(ctx, user)
 }
 
@@ -89,7 +88,7 @@ func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorf("Failed to read client request: %v", err)
+			serv.Logger.SugaredLogger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetUsers(stream.Context())
@@ -118,7 +117,7 @@ func (serv *MetadataServer) GetFeatures(stream pb.Api_GetFeaturesServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorf("Failed to read client request: %v", err)
+			serv.Logger.SugaredLogger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetFeatures(stream.Context())
@@ -147,7 +146,7 @@ func (serv *MetadataServer) GetFeatureVariants(stream pb.Api_GetFeatureVariantsS
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorf("Failed to read client request: %v", err)
+			serv.Logger.SugaredLogger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetFeatureVariants(stream.Context())
@@ -176,7 +175,7 @@ func (serv *MetadataServer) GetLabels(stream pb.Api_GetLabelsServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorf("Failed to read client request: %v", err)
+			serv.Logger.SugaredLogger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetLabels(stream.Context())
@@ -205,7 +204,7 @@ func (serv *MetadataServer) GetLabelVariants(stream pb.Api_GetLabelVariantsServe
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorf("Failed to read client request: %v", err)
+			serv.Logger.SugaredLogger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetLabelVariants(stream.Context())
@@ -234,7 +233,7 @@ func (serv *MetadataServer) GetSources(stream pb.Api_GetSourcesServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorf("Failed to read client request: %v", err)
+			serv.Logger.SugaredLogger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetSources(stream.Context())
@@ -263,7 +262,7 @@ func (serv *MetadataServer) GetSourceVariants(stream pb.Api_GetSourceVariantsSer
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorf("Failed to read client request: %v", err)
+			serv.Logger.SugaredLogger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetSourceVariants(stream.Context())
@@ -292,7 +291,7 @@ func (serv *MetadataServer) GetTrainingSets(stream pb.Api_GetTrainingSetsServer)
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorf("Failed to read client request: %v", err)
+			serv.Logger.SugaredLogger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetTrainingSets(stream.Context())
@@ -321,7 +320,7 @@ func (serv *MetadataServer) GetTrainingSetVariants(stream pb.Api_GetTrainingSetV
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorf("Failed to read client request: %v", err)
+			serv.Logger.SugaredLogger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetTrainingSetVariants(stream.Context())
@@ -350,7 +349,7 @@ func (serv *MetadataServer) GetProviders(stream pb.Api_GetProvidersServer) error
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorf("Failed to read client request: %v", err)
+			serv.Logger.SugaredLogger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetProviders(stream.Context())
@@ -379,7 +378,7 @@ func (serv *MetadataServer) GetEntities(stream pb.Api_GetEntitiesServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorf("Failed to read client request: %v", err)
+			serv.Logger.SugaredLogger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetEntities(stream.Context())
@@ -408,7 +407,7 @@ func (serv *MetadataServer) GetModels(stream pb.Api_GetModelsServer) error {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorf("Failed to read client request: %v", err)
+			serv.Logger.SugaredLogger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetModels(stream.Context())
@@ -601,21 +600,21 @@ func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Pro
 	if err != nil {
 		return nil, err
 	}
-	serv.Logger.Infow("Creating Provider", "name", provider.Name)
+	serv.Logger.SugaredLogger.Infow("Creating Provider", "name", provider.Name)
 	_, err = serv.meta.CreateProvider(ctx, provider)
 	if err != nil && grpc_status.Code(err) != codes.AlreadyExists {
-		serv.Logger.Errorw("Failed to create provider", "error", err)
+		serv.Logger.SugaredLogger.Errorw("Failed to create provider", "error", err)
 		return nil, err
 	}
 	if !serv.health.IsSupportedProvider(pt.Type(provider.Type)) {
-		serv.Logger.Infow("Provider type is currently not supported for health check", "type", provider.Type)
+		serv.Logger.SugaredLogger.Infow("Provider type is currently not supported for health check", "type", provider.Type)
 		return &pb.Empty{}, nil
 	}
 	if shouldCheckProviderHealth {
-		serv.Logger.Infow("Checking provider health", "name", provider.Name)
+		serv.Logger.SugaredLogger.Infow("Checking provider health", "name", provider.Name)
 		err := serv.checkProviderHealth(ctx, provider.Name)
 		if err != nil {
-			serv.Logger.Errorw("Failed to set provider status", "error", err, "health check error", err)
+			serv.Logger.SugaredLogger.Errorw("Failed to set provider status", "error", err, "health check error", err)
 			return nil, err
 		}
 	}
@@ -658,7 +657,7 @@ func (serv *MetadataServer) checkProviderHealth(ctx context.Context, providerNam
 	var status *pb.ResourceStatus
 	isHealthy, err := serv.health.CheckProvider(providerName)
 	if err != nil || !isHealthy {
-		serv.Logger.Errorw("Provider health check failed", "error", err)
+		serv.Logger.SugaredLogger.Errorw("Provider health check failed", "error", err)
 
 		errorStatus, ok := grpc_status.FromError(err)
 		errorProto := errorStatus.Proto()
@@ -675,7 +674,7 @@ func (serv *MetadataServer) checkProviderHealth(ctx context.Context, providerNam
 			ErrorStatus:  errorStatusProto,
 		}
 	} else {
-		serv.Logger.Infow("Provider health check passed", "name", providerName)
+		serv.Logger.SugaredLogger.Infow("Provider health check passed", "name", providerName)
 		status = &pb.ResourceStatus{
 			Status: pb.ResourceStatus_READY,
 		}
@@ -694,12 +693,12 @@ func (serv *MetadataServer) checkProviderHealth(ctx context.Context, providerNam
 }
 
 func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, source *pb.SourceVariant) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Source Variant", "name", source.Name, "variant", source.Variant)
+	serv.Logger.SugaredLogger.Infow("Creating Source Variant", "name", source.Name, "variant", source.Variant)
 	switch casted := source.Definition.(type) {
 	case *pb.SourceVariant_Transformation:
 		switch transformationType := casted.Transformation.Type.(type) {
 		case *pb.Transformation_SQLTransformation:
-			serv.Logger.Infow("Retreiving the sources from SQL Transformation", transformationType)
+			serv.Logger.SugaredLogger.Infow("Retreiving the sources from SQL Transformation", transformationType)
 			transformation := casted.Transformation.Type.(*pb.Transformation_SQLTransformation).SQLTransformation
 			qry := transformation.Query
 			numEscapes := strings.Count(qry, "{{")
@@ -719,41 +718,40 @@ func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, source *pb.
 }
 
 func (serv *MetadataServer) CreateEntity(ctx context.Context, entity *pb.Entity) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Entity", "entity", entity.Name)
+	serv.Logger.SugaredLogger.Infow("Creating Entity", "entity", entity.Name)
 	return serv.meta.CreateEntity(ctx, entity)
 }
 
 func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.ScheduleChangeRequest) (*pb.Empty, error) {
-	serv.Logger.Infow("Requesting Schedule Change", "resource", req.ResourceId, "new schedule", req.Schedule)
+	serv.Logger.SugaredLogger.Infow("Requesting Schedule Change", "resource", req.ResourceId, "new schedule", req.Schedule)
 	return serv.meta.RequestScheduleChange(ctx, req)
 }
 
 func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, feature *pb.FeatureVariant) (*pb.Empty, error) {
-	childLogger := serv.Logger.With("request id", feature.RequestID)
-	childLogger.Infow("Creating Feature Variant", "name", feature.Name, "variant", feature.Variant)
+	serv.Logger.SugaredLogger.Infow("Creating Feature Variant", "name", feature.Name, "variant", feature.Variant)
 	return serv.meta.CreateFeatureVariant(ctx, feature)
 }
 
 func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, label *pb.LabelVariant) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Label Variant", "name", label.Name, "variant", label.Variant)
+	serv.Logger.SugaredLogger.Infow("Creating Label Variant", "name", label.Name, "variant", label.Variant)
 	protoSource := label.Source
-	serv.Logger.Debugw("Finding label source", "name", protoSource.Name, "variant", protoSource.Variant)
+	serv.Logger.SugaredLogger.Debugw("Finding label source", "name", protoSource.Name, "variant", protoSource.Variant)
 	source, err := serv.client.GetSourceVariant(ctx, metadata.NameVariant{Name: protoSource.Name, Variant: protoSource.Variant})
 	if err != nil {
-		serv.Logger.Errorw("Could not create label source variant", "error", err)
+		serv.Logger.SugaredLogger.Errorw("Could not create label source variant", "error", err)
 		return nil, err
 	}
 	label.Provider = source.Provider()
 	resp, err := serv.meta.CreateLabelVariant(ctx, label)
-	serv.Logger.Debugw("Created label variant", "response", resp)
+	serv.Logger.SugaredLogger.Debugw("Created label variant", "response", resp)
 	if err != nil {
-		serv.Logger.Errorw("Could not create label variant", "response", resp, "error", err)
+		serv.Logger.SugaredLogger.Errorw("Could not create label variant", "response", resp, "error", err)
 	}
 	return resp, err
 }
 
 func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, train *pb.TrainingSetVariant) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Training Set Variant", "name", train.Name, "variant", train.Variant)
+	serv.Logger.SugaredLogger.Infow("Creating Training Set Variant", "name", train.Name, "variant", train.Variant)
 	protoLabel := train.Label
 	label, err := serv.client.GetLabelVariant(ctx, metadata.NameVariant{Name: protoLabel.Name, Variant: protoLabel.Variant})
 	if err != nil {
@@ -770,17 +768,17 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, train 
 }
 
 func (serv *MetadataServer) CreateModel(ctx context.Context, model *pb.Model) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Model", "model", model.Name)
+	serv.Logger.SugaredLogger.Infow("Creating Model", "model", model.Name)
 	return serv.meta.CreateModel(ctx, model)
 }
 
 func (serv *OnlineServer) FeatureServe(ctx context.Context, req *srv.FeatureServeRequest) (*srv.FeatureRow, error) {
-	serv.Logger.Infow("Serving Features", "request", req.String(), "id", req.RequestID)
+	serv.Logger.SugaredLogger.Infow("Serving Features", "request", req.String(), "id", req.RequestID)
 	return serv.client.FeatureServe(ctx, req)
 }
 
 func (serv *OnlineServer) BatchFeatureServe(req *srv.BatchFeatureServeRequest, stream srv.Feature_BatchFeatureServeServer) error {
-	serv.Logger.Infow("Serving Batch Features", "request", req.String())
+	serv.Logger.SugaredLogger.Infow("Serving Batch Features", "request", req.String())
 	client, err := serv.client.BatchFeatureServe(context.Background(), req)
 	if err != nil {
 		return fmt.Errorf("could not serve batch features: %w", err)
@@ -794,7 +792,7 @@ func (serv *OnlineServer) BatchFeatureServe(req *srv.BatchFeatureServeRequest, s
 			return err
 		}
 		if err := stream.Send(row); err != nil {
-			serv.Logger.Errorw("Failed to write to stream", "Error", err)
+			serv.Logger.SugaredLogger.Errorw("Failed to write to stream", "Error", err)
 			return err
 		}
 	}
@@ -802,7 +800,7 @@ func (serv *OnlineServer) BatchFeatureServe(req *srv.BatchFeatureServeRequest, s
 }
 
 func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.Feature_TrainingDataServer) error {
-	serv.Logger.Infow("Serving Training Data", "id", req.Id.String())
+	serv.Logger.SugaredLogger.Infow("Serving Training Data", "id", req.Id.String())
 	client, err := serv.client.TrainingData(context.Background(), req)
 	if err != nil {
 		return err
@@ -816,14 +814,14 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 			return err
 		}
 		if err := stream.Send(row); err != nil {
-			serv.Logger.Errorw("Failed to write to stream", "Error", err)
+			serv.Logger.SugaredLogger.Errorw("Failed to write to stream", "Error", err)
 			return err
 		}
 	}
 }
 
 func (serv *OnlineServer) TrainTestSplit(stream srv.Feature_TrainTestSplitServer) error {
-	serv.Logger.Infow("Starting Training Test Split Stream")
+	serv.Logger.SugaredLogger.Infow("Starting Training Test Split Stream")
 	clientStream, err := serv.client.TrainTestSplit(context.Background())
 	if err != nil {
 		return fmt.Errorf("could not serve training test split: %w", err)
@@ -832,34 +830,34 @@ func (serv *OnlineServer) TrainTestSplit(stream srv.Feature_TrainTestSplitServer
 	for {
 		req, err := stream.Recv()
 		if err == io.EOF {
-			serv.Logger.Infow("Client has closed the stream")
+			serv.Logger.SugaredLogger.Infow("Client has closed the stream")
 			if err := clientStream.CloseSend(); err != nil {
 				return fmt.Errorf("failed to close send direction to downstream service: %w", err)
 			}
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorw("Error receiving from client stream", "error", err)
+			serv.Logger.SugaredLogger.Errorw("Error receiving from client stream", "error", err)
 			return err
 		}
 
 		if err := clientStream.Send(req); err != nil {
-			serv.Logger.Errorw("Failed to send request to downstream service", "error", err)
+			serv.Logger.SugaredLogger.Errorw("Failed to send request to downstream service", "error", err)
 			return err
 		}
 
 		resp, err := clientStream.Recv()
 		if err == io.EOF {
-			serv.Logger.Infow("Downstream service has closed the stream")
+			serv.Logger.SugaredLogger.Infow("Downstream service has closed the stream")
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorw("Error receiving from downstream service", "error", err)
+			serv.Logger.SugaredLogger.Errorw("Error receiving from downstream service", "error", err)
 			return err
 		}
 
 		if err := stream.Send(resp); err != nil {
-			serv.Logger.Errorw("Failed to send response to client", "error", err)
+			serv.Logger.SugaredLogger.Errorw("Failed to send response to client", "error", err)
 			return err
 		}
 
@@ -867,12 +865,12 @@ func (serv *OnlineServer) TrainTestSplit(stream srv.Feature_TrainTestSplitServer
 }
 
 func (serv *OnlineServer) TrainingDataColumns(ctx context.Context, req *srv.TrainingDataColumnsRequest) (*srv.TrainingColumns, error) {
-	serv.Logger.Infow("Serving Training Set Columns", "id", req.Id.String())
+	serv.Logger.SugaredLogger.Infow("Serving Training Set Columns", "id", req.Id.String())
 	return serv.client.TrainingDataColumns(ctx, req)
 }
 
 func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feature_SourceDataServer) error {
-	serv.Logger.Infow("Serving Source Data", "id", req.Id.String())
+	serv.Logger.SugaredLogger.Infow("Serving Source Data", "id", req.Id.String())
 	if req.Limit == 0 {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("limit must be greater than 0"))
 	}
@@ -889,24 +887,24 @@ func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feat
 			return err
 		}
 		if err := stream.Send(row); err != nil {
-			serv.Logger.Errorf("failed to write to source data stream: %w", err)
+			serv.Logger.SugaredLogger.Errorf("failed to write to source data stream: %w", err)
 			return err
 		}
 	}
 }
 
 func (serv *OnlineServer) SourceColumns(ctx context.Context, req *srv.SourceColumnRequest) (*srv.SourceDataColumns, error) {
-	serv.Logger.Infow("Serving Source Columns", "id", req.Id.String())
+	serv.Logger.SugaredLogger.Infow("Serving Source Columns", "id", req.Id.String())
 	return serv.client.SourceColumns(ctx, req)
 }
 
 func (serv *OnlineServer) Nearest(ctx context.Context, req *srv.NearestRequest) (*srv.NearestResponse, error) {
-	serv.Logger.Infow("Serving Nearest", "id", req.Id.String())
+	serv.Logger.SugaredLogger.Infow("Serving Nearest", "id", req.Id.String())
 	return serv.client.Nearest(ctx, req)
 }
 
 func (serv *OnlineServer) GetResourceLocation(ctx context.Context, req *srv.ResourceIdRequest) (*srv.ResourceLocation, error) {
-	serv.Logger.Infow("Serving Resource Location", "resource", req.String())
+	serv.Logger.SugaredLogger.Infow("Serving Resource Location", "resource", req.String())
 	return serv.client.GetResourceLocation(ctx, req)
 }
 
@@ -933,7 +931,7 @@ func (serv *ApiServer) Serve() error {
 		return fferr.NewInternalError(err)
 	}
 	serv.metadata.meta = pb.NewMetadataClient(metaConn)
-	client, err := metadata.NewClient(serv.metadata.address, serv.Logger)
+	client, err := metadata.NewClient(serv.metadata.address, serv.Logger.SugaredLogger)
 	if err != nil {
 		return err
 	}
@@ -987,7 +985,7 @@ func (serv *ApiServer) ServeOnListener(lis net.Listener) error {
 	pb.RegisterApiServer(grpcServer, &serv.metadata)
 	srv.RegisterFeatureServer(grpcServer, &serv.online)
 	serv.grpcServer = grpcServer
-	serv.Logger.Infow("Server starting", "Address", serv.listener.Addr().String())
+	serv.Logger.SugaredLogger.Infow("Server starting", "Address", serv.listener.Addr().String())
 	return grpcServer.Serve(lis)
 }
 
@@ -1061,7 +1059,7 @@ func main() {
 	apiConn := fmt.Sprintf("0.0.0.0:%s", apiPort)
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	servingConn := fmt.Sprintf("%s:%s", servingHost, servingPort)
-	logger := logging.NewLogger("api")
+	logger := logging.NewLogger("api-gateway")
 	go func() {
 		err := startHttpsServer(":8443")
 		if err != nil && err != http.ErrServerClosed {

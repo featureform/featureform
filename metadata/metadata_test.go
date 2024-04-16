@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/stretchr/testify/assert"
 	grpc_status "google.golang.org/grpc/status"
@@ -403,7 +404,7 @@ func (ctx *testContext) Destroy() {
 func startServ(t *testing.T) (*MetadataServer, string) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logger.Sugar(),
+		Logger:          logging.Logger{SugaredLogger: logger.Sugar()},
 		StorageProvider: LocalStorageProvider{},
 	}
 	serv, err := NewMetadataServer(config)
@@ -426,7 +427,7 @@ func startServ(t *testing.T) (*MetadataServer, string) {
 func startServNoPanic(t *testing.T) (*MetadataServer, string) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logger.Sugar(),
+		Logger:          logging.Logger{SugaredLogger: logger.Sugar()},
 		StorageProvider: LocalStorageProvider{},
 	}
 	serv, err := NewMetadataServer(config)
@@ -505,7 +506,7 @@ func TestClosedServer(t *testing.T) {
 func TestServeGracefulStop(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logger.Sugar(),
+		Logger:          logging.Logger{SugaredLogger: logger.Sugar()},
 		StorageProvider: LocalStorageProvider{},
 		Address:         ":0",
 	}

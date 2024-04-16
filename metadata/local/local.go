@@ -6,13 +6,16 @@ package main
 
 import (
 	"fmt"
+
 	help "github.com/featureform/helpers"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"go.uber.org/zap"
 )
 
 func main() {
-	logger := zap.NewExample().Sugar()
+	sugaredLogger := zap.NewExample().Sugar()
+	logger := logging.Logger{SugaredLogger: sugaredLogger}
 	addr := help.GetEnv("METADATA_PORT", "8080")
 	config := &metadata.Config{
 		Logger:          logger,
@@ -21,9 +24,9 @@ func main() {
 	}
 	server, err := metadata.NewMetadataServer(config)
 	if err != nil {
-		logger.Panicw("Failed to create metadata server", "Err", err)
+		logger.SugaredLogger.Panicw("Failed to create metadata server", "Err", err)
 	}
 	if err := server.Serve(); err != nil {
-		logger.Errorw("Serve failed with error", "Err", err)
+		logger.SugaredLogger.Errorw("Serve failed with error", "Err", err)
 	}
 }

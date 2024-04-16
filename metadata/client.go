@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	grpc_status "google.golang.org/grpc/status"
@@ -88,7 +88,7 @@ func (properties Properties) Serialize() *pb.Properties {
 }
 
 type Client struct {
-	Logger   *zap.SugaredLogger
+	Logger   logging.Logger
 	conn     *grpc.ClientConn
 	GrpcConn pb.MetadataClient
 }
@@ -143,6 +143,9 @@ func (client *Client) CreateAll(ctx context.Context, defs []ResourceDef) error {
 }
 
 func (client *Client) Create(ctx context.Context, def ResourceDef) error {
+	// TODO: Can change this to AddResource but first need to figure out how to get the name and variant
+	childLogger := client.Logger.AddRequestID(logging.RequestID(logging.NewRequestID()))
+	ctxWithValue := context.WithValue(ctx, "logger", childLogger)
 	switch casted := def.(type) {
 	case FeatureDef:
 		return client.CreateFeatureVariant(ctx, casted)
@@ -155,7 +158,7 @@ func (client *Client) Create(ctx context.Context, def ResourceDef) error {
 	case UserDef:
 		return client.CreateUser(ctx, casted)
 	case ProviderDef:
-		return client.CreateProvider(ctx, casted)
+		return client.CreateProvider(ctxWithValue, casted)
 	case EntityDef:
 		return client.CreateEntity(ctx, casted)
 	case ModelDef:
@@ -192,14 +195,14 @@ func (client *Client) GetFeatures(ctx context.Context, features []string) ([]*Fe
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			client.Logger.SugaredLogger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseFeatureStream(stream)
 }
 
 func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant) ([]*FeatureVariant, error) {
-	logger := client.Logger.With("ids", ids)
+	logger := client.Logger
 	stream, err := client.GrpcConn.GetFeatureVariants(ctx)
 	if err != nil {
 		return nil, err
@@ -210,7 +213,7 @@ func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant)
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			logger.Errorw("Failed to close send", "Err", err)
+			logger.SugaredLogger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseFeatureVariantStream(stream)
@@ -393,7 +396,7 @@ func (client *Client) GetLabels(ctx context.Context, labels []string) ([]*Label,
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			client.Logger.SugaredLogger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseLabelStream(stream)
@@ -462,7 +465,7 @@ func (client *Client) GetLabelVariants(ctx context.Context, ids []NameVariant) (
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			client.Logger.SugaredLogger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseLabelVariantStream(stream)
@@ -539,7 +542,7 @@ func (client *Client) GetTrainingSets(ctx context.Context, trainingSets []string
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			client.Logger.SugaredLogger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseTrainingSetStream(stream)
@@ -603,7 +606,7 @@ func (client *Client) GetTrainingSetVariants(ctx context.Context, ids []NameVari
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			client.Logger.SugaredLogger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseTrainingSetVariantStream(stream)
@@ -672,7 +675,7 @@ func (client *Client) GetSources(ctx context.Context, sources []string) ([]*Sour
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			client.Logger.SugaredLogger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseSourceStream(stream)
@@ -831,17 +834,17 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 		for _, id := range ids {
 			err := stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
 			if err != nil {
-				client.Logger.Errorw("Failed to send source variant", "name", id.Name, "variant", id.Variant, "error", err)
+				client.Logger.SugaredLogger.Errorw("Failed to send source variant", "name", id.Name, "variant", id.Variant, "error", err)
 			}
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			client.Logger.SugaredLogger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	variants, err := client.parseSourceVariantStream(stream)
 	if err != nil {
-		client.Logger.Errorw("Failed to parse source variant stream", "ids", ids)
+		client.Logger.SugaredLogger.Errorw("Failed to parse source variant stream", "ids", ids)
 	}
 	return variants, err
 }
@@ -884,12 +887,12 @@ func (client *Client) parseSourceVariantStream(stream sourceVariantStream) ([]*S
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			client.Logger.Errorw("Error receiving parsed stream", "error", err)
+			client.Logger.SugaredLogger.Errorw("Error receiving parsed stream", "error", err)
 			// print if this is a grpc status error
 			if grpcStatus, ok := grpc_status.FromError(err); ok {
-				client.Logger.Errorw("GRPC status error", "code", grpcStatus.Code(), "message", grpcStatus.Message(), "details", grpcStatus.Details())
+				client.Logger.SugaredLogger.Errorw("GRPC status error", "code", grpcStatus.Code(), "message", grpcStatus.Message(), "details", grpcStatus.Details())
 			} else {
-				client.Logger.Errorw("Error is not a grpc status error", "error", err)
+				client.Logger.SugaredLogger.Errorw("Error is not a grpc status error", "error", err)
 			}
 			return nil, err
 		}
@@ -925,7 +928,7 @@ func (client *Client) GetUsers(ctx context.Context, users []string) ([]*User, er
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			client.Logger.SugaredLogger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseUserStream(stream)
@@ -996,7 +999,7 @@ func (client *Client) GetProviders(ctx context.Context, providers []string) ([]*
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			client.Logger.SugaredLogger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseProviderStream(stream)
@@ -1078,7 +1081,7 @@ func (client *Client) GetEntities(ctx context.Context, entities []string) ([]*En
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			client.Logger.SugaredLogger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseEntityStream(stream)
@@ -1152,7 +1155,7 @@ func (client *Client) GetModels(ctx context.Context, models []string) ([]*Model,
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			client.Logger.SugaredLogger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseModelStream(stream)
@@ -2392,7 +2395,7 @@ func (entity *Entity) Properties() Properties {
 	return entity.fetchPropertiesFn.Properties()
 }
 
-func NewClient(host string, logger *zap.SugaredLogger) (*Client, error) {
+func NewClient(host string, logger logging.Logger) (*Client, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		// grpc.WithUnaryInterceptor(fferr.UnaryClientInterceptor()),
@@ -2412,6 +2415,6 @@ func NewClient(host string, logger *zap.SugaredLogger) (*Client, error) {
 
 func (client *Client) Close() {
 	if err := client.conn.Close(); err != nil {
-		client.Logger.Errorw("Failed to close connection", "Err", err)
+		client.Logger.SugaredLogger.Errorw("Failed to close connection", "Err", err)
 	}
 }

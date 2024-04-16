@@ -1721,6 +1721,8 @@ func (serv *MetadataServer) ListProviders(_ *pb.Empty, stream pb.Metadata_ListPr
 }
 
 func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Provider) (*pb.Empty, error) {
+	logger := ctx.Value("logger").(logging.Logger)
+	logger.SugaredLogger.Info("Creating Provider: ", provider.Name)
 	return serv.genericCreate(ctx, &providerResource{provider}, nil)
 }
 

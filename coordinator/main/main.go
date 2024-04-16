@@ -57,7 +57,7 @@ func main() {
 	logger := logging.NewLogger("coordinator")
 	defer logger.SugaredLogger.Sync()
 	logger.SugaredLogger.Debug("Connected to ETCD")
-	client, err := metadata.NewClient(metadataUrl, logger.SugaredLogger)
+	client, err := metadata.NewClient(metadataUrl, logger)
 	if err != nil {
 		logger.SugaredLogger.Errorw("Failed to connect: %v", err)
 		panic(err)

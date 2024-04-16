@@ -53,6 +53,7 @@ snapshot.json
 # Offline Tests
 provider/test_files/output/generic_records_*.parquet
 provider/test_files/output/part-000*.parquet
+provider/test_files/output/part-000*.csv
 
 # Test Requirements:
 tls.crt

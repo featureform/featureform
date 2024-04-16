@@ -36,6 +36,7 @@ const (
 	INVALID_FILE_TYPE             = "Invalid File Type"
 	RESOURCE_CHANGED              = "Resource Changed"
 	TYPE_ERROR                    = "Type Error"
+	DATASET_ERROR                 = "Dataset Error"
 
 	// MISCELLANEOUS:
 	INTERNAL_ERROR   = "Internal Error"

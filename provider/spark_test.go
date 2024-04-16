@@ -17,6 +17,7 @@ import (
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	fs "github.com/featureform/filestore"
+	"github.com/featureform/metadata"
 	"go.uber.org/zap/zaptest"
 
 	"bytes"
@@ -347,13 +348,17 @@ func testRegisterPrimary(store *SparkOfflineStore) error {
 		}
 	}
 
-	path := "featureform/testprimary/testFile.csv"
-	if err := uploadCSVTable(store.Store, path, exampleStructArray); err != nil {
+	path, err := store.Store.CreateFilePath("featureform/testprimary/testFile.csv", false)
+	if err != nil {
+		return err
+	}
+	if err := uploadCSVTable(store.Store, path.Key(), exampleStructArray); err != nil {
 		return err
 	}
 	primaryVariantName := uuid.New().String()
 	testResource := ResourceID{"test_name", primaryVariantName, Primary}
-	table, err := store.RegisterPrimaryFromSourceTable(testResource, path)
+	source := metadata.PrimaryPath{Path: path, FileType: "csv"}
+	table, err := store.RegisterPrimaryFromSourceTable(testResource, source)
 	if err != nil {
 		return err
 	}
@@ -498,7 +503,8 @@ func sparkTestCreateDuplicatePrimaryTable(t *testing.T, store *SparkOfflineStore
 	if err != nil {
 		t.Fatalf("could not create file path: %v", err)
 	}
-	_, err = store.RegisterPrimaryFromSourceTable(primaryID, filePath.ToURI())
+	source := metadata.PrimaryPath{Path: filePath, FileType: "csv"}
+	_, err = store.RegisterPrimaryFromSourceTable(primaryID, source)
 	if err != nil {
 		t.Fatalf("Could not register from Source Table: %s", err)
 	}
@@ -506,7 +512,7 @@ func sparkTestCreateDuplicatePrimaryTable(t *testing.T, store *SparkOfflineStore
 	if err != nil {
 		t.Fatalf("Could not get primary table: %v", err)
 	}
-	_, err = store.RegisterPrimaryFromSourceTable(primaryID, filePath.ToURI())
+	_, err = store.RegisterPrimaryFromSourceTable(primaryID, source)
 	if err == nil {
 		t.Fatalf("Successfully create duplicate tables")
 	}
@@ -527,7 +533,8 @@ func sparkTestCreatePrimaryFromSource(t *testing.T, store *SparkOfflineStore) {
 	if err != nil {
 		t.Fatalf("could not create file path: %v", err)
 	}
-	_, err = store.RegisterPrimaryFromSourceTable(primaryID, filePath.ToURI())
+	source := metadata.PrimaryPath{Path: filePath, FileType: "csv"}
+	_, err = store.RegisterPrimaryFromSourceTable(primaryID, source)
 	if err != nil {
 		t.Fatalf("Could not register from Source Table: %s", err)
 	}
@@ -1283,26 +1290,31 @@ func testGetResourceInformationFromFilePath(t *testing.T, store *SparkOfflineSto
 		name         string
 		sourcePath   string
 		expectedInfo []string
+		expectedErr  bool
 	}{
 		{
 			"PrimaryPathSuccess",
 			"featureform_primary__test_name__test_variant",
-			[]string{"primary", "test_name", "test_variant"},
+			[]string{"Primary", "test_name", "test_variant"},
+			false,
 		},
 		{
 			"TransformationPathSuccess",
 			"featureform_transformation__028f6213-77a8-43bb-9d91-dd7e9ee96102__test_variant",
-			[]string{"transformation", "028f6213-77a8-43bb-9d91-dd7e9ee96102", "test_variant"},
+			[]string{"Transformation", "028f6213-77a8-43bb-9d91-dd7e9ee96102", "test_variant"},
+			false,
 		},
 		{
 			"IncorrectPrimaryPath",
 			"featureform_primary",
 			[]string{"", "", ""},
+			true,
 		},
 		{
 			"IncorrectTransformationPath",
 			"featureform_transformation__fake_028f6213",
 			[]string{"", "", ""},
+			true,
 		},
 	}
 
@@ -1311,7 +1323,10 @@ func testGetResourceInformationFromFilePath(t *testing.T, store *SparkOfflineSto
 		t.Run(ttConst.name, func(t *testing.T) {
 			t.Parallel()
 			time.Sleep(time.Second * 15)
-			resourceType, resourceName, resourceVariant := store.getResourceInformationFromFilePath(ttConst.sourcePath)
+			resourceType, resourceName, resourceVariant, err := ps.TableNameToResource(ttConst.sourcePath)
+			if err != nil && !ttConst.expectedErr {
+				t.Fatalf("getSourcePath could not get the path. Expected \"%s\", got \"%s\".", strings.Join(ttConst.expectedInfo, ","), strings.Join([]string{resourceType, resourceName, resourceVariant}, ","))
+			}
 			resourceInfo := []string{resourceType, resourceName, resourceVariant}
 
 			if !reflect.DeepEqual(ttConst.expectedInfo, resourceInfo) {
@@ -3162,129 +3177,6 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 			}
 			if !reflect.DeepEqual(dfArgs, tt.ExpectedDFArgs) {
 				t.Errorf("SparkExecutor.GetDFArgs() = %#v, want %#v", dfArgs, tt.ExpectedDFArgs)
-			}
-		})
-	}
-}
-
-func TestSparkOfflineStore_getResourceInformationFromFilePath(t *testing.T) {
-	type fields struct {
-		Executor     SparkExecutor
-		Store        SparkFileStore
-		Logger       *zap.SugaredLogger
-		query        *defaultPythonOfflineQueries
-		BaseProvider BaseProvider
-	}
-	type args struct {
-		path string
-	}
-	tests := []struct {
-		name                string
-		fields              fields
-		args                args
-		expectedFileType    string
-		expectedFileName    string
-		expectedFileVariant string
-	}{
-		{
-			"Short S3",
-			fields{},
-			args{"s3://bucket/featureform/Feature/t_name/t_variant/"},
-			"feature",
-			"t_name",
-			"t_variant",
-		},
-		{
-			"Long S3",
-			fields{},
-			args{"s3://bucket/user_prefix/featureform/Label/t_name/t_variant/"},
-			"label",
-			"t_name",
-			"t_variant",
-		},
-		{
-			"Short S3a",
-			fields{},
-			args{"s3a://bucket/featureform/Transformation/t_name/t_variant/"},
-			"transformation",
-			"t_name",
-			"t_variant",
-		},
-		{
-			"Long S3a",
-			fields{},
-			args{"s3a://bucket/user_prefix/directory/featureform/Transformation/t_name/t_variant/"},
-			"transformation",
-			"t_name",
-			"t_variant",
-		},
-		{
-			"Short hdfs",
-			fields{},
-			args{"hdfs://bucket/path/to/file"},
-			"",
-			"",
-			"",
-		},
-		{
-			"Long hdfs",
-			fields{},
-			args{"hdfs://bucket/long/path/to/file"},
-			"path",
-			"to",
-			"file",
-		},
-		{
-			"Featureform Path Short",
-			fields{},
-			args{"featureform/something"},
-			"",
-			"",
-			"",
-		},
-		{
-			"Featureform Path Long",
-			fields{},
-			args{"featureform/long/path/to/file"},
-			"long",
-			"path",
-			"to",
-		},
-		{
-			"Featureform__ Path Short",
-			fields{},
-			args{"featureform_"},
-			"",
-			"",
-			"",
-		},
-		{
-			"Featureform__ Path Long",
-			fields{},
-			args{"featureform__long__path__to"},
-			"_long",
-			"path",
-			"to",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			spark := &SparkOfflineStore{
-				Executor:     tt.fields.Executor,
-				Store:        tt.fields.Store,
-				Logger:       tt.fields.Logger,
-				query:        tt.fields.query,
-				BaseProvider: tt.fields.BaseProvider,
-			}
-			fileType, fileName, fileVariant := spark.getResourceInformationFromFilePath(tt.args.path)
-			if fileType != tt.expectedFileType {
-				t.Errorf("getResourceInformationFromFilePath() fileType = %v, want %v", fileType, tt.expectedFileType)
-			}
-			if fileName != tt.expectedFileName {
-				t.Errorf("getResourceInformationFromFilePath() fileName = %v, want %v", fileName, tt.expectedFileName)
-			}
-			if fileVariant != tt.expectedFileVariant {
-				t.Errorf("getResourceInformationFromFilePath() fileName = %v, want %v", fileName, tt.expectedFileVariant)
 			}
 		})
 	}

@@ -2155,13 +2155,25 @@ type SourceVariantResource struct {
 }
 
 func getSourceString(variant *SourceVariant) string {
+	switch variant.PrimaryDataLocationType() {
+	case PrimaryDataSQLTable:
+		tbl, err := variant.PrimaryDataSQLTable()
+		if err == nil {
+			return tbl.Name
+		}
+	case PrimaryDataFilePath:
+		path, err := variant.PrimaryDataFilePath()
+		if err == nil {
+			return path.Path.ToURI()
+		}
+	}
+
 	if variant.IsSQLTransformation() {
 		return variant.SQLTransformationQuery()
 	} else if variant.IsDFTransformation() {
 		return variant.DFTransformationQuerySource()
-	} else {
-		return variant.PrimaryDataSQLTableName()
 	}
+	return ""
 }
 
 func getSourceType(variant *SourceVariant) string {

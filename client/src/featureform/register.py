@@ -22,54 +22,7 @@ from .grpc_client import GrpcClient
 from .list import *
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
-from .resources import (
-    AWSCredentials,
-    AzureFileStoreConfig,
-    BigQueryConfig,
-    CassandraConfig,
-    ClickHouseConfig,
-    DFTransformation,
-    DynamodbConfig,
-    Entity,
-    ExecutorCredentials,
-    FeatureVariant,
-    FilePrefix,
-    FirestoreConfig,
-    GCPCredentials,
-    GCSFileStoreConfig,
-    HDFSConfig,
-    K8sArgs,
-    K8sConfig,
-    K8sResourceSpecs,
-    LabelVariant,
-    Location,
-    Model,
-    MongoDBConfig,
-    OnDemandFeatureVariant,
-    OndemandFeatureParameters,
-    OnlineBlobConfig,
-    PineconeConfig,
-    PostgresConfig,
-    PrimaryData,
-    Provider,
-    RedisConfig,
-    RedshiftConfig,
-    ResourceColumnMapping,
-    ResourceRedefinedError,
-    ResourceState,
-    ResourceStatus,
-    ResourceVariant,
-    S3StoreConfig,
-    SQLTable,
-    SQLTransformation,
-    ScalarType,
-    SnowflakeConfig,
-    SourceVariant,
-    SparkConfig,
-    TrainingSetVariant,
-    User,
-    WeaviateConfig,
-)
+from .resources import *
 from .search import search
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
@@ -265,11 +218,80 @@ class OfflineSparkProvider(OfflineProvider):
             source (ColumnSourceRegistrar): source
         """
         FilePrefix.validate(self.__provider.config.store_type, file_path)
+        # NOTE: os.path.isdir only validates that a path is an existing directory in the filesystem
+        # and does not validate that the path is a directory in a cloud storage service, hence why
+        # splitext is used to check if the last part of the path is a file extension
+        _, file_ext = os.path.splitext(file_path)
+        if file_ext == "":
+            raise ValueError(
+                "File path must be a file, not a directory; use register_directory instead"
+            )
+        if not FileFormat.is_supported(file_path):
+            FileFormat.get_format(file_path)
 
         return self.__registrar.register_primary_data(
             name=name,
             variant=variant,
-            location=SQLTable(file_path),
+            location=PrimaryPath(file_path, FileFormat.get_format(file_path)),
+            owner=owner,
+            provider=self.name(),
+            description=description,
+            tags=tags,
+            properties=properties,
+        )
+
+    def register_directory(
+        self,
+        name: str,
+        file_path: str,
+        file_format: str,
+        variant: str = "",
+        owner: Union[str, UserRegistrar] = "",
+        description: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
+        """Register a Spark data source directory as a primary data source.
+
+        **Examples**
+
+        ```
+        spark = client.get_provider("my_spark")
+        transactions = spark.register_directory(
+            name="transactions",
+            variant="quickstart",
+            description="A dataset of fraudulent transactions",
+            file_path="s3://featureform-spark/featureform/transactions"
+        )
+        ```
+
+        Args:
+            name (str): Name of table to be registered
+            variant (str): Name of variant to be registered
+            file_path (str): The URI of the directory. Must be the full path
+            file_format: (str): The format of the files in the directory (e.g. "parquet" or "csv")
+            owner (Union[str, UserRegistrar]): Owner
+            description (str): Description of table to be registered
+
+        Returns:
+            source (ColumnSourceRegistrar): source
+        """
+        FilePrefix.validate(self.__provider.config.store_type, file_path)
+        # NOTE: os.path.isdir only validates that a path is an existing directory in the filesystem
+        # and does not validate that the path is a directory in a cloud storage service, hence why
+        # splitext is used to check if the last part of the path is a file extension
+        _, file_ext = os.path.splitext(file_path)
+        if file_ext != "":
+            raise ValueError(
+                f"File path must be a directory, not a file; use register_file instead"
+            )
+        if not FileFormat.is_supported(f".{file_format}"):
+            FileFormat.get_format(file_path)
+
+        return self.__registrar.register_primary_data(
+            name=name,
+            variant=variant,
+            location=PrimaryPath(path=file_path, format=file_format, is_dir=True),
             owner=owner,
             provider=self.name(),
             description=description,
@@ -428,11 +450,17 @@ class OfflineK8sProvider(OfflineProvider):
             source (ColumnSourceRegistrar): source
         """
         FilePrefix.validate(self.__provider.config.store_type, path)
+        if path.isdir(path):
+            raise ValueError(
+                "File path must be a file, not a directory; use register_directory instead"
+            )
+        if not FileFormat.is_supported(path):
+            FileFormat.get_format(path)
 
         return self.__registrar.register_primary_data(
             name=name,
             variant=variant,
-            location=SQLTable(path),
+            location=PrimaryPath(path=path, format=FileFormat.get_format(path)),
             owner=owner,
             provider=self.name(),
             description=description,
@@ -1707,7 +1735,7 @@ class Registrar:
                 "Localmode is not supported; please try featureform <= 1.12.0"
             )
         else:
-            mock_definition = PrimaryData(location=SQLTable(name=""))
+            mock_definition = PrimaryData(location=None)
             mock_source = SourceVariant(
                 created=None,
                 name=name,

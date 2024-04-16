@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/metadata"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
@@ -3169,7 +3170,8 @@ func testCreatePrimaryFromNonExistentSource(t *testing.T, store OfflineStore) {
 	}
 	tableName := sanitizeTableName(string(store.Type()), table.GetName())
 	tableName = fmt.Sprintf("%s_%s", table.GetName(), "nonexistant")
-	_, err = store.RegisterPrimaryFromSourceTable(primaryID, tableName)
+	source := metadata.SQLTable{Name: tableName}
+	_, err = store.RegisterPrimaryFromSourceTable(primaryID, source)
 	if err == nil {
 		t.Fatalf("Successfully created primary table from non-existant source")
 	}
@@ -3221,18 +3223,8 @@ func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 	// register function because precreated tables do not necessarily use double quotes
 	tableName := table.GetName()
 	t.Log("Table Name: ", tableName)
-	// Currently, the assumption is that a primary table will always have an absolute path
-	// to the source data file in its schema; to keep with this assumption until we determine
-	// a better approach (e.g. handling directories of primary sources), we will use the
-	// GetSource method on the FileStorePrimaryTable to get the absolute path to the source.
-	if store.Type() == pt.SparkOffline {
-		sourceTablePath, err := table.(*FileStorePrimaryTable).GetSource()
-		if err != nil {
-			t.Fatalf("Could not get source table path: %v", err)
-		}
-		tableName = sourceTablePath.ToURI()
-	}
-	_, err = store.RegisterPrimaryFromSourceTable(primaryCopyID, tableName)
+	source := metadata.SQLTable{Name: tableName}
+	_, err = store.RegisterPrimaryFromSourceTable(primaryCopyID, source)
 	if err != nil {
 		t.Fatalf("Could not register from Source Table: %s", err)
 	}

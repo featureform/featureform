@@ -53,7 +53,7 @@ def test_create_provider(executor_fixture, filestore_fixture, request):
 @pytest.mark.parametrize(
     "test_name,file_path",
     [
-        ("file", "abfss://test_files/input/transaction"),
+        ("file", "abfss://test_files/input/transactions.csv"),
     ],
 )
 def test_register_file(test_name, file_path, spark_provider):

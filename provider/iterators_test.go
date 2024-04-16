@@ -2,6 +2,7 @@ package provider
 
 import (
 	"bytes"
+	"encoding/csv"
 	"fmt"
 	"os"
 	"reflect"
@@ -21,35 +22,8 @@ func TestMultipleFileParquetIterator(t *testing.T) {
 		Expected []GenericRecord
 	}
 
-	tableSchema := TableSchema{
-		Columns: []TableColumn{
-			{Name: "entity", ValueType: types.String},
-			{Name: "int", ValueType: types.Int},
-			{Name: "flt", ValueType: types.Float64},
-			{Name: "str", ValueType: types.String},
-			{Name: "bool", ValueType: types.Bool},
-			{Name: "ts", ValueType: types.Timestamp},
-			{Name: "fltvec", ValueType: types.VectorType{types.Float64, 3, false}},
-		},
-	}
-
-	allRecords := []GenericRecord{
-		[]interface{}{nil, 1, 1.1, "test string", true, time.UnixMilli(0).UTC(), nil},
-		[]interface{}{"b", nil, 1.2, "second string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"c", 3, nil, "third string", true, time.UnixMilli(0).UTC(), []float64{0, 0, 0}},
-		[]interface{}{"d", -4, 1.4, nil, false, time.UnixMilli(0).UTC(), []float64{-1, -2, -3}},
-		[]interface{}{"e", 5, 1.5, "fifth string", nil, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"f", 6, 1.6, "sixth string", false, nil, []float64{1, 2, 3}},
-		[]interface{}{"g", 7, 1.7, "seventh string", true, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"h", 8, 1.8, "eighth string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"i", 9, 1.9, "ninth string", true, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"j", 10, 2.0, "tenth string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"k", 11, 2.1, "eleventh string", true, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"l", 12, 2.2, "twelfth string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"m", 13, 2.3, "thirteenth string", true, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"n", 14, 2.4, "fourteenth string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"o", 15, 2.5, "fifteenth string", true, time.UnixMilli(0).UTC(), []float64{1.0, 2.0, 3.0}},
-	}
+	tableSchema := getSchema()
+	allRecords := getRecords()
 
 	schema := tableSchema.AsParquetSchema()
 	fileCount := 0
@@ -148,5 +122,148 @@ func TestMultipleFileParquetIterator(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestMultipleFileCSVIteratorLimits(t *testing.T) {
+	type IteratorTest struct {
+		Files    []filestore.Filepath
+		Store    FileStore
+		Limit    int64
+		Expected []GenericRecord
+	}
+
+	tableSchema := getSchema()
+	headers := make([]string, len(tableSchema.Columns))
+	for i, column := range tableSchema.Columns {
+		headers[i] = column.Name
+	}
+	allRecords := getRecords()
+
+	recordsBuffer := make([]GenericRecord, 0)
+	fileCount := 0
+	files := make([]filestore.Filepath, 0)
+
+	for _, record := range allRecords {
+		recordsBuffer = append(recordsBuffer, record)
+		if len(recordsBuffer) == 5 {
+			buf := new(bytes.Buffer)
+			w := csv.NewWriter(buf)
+			csvRecords, err := tableSchema.ToCSVRecords(recordsBuffer)
+			if err != nil {
+				t.Fatalf("error writing csv file: %v", err)
+			}
+			csvRecords = append([][]string{headers}, csvRecords...)
+			if err := w.WriteAll(csvRecords); err != nil {
+				t.Fatalf("error writing csv file: %v", err)
+			}
+			fileCount++
+			file := &filestore.LocalFilepath{}
+			if err := file.SetKey(fmt.Sprintf("%s/part-000%d.csv", outputDir, fileCount)); err != nil {
+				t.Fatalf("error setting key: %v", err)
+			}
+			if err := os.MkdirAll(file.KeyPrefix(), 0755); err != nil {
+				t.Fatalf("error creating directory: %v", err)
+			}
+			if err := os.WriteFile(file.Key(), buf.Bytes(), 0644); err != nil {
+				t.Fatalf("error writing csv file: %v", err)
+			}
+			files = append(files, file)
+			recordsBuffer = make([]GenericRecord, 0)
+		}
+
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("error getting working directory: %v", err)
+	}
+	dirPath := fmt.Sprintf("{\"DirPath\": \"file:///%s/\"}", wd)
+	localFileStore, err := NewLocalFileStore([]byte(dirPath))
+	if err != nil {
+		t.Fatalf("error creating local file store: %v", err)
+	}
+
+	tests := map[string]IteratorTest{
+		"SingleFileNoLimit": {
+			Files:    files[:1],
+			Store:    localFileStore,
+			Limit:    -1,
+			Expected: allRecords[:5],
+		},
+		"AllFilesNoLimit": {
+			Files:    files,
+			Store:    localFileStore,
+			Limit:    -1,
+			Expected: allRecords,
+		},
+		"SingleFileLimit": {
+			Files:    files[:1],
+			Store:    localFileStore,
+			Limit:    3,
+			Expected: allRecords[:3],
+		},
+		"AllFilesLimit": {
+			Files:    files,
+			Store:    localFileStore,
+			Limit:    6,
+			Expected: allRecords[:6],
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			iterator, err := newCSVIterator(test.Files, test.Store, test.Limit)
+			if err != nil {
+				t.Fatalf("error creating iterator: %v", err)
+			}
+			records := make([]GenericRecord, 0)
+			for {
+				if !iterator.Next() {
+					break
+				}
+				records = append(records, iterator.Values())
+			}
+			if len(records) != len(test.Expected) {
+				t.Fatalf("expected %d records, got %d", len(test.Expected), len(records))
+			}
+			if err := iterator.Err(); err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+		})
+	}
+}
+
+func getSchema() TableSchema {
+	return TableSchema{
+		Columns: []TableColumn{
+			{Name: "entity", ValueType: types.String},
+			{Name: "int", ValueType: types.Int},
+			{Name: "flt", ValueType: types.Float64},
+			{Name: "str", ValueType: types.String},
+			{Name: "bool", ValueType: types.Bool},
+			{Name: "ts", ValueType: types.Timestamp},
+			{Name: "fltvec", ValueType: types.VectorType{ScalarType: types.Float64, Dimension: 3, IsEmbedding: false}},
+		},
+	}
+}
+
+func getRecords() []GenericRecord {
+	return []GenericRecord{
+		[]interface{}{nil, 1, 1.1, "test string", true, time.UnixMilli(0).UTC(), nil},
+		[]interface{}{"b", nil, 1.2, "second string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"c", 3, nil, "third string", true, time.UnixMilli(0).UTC(), []float64{0, 0, 0}},
+		[]interface{}{"d", -4, 1.4, nil, false, time.UnixMilli(0).UTC(), []float64{-1, -2, -3}},
+		[]interface{}{"e", 5, 1.5, "fifth string", nil, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"f", 6, 1.6, "sixth string", false, nil, []float64{1, 2, 3}},
+		[]interface{}{"g", 7, 1.7, "seventh string", true, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"h", 8, 1.8, "eighth string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"i", 9, 1.9, "ninth string", true, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"j", 10, 2.0, "tenth string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"k", 11, 2.1, "eleventh string", true, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"l", 12, 2.2, "twelfth string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"m", 13, 2.3, "thirteenth string", true, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"n", 14, 2.4, "fourteenth string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"o", 15, 2.5, "fifteenth string", true, time.UnixMilli(0).UTC(), []float64{1.0, 2.0, 3.0}},
 	}
 }

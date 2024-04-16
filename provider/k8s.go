@@ -523,48 +523,47 @@ func blobRegisterResourceFromSourceTable(id ResourceID, sourceSchema ResourceSch
 	return &BlobOfflineTable{schema: sourceSchema, store: store}, nil
 }
 
-func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourcePath string) (PrimaryTable, error) {
-	return blobRegisterPrimary(id, sourcePath, k8s.logger, k8s.store)
+func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, source metadata.PrimarySource) (PrimaryTable, error) {
+	if source.Type() != metadata.PrimaryDataFilePath {
+		return nil, fferr.NewInternalError(fmt.Errorf("cannot register primary table from source type %s", source.Type()))
+
+	}
+	pathSource := source.(metadata.PrimaryPath)
+	return blobRegisterPrimary(id, pathSource, k8s.logger, k8s.store)
 }
 
-func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
-	sourceFilePath, err := filestore.NewEmptyFilepath(store.FilestoreType())
+func blobRegisterPrimary(id ResourceID, source metadata.PrimaryPath, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
+	logr := logger.With("resourceID", id, "sourcePath", source.Path.ToURI(), "fileType", source.FileType, "storeType", store.FilestoreType())
+	storeExists, err := store.Exists(source.Path)
 	if err != nil {
-		logger.Errorw("Could not create empty filepath", "error", err, "storeType", store.FilestoreType(), "sourcePath", sourcePath)
-		return nil, err
-	}
-	err = sourceFilePath.ParseFilePath(sourcePath)
-	if err != nil {
-		logger.Errorw("Could not parse full path", "error", err, "sourcePath", sourcePath)
-		return nil, err
-	}
-	storeExists, err := store.Exists(sourceFilePath)
-	if err != nil {
+		logr.Errorw("error checking if source exists", "error", err)
 		return nil, err
 	}
 	if !storeExists {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf(sourceFilePath.ToURI()))
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf(source.Path.ToURI()))
 	}
 
-	filepath, err := store.CreateFilePath(id.ToFilestorePath(), false)
+	schemaFilepath, err := store.CreateFilePath(ps.ResourceToDirectoryPath(id.Type.String(), id.Name, id.Variant), false)
 	if err != nil {
 		return nil, err
 	}
-	logger.Infow("Checking if resource key exists", "key", filepath.Key())
-	primaryExists, err := store.Exists(filepath)
+
+	logr.Debugw("Checking if resource schema table exists", "uri", schemaFilepath.ToURI())
+	primaryExists, err := store.Exists(schemaFilepath)
 	if err != nil {
-		logger.Errorw("Error checking if primary exists", "error", err)
+		logr.Errorw("Error checking if primary exists", "error", err)
 		return nil, err
 	}
 	if primaryExists {
-		logger.Errorw("File already registered", "source", sourcePath)
-		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, fmt.Errorf(sourcePath))
+		logr.Errorw("File already registered", "primary_schema_file", schemaFilepath.Key(), "source", source.Path.ToURI())
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, fmt.Errorf(fmt.Sprintf("file already registered: %s", schemaFilepath.Key())))
 	}
-	logger.Debugw("Registering primary table", "id", id, "source", sourcePath)
-	// TODO: determine how to handle the schema of the primary table; if it's a parquet file, we _could_
-	// read the file and infer a schema based; however, this wouldn't be possible for CSV files.
+
+	logr.Debugw("Registering primary table", "id", id, "source", source.Path.ToURI())
 	schema := TableSchema{
-		SourceTable: sourcePath,
+		SourceTable: source.Path.ToURI(),
+		FileType:    source.FileType,
+		IsDir:       source.IsDir,
 	}
 	data, err := schema.Serialize()
 	if err != nil {
@@ -574,13 +573,13 @@ func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLo
 	// This blob will be read by other processes (e.g. transformation jobs) to fetch where the primary
 	// data is stored prior to acting on it. You can verify this by accessing the object stored at
 	// /featureform/Primary/<NAME>/<VARIANT>
-	if err := store.Write(filepath, data); err != nil {
-		logger.Errorw("Could not write primary table", "error", err)
+	if err := store.Write(schemaFilepath, data); err != nil {
+		logr.Errorw("Could not write primary table", "error", err, "schema_file", schemaFilepath.Key())
 		return nil, err
 	}
 
-	logger.Debugw("Successfully registered primary table", "id", id, "source", sourcePath)
-	return &FileStorePrimaryTable{store, sourceFilePath, schema, false, id}, nil
+	logr.Debugw("Successfully registered primary table", "id", id, "source", source.Path.ToURI())
+	return &FileStorePrimaryTable{store, source.Path, schema, false, id, logger}, nil
 }
 
 func (k8s *K8sOfflineStore) CreateTransformation(config TransformationConfig) error {
@@ -859,7 +858,7 @@ func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (Transformatio
 		return nil, err
 	}
 	// TODO: populate schema
-	return &FileStorePrimaryTable{k8s.store, transformationFilepath, TableSchema{}, true, id}, nil
+	return &FileStorePrimaryTable{k8s.store, transformationFilepath, TableSchema{}, true, id, k8s.logger}, nil
 }
 
 func (k8s *K8sOfflineStore) UpdateTransformation(config TransformationConfig) error {
@@ -896,7 +895,7 @@ func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogg
 	if err := sourcePath.ParseFilePath(schema.SourceTable); err != nil {
 		return nil, err
 	}
-	return &FileStorePrimaryTable{store, sourcePath, schema, false, id}, nil
+	return &FileStorePrimaryTable{store, sourcePath, schema, false, id, logger}, nil
 }
 
 func (k8s *K8sOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {

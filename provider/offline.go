@@ -179,6 +179,19 @@ func (def *TrainingSetDef) check() error {
 
 type TransformationType int
 
+func (t TransformationType) String() string {
+	switch t {
+	case NoTransformationType:
+		return "NoTransformationType"
+	case SQLTransformation:
+		return "SQLTransformation"
+	case DFTransformation:
+		return "DFTransformation"
+	default:
+		return "Unknown"
+	}
+}
+
 const (
 	NoTransformationType TransformationType = iota
 	SQLTransformation
@@ -285,7 +298,7 @@ type MaterializationOptions interface {
 
 type OfflineStore interface {
 	RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error)
-	RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error)
+	RegisterPrimaryFromSourceTable(id ResourceID, source metadata.PrimarySource) (PrimaryTable, error)
 	CreateTransformation(config TransformationConfig) error
 	GetTransformationTable(id ResourceID) (TransformationTable, error)
 	UpdateTransformation(config TransformationConfig) error
@@ -465,11 +478,15 @@ type TableSchema struct {
 	Columns []TableColumn
 	// The complete URL that points to the location of the data file
 	SourceTable string
+	FileType    filestore.FileType
+	IsDir       bool
 }
 
 type TableSchemaJSONWrapper struct {
 	Columns     []TableColumnJSONWrapper
 	SourceTable string
+	FileType    filestore.FileType
+	IsDir       bool
 }
 
 // This method converts the list of columns into a struct type that can be
@@ -520,6 +537,8 @@ func (schema *TableSchema) Serialize() ([]byte, error) {
 	wrapper := &TableSchemaJSONWrapper{
 		SourceTable: schema.SourceTable,
 		Columns:     make([]TableColumnJSONWrapper, len(schema.Columns)),
+		FileType:    schema.FileType,
+		IsDir:       schema.IsDir,
 	}
 	for i, col := range schema.Columns {
 		wrapper.Columns[i] = TableColumnJSONWrapper{
@@ -548,6 +567,8 @@ func (schema *TableSchema) Deserialize(config []byte) error {
 		}
 	}
 	schema.SourceTable = wrapper.SourceTable
+	schema.FileType = wrapper.FileType
+	schema.IsDir = wrapper.IsDir
 	return nil
 }
 
@@ -596,6 +617,22 @@ func (schema *TableSchema) ToParquetRecords(records []GenericRecord) ([]any, err
 	return parquetRecords, nil
 }
 
+func (schema *TableSchema) ToCSVRecords(records []GenericRecord) ([][]string, error) {
+	csvRecords := make([][]string, len(records))
+	for i, record := range records {
+		csvRecord := make([]string, len(record))
+		for j, value := range record {
+			if value == nil {
+				csvRecord[j] = ""
+				continue
+			}
+			csvRecord[j] = fmt.Sprintf("%v", value)
+		}
+		csvRecords[i] = csvRecord
+	}
+	return csvRecords, nil
+}
+
 type TableColumnJSONWrapper struct {
 	Name      string
 	ValueType types.ValueTypeJSONWrapper
@@ -637,7 +674,7 @@ func (store *memoryOfflineStore) RegisterResourceFromSourceTable(id ResourceID, 
 	return nil, fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
-func (store *memoryOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+func (store *memoryOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, source metadata.PrimarySource) (PrimaryTable, error) {
 	return nil, fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 

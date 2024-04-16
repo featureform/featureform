@@ -176,6 +176,7 @@ def step_impl(context, filesize, filetype, storage_provider):
 
     upload_file_path = os.path.join(remote_path, context.variant, filename)
     context.filename = upload_file_path
+    context.filetype = filetype
 
     # Create a file in the local data directory to upload and download
     download_file(file_uri, local_file_name, filetype)
@@ -202,6 +203,5 @@ def step_impl(context, filesize, filetype, storage_provider):
     elif storage_provider == "gcs":
         context.cloud_file_path = f"gs://featureform-spark-testing/{upload_file_path}"
         upload_to_gcs("featureform-test", local_file_name, upload_file_path, filetype)
-
     else:
         raise Exception(f"Invalid storage provider {storage_provider}")

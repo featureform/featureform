@@ -62,3 +62,101 @@ func TestResourceToPicklePath(t *testing.T) {
 		})
 	}
 }
+
+func TestTableNameToResource(t *testing.T) {
+	tests := []struct {
+		name            string
+		tableName       string
+		expectedType    string
+		expectedName    string
+		expectedVariant string
+		expectError     bool
+	}{
+		{
+			name:            "correct format",
+			tableName:       "featureform_primary__name__variant",
+			expectedType:    "Primary",
+			expectedName:    "name",
+			expectedVariant: "variant",
+			expectError:     false,
+		},
+		{
+			name:        "missing prefix",
+			tableName:   "primary__name__variant",
+			expectError: true,
+		},
+		{
+			name:        "incorrect number of parts",
+			tableName:   "featureform_primary__name",
+			expectError: true,
+		},
+		{
+			name:        "invalid resource type",
+			tableName:   "featureform_invalid__name__variant",
+			expectError: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resourceType, name, variant, err := TableNameToResource(test.tableName)
+			if (err != nil) != test.expectError {
+				t.Errorf("Expected error: %v, got %v", test.expectError, err)
+			}
+			if !test.expectError {
+				if resourceType != test.expectedType {
+					t.Errorf("Expected resource type %s, got %s", test.expectedType, resourceType)
+				}
+				if name != test.expectedName {
+					t.Errorf("Expected name %s, got %s", test.expectedName, name)
+				}
+				if variant != test.expectedVariant {
+					t.Errorf("Expected variant %s, got %s", test.expectedVariant, variant)
+				}
+			}
+		})
+	}
+}
+
+func TestValidateResourceName(t *testing.T) {
+	tests := []struct {
+		name         string
+		inputName    string
+		inputVariant string
+		expectError  bool
+	}{
+		{
+			name:         "valid inputs",
+			inputName:    "validName",
+			inputVariant: "validVariant",
+			expectError:  false,
+		},
+		{
+			name:         "name with double underscores",
+			inputName:    "invalid__name",
+			inputVariant: "validVariant",
+			expectError:  true,
+		},
+		{
+			name:         "variant with double underscores",
+			inputName:    "validName",
+			inputVariant: "invalid__variant",
+			expectError:  true,
+		},
+		{
+			name:         "both with double underscores",
+			inputName:    "invalid__name",
+			inputVariant: "invalid__variant",
+			expectError:  true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := ValidateResourceName(test.inputName, test.inputVariant)
+			if (err != nil) != test.expectError {
+				t.Errorf("Test %s failed. Expected error: %v, got %v", test.name, test.expectError, err)
+			}
+		})
+	}
+}

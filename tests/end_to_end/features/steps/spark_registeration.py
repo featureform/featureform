@@ -128,10 +128,17 @@ def step_impl(context):
 
 @when("I register the file")
 def step_impl(context):
-    context.file = context.spark.register_file(
-        name="transactions",
-        file_path=context.cloud_file_path,
-    )
+    if context.filetype == "directory":
+        context.file = context.spark.register_directory(
+            name="transactions",
+            file_path=context.cloud_file_path,
+            file_format="csv",
+        )
+    else:
+        context.file = context.spark.register_file(
+            name="transactions",
+            file_path=context.cloud_file_path,
+        )
     context.client.apply(asynchronous=False, verbose=True)
 
 

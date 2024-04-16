@@ -13,6 +13,7 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
+	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
 
@@ -461,7 +462,7 @@ func checkTransformationTableValues(transformationName string, correctValues []p
 	if err != nil {
 		return fmt.Errorf("Could not get transformation table from offline store: %v", err)
 	}
-	transformationJoinName, err := provider.GetPrimaryTableName(providerJoinTransformationID)
+	transformationJoinName, err := ps.ResourceToTableName(providerJoinTransformationID.Type.String(), providerJoinTransformationID.Name, providerJoinTransformationID.Variant)
 	if err != nil {
 		return fmt.Errorf("invalid transformation table name: %v", err)
 	}

@@ -455,6 +455,9 @@ type csvIterator struct {
 	columnNames   []string
 	idx           int64
 	limit         int64
+	files         []filestore.Filepath
+	fileIdx       int64
+	store         FileStore
 }
 
 func (c *csvIterator) Next() bool {
@@ -462,13 +465,44 @@ func (c *csvIterator) Next() bool {
 		return false
 	}
 	row, err := c.reader.Read()
-	if err != nil {
-		if err == io.EOF {
+	// If we've reached the end of one file, we need to move to the next one
+	if err == io.EOF {
+		if c.fileIdx >= int64(len(c.files)) {
 			return false
-		} else {
+		}
+		b, err := c.store.Read(c.files[c.fileIdx])
+		if err != nil {
 			c.err = err
 			return false
 		}
+		c.fileIdx += 1
+
+		reader := csv.NewReader(bytes.NewReader(b))
+		headers, err := reader.Read()
+		if err != nil {
+			c.err = fferr.NewInternalError(err)
+			return false
+		}
+		// The column names should match across all files
+		if len(headers) != len(c.columnNames) {
+			c.err = fferr.NewDatasetErrorf("column lengths do not match across files: expected %d, got %d", len(headers), len(c.columnNames))
+			return false
+		}
+		for i, header := range headers {
+			if header != c.columnNames[i] {
+				c.err = fferr.NewDatasetErrorf("column names do not match across files: expected %s, got %s", strings.Join(c.columnNames, ","), strings.Join(headers, ","))
+				return false
+			}
+		}
+		c.reader = reader
+		row, err = c.reader.Read()
+		if err != nil {
+			c.err = fferr.NewInternalError(err)
+			return false
+		}
+	} else if err != io.EOF && err != nil {
+		c.err = err
+		return false
 	}
 	c.currentValues = c.ParseRow(row)
 	c.idx += 1
@@ -507,7 +541,11 @@ func (c *csvIterator) ParseRow(row []string) GenericRecord {
 	return records
 }
 
-func newCSVIterator(b []byte, limit int64) (GenericTableIterator, error) {
+func newCSVIterator(files []filestore.Filepath, store FileStore, limit int64) (GenericTableIterator, error) {
+	b, err := store.Read(files[0])
+	if err != nil {
+		return nil, err
+	}
 	reader := csv.NewReader(bytes.NewReader(b))
 	headers, err := reader.Read()
 	if err != nil {
@@ -521,5 +559,8 @@ func newCSVIterator(b []byte, limit int64) (GenericTableIterator, error) {
 		columnNames: headers,
 		limit:       limit,
 		idx:         0,
+		files:       files,
+		fileIdx:     1,
+		store:       store,
 	}, nil
 }

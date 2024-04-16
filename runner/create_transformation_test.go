@@ -61,7 +61,7 @@ func (m MockOfflineCreateTransformationFail) RegisterResourceFromSourceTable(id 
 	return nil, nil
 }
 
-func (m MockOfflineCreateTransformationFail) RegisterPrimaryFromSourceTable(id provider.ResourceID, sourceName string) (provider.PrimaryTable, error) {
+func (m MockOfflineCreateTransformationFail) RegisterPrimaryFromSourceTable(id provider.ResourceID, source metadata.PrimarySource) (provider.PrimaryTable, error) {
 	return nil, nil
 }
 

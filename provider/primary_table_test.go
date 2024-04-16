@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	fs "github.com/featureform/filestore"
+	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
 	"github.com/featureform/provider/types"
@@ -42,7 +44,7 @@ func TestFileStorePrimaryTable(t *testing.T) {
 			t.Logf("Running test: %s", testName)
 			err := testFunc(t, filestore)
 			if err != nil {
-				t.Fatalf("Error in test: %s", err)
+				t.Fatalf("Error in test %s: %s", testName, err)
 			}
 		}
 
@@ -60,13 +62,13 @@ func testWrite(t *testing.T, store *FileStorePrimaryTable) error {
 func testWriteBatch(t *testing.T, store *FileStorePrimaryTable) error {
 	t.Logf("Testing PrimaryTable WriteBatch")
 
-	return store.WriteBatch(getRecords())
+	return store.WriteBatch(getGenericRecords())
 }
 
 func testAppend(t *testing.T, store *FileStorePrimaryTable) error {
 	t.Logf("Testing PrimaryTable Append")
 
-	return store.WriteBatch(getRecords())
+	return store.WriteBatch(getGenericRecords())
 }
 
 func testIterateSegment(t *testing.T, store *FileStorePrimaryTable) error {
@@ -155,14 +157,11 @@ func getS3FilestorePrimaryTable() (*FileStorePrimaryTable, error) {
 		return &FileStorePrimaryTable{}, err
 	}
 
-	source, err := filestore.CreateFilePath(ps.ResourceToDirectoryPath(id.Type.String(), id.Name, id.Variant), false)
+	sourceKey := fmt.Sprintf("%s/%s/src.parquet", ps.ResourceToDirectoryPath(id.Type.String(), id.Name, id.Variant), time.Now().Format("2006-01-02-15-04-05-999999"))
+	source, err := filestore.CreateFilePath(sourceKey, false)
 	if err != nil {
 		return &FileStorePrimaryTable{}, err
 	}
-
-	sourceTable := fmt.Sprintf("%s/src.parquet", time.Now().Format("2006-01-02-15-04-05-999999"))
-
-	source.SetKey(sourceTable)
 
 	return &FileStorePrimaryTable{
 		store:  filestore,
@@ -178,13 +177,16 @@ func getS3FilestorePrimaryTable() (*FileStorePrimaryTable, error) {
 				{Name: "fltvec", ValueType: types.VectorType{types.Float64, 3, false}},
 				{Name: "ts", ValueType: types.Timestamp},
 			},
+			FileType: fs.Parquet,
+			IsDir:    false,
 		},
 		isTransformation: false,
 		id:               id,
+		logger:           logging.NewLogger("filestore_primary_table_test"),
 	}, nil
 }
 
-func getRecords() []GenericRecord {
+func getGenericRecords() []GenericRecord {
 	return []GenericRecord{
 		[]interface{}{"a", 1, 1.1, "test string", true, []float64{1.0, 1.0, 1.0}, time.UnixMilli(0)},
 		[]interface{}{"b", 2, 1.2, "second string", false, []float64{1.0, 2.0, 1.0}, time.UnixMilli(0)},

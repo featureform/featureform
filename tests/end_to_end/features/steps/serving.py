@@ -124,30 +124,51 @@ def step_impl(context, data_source_size):
         source_0 = "s3a://featureform-spark-testing/data/avg_trans_short"
         source_1 = "s3a://featureform-spark-testing/data/balance_short"
         source_2 = "s3a://featureform-spark-testing/data/perc_short"
+
+        context.transactions = context.spark.register_directory(
+            name="transactions",
+            description="A dataset of average transactions",
+            file_path=source_0,
+            file_format="parquet",
+        )
+
+        context.balance = context.spark.register_directory(
+            name="balances",
+            description="A dataset of balances",
+            file_path=source_1,
+            file_format="parquet",
+        )
+
+        context.perc = context.spark.register_directory(
+            name="perc",
+            description="A dataset of perc",
+            file_path=source_2,
+            file_format="parquet",
+        )
     elif data_source_size == "long":
         source_0 = "s3a://featureform-spark-testing/data/avg_trans.snappy.parquet"
         source_1 = "s3a://featureform-spark-testing/data/balance.snappy.parquet"
         source_2 = "s3a://featureform-spark-testing/data/perc.snappy.parquet"
+
+        context.transactions = context.spark.register_file(
+            name="transactions",
+            description="A dataset of average transactions",
+            file_path=source_0,
+        )
+
+        context.balance = context.spark.register_file(
+            name="balances",
+            description="A dataset of balances",
+            file_path=source_1,
+        )
+
+        context.perc = context.spark.register_file(
+            name="perc",
+            description="A dataset of perc",
+            file_path=source_2,
+        )
     else:
         raise Exception("Data source size not recognized", data_source_size)
-
-    context.transactions = context.spark.register_file(
-        name="transactions",
-        description="A dataset of average transactions",
-        file_path=source_0,
-    )
-
-    context.balance = context.spark.register_file(
-        name="balances",
-        description="A dataset of balances",
-        file_path=source_1,
-    )
-
-    context.perc = context.spark.register_file(
-        name="perc",
-        description="A dataset of perc",
-        file_path=source_2,
-    )
 
     context.client.apply()
 

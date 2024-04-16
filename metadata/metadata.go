@@ -112,7 +112,7 @@ func (serv *MetadataServer) needsJob(res Resource) bool {
 	}
 	if res.ID().Type == FEATURE_VARIANT {
 		if fv, ok := res.(*featureVariantResource); !ok {
-			serv.Logger.SugaredLogger.Errorf("resource has type FEATURE VARIANT but failed to cast %s", res.ID())
+			serv.Logger.Errorf("resource has type FEATURE VARIANT but failed to cast %s", res.ID())
 			return false
 		} else {
 			return PRECOMPUTED.Equals(fv.serialized.Mode)
@@ -1453,7 +1453,7 @@ type MetadataServer struct {
 }
 
 func NewMetadataServer(config *Config) (*MetadataServer, error) {
-	config.Logger.SugaredLogger.Debug("Creating new metadata server", "Address:", config.Address)
+	config.Logger.Debug("Creating new metadata server", "Address:", config.Address)
 	lookup, err := config.StorageProvider.GetResourceLookup()
 
 	if err != nil {
@@ -1492,7 +1492,7 @@ func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(helpers.UnaryServerErrorInterceptor), grpc.StreamInterceptor(helpers.StreamServerErrorInterceptor))
 	pb.RegisterMetadataServer(grpcServer, serv)
 	serv.grpcServer = grpcServer
-	serv.Logger.SugaredLogger.Infow("Server starting", "Address", serv.listener.Addr().String())
+	serv.Logger.Infow("Server starting", "Address", serv.listener.Addr().String())
 	return grpcServer.Serve(lis)
 }
 
@@ -1560,11 +1560,11 @@ func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.S
 }
 
 func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetStatusRequest) (*pb.Empty, error) {
-	serv.Logger.SugaredLogger.Infow("Setting resource status", "resource_id", req.ResourceId, "status", req.Status.Status)
+	serv.Logger.Infow("Setting resource status", "resource_id", req.ResourceId, "status", req.Status.Status)
 	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
 	err := serv.lookup.SetStatus(resID, *req.Status)
 	if err != nil {
-		serv.Logger.SugaredLogger.Errorw("Could not set resource status", "error", err.Error())
+		serv.Logger.Errorw("Could not set resource status", "error", err.Error())
 	}
 	return &pb.Empty{}, err
 }
@@ -1692,7 +1692,7 @@ func (serv *MetadataServer) GetSources(stream pb.Metadata_GetSourcesServer) erro
 }
 
 func (serv *MetadataServer) GetSourceVariants(stream pb.Metadata_GetSourceVariantsServer) error {
-	serv.Logger.SugaredLogger.Infow("Getting Source Variant In Metadata")
+	serv.Logger.Infow("Getting Source Variant In Metadata")
 	return serv.genericGet(stream, SOURCE_VARIANT, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.SourceVariant))
 	})
@@ -1722,7 +1722,7 @@ func (serv *MetadataServer) ListProviders(_ *pb.Empty, stream pb.Metadata_ListPr
 
 func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Provider) (*pb.Empty, error) {
 	logger := ctx.Value("logger").(logging.Logger)
-	logger.SugaredLogger.Info("Creating Provider: ", provider.Name)
+	logger.Info("Creating Provider: ", provider.Name)
 	return serv.genericCreate(ctx, &providerResource{provider}, nil)
 }
 
@@ -1859,8 +1859,7 @@ type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
 	logger := ctx.Value("logger").(logging.Logger)
-	logger.SugaredLogger.Debugw("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
-	// serv.Logger.SugaredLogger.Info("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
+	logger.Debugw("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
 
 	id := res.ID()
 	if err := resourceNamedSafely(id); err != nil {
@@ -1886,11 +1885,11 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		return nil, err
 	}
 	if serv.needsJob(res) && existing == nil {
-		logger.SugaredLogger.Info("Creating Job", res.ID().Name, res.ID().Variant)
+		logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
 		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
 			return nil, err
 		}
-		logger.SugaredLogger.Info("Successfully Created Job: ", res.ID().Name, res.ID().Variant)
+		logger.Info("Successfully Created Job: ", res.ID().Name, res.ID().Variant)
 	}
 	parentId, hasParent := id.Parent()
 	if hasParent {
@@ -1912,7 +1911,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		}
 	}
 	if err := serv.propagateChange(res); err != nil {
-		logger.SugaredLogger.Error(err)
+		logger.Error(err)
 		return nil, err
 	}
 	return &pb.Empty{}, nil
@@ -2047,17 +2046,17 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 		if recvErr != nil {
 			return fferr.NewInternalError(recvErr)
 		}
-		serv.Logger.SugaredLogger.Infow("Looking up Resource", "id", id)
+		serv.Logger.Infow("Looking up Resource", "id", id)
 		resource, err := serv.lookup.Lookup(id)
 		if err != nil {
 			return err
 		}
-		serv.Logger.SugaredLogger.Infow("Sending Resource", "id", id)
+		serv.Logger.Infow("Sending Resource", "id", id)
 		serialized := resource.Proto()
 		if err := send(serialized); err != nil {
 			return fferr.NewInternalError(err)
 		}
-		serv.Logger.SugaredLogger.Infow("Send Complete", "id", id)
+		serv.Logger.Infow("Send Complete", "id", id)
 	}
 }
 

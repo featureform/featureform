@@ -35,7 +35,7 @@ func main() {
 		StorageProvider: storageProvider,
 	}
 	if enableSearch == "true" {
-		logger.SugaredLogger.Infow("Connecting to search", "host", os.Getenv("MEILISEARCH_HOST"), "port", os.Getenv("MEILISEARCH_PORT"))
+		logger.Infow("Connecting to search", "host", os.Getenv("MEILISEARCH_HOST"), "port", os.Getenv("MEILISEARCH_PORT"))
 		config.SearchParams = &search.MeilisearchParams{
 			Port:   help.GetEnv("MEILISEARCH_PORT", "7700"),
 			Host:   help.GetEnv("MEILISEARCH_HOST", "localhost"),
@@ -45,9 +45,9 @@ func main() {
 
 	server, err := metadata.NewMetadataServer(config)
 	if err != nil {
-		logger.SugaredLogger.Panicw("Failed to create metadata server", "Err", err)
+		logger.Panicw("Failed to create metadata server", "Err", err)
 	}
 	if err := server.Serve(); err != nil {
-		logger.SugaredLogger.Errorw("Serve failed with error", "Err", err)
+		logger.Errorw("Serve failed with error", "Err", err)
 	}
 }

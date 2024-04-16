@@ -331,27 +331,27 @@ func (lookup EtcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 func (lookup EtcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
 	logger := logging.NewLogger("lookup")
 	key := createKey(id)
-	logger.SugaredLogger.Infow("Get", "key", key)
+	logger.Infow("Get", "key", key)
 	resp, err := lookup.Connection.Get(key)
 	if err != nil || len(resp) == 0 {
 		return nil, err
 	}
-	logger.SugaredLogger.Infow("Deserialize", "key", key)
+	logger.Infow("Deserialize", "key", key)
 	msg, err := lookup.deserialize(resp)
 	if err != nil {
 		return nil, err
 	}
-	logger.SugaredLogger.Infow("Create empty resource", "key", key)
+	logger.Infow("Create empty resource", "key", key)
 	resType, err := lookup.createEmptyResource(msg.ResourceType)
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to create empty resource: %s", id))
 	}
-	logger.SugaredLogger.Infow("Parse resource", "key", key)
+	logger.Infow("Parse resource", "key", key)
 	resource, err := lookup.Connection.ParseResource(msg, resType)
 	if err != nil {
 		return nil, err
 	}
-	logger.SugaredLogger.Infow("Return", "key", key)
+	logger.Infow("Return", "key", key)
 	return resource, nil
 }
 

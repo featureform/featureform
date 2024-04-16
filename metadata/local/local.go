@@ -24,9 +24,9 @@ func main() {
 	}
 	server, err := metadata.NewMetadataServer(config)
 	if err != nil {
-		logger.SugaredLogger.Panicw("Failed to create metadata server", "Err", err)
+		logger.Panicw("Failed to create metadata server", "Err", err)
 	}
 	if err := server.Serve(); err != nil {
-		logger.SugaredLogger.Errorw("Serve failed with error", "Err", err)
+		logger.Errorw("Serve failed with error", "Err", err)
 	}
 }

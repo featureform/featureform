@@ -55,14 +55,14 @@ func main() {
 		panic(fmt.Errorf("failed to register S3 import to DynamoDB runner factory: %v", err))
 	}
 	logger := logging.NewLogger("coordinator")
-	defer logger.SugaredLogger.Sync()
-	logger.SugaredLogger.Debug("Connected to ETCD")
+	defer logger.Sync()
+	logger.Debug("Connected to ETCD")
 	client, err := metadata.NewClient(metadataUrl, logger)
 	if err != nil {
-		logger.SugaredLogger.Errorw("Failed to connect: %v", err)
+		logger.Errorw("Failed to connect: %v", err)
 		panic(err)
 	}
-	logger.SugaredLogger.Debug("Connected to Metadata")
+	logger.Debug("Connected to Metadata")
 	var spawner coordinator.JobSpawner
 	if useK8sRunner == "false" {
 		spawner = &coordinator.MemoryJobSpawner{}
@@ -71,12 +71,12 @@ func main() {
 	}
 	coord, err := coordinator.NewCoordinator(client, logger.SugaredLogger, cli, spawner)
 	if err != nil {
-		logger.SugaredLogger.Errorw("Failed to set up coordinator: %v", err)
+		logger.Errorw("Failed to set up coordinator: %v", err)
 		panic(err)
 	}
-	logger.SugaredLogger.Debug("Begin Job Watch")
+	logger.Debug("Begin Job Watch")
 	if err := coord.WatchForNewJobs(); err != nil {
-		logger.SugaredLogger.Errorw(err.Error())
+		logger.Errorw(err.Error())
 		panic(err)
 		return
 	}

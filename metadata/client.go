@@ -896,7 +896,7 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 	}()
 	variants, err := client.parseSourceVariantStream(stream)
 	if err != nil {
-		client.Logger.SugaredLogger.Errorw("Failed to parse source variant stream", "ids", ids)
+		client.Logger.Errorw("Failed to parse source variant stream", "ids", ids)
 	}
 	return variants, err
 }
@@ -939,12 +939,12 @@ func (client *Client) parseSourceVariantStream(stream sourceVariantStream) ([]*S
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			client.Logger.SugaredLogger.Errorw("Error receiving parsed stream", "error", err)
+			client.Logger.Errorw("Error receiving parsed stream", "error", err)
 			// print if this is a grpc status error
 			if grpcStatus, ok := grpc_status.FromError(err); ok {
-				client.Logger.SugaredLogger.Errorw("GRPC status error", "code", grpcStatus.Code(), "message", grpcStatus.Message(), "details", grpcStatus.Details())
+				client.Logger.Errorw("GRPC status error", "code", grpcStatus.Code(), "message", grpcStatus.Message(), "details", grpcStatus.Details())
 			} else {
-				client.Logger.SugaredLogger.Errorw("Error is not a grpc status error", "error", err)
+				client.Logger.Errorw("Error is not a grpc status error", "error", err)
 			}
 			return nil, err
 		}

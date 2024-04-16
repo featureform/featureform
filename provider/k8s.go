@@ -193,19 +193,19 @@ func k8sOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	k8 := pc.K8sConfig{}
 	logger := logging.NewLogger("kubernetes")
 	if err := k8.Deserialize(config); err != nil {
-		logger.SugaredLogger.Errorw("Invalid config to initialize k8s offline store", "error", err)
+		logger.Errorw("Invalid config to initialize k8s offline store", "error", err)
 		return nil, err
 	}
-	logger.SugaredLogger.Info("Creating executor with type:", k8.ExecutorType)
+	logger.Info("Creating executor with type:", k8.ExecutorType)
 	execConfig := k8.ExecutorConfig.(pc.ExecutorConfig)
 	serializedExecutor, err := execConfig.Serialize()
 	if err != nil {
-		logger.SugaredLogger.Errorw("Failure serializing executor", "executor_type", k8.ExecutorType, "error", err)
+		logger.Errorw("Failure serializing executor", "executor_type", k8.ExecutorType, "error", err)
 		return nil, err
 	}
 	executor, err := CreateExecutor(string(k8.ExecutorType), serializedExecutor, logger.SugaredLogger)
 	if err != nil {
-		logger.SugaredLogger.Errorw("Failure initializing executor", "executor_type", k8.ExecutorType, "error", err)
+		logger.Errorw("Failure initializing executor", "executor_type", k8.ExecutorType, "error", err)
 		return nil, err
 	}
 
@@ -214,13 +214,13 @@ func k8sOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		return nil, err
 	}
 
-	logger.SugaredLogger.Info("Creating blob store with type:", k8.StoreType)
+	logger.Info("Creating blob store with type:", k8.StoreType)
 	store, err := CreateFileStore(string(k8.StoreType), serializedBlob)
 	if err != nil {
-		logger.SugaredLogger.Errorw("Failure initializing blob store with type", "type", k8.StoreType, "error", err)
+		logger.Errorw("Failure initializing blob store with type", "type", k8.StoreType, "error", err)
 		return nil, err
 	}
-	logger.SugaredLogger.Debugf("Store type: %s", k8.StoreType)
+	logger.Debugf("Store type: %s", k8.StoreType)
 	queries := pandasOfflineQueries{}
 	k8sOfflineStore := K8sOfflineStore{
 		executor: executor,

@@ -18,6 +18,7 @@ import (
 
 	"github.com/featureform/fferr"
 	help "github.com/featureform/helpers"
+	"github.com/featureform/logging"
 	"github.com/google/uuid"
 
 	"github.com/featureform/metadata"
@@ -97,7 +98,7 @@ func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 		},
 	}
 	config := &metadata.Config{
-		Logger:          logger,
+		Logger:          logging.Logger{SugaredLogger: logger},
 		StorageProvider: storageProvider,
 	}
 	serv, err := metadata.NewMetadataServer(config)

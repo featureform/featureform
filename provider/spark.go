@@ -889,34 +889,34 @@ func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.SparkConfig{}
 	logger := logging.NewLogger("spark")
 	if err := sc.Deserialize(config); err != nil {
-		logger.Errorw("Invalid config to initialize spark offline store", "error", err)
+		logger.SugaredLogger.Errorw("Invalid config to initialize spark offline store", "error", err)
 		return nil, err
 	}
 	logger.Infow("Creating Spark executor:", "type", sc.ExecutorType)
 	exec, err := NewSparkExecutor(sc.ExecutorType, sc.ExecutorConfig, logger.SugaredLogger)
 	if err != nil {
-		logger.Errorw("Failure initializing Spark executor", "type", sc.ExecutorType, "error", err)
+		logger.SugaredLogger.Errorw("Failure initializing Spark executor", "type", sc.ExecutorType, "error", err)
 		return nil, err
 	}
 
-	logger.Infow("Creating Spark store:", "type", sc.StoreType)
+	logger.SugaredLogger.Infow("Creating Spark store:", "type", sc.StoreType)
 	serializedFilestoreConfig, err := sc.StoreConfig.Serialize()
 	if err != nil {
 		return nil, err
 	}
 	store, err := CreateSparkFileStore(sc.StoreType, Config(serializedFilestoreConfig))
 	if err != nil {
-		logger.Errorw("Failure initializing blob store", "type", sc.StoreType, "error", err)
+		logger.SugaredLogger.Errorw("Failure initializing blob store", "type", sc.StoreType, "error", err)
 		return nil, err
 	}
-	logger.Info("Uploading Spark script to store")
+	logger.SugaredLogger.Info("Uploading Spark script to store")
 
-	logger.Debugf("Store type: %s", sc.StoreType)
+	logger.SugaredLogger.Debugf("Store type: %s", sc.StoreType)
 	if err := exec.InitializeExecutor(store); err != nil {
-		logger.Errorw("Failure initializing executor", "error", err)
+		logger.SugaredLogger.Errorw("Failure initializing executor", "error", err)
 		return nil, err
 	}
-	logger.Info("Created Spark Offline Store")
+	logger.SugaredLogger.Info("Created Spark Offline Store")
 	queries := defaultPythonOfflineQueries{}
 	sparkOfflineStore := SparkOfflineStore{
 		Executor: exec,

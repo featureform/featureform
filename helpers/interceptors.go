@@ -27,7 +27,7 @@ func UnaryServerErrorInterceptor(ctx context.Context, req interface{}, info *grp
 	if err != nil {
 		var grpcErr fferr.Error
 		if errors.As(err, &grpcErr) {
-			logger.Errorw("GRPCError", "error", grpcErr, "method", info.FullMethod, "request", req, "response", h, "stack_trace", grpcErr.Stack())
+			logger.SugaredLogger.Errorw("GRPCError", "error", grpcErr, "method", info.FullMethod, "request", req, "response", h, "stack_trace", grpcErr.Stack())
 			return h, grpcErr.ToErr()
 		}
 	}
@@ -42,7 +42,7 @@ func StreamServerErrorInterceptor(srv interface{}, ss grpc.ServerStream, info *g
 	if err != nil {
 		var grpcErr fferr.Error
 		if errors.As(err, &grpcErr) {
-			logger.Errorw("GRPCError", "error", grpcErr, "method", info.FullMethod, "stackTrace", grpcErr.Stack())
+			logger.SugaredLogger.Errorw("GRPCError", "error", grpcErr, "method", info.FullMethod, "stackTrace", grpcErr.Stack())
 			return grpcErr.ToErr()
 		}
 	}

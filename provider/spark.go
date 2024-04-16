@@ -40,6 +40,7 @@ import (
 	filestore "github.com/featureform/filestore"
 	"github.com/featureform/helpers/compression"
 	pc "github.com/featureform/provider/provider_config"
+	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 )
 
@@ -1585,72 +1586,65 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	return nil
 }
 
-// TODO: determine if we can delete this function
-func GetTransformationFileLocation(id ResourceID) string {
-	return fmt.Sprintf("featureform/DFTransformations/%s/%s", id.Name, id.Variant)
-}
-
-// TODO: refactor
-// add logging
-// use info logs when you're submitting something to Spark
-// use debug logs when you're doing something that's not user-facing (i.e. as comment)
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
-	// create a type in filestore package to handle pathing ResouceID
-	// for now it can just be a function (IdToDirectoryPath(ResourceID) filestore.Filepath)
-	// use go uri package to build pathing
-	// TOPLEVEL: any piece of code that uses Sprintf to create a path in the featureform filesystem should be moved into one location
-	// and it should be a package under provider
-	transformationDestination, err := spark.Store.CreateFilePath(config.TargetTableID.ToFilestorePath(), false)
-	if err != nil {
-		return err
-	}
-	spark.Logger.Infow("Transformation Destination", "dest", transformationDestination)
-	// TODO: understand why the trailing slash is needed
-	// transformationDestinationWithSlash := strings.Join([]string{transformationDestination.ToURI(), ""}, "/")
-	// spark.Logger.Infow("Transformation Destination With Slash", "dest", transformationDestinationWithSlash)
+	spark.Logger.Debugw("Creating DF transformation", "type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)
 
-	// Use SetScheme here with a comment to explain why it's needed for the pickle file (e.g. runner script uses boto3 to read the file)
-	transformationDirPath, err := spark.Store.CreateFilePath(GetTransformationFileLocation(config.TargetTableID), true)
+	pickledTransformationPath, err := spark.Store.CreateFilePath(ps.IdToPicklePath(config.TargetTableID.Name, config.TargetTableID.Variant), false)
 	if err != nil {
 		return err
-	}
-	// Start the logic by checking if the pickle file exists _then_ create the destination directory with the ID component of the path
-	transformationExists, err := spark.Store.Exists(transformationDirPath)
-	if err != nil {
-		return err
-	}
-	spark.Logger.Infow("Transformation file", "dest", transformationDirPath.ToURI())
-	if !isUpdate && transformationExists {
-		spark.Logger.Errorw("Transformation already exists", config.TargetTableID, transformationDestination.ToURI())
-		return fferr.NewDatasetAlreadyExistsError(config.TargetTableID.Name, config.TargetTableID.Variant, fmt.Errorf(transformationDestination.ToURI()))
-	} else if isUpdate && !transformationExists {
-		spark.Logger.Errorw("Transformation doesn't exists at destination and you are trying to update", config.TargetTableID, transformationDestination.ToURI())
-		return fferr.NewDatasetNotFoundError(config.TargetTableID.Name, config.TargetTableID.Variant, fmt.Errorf(transformationDestination.ToURI()))
 	}
 
-	// TODO: this logic should also be moved to the Filepath package in IdToDirectoryPath(ResourceID) filestore.Filepath
-	pklFilepath, err := spark.Store.CreateFilePath(fmt.Sprintf("featureform/DFTransformations/%s/%s/transformation.pkl", config.TargetTableID.Name, config.TargetTableID.Variant), false)
+	pickleExists, err := spark.Store.Exists(pickledTransformationPath)
 	if err != nil {
 		return err
 	}
-	spark.Logger.Infow("Transformation file path", "dest", pklFilepath.ToURI())
-	if err := spark.Store.Write(pklFilepath, config.Code); err != nil {
+
+	// If the transformation is not an update, the pickle file should not exist yet
+	datasetAlreadyExists := pickleExists && !isUpdate
+	// If the transformation is an update, as it will be for scheduled transformation, the pickle file must exist
+	datasetNotFound := !pickleExists && isUpdate
+
+	if datasetAlreadyExists {
+		spark.Logger.Errorw("Transformation already exists", config.TargetTableID, pickledTransformationPath.ToURI())
+		return fferr.NewDatasetAlreadyExistsError(config.TargetTableID.Name, config.TargetTableID.Variant, fmt.Errorf(pickledTransformationPath.ToURI()))
+	}
+
+	if datasetNotFound {
+		spark.Logger.Errorw("Transformation doesn't exists at destination but is being updated", config.TargetTableID, pickledTransformationPath.ToURI())
+		return fferr.NewDatasetNotFoundError(config.TargetTableID.Name, config.TargetTableID.Variant, fmt.Errorf(pickledTransformationPath.ToURI()))
+	}
+
+	// It's important to set the scheme to s3:// here because the runner script uses boto3 to read the file, and it expects an s3:// path
+	if err := pickledTransformationPath.SetScheme(filestore.S3Prefix); err != nil {
 		return err
 	}
+
+	if err := spark.Store.Write(pickledTransformationPath, config.Code); err != nil {
+		return err
+	}
+
+	spark.Logger.Debugw("Successfully wrote transformation pickle file", "path", pickledTransformationPath.ToURI())
 
 	sources, err := spark.getSources(config.SourceMapping)
 	if err != nil {
 		return err
 	}
 
-	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestination, pklFilepath.Key(), sources, spark.Store)
+	transformationDestinationPath := ps.IdToDirectoryPath(config.TargetTableID.Type.String(), config.TargetTableID.Name, config.TargetTableID.Variant)
+	transformationDestination, err := spark.Store.CreateFilePath(transformationDestinationPath, true)
 	if err != nil {
-		spark.Logger.Errorw("Problem creating spark dataframe arguments", err)
+		return err
+	}
+	spark.Logger.Debugw("Transformation destination path", "path", transformationDestination.ToURI())
+
+	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestination, pickledTransformationPath.Key(), sources, spark.Store)
+	if err != nil {
+		spark.Logger.Errorw("error getting spark dataframe arguments", err)
 		return err
 	}
 	spark.Logger.Debugw("Running DF transformation")
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
-		spark.Logger.Errorw("Error running Spark dataframe job", "error", err)
+		spark.Logger.Errorw("error running Spark dataframe job", "error", err)
 		return err
 	}
 	spark.Logger.Debugw("Successfully ran transformation", "type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)

@@ -1062,20 +1062,15 @@ func (store *genericFileStore) AddEnvVars(envVars map[string]string) map[string]
 // * If neither the `EOF` nor non-`EOF` error is returned, the "key" exists and we break from the loop to avoid unnecessary iteration
 func (store *genericFileStore) Exists(path filestore.Filepath) (bool, error) {
 	iter := store.bucket.List(&blob.ListOptions{Prefix: path.Key()})
-	i := 0
-	// TODO: cut loop here
-	for {
-		_, err := iter.Next(context.Background())
-		if err == io.EOF && i == 0 {
-			return false, nil
-		} else if err != nil {
-			wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
-			wrapped.AddDetail("uri", path.ToURI())
-			return false, wrapped
-		} else {
-			i++
-			return true, nil
-		}
+	_, err := iter.Next(context.Background())
+	if err == io.EOF {
+		return false, nil
+	} else if err != nil {
+		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
+		wrapped.AddDetail("uri", path.ToURI())
+		return false, wrapped
+	} else {
+		return true, nil
 	}
 }
 

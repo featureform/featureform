@@ -1,8 +1,7 @@
 package main
 
 import (
-	"bytes"
-	"context"
+	"bytes" "context"
 	"fmt"
 	"io"
 	"net"
@@ -38,7 +37,7 @@ import (
 )
 
 type ApiServer struct {
-	Logger     *zap.SugaredLogger
+	Logger     *logging.Logger
 	address    string
 	grpcServer *grpc.Server
 	listener   net.Listener
@@ -48,7 +47,7 @@ type ApiServer struct {
 
 type MetadataServer struct {
 	address string
-	Logger  *zap.SugaredLogger
+	Logger  *logging.Logger
 	meta    pb.MetadataClient
 	client  *metadata.Client
 	pb.UnimplementedApiServer
@@ -56,7 +55,7 @@ type MetadataServer struct {
 }
 
 type OnlineServer struct {
-	Logger  *zap.SugaredLogger
+	Logger  *logging.Logger
 	address string
 	client  srv.FeatureClient
 	srv.UnimplementedFeatureServer
@@ -83,6 +82,8 @@ func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.
 }
 
 func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
+	reqId := loging.AddRequestID()
+	serv.Logger.Info("retrieving users")
 	for {
 		name, err := stream.Recv()
 		if err == io.EOF {
@@ -92,6 +93,7 @@ func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
 			serv.Logger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
+		serv.Logger.Infow("Retrieving User", "User", name.Name)
 		proxyStream, err := serv.meta.GetUsers(stream.Context())
 		if err != nil {
 			return err
@@ -1060,7 +1062,7 @@ func main() {
 	apiConn := fmt.Sprintf("0.0.0.0:%s", apiPort)
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	servingConn := fmt.Sprintf("%s:%s", servingHost, servingPort)
-	logger := logging.NewLogger("api")
+	logger := logging.NewLogger("api-gateway")
 	go func() {
 		err := startHttpsServer(":8443")
 		if err != nil && err != http.ErrServerClosed {

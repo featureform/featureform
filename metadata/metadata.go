@@ -1757,6 +1757,7 @@ func (serv *MetadataServer) CreateModel(ctx context.Context, model *pb.Model) (*
 }
 
 func (serv *MetadataServer) GetModels(stream pb.Metadata_GetModelsServer) error {
+	serv.logger.Infow("Initializing Retrieving Models")
 	return serv.genericGet(stream, MODEL, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Model))
 	})
@@ -2020,6 +2021,7 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 		var id ResourceID
 		switch casted := stream.(type) {
 		case nameStream:
+			serv.Logger = logger.AddNameVariant(req.GetName())
 			req, err := casted.Recv()
 			recvErr = err
 			id = ResourceID{
@@ -2027,11 +2029,13 @@ func (serv *MetadataServer) genericGet(stream interface{}, t ResourceType, send 
 				Type: t,
 			}
 		case variantStream:
+			name, variant := req.GetName(), req.GetVariant()
+			serv.Logger = serv.Logger.AddResource(t.String(), name, variant)
 			req, err := casted.Recv()
 			recvErr = err
 			id = ResourceID{
-				Name:    req.GetName(),
-				Variant: req.GetVariant(),
+				Name:    name,
+				Variant: variant,
 				Type:    t,
 			}
 		default:

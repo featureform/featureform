@@ -8,18 +8,25 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func NewLogger(service string) *zap.SugaredLogger {
+type Logger struct {
+	*zap.SugaredLogger
+}
+
+func NewLogger(service string) Logger {
 	baseLogger, err := zap.NewDevelopment(
 		zap.AddStacktrace(zap.ErrorLevel),
 	)
 	if err != nil {
+		// TODO return these instead of panic?
 		panic(err)
 	}
 	logger := baseLogger.Sugar().Named(service)
-	return logger
+	return Logger{
+		SugaredLogger: logger,
+	}
 }
 
-func NewStackTraceLogger(service string) *zap.SugaredLogger {
+func NewStackTraceLogger(service string) Logger {
 	cfg := zap.Config{
 		Encoding:         "json",
 		Level:            zap.NewAtomicLevelAt(zap.DebugLevel),
@@ -37,7 +44,30 @@ func NewStackTraceLogger(service string) *zap.SugaredLogger {
 	}
 	logger, err := cfg.Build()
 	if err != nil {
+		// TODO return these instead of panic?
 		panic(err)
 	}
-	return logger.Sugar().Named(service)
+	sugaredLogger := logger.Sugar().Named(service)
+	return Logger{
+		SugaredLogger: sugaredLogger,
+	}
+}
+
+type RequestID string
+
+func NewRequestID() string {
+	// return UUID
+	return "TODO"
+}
+
+func (logger Logger) AddRequestID(id RequestID) Logger {
+	return Logger{
+		SugaredLogger: logger.SugaredLogger.With("request-id", id),
+	}
+}
+
+func (logger Logger) AddResource(resourceType, name, variant string) Logger {
+	return Logger{
+		SugaredLogger: logger.SugaredLogger.With("request-id", id),
+	}
 }

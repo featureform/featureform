@@ -361,7 +361,7 @@ func (e *EMRExecutor) PythonFileURI(store SparkFileStore) (filestore.Filepath, e
 // Need the bucket from here
 func (db *DatabricksExecutor) PythonFileURI(store SparkFileStore) (filestore.Filepath, error) {
 	relativePath := config.GetSparkRemoteScriptPath()
-	filePath, err := store.CreateFilePath(relativePath)
+	filePath, err := store.CreateFilePath(relativePath, false)
 	if err != nil {
 		return nil, fmt.Errorf("could not create file path: %v", err)
 	}
@@ -409,7 +409,7 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 	if err := sparkLocalScriptPath.SetKey(config.GetSparkLocalScriptPath()); err != nil {
 		return err
 	}
-	sparkRemoteScriptPath, err := store.CreateFilePath(config.GetSparkRemoteScriptPath())
+	sparkRemoteScriptPath, err := store.CreateFilePath(config.GetSparkRemoteScriptPath(), false)
 	if err != nil {
 		return err
 	}
@@ -427,7 +427,7 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 	if err != nil || !sparkExists {
 		return err
 	}
-	remoteInitScriptPathWithPrefix, err := store.CreateFilePath(pythonRemoteInitScriptPath)
+	remoteInitScriptPathWithPrefix, err := store.CreateFilePath(pythonRemoteInitScriptPath, false)
 	if err != nil {
 		return err
 	}
@@ -723,7 +723,7 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 
 	// Create output file path
 	batchDirUUID := uuid.NewSHA1(uuid.NameSpaceDNS, []byte(batchDir))
-	outputPath, err := store.Store.CreateDirPath(fmt.Sprintf("featureform/BatchFeatures/%s", batchDirUUID))
+	outputPath, err := store.Store.CreateFilePath(fmt.Sprintf("featureform/BatchFeatures/%s", batchDirUUID), true)
 	if err != nil {
 		return nil, err
 	}
@@ -764,7 +764,7 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 func (store *SparkOfflineStore) createFilePathsFromIDs(materializationIDs []ResourceID) ([]string, error) {
 	materializationPaths := make([]string, len(materializationIDs))
 	for i, id := range materializationIDs {
-		path, err := store.Store.CreateDirPath(id.ToFilestorePath())
+		path, err := store.Store.CreateFilePath(id.ToFilestorePath(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -780,7 +780,7 @@ func (store *SparkOfflineStore) createFilePathsFromIDs(materializationIDs []Reso
 		if err != nil {
 			return nil, err
 		}
-		matDir, err := store.Store.CreateDirPath(newest[0].KeyPrefix())
+		matDir, err := store.Store.CreateFilePath(newest[0].KeyPrefix(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -834,7 +834,7 @@ func (store *SparkOfflineStore) Close() error {
 // 2. Run a Spark job that reads from <blob-store>/featureform/HealthCheck/health_check.csv and
 // writes to <blob-store>/featureform/HealthCheck/health_check_out.csv
 func (store *SparkOfflineStore) CheckHealth() (bool, error) {
-	healthCheckPath, err := store.Store.CreateFilePath("featureform/HealthCheck/health_check.csv")
+	healthCheckPath, err := store.Store.CreateFilePath("featureform/HealthCheck/health_check.csv", false)
 	if err != nil {
 		wrapped := fferr.NewInternalError(err)
 		wrapped.AddDetail("store_type", store.Type().String())
@@ -850,7 +850,7 @@ func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 		wrapped.AddDetail("action", "write")
 		return false, wrapped
 	}
-	healthCheckOutPath, err := store.Store.CreateDirPath("featureform/HealthCheck/health_check_out")
+	healthCheckOutPath, err := store.Store.CreateFilePath("featureform/HealthCheck/health_check_out", true)
 	fmt.Println("HEALTH CHECK PATHS: ", healthCheckOutPath.ToURI(), healthCheckPath.ToURI())
 	if err != nil {
 		wrapped := fferr.NewInternalError(err)
@@ -952,7 +952,7 @@ func (e EMRExecutor) InitializeExecutor(store SparkFileStore) error {
 	if err := sparkLocalScriptPath.SetKey(config.GetSparkLocalScriptPath()); err != nil {
 		return err
 	}
-	sparkRemoteScriptPath, err := store.CreateFilePath(config.GetSparkRemoteScriptPath())
+	sparkRemoteScriptPath, err := store.CreateFilePath(config.GetSparkRemoteScriptPath(), false)
 	if err != nil {
 		return err
 	}
@@ -986,7 +986,7 @@ func (s *SparkGenericExecutor) InitializeExecutor(store SparkFileStore) error {
 		return err
 	}
 
-	sparkRemoteScriptPath, err := store.CreateFilePath(config.GetSparkRemoteScriptPath())
+	sparkRemoteScriptPath, err := store.CreateFilePath(config.GetSparkRemoteScriptPath(), false)
 	if err != nil {
 		return err
 	}
@@ -1375,7 +1375,7 @@ func (e *EMRExecutor) SparkSubmitArgs(destPath filestore.Filepath, cleanQuery st
 	argList = append(argList, packageArgs...) // adding any packages needed for filestores
 
 	sparkScriptPathEnv := config.GetSparkRemoteScriptPath()
-	sparkScriptPath, err := store.CreateFilePath(sparkScriptPathEnv)
+	sparkScriptPath, err := store.CreateFilePath(sparkScriptPathEnv, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1501,7 +1501,7 @@ func (d *DatabricksExecutor) exceedsSubmitParamsTotalByteLimit(argsList []string
 
 func (d *DatabricksExecutor) writeSubmitParamsToFileStore(query string, sources []string, store SparkFileStore) (filestore.Filepath, error) {
 	paramsFileId := uuid.New()
-	paramsPath, err := store.CreateFilePath(fmt.Sprintf("featureform/spark-submit-params/%s.json", paramsFileId.String()))
+	paramsPath, err := store.CreateFilePath(fmt.Sprintf("featureform/spark-submit-params/%s.json", paramsFileId.String()), false)
 	if err != nil {
 		return nil, err
 	}
@@ -1555,7 +1555,7 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 		spark.Logger.Errorw("Could not generate updated query for spark transformation", "error", err)
 		return err
 	}
-	transformationDestination, err := spark.Store.CreateDirPath(config.TargetTableID.ToFilestorePath())
+	transformationDestination, err := spark.Store.CreateFilePath(config.TargetTableID.ToFilestorePath(), true)
 	if err != nil {
 		return err
 	}
@@ -1590,8 +1590,17 @@ func GetTransformationFileLocation(id ResourceID) string {
 	return fmt.Sprintf("featureform/DFTransformations/%s/%s", id.Name, id.Variant)
 }
 
+// TODO: refactor
+// add logging
+// use info logs when you're submitting something to Spark
+// use debug logs when you're doing something that's not user-facing (i.e. as comment)
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
-	transformationDestination, err := spark.Store.CreateFilePath(config.TargetTableID.ToFilestorePath())
+	// create a type in filestore package to handle pathing ResouceID
+	// for now it can just be a function (IdToDirectoryPath(ResourceID) filestore.Filepath)
+	// use go uri package to build pathing
+	// TOPLEVEL: any piece of code that uses Sprintf to create a path in the featureform filesystem should be moved into one location
+	// and it should be a package under provider
+	transformationDestination, err := spark.Store.CreateFilePath(config.TargetTableID.ToFilestorePath(), false)
 	if err != nil {
 		return err
 	}
@@ -1600,11 +1609,12 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	// transformationDestinationWithSlash := strings.Join([]string{transformationDestination.ToURI(), ""}, "/")
 	// spark.Logger.Infow("Transformation Destination With Slash", "dest", transformationDestinationWithSlash)
 
-	transformationDirPath, err := spark.Store.CreateDirPath(GetTransformationFileLocation(config.TargetTableID))
+	// Use SetScheme here with a comment to explain why it's needed for the pickle file (e.g. runner script uses boto3 to read the file)
+	transformationDirPath, err := spark.Store.CreateFilePath(GetTransformationFileLocation(config.TargetTableID), true)
 	if err != nil {
 		return err
 	}
-
+	// Start the logic by checking if the pickle file exists _then_ create the destination directory with the ID component of the path
 	transformationExists, err := spark.Store.Exists(transformationDirPath)
 	if err != nil {
 		return err
@@ -1618,7 +1628,8 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fferr.NewDatasetNotFoundError(config.TargetTableID.Name, config.TargetTableID.Variant, fmt.Errorf(transformationDestination.ToURI()))
 	}
 
-	pklFilepath, err := spark.Store.CreateFilePath(fmt.Sprintf("featureform/DFTransformations/%s/%s/transformation.pkl", config.TargetTableID.Name, config.TargetTableID.Variant))
+	// TODO: this logic should also be moved to the Filepath package in IdToDirectoryPath(ResourceID) filestore.Filepath
+	pklFilepath, err := spark.Store.CreateFilePath(fmt.Sprintf("featureform/DFTransformations/%s/%s/transformation.pkl", config.TargetTableID.Name, config.TargetTableID.Variant), false)
 	if err != nil {
 		return err
 	}
@@ -1715,7 +1726,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
 
-		transformationDirPath, err := spark.Store.CreateDirPath(fileResourceId.ToFilestorePath())
+		transformationDirPath, err := spark.Store.CreateFilePath(fileResourceId.ToFilestorePath(), true)
 		if err != nil {
 			return "", err
 		}
@@ -1733,7 +1744,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 			spark.Logger.Errorf("transformation file does not exist: %s", transformationPath.ToURI())
 			return "", fmt.Errorf("transformation file does not exist: %s", transformationPath.ToURI())
 		}
-		transformationDirPathDateTime, err := spark.Store.CreateDirPath(transformationPath.KeyPrefix())
+		transformationDirPathDateTime, err := spark.Store.CreateFilePath(transformationPath.KeyPrefix(), true)
 		if err != nil {
 			return "", err
 		}
@@ -1804,7 +1815,7 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 }
 
 func (spark *SparkOfflineStore) ResourceLocation(id ResourceID) (string, error) {
-	path, err := spark.Store.CreateDirPath(id.ToFilestorePath())
+	path, err := spark.Store.CreateFilePath(id.ToFilestorePath(), true)
 	if err != nil {
 		return "", errors.Wrap(err, "could not create dir path")
 	}
@@ -1814,7 +1825,7 @@ func (spark *SparkOfflineStore) ResourceLocation(id ResourceID) (string, error) 
 		return "", errors.Wrap(err, "could not get newest file")
 	}
 
-	newestFileDirPathDateTime, err := spark.Store.CreateDirPath(newestFile.KeyPrefix())
+	newestFileDirPathDateTime, err := spark.Store.CreateFilePath(newestFile.KeyPrefix(), true)
 	if err != nil {
 		return "", fmt.Errorf("could not create directory path for spark newestFile: %v", err)
 	}
@@ -1832,7 +1843,7 @@ func (e *EMRExecutor) GetDFArgs(outputURI filestore.Filepath, code string, sourc
 	argList = append(argList, packageArgs...) // adding any packages needed for filestores
 
 	sparkScriptPathEnv := config.GetSparkRemoteScriptPath()
-	sparkScriptPath, err := store.CreateFilePath(sparkScriptPathEnv)
+	sparkScriptPath, err := store.CreateFilePath(sparkScriptPathEnv, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1886,7 +1897,7 @@ func (d *DatabricksExecutor) GetDFArgs(outputURI filestore.Filepath, code string
 }
 
 func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	transformationPath, err := spark.Store.CreateDirPath(id.ToFilestorePath())
+	transformationPath, err := spark.Store.CreateFilePath(id.ToFilestorePath(), true)
 	if err != nil {
 		return nil, err
 	}
@@ -1906,7 +1917,7 @@ func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSc
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
-	primaryTableFilepath, err := spark.Store.CreateFilePath(id.ToFilestorePath())
+	primaryTableFilepath, err := spark.Store.CreateFilePath(id.ToFilestorePath(), false)
 	if err != nil {
 		return nil, err
 	}
@@ -1948,7 +1959,7 @@ func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableS
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}
-	resourceTableFilepath, err := spark.Store.CreateFilePath(id.ToFilestorePath())
+	resourceTableFilepath, err := spark.Store.CreateFilePath(id.ToFilestorePath(), false)
 	if err != nil {
 		return nil, err
 	}
@@ -2013,7 +2024,7 @@ func blobSparkMaterialization(id ResourceID, spark *SparkOfflineStore, isUpdate 
 	}
 	// get destination path for the materialization
 	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
-	destinationPath, err := spark.Store.CreateDirPath(materializationID.ToFilestorePath())
+	destinationPath, err := spark.Store.CreateFilePath(materializationID.ToFilestorePath(), true)
 	if err != nil {
 		return nil, err
 	}
@@ -2163,7 +2174,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	}
 	sourcePaths := make([]string, 0)
 	featureSchemas := make([]ResourceSchema, 0)
-	destinationPath, err := spark.Store.CreateDirPath(def.ID.ToFilestorePath())
+	destinationPath, err := spark.Store.CreateFilePath(def.ID.ToFilestorePath(), true)
 	if err != nil {
 		return err
 	}
@@ -2194,7 +2205,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		// Labels derived from transformations registered prior to PR #947 will not have a full path; given Spark requires an absolute path, we will
 		// assume an error here means the value of SourceTable is just the relative path and attempt to construct the absolute path
 		// prior to adding it to the list of source paths
-		if filepath, err := spark.Store.CreateFilePath(labelSchema.SourceTable); err == nil {
+		if filepath, err := spark.Store.CreateFilePath(labelSchema.SourceTable, false); err == nil {
 			labelSourcePath = filepath.ToURI()
 		} else {
 			return err
@@ -2218,7 +2229,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		// prior to adding it to the list of source paths
 		err = filepath.ParseFilePath(featureSourcePath)
 		if err != nil {
-			if filepath, err := spark.Store.CreateFilePath(featureSchema.SourceTable); err == nil {
+			if filepath, err := spark.Store.CreateFilePath(featureSchema.SourceTable, false); err == nil {
 				featureSourcePath = filepath.ToURI()
 			} else {
 				return err

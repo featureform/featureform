@@ -75,6 +75,9 @@ type ResourceID struct {
 	Type          OfflineResourceType
 }
 
+// deprecated
+// shouldn't be aware of pathing because this could change
+// filestore should be aware of how to path a ResourceID
 func (id *ResourceID) ToFilestorePath() string {
 	return fmt.Sprintf("featureform/%s/%s/%s", id.Type, id.Name, id.Variant)
 }

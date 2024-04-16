@@ -82,7 +82,8 @@ func (r S3ImportDynamoDBRunner) Run() (types.CompletionWatcher, error) {
 	//  MaterializationID is a string that is already in the form of `/Materialization/<name>/<variant>`. We currently need
 	// to append `featureform/` to the materialization ID to get the source dir path, but this is not ideal. We should
 	// probably change the type of MaterializationID to be ResourceID.
-	sourceDirPath, err := sparkOffline.Store.CreateDirPath(fmt.Sprintf("featureform/%s", mat.ID()))
+	// TODO: move this into provider_schema
+	sourceDirPath, err := sparkOffline.Store.CreateFilePath(fmt.Sprintf("featureform/%s", mat.ID()), true)
 	if err != nil {
 		r.Logger.Errorf("failed to create source dir path for resource %s: %v", r.ID.ToFilestorePath(), err)
 		return nil, err

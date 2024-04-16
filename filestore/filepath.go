@@ -107,6 +107,8 @@ type Filepath interface {
 
 	Validate() error
 	IsValid() bool
+
+	// TODO: Add Append method and move any trimming of path into this method and delete it from everywhere else
 }
 
 func NewEmptyFilepath(storeType FileStoreType) (Filepath, error) {
@@ -302,6 +304,9 @@ func (fp *FilePath) Validate() error {
 	} else {
 		fp.key = strings.Trim(fp.key, "/")
 	}
+	if fp.isDir && fp.Ext() != "" {
+		return fferr.NewInvalidArgumentError(fmt.Errorf("directory path cannot have a file extension"))
+	}
 	fp.isValid = true
 	return nil
 }
@@ -398,6 +403,9 @@ func (azure *AzureFilepath) Validate() error {
 	} else {
 		azure.key = strings.Trim(azure.key, "/")
 	}
+	if azure.isDir && azure.Ext() != "" {
+		return fferr.NewInvalidArgumentError(fmt.Errorf("directory path cannot have a file extension"))
+	}
 	azure.isValid = true
 	return nil
 }
@@ -442,7 +450,10 @@ func (hdfs *HDFSFilepath) Validate() error {
 	if !strings.HasPrefix(hdfs.key, "/") {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("key must be an absolute path"))
 	}
-
+	if hdfs.isDir && hdfs.Ext() != "" {
+		return fferr.NewInvalidArgumentError(fmt.Errorf("directory path cannot have a file extension"))
+	}
+	hdfs.isValid = true
 	return nil
 }
 

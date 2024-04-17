@@ -1587,9 +1587,10 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 }
 
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
-	spark.Logger.Debugw("Creating DF transformation", "type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)
+	logger := spark.Logger.With("type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)
+	logger.Debugw("Creating DF transformation")
 
-	pickledTransformationPath, err := spark.Store.CreateFilePath(ps.IdToPicklePath(config.TargetTableID.Name, config.TargetTableID.Variant), false)
+	pickledTransformationPath, err := spark.Store.CreateFilePath(ps.ResourceToPicklePath(config.TargetTableID.Name, config.TargetTableID.Variant), false)
 	if err != nil {
 		return err
 	}
@@ -1605,12 +1606,12 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	datasetNotFound := !pickleExists && isUpdate
 
 	if datasetAlreadyExists {
-		spark.Logger.Errorw("Transformation already exists", config.TargetTableID, pickledTransformationPath.ToURI())
+		logger.Errorw("Transformation already exists", config.TargetTableID, pickledTransformationPath.ToURI())
 		return fferr.NewDatasetAlreadyExistsError(config.TargetTableID.Name, config.TargetTableID.Variant, fmt.Errorf(pickledTransformationPath.ToURI()))
 	}
 
 	if datasetNotFound {
-		spark.Logger.Errorw("Transformation doesn't exists at destination but is being updated", config.TargetTableID, pickledTransformationPath.ToURI())
+		logger.Errorw("Transformation doesn't exists at destination but is being updated", config.TargetTableID, pickledTransformationPath.ToURI())
 		return fferr.NewDatasetNotFoundError(config.TargetTableID.Name, config.TargetTableID.Variant, fmt.Errorf(pickledTransformationPath.ToURI()))
 	}
 
@@ -1623,31 +1624,31 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return err
 	}
 
-	spark.Logger.Debugw("Successfully wrote transformation pickle file", "path", pickledTransformationPath.ToURI())
+	logger.Debugw("Successfully wrote transformation pickle file", "path", pickledTransformationPath.ToURI())
 
 	sources, err := spark.getSources(config.SourceMapping)
 	if err != nil {
 		return err
 	}
 
-	transformationDestinationPath := ps.IdToDirectoryPath(config.TargetTableID.Type.String(), config.TargetTableID.Name, config.TargetTableID.Variant)
+	transformationDestinationPath := ps.ResourceToDirectoryPath(config.TargetTableID.Type.String(), config.TargetTableID.Name, config.TargetTableID.Variant)
 	transformationDestination, err := spark.Store.CreateFilePath(transformationDestinationPath, true)
 	if err != nil {
 		return err
 	}
-	spark.Logger.Debugw("Transformation destination path", "path", transformationDestination.ToURI())
+	logger.Debugw("Transformation destination path", "path", transformationDestination.ToURI())
 
 	sparkArgs, err := spark.Executor.GetDFArgs(transformationDestination, pickledTransformationPath.Key(), sources, spark.Store)
 	if err != nil {
-		spark.Logger.Errorw("error getting spark dataframe arguments", err)
+		logger.Errorw("error getting spark dataframe arguments", err)
 		return err
 	}
-	spark.Logger.Debugw("Running DF transformation")
+	logger.Debugw("Running DF transformation")
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store); err != nil {
-		spark.Logger.Errorw("error running Spark dataframe job", "error", err)
+		logger.Errorw("error running Spark dataframe job", "error", err)
 		return err
 	}
-	spark.Logger.Debugw("Successfully ran transformation", "type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)
+	logger.Debugw("Successfully ran transformation", "type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)
 	return nil
 }
 

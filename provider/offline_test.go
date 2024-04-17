@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"reflect"
@@ -24,6 +23,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/parquet-go/parquet-go"
 )
+
+const outputDir = "test_files/output"
 
 type OfflineStoreTest struct {
 	t     *testing.T
@@ -3409,7 +3410,7 @@ func modifyTransformationConfig(t *testing.T, testName, tableName string, provid
 }
 
 func TestBigQueryConfig_Deserialize(t *testing.T) {
-	content, err := ioutil.ReadFile("connection/connection_configs.json")
+	content, err := os.ReadFile("connection/connection_configs.json")
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -4320,8 +4321,12 @@ func TestTableSchemaToParquetRecords(t *testing.T) {
 		},
 	}
 
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		t.Fatalf("Could not create output directory: %v", err)
+	}
+
 	testSchema := func(t *testing.T, test TableSchemaTest) {
-		testFilename := fmt.Sprintf("generic_records_%s.parquet", uuid.NewString())
+		testFilename := fmt.Sprintf("%s/generic_records_%s.parquet", outputDir, uuid.NewString())
 		schema := test.Schema.AsParquetSchema()
 		parquetRecords, err := test.Schema.ToParquetRecords(test.Records)
 		if err != nil {
@@ -4332,11 +4337,11 @@ func TestTableSchemaToParquetRecords(t *testing.T) {
 		if writeErr != nil {
 			t.Fatalf("Could not write parquet records: %v", writeErr)
 		}
-		wFileErr := ioutil.WriteFile(testFilename, buf.Bytes(), 0644)
+		wFileErr := os.WriteFile(testFilename, buf.Bytes(), 0644)
 		if wFileErr != nil {
 			t.Fatalf("Could not write parquet file: %v", wFileErr)
 		}
-		data, err := ioutil.ReadFile(testFilename)
+		data, err := os.ReadFile(testFilename)
 		if err != nil {
 			t.Fatalf("Could not read parquet file: %v", err)
 		}

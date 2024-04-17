@@ -892,7 +892,8 @@ class Provider:
         )
 
     def _create(self, stub) -> None:
-        serialized = pb.Provider(
+        serialized = pb.ProviderRequest(
+            provider=pb.Provider(
             name=self.name,
             description=self.description,
             type=self.config.type(),
@@ -900,7 +901,9 @@ class Provider:
             team=self.team,
             serialized_config=self.config.serialize(),
             tags=pb.Tags(tag=self.tags),
-            properties=Properties(self.properties).serialized,
+            properties=Properties(self.properties).serialized),
+
+            request_id="",
         )
         stub.CreateProvider(serialized)
 

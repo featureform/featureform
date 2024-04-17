@@ -596,31 +596,32 @@ func (serv *MetadataServer) ListProviders(in *pb.Empty, stream pb.Api_ListProvid
 func (serv *MetadataServer) CreateProvider(ctx context.Context, providerRequest *pb.ProviderRequest) (*pb.Empty, error) {
 	// The existence of a provider is part of the determination for checking provider health, hence why it
 	// needs to happen prior to the call to CreateProvider, which is an upsert operation.
-
+	provider := providerRequest.Provider
 	requestID := logging.NewRequestID()
-	loggerWithRequestID := serv.Logger.AddRequestID(logging.RequestID(requestID))
-	loggerWithRequestID.Infow("Creating Provider", "name", providerRequest.Provider.Name)
-	ctx = context.WithValue(ctx, "logger", loggerWithRequestID)
+	logger := serv.Logger.WithRequestID(logging.RequestID(requestID))
+	logger.Infow("Creating Provider", "name", provider.Name)
+	ctx = context.WithValue(ctx, "logger", logger)
+	ctx = context.WithValue(ctx, "request-id", requestID)
 	providerRequest.RequestId = requestID
 
-	shouldCheckProviderHealth, err := serv.shouldCheckProviderHealth(ctx, providerRequest.Provider)
+	shouldCheckProviderHealth, err := serv.shouldCheckProviderHealth(ctx, provider)
 	if err != nil {
 		return nil, err
 	}
 	_, err = serv.meta.CreateProvider(ctx, providerRequest)
 	if err != nil && grpc_status.Code(err) != codes.AlreadyExists {
-		loggerWithRequestID.Errorw("Failed to create provider", "error", err)
+		logger.Errorw("Failed to create provider", "error", err)
 		return nil, err
 	}
-	if !serv.health.IsSupportedProvider(pt.Type(providerRequest.Provider.Type)) {
-		loggerWithRequestID.Infow("Provider type is currently not supported for health check", "type", providerRequest.Provider.Type)
+	if !serv.health.IsSupportedProvider(pt.Type(provider.Type)) {
+		logger.Infow("Provider type is currently not supported for health check", "type", provider.Type)
 		return &pb.Empty{}, nil
 	}
 	if shouldCheckProviderHealth {
-		loggerWithRequestID.Infow("Checking provider health", "name", providerRequest.Provider.Name)
-		err := serv.checkProviderHealth(ctx, providerRequest.Provider.Name)
+		logger.Infow("Checking provider health", "name", provider.Name)
+		err := serv.checkProviderHealth(ctx, provider.Name)
 		if err != nil {
-			loggerWithRequestID.Errorw("Failed to set provider status", "error", err, "health check error", err)
+			logger.Errorw("Failed to set provider status", "error", err, "health check error", err)
 			return nil, err
 		}
 	}
@@ -779,7 +780,7 @@ func (serv *MetadataServer) CreateModel(ctx context.Context, model *pb.Model) (*
 }
 
 func (serv *OnlineServer) FeatureServe(ctx context.Context, req *srv.FeatureServeRequest) (*srv.FeatureRow, error) {
-	serv.Logger.Infow("Serving Features", "request", req.String(), "id", req.RequestID)
+	serv.Logger.Infow("Serving Features", "request", req.String())
 	return serv.client.FeatureServe(ctx, req)
 }
 

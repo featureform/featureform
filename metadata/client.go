@@ -1021,7 +1021,7 @@ func (def ProviderDef) ResourceType() ResourceType {
 }
 
 func (client *Client) CreateProvider(ctx context.Context, def ProviderDef) error {
-	// TODO: Where does request ID come from in this situation?
+	requestID := ctx.Value("request-id").(string)
 
 	serialized := &pb.ProviderRequest{
 		Provider: &pb.Provider{
@@ -1035,7 +1035,7 @@ func (client *Client) CreateProvider(ctx context.Context, def ProviderDef) error
 			Tags:             &pb.Tags{Tag: def.Tags},
 			Properties:       def.Properties.Serialize(),
 		},
-		RequestId: "TODO request ID",
+		RequestId: requestID,
 	}
 
 	_, err := client.GrpcConn.CreateProvider(ctx, serialized)

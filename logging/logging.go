@@ -20,15 +20,21 @@ func NewRequestID() string {
 }
 
 // Can I change the function name to WithRequestID?
-func (logger Logger) AddRequestID(id RequestID) Logger {
+func (logger Logger) WithRequestID(id RequestID) Logger {
 	return Logger{
 		logger.With("request-id", id),
 	}
 }
 
-func (logger Logger) AddResource(resourceType, name, variant, id string) Logger {
+func (logger Logger) WithResource(resourceType, name, variant, id string) Logger {
 	return Logger{
 		logger.With("request-id", id, "resource-type", resourceType, "name", name, "variant", variant),
+	}
+}
+
+func (logger Logger) WithProvider(providerType, providerName string) Logger {
+	return Logger{
+		logger.With("provider-type", providerType, "provider-name", providerName),
 	}
 }
 

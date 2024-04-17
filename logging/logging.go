@@ -22,13 +22,13 @@ func NewRequestID() string {
 // Can I change the function name to WithRequestID?
 func (logger Logger) AddRequestID(id RequestID) Logger {
 	return Logger{
-		SugaredLogger: logger.With("request-id", id),
+		logger.With("request-id", id),
 	}
 }
 
 func (logger Logger) AddResource(resourceType, name, variant, id string) Logger {
 	return Logger{
-		SugaredLogger: logger.With("request-id", id, "resource-type", resourceType, "name", name, "variant", variant),
+		logger.With("request-id", id, "resource-type", resourceType, "name", name, "variant", variant),
 	}
 }
 
@@ -41,7 +41,7 @@ func NewLogger(service string) Logger {
 	}
 	logger := baseLogger.Sugar().Named(service)
 	return Logger{
-		SugaredLogger: logger,
+		logger,
 	}
 }
 
@@ -66,6 +66,6 @@ func NewStackTraceLogger(service string) Logger {
 		panic(err)
 	}
 	return Logger{
-		SugaredLogger: logger.Sugar().Named(service),
+		logger.Sugar().Named(service),
 	}
 }

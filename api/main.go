@@ -593,28 +593,34 @@ func (serv *MetadataServer) ListProviders(in *pb.Empty, stream pb.Api_ListProvid
 	}
 }
 
-func (serv *MetadataServer) CreateProvider(ctx context.Context, provider *pb.Provider) (*pb.Empty, error) {
+func (serv *MetadataServer) CreateProvider(ctx context.Context, providerRequest *pb.ProviderRequest) (*pb.Empty, error) {
 	// The existence of a provider is part of the determination for checking provider health, hence why it
 	// needs to happen prior to the call to CreateProvider, which is an upsert operation.
-	shouldCheckProviderHealth, err := serv.shouldCheckProviderHealth(ctx, provider)
+
+	requestID := logging.NewRequestID()
+	loggerWithRequestID := serv.Logger.AddRequestID(logging.RequestID(requestID))
+	loggerWithRequestID.Infow("Creating Provider", "name", providerRequest.Provider.Name)
+	ctx = context.WithValue(ctx, "logger", loggerWithRequestID)
+	providerRequest.RequestId = requestID
+
+	shouldCheckProviderHealth, err := serv.shouldCheckProviderHealth(ctx, providerRequest.Provider)
 	if err != nil {
 		return nil, err
 	}
-	serv.Logger.Infow("Creating Provider", "name", provider.Name)
-	_, err = serv.meta.CreateProvider(ctx, provider)
+	_, err = serv.meta.CreateProvider(ctx, providerRequest)
 	if err != nil && grpc_status.Code(err) != codes.AlreadyExists {
-		serv.Logger.Errorw("Failed to create provider", "error", err)
+		loggerWithRequestID.Errorw("Failed to create provider", "error", err)
 		return nil, err
 	}
-	if !serv.health.IsSupportedProvider(pt.Type(provider.Type)) {
-		serv.Logger.Infow("Provider type is currently not supported for health check", "type", provider.Type)
+	if !serv.health.IsSupportedProvider(pt.Type(providerRequest.Provider.Type)) {
+		loggerWithRequestID.Infow("Provider type is currently not supported for health check", "type", providerRequest.Provider.Type)
 		return &pb.Empty{}, nil
 	}
 	if shouldCheckProviderHealth {
-		serv.Logger.Infow("Checking provider health", "name", provider.Name)
-		err := serv.checkProviderHealth(ctx, provider.Name)
+		loggerWithRequestID.Infow("Checking provider health", "name", providerRequest.Provider.Name)
+		err := serv.checkProviderHealth(ctx, providerRequest.Provider.Name)
 		if err != nil {
-			serv.Logger.Errorw("Failed to set provider status", "error", err, "health check error", err)
+			loggerWithRequestID.Errorw("Failed to set provider status", "error", err, "health check error", err)
 			return nil, err
 		}
 	}

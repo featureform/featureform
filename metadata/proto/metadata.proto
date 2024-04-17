@@ -14,7 +14,7 @@ package featureform.serving.metadata.proto;
 
 service Metadata {
     rpc CreateUser(User) returns (Empty);
-    rpc CreateProvider(Provider) returns (Empty);
+    rpc CreateProvider(ProviderRequest) returns (Empty);
     rpc CreateSourceVariant(SourceVariant) returns (Empty);
     rpc CreateEntity(Entity) returns (Empty);
     rpc CreateFeatureVariant(FeatureVariant) returns (Empty);
@@ -56,7 +56,7 @@ service Metadata {
 
 service Api {
     rpc CreateUser(User) returns (Empty);
-    rpc CreateProvider(Provider) returns (Empty);
+    rpc CreateProvider(ProviderRequest) returns (Empty);
     rpc CreateSourceVariant(SourceVariant) returns (Empty);
     rpc CreateEntity(Entity) returns (Empty);
     rpc CreateFeatureVariant(FeatureVariant) returns (Empty);
@@ -281,6 +281,11 @@ message Provider {
     repeated NameVariant labels = 11;
     Tags tags = 12;
     Properties properties = 13;
+}
+
+message ProviderRequest {
+    Provider provider = 1;
+    string request_id = 2;
 }
 
 message TrainingSet {

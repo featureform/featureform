@@ -175,7 +175,7 @@ func (MetadataServerMock) GetUsers(ctx context.Context, opts ...grpc.CallOption)
 func (MetadataServerMock) ListProviders(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.Metadata_ListProvidersClient, error) {
 	return nil, nil
 }
-func (MetadataServerMock) CreateProvider(ctx context.Context, in *pb.Provider, opts ...grpc.CallOption) (*pb.Empty, error) {
+func (MetadataServerMock) CreateProvider(ctx context.Context, in *pb.ProviderRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	return nil, nil
 }
 

@@ -144,8 +144,8 @@ func (client *Client) CreateAll(ctx context.Context, defs []ResourceDef) error {
 
 func (client *Client) Create(ctx context.Context, def ResourceDef) error {
 	// TODO: Can change this to AddResource but first need to figure out how to get the name and variant
-	childLogger := client.Logger.AddRequestID(logging.RequestID(logging.NewRequestID()))
-	ctxWithValue := context.WithValue(ctx, "logger", childLogger)
+	// childLogger := client.Logger.AddRequestID(logging.RequestID(logging.NewRequestID()))
+	// ctxWithValue := context.WithValue(ctx, "logger", childLogger)
 	switch casted := def.(type) {
 	case FeatureDef:
 		return client.CreateFeatureVariant(ctx, casted)
@@ -158,7 +158,7 @@ func (client *Client) Create(ctx context.Context, def ResourceDef) error {
 	case UserDef:
 		return client.CreateUser(ctx, casted)
 	case ProviderDef:
-		return client.CreateProvider(ctxWithValue, casted)
+		return client.CreateProvider(ctx, casted)
 	case EntityDef:
 		return client.CreateEntity(ctx, casted)
 	case ModelDef:
@@ -1021,17 +1021,23 @@ func (def ProviderDef) ResourceType() ResourceType {
 }
 
 func (client *Client) CreateProvider(ctx context.Context, def ProviderDef) error {
-	serialized := &pb.Provider{
-		Name:             def.Name,
-		Description:      def.Description,
-		Type:             def.Type,
-		Software:         def.Software,
-		Team:             def.Team,
-		Status:           &pb.ResourceStatus{Status: pb.ResourceStatus_NO_STATUS},
-		SerializedConfig: def.SerializedConfig,
-		Tags:             &pb.Tags{Tag: def.Tags},
-		Properties:       def.Properties.Serialize(),
+	// TODO: Where does request ID come from in this situation?
+
+	serialized := &pb.ProviderRequest{
+		Provider: &pb.Provider{
+			Name:             def.Name,
+			Description:      def.Description,
+			Type:             def.Type,
+			Software:         def.Software,
+			Team:             def.Team,
+			Status:           &pb.ResourceStatus{Status: pb.ResourceStatus_NO_STATUS},
+			SerializedConfig: def.SerializedConfig,
+			Tags:             &pb.Tags{Tag: def.Tags},
+			Properties:       def.Properties.Serialize(),
+		},
+		RequestId: "TODO request ID",
 	}
+
 	_, err := client.GrpcConn.CreateProvider(ctx, serialized)
 	return err
 }

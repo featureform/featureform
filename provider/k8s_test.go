@@ -524,7 +524,7 @@ func testServeDirectory(t *testing.T, store FileStore) {
 	parquetNumRows := 5
 	parquetNumFiles := 5
 	randomDirKey := uuid.New().String()
-	randomDirectory, err := store.CreateFilePath(randomDirKey, true)
+	randomDirectory, err := store.CreateFilePath(fmt.Sprintf("test_files/%s", randomDirKey), true)
 	if err != nil {
 		t.Fatalf("Could not create random directory: %v", err)
 	}

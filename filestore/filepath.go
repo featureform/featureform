@@ -304,9 +304,10 @@ func (fp *FilePath) Validate() error {
 	} else {
 		fp.key = strings.Trim(fp.key, "/")
 	}
-	if fp.isDir && fp.Ext() != "" {
-		return fferr.NewInvalidArgumentError(fmt.Errorf("directory path cannot have a file extension"))
-	}
+	// TODO: uncomment this validation logic once primary table refactor is complete
+	// if fp.isDir && fp.Ext() != "" {
+	// 	return fferr.NewInvalidArgumentError(fmt.Errorf("directory path cannot have a file extension"))
+	// }
 	fp.isValid = true
 	return nil
 }
@@ -403,9 +404,10 @@ func (azure *AzureFilepath) Validate() error {
 	} else {
 		azure.key = strings.Trim(azure.key, "/")
 	}
-	if azure.isDir && azure.Ext() != "" {
-		return fferr.NewInvalidArgumentError(fmt.Errorf("directory path cannot have a file extension"))
-	}
+	// TODO: uncomment this validation logic once primary table refactor is complete
+	// if azure.isDir && azure.Ext() != "" {
+	// 	return fferr.NewInvalidArgumentError(fmt.Errorf("directory path cannot have a file extension"))
+	// }
 	azure.isValid = true
 	return nil
 }

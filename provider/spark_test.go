@@ -403,10 +403,7 @@ func TestParquetUpload(t *testing.T) {
 	// if err != nil {
 	// 	t.Fatalf("could not get SparkOfflineStore: %s", err)
 	// }
-	databricksSparkOfflineStore, err := getDatabricksOfflineStore(t)
-	if err != nil {
-		t.Fatalf("could not get databricks offline store: %s", err)
-	}
+	databricksSparkOfflineStore := GetTestingDatabricksOfflineStore(t)
 	sparkStores := map[string]*SparkOfflineStore{
 		// "EMR_SPARK_STORE":        emrSparkOfflineStore,
 		"DATABRICKS_SPARK_STORE": databricksSparkOfflineStore,
@@ -1529,49 +1526,6 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 
 // 	return sparkOfflineStore, nil
 // }
-
-func getDatabricksOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
-	err := godotenv.Load("../.env")
-	if err != nil {
-		fmt.Println(err)
-	}
-	databricksConfig := pc.DatabricksConfig{
-		Username: helpers.GetEnv("DATABRICKS_USERNAME", ""),
-		Password: helpers.GetEnv("DATABRICKS_PASSWORD", ""),
-		Host:     helpers.GetEnv("DATABRICKS_HOST", ""),
-		Token:    helpers.GetEnv("DATABRICKS_TOKEN", ""),
-		Cluster:  helpers.GetEnv("DATABRICKS_CLUSTER", ""),
-	}
-	azureConfig := pc.AzureFileStoreConfig{
-		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
-		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
-		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
-		Path:          helpers.GetEnv("AZURE_CONTAINER_PATH", ""),
-	}
-	SparkOfflineConfig := pc.SparkConfig{
-		ExecutorType:   pc.Databricks,
-		ExecutorConfig: &databricksConfig,
-		StoreType:      fs.Azure,
-		StoreConfig:    &azureConfig,
-	}
-
-	sparkSerializedConfig, err := SparkOfflineConfig.Serialize()
-	if err != nil {
-		t.Fatalf("could not serialize the SparkOfflineConfig")
-	}
-
-	sparkProvider, err := Get("SPARK_OFFLINE", sparkSerializedConfig)
-	if err != nil {
-		t.Fatalf("Could not create spark provider: %s", err)
-	}
-	sparkStore, err := sparkProvider.AsOfflineStore()
-	if err != nil {
-		t.Fatalf("Could not convert spark provider to offline store: %s", err)
-	}
-	sparkOfflineStore := sparkStore.(*SparkOfflineStore)
-
-	return sparkOfflineStore, nil
-}
 
 // Unit tests
 

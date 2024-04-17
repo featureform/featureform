@@ -114,7 +114,6 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	return m.MaterializeToOnline(materialization)
 }
 
-// TODO(simba) make private
 func (m MaterializeRunner) MaterializeToOnline(materialization provider.Materialization) (types.CompletionWatcher, error) {
 	// Create the vector similarity index prior to writing any values to the
 	// inference store. This is currently only required for RediSearch, but other

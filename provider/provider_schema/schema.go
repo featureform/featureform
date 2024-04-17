@@ -16,5 +16,5 @@ func ResourceToDirectoryPath(resourceType, name, variant string) string {
 
 // ResourceToPicklePath returns the path to the pickled DataFrame transformation for a given ResourceID
 func ResourceToPicklePath(name, variant string) string {
-	return fmt.Sprintf("%s/DFTransformations/%s/%s.pickle", base_path, name, variant)
+	return fmt.Sprintf("%s/DFTransformations/%s/%s/transformation.pkl", base_path, name, variant)
 }

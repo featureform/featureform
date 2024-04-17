@@ -35,6 +35,7 @@ import (
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
+	ps "github.com/featureform/provider/provider_schema"
 )
 
 // will replace all the upload parquet table functions
@@ -1068,8 +1069,7 @@ func testSparkSQLTransformation(t *testing.T, store *SparkOfflineStore) {
 			}
 
 			// test transformation result rows are correct
-
-			sourcePath := fileStoreResourcePath(ttConst.config.TargetTableID)
+			sourcePath := ps.ResourceToDirectoryPath(ttConst.config.TargetTableID.Type.String(), ttConst.config.TargetTableID.Name, ttConst.config.TargetTableID.Variant)
 
 			updateConfig := TransformationConfig{
 				Type: SQLTransformation,

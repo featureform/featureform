@@ -27,6 +27,7 @@ import (
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
+	ps "github.com/featureform/provider/provider_schema"
 )
 
 type pandasOfflineQueries struct {
@@ -366,16 +367,6 @@ func NewKubernetesExecutor(config Config, logger *zap.SugaredLogger) (Executor, 
 		image:  c.GetImage(),
 		logger: logger,
 	}, nil
-}
-
-func ResourcePrefix(id ResourceID) string {
-	return fmt.Sprintf("featureform/%s/%s/%s", id.Type, id.Name, id.Variant)
-}
-
-// TODO: remove all remaining references to this function in favor of
-// ResourceID.FilestorePath
-func fileStoreResourcePath(id ResourceID) string {
-	return ResourcePrefix(id)
 }
 
 type BlobOfflineTable struct {
@@ -806,7 +797,7 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 		return err
 	}
 
-	filepath, err := k8s.store.CreateFilePath(fileStoreResourcePath(config.TargetTableID), false)
+	filepath, err := k8s.store.CreateFilePath(ps.ResourceToDirectoryPath(config.TargetTableID.Type.String(), config.TargetTableID.Name, config.TargetTableID.Variant), false)
 	if err != nil {
 		return err
 	}
@@ -853,7 +844,7 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 	if err != nil {
 		return err
 	}
-	filepath, err := k8s.store.CreateFilePath(fileStoreResourcePath(config.TargetTableID), false)
+	filepath, err := k8s.store.CreateFilePath(ps.ResourceToDirectoryPath(config.TargetTableID.Type.String(), config.TargetTableID.Name, config.TargetTableID.Variant), false)
 	if err != nil {
 		return err
 	}
@@ -871,8 +862,7 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 		return fferr.NewDatasetNotFoundError(config.TargetTableID.Name, config.TargetTableID.Variant, fmt.Errorf(filepath.ToURI()))
 	}
 
-	key := fmt.Sprintf("%s%s", fileStoreResourcePath(config.TargetTableID), "transformation.pkl")
-	transformationFilepath, err := k8s.store.CreateFilePath(key, false)
+	transformationFilepath, err := k8s.store.CreateFilePath(ps.ResourceToPicklePath(config.TargetTableID.Name, config.TargetTableID.Variant), false)
 	if err != nil {
 		return err
 	}
@@ -946,9 +936,10 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 		return filePath, nil
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
-		fileResourcePath, err := k8s.store.CreateFilePath(fileStoreResourcePath(fileResourceId), false)
+		resourcePath := ps.ResourceToDirectoryPath(Transformation.String(), fileName, fileVariant)
+		fileResourcePath, err := k8s.store.CreateFilePath(resourcePath, false)
 		if err != nil {
-			k8s.logger.Errorw("Could not create file path", "error", err, "fileStoreResourcePath", fileStoreResourcePath(fileResourceId))
+			k8s.logger.Errorw("Could not create file path", "error", err, "fileStoreResourcePath", resourcePath)
 			return "", err
 		}
 		k8s.logger.Debugw("Retrieved transformation source", "ResourceId", fileResourceId, "fileResourcePath", fileResourcePath)
@@ -1001,9 +992,10 @@ func (k8s *K8sOfflineStore) getResourceInformationFromFilePath(path string) (str
 }
 
 func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	transformationFilepath, err := k8s.store.CreateFilePath(fileStoreResourcePath(id), false)
+	resourceKey := ps.ResourceToDirectoryPath(id.Type.String(), id.Name, id.Variant)
+	transformationFilepath, err := k8s.store.CreateFilePath(resourceKey, false)
 	if err != nil {
-		k8s.logger.Errorw("Could not create file path", "error", err, "fileStoreResourcePath", fileStoreResourcePath(id))
+		k8s.logger.Errorw("Could not create file path", "error", err, "fileStoreResourcePath", resourceKey)
 		return nil, err
 	}
 	k8s.logger.Debugw("Retrieved transformation source", "ResourceId", id, "transformationPath", transformationFilepath.ToURI())
@@ -1171,7 +1163,8 @@ func (mat FileStoreMaterialization) ID() MaterializationID {
 }
 
 func (mat FileStoreMaterialization) NumRows() (int64, error) {
-	materializationFilepath, err := mat.store.CreateFilePath(fileStoreResourcePath(mat.id), false)
+	resourceKey := ps.ResourceToDirectoryPath(mat.id.Type.String(), mat.id.Name, mat.id.Variant)
+	materializationFilepath, err := mat.store.CreateFilePath(resourceKey, false)
 	if err != nil {
 		return 0, err
 	}
@@ -1185,7 +1178,8 @@ func (mat FileStoreMaterialization) NumRows() (int64, error) {
 }
 
 func (mat FileStoreMaterialization) IterateSegment(begin, end int64) (FeatureIterator, error) {
-	searchPath, err := mat.store.CreateFilePath(fileStoreResourcePath(mat.id), false)
+	resourceKey := ps.ResourceToDirectoryPath(mat.id.Type.String(), mat.id.Name, mat.id.Variant)
+	searchPath, err := mat.store.CreateFilePath(resourceKey, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1356,11 +1350,10 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		k8s.logger.Errorw("Could not convert resource table to blob offline table", "id", id)
 		return nil, fferr.NewInternalError(fmt.Errorf("could not convert offline table with id %v to k8sResourceTable", id))
 	}
-	materializationID := ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}
-	featureResourcePath := fileStoreResourcePath(materializationID)
-	destinationPath, err := k8s.store.CreateFilePath(featureResourcePath, false)
+	featureResourceKey := ps.ResourceToDirectoryPath(FeatureMaterialization.String(), id.Name, id.Variant)
+	destinationPath, err := k8s.store.CreateFilePath(featureResourceKey, false)
 	if err != nil {
-		k8s.logger.Errorw("Could not create file path", "error", err, "featureResourcePath", featureResourcePath)
+		k8s.logger.Errorw("Could not create file path", "error", err, "featureResourcePath", featureResourceKey)
 		return nil, err
 	}
 	materializationNewestFile, err := k8s.store.NewestFileOfType(destinationPath, filestore.Parquet)
@@ -1405,7 +1398,7 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 	}
 
 	k8s.logger.Debugw("Successfully created materialization", "id", id)
-	return &FileStoreMaterialization{materializationID, k8s.store}, nil
+	return &FileStoreMaterialization{ResourceID{Name: id.Name, Variant: id.Variant, Type: FeatureMaterialization}, k8s.store}, nil
 }
 
 func (k8s *K8sOfflineStore) DeleteMaterialization(id MaterializationID) error {
@@ -1418,14 +1411,14 @@ func fileStoreDeleteMaterialization(id MaterializationID, store FileStore, logge
 		logger.Errorw("Invalid materialization id", id)
 		return fferr.NewDatasetNotFoundError(string(id), "", fmt.Errorf("invalid materialization id"))
 	}
-	materializationID := ResourceID{s[1], s[2], FeatureMaterialization}
-	materializationPath, err := store.CreateFilePath(fileStoreResourcePath(materializationID), false)
+	featureResourceKey := ps.ResourceToDirectoryPath(FeatureMaterialization.String(), s[1], s[2])
+	materializationPath, err := store.CreateFilePath(featureResourceKey, false)
 	if err != nil {
 		return fmt.Errorf("could not create file path for materialization %v: %w", id, err)
 	}
 	exits, err := store.Exists(materializationPath)
 	if err != nil {
-		return fmt.Errorf("could not check if materialization %v exists: %v", materializationID, err)
+		return fmt.Errorf("could not check if materialization exists at path %s: %v", featureResourceKey, err)
 	}
 	if !exits {
 		return fferr.NewDatasetNotFoundError(string(id), "", nil)
@@ -1464,7 +1457,8 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	}
 	sourcePaths := make([]string, 0)
 	featureSchemas := make([]ResourceSchema, 0)
-	destinationPath, err := k8s.store.CreateFilePath(fileStoreResourcePath(def.ID), false)
+	resourceKey := ps.ResourceToDirectoryPath(def.ID.Type.String(), def.ID.Name, def.ID.Variant)
+	destinationPath, err := k8s.store.CreateFilePath(resourceKey, false)
 	if err != nil {
 		return err
 	}
@@ -1562,7 +1556,8 @@ func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.Sugared
 		logger.Errorw("Resource is not of type training set", "error", err)
 		return nil, fmt.Errorf("resource is not training set: %w", err)
 	}
-	filepath, err := store.CreateFilePath(fileStoreResourcePath(id), false)
+	resourceKey := ps.ResourceToDirectoryPath(id.Type.String(), id.Name, id.Variant)
+	filepath, err := store.CreateFilePath(resourceKey, false)
 	if err != nil {
 		logger.Errorw("Could not create file path", "error", err)
 		return nil, err

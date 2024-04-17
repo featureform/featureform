@@ -924,7 +924,7 @@ func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		Logger:   logger,
 		query:    &queries,
 		BaseProvider: BaseProvider{
-			ProviderType:   "SPARK_OFFLINE",
+			ProviderType:   pt.SparkOffline,
 			ProviderConfig: config,
 		},
 	}

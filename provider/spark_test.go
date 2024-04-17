@@ -403,7 +403,7 @@ func TestParquetUpload(t *testing.T) {
 	// if err != nil {
 	// 	t.Fatalf("could not get SparkOfflineStore: %s", err)
 	// }
-	databricksSparkOfflineStore := GetTestingDatabricksOfflineStore(t)
+	databricksSparkOfflineStore := GetTestingBlobDatabricks(t)
 	sparkStores := map[string]*SparkOfflineStore{
 		// "EMR_SPARK_STORE":        emrSparkOfflineStore,
 		"DATABRICKS_SPARK_STORE": databricksSparkOfflineStore,
@@ -1514,7 +1514,7 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 // 		StoreConfig:    s3Conf,
 // 	}
 // 	sparkSerializedConfig := SparkOfflineConfig.Serialize()
-// 	sparkProvider, err := Get("SPARK_OFFLINE", sparkSerializedConfig)
+// 	sparkProvider, err := Get(pt.SparkOffline, sparkSerializedConfig)
 // 	if err != nil {
 // 		t.Fatalf("Could not create spark provider: %s", err)
 // 	}

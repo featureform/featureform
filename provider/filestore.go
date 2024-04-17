@@ -1004,12 +1004,12 @@ func (store *genericFileStore) Write(path filestore.Filepath, data []byte) error
 	err = re.Do(
 		func() error {
 			blob, errRetr := store.bucket.ReadAll(ctx, path.Key())
-			fmt.Printf("Read (%d) bytes from bucket (%s) after write\n", len(data), path.Key())
 			if errRetr != nil {
-				return re.Unrecoverable(errRetr)
+				return errRetr
 			} else if !bytes.Equal(blob, data) {
 				return fmt.Errorf("blob read from bucket does not match blob written to bucket")
 			}
+			fmt.Printf("Read (%d) bytes from bucket (%s) after write\n", len(blob), path.Key())
 			return nil
 		},
 		re.DelayType(func(n uint, err error, config *re.Config) time.Duration {

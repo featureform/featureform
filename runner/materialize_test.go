@@ -19,7 +19,7 @@ func TestMaterializationRunner(t *testing.T) {
 		t.Skip()
 	}
 	dynamodb := provider.GetTestingDynamoDB(t)
-	dbrix := provider.GetTestingDatabricksOfflineStore(t)
+	dbrix := provider.GetTestingS3Databricks(t)
 	t.Run("dbrix_to_dynamo", func(t *testing.T) {
 		testMaterializationRunner(t, dbrix, dynamodb)
 	})
@@ -40,7 +40,7 @@ func testMaterializationRunner(t *testing.T, offline provider.OfflineStore, onli
 		{Entity: "b", Value: float32(2)},
 		{Entity: "c", Value: float32(3)},
 	}
-	id, mat := createManualMaterialization(t, offline, schema, records)
+	id, mat := createMaterialization(t, offline, schema, records)
 	defer offline.DeleteMaterialization(mat.ID())
 	job := MaterializeRunner{
 		Online:  online,
@@ -55,7 +55,7 @@ func testMaterializationRunner(t *testing.T, offline provider.OfflineStore, onli
 	}
 	waiter, err := job.MaterializeToOnline(mat)
 	if err != nil {
-		panic(err)
+		t.Fatalf("Run failed: %s", err)
 	}
 	if err := waiter.Wait(); err != nil {
 		panic(err)
@@ -87,20 +87,17 @@ func testMaterializationRunner(t *testing.T, offline provider.OfflineStore, onli
 	}
 }
 
-func createManualMaterialization(
+func createMaterialization(
 	t *testing.T, store provider.OfflineStore, schema provider.TableSchema, records []provider.ResourceRecord,
 ) (provider.ResourceID, provider.Materialization) {
 	id := provider.ResourceID{Name: uuid.NewString(), Variant: uuid.NewString(), Type: provider.Feature}
 	table, err := store.CreateResourceTable(id, schema)
-
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
-
 	if err := table.WriteBatch(records); err != nil {
 		t.Fatalf("Failed to write batch: %s", err)
 	}
-
 	mat, err := store.CreateMaterialization(id)
 	if err != nil {
 		t.Fatalf("Failed to create materialization: %s", err)

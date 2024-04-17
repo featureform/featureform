@@ -40,14 +40,14 @@ func testMaterializationRunner(t *testing.T, offline provider.OfflineStore, onli
 	id, mat := createManualMaterialization(t, offline, schema, records)
 	defer offline.DeleteMaterialization(mat.ID())
 	job := MaterializeRunner{
-		Online: online,
+		Online:  online,
 		Offline: offline,
-		ID: id,
-		VType: provider.Float32,
+		ID:      id,
+		VType:   provider.Float32,
 		// Only testing initial materializations
 		IsUpdate: false,
 		// Not testing K8s
-		Cloud: LocalMaterializeRunner,
+		Cloud:  LocalMaterializeRunner,
 		Logger: logger,
 	}
 	waiter, err := job.MaterializeToOnline(mat)
@@ -104,7 +104,6 @@ func createManualMaterialization(
 	}
 	return id, mat
 }
-
 
 type mockChunkRunner struct{}
 

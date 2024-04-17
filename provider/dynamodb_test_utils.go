@@ -1,11 +1,11 @@
 package provider
 
 import (
-	"testing"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
-	"os"
 	"github.com/joho/godotenv"
+	"os"
+	"testing"
 )
 
 func GetTestingDynamoDB(t *testing.T) OnlineStore {
@@ -35,4 +35,3 @@ func GetTestingDynamoDB(t *testing.T) OnlineStore {
 	}
 	return store
 }
-

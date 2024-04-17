@@ -1339,7 +1339,7 @@ func testCoordinatorTrainingSet(addr string) error {
 	elapsed := time.Since(startWaitDelete)
 	has := true
 	waitTime := time.Second * 10
-	for elapsed <  waitTime {
+	for elapsed < waitTime {
 		has, err = coord.hasJob(tsID)
 		if err != nil {
 			return err

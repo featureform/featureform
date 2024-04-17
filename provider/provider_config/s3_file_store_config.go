@@ -11,11 +11,11 @@ type S3FileStoreConfig struct {
 	Credentials  AWSCredentials
 	BucketRegion string
 	// BucketPath is the bucket name, no s3://
-	BucketPath   string
+	BucketPath string
 	// Path is the subpath in the bucket to work in
-	Path         string
+	Path string
 	// Endpoint is used when using a S3 compatible service outside of AWS like localstack
-	Endpoint     string
+	Endpoint string
 }
 
 func (s *S3FileStoreConfig) Deserialize(config SerializedConfig) error {

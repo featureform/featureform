@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func GetTestingBlobDatabrick(t *testing.T) *SparkOfflineStore {
+func GetTestingBlobDatabricks(t *testing.T) *SparkOfflineStore {
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)

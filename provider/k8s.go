@@ -532,10 +532,12 @@ func blobRegisterResourceFromSourceTable(id ResourceID, sourceSchema ResourceSch
 	return &BlobOfflineTable{schema: sourceSchema, store: store}, nil
 }
 
+// Add new info
 type FileStorePrimaryTable struct {
 	store            FileStore
 	source           filestore.Filepath
 	schema           TableSchema
+	// Why is this here?
 	isTransformation bool
 	id               ResourceID
 }
@@ -672,6 +674,8 @@ func (tbl *FileStorePrimaryTable) NumRows() (int64, error) {
 	return tbl.store.NumRows(src)
 }
 
+// Gonna have to be tweaked based on what we spoke about. Maybe return a group of files
+// to make it generic? Since the logic would be the same if its a single file or many?
 func (tbl *FileStorePrimaryTable) GetSource() (filestore.Filepath, error) {
 	filepath, err := filestore.NewEmptyFilepath(tbl.store.FilestoreType())
 	if err != nil {
@@ -721,6 +725,9 @@ func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLo
 	logger.Debugw("Registering primary table", "id", id, "source", sourcePath)
 	// TODO: determine how to handle the schema of the primary table; if it's a parquet file, we _could_
 	// read the file and infer a schema based; however, this wouldn't be possible for CSV files.
+	// You should have all the new stuff to be able to add to TableSchema
+	// Maybe add a single field in TableSchema called FilePathInfo or something since we use
+	// TableSchema for both SQL and other tables. also makes it so that its non-breaking
 	schema := TableSchema{
 		SourceTable: sourcePath,
 	}

@@ -1706,6 +1706,7 @@ func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
 		if !ok {
 			return "", fferr.NewInternalError(fmt.Errorf("expected primary table to be a FileStorePrimaryTable"))
 		}
+		// This now returns more information
 		filePath, err := fsPrimary.GetSource()
 		if err != nil {
 			return "", err
@@ -1774,6 +1775,7 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 		fileType, fileName, fileVariant = strings.ToLower(id.Type.String()), id.Name, id.Variant
 	} else if strings.HasPrefix(path, filestore.HDFSPrefix) {
 		filePaths := strings.Split(path[len(filestore.HDFSPrefix):], "/")
+		// wtf?
 		if len(filePaths) <= 4 {
 			return "", "", ""
 		}
@@ -1793,6 +1795,7 @@ func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) 
 		}
 		fileType, fileName, fileVariant = strings.ToLower(filePaths[0]), filePaths[1], filePaths[2]
 	} else {
+		// wtf?
 		filePaths := strings.Split(path[len("featureform_"):], "__")
 		if len(filePaths) <= 2 {
 			return "", "", ""
@@ -1915,6 +1918,7 @@ func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSc
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, fmt.Errorf(primaryTableFilepath.ToURI()))
 	}
 	// Create a URL in the same directory as the primary table that follows the naming convention <VARIANT>_src.parquet
+	// Use the same path we do for the other stuff you're working on erik
 	schema.SourceTable = fmt.Sprintf("%s/%s/src.parquet", primaryTableFilepath.ToURI(), time.Now().Format("2006-01-02-15-04-05-999999"))
 	data, err := schema.Serialize()
 	if err != nil {

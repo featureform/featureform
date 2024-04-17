@@ -584,13 +584,17 @@ func getOrderedSourceMappings(sources []metadata.NameVariant, sourceMap map[stri
 func (c *Coordinator) runPrimaryTableJob(source *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string) error {
 	c.Logger.Info("Running primary table job on resource: ", resID)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Primary}
+	// This should use the new method we create
 	if !source.IsPrimaryDataSQLTable() {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("%s is not a primary table", source.Name()))
 	}
+	// Same
 	sourceName := source.PrimaryDataSQLTableName()
 	if sourceName == "" {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("source name is not set"))
 	}
+	// Could add a third parameter here that captures everything you need or just change the second
+	// one. Note that this will require a change across every offline store, but not end of world.
 	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, sourceName); err != nil {
 		return err
 	}

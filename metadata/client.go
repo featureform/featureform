@@ -720,6 +720,7 @@ type SQLTransformationType struct {
 	Sources NameVariants
 }
 
+// TODO
 type PrimaryDataSource struct {
 	Location PrimaryDataLocationType
 }
@@ -759,6 +760,7 @@ func (s TransformationSource) Serialize() (*pb.SourceVariant_Transformation, err
 }
 
 func (s PrimaryDataSource) Serialize() (*pb.SourceVariant_PrimaryData, error) {
+	// TODO
 	var primaryData *pb.PrimaryData
 	switch x := s.Location.(type) {
 	case SQLTable:
@@ -2313,6 +2315,7 @@ func (variant *SourceVariant) isPrimaryData() bool {
 	return reflect.TypeOf(variant.serialized.GetDefinition()) == reflect.TypeOf(&pb.SourceVariant_PrimaryData{})
 }
 
+// TODO (add another one of these?)
 func (variant *SourceVariant) IsPrimaryDataSQLTable() bool {
 	if !variant.isPrimaryData() {
 		return false
@@ -2320,6 +2323,7 @@ func (variant *SourceVariant) IsPrimaryDataSQLTable() bool {
 	return reflect.TypeOf(variant.serialized.GetPrimaryData().GetLocation()) == reflect.TypeOf(&pb.PrimaryData_Table{})
 }
 
+// TODO
 func (variant *SourceVariant) PrimaryDataSQLTableName() string {
 	if !variant.IsPrimaryDataSQLTable() {
 		return ""

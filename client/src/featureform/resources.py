@@ -956,12 +956,14 @@ class SQLTable:
     name: str
 
 
+# TODO
 @typechecked
 @dataclass
 class Directory:
     path: str
 
 
+# TODO
 Location = Union[SQLTable, Directory]
 
 
@@ -981,6 +983,7 @@ class ResourceVariant(ABC):
         return self.type(), self.name, self.variant
 
 
+# TODO
 @typechecked
 @dataclass
 class PrimaryData:
@@ -1186,6 +1189,7 @@ class SourceVariant(ResourceVariant):
 
     def _get_source_definition(self, source):
         if source.primaryData.table.name:
+            # TODO
             return PrimaryData(SQLTable(source.primaryData.table.name))
         elif source.transformation:
             return self._get_transformation_definition(source)

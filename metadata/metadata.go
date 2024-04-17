@@ -2149,12 +2149,14 @@ type SourceVariantResource struct {
 	Inputs         []NameVariant                           `json:"inputs"`
 }
 
+// Why do we even use this?
 func getSourceString(variant *SourceVariant) string {
 	if variant.IsSQLTransformation() {
 		return variant.SQLTransformationQuery()
 	} else if variant.IsDFTransformation() {
 		return variant.DFTransformationQuerySource()
 	} else {
+		// TODO
 		return variant.PrimaryDataSQLTableName()
 	}
 }

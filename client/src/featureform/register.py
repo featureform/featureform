@@ -163,6 +163,7 @@ class OfflineSQLProvider(OfflineProvider):
         return self.__registrar.register_primary_data(
             name=name,
             variant=variant,
+            # TODO
             location=SQLTable(table),
             owner=owner,
             provider=self.name(),
@@ -269,6 +270,7 @@ class OfflineSparkProvider(OfflineProvider):
         return self.__registrar.register_primary_data(
             name=name,
             variant=variant,
+            # TODO
             location=SQLTable(file_path),
             owner=owner,
             provider=self.name(),
@@ -432,6 +434,7 @@ class OfflineK8sProvider(OfflineProvider):
         return self.__registrar.register_primary_data(
             name=name,
             variant=variant,
+            # TODO
             location=SQLTable(path),
             owner=owner,
             provider=self.name(),
@@ -1658,6 +1661,7 @@ class Registrar:
                 "Localmode is not supported; please try featureform <= 1.12.0"
             )
         else:
+            # TODO
             mock_definition = PrimaryData(location=SQLTable(name=""))
             mock_source = SourceVariant(
                 created=None,
@@ -4760,6 +4764,7 @@ class ResourceClient:
         )
 
     def _get_source_definition(self, source):
+            # TODO
         if source.primaryData.table.name:
             return PrimaryData(SQLTable(source.primaryData.table.name))
         elif source.transformation:

@@ -403,11 +403,21 @@ message DFTransformation {
 message PrimaryData {
     oneof location {
         PrimarySQLTable table = 1;
+        PrimaryPath path = 2;
     }
 }
 
 message PrimarySQLTable {
     string name = 1;
+}
+
+message PrimaryPath {
+// The path, may be an absolute or a relative path
+	string path = 1;
+// The types of a single file, or all the files in a directory
+	string file_type = 2;
+// Is this a directory or files or a single one
+	bool is_dir = 3;
 }
 
 message Tags {

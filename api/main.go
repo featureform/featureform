@@ -763,6 +763,15 @@ func (serv *MetadataServer) ListProviders(listRequest *pb.ListRequest, stream pb
 	}
 }
 
+func (serv *MetadataServer) updateContextAndLogger(ctx context.Context) (context.Context, logging.Logger, string) {
+	requestID := logging.NewRequestID()
+	logger := serv.Logger.WithRequestID(logging.RequestID(requestID))
+	ctx = context.WithValue(ctx, "logger", logger)
+	ctx = context.WithValue(ctx, "request-id", requestID)
+
+	return ctx, logger, requestID
+}
+
 func (serv *MetadataServer) CreateProvider(ctx context.Context, providerRequest *pb.ProviderRequest) (*pb.Empty, error) {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(ctx)
 	logger = logger.WithResource("provider", providerRequest.Provider.Name, logging.NoVariant).WithProvider(providerRequest.Provider.Type, providerRequest.Provider.Name)

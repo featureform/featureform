@@ -267,6 +267,11 @@ message VectorType {
 	bool is_embedding = 3;
 }
 
+message FeatureVariantRequest {
+    FeatureVariant feature_variant = 1;
+    string request_id = 2;
+}
+
 message FeatureParameters {
     oneof feature_type {
         PrecomputedFeatureParameters precomputed = 1;

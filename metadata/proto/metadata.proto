@@ -13,14 +13,14 @@ option go_package = "github.com/featureform/metadata/proto";
 package featureform.serving.metadata.proto;
 
 service Metadata {
-    rpc CreateUser(User) returns (Empty);
+    rpc CreateUser(UserRequest) returns (Empty);
     rpc CreateProvider(ProviderRequest) returns (Empty);
-    rpc CreateSourceVariant(SourceVariant) returns (Empty);
-    rpc CreateEntity(Entity) returns (Empty);
-    rpc CreateFeatureVariant(FeatureVariant) returns (Empty);
-    rpc CreateLabelVariant(LabelVariant) returns (Empty);
-    rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
-    rpc CreateModel(Model) returns (Empty);
+    rpc CreateSourceVariant(SourceVariantRequest) returns (Empty);
+    rpc CreateEntity(EntityRequest) returns (Empty);
+    rpc CreateFeatureVariant(FeatureVariantRequest) returns (Empty);
+    rpc CreateLabelVariant(LabelVariantRequest) returns (Empty);
+    rpc CreateTrainingSetVariant(TrainingSetVariantRequest) returns (Empty);
+    rpc CreateModel(ModelRequest) returns (Empty);
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
 
     rpc GetUsers(stream Name) returns (stream User);
@@ -55,14 +55,14 @@ service Metadata {
 }
 
 service Api {
-    rpc CreateUser(User) returns (Empty);
+    rpc CreateUser(UserRequest) returns (Empty);
     rpc CreateProvider(ProviderRequest) returns (Empty);
-    rpc CreateSourceVariant(SourceVariant) returns (Empty);
-    rpc CreateEntity(Entity) returns (Empty);
-    rpc CreateFeatureVariant(FeatureVariant) returns (Empty);
-    rpc CreateLabelVariant(LabelVariant) returns (Empty);
-    rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
-    rpc CreateModel(Model) returns (Empty);
+    rpc CreateSourceVariant(SourceVariantRequest) returns (Empty);
+    rpc CreateEntity(EntityRequest) returns (Empty);
+    rpc CreateFeatureVariant(FeatureVariantRequest) returns (Empty);
+    rpc CreateLabelVariant(LabelVariantRequest) returns (Empty);
+    rpc CreateTrainingSetVariant(TrainingSetVariantRequest) returns (Empty);
+    rpc CreateModel(ModelRequest) returns (Empty);
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
 
     rpc GetUsers(stream Name) returns (stream User);
@@ -220,6 +220,11 @@ message FeatureVariant {
     int32 requestID = 22;
 }
 
+message FeatureVariantRequest {
+    FeatureVariant feature_variant = 1;
+    string request_id = 2;
+}
+
 message FeatureParameters {
     oneof feature_type {
         PrecomputedFeatureParameters precomputed = 1;
@@ -267,6 +272,11 @@ message LabelVariant {
     Properties properties = 14;
 }
 
+message LabelVariantRequest {
+    LabelVariant label_variant = 1;
+    string request_id = 2;
+}
+
 message Provider {
     string name = 1;
     string description = 2;
@@ -312,6 +322,11 @@ message TrainingSetVariant {
     Properties properties = 17;
 }
 
+message TrainingSetVariantRequest {
+    TrainingSetVariant training_set_variant = 1;
+    string request_id = 2;
+}
+
 message Entity {
     string name = 1;
     string description = 2;
@@ -321,6 +336,11 @@ message Entity {
     repeated NameVariant trainingsets = 6;
     Tags tags = 7;
     Properties properties = 8;
+}
+
+message EntityRequest {
+    Entity entity = 1;
+    string request_id = 2;
 }
 
 message Model {
@@ -333,6 +353,11 @@ message Model {
     Properties properties = 7;
 }
 
+message ModelRequest {
+    Model model = 1;
+    string request_id = 2;
+}
+
 message User {
     string name = 1;
     ResourceStatus status = 2;
@@ -342,6 +367,11 @@ message User {
     repeated NameVariant sources = 6;
     Tags tags = 8;
     Properties properties = 9;
+}
+
+message UserRequest {
+    User user = 1;
+    string request_id = 2;
 }
 
 message Source {
@@ -371,6 +401,11 @@ message SourceVariant {
     string schedule = 16;
     Tags tags = 17;
     Properties properties = 18;
+}
+
+message SourceVariantRequest {
+    SourceVariant source_variant = 1;
+    string request_id = 2;
 }
 
 message Transformation {

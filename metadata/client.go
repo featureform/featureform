@@ -293,29 +293,33 @@ func (def FeatureDef) ResourceType() ResourceType {
 	return FEATURE_VARIANT
 }
 
-func (def FeatureDef) Serialize() (*pb.FeatureVariant, error) {
-	serialized := &pb.FeatureVariant{
-		Name:        def.Name,
-		Variant:     def.Variant,
-		Source:      def.Source.Serialize(),
-		Type:        def.Type,
-		Entity:      def.Entity,
-		Owner:       def.Owner,
-		Description: def.Description,
-		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
-		Provider:    def.Provider,
-		Schedule:    def.Schedule,
-		Tags:        &pb.Tags{Tag: def.Tags},
-		Properties:  def.Properties.Serialize(),
-		Mode:        pb.ComputationMode(def.Mode),
-		IsEmbedding: def.IsEmbedding,
-		RequestID:   int32(34323),
+func (def FeatureDef) Serialize(ctx context.Context) (*pb.FeatureVariantRequest, error) {
+	requestID := ctx.Value("request-id").(string)
+	serialized := &pb.FeatureVariantRequest{
+		FeatureVariant: &pb.FeatureVariant{
+			Name:        def.Name,
+			Variant:     def.Variant,
+			Source:      def.Source.Serialize(),
+			Type:        def.Type,
+			Entity:      def.Entity,
+			Owner:       def.Owner,
+			Description: def.Description,
+			Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
+			Provider:    def.Provider,
+			Schedule:    def.Schedule,
+			Tags:        &pb.Tags{Tag: def.Tags},
+			Properties:  def.Properties.Serialize(),
+			Mode:        pb.ComputationMode(def.Mode),
+			IsEmbedding: def.IsEmbedding,
+		},
+		RequestId: requestID,
 	}
+
 	switch x := def.Location.(type) {
 	case ResourceVariantColumns:
-		serialized.Location = def.Location.(ResourceVariantColumns).SerializeFeatureColumns()
+		serialized.FeatureVariant.Location = def.Location.(ResourceVariantColumns).SerializeFeatureColumns()
 	case PythonFunction:
-		serialized.Location = def.Location.(PythonFunction).SerializePythonFunction()
+		serialized.FeatureVariant.Location = def.Location.(PythonFunction).SerializePythonFunction()
 	case nil:
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("FeatureDef Columns not set"))
 	default:
@@ -325,7 +329,7 @@ func (def FeatureDef) Serialize() (*pb.FeatureVariant, error) {
 }
 
 func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) error {
-	serialized, err := def.Serialize()
+	serialized, err := def.Serialize(ctx)
 	if err != nil {
 		return err
 	}
@@ -420,23 +424,28 @@ func (def LabelDef) ResourceType() ResourceType {
 	return LABEL_VARIANT
 }
 
-func (def LabelDef) Serialize() (*pb.LabelVariant, error) {
-	serialized := &pb.LabelVariant{
-		Name:        def.Name,
-		Variant:     def.Variant,
-		Description: def.Description,
-		Type:        def.Type,
-		Source:      def.Source.Serialize(),
-		Entity:      def.Entity,
-		Owner:       def.Owner,
-		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_NO_STATUS},
-		Provider:    def.Provider,
-		Tags:        &pb.Tags{Tag: def.Tags},
-		Properties:  def.Properties.Serialize(),
+func (def LabelDef) Serialize(ctx context.Context) (*pb.LabelVariantRequest, error) {
+	requestID := ctx.Value("request-id").(string)
+	serialized := &pb.LabelVariantRequest{
+		LabelVariant: &pb.LabelVariant{
+			Name:        def.Name,
+			Variant:     def.Variant,
+			Description: def.Description,
+			Type:        def.Type,
+			Source:      def.Source.Serialize(),
+			Entity:      def.Entity,
+			Owner:       def.Owner,
+			Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_NO_STATUS},
+			Provider:    def.Provider,
+			Tags:        &pb.Tags{Tag: def.Tags},
+			Properties:  def.Properties.Serialize(),
+		},
+		RequestId: requestID,
 	}
+
 	switch x := def.Location.(type) {
 	case ResourceVariantColumns:
-		serialized.Location = def.Location.(ResourceVariantColumns).SerializeLabelColumns()
+		serialized.LabelVariant.Location = def.Location.(ResourceVariantColumns).SerializeLabelColumns()
 	case nil:
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("LabelDef Primary not set"))
 	default:
@@ -446,7 +455,7 @@ func (def LabelDef) Serialize() (*pb.LabelVariant, error) {
 }
 
 func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) error {
-	serialized, err := def.Serialize()
+	serialized, err := def.Serialize(ctx)
 	if err != nil {
 		return err
 	}
@@ -565,24 +574,29 @@ func (def TrainingSetDef) ResourceType() ResourceType {
 	return TRAINING_SET_VARIANT
 }
 
-func (def TrainingSetDef) Serialize() *pb.TrainingSetVariant {
-	return &pb.TrainingSetVariant{
-		Name:        def.Name,
-		Variant:     def.Variant,
-		Description: def.Description,
-		Owner:       def.Owner,
-		Provider:    def.Provider,
-		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
-		Label:       def.Label.Serialize(),
-		Features:    def.Features.Serialize(),
-		Schedule:    def.Schedule,
-		Tags:        &pb.Tags{Tag: def.Tags},
-		Properties:  def.Properties.Serialize(),
+func (def TrainingSetDef) Serialize(ctx context.Context) *pb.TrainingSetVariantRequest {
+	requestID := ctx.Value("request-id").(string)
+	return &pb.TrainingSetVariantRequest{
+		TrainingSetVariant: &pb.TrainingSetVariant{
+			Name:        def.Name,
+			Variant:     def.Variant,
+			Description: def.Description,
+			Owner:       def.Owner,
+			Provider:    def.Provider,
+			Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
+			Label:       def.Label.Serialize(),
+			Features:    def.Features.Serialize(),
+			Schedule:    def.Schedule,
+			Tags:        &pb.Tags{Tag: def.Tags},
+			Properties:  def.Properties.Serialize(),
+		},
+		RequestId: requestID,
 	}
+
 }
 
 func (client *Client) CreateTrainingSetVariant(ctx context.Context, def TrainingSetDef) error {
-	serialized := def.Serialize()
+	serialized := def.Serialize(ctx)
 	_, err := client.GrpcConn.CreateTrainingSetVariant(ctx, serialized)
 	return err
 }
@@ -787,24 +801,28 @@ func (def SourceDef) ResourceType() ResourceType {
 	return SOURCE_VARIANT
 }
 
-func (def SourceDef) Serialize() (*pb.SourceVariant, error) {
-	serialized := &pb.SourceVariant{
-		Name:        def.Name,
-		Variant:     def.Variant,
-		Description: def.Description,
-		Owner:       def.Owner,
-		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
-		Provider:    def.Provider,
-		Schedule:    def.Schedule,
-		Tags:        &pb.Tags{Tag: def.Tags},
-		Properties:  def.Properties.Serialize(),
+func (def SourceDef) Serialize(ctx context.Context) (*pb.SourceVariantRequest, error) {
+	requestID := ctx.Value("request-id").(string)
+	serialized := &pb.SourceVariantRequest{
+		SourceVariant: &pb.SourceVariant{
+			Name:        def.Name,
+			Variant:     def.Variant,
+			Description: def.Description,
+			Owner:       def.Owner,
+			Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_CREATED},
+			Provider:    def.Provider,
+			Schedule:    def.Schedule,
+			Tags:        &pb.Tags{Tag: def.Tags},
+			Properties:  def.Properties.Serialize(),
+		},
+		RequestId: requestID,
 	}
 	var err error
 	switch x := def.Definition.(type) {
 	case TransformationSource:
-		serialized.Definition, err = def.Definition.(TransformationSource).Serialize()
+		serialized.SourceVariant.Definition, err = def.Definition.(TransformationSource).Serialize()
 	case PrimaryDataSource:
-		serialized.Definition, err = def.Definition.(PrimaryDataSource).Serialize()
+		serialized.SourceVariant.Definition, err = def.Definition.(PrimaryDataSource).Serialize()
 	case nil:
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("SourceDef Definition not set"))
 	default:
@@ -817,7 +835,7 @@ func (def SourceDef) Serialize() (*pb.SourceVariant, error) {
 }
 
 func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) error {
-	serialized, err := def.Serialize()
+	serialized, err := def.Serialize(ctx)
 	if err != nil {
 		return err
 	}
@@ -945,11 +963,17 @@ func (def UserDef) ResourceType() ResourceType {
 }
 
 func (client *Client) CreateUser(ctx context.Context, def UserDef) error {
-	serialized := &pb.User{
-		Name:       def.Name,
-		Tags:       &pb.Tags{Tag: def.Tags},
-		Properties: def.Properties.Serialize(),
+	requestID := ctx.Value("request-id").(string)
+
+	serialized := &pb.UserRequest{
+		User: &pb.User{
+			Name:       def.Name,
+			Tags:       &pb.Tags{Tag: def.Tags},
+			Properties: def.Properties.Serialize(),
+		},
+		RequestId: requestID,
 	}
+
 	_, err := client.GrpcConn.CreateUser(ctx, serialized)
 	return err
 }
@@ -1105,13 +1129,18 @@ func (def EntityDef) ResourceType() ResourceType {
 }
 
 func (client *Client) CreateEntity(ctx context.Context, def EntityDef) error {
-	serialized := &pb.Entity{
-		Name:        def.Name,
-		Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_NO_STATUS},
-		Description: def.Description,
-		Tags:        &pb.Tags{Tag: def.Tags},
-		Properties:  def.Properties.Serialize(),
+	requestID := ctx.Value("request-id").(string)
+	serialized := &pb.EntityRequest{
+		Entity: &pb.Entity{
+			Name:        def.Name,
+			Status:      &pb.ResourceStatus{Status: pb.ResourceStatus_NO_STATUS},
+			Description: def.Description,
+			Tags:        &pb.Tags{Tag: def.Tags},
+			Properties:  def.Properties.Serialize(),
+		},
+		RequestId: requestID,
 	}
+
 	_, err := client.GrpcConn.CreateEntity(ctx, serialized)
 	return err
 }
@@ -1181,13 +1210,17 @@ func (def ModelDef) ResourceType() ResourceType {
 }
 
 func (client *Client) CreateModel(ctx context.Context, def ModelDef) error {
-	serialized := &pb.Model{
-		Name:         def.Name,
-		Description:  def.Description,
-		Features:     def.Features.Serialize(),
-		Trainingsets: def.Trainingsets.Serialize(),
-		Tags:         &pb.Tags{Tag: def.Tags},
-		Properties:   def.Properties.Serialize(),
+	requestID := ctx.Value("request-id").(string)
+	serialized := &pb.ModelRequest{
+		Model: &pb.Model{
+			Name:         def.Name,
+			Description:  def.Description,
+			Features:     def.Features.Serialize(),
+			Trainingsets: def.Trainingsets.Serialize(),
+			Tags:         &pb.Tags{Tag: def.Tags},
+			Properties:   def.Properties.Serialize(),
+		},
+		RequestId: requestID,
 	}
 	_, err := client.GrpcConn.CreateModel(ctx, serialized)
 	return err

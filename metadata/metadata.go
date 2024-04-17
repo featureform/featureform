@@ -1575,7 +1575,12 @@ func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFea
 	})
 }
 
-func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variant *pb.FeatureVariant) (*pb.Empty, error) {
+func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variantRequest *pb.FeatureVariantRequest) (*pb.Empty, error) {
+	logger := serv.Logger.WithRequestID(logging.RequestID(variantRequest.RequestId))
+	logger.Info("Creating Feature Variant: ", variantRequest.FeatureVariant.Name)
+	ctx = context.WithValue(ctx, "logger", logger)
+
+	variant := variantRequest.FeatureVariant
 	variant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &featureVariantResource{variant}, func(name, variant string) Resource {
 		return &featureResource{
@@ -1607,7 +1612,12 @@ func (serv *MetadataServer) ListLabels(_ *pb.Empty, stream pb.Metadata_ListLabel
 	})
 }
 
-func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variant *pb.LabelVariant) (*pb.Empty, error) {
+func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variantRequest *pb.LabelVariantRequest) (*pb.Empty, error) {
+	logger := serv.Logger.WithRequestID(logging.RequestID(variantRequest.RequestId))
+	logger.Info("Creating Label Variant: ", variantRequest.LabelVariant.Name)
+	ctx = context.WithValue(ctx, "logger", logger)
+
+	variant := variantRequest.LabelVariant
 	variant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &labelVariantResource{variant}, func(name, variant string) Resource {
 		return &labelResource{
@@ -1639,7 +1649,12 @@ func (serv *MetadataServer) ListTrainingSets(_ *pb.Empty, stream pb.Metadata_Lis
 	})
 }
 
-func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, variant *pb.TrainingSetVariant) (*pb.Empty, error) {
+func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, variantRequest *pb.TrainingSetVariantRequest) (*pb.Empty, error) {
+	logger := serv.Logger.WithRequestID(logging.RequestID(variantRequest.RequestId))
+	logger.Info("Creating TrainingSet Variant: ", variantRequest.TrainingSetVariant.Name)
+	ctx = context.WithValue(ctx, "logger", logger)
+
+	variant := variantRequest.TrainingSetVariant
 	variant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &trainingSetVariantResource{variant}, func(name, variant string) Resource {
 		return &trainingSetResource{
@@ -1671,7 +1686,12 @@ func (serv *MetadataServer) ListSources(_ *pb.Empty, stream pb.Metadata_ListSour
 	})
 }
 
-func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variant *pb.SourceVariant) (*pb.Empty, error) {
+func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variantRequest *pb.SourceVariantRequest) (*pb.Empty, error) {
+	logger := serv.Logger.WithRequestID(logging.RequestID(variantRequest.RequestId))
+	logger.Info("Creating Source Variant: ", variantRequest.SourceVariant.Name)
+	ctx = context.WithValue(ctx, "logger", logger)
+
+	variant := variantRequest.SourceVariant
 	variant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &sourceVariantResource{variant}, func(name, variant string) Resource {
 		return &SourceResource{
@@ -1704,8 +1724,12 @@ func (serv *MetadataServer) ListUsers(_ *pb.Empty, stream pb.Metadata_ListUsersS
 	})
 }
 
-func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.Empty, error) {
-	return serv.genericCreate(ctx, &userResource{user}, nil)
+func (serv *MetadataServer) CreateUser(ctx context.Context, userRequest *pb.UserRequest) (*pb.Empty, error) {
+	logger := serv.Logger.WithRequestID(logging.RequestID(userRequest.RequestId))
+	logger.Info("Creating User: ", userRequest.User.Name)
+	ctx = context.WithValue(ctx, "logger", logger)
+
+	return serv.genericCreate(ctx, &userResource{userRequest.User}, nil)
 }
 
 func (serv *MetadataServer) GetUsers(stream pb.Metadata_GetUsersServer) error {
@@ -1739,8 +1763,11 @@ func (serv *MetadataServer) ListEntities(_ *pb.Empty, stream pb.Metadata_ListEnt
 	})
 }
 
-func (serv *MetadataServer) CreateEntity(ctx context.Context, entity *pb.Entity) (*pb.Empty, error) {
-	return serv.genericCreate(ctx, &entityResource{entity}, nil)
+func (serv *MetadataServer) CreateEntity(ctx context.Context, entityRequest *pb.EntityRequest) (*pb.Empty, error) {
+	logger := serv.Logger.WithRequestID(logging.RequestID(entityRequest.RequestId))
+	logger.Info("Creating Entity: ", entityRequest.Entity.Name)
+	ctx = context.WithValue(ctx, "logger", logger)
+	return serv.genericCreate(ctx, &entityResource{entityRequest.Entity}, nil)
 }
 
 func (serv *MetadataServer) GetEntities(stream pb.Metadata_GetEntitiesServer) error {
@@ -1755,8 +1782,11 @@ func (serv *MetadataServer) ListModels(_ *pb.Empty, stream pb.Metadata_ListModel
 	})
 }
 
-func (serv *MetadataServer) CreateModel(ctx context.Context, model *pb.Model) (*pb.Empty, error) {
-	return serv.genericCreate(ctx, &modelResource{model}, nil)
+func (serv *MetadataServer) CreateModel(ctx context.Context, modelRequest *pb.ModelRequest) (*pb.Empty, error) {
+	logger := serv.Logger.WithRequestID(logging.RequestID(modelRequest.RequestId))
+	logger.Info("Creating Model: ", modelRequest.Model.Name)
+	ctx = context.WithValue(ctx, "logger", logger)
+	return serv.genericCreate(ctx, &modelResource{modelRequest.Model}, nil)
 }
 
 func (serv *MetadataServer) GetModels(stream pb.Metadata_GetModelsServer) error {

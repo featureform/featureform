@@ -2306,11 +2306,11 @@ func Test_GetEquivalent(t *testing.T) {
 	// sourceDef
 	sourceDef.Description = "Some other description"
 	sourceDef.Variant = "var2"
-	svProto, err := sourceDef.Serialize()
+	svProto, err := sourceDef.Serialize(context)
 	if err != nil {
 		t.Fatalf("Failed to serialize source def: %s", err)
 	}
-	resourceVariant := &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto}}
+	resourceVariant := &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto.SourceVariant}}
 	equivalent, err := serv.getEquivalent(resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
@@ -2328,11 +2328,11 @@ func Test_GetEquivalent(t *testing.T) {
 			},
 		},
 	}
-	svProto2, err := sourceDef.Serialize()
+	svProto2, err := sourceDef.Serialize(context)
 	if err != nil {
 		t.Fatalf("Failed to serialize source def: %s", err)
 	}
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto2}}
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto2.SourceVariant}}
 	equivalent, err = serv.getEquivalent(resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
@@ -2343,11 +2343,11 @@ func Test_GetEquivalent(t *testing.T) {
 
 	// labelDef
 	labelDef.Description = "Some other description"
-	lvProto, err := labelDef.Serialize()
+	lvProto, err := labelDef.Serialize(context)
 	if err != nil {
 		t.Fatalf("Failed to serialize label def: %s", err)
 	}
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_LabelVariant{lvProto}}
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_LabelVariant{lvProto.LabelVariant}}
 	equivalent, err = serv.getEquivalent(resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
@@ -2359,11 +2359,11 @@ func Test_GetEquivalent(t *testing.T) {
 	// featureDef
 	// on demand
 	featureDef.Description = "Some other description"
-	fvProto, err := featureDef.Serialize()
+	fvProto, err := featureDef.Serialize(context)
 	if err != nil {
 		t.Fatalf("Failed to serialize feature def: %s", err)
 	}
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto}}
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto.FeatureVariant}}
 	equivalent, err = serv.getEquivalent(resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
@@ -2374,8 +2374,8 @@ func Test_GetEquivalent(t *testing.T) {
 	featureDef.Location = PythonFunction{
 		Query: []byte("SELECT * FROM dummy"),
 	}
-	fvProto, err = featureDef.Serialize()
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto}}
+	fvProto, err = featureDef.Serialize(context)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto.FeatureVariant}}
 	equivalent, err = serv.getEquivalent(resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
@@ -2384,15 +2384,15 @@ func Test_GetEquivalent(t *testing.T) {
 		t.Fatalf("there was no equivalent but we got one")
 	}
 
-	fvProto2, err := featureDef2.Serialize()
-	fvProto2.Location = &pb.FeatureVariant_Columns{
+	fvProto2, err := featureDef2.Serialize(context)
+	fvProto2.FeatureVariant.Location = &pb.FeatureVariant_Columns{
 		&pb.Columns{
 			Entity: "col10",
 			Value:  "col11",
 			Ts:     "col12",
 		},
 	}
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto2}}
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto2.FeatureVariant}}
 	equivalent, err = serv.getEquivalent(resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
@@ -2403,8 +2403,8 @@ func Test_GetEquivalent(t *testing.T) {
 
 	// trainingSetDef
 	trainingSetDef.Description = "Some other description"
-	tsvProto := trainingSetDef.Serialize()
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto}}
+	tsvProto := trainingSetDef.Serialize(context)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
 	equivalent, err = serv.getEquivalent(resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
@@ -2418,8 +2418,8 @@ func Test_GetEquivalent(t *testing.T) {
 		{"feature2", "variant"},
 		{"feature3", "variant"},
 	}
-	tsvProto = trainingSetDef.Serialize()
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto}}
+	tsvProto = trainingSetDef.Serialize(context)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
 	equivalent, err = serv.getEquivalent(resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
@@ -2433,8 +2433,8 @@ func Test_GetEquivalent(t *testing.T) {
 		{"feature2", "variant"},
 	}
 	trainingSetDef.Label = NameVariant{"label_doesnt_exist", "variant"}
-	tsvProto = trainingSetDef.Serialize()
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto}}
+	tsvProto = trainingSetDef.Serialize(context)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
 	equivalent, err = serv.getEquivalent(resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)

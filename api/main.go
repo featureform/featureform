@@ -76,9 +76,11 @@ func NewApiServer(logger logging.Logger, address string, metaAddr string, srvAdd
 	}, nil
 }
 
-func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating User", "user", user.Name)
-	return serv.meta.CreateUser(ctx, user)
+func (serv *MetadataServer) CreateUser(ctx context.Context, userRequest *pb.UserRequest) (*pb.Empty, error) {
+	ctx, logger, _ := serv.updateContextAndLogger(ctx)
+	user := userRequest.User
+	logger.Infow("Creating User", "user", user.Name)
+	return serv.meta.CreateUser(ctx, userRequest)
 }
 
 func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
@@ -593,15 +595,21 @@ func (serv *MetadataServer) ListProviders(in *pb.Empty, stream pb.Api_ListProvid
 	}
 }
 
+func (serv *MetadataServer) updateContextAndLogger(ctx context.Context) (context.Context, logging.Logger, string) {
+	requestID := logging.NewRequestID()
+	logger := serv.Logger.WithRequestID(logging.RequestID(requestID))
+	ctx = context.WithValue(ctx, "logger", logger)
+	ctx = context.WithValue(ctx, "request-id", requestID)
+
+	return ctx, logger, requestID
+}
+
 func (serv *MetadataServer) CreateProvider(ctx context.Context, providerRequest *pb.ProviderRequest) (*pb.Empty, error) {
 	// The existence of a provider is part of the determination for checking provider health, hence why it
 	// needs to happen prior to the call to CreateProvider, which is an upsert operation.
+	ctx, logger, requestID := serv.updateContextAndLogger(ctx)
 	provider := providerRequest.Provider
-	requestID := logging.NewRequestID()
-	logger := serv.Logger.WithRequestID(logging.RequestID(requestID))
 	logger.Infow("Creating Provider", "name", provider.Name)
-	ctx = context.WithValue(ctx, "logger", logger)
-	ctx = context.WithValue(ctx, "request-id", requestID)
 	providerRequest.RequestId = requestID
 
 	shouldCheckProviderHealth, err := serv.shouldCheckProviderHealth(ctx, provider)
@@ -699,8 +707,12 @@ func (serv *MetadataServer) checkProviderHealth(ctx context.Context, providerNam
 	return statusErr
 }
 
-func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, source *pb.SourceVariant) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Source Variant", "name", source.Name, "variant", source.Variant)
+func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, sourceRequest *pb.SourceVariantRequest) (*pb.Empty, error) {
+	ctx, logger, requestID := serv.updateContextAndLogger(ctx)
+	source := sourceRequest.SourceVariant
+	logger.Infow("Creating Source Variant", "name", source.Name, "variant", source.Variant)
+	sourceRequest.RequestId = requestID
+
 	switch casted := source.Definition.(type) {
 	case *pb.SourceVariant_Transformation:
 		switch transformationType := casted.Transformation.Type.(type) {
@@ -721,12 +733,17 @@ func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, source *pb.
 			source.Definition.(*pb.SourceVariant_Transformation).Transformation.Type.(*pb.Transformation_SQLTransformation).SQLTransformation.Source = sources
 		}
 	}
-	return serv.meta.CreateSourceVariant(ctx, source)
+	return serv.meta.CreateSourceVariant(ctx, sourceRequest)
 }
 
-func (serv *MetadataServer) CreateEntity(ctx context.Context, entity *pb.Entity) (*pb.Empty, error) {
+func (serv *MetadataServer) CreateEntity(ctx context.Context, entityRequest *pb.EntityRequest) (*pb.Empty, error) {
+	ctx, logger, requestID := serv.updateContextAndLogger(ctx)
+	entity := entityRequest.Entity
+	logger.Infow("Creating Entity", "entity", entity.Name)
+	entityRequest.RequestId = requestID
+
 	serv.Logger.Infow("Creating Entity", "entity", entity.Name)
-	return serv.meta.CreateEntity(ctx, entity)
+	return serv.meta.CreateEntity(ctx, entityRequest)
 }
 
 func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.ScheduleChangeRequest) (*pb.Empty, error) {
@@ -734,13 +751,21 @@ func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.S
 	return serv.meta.RequestScheduleChange(ctx, req)
 }
 
-func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, feature *pb.FeatureVariant) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Feature Variant", "name", feature.Name, "variant", feature.Variant)
-	return serv.meta.CreateFeatureVariant(ctx, feature)
+func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, featureRequest *pb.FeatureVariantRequest) (*pb.Empty, error) {
+	ctx, logger, requestID := serv.updateContextAndLogger(ctx)
+	feature := featureRequest.FeatureVariant
+	logger.Infow("Creating Feature Variant", "name", feature.Name, "variant", feature.Variant)
+	featureRequest.RequestId = requestID
+
+	return serv.meta.CreateFeatureVariant(ctx, featureRequest)
 }
 
-func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, label *pb.LabelVariant) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Label Variant", "name", label.Name, "variant", label.Variant)
+func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, labelRequest *pb.LabelVariantRequest) (*pb.Empty, error) {
+	ctx, logger, requestID := serv.updateContextAndLogger(ctx)
+	label := labelRequest.LabelVariant
+	logger.Infow("Creating Label Variant", "name", label.Name, "variant", label.Variant)
+	labelRequest.RequestId = requestID
+
 	protoSource := label.Source
 	serv.Logger.Debugw("Finding label source", "name", protoSource.Name, "variant", protoSource.Variant)
 	source, err := serv.client.GetSourceVariant(ctx, metadata.NameVariant{Name: protoSource.Name, Variant: protoSource.Variant})
@@ -749,7 +774,7 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, label *pb.La
 		return nil, err
 	}
 	label.Provider = source.Provider()
-	resp, err := serv.meta.CreateLabelVariant(ctx, label)
+	resp, err := serv.meta.CreateLabelVariant(ctx, labelRequest)
 	serv.Logger.Debugw("Created label variant", "response", resp)
 	if err != nil {
 		serv.Logger.Errorw("Could not create label variant", "response", resp, "error", err)
@@ -757,8 +782,12 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, label *pb.La
 	return resp, err
 }
 
-func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, train *pb.TrainingSetVariant) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Training Set Variant", "name", train.Name, "variant", train.Variant)
+func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, trainRequest *pb.TrainingSetVariantRequest) (*pb.Empty, error) {
+	ctx, logger, requestID := serv.updateContextAndLogger(ctx)
+	train := trainRequest.TrainingSetVariant
+	logger.Infow("Creating Training Set Variant", "name", train.Name, "variant", train.Variant)
+	trainRequest.RequestId = requestID
+
 	protoLabel := train.Label
 	label, err := serv.client.GetLabelVariant(ctx, metadata.NameVariant{Name: protoLabel.Name, Variant: protoLabel.Variant})
 	if err != nil {
@@ -771,12 +800,16 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, train 
 		}
 	}
 	train.Provider = label.Provider()
-	return serv.meta.CreateTrainingSetVariant(ctx, train)
+	return serv.meta.CreateTrainingSetVariant(ctx, trainRequest)
 }
 
-func (serv *MetadataServer) CreateModel(ctx context.Context, model *pb.Model) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Model", "model", model.Name)
-	return serv.meta.CreateModel(ctx, model)
+func (serv *MetadataServer) CreateModel(ctx context.Context, modelRequest *pb.ModelRequest) (*pb.Empty, error) {
+	ctx, logger, requestID := serv.updateContextAndLogger(ctx)
+	model := modelRequest.Model
+	logger.Infow("Creating Model", "model", model.Name)
+	modelRequest.RequestId = requestID
+
+	return serv.meta.CreateModel(ctx, modelRequest)
 }
 
 func (serv *OnlineServer) FeatureServe(ctx context.Context, req *srv.FeatureServeRequest) (*srv.FeatureRow, error) {

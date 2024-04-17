@@ -3,10 +3,6 @@ package provider
 import (
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	pc "github.com/featureform/provider/provider_config"
-	pt "github.com/featureform/provider/provider_type"
-	"github.com/joho/godotenv"
-	"os"
 	"reflect"
 	"testing"
 	"time"

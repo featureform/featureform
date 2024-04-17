@@ -15,6 +15,9 @@ import (
 )
 
 func TestMaterializationRunner(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
 	dynamodb := provider.GetTestingDynamoDB(t)
 	dbrix := provider.GetTestingDatabricksOfflineStore(t)
 	t.Run("dbrix_to_dynamo", func(t *testing.T) {

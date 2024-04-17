@@ -471,7 +471,7 @@ func (table dynamodbOnlineTable) BatchSet(items []SetItem) error {
 		},
 	}
 	if _, err := table.client.BatchWriteItem(context.TODO(), batchInput); err != nil {
-		return err
+		return fferr.NewExecutionError("DynamoDB", err)
 	}
 	return nil
 }
@@ -543,9 +543,10 @@ func (table dynamodbOnlineTable) Get(entity string) (interface{}, error) {
 func waitForDynamoDB(client *dynamodb.Client) error {
 	waitTime := time.Second
 	totalWait := time.Duration(0)
+	var err error
 	for attempts := 0; attempts < 3; attempts++ {
-		_, err := client.DescribeTable(context.TODO(), &dynamodb.DescribeTableInput{
-			TableName: aws.String("PING"), // Arbitrary name
+		_, err = client.DescribeTable(context.TODO(), &dynamodb.DescribeTableInput{
+			TableName: aws.String("FEATUREFORM-PING"), // Arbitrary name
 		})
 		if err != nil {
 			var resourceNotFoundErr *types.ResourceNotFoundException
@@ -566,7 +567,7 @@ func waitForDynamoDB(client *dynamodb.Client) error {
 			waitTime = defaultDynamoTableTimeout - totalWait
 		}
 	}
-	return fmt.Errorf("Failed to connect to DynamoDB")
+	return fferr.NewConnectionError("DynamoDB", err)
 }
 
 // waitForDynamoDB waits for a DynamoDB table.

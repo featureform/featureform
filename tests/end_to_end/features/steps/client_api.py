@@ -44,7 +44,8 @@ def step_impl(context):
 
 @then("I should be able to register transactions_short.csv")
 def step_impl(context):
-    context.txn_short = context.spark_provider.register_file(
+    print(context.spark_provider)
+    context.txn_short = context.spark.register_file(
         name="transactions_short",
         file_path="s3://featureform-spark-testing/data/transactions_short.csv",
     )

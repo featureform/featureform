@@ -28,8 +28,10 @@ Feature: Client API
 
     Scenario: Reusing Sources
         Given Featureform is installed
-        And I have a "hosted" "insecure" client for "localhost:7878"
+        When I create a "hosted" "insecure" client for "localhost:7878"
+        And I generate a random variant name
+        And I register "s3" filestore with bucket "featureform-spark-testing" and root path "data"
         And I have registered databricks
-        When I register transactions_short.csv
+        And I register transactions_short.csv
         Then I should be able to get the resource
         And I should be able to get the data of the resource

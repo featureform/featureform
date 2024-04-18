@@ -63,7 +63,6 @@ def step_impl(context):
 
 @then("I should be able to get the resource")
 def step_impl(context):
-    src_name = context.transactions.name
-    src_variant = context.transactions.variant
+    src_name, src_variant = context.transactions.name_variant()
     context.txn_short = ff.get_source(src_name, src_variant)
     assert context.txn_short is not None

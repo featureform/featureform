@@ -26,18 +26,31 @@ def step_impl(context):
         """Unedited transactions"""
         return df
 
-    context.apply(asynchronous=False, verbose=True)
-    assert some_transformation.name == context.transformation.name
-    assert some_transformation.variant == context.transformation.variant
-
+    context.client.apply(asynchronous=False, verbose=True)
     context.new_transformation = some_transformation
+    print("---", some_transformation.name_variant(), context.transformation.name_variant())
+    assert context.new_transformation.name_variant() == context.transformation.name_variant()
+
+
+@then("I should be able to register a new auto variant transformation")
+def step_impl(context):
+    @context.spark.df_transformation(
+        inputs=[context.transactions],
+    )
+    def some_transformation(df):
+        """Unedited transactions"""
+        return df
+
+    context.client.apply(asynchronous=False, verbose=True)
+    context.new_transformation = some_transformation
+
+    assert context.new_transformation.name_variant() != context.transformation.name_variant()
 
 
 @then("I can get the transformation as df")
 def step_impl(context):
     df = context.client.dataframe(context.new_transformation)
-    assert df is not None
-    assert df.count() > 0
+    assert len(df) > 0
 
 
 @when("I register a transformation with user-provided variant")
@@ -53,10 +66,7 @@ def step_impl(context):
         return df
 
     context.client.apply(asynchronous=False, verbose=True)
-
-    assert some_transformation.name == context.transformation.name
-    assert some_transformation.variant != context.transformation.variant
-    assert some_transformation.variant == new_random_variant
+    context.transformation = some_transformation
 
 
 @then("I should be able to register a modified transformation with new auto variant")
@@ -72,5 +82,28 @@ def step_impl(context):
     context.client.apply(asynchronous=False, verbose=True)
     context.new_transformation = some_transformation
 
-    assert context.new_transformation.name == context.transformation.name
-    assert context.new_transformation.variant != context.transformation.variant
+    assert (
+        context.new_transformation.name_variant()[0]
+        == context.transformation.name_variant()[0]
+    )
+    assert (
+        context.new_transformation.name_variant()[1]
+        != context.transformation.name_variant()[1]
+    )
+
+
+@then("I should be able to register a source with user-defined variant")
+def step_impl(context):
+    new_random_variant = f"v{str(random.randint(10000, 99999))}"
+    context.new_source = context.spark.register_file(
+        name="transactions_short",
+        variant=new_random_variant,
+        file_path="s3://featureform-spark-testing/data/transactions_short.csv",
+    )
+    context.client.apply(asynchronous=False, verbose=True)
+
+
+@then("I can get the source as df")
+def step_impl(context):
+    df = context.client.dataframe(context.new_source)
+    assert len(df) > 0

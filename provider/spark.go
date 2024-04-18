@@ -87,11 +87,11 @@ func CreateSparkFileStore(fsType filestore.FileStoreType, config Config) (SparkF
 	if !exists {
 		return nil, fferr.NewInternalError(fmt.Errorf("factory does not exist: %s", fsType))
 	}
-	FileStore, err := factory(config)
+	fileStore, err := factory(config)
 	if err != nil {
 		return nil, err
 	}
-	return FileStore, nil
+	return fileStore, nil
 }
 
 func NewSparkS3FileStore(config Config) (SparkFileStore, error) {
@@ -397,7 +397,8 @@ func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath
 	if err := store.Write(storePath, pythonScriptBytes); err != nil {
 		return err
 	}
-	fmt.Printf("Uploaded %s to %s\n", filePath, storePath)
+	// TODO(simba) use filepath String method once implemented
+	fmt.Printf("Uploaded %v to %v\n", filePath, storePath)
 	return nil
 }
 
@@ -923,7 +924,7 @@ func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		Logger:   logger.SugaredLogger,
 		query:    &queries,
 		BaseProvider: BaseProvider{
-			ProviderType:   "SPARK_OFFLINE",
+			ProviderType:   pt.SparkOffline,
 			ProviderConfig: config,
 		},
 	}

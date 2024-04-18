@@ -25,7 +25,6 @@ import (
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
-	"github.com/featureform/runner"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/joho/godotenv"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -1251,18 +1250,6 @@ func createTrainingSetWithProvider(client *metadata.Client, offlineConfig pc.Ser
 }
 
 func testCoordinatorTrainingSet(addr string) error {
-	if err := runner.RegisterFactory(runner.COPY_TO_ONLINE, runner.MaterializedChunkRunnerFactory); err != nil {
-		return fmt.Errorf("Failed to register training set runner factory: %v", err)
-	}
-	defer runner.UnregisterFactory(runner.COPY_TO_ONLINE)
-	if err := runner.RegisterFactory(runner.MATERIALIZE, runner.MaterializeRunnerFactory); err != nil {
-		return fmt.Errorf("Failed to register training set runner factory: %v", err)
-	}
-	defer runner.UnregisterFactory(runner.MATERIALIZE)
-	if err := runner.RegisterFactory(runner.CREATE_TRAINING_SET, runner.TrainingSetRunnerFactory); err != nil {
-		return fmt.Errorf("Failed to register training set runner factory: %v", err)
-	}
-	defer runner.UnregisterFactory(runner.CREATE_TRAINING_SET)
 	logger := zap.NewExample().Sugar()
 	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger})
 	if err != nil {
@@ -1351,17 +1338,25 @@ func testCoordinatorTrainingSet(addr string) error {
 	}
 	startWaitDelete := time.Now()
 	elapsed := time.Since(startWaitDelete)
-	for has, _ := coord.hasJob(tsID); has && elapsed < time.Duration(10)*time.Second; has, _ = coord.hasJob(tsID) {
+	has := true
+	waitTime := time.Second * 10
+	for elapsed < waitTime {
+		has, err = coord.hasJob(tsID)
+		if err != nil {
+			return err
+		} else if !has {
+			// Job finished
+			break
+		}
 		time.Sleep(1 * time.Second)
 		elapsed = time.Since(startWaitDelete)
-		fmt.Printf("waiting for job %v to be deleted\n", tsID)
 	}
-	if elapsed >= time.Duration(10)*time.Second {
+	if elapsed >= waitTime {
 		return fmt.Errorf("timed out waiting for job to delete")
 	}
 	ts_complete, err := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: tsName, Variant: ""})
 	if err != nil {
-		return fmt.Errorf("could not get training set variant")
+		return fmt.Errorf("could not get training set variant: %v", err)
 	}
 	if metadata.READY != ts_complete.Status() {
 		return fmt.Errorf("Training set not set to ready once job completes")
@@ -1390,14 +1385,6 @@ func testCoordinatorTrainingSet(addr string) error {
 }
 
 func testCoordinatorMaterializeFeature(addr string) error {
-	if err := runner.RegisterFactory(runner.COPY_TO_ONLINE, runner.MaterializedChunkRunnerFactory); err != nil {
-		return fmt.Errorf("Failed to register training set runner factory: %v", err)
-	}
-	defer runner.UnregisterFactory(runner.COPY_TO_ONLINE)
-	if err := runner.RegisterFactory(runner.MATERIALIZE, runner.MaterializeRunnerFactory); err != nil {
-		return fmt.Errorf("Failed to register training set runner factory: %v", err)
-	}
-	defer runner.UnregisterFactory(runner.MATERIALIZE)
 	logger := zap.NewExample().Sugar()
 	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger})
 	if err != nil {
@@ -1615,10 +1602,6 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 }
 
 func testRegisterTransformationFromSource(addr string) error {
-	if err := runner.RegisterFactory(runner.CREATE_TRANSFORMATION, runner.CreateTransformationRunnerFactory); err != nil {
-		return fmt.Errorf("Failed to register training set runner factory: %v", err)
-	}
-	defer runner.UnregisterFactory(runner.CREATE_TRANSFORMATION)
 	logger := zap.NewExample().Sugar()
 	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger})
 	if err != nil {

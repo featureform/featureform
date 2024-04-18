@@ -19,9 +19,9 @@ var (
 	err  error
 )
 
-// To set this flag in the test, at the end of the go test line add -arg -dockerTests=True
+// To set this flag in the test, at the end of the go test line add -args -dockerTests=True
 // Example:
-// go test ./... -v -run TestExample -arg -dockerTests=true
+// go test ./... -v -run TestExample -args -dockerTests=true
 var dockerTests = flag.Bool("dockerTests", false, "Set to true to run and test against local docker containers like localstack and redis.")
 
 // Setup LocalStack Docker container

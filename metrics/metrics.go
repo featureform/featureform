@@ -24,7 +24,7 @@ const (
 	SUCCESS                        = "success"
 )
 
-//generic interfaces exposed to the user
+// generic interfaces exposed to the user
 type MetricsHandler interface {
 	BeginObservingOnlineServe(feature string, key string) FeatureObserver
 	BeginObservingTrainingServe(name string, version string) FeatureObserver

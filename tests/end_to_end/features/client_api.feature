@@ -26,14 +26,10 @@ Feature: Client API
         And I should be able to register transactions_short.csv
         And I should be able to get the data of the resource
 
-    # Scenario: Reusing Sources
-    #     Given Featureform is installed
-    #     And I have a "hosted" "insecure" client for "localhost:7878"
-    #     And I have registered databricks
-    #     When I register transactions_short.csv
-    #     Then I should be able to get the data of the resource
-    #     And I should be able to register a transformation with the source
-    #     And I should be able to get the data of the transformation
-    #     Examples:
-    #         | cloud_provider |
-    #         | aws            |
+    Scenario: Reusing Sources
+        Given Featureform is installed
+        And I have a "hosted" "insecure" client for "localhost:7878"
+        And I have registered databricks
+        When I register transactions_short.csv
+        Then I should be able to get the resource
+        And I should be able to get the data of the resource

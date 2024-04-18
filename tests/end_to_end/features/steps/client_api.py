@@ -44,33 +44,21 @@ def step_impl(context):
 
 @then("I should be able to register transactions_short.csv")
 def step_impl(context):
-    context.transactions = context.spark_provider.register_file(
+    context.txn_short = context.spark_provider.register_file(
         name="transactions_short",
-        description="A dataset of transactions",
         file_path="s3://featureform-spark-testing/data/transactions_short.csv",
     )
-    context.client.apply()
+    context.client.apply(asynchronous=False, verbose=True)
 
 @then("I should be able to get the data of the resource")
 def step_impl(context):
-    df = context.client.dataframe(context.transactions)
+    df = context.client.dataframe(context.txn_short)
     assert df is not None
     assert df.count() > 0
 
-@then("I should be able to register a transformation with the source")
+@then("I should be able to get the resource")
 def step_impl(context):
-    @context.spark_provider.df_transformation(
-        inputs=[context.source],
-    )
-    def transformation(df):
-        return df
-
-    context.transformation = transformation
-    context.client.dataframe(context.transformation)
-
-@then("I should be able to get the data of the transformation")
-def step_impl(context):
-    # make it so loop through the transformations? 
-    df = context.client.dataframe(context.transformation)
-    assert df is not None
-    assert df.count() > 0
+    src_name = context.transactions.name
+    src_variant = context.transactions.variant
+    context.txn_short = ff.get_source(src_name, src_variant)
+    assert context.txn_short is not None

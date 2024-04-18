@@ -443,6 +443,7 @@ func (store *dynamodbOnlineStore) GetImport(id ImportID) (Import, error) {
 	return S3Import{id: id, status: string(output.ImportTableDescription.ImportStatus), errorMessage: errorMessage}, nil
 }
 
+// maxDynamoBatchSize is the max amount of items that can be written to Dynamo at once. It's a dynamo set limitation.
 const maxDynamoBatchSize = 25
 
 func (table dynamodbOnlineTable) BatchSet(items []SetItem) error {

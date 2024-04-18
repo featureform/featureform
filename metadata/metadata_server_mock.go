@@ -108,7 +108,7 @@ func (MetadataServerMock) ListFeatures(ctx context.Context, in *pb.Empty, opts .
 	return nil, nil
 }
 
-func (MetadataServerMock) CreateFeatureVariant(ctx context.Context, in *pb.FeatureVariant, opts ...grpc.CallOption) (*pb.Empty, error) {
+func (MetadataServerMock) CreateFeatureVariant(ctx context.Context, in *pb.FeatureVariantRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	return nil, nil
 }
 func (MetadataServerMock) GetFeatures(ctx context.Context, opts ...grpc.CallOption) (pb.Metadata_GetFeaturesClient, error) {
@@ -121,7 +121,7 @@ func (MetadataServerMock) GetFeatureVariants(ctx context.Context, opts ...grpc.C
 func (MetadataServerMock) ListLabels(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.Metadata_ListLabelsClient, error) {
 	return nil, nil
 }
-func (MetadataServerMock) CreateLabelVariant(ctx context.Context, in *pb.LabelVariant, opts ...grpc.CallOption) (*pb.Empty, error) {
+func (MetadataServerMock) CreateLabelVariant(ctx context.Context, in *pb.LabelVariantRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	return nil, nil
 }
 func (MetadataServerMock) GetLabels(ctx context.Context, opts ...grpc.CallOption) (pb.Metadata_GetLabelsClient, error) {
@@ -133,7 +133,7 @@ func (MetadataServerMock) GetLabelVariants(ctx context.Context, opts ...grpc.Cal
 func (MetadataServerMock) ListTrainingSets(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.Metadata_ListTrainingSetsClient, error) {
 	return nil, nil
 }
-func (MetadataServerMock) CreateTrainingSetVariant(ctx context.Context, in *pb.TrainingSetVariant, opts ...grpc.CallOption) (*pb.Empty, error) {
+func (MetadataServerMock) CreateTrainingSetVariant(ctx context.Context, in *pb.TrainingSetVariantRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	return nil, nil
 }
 func (MetadataServerMock) GetTrainingSets(ctx context.Context, opts ...grpc.CallOption) (pb.Metadata_GetTrainingSetsClient, error) {
@@ -145,7 +145,7 @@ func (MetadataServerMock) GetTrainingSetVariants(ctx context.Context, opts ...gr
 func (MetadataServerMock) ListSources(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.Metadata_ListSourcesClient, error) {
 	return nil, nil
 }
-func (MetadataServerMock) CreateSourceVariant(ctx context.Context, in *pb.SourceVariant, opts ...grpc.CallOption) (*pb.Empty, error) {
+func (MetadataServerMock) CreateSourceVariant(ctx context.Context, in *pb.SourceVariantRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	return nil, nil
 }
 func (MetadataServerMock) GetSources(ctx context.Context, opts ...grpc.CallOption) (pb.Metadata_GetSourcesClient, error) {
@@ -166,7 +166,7 @@ func (MetadataServerMock) GetProviders(ctx context.Context, opts ...grpc.CallOpt
 func (MetadataServerMock) ListUsers(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.Metadata_ListUsersClient, error) {
 	return nil, nil
 }
-func (MetadataServerMock) CreateUser(ctx context.Context, in *pb.User, opts ...grpc.CallOption) (*pb.Empty, error) {
+func (MetadataServerMock) CreateUser(ctx context.Context, in *pb.UserRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	return nil, nil
 }
 func (MetadataServerMock) GetUsers(ctx context.Context, opts ...grpc.CallOption) (pb.Metadata_GetUsersClient, error) {
@@ -183,7 +183,7 @@ func (MetadataServerMock) ListEntities(ctx context.Context, in *pb.Empty, opts .
 	return nil, nil
 }
 
-func (MetadataServerMock) CreateEntity(ctx context.Context, in *pb.Entity, opts ...grpc.CallOption) (*pb.Empty, error) {
+func (MetadataServerMock) CreateEntity(ctx context.Context, in *pb.EntityRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	return nil, nil
 }
 func (MetadataServerMock) GetEntities(ctx context.Context, opts ...grpc.CallOption) (pb.Metadata_GetEntitiesClient, error) {
@@ -192,7 +192,7 @@ func (MetadataServerMock) GetEntities(ctx context.Context, opts ...grpc.CallOpti
 func (MetadataServerMock) ListModels(ctx context.Context, in *pb.Empty, opts ...grpc.CallOption) (pb.Metadata_ListModelsClient, error) {
 	return nil, nil
 }
-func (MetadataServerMock) CreateModel(ctx context.Context, in *pb.Model, opts ...grpc.CallOption) (*pb.Empty, error) {
+func (MetadataServerMock) CreateModel(ctx context.Context, in *pb.ModelRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	return nil, nil
 }
 func (MetadataServerMock) GetModels(ctx context.Context, opts ...grpc.CallOption) (pb.Metadata_GetModelsClient, error) {

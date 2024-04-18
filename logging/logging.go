@@ -38,12 +38,18 @@ func (logger Logger) WithProvider(providerType, providerName string) Logger {
 	}
 }
 
-func (logger Logger) InitializeRequestID(ctx context.Context) (context.Context, Logger, RequestID) {
-	requestID := NewRequestID()
-	logger = logger.WithRequestID(requestID)
-	ctx = context.WithValue(ctx, "logger", logger)
-	ctx = context.WithValue(ctx, "request-id", requestID)
-	return ctx, logger, requestID
+func (logger Logger) InitializeRequestID(ctx context.Context) (context.Context, Logger, string) {
+	requestID, ok := ctx.Value("request-id").(RequestID)
+	if !ok {
+		requestID = NewRequestID()
+		ctx = context.WithValue(ctx, "request-id", requestID)
+	}
+	logger, ok = ctx.Value("logger").(Logger)
+	if !ok {
+		logger = logger.WithRequestID(requestID)
+		ctx = context.WithValue(ctx, "logger", logger)
+	}
+	return ctx, logger, string(requestID)
 }
 
 func GetRequestIDFromContext(ctx context.Context) string {

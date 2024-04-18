@@ -86,28 +86,34 @@ func (serv *MetadataServer) CreateUser(ctx context.Context, userRequest *pb.User
 
 func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
 	for {
+		ctx, logger, _ := serv.Logger.InitializeRequestID(stream.Context())
 		name, err := stream.Recv()
+		logger.Infow("Get user %v from stream", name)
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorf("Failed to read client request: %v", err)
+			logger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
-		proxyStream, err := serv.meta.GetUsers(stream.Context())
+		proxyStream, err := serv.meta.GetUsers(ctx)
 		if err != nil {
+			logger.Errorf("Failed to get users from server: %v", err)
 			return err
 		}
 		sErr := proxyStream.Send(name)
 		if sErr != nil {
+			logger.Errorf("Failed to send %v to the server: %v", name, err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
 		if err != nil {
+			logger.Errorf("Failed to receive users from server: %v", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
+			logger.Errorf("Failed to send users to client: %v", err)
 			return sendErr
 		}
 	}
@@ -144,28 +150,34 @@ func (serv *MetadataServer) GetFeatures(stream pb.Api_GetFeaturesServer) error {
 
 func (serv *MetadataServer) GetFeatureVariants(stream pb.Api_GetFeatureVariantsServer) error {
 	for {
+		ctx, logger, _ := serv.Logger.InitializeRequestID(stream.Context())
 		nameVariant, err := stream.Recv()
+		logger.Debugw("Get feature variant %v from stream", nameVariant)
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorf("Failed to read client request: %v", err)
+			logger.Errorf("Failed to read client request: %v", err)
 			return err
 		}
-		proxyStream, err := serv.meta.GetFeatureVariants(stream.Context())
+		proxyStream, err := serv.meta.GetFeatureVariants(ctx)
 		if err != nil {
+			logger.Errorf("Failed to get feature variants from server: %v", err)
 			return err
 		}
 		sErr := proxyStream.Send(nameVariant)
 		if sErr != nil {
+			logger.Errorf("Failed to send %v to the server: %v", nameVariant, err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
 		if err != nil {
+			logger.Errorf("Failed to receive feature variants from server: %v", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
+			logger.Errorf("Failed to send feature variants to client: %v", err)
 			return sendErr
 		}
 	}
@@ -437,20 +449,26 @@ func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceV
 }
 
 func (serv *MetadataServer) ListUsers(in *pb.Empty, stream pb.Api_ListUsersServer) error {
-	proxyStream, err := serv.meta.ListUsers(stream.Context(), in)
+	ctx, logger, _ := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Infow("Listing Users")
+	proxyStream, err := serv.meta.ListUsers(ctx, in)
 	if err != nil {
+		logger.Errorf("Failed to list users: %v", err)
 		return err
 	}
 	for {
+		logger.Debugw("Getting user from stream")
 		res, err := proxyStream.Recv()
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
+			logger.Errorf("Failed to receive user from server: %v", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
+			logger.Errorf("Failed to send user to client: %v", err)
 			return sendErr
 		}
 	}

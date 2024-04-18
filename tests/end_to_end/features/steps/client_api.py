@@ -58,7 +58,7 @@ def step_impl(context):
 @then("I should be able to get the data of the resource")
 def step_impl(context):
     df = context.client.dataframe(context.txn_short)
-    assert df.count() > 0
+    assert len(df) > 0
 
 
 @then("I should be able to get the resource")

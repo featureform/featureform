@@ -28,8 +28,11 @@ def step_impl(context):
 
     context.client.apply(asynchronous=False, verbose=True)
     context.new_transformation = some_transformation
-    print("---", some_transformation.name_variant(), context.transformation.name_variant())
-    assert context.new_transformation.name_variant() == context.transformation.name_variant()
+
+    assert (
+        context.new_transformation.name_variant()
+        == context.transformation.name_variant()
+    )
 
 
 @then("I should be able to register a new auto variant transformation")
@@ -44,7 +47,10 @@ def step_impl(context):
     context.client.apply(asynchronous=False, verbose=True)
     context.new_transformation = some_transformation
 
-    assert context.new_transformation.name_variant() != context.transformation.name_variant()
+    assert (
+        context.new_transformation.name_variant()
+        != context.transformation.name_variant()
+    )
 
 
 @then("I can get the transformation as df")
@@ -78,7 +84,7 @@ def step_impl(context):
         """modified transactions"""
         from pyspark.sql.functions import lit
 
-        df = df.withColumn("new_column",  lit("hi.world"))
+        df = df.withColumn("new_column", lit("hi.world"))
         return df
 
     context.client.apply(asynchronous=False, verbose=True)

@@ -29,7 +29,7 @@ import (
 )
 
 // defaultRowsPerChunk is the number of rows in a chunk when using materializations.
-const defaultRowsPerChunk int64 = 100000
+const defaultRowsPerChunk int64 = 100_000
 
 type OfflineResourceType int
 
@@ -966,7 +966,6 @@ func (table *memoryOfflineTable) WriteBatch(recs []ResourceRecord) error {
 
 // Used in runner/copy_test.go
 type MemoryMaterialization struct {
-	// Lowercase do so it doesn't name thrash ID()
 	Id           MaterializationID
 	Data         []ResourceRecord
 	RowsPerChunk int64

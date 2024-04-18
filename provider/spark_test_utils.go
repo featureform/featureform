@@ -20,7 +20,7 @@ func GetTestingBlobDatabricks(t *testing.T) *SparkOfflineStore {
 		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
 		Path:          helpers.GetEnv("AZURE_CONTAINER_PATH", ""),
 	}
-	return getTestingDatabricks(t, azureConfig)
+	return getTestingDatabricks(t, azureConfig, fs.Azure)
 }
 
 func GetTestingS3Databricks(t *testing.T) *SparkOfflineStore {
@@ -34,14 +34,14 @@ func GetTestingS3Databricks(t *testing.T) *SparkOfflineStore {
 	}
 	s3Config := &pc.S3FileStoreConfig{
 		Credentials:  awsCreds,
-		BucketRegion: helpers.GetEnv("S3_BUCKET_REGION", ""),
-		BucketPath:   helpers.GetEnv("S3_BUCKET_PATH", ""),
+		BucketRegion: helpers.GetEnv("S3_BUCKET_REGION", "us-east-2"),
+		BucketPath:   helpers.GetEnv("S3_BUCKET_PATH", "featureform-spark-testing"),
 	}
-	return getTestingDatabricks(t, s3Config)
-
+	t.Logf("S3 CONFIG TestingS3Databricks: %+v\n", s3Config)
+	return getTestingDatabricks(t, s3Config, fs.S3)
 }
 
-func getTestingDatabricks(t *testing.T, cfg SparkFileStoreConfig) *SparkOfflineStore {
+func getTestingDatabricks(t *testing.T, cfg SparkFileStoreConfig, fst fs.FileStoreType) *SparkOfflineStore {
 	databricksConfig := pc.DatabricksConfig{
 		Username: helpers.GetEnv("DATABRICKS_USERNAME", ""),
 		Password: helpers.GetEnv("DATABRICKS_PASSWORD", ""),
@@ -52,7 +52,7 @@ func getTestingDatabricks(t *testing.T, cfg SparkFileStoreConfig) *SparkOfflineS
 	SparkOfflineConfig := pc.SparkConfig{
 		ExecutorType:   pc.Databricks,
 		ExecutorConfig: &databricksConfig,
-		StoreType:      fs.S3,
+		StoreType:      fst,
 		StoreConfig:    cfg,
 	}
 	sparkSerializedConfig, err := SparkOfflineConfig.Serialize()

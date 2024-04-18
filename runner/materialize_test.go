@@ -18,6 +18,10 @@ func TestMaterializationRunner(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+	// A lot of tests mess with this global state. We should stop doing that, but for now we can try to
+	// force the factory to exist by calling this directly.
+	ResetFactoryMap()
+	registerFactories()
 	dynamodb := provider.GetTestingDynamoDB(t)
 	dbrix := provider.GetTestingS3Databricks(t)
 	t.Run("dbrix_to_dynamo", func(t *testing.T) {

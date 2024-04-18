@@ -12,6 +12,10 @@ import (
 )
 
 func init() {
+	registerFactories()
+}
+
+func registerFactories() {
 	if err := RegisterFactory(COPY_TO_ONLINE, MaterializedChunkRunnerFactory); err != nil {
 		panic(fmt.Errorf("failed to register 'Copy to Online' factory: %w", err))
 	}
@@ -55,6 +59,7 @@ type RunnerFactory func(config Config) (types.Runner, error)
 
 var factoryMap = make(map[RunnerName]RunnerFactory)
 
+// Don't use this in testing, it affects global state and can break other tests or cause race conditions.
 func ResetFactoryMap() {
 	factoryMap = make(map[RunnerName]RunnerFactory)
 }
@@ -67,6 +72,7 @@ func RegisterFactory(name RunnerName, runnerFactory RunnerFactory) error {
 	return nil
 }
 
+// Don't use this in testing, it affects global state and can break other tests or cause race conditions.
 func UnregisterFactory(name RunnerName) error {
 	if _, exists := factoryMap[name]; !exists {
 		return fferr.NewInternalError(fmt.Errorf("factory %s not registered", name))

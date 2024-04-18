@@ -18,6 +18,8 @@ import (
 	"time"
 )
 
+const mockFactoryName = "test"
+
 type MockRunner struct {
 }
 
@@ -154,7 +156,7 @@ func registerMockRunnerFactoryFailingWatcher() error {
 	mockFactory := func(config runner.Config) (types.Runner, error) {
 		return mockRunnerFailingWatcher, nil
 	}
-	if err := runner.RegisterFactory("test", mockFactory); err != nil {
+	if err := runner.RegisterFactory(mockFactoryName, mockFactory); err != nil {
 		return err
 	}
 	return nil
@@ -165,7 +167,7 @@ func registerMockFailRunnerFactory() error {
 	failRunnerFactory := func(config runner.Config) (types.Runner, error) {
 		return failRunner, nil
 	}
-	if err := runner.RegisterFactory("test", failRunnerFactory); err != nil {
+	if err := runner.RegisterFactory(mockFactoryName, failRunnerFactory); err != nil {
 		return err
 	}
 	return nil
@@ -176,7 +178,7 @@ func registerMockRunnerFactory() error {
 	mockFactory := func(config runner.Config) (types.Runner, error) {
 		return mockRunner, nil
 	}
-	if err := runner.RegisterFactory("test", mockFactory); err != nil {
+	if err := runner.RegisterFactory(mockFactoryName, mockFactory); err != nil {
 		return err
 	}
 	return nil
@@ -187,7 +189,7 @@ func registerMockIndexRunnerFactory() error {
 	mockFactory := func(config runner.Config) (types.Runner, error) {
 		return mockRunner, nil
 	}
-	if err := runner.RegisterFactory("test", mockFactory); err != nil {
+	if err := runner.RegisterFactory(mockFactoryName, mockFactory); err != nil {
 		return err
 	}
 	return nil
@@ -198,32 +200,32 @@ func registerMockFailIndexRunnerFactory() error {
 	mockFactory := func(config runner.Config) (types.Runner, error) {
 		return mockRunner, nil
 	}
-	if err := runner.RegisterFactory("test", mockFactory); err != nil {
+	if err := runner.RegisterFactory(mockFactoryName, mockFactory); err != nil {
 		return err
 	}
 	return nil
 }
 
 func TestBasicRunner(t *testing.T) {
-	runner.ResetFactoryMap()
 	if err := registerMockRunnerFactory(); err != nil {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}
+	defer runner.UnregisterFactory(mockFactoryName)
 	config := runner.Config{}
 	t.Setenv("CONFIG", string(config))
-	t.Setenv("NAME", "test")
+	t.Setenv("NAME", mockFactoryName)
 	if err := CreateAndRun(); err != nil {
 		t.Fatalf("Error running mock runner: %v", err)
 	}
 }
 func TestBasicRunnerIndex(t *testing.T) {
-	runner.ResetFactoryMap()
 	if err := registerMockIndexRunnerFactory(); err != nil {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}
+	defer runner.UnregisterFactory(mockFactoryName)
 	config := runner.Config{}
 	t.Setenv("CONFIG", string(config))
-	t.Setenv("NAME", "test")
+	t.Setenv("NAME", mockFactoryName)
 	t.Setenv("JOB_COMPLETION_INDEX", "0")
 	if err := CreateAndRun(); err != nil {
 		t.Fatalf("Error running mock runner: %v", err)
@@ -231,26 +233,26 @@ func TestBasicRunnerIndex(t *testing.T) {
 }
 
 func TestBasicRunnerNoSetIndex(t *testing.T) {
-	runner.ResetFactoryMap()
 	if err := registerMockIndexRunnerFactory(); err != nil {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}
+	defer runner.UnregisterFactory(mockFactoryName)
 	config := runner.Config{}
 	t.Setenv("CONFIG", string(config))
-	t.Setenv("NAME", "test")
+	t.Setenv("NAME", mockFactoryName)
 	if err := CreateAndRun(); err == nil {
 		t.Fatalf("failed to capture error no set index")
 	}
 }
 
 func TestInvalidIndex(t *testing.T) {
-	runner.ResetFactoryMap()
 	if err := registerMockIndexRunnerFactory(); err != nil {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}
+	defer runner.UnregisterFactory(mockFactoryName)
 	config := runner.Config{}
 	t.Setenv("CONFIG", string(config))
-	t.Setenv("NAME", "test")
+	t.Setenv("NAME", mockFactoryName)
 	t.Setenv("JOB_COMPLETION_INDEX", "a")
 	if err := CreateAndRun(); err == nil {
 		t.Fatalf("failed to catch invalid index")
@@ -258,13 +260,13 @@ func TestInvalidIndex(t *testing.T) {
 }
 
 func TestUnneededIndex(t *testing.T) {
-	runner.ResetFactoryMap()
 	if err := registerMockRunnerFactory(); err != nil {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}
+	defer runner.UnregisterFactory(mockFactoryName)
 	config := runner.Config{}
 	t.Setenv("CONFIG", string(config))
-	t.Setenv("NAME", "test")
+	t.Setenv("NAME", mockFactoryName)
 	t.Setenv("JOB_COMPLETION_INDEX", "0")
 	if err := CreateAndRun(); err == nil {
 		t.Fatalf("failed to catch unneeded index error")
@@ -272,13 +274,13 @@ func TestUnneededIndex(t *testing.T) {
 }
 
 func TestIndexSetFail(t *testing.T) {
-	runner.ResetFactoryMap()
 	if err := registerMockFailIndexRunnerFactory(); err != nil {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}
+	defer runner.UnregisterFactory(mockFactoryName)
 	config := runner.Config{}
 	t.Setenv("CONFIG", string(config))
-	t.Setenv("NAME", "test")
+	t.Setenv("NAME", mockFactoryName)
 	t.Setenv("JOB_COMPLETION_INDEX", "0")
 	if err := CreateAndRun(); err == nil {
 		t.Fatalf("failed to catch unneeded index error")
@@ -286,21 +288,21 @@ func TestIndexSetFail(t *testing.T) {
 }
 
 func TestRunnerNoConfig(t *testing.T) {
-	runner.ResetFactoryMap()
 	if err := registerMockRunnerFactory(); err != nil {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}
-	t.Setenv("NAME", "test")
+	defer runner.UnregisterFactory(mockFactoryName)
+	t.Setenv("NAME", mockFactoryName)
 	if err := CreateAndRun(); err == nil {
 		t.Fatalf("Failed to call error on missing config envvar")
 	}
 }
 
 func TestRunnerNoName(t *testing.T) {
-	runner.ResetFactoryMap()
 	if err := registerMockRunnerFactory(); err != nil {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}
+	defer runner.UnregisterFactory(mockFactoryName)
 	config := runner.Config{}
 	t.Setenv("CONFIG", string(config))
 	if err := CreateAndRun(); err == nil {
@@ -309,36 +311,35 @@ func TestRunnerNoName(t *testing.T) {
 }
 
 func TestRunnerNoFactory(t *testing.T) {
-	runner.ResetFactoryMap()
 	config := runner.Config{}
 	t.Setenv("CONFIG", string(config))
-	t.Setenv("NAME", "test")
+	t.Setenv("NAME", mockFactoryName)
 	if err := CreateAndRun(); err == nil {
 		t.Fatalf("Failed to call error on missing runner factory")
 	}
 }
 
 func TestRunnerCreateFail(t *testing.T) {
-	runner.ResetFactoryMap()
 	if err := registerMockFailRunnerFactory(); err != nil {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}
+	defer runner.UnregisterFactory(mockFactoryName)
 	config := runner.Config{}
 	t.Setenv("CONFIG", string(config))
-	t.Setenv("NAME", "test")
+	t.Setenv("NAME", mockFactoryName)
 	if err := CreateAndRun(); err == nil {
 		t.Fatalf("Broken runner doesn't fail when run")
 	}
 }
 
 func TestRunnerRunFail(t *testing.T) {
-	runner.ResetFactoryMap()
 	if err := registerMockRunnerFactoryFailingWatcher(); err != nil {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}
+	defer runner.UnregisterFactory(mockFactoryName)
 	config := runner.Config{}
 	t.Setenv("CONFIG", string(config))
-	t.Setenv("NAME", "test")
+	t.Setenv("NAME", mockFactoryName)
 	if err := CreateAndRun(); err == nil {
 		t.Fatalf("Broken watcher does not return error")
 	}
@@ -349,7 +350,7 @@ func registerUpdateMockRunnerFactory(resID metadata.ResourceID) error {
 	mockFactory := func(config runner.Config) (types.Runner, error) {
 		return mockRunner, nil
 	}
-	if err := runner.RegisterFactory("test", mockFactory); err != nil {
+	if err := runner.RegisterFactory(mockFactoryName, mockFactory); err != nil {
 		return err
 	}
 	return nil
@@ -359,7 +360,6 @@ func TestBasicUpdateRunner(t *testing.T) {
 	if testing.Short() {
 		return
 	}
-	runner.ResetFactoryMap()
 	resourceName := uuid.New().String()
 	resourceVariant := ""
 	resourceType := metadata.FEATURE_VARIANT
@@ -367,6 +367,7 @@ func TestBasicUpdateRunner(t *testing.T) {
 	if err := registerUpdateMockRunnerFactory(resourceID); err != nil {
 		t.Fatalf("Error registering mock runner factory: %v", err)
 	}
+	defer runner.UnregisterFactory(mockFactoryName)
 	config := runner.Config{}
 	etcdConfig := &coordinator.ETCDConfig{Endpoints: []string{"localhost:2379"}, Username: "root", Password: "secretpassword"}
 	serializedETCD, err := etcdConfig.Serialize()
@@ -374,7 +375,7 @@ func TestBasicUpdateRunner(t *testing.T) {
 		t.Fatalf("Could not serialize etcd config")
 	}
 	t.Setenv("CONFIG", string(config))
-	t.Setenv("NAME", "test")
+	t.Setenv("NAME", mockFactoryName)
 	t.Setenv("ETCD_CONFIG", string(serializedETCD))
 	if err := CreateAndRun(); err != nil {
 		t.Fatalf("Error running mock runner: %v", err)

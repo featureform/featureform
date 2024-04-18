@@ -294,7 +294,7 @@ func (def FeatureDef) ResourceType() ResourceType {
 }
 
 func (def FeatureDef) Serialize(ctx context.Context) (*pb.FeatureVariantRequest, error) {
-	requestID := ctx.Value("request-id").(string)
+	requestID := logging.GetRequestIDFromContext(ctx)
 	serialized := &pb.FeatureVariantRequest{
 		FeatureVariant: &pb.FeatureVariant{
 			Name:        def.Name,
@@ -425,7 +425,7 @@ func (def LabelDef) ResourceType() ResourceType {
 }
 
 func (def LabelDef) Serialize(ctx context.Context) (*pb.LabelVariantRequest, error) {
-	requestID := ctx.Value("request-id").(string)
+	requestID := logging.GetRequestIDFromContext(ctx)
 	serialized := &pb.LabelVariantRequest{
 		LabelVariant: &pb.LabelVariant{
 			Name:        def.Name,
@@ -575,7 +575,7 @@ func (def TrainingSetDef) ResourceType() ResourceType {
 }
 
 func (def TrainingSetDef) Serialize(ctx context.Context) *pb.TrainingSetVariantRequest {
-	requestID := ctx.Value("request-id").(string)
+	requestID := logging.GetRequestIDFromContext(ctx)
 	return &pb.TrainingSetVariantRequest{
 		TrainingSetVariant: &pb.TrainingSetVariant{
 			Name:        def.Name,
@@ -802,7 +802,7 @@ func (def SourceDef) ResourceType() ResourceType {
 }
 
 func (def SourceDef) Serialize(ctx context.Context) (*pb.SourceVariantRequest, error) {
-	requestID := ctx.Value("request-id").(string)
+	requestID := logging.GetRequestIDFromContext(ctx)
 	serialized := &pb.SourceVariantRequest{
 		SourceVariant: &pb.SourceVariant{
 			Name:        def.Name,
@@ -963,7 +963,7 @@ func (def UserDef) ResourceType() ResourceType {
 }
 
 func (client *Client) CreateUser(ctx context.Context, def UserDef) error {
-	requestID := ctx.Value("request-id").(string)
+	requestID := logging.GetRequestIDFromContext(ctx)
 
 	serialized := &pb.UserRequest{
 		User: &pb.User{
@@ -1045,7 +1045,7 @@ func (def ProviderDef) ResourceType() ResourceType {
 }
 
 func (client *Client) CreateProvider(ctx context.Context, def ProviderDef) error {
-	requestID := ctx.Value("request-id").(string)
+	requestID := logging.GetRequestIDFromContext(ctx)
 
 	serialized := &pb.ProviderRequest{
 		Provider: &pb.Provider{
@@ -1129,7 +1129,7 @@ func (def EntityDef) ResourceType() ResourceType {
 }
 
 func (client *Client) CreateEntity(ctx context.Context, def EntityDef) error {
-	requestID := ctx.Value("request-id").(string)
+	requestID := logging.GetRequestIDFromContext(ctx)
 	serialized := &pb.EntityRequest{
 		Entity: &pb.Entity{
 			Name:        def.Name,
@@ -1210,7 +1210,7 @@ func (def ModelDef) ResourceType() ResourceType {
 }
 
 func (client *Client) CreateModel(ctx context.Context, def ModelDef) error {
-	requestID := ctx.Value("request-id").(string)
+	requestID := logging.GetRequestIDFromContext(ctx)
 	serialized := &pb.ModelRequest{
 		Model: &pb.Model{
 			Name:         def.Name,

@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 
@@ -15,11 +16,10 @@ type Logger struct {
 
 type RequestID string
 
-func NewRequestID() string {
-	return uuid.New().String()
+func NewRequestID() RequestID {
+	return RequestID(uuid.New().String())
 }
 
-// Can I change the function name to WithRequestID?
 func (logger Logger) WithRequestID(id RequestID) Logger {
 	return Logger{
 		logger.With("request-id", id),
@@ -36,6 +36,23 @@ func (logger Logger) WithProvider(providerType, providerName string) Logger {
 	return Logger{
 		logger.With("provider-type", providerType, "provider-name", providerName),
 	}
+}
+
+func (logger Logger) InitializeRequestID(ctx context.Context) (context.Context, Logger, RequestID) {
+	requestID := NewRequestID()
+	logger = logger.WithRequestID(requestID)
+	ctx = context.WithValue(ctx, "logger", logger)
+	ctx = context.WithValue(ctx, "request-id", requestID)
+	return ctx, logger, requestID
+}
+
+func GetRequestIDFromContext(ctx context.Context) string {
+	requestID, ok := ctx.Value("request-id").(string)
+	if !ok {
+		NewLogger("logging").Warn("Request ID not found in context")
+		return ""
+	}
+	return requestID
 }
 
 func NewLogger(service string) Logger {

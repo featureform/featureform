@@ -31,7 +31,7 @@ Feature: Client API
         When I create a "hosted" "insecure" client for "localhost:7878"
         And I generate a random variant name
         And I register "s3" filestore with bucket "featureform-spark-testing" and root path "data"
-        And I have registered databricks
+        And I register databricks
         And I register transactions_short.csv
         Then I should be able to get the resource
         And I should be able to get the data of the resource

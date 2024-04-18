@@ -58,7 +58,6 @@ def step_impl(context):
 @then("I should be able to get the data of the resource")
 def step_impl(context):
     df = context.client.dataframe(context.txn_short)
-    assert df is not None
     assert df.count() > 0
 
 

@@ -76,7 +76,9 @@ def step_impl(context):
     )
     def some_transformation(df):
         """modified transactions"""
-        df = df.withColumn("new_id", ff.F.col("TransactionID") + 1)
+        from pyspark.sql.functions import lit
+
+        df = df.withColumn("new_column",  lit("hi.world"))
         return df
 
     context.client.apply(asynchronous=False, verbose=True)

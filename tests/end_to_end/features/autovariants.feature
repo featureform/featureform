@@ -1,8 +1,7 @@
 Feature: AutoVariants
     Scenario: Same auto variant for same transformation 
         Given Featureform is installed
-        When I created a "hosted" "insecure" client for "localhost:7878"
-        And I generate a random variant name
+        When I create a "hosted" "insecure" client for "localhost:7878"
         And I register "s3" filestore with bucket "featureform-spark-testing" and root path "data"
         And I register databricks
         And I register the file
@@ -12,8 +11,7 @@ Feature: AutoVariants
 
     Scenario: Same user-provided variant for same transformation
         Given Featureform is installed
-        When I created a "hosted" "insecure" client for "localhost:7878"
-        And I generate a random variant name
+        When I create a "hosted" "insecure" client for "localhost:7878"
         And I register "s3" filestore with bucket "featureform-spark-testing" and root path "data"
         And I register databricks
         And I register the file
@@ -23,8 +21,7 @@ Feature: AutoVariants
     
     Scenario: Different auto variant for different transformation
         Given Featureform is installed
-        And I created a "hosted" "insecure" client for "localhost:7878"
-        And I generate a random variant name
+        When I create a "hosted" "insecure" client for "localhost:7878"
         And I register "s3" filestore with bucket "featureform-spark-testing" and root path "data"
         And I register databricks
         When I register the file

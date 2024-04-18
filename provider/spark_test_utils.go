@@ -29,6 +29,7 @@ func GetTestingS3Databricks(t *testing.T) *SparkOfflineStore {
 		t.Logf("could not open .env file... Checking environment: %s", err)
 	}
 	awsCreds := pc.AWSCredentials{
+		// These are not working in CI/CD at the time of this PR, but should be prefered.
 		// AWSAccessKeyId: helpers.GetEnv("AWS_ACCESS_KEY_ID", ""),
 		// AWSSecretKey:   helpers.GetEnv("AWS_SECRET_ACCESS_KEY", ""),
 		AWSAccessKeyId: helpers.GetEnv("DYNAMO_ACCESS_KEY", ""),

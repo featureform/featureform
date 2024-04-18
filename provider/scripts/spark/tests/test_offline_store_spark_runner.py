@@ -205,7 +205,9 @@ def test_boolean_count(spark):
         "categoryCounts": [5, 15],
     }
 
-    data = [Row(test_boolean=True) for _ in range(15)] + [Row(test_boolean=False) for _ in range(5)]
+    data = [Row(test_boolean=True) for _ in range(15)] + [
+        Row(test_boolean=False) for _ in range(5)
+    ]
     df = spark.createDataFrame(data, [column_name])
 
     boolean_info = boolean_count(df, column_name)

@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv("../../.env")
 
+
 @then('I should get the columns for the data source from "{provider}"')
 def step_impl(context, provider):
     context.client.apply()
@@ -37,10 +38,12 @@ def step_impl(context, provider):
         raise ValueError(f"Unknown provider {provider}")
     assert context.cols == expected_source_cols
 
+
 @then("I should be able to get spark provider")
 def step_impl(context):
     context.spark_provider = ff.get_spark(context.spark_name)
     assert context.spark_provider is not None
+
 
 @then("I should be able to register transactions_short.csv")
 def step_impl(context):
@@ -51,11 +54,13 @@ def step_impl(context):
     )
     context.client.apply(asynchronous=False, verbose=True)
 
+
 @then("I should be able to get the data of the resource")
 def step_impl(context):
     df = context.client.dataframe(context.txn_short)
     assert df is not None
     assert df.count() > 0
+
 
 @then("I should be able to get the resource")
 def step_impl(context):

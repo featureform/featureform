@@ -138,7 +138,6 @@ type ErrorTransformationFactoryConfigs struct {
 }
 
 func TestCreateTransformationRunnerFactoryErrorCoverage(t *testing.T) {
-	ResetFactoryMap()
 	transformationSerialize := func(ts CreateTransformationConfig) Config {
 		config, err := ts.Serialize()
 		if err != nil {
@@ -178,7 +177,6 @@ func TestCreateTransformationRunnerFactoryErrorCoverage(t *testing.T) {
 }
 
 func TestTransformationFactory(t *testing.T) {
-	ResetFactoryMap()
 	transformationSerialize := func(ts CreateTransformationConfig) Config {
 		config, err := ts.Serialize()
 		if err != nil {

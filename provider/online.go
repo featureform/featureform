@@ -76,6 +76,17 @@ type VectorStoreTable interface {
 	Nearest(feature, variant string, vector []float32, k int32) ([]string, error)
 }
 
+type BatchOnlineTable interface {
+	OnlineStoreTable
+	BatchSet([]SetItem) error
+	MaxBatchSize() (int, error)
+}
+
+type SetItem struct {
+	Entity string
+	Value  interface{}
+}
+
 type tableKey struct {
 	feature, variant string
 }

@@ -10,8 +10,104 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/types"
+	"github.com/google/uuid"
 	"go.uber.org/zap/zaptest"
 )
+
+func TestMaterializationRunner(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	// A lot of tests mess with this global state. We should stop doing that, but for now we can try to
+	// force the factory to exist by calling this directly.
+	ResetFactoryMap()
+	registerFactories()
+	dynamodb := provider.GetTestingDynamoDB(t)
+	dbrix := provider.GetTestingS3Databricks(t)
+	t.Run("dbrix_to_dynamo", func(t *testing.T) {
+		testMaterializationRunner(t, dbrix, dynamodb)
+	})
+}
+
+func testMaterializationRunner(t *testing.T, offline provider.OfflineStore, online provider.OnlineStore) {
+	logger := zaptest.NewLogger(t).Sugar()
+
+	schema := provider.TableSchema{
+		Columns: []provider.TableColumn{
+			{Name: "entity", ValueType: provider.String},
+			{Name: "value", ValueType: provider.Float32},
+			{Name: "ts", ValueType: provider.Timestamp},
+		},
+	}
+	records := []provider.ResourceRecord{
+		{Entity: "a", Value: float32(1)},
+		{Entity: "b", Value: float32(2)},
+		{Entity: "c", Value: float32(3)},
+	}
+	id, mat := createMaterialization(t, offline, schema, records)
+	defer offline.DeleteMaterialization(mat.ID())
+	job := MaterializeRunner{
+		Online:  online,
+		Offline: offline,
+		ID:      id,
+		VType:   provider.Float32,
+		// Only testing initial materializations
+		IsUpdate: false,
+		// Not testing K8s
+		Cloud:  LocalMaterializeRunner,
+		Logger: logger,
+	}
+	waiter, err := job.MaterializeToOnline(mat)
+	if err != nil {
+		t.Fatalf("Run failed: %s", err)
+	}
+	if err := waiter.Wait(); err != nil {
+		panic(err)
+	}
+	defer online.DeleteTable(id.Name, id.Variant)
+	for _, rec := range records {
+		entity, expVal := rec.Entity, rec.Value
+		tab, err := online.GetTable(id.Name, id.Variant)
+		if err != nil {
+			t.Fatalf("Failed to get table %v.\n%s\n", id, err)
+		}
+		gotVal, err := tab.Get(entity)
+		if err != nil {
+			t.Fatalf("Entity not found %s.", entity)
+		}
+		casted, ok := gotVal.(float32)
+		if !ok {
+			t.Fatalf(
+				"Got wrong type for %s.\nExpected: %+v\nFound: %+v\n",
+				entity, expVal, gotVal,
+			)
+		}
+		if casted != gotVal {
+			t.Fatalf(
+				"Got wrong value for %s.\nExpected: %+v\nFound: %+v\n",
+				entity, expVal, gotVal,
+			)
+		}
+	}
+}
+
+func createMaterialization(
+	t *testing.T, store provider.OfflineStore, schema provider.TableSchema, records []provider.ResourceRecord,
+) (provider.ResourceID, provider.Materialization) {
+	id := provider.ResourceID{Name: uuid.NewString(), Variant: uuid.NewString(), Type: provider.Feature}
+	table, err := store.CreateResourceTable(id, schema)
+	if err != nil {
+		t.Fatalf("Failed to create table: %s", err)
+	}
+	if err := table.WriteBatch(records); err != nil {
+		t.Fatalf("Failed to write batch: %s", err)
+	}
+	mat, err := store.CreateMaterialization(id)
+	if err != nil {
+		t.Fatalf("Failed to create materialization: %s", err)
+	}
+	return id, mat
+}
 
 type mockChunkRunner struct{}
 

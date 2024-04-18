@@ -12,6 +12,8 @@ import (
 	re "github.com/avast/retry-go/v4"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/ratelimit"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	awsv2cfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
@@ -29,6 +31,11 @@ import (
 	"gocloud.dev/blob/s3blob"
 	"gocloud.dev/gcp"
 	"golang.org/x/oauth2/google"
+)
+
+const (
+	// Default timeout on S3 calls
+	defaultS3Timeout = 30 * time.Second
 )
 
 type FileStore interface {
@@ -268,6 +275,27 @@ func NewS3FileStore(config Config) (FileStore, error) {
 		wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("bucket_name cannot contain '/'. bucket_name should be the name of the AWS S3 bucket only"))
 		wrapped.AddDetail("bucket_name", trimmedBucket)
 		return nil, wrapped
+	}
+
+	args := []func(*awsv2cfg.LoadOptions) error{
+		awsv2cfg.WithRegion(s3StoreConfig.BucketRegion),
+		awsv2cfg.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s3StoreConfig.Credentials.AWSAccessKeyId, s3StoreConfig.Credentials.AWSSecretKey, "")),
+		awsv2cfg.WithRetryer(func() aws.Retryer {
+			return retry.AddWithMaxBackoffDelay(retry.NewStandard(func(o *retry.StandardOptions) {
+				o.RateLimiter = ratelimit.None
+			}), defaultS3Timeout)
+		}),
+	}
+	// If we are using a custom endpoint, such as when running localstack, we should point at it. We'd never set this when
+	// directly accessing DynamoDB on AWS.
+	if s3StoreConfig.Endpoint != "" {
+		args = append(args,
+			awsv2cfg.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(func(service, region string, opts ...interface{}) (aws.Endpoint, error) {
+				return aws.Endpoint{
+					URL:           s3StoreConfig.Endpoint,
+					SigningRegion: s3StoreConfig.BucketRegion,
+				}, nil
+			})))
 	}
 
 	cfg, err := awsv2cfg.LoadDefaultConfig(context.TODO(),
@@ -976,12 +1004,12 @@ func (store *genericFileStore) Write(path filestore.Filepath, data []byte) error
 	err = re.Do(
 		func() error {
 			blob, errRetr := store.bucket.ReadAll(ctx, path.Key())
-			fmt.Printf("Read (%d) bytes from bucket (%s) after write\n", len(data), path.Key())
 			if errRetr != nil {
-				return re.Unrecoverable(errRetr)
+				return errRetr
 			} else if !bytes.Equal(blob, data) {
 				return fmt.Errorf("blob read from bucket does not match blob written to bucket")
 			}
+			fmt.Printf("Read (%d) bytes from bucket (%s) after write\n", len(blob), path.Key())
 			return nil
 		},
 		re.DelayType(func(n uint, err error, config *re.Config) time.Duration {

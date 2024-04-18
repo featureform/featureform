@@ -176,7 +176,6 @@ func TestRegisterSourceRunnerFactoryErrorCoverage(t *testing.T) {
 }
 
 func TestRegisterSourceFactory(t *testing.T) {
-	ResetFactoryMap()
 	registerSourceSerialize := func(ts RegisterSourceConfig) Config {
 		config, err := ts.Serialize()
 		if err != nil {
@@ -199,4 +198,5 @@ func TestRegisterSourceFactory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not create create register source runner")
 	}
+	delete(factoryMap, "TEST_REGISTER_SOURCE")
 }

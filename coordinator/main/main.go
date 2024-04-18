@@ -8,7 +8,6 @@ import (
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
-	"github.com/featureform/runner"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -39,21 +38,6 @@ func main() {
 			panic(fmt.Errorf("failed to close etcd client: %w", err))
 		}
 	}(cli)
-	if err := runner.RegisterFactory(runner.COPY_TO_ONLINE, runner.MaterializedChunkRunnerFactory); err != nil {
-		panic(fmt.Errorf("failed to register 'Copy to Online' runner factory: %w", err))
-	}
-	if err := runner.RegisterFactory(runner.MATERIALIZE, runner.MaterializeRunnerFactory); err != nil {
-		panic(fmt.Errorf("failed to register 'Materialize' runner factory: %w", err))
-	}
-	if err := runner.RegisterFactory(runner.CREATE_TRANSFORMATION, runner.CreateTransformationRunnerFactory); err != nil {
-		panic(fmt.Errorf("failed to register 'Create Transformation' runner factory: %w", err))
-	}
-	if err := runner.RegisterFactory(runner.CREATE_TRAINING_SET, runner.TrainingSetRunnerFactory); err != nil {
-		panic(fmt.Errorf("failed to register 'Create Training Set' runner factory: %w", err))
-	}
-	if err := runner.RegisterFactory(runner.S3_IMPORT_DYNAMODB, runner.S3ImportDynamoDBRunnerFactory); err != nil {
-		panic(fmt.Errorf("failed to register S3 import to DynamoDB runner factory: %v", err))
-	}
 	logger := logging.NewLogger("coordinator")
 	defer logger.Sync()
 	logger.Debug("Connected to ETCD")

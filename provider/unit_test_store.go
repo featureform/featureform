@@ -253,6 +253,14 @@ func (m MockUnitTestOfflineStore) CreateMaterialization(id ResourceID, options .
 	return MockMaterialization{}, nil
 }
 
+func (m MockMaterialization) NumChunks() (int, error) {
+	return 0, nil
+}
+
+func (m MockMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
+	return MockIterator{}, nil
+}
+
 type MockOfflineTable struct{}
 
 func (m MockOfflineTable) Write(ResourceRecord) error {

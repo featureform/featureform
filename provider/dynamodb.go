@@ -11,6 +11,8 @@ import (
 
 	"github.com/araddon/dateparse"
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/ratelimit"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -45,6 +47,10 @@ const (
 
 type dynamodbTableKey struct {
 	Prefix, Feature, Variant string
+}
+
+func (t dynamodbTableKey) ToTableName() string {
+	return formatDynamoTableName(t.Prefix, t.Feature, t.Variant)
 }
 
 func (t dynamodbTableKey) String() string {
@@ -120,6 +126,11 @@ func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, e
 	args := []func(*config.LoadOptions) error{
 		config.WithRegion(options.Region),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(options.AccessKey, options.SecretKey, "")),
+		config.WithRetryer(func() aws.Retryer {
+			return retry.AddWithMaxBackoffDelay(retry.NewStandard(func(o *retry.StandardOptions) {
+				o.RateLimiter = ratelimit.None
+			}), defaultDynamoTableTimeout)
+		}),
 	}
 	// If we are using a custom endpoint, such as when running localstack, we should point at it. We'd never set this when
 	// directly accessing DynamoDB on AWS.
@@ -327,6 +338,7 @@ func (store *dynamodbOnlineStore) CheckHealth() (bool, error) {
 	return true, nil
 }
 
+// TODO(simba) Make this work with Serialize V1
 func (store *dynamodbOnlineStore) ImportTable(feature, variant string, valueType ValueType, source filestore.Filepath) (ImportID, error) {
 	tableName := formatDynamoTableName(store.prefix, feature, variant)
 	store.logger.Infof("Checking metadata table for existing table %s\n", tableName)
@@ -349,7 +361,7 @@ func (store *dynamodbOnlineStore) ImportTable(feature, variant string, valueType
 	importInput := &dynamodb.ImportTableInput{
 		// This is optional but it ensures idempotency within an 8-hour window,
 		// so it seems prudent to include it to avoid triggering a duplicate import.
-		ClientToken: aws.String(fmt.Sprintf("%s-%s", feature, variant)),
+		ClientToken: aws.String(fmt.Sprintf("%s__%s", feature, variant)),
 
 		InputCompressionType: types.InputCompressionTypeNone,
 
@@ -431,6 +443,44 @@ func (store *dynamodbOnlineStore) GetImport(id ImportID) (Import, error) {
 	return S3Import{id: id, status: string(output.ImportTableDescription.ImportStatus), errorMessage: errorMessage}, nil
 }
 
+// maxDynamoBatchSize is the max amount of items that can be written to Dynamo at once. It's a dynamo set limitation.
+const maxDynamoBatchSize = 25
+
+func (table dynamodbOnlineTable) BatchSet(items []SetItem) error {
+	if len(items) > maxDynamoBatchSize {
+		return fferr.NewInternalErrorf(
+			"Cannot batch write %d items.\nMax: %d\n", len(items), maxDynamoBatchSize)
+	}
+	serialized := make([]map[string]types.AttributeValue, len(items))
+	for i, item := range items {
+		dynamoValue, err := serializers[table.version].Serialize(table.valueType, item.Value)
+		if err != nil {
+			return err
+		}
+		serialized[i] = map[string]types.AttributeValue{
+			table.key.Feature: &types.AttributeValueMemberS{Value: item.Entity},
+			"FeatureValue":    dynamoValue,
+		}
+	}
+	reqs := make([]types.WriteRequest, len(serialized))
+	for i, serItem := range serialized {
+		reqs[i] = types.WriteRequest{PutRequest: &types.PutRequest{Item: serItem}}
+	}
+	batchInput := &dynamodb.BatchWriteItemInput{
+		RequestItems: map[string][]types.WriteRequest{
+			table.key.ToTableName(): reqs,
+		},
+	}
+	if _, err := table.client.BatchWriteItem(context.TODO(), batchInput); err != nil {
+		return fferr.NewExecutionError("DynamoDB", err)
+	}
+	return nil
+}
+
+func (table dynamodbOnlineTable) MaxBatchSize() (int, error) {
+	return maxDynamoBatchSize, nil
+}
+
 func (table dynamodbOnlineTable) Set(entity string, value interface{}) error {
 	dynamoValue, err := serializers[table.version].Serialize(table.valueType, value)
 	if err != nil {
@@ -494,9 +544,10 @@ func (table dynamodbOnlineTable) Get(entity string) (interface{}, error) {
 func waitForDynamoDB(client *dynamodb.Client) error {
 	waitTime := time.Second
 	totalWait := time.Duration(0)
+	var err error
 	for attempts := 0; attempts < 3; attempts++ {
-		_, err := client.DescribeTable(context.TODO(), &dynamodb.DescribeTableInput{
-			TableName: aws.String("PING"), // Arbitrary name
+		_, err = client.DescribeTable(context.TODO(), &dynamodb.DescribeTableInput{
+			TableName: aws.String("FEATUREFORM-PING"), // Arbitrary name
 		})
 		if err != nil {
 			var resourceNotFoundErr *types.ResourceNotFoundException
@@ -517,7 +568,7 @@ func waitForDynamoDB(client *dynamodb.Client) error {
 			waitTime = defaultDynamoTableTimeout - totalWait
 		}
 	}
-	return fmt.Errorf("Failed to connect to DynamoDB")
+	return fferr.NewConnectionError("DynamoDB", err)
 }
 
 // waitForDynamoDB waits for a DynamoDB table.
@@ -801,7 +852,10 @@ func castNumberToFloat32(value any) (float32, error) {
 		return float32(typed), nil
 	case string:
 		f64, err := strconv.ParseFloat(typed, 32)
-		return float32(f64), err
+		if err != nil {
+			return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
+		}
+		return float32(f64), nil
 	default:
 		return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
 	}
@@ -825,7 +879,11 @@ func castNumberToFloat64(value any) (float64, error) {
 	case float64:
 		return typed, nil
 	case string:
-		return strconv.ParseFloat(typed, 64)
+		f64, err := strconv.ParseFloat(typed, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
+		}
+		return f64, nil
 	default:
 		return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
 	}
@@ -943,6 +1001,7 @@ func castBool(value any) (bool, error) {
 
 func (ser serializerV1) Deserialize(t ValueType, value types.AttributeValue) (any, error) {
 	// TODO support unsigned ints
+
 	// Dynamo teats all numerical types as strings, so we have to deserialize.
 	version := ser.Version().String()
 	_, ok := value.(*types.AttributeValueMemberNULL)

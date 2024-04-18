@@ -629,6 +629,14 @@ func (mat *bqMaterialization) IterateSegment(start, end int64) (FeatureIterator,
 	return newbqFeatureIterator(it, mat.query), nil
 }
 
+func (mat *bqMaterialization) NumChunks() (int, error) {
+	return genericNumChunks(mat, defaultRowsPerChunk)
+}
+
+func (mat *bqMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
+	return genericIterateChunk(mat, defaultRowsPerChunk, idx)
+}
+
 type bqFeatureIterator struct {
 	iter         *bigquery.RowIterator
 	currentValue ResourceRecord

@@ -16,6 +16,7 @@ from offline_store_spark_runner import (
     get_credentials_dict,
     delete_file,
     check_dill_exception,
+    boolean_count,
 )
 
 
@@ -190,3 +191,22 @@ def test_check_dill_exception(exception_message, error, request):
     expected_error = request.getfixturevalue(error)
     error = check_dill_exception(exception_message)
     assert str(error) == str(expected_error)
+
+
+def test_boolean_count(spark):
+    from pyspark.sql import Row
+
+    column_name = "test_boolean"
+    expected_output = {
+        "name": column_name,
+        "type": "boolean",
+        "string_categories": ["false", "true"],
+        "numeric_categories": [],
+        "categoryCounts": [5, 15],
+    }
+
+    data = [Row(test_boolean=True) for _ in range(15)] + [Row(test_boolean=False) for _ in range(5)]
+    df = spark.createDataFrame(data, [column_name])
+
+    boolean_info = boolean_count(df, column_name)
+    assert boolean_info == expected_output

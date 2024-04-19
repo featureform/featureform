@@ -1,7 +1,22 @@
+import os
 import random
 
 import featureform as ff
 from behave import when, then
+
+
+@when("I turn on autovariants")
+def step_impl(context):
+    os.environ["FF_GET_EQUIVALENT_VARIANTS"] = "true"
+
+    context.variant = ff.get_run()
+
+
+@then("I turn off autovariants")
+def step_impl(context):
+    os.environ["FF_GET_EQUIVALENT_VARIANTS"] = None
+
+    context.variant = ff.get_run()
 
 
 @when("I register a transformation with auto variant")

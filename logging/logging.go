@@ -20,7 +20,15 @@ func NewRequestID() RequestID {
 	return RequestID(uuid.New().String())
 }
 
+func (r RequestID) String() string {
+	return string(r)
+}
+
 func (logger Logger) WithRequestID(id RequestID) Logger {
+	if id == "" {
+		NewLogger("logging").Warn("Request ID is empty")
+		return logger
+	}
 	return Logger{
 		logger.With("request-id", id),
 	}
@@ -38,7 +46,7 @@ func (logger Logger) WithProvider(providerType, providerName string) Logger {
 	}
 }
 
-func (logger Logger) InitializeRequestID(ctx context.Context) (context.Context, Logger, string) {
+func (logger Logger) InitializeRequestID(ctx context.Context) (string, context.Context, Logger) {
 	requestID, ok := ctx.Value("request-id").(RequestID)
 	if !ok {
 		requestID = NewRequestID()
@@ -49,7 +57,7 @@ func (logger Logger) InitializeRequestID(ctx context.Context) (context.Context, 
 		logger = logger.WithRequestID(requestID)
 		ctx = context.WithValue(ctx, "logger", logger)
 	}
-	return ctx, logger, string(requestID)
+	return requestID.String(), ctx, logger
 }
 
 func GetRequestIDFromContext(ctx context.Context) string {

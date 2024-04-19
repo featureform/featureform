@@ -14,7 +14,7 @@ def step_impl(context):
 
 @then("I turn off autovariants")
 def step_impl(context):
-    os.environ["FF_GET_EQUIVALENT_VARIANTS"] = None
+    os.environ["FF_GET_EQUIVALENT_VARIANTS"] = "false"
 
     context.variant = ff.get_run()
 

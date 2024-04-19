@@ -12,9 +12,16 @@ import (
 
 type Logger struct {
 	*zap.SugaredLogger
+	id RequestID
 }
 
 type RequestID string
+type contextKey string
+
+const (
+	RequestIDKey = contextKey("request-id")
+	LoggerKey    = contextKey("logger")
+)
 
 func NewRequestID() RequestID {
 	return RequestID(uuid.New().String())
@@ -26,42 +33,48 @@ func (r RequestID) String() string {
 
 func (logger Logger) WithRequestID(id RequestID) Logger {
 	if id == "" {
-		NewLogger("logging").Warn("Request ID is empty")
+		logger.Warn("Request ID is empty")
 		return logger
 	}
-	return Logger{
-		logger.With("request-id", id),
+	if logger.id != "" {
+		logger.Warnw("Request ID already set in logger", "current request-id", logger.id, "new request-id", id)
+		return logger
 	}
+
+	return Logger{SugaredLogger: logger.With("request-id", id),
+		id: id}
 }
 
-func (logger Logger) WithResource(resourceType, name, variant, id string) Logger {
+func (logger Logger) WithResource(resourceType, name, variant string) Logger {
 	return Logger{
-		logger.With("request-id", id, "resource-type", resourceType, "name", name, "variant", variant),
+		SugaredLogger: logger.With("resource-type", resourceType, "name", name, "variant", variant),
+		id:            logger.id,
 	}
 }
 
 func (logger Logger) WithProvider(providerType, providerName string) Logger {
 	return Logger{
-		logger.With("provider-type", providerType, "provider-name", providerName),
+		SugaredLogger: logger.With("provider-type", providerType, "provider-name", providerName),
+		id:            logger.id,
 	}
 }
 
 func (logger Logger) InitializeRequestID(ctx context.Context) (string, context.Context, Logger) {
-	requestID, ok := ctx.Value("request-id").(RequestID)
+	requestID, ok := ctx.Value(RequestIDKey).(RequestID)
 	if !ok {
 		requestID = NewRequestID()
-		ctx = context.WithValue(ctx, "request-id", requestID)
+		ctx = context.WithValue(ctx, RequestIDKey, requestID)
 	}
-	logger, ok = ctx.Value("logger").(Logger)
-	if !ok {
-		logger = logger.WithRequestID(requestID)
-		ctx = context.WithValue(ctx, "logger", logger)
+	ctxLogger, hasLogger := ctx.Value(LoggerKey).(Logger)
+	if !hasLogger {
+		ctxLogger = logger.WithRequestID(requestID)
+		ctx = context.WithValue(ctx, LoggerKey, ctxLogger)
 	}
-	return requestID.String(), ctx, logger
+	return requestID.String(), ctx, ctxLogger
 }
 
 func GetRequestIDFromContext(ctx context.Context) string {
-	requestID, ok := ctx.Value("request-id").(string)
+	requestID, ok := ctx.Value(RequestIDKey).(string)
 	if !ok {
 		NewLogger("logging").Warn("Request ID not found in context")
 		return ""
@@ -71,14 +84,15 @@ func GetRequestIDFromContext(ctx context.Context) string {
 
 func NewLogger(service string) Logger {
 	baseLogger, err := zap.NewDevelopment(
-		zap.AddStacktrace(zap.ErrorLevel),
+		zap.AddStacktrace(zap.WarnLevel),
 	)
 	if err != nil {
 		panic(err)
 	}
 	logger := baseLogger.Sugar().Named(service)
 	return Logger{
-		logger,
+		SugaredLogger: logger,
+		id:            "",
 	}
 }
 
@@ -103,6 +117,7 @@ func NewStackTraceLogger(service string) Logger {
 		panic(err)
 	}
 	return Logger{
-		logger.Sugar().Named(service),
+		SugaredLogger: logger.Sugar().Named(service),
+		id:            "",
 	}
 }

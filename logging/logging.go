@@ -82,6 +82,19 @@ func GetRequestIDFromContext(ctx context.Context) string {
 	return requestID
 }
 
+// TODO: THIS DOESNT WORK, Returns the same grpc error
+// func UpdateContext(ctx context.Context, logger Logger) context.Context {
+// 	_, hasID := ctx.Value(RequestIDKey).(RequestID)
+// 	if !hasID && id != "" {
+// 	ctxWithID := context.WithValue(ctx, RequestIDKey, id)
+// 	}
+// 	_, hasLogger := ctx.Value(LoggerKey).(Logger)
+// 	if !hasLogger {
+// 	ctxWithLogger := context.WithValue(ctx, LoggerKey, logger)
+// 	}
+// 	return ctxWithLogger
+// }
+
 func NewLogger(service string) Logger {
 	baseLogger, err := zap.NewDevelopment(
 		zap.AddStacktrace(zap.WarnLevel),

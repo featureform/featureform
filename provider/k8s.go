@@ -1212,7 +1212,7 @@ func (mat FileStoreMaterialization) IterateSegment(begin, end int64) (FeatureIte
 }
 
 func (mat FileStoreMaterialization) NumChunks() (int, error) {
-	searchPath, err := mat.store.CreateFilePath(fileStoreResourcePath(mat.id))
+	searchPath, err := mat.store.CreateFilePath(ps.ResourceToDirectoryPath(mat.id.Type.String(), mat.id.Name, mat.id.Variant), false)
 	if err != nil {
 		return -1, err
 	}
@@ -1232,7 +1232,7 @@ func (mat FileStoreMaterialization) NumChunks() (int, error) {
 }
 
 func (mat FileStoreMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
-	searchPath, err := mat.store.CreateFilePath(fileStoreResourcePath(mat.id))
+	searchPath, err := mat.store.CreateFilePath(ps.ResourceToDirectoryPath(mat.id.Type.String(), mat.id.Name, mat.id.Variant), false)
 	if err != nil {
 		return nil, err
 	}

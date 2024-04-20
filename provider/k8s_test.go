@@ -538,7 +538,6 @@ func testServeDirectory(t *testing.T, store FileStore) {
 			t.Fatalf("could not convert struct list to parquet bytes: %v", err)
 		}
 		randomKey := fmt.Sprintf("part000%d%s.parquet", i, uuid.New().String())
-		// TODO: test that this outputs files to test_files
 		randomPath := fmt.Sprintf("test_files/%s/%s", randomDirKey, randomKey)
 		randomFilePath, err := store.CreateFilePath(randomPath, false)
 		if err != nil {

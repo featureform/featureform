@@ -35,6 +35,7 @@ import (
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
+	"github.com/featureform/provider/types"
 )
 
 // will replace all the upload parquet table functions
@@ -781,9 +782,9 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 
 	schemaInt := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Int},
-			{Name: "ts", ValueType: Timestamp},
+			{Name: "entity", ValueType: types.String},
+			{Name: "value", ValueType: types.Int},
+			{Name: "ts", ValueType: types.Timestamp},
 		},
 	}
 	tests := map[string]TestCase{
@@ -1920,9 +1921,9 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 
 	schemaInt := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Int},
-			{Name: "ts", ValueType: Timestamp},
+			{Name: "entity", ValueType: types.String},
+			{Name: "value", ValueType: types.Int},
+			{Name: "ts", ValueType: types.Timestamp},
 		},
 	}
 	tests := map[string]TestCase{

@@ -17,6 +17,7 @@ import (
 	"github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	pc "github.com/featureform/provider/provider_config"
+	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/mitchellh/mapstructure"
@@ -439,12 +440,12 @@ func testNotExists(t *testing.T, store FileStore) {
 func getMockSchemaAndRecords(length int) (TableSchema, []GenericRecord) {
 	schema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "ID", ValueType: Int},
-			{Name: "Name", ValueType: String},
-			{Name: "Points", ValueType: Float32},
-			{Name: "Score", ValueType: Float64},
-			{Name: "Registered", ValueType: Bool},
-			{Name: "Created", ValueType: Timestamp},
+			{Name: "ID", ValueType: types.Int},
+			{Name: "Name", ValueType: types.String},
+			{Name: "Points", ValueType: types.Float32},
+			{Name: "Score", ValueType: types.Float64},
+			{Name: "Registered", ValueType: types.Bool},
+			{Name: "Created", ValueType: types.Timestamp},
 		},
 	}
 

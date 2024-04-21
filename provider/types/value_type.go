@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package provider
+package types
 
 import (
 	"encoding/json"
@@ -11,7 +11,13 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	pb "github.com/featureform/metadata/proto"
+	"github.com/golang/protobuf/proto"
 )
+
+func init() {
+	initProtoToScalar()
+}
 
 const (
 	NilType   ScalarType = ""
@@ -51,17 +57,61 @@ var ScalarTypes = map[ScalarType]bool{
 	Datetime:  true,
 }
 
+var scalarToProto = map[ScalarType]pb.ScalarType {
+	NilType:   pb.ScalarType_NULL,
+	Int:       pb.ScalarType_INT,
+	Int32:     pb.ScalarType_INT32,
+	Int64:     pb.ScalarType_INT64,
+	Float32:   pb.ScalarType_FLOAT32,
+	Float64:   pb.ScalarType_FLOAT64,
+	String:    pb.ScalarType_STRING,
+	Bool:      pb.ScalarType_BOOL,
+}
+
+// Created in init() as the inverse of scalarToProto
+var protoToScalar map[pb.ScalarType]ScalarType
+
+func initProtoToScalar() {
+	protoToScalar = make(map[pb.ScalarType]ScalarType, len(scalarToProto))
+	for scalar, proto := range scalarToProto {
+		protoToScalar[proto] = scalar
+	}
+}
+
 type ValueType interface {
 	Scalar() ScalarType
 	IsVector() bool
 	Type() reflect.Type
 	String() string
+	ToProto() *pb.ValueType
 }
 
 type VectorType struct {
 	ScalarType  ScalarType
 	Dimension   int32
 	IsEmbedding bool
+}
+
+func FromProto(protoVal *pb.ValueType) (ValueType, error) {
+	switch casted := protoVal.GetType().(type) {
+	case *pb.ValueType_Scalar:
+		scalar, has := protoToScalar[casted.Scalar]
+		if has {
+			return scalar, nil
+		}
+	case *pb.ValueType_Vector:
+		protoVec := casted.Vector
+		scalar, has := protoToScalar[protoVec.Scalar]
+		if has {
+			return VectorType{
+				ScalarType: scalar,
+				Dimension: protoVec.Dimension,
+				IsEmbedding: protoVec.IsEmbedding,
+			}, nil
+		}
+	}
+	protoStr := proto.MarshalTextString(protoVal)
+	return nil, fferr.NewInternalErrorf("Unable to parse value type proto %T %s", protoVal.GetType(), protoStr)
 }
 
 // jsonValueType provides a generic JSON representation of any ValueType.
@@ -101,7 +151,7 @@ func (wrapper jsonValueType) ToValueType() ValueType {
 	}
 }
 
-func serializeType(t ValueType) string {
+func SerializeType(t ValueType) string {
 	var wrapper jsonValueType
 	wrapper.FromValueType(t)
 	bytes, err := json.Marshal(wrapper)
@@ -111,7 +161,7 @@ func serializeType(t ValueType) string {
 	return string(bytes)
 }
 
-func deserializeType(t string) (ValueType, error) {
+func DeserializeType(t string) (ValueType, error) {
 	var wrapper jsonValueType
 	if err := json.Unmarshal([]byte(t), &wrapper); err != nil {
 		return nil, err
@@ -136,7 +186,23 @@ func (t VectorType) Type() reflect.Type {
 }
 
 func (t VectorType) String() string {
-	return serializeType(t)
+	return fmt.Sprintf("%s[%d](embedding=%v)", t.Scalar().String(), t.Dimension, t.IsEmbedding)
+}
+
+func (t VectorType) ToProto() *pb.ValueType {
+	scalarEnum, err := t.Scalar().ToProtoEnum()
+	if err != nil {
+		panic(err)
+	}
+	return &pb.ValueType{
+		Type: &pb.ValueType_Vector{
+			Vector: &pb.VectorType{
+				Scalar: scalarEnum,
+				Dimension: t.Dimension,
+				IsEmbedding: t.IsEmbedding,
+			},
+		},
+	}
 }
 
 type ScalarType string
@@ -150,7 +216,7 @@ func (t ScalarType) IsVector() bool {
 }
 
 func (t ScalarType) String() string {
-	return serializeType(t)
+	return string(t)
 }
 
 // This method is used in encoding our supported data types to parquet.
@@ -190,6 +256,26 @@ func (t ScalarType) Type() reflect.Type {
 	default:
 		return nil
 	}
+}
+
+func (t ScalarType) ToProto() *pb.ValueType {
+	protoEnum, err := t.ToProtoEnum()
+	if err != nil {
+		panic(err)
+	}
+	return &pb.ValueType{
+		Type: &pb.ValueType_Scalar{protoEnum},
+	}
+}
+
+func (t ScalarType) ToProtoEnum() (pb.ScalarType, error) {
+	protoVal, mapped := scalarToProto[t]
+	if !mapped {
+		errMsg := "ScalarType not mapped to proto: %s\nMap %v\n"
+		err := fferr.NewInternalErrorf(errMsg, t, scalarToProto)
+		return pb.ScalarType_NULL, err
+	}
+	return protoVal, nil
 }
 
 // TODO(simba) merge this into the serialize/deserialize above

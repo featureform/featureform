@@ -15,6 +15,7 @@ import (
 
 	"github.com/featureform/fferr"
 	pb "github.com/featureform/metadata/proto"
+	"github.com/featureform/provider/types"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/proto"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
@@ -65,7 +66,7 @@ func Test_EtcdResourceLookup_Set(t *testing.T) {
 		ResourceID{Name: "test", Variant: FEATURE_VARIANT.String(), Type: FEATURE},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "featureVariantResource",
-			Type:    FEATURE_VARIANT.String(),
+			NewType: types.Float32.ToProto(),
 			Created: tspb.Now(),
 		}},
 	}
@@ -135,7 +136,7 @@ func Test_EtcdResourceLookup_Lookup(t *testing.T) {
 	}
 	doWant := &featureVariantResource{&pb.FeatureVariant{
 		Name:    "featureVariant",
-		Type:    FEATURE_VARIANT.String(),
+		NewType: types.Float32.ToProto(),
 		Created: tspb.Now(),
 	}}
 
@@ -221,7 +222,7 @@ func Test_EtcdResourceLookup_Has(t *testing.T) {
 	}
 	doWant := &featureVariantResource{&pb.FeatureVariant{
 		Name:    "resource1",
-		Type:    FEATURE_VARIANT.String(),
+		NewType: types.Float32.ToProto(),
 		Created: tspb.Now(),
 	}}
 	args1 := args{

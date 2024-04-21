@@ -11,6 +11,7 @@ import (
 
 	"github.com/featureform/filestore"
 	"github.com/parquet-go/parquet-go"
+	"github.com/featureform/provider/types"
 )
 
 func TestMultipleFileParquetIterator(t *testing.T) {
@@ -23,13 +24,13 @@ func TestMultipleFileParquetIterator(t *testing.T) {
 
 	tableSchema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "int", ValueType: Int},
-			{Name: "flt", ValueType: Float64},
-			{Name: "str", ValueType: String},
-			{Name: "bool", ValueType: Bool},
-			{Name: "ts", ValueType: Timestamp},
-			{Name: "fltvec", ValueType: VectorType{Float32, 3, false}},
+			{Name: "entity", ValueType: types.String},
+			{Name: "int", ValueType: types.Int},
+			{Name: "flt", ValueType: types.Float64},
+			{Name: "str", ValueType: types.String},
+			{Name: "bool", ValueType: types.Bool},
+			{Name: "ts", ValueType: types.Timestamp},
+			{Name: "fltvec", ValueType: types.VectorType{types.Float32, 3, false}},
 		},
 	}
 

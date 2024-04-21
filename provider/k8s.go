@@ -27,6 +27,7 @@ import (
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
+	"github.com/featureform/provider/types"
 )
 
 type pandasOfflineQueries struct {
@@ -600,7 +601,7 @@ func (tbl *FileStorePrimaryTable) append(iter Iterator, newRecords []GenericReco
 				// we need to rely on the parquet schema's field metadata to determine whether
 				// the field is a timestamp or not. If it is, we need to convert it to its
 				// corresponding Go type (time.Time).
-				if col.Scalar() == Timestamp {
+				if col.Scalar() == types.Timestamp {
 					record = append(record, time.UnixMilli(assertedVal).UTC())
 				} else {
 					record = append(record, int(assertedVal))

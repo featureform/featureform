@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/provider/types"
 	pb "github.com/featureform/metadata/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -232,7 +233,6 @@ type FeatureDef struct {
 	Name        string
 	Variant     string
 	Source      NameVariant
-	Type        string
 	Entity      string
 	Owner       string
 	Description string
@@ -243,8 +243,8 @@ type FeatureDef struct {
 	Properties  Properties
 	Mode        ComputationMode
 	IsOnDemand  bool
-	IsEmbedding bool
 	Definition  string
+	Type        types.ValueType;
 }
 
 type ResourceVariantColumns struct {
@@ -291,11 +291,17 @@ func (def FeatureDef) ResourceType() ResourceType {
 }
 
 func (def FeatureDef) Serialize() (*pb.FeatureVariant, error) {
+	var typeProto *pb.ValueType
+	if def.Type == nil {
+		typeProto = types.NilType.ToProto()
+	} else {
+		typeProto = def.Type.ToProto()
+	}
 	serialized := &pb.FeatureVariant{
 		Name:        def.Name,
 		Variant:     def.Variant,
 		Source:      def.Source.Serialize(),
-		Type:        def.Type,
+		NewType:     typeProto,
 		Entity:      def.Entity,
 		Owner:       def.Owner,
 		Description: def.Description,
@@ -305,7 +311,6 @@ func (def FeatureDef) Serialize() (*pb.FeatureVariant, error) {
 		Tags:        &pb.Tags{Tag: def.Tags},
 		Properties:  def.Properties.Serialize(),
 		Mode:        pb.ComputationMode(def.Mode),
-		IsEmbedding: def.IsEmbedding,
 	}
 	switch x := def.Location.(type) {
 	case ResourceVariantColumns:
@@ -402,7 +407,7 @@ type LabelDef struct {
 	Name        string
 	Variant     string
 	Description string
-	Type        string
+	Type        types.ValueType
 	Source      NameVariant
 	Entity      string
 	Owner       string
@@ -417,11 +422,17 @@ func (def LabelDef) ResourceType() ResourceType {
 }
 
 func (def LabelDef) Serialize() (*pb.LabelVariant, error) {
+	var typeProto *pb.ValueType
+	if def.Type == nil {
+		typeProto = types.NilType.ToProto()
+	} else {
+		typeProto = def.Type.ToProto()
+	}
 	serialized := &pb.LabelVariant{
 		Name:        def.Name,
 		Variant:     def.Variant,
 		Description: def.Description,
-		Type:        def.Type,
+		NewType:     typeProto,
 		Source:      def.Source.Serialize(),
 		Entity:      def.Entity,
 		Owner:       def.Owner,
@@ -1408,30 +1419,6 @@ func (fn fetchPropertiesFn) Properties() Properties {
 	return properties
 }
 
-type isEmbeddingGetter interface {
-	GetIsEmbedding() bool
-}
-
-type fetchIsEmbeddingFn struct {
-	getter isEmbeddingGetter
-}
-
-func (fn fetchIsEmbeddingFn) IsEmbedding() bool {
-	return fn.getter.GetIsEmbedding()
-}
-
-type dimensionGetter interface {
-	GetDimension() int32
-}
-
-type fetchDimensionFn struct {
-	getter dimensionGetter
-}
-
-func (fn fetchDimensionFn) Dimension() int32 {
-	return fn.getter.GetDimension()
-}
-
 type Feature struct {
 	serialized *pb.Feature
 	variantsFns
@@ -1460,8 +1447,6 @@ type FeatureVariant struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
-	fetchIsEmbeddingFn
-	fetchDimensionFn
 }
 
 func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
@@ -1475,8 +1460,6 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 		protoStringer:        protoStringer{serialized},
 		fetchTagsFn:          fetchTagsFn{serialized},
 		fetchPropertiesFn:    fetchPropertiesFn{serialized},
-		fetchIsEmbeddingFn:   fetchIsEmbeddingFn{serialized},
-		fetchDimensionFn:     fetchDimensionFn{serialized},
 	}
 }
 
@@ -1489,6 +1472,21 @@ func columnsToMap(columns ResourceVariantColumns) map[string]string {
 	return featureColumns
 }
 
+type typedVariant interface {
+	Type() (types.ValueType, error)
+}
+
+func typeString(t typedVariant) string {
+	dataType, err := t.Type()
+	var dataTypeStr string
+	if err != nil {
+		dataTypeStr = "Unknown"
+	} else {
+		dataTypeStr = dataType.String()
+	}
+	return dataTypeStr
+}
+
 func (variant *FeatureVariant) ToShallowMap() FeatureVariantResource {
 	fv := FeatureVariantResource{}
 	switch variant.Mode() {
@@ -1498,7 +1496,7 @@ func (variant *FeatureVariant) ToShallowMap() FeatureVariantResource {
 			Description: variant.Description(),
 			Entity:      variant.Entity(),
 			Name:        variant.Name(),
-			DataType:    variant.Type(),
+			DataType:    typeString(variant),
 			Variant:     variant.Variant(),
 			Owner:       variant.Owner(),
 			Provider:    variant.Provider(),
@@ -1549,8 +1547,8 @@ func (variant *FeatureVariant) Variant() string {
 	return variant.serialized.GetVariant()
 }
 
-func (variant *FeatureVariant) Type() string {
-	return variant.serialized.GetType()
+func (variant *FeatureVariant) Type() (types.ValueType, error) {
+	return types.FromProto(variant.serialized.GetNewType())
 }
 
 func (variant *FeatureVariant) Entity() string {
@@ -1640,11 +1638,29 @@ func (variant *FeatureVariant) IsOnDemand() bool {
 }
 
 func (variant *FeatureVariant) IsEmbedding() bool {
-	return variant.fetchIsEmbeddingFn.IsEmbedding()
+	t, err := variant.Type()
+	if err != nil {
+		fmt.Println("TYPE", err)
+		// This would only happen if the type is unable to be parsed
+		return false
+	}
+	if vec, ok := t.(types.VectorType); ok {
+		return vec.IsEmbedding
+	}
+	return false
 }
 
 func (variant *FeatureVariant) Dimension() int32 {
-	return variant.fetchDimensionFn.Dimension()
+	t, err := variant.Type()
+	if err != nil {
+		// This would only happen if the type is unable to be parsed
+		fmt.Println("TYPE", err)
+		return -1
+	}
+	if vec, ok := t.(types.VectorType); ok {
+		return vec.Dimension
+	}
+	return 0
 }
 
 type User struct {
@@ -1873,7 +1889,7 @@ func (variant *LabelVariant) ToShallowMap() LabelVariantResource {
 		Description: variant.Description(),
 		Entity:      variant.Entity(),
 		Name:        variant.Name(),
-		DataType:    variant.Type(),
+		DataType:    typeString(variant),
 		Variant:     variant.Variant(),
 		Owner:       variant.Owner(),
 		Provider:    variant.Provider(),
@@ -1898,8 +1914,8 @@ func (variant *LabelVariant) Variant() string {
 	return variant.serialized.GetVariant()
 }
 
-func (variant *LabelVariant) Type() string {
-	return variant.serialized.GetType()
+func (variant *LabelVariant) Type() (types.ValueType, error) {
+	return types.FromProto(variant.serialized.GetNewType())
 }
 
 func (variant *LabelVariant) Entity() string {

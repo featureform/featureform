@@ -16,6 +16,7 @@ import (
 
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 
 	"github.com/redis/rueidis"
 )
@@ -152,7 +153,7 @@ func Test_redisOnlineTable_Get(t *testing.T) {
 	type fields struct {
 		client    rueidis.Client
 		key       redisTableKey
-		valueType ValueType
+		valueType types.ValueType
 	}
 	type args struct {
 		entity string
@@ -165,21 +166,22 @@ func Test_redisOnlineTable_Get(t *testing.T) {
 		want    interface{}
 		wantErr bool
 	}{
-		{"String Success", fields{redisClient, redisTableKey{}, String}, args{"entity1"}, "somestring", "somestring", false},
-		{"Int Success", fields{redisClient, redisTableKey{}, Int}, args{"entity2"}, 1, 1, false},
-		{"Int32 Success", fields{redisClient, redisTableKey{}, Int32}, args{"entity3"}, 1, int32(1), false},
-		{"Int64 Success", fields{redisClient, redisTableKey{}, Int64}, args{"entity4"}, 1, int64(1), false},
-		{"Float32 Success", fields{redisClient, redisTableKey{}, Float32}, args{"entity5"}, 1, float32(1), false},
-		{"Float64 Success", fields{redisClient, redisTableKey{}, Float64}, args{"entity6"}, 1, float64(1), false},
-		{"Bool Success", fields{redisClient, redisTableKey{}, Bool}, args{"entity7"}, true, true, false},
-		{"Timestamp Success", fields{redisClient, redisTableKey{}, Timestamp}, args{"entity8"}, time.UnixMilli(0), time.UnixMilli(0).Local(), false},
+		{"String Success", fields{redisClient, redisTableKey{}, types.String}, args{"entity1"}, "somestring", "somestring", false},
+		{"Int Success", fields{redisClient, redisTableKey{}, types.Int}, args{"entity2"}, 1, 1, false},
+		{"Int32 Success", fields{redisClient, redisTableKey{}, types.Int32}, args{"entity3"}, 1, int32(1), false},
+		{"Int64 Success", fields{redisClient, redisTableKey{}, types.Int64}, args{"entity4"}, 1, int64(1), false},
+		{"Float32 Success", fields{redisClient, redisTableKey{}, types.Float32}, args{"entity5"}, 1, float32(1), false},
+		{"Float64 Success", fields{redisClient, redisTableKey{}, types.Float64}, args{"entity6"}, 1, float64(1), false},
+		{"Bool Success", fields{redisClient, redisTableKey{}, types.Bool}, args{"entity7"}, true, true, false},
+		{"Timestamp Success", fields{redisClient, redisTableKey{}, types.Timestamp}, args{"entity8"}, time.UnixMilli(0), time.UnixMilli(0).Local(), false},
 		{
 			"Vector32 Success",
 			fields{
 				redisClient,
 				redisTableKey{},
-				VectorType{
-					ScalarType: Float32,
+				types.VectorType{
+					ScalarType: types.Float32,
+					Dimension: 5,
 				},
 			},
 			args{"entity9"},
@@ -189,14 +191,14 @@ func Test_redisOnlineTable_Get(t *testing.T) {
 		},
 		// These will allow any previously created tables with incorrect valueTypes to be called as a string
 		// if the valueType is not recognized
-		{"String Default", fields{redisClient, redisTableKey{}, ScalarType("Invalid")}, args{"entity9"}, "somestring", "somestring", false},
-		{"Int Default", fields{redisClient, redisTableKey{}, ScalarType("Invalid")}, args{"entity10"}, 1, fmt.Sprintf("%d", 1), false},
-		{"Int32 Default", fields{redisClient, redisTableKey{}, ScalarType("Invalid")}, args{"entity11"}, 1, fmt.Sprintf("%d", 1), false},
-		{"Int64 Default", fields{redisClient, redisTableKey{}, ScalarType("Invalid")}, args{"entity12"}, 1, fmt.Sprintf("%d", 1), false},
-		{"Float32 Default", fields{redisClient, redisTableKey{}, ScalarType("Invalid")}, args{"entity13"}, 1, fmt.Sprintf("%d", 1), false},
-		{"Float64 Default", fields{redisClient, redisTableKey{}, ScalarType("Invalid")}, args{"entity14"}, 1, fmt.Sprintf("%d", 1), false},
-		{"Bool Default", fields{redisClient, redisTableKey{}, ScalarType("Invalid")}, args{"entity15"}, true, fmt.Sprintf("%d", 1), false},
-		{"Timestamp Default", fields{redisClient, redisTableKey{}, ScalarType("Invalid")}, args{"entity16"}, time.UnixMilli(0), time.UnixMilli(0).Format(time.RFC3339), false},
+		{"String Default", fields{redisClient, redisTableKey{}, types.ScalarType("Invalid")}, args{"entity9"}, "somestring", "somestring", false},
+		{"Int Default", fields{redisClient, redisTableKey{}, types.ScalarType("Invalid")}, args{"entity10"}, 1, fmt.Sprintf("%d", 1), false},
+		{"Int32 Default", fields{redisClient, redisTableKey{}, types.ScalarType("Invalid")}, args{"entity11"}, 1, fmt.Sprintf("%d", 1), false},
+		{"Int64 Default", fields{redisClient, redisTableKey{}, types.ScalarType("Invalid")}, args{"entity12"}, 1, fmt.Sprintf("%d", 1), false},
+		{"Float32 Default", fields{redisClient, redisTableKey{}, types.ScalarType("Invalid")}, args{"entity13"}, 1, fmt.Sprintf("%d", 1), false},
+		{"Float64 Default", fields{redisClient, redisTableKey{}, types.ScalarType("Invalid")}, args{"entity14"}, 1, fmt.Sprintf("%d", 1), false},
+		{"Bool Default", fields{redisClient, redisTableKey{}, types.ScalarType("Invalid")}, args{"entity15"}, true, fmt.Sprintf("%d", 1), false},
+		{"Timestamp Default", fields{redisClient, redisTableKey{}, types.ScalarType("Invalid")}, args{"entity16"}, time.UnixMilli(0), time.UnixMilli(0).Format(time.RFC3339), false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -253,7 +255,7 @@ func TestGetTableBackwardsCompatibility(t *testing.T) {
 	}
 	// Arrange - Create "Featureform_table____tables" hash to simulate
 	// in user's Redis instance existing "metadata" table
-	scalarTypes := []ScalarType{String, Int, Int32, Int64, Float32, Float64, Bool, Timestamp}
+	scalarTypes := []types.ScalarType{types.String, types.Int, types.Int32, types.Int64, types.Float32, types.Float64, types.Bool, types.Timestamp}
 	for _, scalarType := range scalarTypes {
 		// The below represents the implementation of CreateTable prior to introducing the
 		// JSON serialized value type as the field value of the tables hash
@@ -309,11 +311,11 @@ func TestCreateGetTable(t *testing.T) {
 		t.Fatalf("Failed to create redis online store: %v", err)
 	}
 	// Arrange - Create tables
-	scalarTypes := []ScalarType{String, Int, Int32, Int64, Float32, Float64, Bool, Timestamp}
+	scalarTypes := []types.ScalarType{types.String, types.Int, types.Int32, types.Int64, types.Float32, types.Float64, types.Bool, types.Timestamp}
 	for _, scalarType := range scalarTypes {
-		var valueType ValueType
-		if scalarType == Float32 {
-			valueType = VectorType{ScalarType: scalarType, Dimension: 384, IsEmbedding: true}
+		var valueType types.ValueType
+		if scalarType == types.Float32 {
+			valueType = types.VectorType{ScalarType: scalarType, Dimension: 384, IsEmbedding: true}
 		} else {
 			valueType = scalarType
 		}
@@ -328,7 +330,7 @@ func TestCreateGetTable(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to get table: %v", err)
 		}
-		if scalarType == Float32 {
+		if scalarType == types.Float32 {
 			if reflect.TypeOf(onlineStoreTable) != reflect.TypeOf(&redisOnlineIndex{}) {
 				t.Fatalf("Expected onlineStoreTable to be redisOnlineIndex but received: %T", onlineStoreTable)
 			}
@@ -336,11 +338,11 @@ func TestCreateGetTable(t *testing.T) {
 			if !tbl.valueType.IsVector() {
 				t.Fatalf("Expected onlineStoreTable to be embedding but received: %v", tbl.valueType.IsVector())
 			}
-			if reflect.TypeOf(tbl.valueType) != reflect.TypeOf(VectorType{}) {
+			if reflect.TypeOf(tbl.valueType) != reflect.TypeOf(types.VectorType{}) {
 				t.Fatalf("Expected onlineStoreTable to be VectorType but received: %T", tbl.valueType)
 			}
-			if !tbl.valueType.(VectorType).IsEmbedding {
-				t.Fatalf("Expected onlineStoreTable to be embedding but received: %v", tbl.valueType.(VectorType).IsEmbedding)
+			if !tbl.valueType.(types.VectorType).IsEmbedding {
+				t.Fatalf("Expected onlineStoreTable to be embedding but received: %v", tbl.valueType.(types.VectorType).IsEmbedding)
 			}
 		} else {
 			if reflect.TypeOf(onlineStoreTable) != reflect.TypeOf(&redisOnlineTable{}) {

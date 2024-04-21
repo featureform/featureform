@@ -9,6 +9,7 @@ import (
 	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 	_ "github.com/lib/pq"
 )
 
@@ -125,19 +126,19 @@ func (q redshiftSQLQueries) materializationDrop(tableName string) string {
 	return fmt.Sprintf("DROP TABLE %s", sanitize(tableName))
 }
 
-func (q redshiftSQLQueries) determineColumnType(valueType ValueType) (string, error) {
+func (q redshiftSQLQueries) determineColumnType(valueType types.ValueType) (string, error) {
 	switch valueType {
-	case Int, Int32, Int64:
+	case types.Int, types.Int32, types.Int64:
 		return "BIGINT", nil
-	case Float32, Float64:
+	case types.Float32, types.Float64:
 		return "DOUBLE PRECISION", nil
-	case String:
+	case types.String:
 		return "VARCHAR", nil
-	case Bool:
+	case types.Bool:
 		return "BOOLEAN", nil
-	case Timestamp:
+	case types.Timestamp:
 		return "TIMESTAMPTZ", nil
-	case NilType:
+	case types.NilType:
 		return "VARCHAR", nil
 	default:
 		return "", fferr.NewDataTypeNotFoundErrorf(valueType, "could not determine column type")

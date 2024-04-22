@@ -290,6 +290,9 @@ func (lookup EtcdResourceLookup) createEmptyResource(t ResourceType) (Resource, 
 	case MODEL:
 		resource = &modelResource{&pb.Model{}}
 		break
+	case PROJECT:
+		resource = &projectResource{&pb.Project{}}
+		break
 	default:
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("invalid resource type: %s", t))
 	}

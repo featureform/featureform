@@ -54,6 +54,7 @@ const (
 	TRAINING_SET                      = ResourceType(pb.ResourceType_TRAINING_SET)
 	TRAINING_SET_VARIANT              = ResourceType(pb.ResourceType_TRAINING_SET_VARIANT)
 	MODEL                             = ResourceType(pb.ResourceType_MODEL)
+	PROJECT						      = ResourceType(pb.ResourceType_PROJECT)
 )
 
 func (r ResourceType) String() string {
@@ -1198,6 +1199,57 @@ func (resource *modelResource) Update(lookup ResourceLookup, updateRes Resource)
 	return nil
 }
 
+type projectResource struct {
+	serialized *pb.Project
+}
+
+func (resource *projectResource) ID() ResourceID {
+	return ResourceID{
+		Name: resource.serialized.Name,
+		Type: PROJECT,
+	}
+}
+
+func (resource *projectResource) Schedule() string {
+	return ""
+}
+
+func (resource *projectResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+	return make(LocalResourceLookup), nil
+}
+
+func (resource *projectResource) Proto() proto.Message {
+	return resource.serialized
+}
+
+func (this *projectResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+	return nil
+}
+
+func (resource *projectResource) GetStatus() *pb.ResourceStatus {
+	return resource.serialized.GetStatus()
+}
+
+func (resource *projectResource) UpdateStatus(status pb.ResourceStatus) error {
+	resource.serialized.Status = &status
+	return nil
+}
+
+func (resource *projectResource) UpdateSchedule(schedule string) error {
+	return fferr.NewInternalError(fmt.Errorf("not implemented"))
+}
+
+func (resource *projectResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	// TODO: check this implementation
+	deserialized := updateRes.Proto()
+	projectUpdate, ok := deserialized.(*pb.Project)
+	if !ok {
+		return fferr.NewInternalError(errors.New("failed to deserialize existing user record"))
+	}
+	resource.serialized.resources = projectUpdate.Resources
+	return nil
+}
+
 type userResource struct {
 	serialized *pb.User
 }
@@ -1698,6 +1750,22 @@ func (serv *MetadataServer) GetSourceVariants(stream pb.Metadata_GetSourceVarian
 	})
 }
 
+func (serv *MetadataServer) CreateProject(ctx context.Context, project *pb.Project) (*pb.Empty, error) {
+	return serv.genericCreate(ctx, &projectResource{project}, nil)
+}
+
+func (serv *MetadataServer) ListProjects(_ *pb.Empty, stream pb.Metadata_ListProjectsServer) error {
+	return serv.genericList(USER, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Project))
+	})
+}
+
+func (serv *MetadataServer) GetProject(stream pb.Metadata_GetProjectsServer) error {
+	return serv.genericGet(stream, USER, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Project))
+	})
+}
+
 func (serv *MetadataServer) ListUsers(_ *pb.Empty, stream pb.Metadata_ListUsersServer) error {
 	return serv.genericList(USER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.User))
@@ -1911,6 +1979,8 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		serv.Logger.Error(err)
 		return nil, err
 	}
+
+	// TODO: Add project to all resources.
 	return &pb.Empty{}, nil
 }
 

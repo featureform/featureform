@@ -26,6 +26,16 @@ def get_user_info(stub, name):
         print("User not found.")
 
 
+def get_project_info(stub, name):
+    searchName = metadata_pb2.Name(name=name)
+    try:
+        for project in stub.GetProjects(iter([searchName])):
+            # TODO: Add project info
+            return project
+    except grpc._channel._MultiThreadedRendezvous:
+        print("Project not found.")
+
+
 def get_entity_info(stub, name):
     searchName = metadata_pb2.Name(name=name)
     try:

@@ -160,6 +160,8 @@ func (client *Client) Create(ctx context.Context, def ResourceDef) error {
 		return client.CreateEntity(ctx, casted)
 	case ModelDef:
 		return client.CreateModel(ctx, casted)
+	case ProjectDef:
+		return client.CreateProject(ctx, casted)
 	default:
 		return fferr.NewInvalidArgumentError(fmt.Errorf("%T not implemented in Create", casted))
 	}
@@ -1183,6 +1185,24 @@ func (client *Client) CreateModel(ctx context.Context, def ModelDef) error {
 	return err
 }
 
+type ProjectDef struct {
+	Name            string
+	Resources       NameVariants
+}
+
+func (def ProjectDef) ResourceType() ResourceType {
+	return PROJECT
+}
+
+func (client *Client) CreateProject(ctx context.Context, def ProjectDef) error {
+	serialized := &pb.Project{
+		Name:         def.Name,
+		Resources:    def.Resources.Serialize(),
+	}
+	_, err := client.GrpcConn.CreateProject(ctx, serialized)
+	return err
+}
+
 type modelStream interface {
 	Recv() (*pb.Model, error)
 }
@@ -1823,6 +1843,38 @@ func (model *Model) Tags() Tags {
 
 func (model *Model) Properties() Properties {
 	return model.fetchPropertiesFn.Properties()
+}
+
+type Project struct {
+	serialized *pb.Project
+}
+
+func (p Project) Variant() string {
+	return ""
+}
+
+func wrapProtoProject(serialized *pb.Project) *Project {
+	return &Project{
+		serialized:           serialized,
+	}
+}
+
+func (project *Project) Name() string {
+	return project.serialized.GetName()
+}
+
+func (project *Project) Status() ResourceStatus {
+	if project.serialized.GetStatus() != nil {
+		return ResourceStatus(project.serialized.GetStatus().Status)
+	}
+	return ResourceStatus(0)
+}
+
+func (project *Project) Error() string {
+	if project.serialized.GetStatus() != nil {
+		return fferr.ToDashboardError(project.serialized.GetStatus())
+	}
+	return ""
 }
 
 type Label struct {

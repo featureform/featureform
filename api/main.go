@@ -82,6 +82,11 @@ func (serv *MetadataServer) CreateUser(ctx context.Context, user *pb.User) (*pb.
 	return serv.meta.CreateUser(ctx, user)
 }
 
+func (serv *MetadataServer) CreateProject(ctx context.Context, project *pb.Project) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating Project", "project", project.Name)
+	return serv.meta.CreateProject(ctx, project)
+}
+
 func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
 	for {
 		name, err := stream.Recv()
@@ -93,6 +98,35 @@ func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
 			return err
 		}
 		proxyStream, err := serv.meta.GetUsers(stream.Context())
+		if err != nil {
+			return err
+		}
+		sErr := proxyStream.Send(name)
+		if sErr != nil {
+			return sErr
+		}
+		res, err := proxyStream.Recv()
+		if err != nil {
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+}
+
+func (serv *MetadataServer) GetProjects(stream pb.Api_GetProjectsServer) error {
+	for {
+		name, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			serv.Logger.Errorf("Failed to read client request: %v", err)
+			return err
+		}
+		proxyStream, err := serv.meta.GetProjects(stream.Context())
 		if err != nil {
 			return err
 		}

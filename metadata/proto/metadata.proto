@@ -14,6 +14,7 @@ package featureform.serving.metadata.proto;
 
 service Metadata {
     rpc CreateUser(User) returns (Empty);
+    rpc CreateProject(Project) returns (Empty);
     rpc CreateProvider(Provider) returns (Empty);
     rpc CreateSourceVariant(SourceVariant) returns (Empty);
     rpc CreateEntity(Entity) returns (Empty);
@@ -24,6 +25,7 @@ service Metadata {
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
 
     rpc GetUsers(stream Name) returns (stream User);
+    rpc GetProjects(stream Name) returns (stream Project);
     rpc GetFeatures(stream Name) returns (stream Feature);
     rpc GetFeatureVariants(stream NameVariant) returns (stream FeatureVariant);
     rpc GetLabels(stream Name) returns (stream Label);
@@ -43,6 +45,7 @@ service Metadata {
     rpc GetEquivalent(ResourceVariant) returns (ResourceVariant);
 
     rpc ListFeatures(Empty) returns (stream Feature);
+    rpc ListProjects(Empty) returns (stream Project);
     rpc ListLabels(Empty) returns (stream Label);
     rpc ListTrainingSets(Empty) returns (stream TrainingSet);
     rpc ListSources(Empty) returns (stream Source);
@@ -52,10 +55,16 @@ service Metadata {
     rpc ListModels(Empty) returns (stream Model);
 
     rpc SetResourceStatus(SetStatusRequest) returns (Empty);
+    
+    rpc AddProject(Project) returns (Empty);
+    rpc RemoveProject(Project) returns (Empty);
+    rpc UpdateProject(Project) returns (Empty);
+    rpc DeleteProject(Project) returns (Empty);
 }
 
 service Api {
     rpc CreateUser(User) returns (Empty);
+    rpc CreateProject(Project) returns (Empty);
     rpc CreateProvider(Provider) returns (Empty);
     rpc CreateSourceVariant(SourceVariant) returns (Empty);
     rpc CreateEntity(Entity) returns (Empty);
@@ -66,6 +75,7 @@ service Api {
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
 
     rpc GetUsers(stream Name) returns (stream User);
+    rpc GetProjects(stream Name) returns (stream Project);
     rpc GetFeatures(stream Name) returns (stream Feature);
     rpc GetFeatureVariants(stream NameVariant) returns (stream FeatureVariant);
     rpc GetLabels(stream Name) returns (stream Label);
@@ -84,6 +94,7 @@ service Api {
     rpc GetEquivalent(ResourceVariant) returns (ResourceVariant);
 
     rpc ListFeatures(Empty) returns (stream Feature);
+    rpc ListProjects(Empty) returns (stream Project);
     rpc ListLabels(Empty) returns (stream Label);
     rpc ListTrainingSets(Empty) returns (stream TrainingSet);
     rpc ListSources(Empty) returns (stream Source);
@@ -91,6 +102,11 @@ service Api {
     rpc ListProviders(Empty) returns (stream Provider);
     rpc ListEntities(Empty) returns (stream Entity);
     rpc ListModels(Empty) returns (stream Model);
+
+    rpc AddProject(Project) returns (Empty);
+    rpc RemoveProject(Project) returns (Empty);
+    rpc UpdateProject(Project) returns (Empty);
+    rpc DeleteProject(Project) returns (Empty);
 }
 
 message Name {
@@ -138,6 +154,7 @@ enum ResourceType {
     ENTITY = 9;
     MODEL = 10;
     USER = 11;
+    PROJECT = 12;
 }
 
 message ResourceID {
@@ -217,6 +234,7 @@ message FeatureVariant {
     bool is_embedding = 19;
     int32 dimension = 20;
     FeatureParameters additional_parameters = 21;
+    Project project = 22;
 }
 
 message FeatureParameters {
@@ -304,6 +322,7 @@ message TrainingSetVariant {
     repeated FeatureLag feature_lags = 15;
     Tags tags = 16;
     Properties properties = 17;
+    Project project = 18;
 }
 
 message Entity {
@@ -422,4 +441,13 @@ message Property {
 
 message Properties {
     map<string, Property> property = 1;
+}
+
+message Project {
+	string name = 1;
+	repeated NameVariant resources = 2;
+}
+
+message Projects {
+  repeated Project projects = 1;
 }

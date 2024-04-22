@@ -7,8 +7,7 @@ import os
 import re
 import sys
 from abc import ABC
-from typing import Any, Dict
-from typing import List, Tuple, Union, Optional
+from typing import Any, Dict, List, Tuple, Union, Optional
 
 import dill
 import grpc
@@ -1146,6 +1145,7 @@ class SourceVariant(ResourceVariant):
     inputs: list = ([],)
     error: Optional[str] = None
     server_status: Optional[ServerStatus] = None
+    project: str = ""
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1182,6 +1182,7 @@ class SourceVariant(ResourceVariant):
             status=source.status.Status._enum_type.values[source.status.status].name,
             error=source.status.error_message,
             server_status=ServerStatus.from_proto(source.status),
+            project=source.project,
         )
 
     def _get_source_definition(self, source):
@@ -1219,6 +1220,7 @@ class SourceVariant(ResourceVariant):
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+            project=self.project,
             **defArgs,
         )
         _get_and_set_equivalent_variant(serialized, "source_variant", stub)
@@ -1350,6 +1352,7 @@ class FeatureVariant(ResourceVariant):
     error: Optional[str] = None
     additional_parameters: Optional[Additional_Parameters] = None
     server_status: Optional[ServerStatus] = None
+    project: str = ""
 
     def __post_init__(self):
         col_types = [member.value for member in ScalarType]
@@ -1398,6 +1401,7 @@ class FeatureVariant(ResourceVariant):
             error=feature.status.error_message,
             server_status=ServerStatus.from_proto(feature.status),
             additional_parameters=None,
+            project=feature.project,
         )
 
     def _create(self, stub) -> Optional[str]:
@@ -1425,6 +1429,7 @@ class FeatureVariant(ResourceVariant):
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
             additional_parameters=None,
+            project=self.project,
         )
         _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
@@ -1554,6 +1559,7 @@ class LabelVariant(ResourceVariant):
     status: str = "NO_STATUS"
     error: Optional[str] = None
     server_status: Optional[ServerStatus] = None
+    project: str = ""
 
     def __post_init__(self):
         col_types = [member.value for member in ScalarType]
@@ -1589,6 +1595,7 @@ class LabelVariant(ResourceVariant):
             status=label.status.Status._enum_type.values[label.status.status].name,
             server_status=ServerStatus.from_proto(label.status),
             error=label.status.error_message,
+            project=label.project,
         )
 
     def _create(self, stub) -> Optional[str]:
@@ -1609,6 +1616,7 @@ class LabelVariant(ResourceVariant):
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+            project=self.project,
         )
         _get_and_set_equivalent_variant(serialized, "label_variant", stub)
         stub.CreateLabelVariant(serialized)
@@ -1730,6 +1738,7 @@ class TrainingSetVariant(ResourceVariant):
     status: str = "NO_STATUS"
     error: Optional[str] = None
     server_status: Optional[ServerStatus] = None
+    project: str = ""
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1782,6 +1791,7 @@ class TrainingSetVariant(ResourceVariant):
             properties={k: v for k, v in ts.properties.property.items()},
             error=ts.status.error_message,
             server_status=ServerStatus.from_proto(ts.status),
+            project=ts.project,
         )
 
     def _create(self, stub) -> Optional[str]:
@@ -1817,6 +1827,7 @@ class TrainingSetVariant(ResourceVariant):
             tags=pb.Tags(tag=self.tags),
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+            project=self.project,
         )
         _get_and_set_equivalent_variant(serialized, "training_set_variant", stub)
         stub.CreateTrainingSetVariant(serialized)
@@ -1862,6 +1873,36 @@ class Model:
         }
 
 
+@typechecked
+@dataclass
+class ProjectResource:
+    name: str
+    status: str = ""
+    resources: Union[List[pb.NameVariant], List[Tuple[Any, str]]] = field(
+        default_factory=list
+    )
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    def type(self) -> str:
+        return "model"
+
+    def _create(self, stub) -> None:
+        serialized = pb.Project(
+            name=self.name,
+            resources=self.resources,
+        )
+        stub.CreateProject(serialized)
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "resources": self.resources,
+        }
+
+
 Resource = Union[
     PrimaryData,
     Provider,
@@ -1877,6 +1918,7 @@ Resource = Union[
     EntityReference,
     Model,
     OnDemandFeatureVariant,
+    ProjectResource,
 ]
 
 

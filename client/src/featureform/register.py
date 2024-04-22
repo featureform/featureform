@@ -8,8 +8,8 @@ import warnings
 from abc import ABC
 from collections.abc import Iterable
 from datetime import timedelta
-from typing import Callable, Dict, List, Optional, Tuple, Union
-
+from typing import Callable, Dict, List, Optional, Tuple, Union, Any
+import json
 import dill
 import pandas as pd
 from dataclasses import dataclass, field
@@ -52,10 +52,12 @@ from .resources import (
     PostgresConfig,
     PrimaryData,
     Provider,
+    ProjectResource,
     RedisConfig,
     RedshiftConfig,
     ResourceColumnMapping,
     ResourceRedefinedError,
+    Resource,
     ResourceState,
     ResourceStatus,
     ResourceVariant,
@@ -181,6 +183,7 @@ class OfflineSQLProvider(OfflineProvider):
         inputs: list = None,
         tags: List[str] = [],
         properties: dict = {},
+        project: Union[str, ProjectResource] = "",
     ):
         """
         Register a SQL transformation source.
@@ -206,6 +209,7 @@ class OfflineSQLProvider(OfflineProvider):
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of primary data to be registered
             inputs (list): A list of Source NameVariant Tuples to input into the transformation
+            project (Union[str, ProjectResource]): The project to associate the resource with
 
 
         Returns:
@@ -221,6 +225,7 @@ class OfflineSQLProvider(OfflineProvider):
             inputs=inputs,
             tags=tags,
             properties=properties,
+            project=project,
         )
 
 
@@ -349,6 +354,7 @@ class OfflineSparkProvider(OfflineProvider):
         inputs: list = [],
         tags: List[str] = [],
         properties: dict = {},
+        project: Union[str, ProjectResource] = "",
     ):
         """
         Register a Dataframe transformation source. The spark.df_transformation decorator takes the contents
@@ -371,6 +377,7 @@ class OfflineSparkProvider(OfflineProvider):
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of primary data to be registered
             inputs (list[Tuple(str, str)]): A list of Source NameVariant Tuples to input into the transformation
+            project (Union[str, ProjectResource]): The project to associate the resource with
 
         Returns:
             source (ColumnSourceRegistrar): Source
@@ -1081,6 +1088,7 @@ class ColumnResource(ABC):
         properties: Dict[str, str],
         inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
         variant: str = "",
+        project: Union[str, ProjectResource] = "",
     ):
         registrar, source_name_variant, columns = transformation_args
         self.type = type if isinstance(type, str) else type.value
@@ -1105,6 +1113,7 @@ class ColumnResource(ABC):
         self.tags = tags
         self.properties = properties
         self.variant = variant
+        self.project = project
 
     def register(self):
         features, labels = self.features_and_labels()
@@ -1132,6 +1141,7 @@ class ColumnResource(ABC):
                 "description": self.description,
                 "tags": self.tags,
                 "properties": self.properties,
+                "project": self.project,
             }
         ]
         if self.resource_type == "feature":
@@ -1185,6 +1195,7 @@ class FeatureColumnResource(ColumnResource):
         schedule: str = "",
         tags: Optional[List[str]] = None,
         properties: Optional[Dict[str, str]] = None,
+        project: Union[str, ProjectResource] = "",
     ):
         """
         Feature registration object.
@@ -1221,6 +1232,7 @@ class FeatureColumnResource(ColumnResource):
             schedule=schedule,
             tags=tags,
             properties=properties,
+            project=project,
         )
 
 
@@ -1394,6 +1406,7 @@ class LabelColumnResource(ColumnResource):
         schedule: str = "",
         tags: List[str] = [],
         properties: Dict[str, str] = {},
+        project: Union[str, ProjectResource] = "",
     ):
         """
         Label registration object.
@@ -1427,6 +1440,7 @@ class LabelColumnResource(ColumnResource):
             schedule=schedule,
             tags=tags,
             properties=properties,
+            project=project,
         )
 
 
@@ -1492,7 +1506,7 @@ class Registrar:
             UserRegistrar: User
         """
         user = User(name=name, tags=tags, properties=properties)
-        self.__resources.append(user)
+        self.add_resource(user)
         return UserRegistrar(self, user)
 
     def set_default_owner(self, user: str):
@@ -1669,6 +1683,7 @@ class Registrar:
                 description="",
                 tags=[],
                 properties={},
+                project=[],
             )
             return ColumnSourceRegistrar(self, mock_source)
 
@@ -2175,7 +2190,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OnlineProvider(self, provider)
 
     def register_pinecone(
@@ -2228,7 +2243,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OnlineProvider(self, provider)
 
     def register_weaviate(
@@ -2275,7 +2290,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OnlineProvider(self, provider)
 
     def register_blob_store(
@@ -2349,7 +2364,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return FileStoreProvider(self, provider, azure_config, "AZURE")
 
     def register_s3(
@@ -2425,7 +2440,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return FileStoreProvider(self, provider, s3_config, s3_config.type())
 
     def register_gcs(
@@ -2489,7 +2504,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return FileStoreProvider(self, provider, gcs_config, gcs_config.type())
 
     def register_hdfs(
@@ -2545,7 +2560,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return FileStoreProvider(self, provider, hdfs_config, hdfs_config.type())
 
     # TODO: Set Deprecation Warning For Credentials Path
@@ -2602,7 +2617,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OnlineProvider(self, provider)
 
     # TODO: Check these fields
@@ -2672,7 +2687,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OnlineProvider(self, provider)
 
     def register_dynamodb(
@@ -2727,7 +2742,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OnlineProvider(self, provider)
 
     def register_mongodb(
@@ -2794,7 +2809,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OnlineProvider(self, provider)
 
     def register_snowflake_legacy(
@@ -2863,7 +2878,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OfflineSQLProvider(self, provider)
 
     # TODO: Recheck mutable fields
@@ -2937,7 +2952,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OfflineSQLProvider(self, provider)
 
     def register_postgres(
@@ -3004,7 +3019,7 @@ class Registrar:
             properties=properties or {},
         )
 
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OfflineSQLProvider(self, provider)
 
     def register_clickhouse(
@@ -3070,7 +3085,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OfflineSQLProvider(self, provider)
 
     def register_redshift(
@@ -3136,7 +3151,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OfflineSQLProvider(self, provider)
 
     # TODO: Add deprecated warning for credentials_path
@@ -3194,7 +3209,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OfflineSQLProvider(self, provider)
 
     def register_spark(
@@ -3249,7 +3264,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OfflineSparkProvider(self, provider)
 
     # TODO: Change things to either filestore or store
@@ -3300,7 +3315,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(provider)
+        self.add_resource(provider)
         return OfflineK8sProvider(self, provider)
 
     def register_primary_data(
@@ -3313,6 +3328,7 @@ class Registrar:
         variant: str = "",
         owner: Union[str, UserRegistrar] = "",
         description: str = "",
+        project: Union[str, ProjectResource] = "",
     ):
         """Register a primary data source.
 
@@ -3323,6 +3339,7 @@ class Registrar:
             provider (Union[str, OfflineProvider]): Provider
             owner (Union[str, UserRegistrar]): Owner
             description (str): Description of primary data to be registered
+            project (Union[str, ProjectResource]): Project
 
         Returns:
             source (ColumnSourceRegistrar): Source
@@ -3345,8 +3362,9 @@ class Registrar:
             description=description,
             tags=tags,
             properties=properties,
+            project=project,
         )
-        self.__resources.append(source)
+        self.add_resource(source)
         column_source_registrar = ColumnSourceRegistrar(self, source)
         self.map_client_object_to_resource(column_source_registrar, source)
         return column_source_registrar
@@ -3364,6 +3382,7 @@ class Registrar:
         inputs: Union[List[NameVariant], List[str], List[ColumnSourceRegistrar]] = None,
         tags: List[str] = [],
         properties: dict = {},
+        project: Union[str, ProjectResource] = "",
     ):
         """Register a SQL transformation source.
 
@@ -3378,6 +3397,7 @@ class Registrar:
             args (K8sArgs): Additional transformation arguments
             tags (List[str]): Optional grouping mechanism for resources
             properties (dict): Optional grouping mechanism for resources
+            project (Union[str, ProjectResource]): Project
 
         Returns:
             source (ColumnSourceRegistrar): Source
@@ -3401,8 +3421,9 @@ class Registrar:
             description=description,
             tags=tags,
             properties=properties,
+            project=project,
         )
-        self.__resources.append(source)
+        self.add_resource(source)
         return ColumnSourceRegistrar(self, source)
 
     def sql_transformation(
@@ -3472,6 +3493,7 @@ class Registrar:
         args: K8sArgs = None,
         tags: List[str] = [],
         properties: dict = {},
+        project: Union[str, ProjectResource] = "",
     ):
         """Register a Dataframe transformation source.
 
@@ -3488,6 +3510,7 @@ class Registrar:
             args (K8sArgs): Additional transformation arguments
             tags (List[str]): Optional grouping mechanism for resources
             properties (dict): Optional grouping mechanism for resources
+            project (Union[str, ProjectResource]): Project
 
         Returns:
             source (ColumnSourceRegistrar): Source
@@ -3511,8 +3534,9 @@ class Registrar:
             description=description,
             tags=tags,
             properties=properties,
+            project=project,
         )
-        self.__resources.append(source)
+        self.add_resource(source)
         return ColumnSourceRegistrar(self, source)
 
     def df_transformation(
@@ -3655,12 +3679,33 @@ class Registrar:
             properties=properties or {},
         )
 
-        self.__resources.append(decorator)
+        self.add_resource(decorator)
 
         if fn is None:
             return decorator
         else:
             return decorator(fn)
+
+    def _register_project(
+        self,
+        name: str,
+        resources: Any = None,
+    ):
+        """Register a project.
+        Args:
+            name: Name of the project
+            resources: List of resources to be registered
+        Returns:
+            project (ProjectResource): ProjectResource
+        """
+        if not isinstance(name, str):
+            raise ValueError("Project name must be a string")
+        if name == "":
+            raise ValueError("Project name cannot be empty")
+
+        project = ProjectResource(name, resources)
+        self.add_resource(project)
+        return project
 
     def state(self):
         for resource in self.__resources:
@@ -3759,7 +3804,7 @@ class Registrar:
             tags=tags,
             properties=properties,
         )
-        self.__resources.append(entity)
+        self.add_resource(entity)
         return EntityRegistrar(self, entity)
 
     def register_column_resources(
@@ -3861,8 +3906,9 @@ class Registrar:
                 tags=feature_tags,
                 properties=feature_properties,
                 additional_parameters=additional_Parameters,
+                project=feature.get("project", []),
             )
-            self.__resources.append(resource)
+            self.add_resource(resource)
             self.map_client_object_to_resource(client_object, resource)
             feature_resources.append(resource)
 
@@ -3897,8 +3943,9 @@ class Registrar:
                 ),
                 tags=label_tags,
                 properties=label_properties,
+                project=label.get("project", []),
             )
-            self.__resources.append(resource)
+            self.add_resource(resource)
             self.map_client_object_to_resource(client_object, resource)
             label_resources.append(resource)
         return ResourceRegistrar(self, features, labels)
@@ -3972,6 +4019,7 @@ class Registrar:
         schedule: str = "",
         tags: List[str] = [],
         properties: dict = {},
+        project: Union[str, ProjectResource] = "",
     ):
         """Register a training set.
 
@@ -3995,6 +4043,7 @@ class Registrar:
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
             tags (List[str]): Optional grouping mechanism for resources
             properties (dict): Optional grouping mechanism for resources
+            project (List[NameVariant]): Project(s) to which the training set belongs
 
         Returns:
             resource (ResourceRegistrar): resource
@@ -4036,6 +4085,7 @@ class Registrar:
             label = (label, self.__run)
         if not isinstance(label, LabelColumnResource) and label[1] == "":
             label = (label[0], self.__run)
+        project = [(p if isinstance(p, NameVariant) else p.name) for p in project]
 
         processed_features = []
         for feature in features:
@@ -4054,8 +4104,9 @@ class Registrar:
             feature_lags=feature_lags,
             tags=tags,
             properties=properties,
+            project=project,
         )
-        self.__resources.append(resource)
+        self.add_resource(resource)
         return resource
 
     def register_model(
@@ -4072,14 +4123,14 @@ class Registrar:
             ModelRegistrar: Model
         """
         model = Model(name, description="", tags=tags, properties=properties)
-        self.__resources.append(model)
+        self.add_resource(model)
         return model
 
 
 class ResourceClient:
     """
     The resource client is used to retrieve information on specific resources
-    (entities, providers, features, labels, training sets, models, users).
+    (entities, providers, features, labels, training sets, models, users, projects).
 
     Args:
         host (str): The hostname of the Featureform instance.
@@ -4099,7 +4150,12 @@ class ResourceClient:
     """
 
     def __init__(
-        self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
+        self,
+        host=None,
+        local=False,
+        insecure=False,
+        cert_path=None,
+        dry_run=False,
     ):
         if local:
             raise Exception(
@@ -4239,6 +4295,19 @@ class ResourceClient:
             user (User): User
         """
         return get_user_info(self._stub, name)
+
+    def get_project(self, name, local=False):
+        """Get a project. Prints out name of user, and all resources associated with the user.
+        TODO: Add example
+        ```
+
+        Args:
+            name (str): Name of project to be retrieved
+
+        Returns:
+            project (Project): Project
+        """
+        return get_project_info(self._stub, name)
 
     def get_entity(self, name, local=False):
         """Get an entity. Prints out information on entity, and all resources associated with the entity.
@@ -4400,6 +4469,7 @@ class ResourceClient:
             location=ResourceColumnMapping("", "", ""),
             description=feature.description,
             status=feature.status.Status._enum_type.values[feature.status.status].name,
+            project=feature.project,
         )
 
     def print_feature(self, name, variant=None, local=False):
@@ -4519,6 +4589,7 @@ class ResourceClient:
             location=ResourceColumnMapping("", "", ""),
             description=label.description,
             status=label.status.Status._enum_type.values[label.status.status].name,
+            project=label.project,
         )
 
     def print_label(self, name, variant=None, local=False):
@@ -4641,6 +4712,7 @@ class ResourceClient:
             # TODO: apply values from proto
             tags=[],
             properties={},
+            project=ts.project,
         )
 
     def print_training_set(self, name, variant=None, local=False):
@@ -4757,6 +4829,7 @@ class ResourceClient:
             source_text=(
                 definition.source_text if type(definition) == DFTransformation else ""
             ),
+            project=source.project,
         )
 
     def _get_source_definition(self, source):
@@ -5288,6 +5361,7 @@ class ColumnResource:
         schedule: str,
         tags: List[str],
         properties: Dict[str, str],
+        project: Union[str, ProjectResource] = "",
     ):
         registrar, source_name_variant, columns = transformation_args
         self.type = type if isinstance(type, str) else type.value
@@ -5310,6 +5384,7 @@ class ColumnResource:
         self.schedule = schedule
         self.tags = tags
         self.properties = properties
+        self.project = [(p if isinstance(p, NameVariant) else p.name) for p in project]
 
     def register(self):
         features, labels = self.get_resources_by_type(self.resource_type)
@@ -5324,6 +5399,7 @@ class ColumnResource:
             labels=labels,
             timestamp_column=self.timestamp_column,
             schedule=self.schedule,
+            Project=self.project,
         )
 
     def get_resources_by_type(
@@ -5516,6 +5592,7 @@ get_s3 = global_registrar.get_s3
 get_gcs = global_registrar.get_gcs
 ondemand_feature = global_registrar.ondemand_feature
 ResourceStatus = ResourceStatus
+Project = global_registrar._register_project
 
 Nil = ScalarType.NIL
 String = ScalarType.STRING

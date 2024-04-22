@@ -31,8 +31,15 @@ class Client(ResourceClient, ServingClient):
     ```
     """
 
+    # TODO: What should be the default project name if not provided?
     def __init__(
-        self, host=None, local=False, insecure=False, cert_path=None, dry_run=False
+        self,
+        project: str = None,
+        host=None,
+        local=False,
+        insecure=False,
+        cert_path=None,
+        dry_run=False,
     ):
         if local:
             raise Exception(
@@ -41,6 +48,9 @@ class Client(ResourceClient, ServingClient):
 
         if host is not None:
             self._validate_host(host)
+
+        if project is not None:
+            self._set_default_project(project)
 
         ResourceClient.__init__(
             self,
@@ -54,7 +64,12 @@ class Client(ResourceClient, ServingClient):
         # the ServingClient cannot be instantiated due to a conflict the local and host arguments.
         if not dry_run:
             ServingClient.__init__(
-                self, host=host, local=local, insecure=insecure, cert_path=cert_path
+                self,
+                project=project,
+                host=host,
+                local=local,
+                insecure=insecure,
+                cert_path=cert_path,
             )
 
     def dataframe(
@@ -175,7 +190,7 @@ class Client(ResourceClient, ServingClient):
 
         else:
             raise ValueError(
-                f"source must be of type SourceRegistrar, SubscriptableTransformation or str, not {type(resource)}\n"
+                f"source must be of type SourceRegistrar, SubscriptableTransformation or str, not {type(source)}\n"
                 "use client.dataframe(name, variant) or client.dataframe(source) or client.dataframe(transformation)"
             )
 
@@ -222,6 +237,9 @@ class Client(ResourceClient, ServingClient):
                 "use client.columns(name, variant) or client.columns(source) or client.columns(transformation)"
             )
         return self.impl._get_source_columns(name, variant)
+
+    def _set_default_project(self, project):
+        self.impl._set_default_project(project)
 
     @staticmethod
     def _validate_host(host):

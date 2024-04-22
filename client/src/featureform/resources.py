@@ -17,6 +17,7 @@ from google.protobuf.duration_pb2 import Duration
 from google.rpc import error_details_pb2
 
 from . import feature_flag
+from .types import VectorType
 from .enums import *
 from .exceptions import *
 from .version import check_up_to_date
@@ -1340,8 +1341,6 @@ class FeatureVariant(ResourceVariant):
     variant: str
     provider: Optional[str] = None
     created: str = None
-    is_embedding: bool = False
-    dims: int = 0
     tags: list = None
     properties: dict = None
     schedule: str = ""
@@ -1352,7 +1351,7 @@ class FeatureVariant(ResourceVariant):
     server_status: Optional[ServerStatus] = None
 
     def __post_init__(self):
-        col_types = [member.value for member in ScalarType]
+        col_types = {member.value for member in ScalarType}
         if self.value_type not in col_types:
             raise ValueError(
                 f"Invalid feature type ({self.value_type}) must be one of: {col_types}"
@@ -1385,8 +1384,6 @@ class FeatureVariant(ResourceVariant):
             variant=feature.variant,
             source=(feature.source.name, feature.source.variant),
             value_type=feature.type,
-            is_embedding=feature.is_embedding,
-            dims=feature.dimension,
             entity=feature.entity,
             owner=feature.owner,
             provider=feature.provider,
@@ -1411,9 +1408,7 @@ class FeatureVariant(ResourceVariant):
                 name=self.source[0],
                 variant=self.source[1],
             ),
-            type=self.value_type,
-            is_embedding=self.is_embedding,
-            dimension=self.dims,
+            new_type=self.value_type,
             entity=self.entity,
             owner=self.owner,
             description=self.description,
@@ -1541,7 +1536,7 @@ class Label:
 class LabelVariant(ResourceVariant):
     name: str
     source: Any
-    value_type: str
+    value_type: Union[VectorType, ScalarType]
     entity: str
     owner: str
     description: str
@@ -1556,7 +1551,7 @@ class LabelVariant(ResourceVariant):
     server_status: Optional[ServerStatus] = None
 
     def __post_init__(self):
-        col_types = [member.value for member in ScalarType]
+        col_types = {member.value for member in ScalarType}
         if self.value_type not in col_types:
             raise ValueError(
                 f"Invalid label type ({self.value_type}) must be one of: {col_types}"
@@ -1578,7 +1573,7 @@ class LabelVariant(ResourceVariant):
             name=label.name,
             variant=label.variant,
             source=(label.source.name, label.source.variant),
-            value_type=label.type,
+            value_type=type_from_proto(label.new_type),
             entity=label.entity,
             owner=label.owner,
             provider=label.provider,
@@ -1601,7 +1596,7 @@ class LabelVariant(ResourceVariant):
                 name=self.source[0],
                 variant=self.source[1],
             ),
-            type=self.value_type,
+            new_type=self.value_type,
             entity=self.entity,
             owner=self.owner,
             description=self.description,

@@ -44,6 +44,39 @@ class ScalarType(Enum):
     def get_values(cls):
         return [e.value for e in cls]
 
+    def to_proto(self):
+        proto_enum = self.to_proto_enum()
+        return pb.ValueType(scalar_type=proto_enum)
+
+    def to_proto_enum(self):
+        mapping = {
+            NIL: pb.ScalarType.NULL,
+            INT: pb.ScalarType.INT,
+            INT32: pb.ScalarType.INT32,
+            INT64: pb.ScalarType.INT64,
+            FLOAT32: pb.ScalarType.FLOAT32,
+            FLOAT64: pb.ScalarType.FLOAT64,
+            STRING: pb.ScalarType.STRING,
+            BOOL: pb.ScalarType.BOOL,
+            DATETIME: pb.ScalarType.DATETIME,
+        }
+        return mapping[self]
+
+    @classmethod
+    def from_proto(cls, proto_val):
+        mapping = {
+            pb.ScalarType.NULL: NIL,
+            pb.ScalarType.INT: INT,
+            pb.ScalarType.INT32: INT32,
+            pb.ScalarType.INT64: INT64,
+            pb.ScalarType.FLOAT32: FLOAT32,
+            pb.ScalarType.FLOAT64: FLOAT64,
+            pb.ScalarType.STRING: STRING,
+            pb.ScalarType.BOOL: BOOL,
+            pb.ScalarType.DATETIME: DATETIME,
+        }
+        return mapping[proto_val.scalar_type]
+
 
 class ResourceStatus(str, Enum):
     """

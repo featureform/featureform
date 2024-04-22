@@ -236,6 +236,7 @@ enum ScalarType {
 	BOOL = 5;
 	INT32 = 6;
 	INT64 = 7;
+	DATETIME = 8;
 }
 
 message VectorType {

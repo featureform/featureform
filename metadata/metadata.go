@@ -1576,9 +1576,9 @@ func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFea
 }
 
 func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variantRequest *pb.FeatureVariantRequest) (*pb.Empty, error) {
-	logger := serv.Logger.WithRequestID(logging.RequestID(variantRequest.RequestId))
-	logger.Info("Creating Feature Variant: ", variantRequest.FeatureVariant.Name)
-	ctx = context.WithValue(ctx, "logger", logger)
+	logger := serv.Logger.WithRequestID(logging.RequestID(variantRequest.RequestId)).WithResource("feature_variant", variantRequest.FeatureVariant.Name, variantRequest.FeatureVariant.Variant)
+	logger.Info("Creating Feature Variant")
+	ctx = logging.UpdateContext(ctx, logger, variantRequest.RequestId)
 
 	variant := variantRequest.FeatureVariant
 	variant.Created = tspb.New(time.Now())
@@ -1613,9 +1613,9 @@ func (serv *MetadataServer) ListLabels(_ *pb.Empty, stream pb.Metadata_ListLabel
 }
 
 func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variantRequest *pb.LabelVariantRequest) (*pb.Empty, error) {
-	logger := serv.Logger.WithRequestID(logging.RequestID(variantRequest.RequestId))
-	logger.Info("Creating Label Variant: ", variantRequest.LabelVariant.Name)
-	ctx = context.WithValue(ctx, "logger", logger)
+	logger := serv.Logger.WithRequestID(logging.RequestID(variantRequest.RequestId)).WithResource("label_variant", variantRequest.LabelVariant.Name, variantRequest.LabelVariant.Variant)
+	logger.Info("Creating Label Variant")
+	ctx = logging.UpdateContext(ctx, logger, variantRequest.RequestId)
 
 	variant := variantRequest.LabelVariant
 	variant.Created = tspb.New(time.Now())
@@ -1650,9 +1650,9 @@ func (serv *MetadataServer) ListTrainingSets(_ *pb.Empty, stream pb.Metadata_Lis
 }
 
 func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, variantRequest *pb.TrainingSetVariantRequest) (*pb.Empty, error) {
-	logger := serv.Logger.WithRequestID(logging.RequestID(variantRequest.RequestId))
-	logger.Info("Creating TrainingSet Variant: ", variantRequest.TrainingSetVariant.Name)
-	ctx = context.WithValue(ctx, "logger", logger)
+	logger := serv.Logger.WithRequestID(logging.RequestID(variantRequest.RequestId)).WithResource("training_set_variant", variantRequest.TrainingSetVariant.Name, variantRequest.TrainingSetVariant.Variant)
+	logger.Info("Creating TrainingSet Variant")
+	ctx = logging.UpdateContext(ctx, logger, variantRequest.RequestId)
 
 	variant := variantRequest.TrainingSetVariant
 	variant.Created = tspb.New(time.Now())
@@ -1687,9 +1687,9 @@ func (serv *MetadataServer) ListSources(_ *pb.Empty, stream pb.Metadata_ListSour
 }
 
 func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variantRequest *pb.SourceVariantRequest) (*pb.Empty, error) {
-	logger := serv.Logger.WithRequestID(logging.RequestID(variantRequest.RequestId))
-	logger.Info("Creating Source Variant: ", variantRequest.SourceVariant.Name)
-	ctx = context.WithValue(ctx, "logger", logger)
+	logger := serv.Logger.WithRequestID(logging.RequestID(variantRequest.RequestId)).WithResource("source_variant", variantRequest.SourceVariant.Name, variantRequest.SourceVariant.Variant)
+	logger.Info("Creating Source Variant")
+	ctx = logging.UpdateContext(ctx, logger, variantRequest.RequestId)
 
 	variant := variantRequest.SourceVariant
 	variant.Created = tspb.New(time.Now())
@@ -1725,7 +1725,7 @@ func (serv *MetadataServer) ListUsers(_ *pb.Empty, stream pb.Metadata_ListUsersS
 }
 
 func (serv *MetadataServer) CreateUser(ctx context.Context, userRequest *pb.UserRequest) (*pb.Empty, error) {
-	logger := logging.Logger(serv.Logger.WithRequestID(logging.RequestID(userRequest.RequestId)).WithResource("user", userRequest.User.Name, ""))
+	logger := serv.Logger.WithRequestID(logging.RequestID(userRequest.RequestId)).WithResource("user", userRequest.User.Name, "")
 	logger.Info("Creating User")
 	ctx = logging.UpdateContext(ctx, logger, userRequest.RequestId)
 
@@ -1745,7 +1745,9 @@ func (serv *MetadataServer) ListProviders(_ *pb.Empty, stream pb.Metadata_ListPr
 }
 
 func (serv *MetadataServer) CreateProvider(ctx context.Context, providerRequest *pb.ProviderRequest) (*pb.Empty, error) {
-	logger := logging.Logger(serv.Logger.WithRequestID(logging.RequestID(providerRequest.RequestId)))
+	logger := serv.Logger.WithRequestID(logging.RequestID(providerRequest.RequestId)).
+		WithResource("provider", providerRequest.Provider.Name, "").
+		WithProvider(providerRequest.Provider.Type, providerRequest.Provider.Name)
 	logger.Info("Creating Provider")
 	ctx = logging.UpdateContext(ctx, logger, providerRequest.RequestId)
 	return serv.genericCreate(ctx, &providerResource{providerRequest.Provider}, nil)
@@ -1764,9 +1766,9 @@ func (serv *MetadataServer) ListEntities(_ *pb.Empty, stream pb.Metadata_ListEnt
 }
 
 func (serv *MetadataServer) CreateEntity(ctx context.Context, entityRequest *pb.EntityRequest) (*pb.Empty, error) {
-	logger := serv.Logger.WithRequestID(logging.RequestID(entityRequest.RequestId))
-	logger.Info("Creating Entity: ", entityRequest.Entity.Name)
-	ctx = context.WithValue(ctx, "logger", logger)
+	logger := serv.Logger.WithRequestID(logging.RequestID(entityRequest.RequestId)).WithResource("entity", entityRequest.Entity.Name, "")
+	logger.Info("Creating Entity")
+	ctx = logging.UpdateContext(ctx, logger, entityRequest.RequestId)
 	return serv.genericCreate(ctx, &entityResource{entityRequest.Entity}, nil)
 }
 
@@ -1783,9 +1785,9 @@ func (serv *MetadataServer) ListModels(_ *pb.Empty, stream pb.Metadata_ListModel
 }
 
 func (serv *MetadataServer) CreateModel(ctx context.Context, modelRequest *pb.ModelRequest) (*pb.Empty, error) {
-	logger := serv.Logger.WithRequestID(logging.RequestID(modelRequest.RequestId))
-	logger.Info("Creating Model: ", modelRequest.Model.Name)
-	ctx = context.WithValue(ctx, "logger", logger)
+	logger := serv.Logger.WithRequestID(logging.RequestID(modelRequest.RequestId)).WithResource("model", modelRequest.Model.Name, "")
+	logger.Info("Creating Model")
+	ctx = logging.UpdateContext(ctx, logger, modelRequest.RequestId)
 	return serv.genericCreate(ctx, &modelResource{modelRequest.Model}, nil)
 }
 

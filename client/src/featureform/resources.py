@@ -1232,9 +1232,9 @@ class SourceVariant(ResourceVariant):
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized, "source_variant", stub)
+        _get_and_set_equivalent_variant(serialized.source_variant, "source_variant", stub)
         stub.CreateSourceVariant(serialized)
-        return serialized.variant
+        return serialized.source_variant.variant
 
     def get_status(self):
         return ResourceStatus(self.status)
@@ -1445,9 +1445,9 @@ class FeatureVariant(ResourceVariant):
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
+        _get_and_set_equivalent_variant(serialized.feature_variant, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
-        return serialized.variant
+        return serialized.feature_variant.variant
 
     def get_status(self):
         return ResourceStatus(self.status)
@@ -1511,9 +1511,9 @@ class OnDemandFeatureVariant(ResourceVariant):
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
+        _get_and_set_equivalent_variant(serialized.feature_variant, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
-        return serialized.variant
+        return serialized.feature_variant.variant
 
     def get(self, stub) -> "OnDemandFeatureVariant":
         name_variant = pb.NameVariant(name=self.name, variant=self.variant)
@@ -1637,9 +1637,9 @@ class LabelVariant(ResourceVariant):
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized, "label_variant", stub)
+        _get_and_set_equivalent_variant(serialized.label_variant, "label_variant", stub)
         stub.CreateLabelVariant(serialized)
-        return serialized.variant
+        return serialized.label_variant.variant
 
     def get_status(self):
         return ResourceStatus(self.status)
@@ -1850,9 +1850,9 @@ class TrainingSetVariant(ResourceVariant):
             ),
             request_id="",
         )
-        _get_and_set_equivalent_variant(serialized, "training_set_variant", stub)
+        _get_and_set_equivalent_variant(serialized.training_set_variant, "training_set_variant", stub)
         stub.CreateTrainingSetVariant(serialized)
-        return serialized.variant
+        return serialized.training_set_variant.variant
 
     def get_status(self):
         return ResourceStatus(self.status)

@@ -1725,9 +1725,11 @@ func (serv *MetadataServer) ListUsers(_ *pb.Empty, stream pb.Metadata_ListUsersS
 }
 
 func (serv *MetadataServer) CreateUser(ctx context.Context, userRequest *pb.UserRequest) (*pb.Empty, error) {
-	logger := serv.Logger.WithRequestID(logging.RequestID(userRequest.RequestId)).WithResource("user", userRequest.User.Name, "")
+	logger := logging.Logger(serv.Logger.WithRequestID(logging.RequestID(userRequest.RequestId)).WithResource("user", userRequest.User.Name, ""))
 	logger.Info("Creating User")
 	ctx = context.WithValue(ctx, "logger", logger)
+
+	// ctx = logging.UpdateContext(ctx, logger)
 
 	return serv.genericCreate(ctx, &userResource{userRequest.User}, nil)
 }

@@ -1727,9 +1727,7 @@ func (serv *MetadataServer) ListUsers(_ *pb.Empty, stream pb.Metadata_ListUsersS
 func (serv *MetadataServer) CreateUser(ctx context.Context, userRequest *pb.UserRequest) (*pb.Empty, error) {
 	logger := logging.Logger(serv.Logger.WithRequestID(logging.RequestID(userRequest.RequestId)).WithResource("user", userRequest.User.Name, ""))
 	logger.Info("Creating User")
-	ctx = context.WithValue(ctx, "logger", logger)
-
-	// ctx = logging.UpdateContext(ctx, logger)
+	ctx = logging.UpdateContext(ctx, logger, userRequest.RequestId)
 
 	return serv.genericCreate(ctx, &userResource{userRequest.User}, nil)
 }
@@ -1747,9 +1745,9 @@ func (serv *MetadataServer) ListProviders(_ *pb.Empty, stream pb.Metadata_ListPr
 }
 
 func (serv *MetadataServer) CreateProvider(ctx context.Context, providerRequest *pb.ProviderRequest) (*pb.Empty, error) {
-	logger := serv.Logger.WithRequestID(logging.RequestID(providerRequest.RequestId))
-	logger.Info("Creating Provider: ", providerRequest.Provider.Name)
-	ctx = context.WithValue(ctx, "logger", logger)
+	logger := logging.Logger(serv.Logger.WithRequestID(logging.RequestID(providerRequest.RequestId)))
+	logger.Info("Creating Provider")
+	ctx = logging.UpdateContext(ctx, logger, providerRequest.RequestId)
 	return serv.genericCreate(ctx, &providerResource{providerRequest.Provider}, nil)
 }
 
@@ -1891,7 +1889,7 @@ type sendFn func(proto.Message) error
 type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
-	logger := ctx.Value("logger").(logging.Logger)
+	logger := logging.GetLoggerFromContext(ctx)
 	logger.Debugw("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
 
 	id := res.ID()

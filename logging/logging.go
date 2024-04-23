@@ -60,44 +60,49 @@ func (logger Logger) WithProvider(providerType, providerName string) Logger {
 }
 
 func (logger Logger) InitializeRequestID(ctx context.Context) (string, context.Context, Logger) {
-	requestID, ok := ctx.Value(RequestIDKey).(RequestID)
-	if !ok {
+	requestID := ctx.Value(RequestIDKey)
+	if requestID == nil {
 		requestID = NewRequestID()
 		ctx = context.WithValue(ctx, RequestIDKey, requestID)
 	}
-	ctxLogger, hasLogger := ctx.Value(LoggerKey).(Logger)
-	if !hasLogger {
-		ctxLogger = logger.WithRequestID(requestID)
+	ctxLogger := ctx.Value(LoggerKey)
+	if ctxLogger == nil {
+		ctxLogger = logger.WithRequestID(requestID.(RequestID))
 		ctx = context.WithValue(ctx, LoggerKey, ctxLogger)
 	}
-	return requestID.String(), ctx, ctxLogger
+	return requestID.(RequestID).String(), ctx, ctxLogger.(Logger)
 }
 
 func GetRequestIDFromContext(ctx context.Context) string {
-	requestID, ok := ctx.Value(RequestIDKey).(string)
-	if !ok {
+	requestID := ctx.Value(RequestIDKey)
+	if requestID == nil {
 		NewLogger("logging").Warn("Request ID not found in context")
 		return ""
 	}
-	return requestID
+
+	return requestID.(string)
 }
 
-// TODO: THIS DOESNT WORK, Returns the same grpc error
-func UpdateContext(ctx context.Context, logger Logger) context.Context {
-	// _, hasID := ctx.Value(RequestIDKey).(RequestID)
-	// if !hasID && id != "" {
-	// 	ctxWithID := context.WithValue(ctx, RequestIDKey, id)
-	// }
-	// _, hasLogger := ctx.Value(LoggerKey).(Logger)
-	// if !hasLogger {
-	// 	ctxWithLogger := context.WithValue(ctx, LoggerKey, logger)
-	// }
-	// return ctxWithLogger
-	// if logger == (Logger)(nil) {
-	// 	logger = NewLogger("logging")
+func GetLoggerFromContext(ctx context.Context) Logger {
+	logger := ctx.Value(LoggerKey)
+	if logger == nil {
+		NewLogger("logging").Warn("Logger not found in context")
+		return Logger{}
+	}
 
-	// }
-	return context.WithValue(ctx, LoggerKey, logger)
+	return logger.(Logger)
+}
+
+func UpdateContext(ctx context.Context, logger Logger, id string) context.Context {
+	contextID := ctx.Value(RequestIDKey)
+	if contextID == nil {
+		ctx = context.WithValue(ctx, RequestIDKey, id)
+	}
+	contextLogger := ctx.Value(LoggerKey)
+	if contextLogger == nil {
+		ctx = context.WithValue(ctx, LoggerKey, logger)
+	}
+	return ctx
 }
 
 func NewLogger(service string) Logger {

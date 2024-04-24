@@ -12,7 +12,8 @@ import (
 
 type Logger struct {
 	*zap.SugaredLogger
-	id RequestID
+	id     RequestID
+	values map[string]interface{}
 }
 
 type RequestID string
@@ -46,16 +47,35 @@ func (logger Logger) WithRequestID(id RequestID) Logger {
 }
 
 func (logger Logger) WithResource(resourceType, name, variant string) Logger {
+	if resourceType == "" {
+		logger.Warn("Resource type is empty")
+	}
+	if name == "" {
+		logger.Warn("Resource name is empty")
+	}
+	if variant == "" {
+		logger.Warn("Resource variant is empty")
+	}
+	resourceValues := map[string]interface{}{"resource-type": resourceType, "resource-name": name, "resource-variant": variant}
 	return Logger{
 		SugaredLogger: logger.With("resource-type", resourceType, "name", name, "variant", variant),
 		id:            logger.id,
+		values:        resourceValues,
 	}
 }
 
 func (logger Logger) WithProvider(providerType, providerName string) Logger {
+	if providerType == "" {
+		logger.Warn("Provider type is empty")
+	}
+	if providerName == "" {
+		logger.Warn("Provider name is empty")
+	}
+	providerValues := map[string]interface{}{"provider-type": providerType, "provider-name": providerName}
 	return Logger{
 		SugaredLogger: logger.With("provider-type", providerType, "provider-name", providerName),
 		id:            logger.id,
+		values:        providerValues,
 	}
 }
 
@@ -80,7 +100,7 @@ func GetRequestIDFromContext(ctx context.Context) string {
 		return ""
 	}
 
-	return requestID.(string)
+	return requestID.(RequestID).String()
 }
 
 func GetLoggerFromContext(ctx context.Context) Logger {
@@ -96,10 +116,11 @@ func GetLoggerFromContext(ctx context.Context) Logger {
 func UpdateContext(ctx context.Context, logger Logger, id string) context.Context {
 	contextID := ctx.Value(RequestIDKey)
 	if contextID == nil {
-		ctx = context.WithValue(ctx, RequestIDKey, id)
+		ctx = context.WithValue(ctx, RequestIDKey, RequestID(id))
 	}
 	contextLogger := ctx.Value(LoggerKey)
 	if contextLogger == nil {
+		logger = logger.WithRequestID(RequestID(id))
 		ctx = context.WithValue(ctx, LoggerKey, logger)
 	}
 	return ctx
@@ -115,7 +136,6 @@ func NewLogger(service string) Logger {
 	logger := baseLogger.Sugar().Named(service)
 	return Logger{
 		SugaredLogger: logger,
-		id:            "",
 	}
 }
 

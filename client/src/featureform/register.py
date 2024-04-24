@@ -804,10 +804,59 @@ class SQLTransformationDecorator:
     @staticmethod
     def _assert_query_contains_at_least_one_source(query):
         # Checks to verify that the query contains a FROM {{ name.variant }}
-        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_:.]+(\.[a-zA-Z0-9_:.]+)?\s*\}\}"
-        match = re.search(pattern, query, re.IGNORECASE)
-        if match is None:
+
+        # the pattern pulls the string within the double curly braces
+        pattern = r"\{\{\s*(.*?)\s*\}\}"
+        matches = re.findall(pattern, query)
+        if len(matches) == 0:
             raise InvalidSQLQuery(query, "No source specified.")
+
+        for m in matches:
+            name, variant = get_name_variant(query, m)
+            if name == "":
+                raise InvalidSQLQuery(query, "Source name is empty.")
+
+            # Check for invalid characters in the source name and variant
+            if name.startswith(" ") or name.endswith(" "):
+                raise InvalidSQLQuery(
+                    query, "Source name cannot start or end with a space."
+                )
+            if variant.startswith(" ") or variant.endswith(" "):
+                raise InvalidSQLQuery(
+                    query, "Source variant cannot start or end with a space."
+                )
+
+            if name.startswith("_") or name.endswith("_"):
+                raise InvalidSQLQuery(
+                    query, "Source name cannot start or end with an underscore."
+                )
+            if variant.startswith("_") or variant.endswith("_"):
+                raise InvalidSQLQuery(
+                    query, "Source variant cannot start or end with an underscore."
+                )
+
+            if "__" in name or "__" in variant:
+                raise InvalidSQLQuery(
+                    query,
+                    "Source name and variant cannot contain consecutive underscores.",
+                )
+
+
+def get_name_variant(query, source_str):
+    # Based on the source string, split the name and variant
+    name_variant = source_str.split(".")
+    if len(name_variant) > 2:
+        raise InvalidSQLQuery(
+            query, "Source name and variant cannot contain more than one period."
+        )
+    elif len(name_variant) == 2:
+        name = name_variant[0]
+        variant = name_variant[1]
+    else:
+        name = name_variant[0]
+        variant = ""
+
+    return name, variant
 
 
 @dataclass

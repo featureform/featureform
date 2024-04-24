@@ -4,6 +4,7 @@ import sys
 sys.path.insert(0, "provider/scripts/spark")
 
 import pytest
+from unittest.mock import patch
 
 from offline_store_spark_runner import (
     main,
@@ -16,6 +17,7 @@ from offline_store_spark_runner import (
     get_credentials_dict,
     delete_file,
     check_dill_exception,
+    get_s3_object,
 )
 
 
@@ -190,3 +192,38 @@ def test_check_dill_exception(exception_message, error, request):
     expected_error = request.getfixturevalue(error)
     error = check_dill_exception(exception_message)
     assert str(error) == str(expected_error)
+
+
+@pytest.mark.parametrize(
+    "credentials",
+    [
+        {
+            "aws_region": "us-west-2",
+            "aws_access_key_id": "key",
+            "aws_secret_access_key": "secret",
+            "aws_bucket_name": "bucket",
+        },
+        {
+            "aws_region": "us-west-2",
+            "aws_access_key_id": "key",
+            "aws_secret_access_key": "secret",
+            "aws_bucket_name": "bucket",
+            "use_service_account": "true",
+        },
+    ],
+)
+def test_get_s3_object(credentials):
+    class MockS3:
+        @staticmethod
+        def Object(bucket, filepath):
+            return f"{bucket}/{filepath}"
+
+    class MockSession:
+        @staticmethod
+        def resource(resource_name, region_name="us-east-1"):
+            return MockS3()
+
+    with patch("boto3.Session") as mock_session:
+        mock_session.return_value = MockSession
+        output = get_s3_object("file_path", credentials)
+        assert output == "bucket/file_path"

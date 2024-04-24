@@ -751,12 +751,15 @@ func (serv *MetadataServer) CreateProvider(ctx context.Context, providerRequest 
 
 func (serv *MetadataServer) shouldCheckProviderHealth(ctx context.Context, provider *pb.Provider) (bool, error) {
 	var existingProvider *pb.Provider
+	logger := logging.GetLoggerFromContext(ctx)
 	for {
 		stream, err := serv.meta.GetProviders(ctx)
 		if err != nil {
+			logger.Errorf("Failed to get providers from metadata server: %v", err)
 			return false, err
 		}
 		if err := stream.Send(&pb.Name{Name: provider.Name}); err != nil {
+			logger.Errorf("Failed to send provider %v to server: %v", provider.Name, err)
 			return false, err
 		}
 		res, err := stream.Recv()
@@ -764,6 +767,7 @@ func (serv *MetadataServer) shouldCheckProviderHealth(ctx context.Context, provi
 			break
 		}
 		if err != nil {
+			logger.Errorf("Failed to receive provider %v from server: %v", provider.Name, err)
 			return false, err
 		}
 		if res.Name == provider.Name && res.Type == provider.Type {
@@ -783,9 +787,11 @@ func (serv *MetadataServer) shouldCheckProviderHealth(ctx context.Context, provi
 
 func (serv *MetadataServer) checkProviderHealth(ctx context.Context, providerName string) error {
 	var status *pb.ResourceStatus
+	logger := logging.GetLoggerFromContext(ctx)
+	logger.Debugw("Checking provider health", "name", providerName)
 	isHealthy, err := serv.health.CheckProvider(providerName)
 	if err != nil || !isHealthy {
-		serv.Logger.Errorw("Provider health check failed", "error", err)
+		logger.Errorw("Provider health check failed", "error", err)
 
 		errorStatus, ok := grpc_status.FromError(err)
 		errorProto := errorStatus.Proto()
@@ -802,7 +808,7 @@ func (serv *MetadataServer) checkProviderHealth(ctx context.Context, providerNam
 			ErrorStatus:  errorStatusProto,
 		}
 	} else {
-		serv.Logger.Infow("Provider health check passed", "name", providerName)
+		logger.Infow("Provider health check passed", "name", providerName)
 		status = &pb.ResourceStatus{
 			Status: pb.ResourceStatus_READY,
 		}
@@ -860,7 +866,8 @@ func (serv *MetadataServer) CreateEntity(ctx context.Context, entityRequest *pb.
 }
 
 func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.ScheduleChangeRequest) (*pb.Empty, error) {
-	serv.Logger.Infow("Requesting Schedule Change", "resource", req.ResourceId, "new schedule", req.Schedule)
+	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
+	logger.Infow("Requesting Schedule Change", "resource", req.ResourceId, "new schedule", req.Schedule)
 	return serv.meta.RequestScheduleChange(ctx, req)
 }
 
@@ -929,26 +936,31 @@ func (serv *MetadataServer) CreateModel(ctx context.Context, modelRequest *pb.Mo
 }
 
 func (serv *OnlineServer) FeatureServe(ctx context.Context, req *srv.FeatureServeRequest) (*srv.FeatureRow, error) {
-	serv.Logger.Infow("Serving Features", "request", req.String())
+	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
+	logger.Infow("Serving Features", "request", req.String())
 	return serv.client.FeatureServe(ctx, req)
 }
 
 func (serv *OnlineServer) BatchFeatureServe(req *srv.BatchFeatureServeRequest, stream srv.Feature_BatchFeatureServeServer) error {
-	serv.Logger.Infow("Serving Batch Features", "request", req.String())
-	client, err := serv.client.BatchFeatureServe(context.Background(), req)
+	_, ctx, logger := serv.Logger.InitializeRequestID(context.Background())
+	logger.Infow("Serving Batch Features", "request", req.String())
+	client, err := serv.client.BatchFeatureServe(ctx, req)
 	if err != nil {
+		logger.Errorf("Failed to serve batch features: %v", err)
 		return fmt.Errorf("could not serve batch features: %w", err)
 	}
 	for {
 		row, err := client.Recv()
+		logger.Debugw("Getting row from client", "row", row, "entity", row.Entity)
 		if err != nil {
 			if err == io.EOF {
 				return nil
 			}
+			logger.Errorw("Failed to receive row from client", "row", row, "Error", err)
 			return err
 		}
 		if err := stream.Send(row); err != nil {
-			serv.Logger.Errorw("Failed to write to stream", "Error", err)
+			logger.Errorw("Failed to write to stream", "Error", err)
 			return err
 		}
 	}
@@ -956,64 +968,72 @@ func (serv *OnlineServer) BatchFeatureServe(req *srv.BatchFeatureServeRequest, s
 }
 
 func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.Feature_TrainingDataServer) error {
-	serv.Logger.Infow("Serving Training Data", "id", req.Id.String())
-	client, err := serv.client.TrainingData(context.Background(), req)
+	_, ctx, logger := serv.Logger.InitializeRequestID(context.Background())
+	logger.Infow("Serving Training Data", "id", req.Id.String())
+	client, err := serv.client.TrainingData(ctx, req)
 	if err != nil {
+		logger.Errorf("Failed to get Training Data client: %v", err)
 		return err
 	}
 	for {
 		row, err := client.Recv()
+		logger.Debugw("Getting row from client", "row", row)
 		if err != nil {
 			if err == io.EOF {
 				return nil
 			}
+			logger.Errorw("Failed to receive row from client", "row", row, "Error", err)
 			return err
 		}
 		if err := stream.Send(row); err != nil {
-			serv.Logger.Errorw("Failed to write to stream", "Error", err)
+			logger.Errorw("Failed to write to stream", "Error", err)
 			return err
 		}
 	}
 }
 
 func (serv *OnlineServer) TrainTestSplit(stream srv.Feature_TrainTestSplitServer) error {
-	serv.Logger.Infow("Starting Training Test Split Stream")
-	clientStream, err := serv.client.TrainTestSplit(context.Background())
+	_, ctx, logger := serv.Logger.InitializeRequestID(context.Background())
+	logger.Infow("Starting Training Test Split Stream")
+	clientStream, err := serv.client.TrainTestSplit(ctx)
 	if err != nil {
+		logger.Errorf("Failed to serve training test split: %v", err)
 		return fmt.Errorf("could not serve training test split: %w", err)
 	}
 
 	for {
 		req, err := stream.Recv()
+		logger.Debugw("Getting request from stream, Training data id", req.Id)
 		if err == io.EOF {
-			serv.Logger.Infow("Client has closed the stream")
+			logger.Infow("Client has closed the stream")
 			if err := clientStream.CloseSend(); err != nil {
+				logger.Errorw("Failed to close send direction to downstream service", "Error", err)
 				return fmt.Errorf("failed to close send direction to downstream service: %w", err)
 			}
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorw("Error receiving from client stream", "error", err)
+			logger.Errorw("Error receiving from client stream", "error", err)
 			return err
 		}
 
 		if err := clientStream.Send(req); err != nil {
-			serv.Logger.Errorw("Failed to send request to downstream service", "error", err)
+			logger.Errorw("Failed to send request to downstream service", "error", err)
 			return err
 		}
 
 		resp, err := clientStream.Recv()
 		if err == io.EOF {
-			serv.Logger.Infow("Downstream service has closed the stream")
+			logger.Infow("Downstream service has closed the stream")
 			return nil
 		}
 		if err != nil {
-			serv.Logger.Errorw("Error receiving from downstream service", "error", err)
+			logger.Errorw("Error receiving from downstream service", "error", err)
 			return err
 		}
 
 		if err := stream.Send(resp); err != nil {
-			serv.Logger.Errorw("Failed to send response to client", "error", err)
+			logger.Errorw("Failed to send response to client", "error", err)
 			return err
 		}
 

@@ -214,7 +214,7 @@ def test_check_dill_exception(exception_message, error, request):
         pytest.param(
             {},
             marks=pytest.mark.xfail,
-        )
+        ),
     ],
 )
 def test_get_s3_object(credentials):

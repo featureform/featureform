@@ -317,10 +317,10 @@ jobs:
         with:
           python-version: "3.7.16"
 
-
       - uses: actions/setup-java@v3
         with:
           java-version: '11'
+          distribution: 'oracle'
 
       - name: Install pyspark packages
         run: |

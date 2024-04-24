@@ -210,6 +210,11 @@ def test_check_dill_exception(exception_message, error, request):
             "aws_bucket_name": "bucket",
             "use_service_account": "true",
         },
+        # Invalid credentials, expected failure
+        pytest.param(
+            {},
+            marks=pytest.mark.xfail,
+        )
     ],
 )
 def test_get_s3_object(credentials):

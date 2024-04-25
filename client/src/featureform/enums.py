@@ -46,34 +46,34 @@ class ScalarType(Enum):
 
     def to_proto(self):
         proto_enum = self.to_proto_enum()
-        return pb.ValueType(scalar_type=proto_enum)
+        return pb.ValueType(scalar=proto_enum)
 
     def to_proto_enum(self):
         mapping = {
-            NIL: pb.ScalarType.NULL,
-            INT: pb.ScalarType.INT,
-            INT32: pb.ScalarType.INT32,
-            INT64: pb.ScalarType.INT64,
-            FLOAT32: pb.ScalarType.FLOAT32,
-            FLOAT64: pb.ScalarType.FLOAT64,
-            STRING: pb.ScalarType.STRING,
-            BOOL: pb.ScalarType.BOOL,
-            DATETIME: pb.ScalarType.DATETIME,
+            ScalarType.NIL: pb.ScalarType.NULL,
+            ScalarType.INT: pb.ScalarType.INT,
+            ScalarType.INT32: pb.ScalarType.INT32,
+            ScalarType.INT64: pb.ScalarType.INT64,
+            ScalarType.FLOAT32: pb.ScalarType.FLOAT32,
+            ScalarType.FLOAT64: pb.ScalarType.FLOAT64,
+            ScalarType.STRING: pb.ScalarType.STRING,
+            ScalarType.BOOL: pb.ScalarType.BOOL,
+            ScalarType.DATETIME: pb.ScalarType.DATETIME,
         }
         return mapping[self]
 
     @classmethod
     def from_proto(cls, proto_val):
         mapping = {
-            pb.ScalarType.NULL: NIL,
-            pb.ScalarType.INT: INT,
-            pb.ScalarType.INT32: INT32,
-            pb.ScalarType.INT64: INT64,
-            pb.ScalarType.FLOAT32: FLOAT32,
-            pb.ScalarType.FLOAT64: FLOAT64,
-            pb.ScalarType.STRING: STRING,
-            pb.ScalarType.BOOL: BOOL,
-            pb.ScalarType.DATETIME: DATETIME,
+            pb.ScalarType.NULL: ScalarType.NIL,
+            pb.ScalarType.INT: ScalarType.INT,
+            pb.ScalarType.INT32: ScalarType.INT32,
+            pb.ScalarType.INT64: ScalarType.INT64,
+            pb.ScalarType.FLOAT32: ScalarType.FLOAT32,
+            pb.ScalarType.FLOAT64: ScalarType.FLOAT64,
+            pb.ScalarType.STRING: ScalarType.STRING,
+            pb.ScalarType.BOOL: ScalarType.BOOL,
+            pb.ScalarType.DATETIME: ScalarType.DATETIME,
         }
         return mapping[proto_val.scalar_type]
 

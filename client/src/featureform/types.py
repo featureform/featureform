@@ -30,7 +30,7 @@ class VectorType:
             dimension=self.dims,
             is_embedding=self.is_embedding,
         )
-        return pb.ValueType(vector_type=proto_vec)
+        return pb.ValueType(vector=proto_vec)
 
     @classmethod
     def from_proto(cls, proto_val):

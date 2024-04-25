@@ -17,7 +17,7 @@ from google.protobuf.duration_pb2 import Duration
 from google.rpc import error_details_pb2
 
 from . import feature_flag
-from .types import VectorType
+from .types import VectorType, type_from_proto
 from .enums import *
 from .exceptions import *
 from .version import check_up_to_date

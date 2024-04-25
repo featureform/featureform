@@ -1883,20 +1883,20 @@ func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.ResourceV
 
 	resourceProto := currentResource.ToResourceVariantProto()
 	logger = logger.WithResource(resourceType.String(), resourceProto.GetFeatureVariant().Name, resourceProto.GetFeatureVariant().Variant)
-
 	resourcesForType, err := serv.lookup.ListForType(resourceType)
 	if err != nil {
 		logger.Errorw("Unable to list resources", "error", err)
 		return nil, err
 	}
 
-	equivalentResourceVariant, err := findEquivalent(resourcesForType, currentResource, filterReadyStatus)
+	equivalentResourceVariant, err := findEquivalent(ctx, resourcesForType, currentResource, filterReadyStatus)
 	if err != nil {
 		logger.Errorw("Unable to find equivalent resource", "error", err)
 		return nil, err
 	}
 
 	if equivalentResourceVariant == nil {
+		logger.Info("No equivalent resource found")
 		return noEquivalentResponse, nil
 	}
 
@@ -1904,7 +1904,8 @@ func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.ResourceV
 }
 
 // findEquivalent searches through a slice of Resources to find an equivalent ResourceVariant.
-func findEquivalent(resources []Resource, resource ResourceVariant, filterReadyStatus bool) (ResourceVariant, error) {
+func findEquivalent(ctx context.Context, resources []Resource, resource ResourceVariant, filterReadyStatus bool) (ResourceVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	for _, res := range resources {
 		// If we are filtering by ready status, we only want to return the equivalent resource variant if it is ready.
 		if filterReadyStatus && !isResourceReady(res) {
@@ -1913,14 +1914,17 @@ func findEquivalent(resources []Resource, resource ResourceVariant, filterReadyS
 
 		other, ok := res.(ResourceVariant)
 		if !ok {
+			logger.Errorf("%T is not a ResourceVariant", res)
 			return nil, fferr.NewInvalidResourceTypeError(res.ID().Name, res.ID().Variant, fferr.ResourceType(res.ID().Type.String()), fmt.Errorf("resource is not a ResourceVariant: %T", res))
 		}
 
 		equivalent, err := resource.IsEquivalent(other)
 		if err != nil {
+			logger.Errorw("Error checking equivalence", "error", err)
 			return nil, fferr.NewInternalError(err)
 		}
 		if equivalent {
+			logger.Debugf("Found equivalent resource")
 			return other, nil
 		}
 	}

@@ -250,7 +250,8 @@ func getImportSourcePath(t *testing.T, offlineStore OfflineStore, materializatio
 			t.Fatalf("offline store is not a SparkOfflineStore")
 		}
 
-		sourceDirPath, err := sparkOffline.Store.CreateDirPath(fmt.Sprintf("featureform/%s", materializationID))
+		// TODO: move materialization source path creation to provider_schema package
+		sourceDirPath, err := sparkOffline.Store.CreateFilePath(fmt.Sprintf("featureform/%s", materializationID), true)
 		if err != nil {
 			t.Fatalf("failed to create source dir path for resource: %v", err)
 		}

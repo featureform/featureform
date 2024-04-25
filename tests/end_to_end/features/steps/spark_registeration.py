@@ -57,8 +57,9 @@ def step_impl(context, storage_provider, bucket, root_path):
 
     context.filestore = storage_provider
     if storage_provider == "azure":
+        context.storage_provider_name = f"azure-{run}"
         context.storage_provider = ff.register_blob_store(
-            name=f"azure-{run}",
+            name=context.storage_provider_name,
             account_name=os.getenv("AZURE_ACCOUNT_NAME", None),
             account_key=os.getenv("AZURE_ACCOUNT_KEY", None),
             container_name=bucket,
@@ -66,8 +67,9 @@ def step_impl(context, storage_provider, bucket, root_path):
         )
 
     elif storage_provider == "s3":
+        context.storage_provider_name = f"s3-{run}"
         context.storage_provider = ff.register_s3(
-            name=f"s3-{run}",
+            name=context.storage_provider_name,
             credentials=ff.AWSCredentials(
                 access_key=os.getenv("AWS_ACCESS_KEY_ID", None),
                 secret_key=os.getenv("AWS_SECRET_ACCESS_KEY", None),
@@ -78,8 +80,9 @@ def step_impl(context, storage_provider, bucket, root_path):
         )
 
     elif storage_provider == "gcs":
+        context.storage_provider_name = f"gcs-{run}"
         context.storage_provider = ff.register_gcs(
-            name=f"gcs-{run}",
+            name=context.storage_provider_name,
             credentials=ff.GCPCredentials(
                 project_id=os.getenv("GCP_PROJECT_ID"),
                 credentials_path=os.getenv("GCP_CREDENTIALS_FILE"),

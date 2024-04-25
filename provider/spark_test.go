@@ -35,6 +35,7 @@ import (
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
+	ps "github.com/featureform/provider/provider_schema"
 	"github.com/featureform/provider/types"
 )
 
@@ -65,7 +66,7 @@ func uploadCSVTable(store FileStore, path string, tables interface{}) error {
 	if err := w.Error(); err != nil {
 		return fmt.Errorf("error writing csv: %v", err)
 	}
-	destination, err := store.CreateFilePath(path)
+	destination, err := store.CreateFilePath(path, false)
 	if err != nil {
 		return fmt.Errorf("could not create file path: %v", err)
 	}
@@ -493,7 +494,7 @@ func sparkTestCreateDuplicatePrimaryTable(t *testing.T, store *SparkOfflineStore
 	}
 	primaryID := sparkSafeRandomID(Primary)
 
-	filePath, err := store.Store.CreateFilePath(randomSourceTablePath)
+	filePath, err := store.Store.CreateFilePath(randomSourceTablePath, false)
 	if err != nil {
 		t.Fatalf("could not create file path: %v", err)
 	}
@@ -522,7 +523,7 @@ func sparkTestCreatePrimaryFromSource(t *testing.T, store *SparkOfflineStore) {
 		t.Fatalf("could not upload source table")
 	}
 	primaryID := sparkSafeRandomID(Primary)
-	filePath, err := store.Store.CreateFilePath(randomSourceTablePath)
+	filePath, err := store.Store.CreateFilePath(randomSourceTablePath, false)
 	if err != nil {
 		t.Fatalf("could not create file path: %v", err)
 	}
@@ -1069,8 +1070,7 @@ func testSparkSQLTransformation(t *testing.T, store *SparkOfflineStore) {
 			}
 
 			// test transformation result rows are correct
-
-			sourcePath := fileStoreResourcePath(ttConst.config.TargetTableID)
+			sourcePath := ps.ResourceToDirectoryPath(ttConst.config.TargetTableID.Type.String(), ttConst.config.TargetTableID.Name, ttConst.config.TargetTableID.Variant)
 
 			updateConfig := TransformationConfig{
 				Type: SQLTransformation,
@@ -1379,7 +1379,7 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 	for _, tt := range cases {
 		ttConst := tt
 		t.Run(ttConst.name, func(t *testing.T) {
-			output, err := store.Store.CreateFilePath(ttConst.outputURI)
+			output, err := store.Store.CreateFilePath(ttConst.outputURI, false)
 			if err != nil {
 				t.Fatalf("could not create output path %s", err)
 			}
@@ -2731,7 +2731,7 @@ func TestEMRErrorMessages(t *testing.T) {
 	if err := localScriptPath.SetKey("scripts/spark/tests/test_files/scripts/test_emr_error.py"); err != nil {
 		t.Fatalf("could not set local script path: %v", err)
 	}
-	remoteScriptPath, err := s3.CreateFilePath("unit_tests/scripts/tests/test_emr_error.py")
+	remoteScriptPath, err := s3.CreateFilePath("unit_tests/scripts/tests/test_emr_error.py", false)
 	if err != nil {
 		t.Fatalf("could not create remote script path: %v", err)
 	}
@@ -3141,9 +3141,9 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 			if !reflect.DeepEqual(pythonURI, tt.ExpectedPythonFileURI) {
 				t.Errorf("SparkExecutor.PythonFileURI() = %#v, want %#v", pythonURI, tt.ExpectedPythonFileURI)
 			}
-			destination, err := store.CreateDirPath(tt.SubmitArgs.DestPath)
+			destination, err := store.CreateFilePath(tt.SubmitArgs.DestPath, true)
 			if err != nil {
-				t.Errorf("SparkExecutor.CreateDirPath() = %#v, want %#v", err, nil)
+				t.Errorf("SparkExecutor.CreateFilePath() = %#v, want %#v", err, nil)
 			}
 			submitArgs, err := tt.executor.SparkSubmitArgs(destination, tt.SubmitArgs.Query, tt.SubmitArgs.SourceList, tt.SubmitArgs.JobType, store)
 			if err != nil {
@@ -3152,9 +3152,9 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 			if !reflect.DeepEqual(submitArgs, tt.ExpectedSubmitArgs) {
 				t.Errorf("SparkExecutor.SubmitArgs() = %#v, want %#v", submitArgs, tt.ExpectedSubmitArgs)
 			}
-			output, err := store.CreateDirPath(tt.DFArgs.OutputURI)
+			output, err := store.CreateFilePath(tt.DFArgs.OutputURI, true)
 			if err != nil {
-				t.Errorf("SparkExecutor.CreateDirPath() = %#v, want %#v", err, nil)
+				t.Errorf("SparkExecutor.CreateFilePath() = %#v, want %#v", err, nil)
 			}
 			dfArgs, err := tt.executor.GetDFArgs(output, tt.DFArgs.Code, tt.DFArgs.Sources, store)
 			if err != nil {

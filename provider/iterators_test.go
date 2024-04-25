@@ -3,7 +3,6 @@ package provider
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -57,7 +56,7 @@ func TestMultipleFileParquetIterator(t *testing.T) {
 	records := make([]GenericRecord, 0)
 	files := make([]filestore.Filepath, 0)
 	file := &filestore.LocalFilepath{}
-	if err := file.SetKey(fmt.Sprintf("part-000%d.parquet", fileCount)); err != nil {
+	if err := file.SetKey(fmt.Sprintf("%s/part-000%d.parquet", outputDir, fileCount)); err != nil {
 		t.Fatalf("error setting key: %v", err)
 	}
 	for _, record := range allRecords {
@@ -71,13 +70,16 @@ func TestMultipleFileParquetIterator(t *testing.T) {
 			if err := parquet.Write[any](buf, parquetRecords, schema); err != nil {
 				t.Fatalf("error writing parquet file: %v", err)
 			}
-			if err := ioutil.WriteFile(file.Key(), buf.Bytes(), 0644); err != nil {
+			if err := os.MkdirAll(file.KeyPrefix(), 0755); err != nil {
+				t.Fatalf("error creating directory: %v", err)
+			}
+			if err := os.WriteFile(file.Key(), buf.Bytes(), 0644); err != nil {
 				t.Fatalf("error writing parquet file: %v", err)
 			}
 			files = append(files, file)
 			fileCount++
 			file = &filestore.LocalFilepath{}
-			if err := file.SetKey(fmt.Sprintf("part-000%d.parquet", fileCount)); err != nil {
+			if err := file.SetKey(fmt.Sprintf("%s/part-000%d.parquet", outputDir, fileCount)); err != nil {
 				t.Fatalf("error setting key: %v", err)
 			}
 			records = make([]GenericRecord, 0)

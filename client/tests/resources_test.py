@@ -40,6 +40,8 @@ from featureform.resources import (
     GCPCredentials,
 )
 
+from featureform import ScalarType, VectorType
+
 from featureform.register import OfflineK8sProvider, Registrar, FileStoreProvider
 
 from featureform.proto import metadata_pb2 as pb
@@ -482,6 +484,10 @@ def init_feature(input):
         ("bool", False),
         ("datetime", False),
         ("datetime", False),
+        (ScalarType.FLOAT32, False),
+        (VectorType("float32", 128, True) , False),
+        (VectorType("float32", 128, False), False),
+        (VectorType(ScalarType.FLOAT32, 128, False), False),
         ("none", True),
         ("str", True),
     ],

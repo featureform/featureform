@@ -1333,7 +1333,7 @@ Additional_Parameters = Union[
 class FeatureVariant(ResourceVariant):
     name: str
     source: Any
-    value_type: str
+    value_type: Union[VectorType, ScalarType, str]
     entity: str
     owner: str
     location: ResourceLocation
@@ -1351,11 +1351,8 @@ class FeatureVariant(ResourceVariant):
     server_status: Optional[ServerStatus] = None
 
     def __post_init__(self):
-        col_types = {member.value for member in ScalarType}
-        if self.value_type not in col_types:
-            raise ValueError(
-                f"Invalid feature type ({self.value_type}) must be one of: {col_types}"
-            )
+        if isinstance(self.value_type, str):
+            self.value_type = ScalarType(self.value_type)
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1536,7 +1533,7 @@ class Label:
 class LabelVariant(ResourceVariant):
     name: str
     source: Any
-    value_type: Union[VectorType, ScalarType]
+    value_type: Union[VectorType, ScalarType, str]
     entity: str
     owner: str
     description: str
@@ -1551,11 +1548,8 @@ class LabelVariant(ResourceVariant):
     server_status: Optional[ServerStatus] = None
 
     def __post_init__(self):
-        col_types = {member.value for member in ScalarType}
-        if self.value_type not in col_types:
-            raise ValueError(
-                f"Invalid label type ({self.value_type}) must be one of: {col_types}"
-            )
+        if isinstance(self.value_type, str):
+            self.value_type = ScalarType(self.value_type)
 
     @staticmethod
     def operation_type() -> OperationType:

@@ -75,6 +75,7 @@ type ResourceID struct {
 	Type          OfflineResourceType
 }
 
+// TODO: deprecate
 func (id *ResourceID) ToFilestorePath() string {
 	return fmt.Sprintf("featureform/%s/%s/%s", id.Type, id.Name, id.Variant)
 }

@@ -217,7 +217,7 @@ func isDirectDependency(lookup ResourceLookup, dependency, parent Resource) (boo
 }
 
 type ResourceLookup interface {
-	Lookup(ResourceID) (Resource, error)
+	Lookup(context.Context, ResourceID) (Resource, error)
 	Has(ResourceID) (bool, error)
 	Set(ResourceID, Resource) error
 	Submap([]ResourceID) (ResourceLookup, error)
@@ -225,9 +225,8 @@ type ResourceLookup interface {
 	List() ([]Resource, error)
 	HasJob(ResourceID) (bool, error)
 	SetJob(ResourceID, string) error
-	SetStatus(ResourceID, pb.ResourceStatus) error
+	SetStatus(context.Context, ResourceID, pb.ResourceStatus) error
 	SetSchedule(ResourceID, string) error
-	GetContext() context.Context
 }
 
 type SearchWrapper struct {
@@ -266,9 +265,11 @@ func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
 
 type LocalResourceLookup map[ResourceID]Resource
 
-func (lookup LocalResourceLookup) Lookup(id ResourceID) (Resource, error) {
+func (lookup LocalResourceLookup) Lookup(ctx context.Context, id ResourceID) (Resource, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	res, has := lookup[id]
 	if !has {
+		logger.Errorf("resource %s not found", id.String())
 		wrapped := fferr.NewKeyNotFoundError(id.String(), nil)
 		wrapped.AddDetail("resource_type", id.Type.String())
 		return nil, wrapped
@@ -318,7 +319,7 @@ func (lookup LocalResourceLookup) List() ([]Resource, error) {
 	return resources, nil
 }
 
-func (lookup LocalResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
+func (lookup LocalResourceLookup) SetStatus(ctx context.Context, id ResourceID, status pb.ResourceStatus) error {
 	res, has := lookup[id]
 	if !has {
 		wrapped := fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("resource not found"))
@@ -352,10 +353,6 @@ func (lookup LocalResourceLookup) SetSchedule(id ResourceID, schedule string) er
 
 func (lookup LocalResourceLookup) HasJob(id ResourceID) (bool, error) {
 	return false, nil
-}
-
-func (lookup LocalResourceLookup) GetContext() context.Context {
-	return context.Background()
 }
 
 type SourceResource struct {
@@ -1590,7 +1587,7 @@ func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetSt
 	logger := logging.GetLoggerFromContext(ctx)
 	logger.Infow("Setting resource status", "resource_id", req.ResourceId, "status", req.Status.Status)
 	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
-	err := serv.lookup.SetStatus(resID, *req.Status)
+	err := serv.lookup.SetStatus(ctx, resID, *req.Status)
 	if err != nil {
 		logger.Errorw("Could not set resource status", "error", err.Error())
 	}
@@ -1979,7 +1976,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		logger.Errorw("Resource name is not valid", "error", err)
 		return nil, err
 	}
-	existing, err := serv.lookup.Lookup(id)
+	existing, err := serv.lookup.Lookup(ctx, id)
 	if _, isResourceError := err.(*fferr.KeyNotFoundError); err != nil && !isResourceError {
 		logger.Errorf("Error looking up resource: %v", err)
 		// TODO: consider checking the GRPCError interface to avoid double wrapping error
@@ -2026,7 +2023,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 				return nil, err
 			}
 		} else {
-			if err := serv.setDefaultVariant(parentId, res.ID().Variant); err != nil {
+			if err := serv.setDefaultVariant(ctx, parentId, res.ID().Variant); err != nil {
 				logger.Errorw("Error setting default variant", "parent-id", parentId, "variant", res.ID().Variant, "Error", err)
 				return nil, err
 			}
@@ -2039,8 +2036,8 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	return &pb.Empty{}, nil
 }
 
-func (serv *MetadataServer) setDefaultVariant(id ResourceID, defaultVariant string) error {
-	parent, err := serv.lookup.Lookup(id)
+func (serv *MetadataServer) setDefaultVariant(ctx context.Context, id ResourceID, defaultVariant string) error {
+	parent, err := serv.lookup.Lookup(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -2173,7 +2170,7 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 			return fferr.NewInternalError(recvErr)
 		}
 		loggerWithResource.Debug("Looking up Resource")
-		resource, err := serv.lookup.Lookup(id)
+		resource, err := serv.lookup.Lookup(ctx, id)
 		if err != nil {
 			loggerWithResource.Errorw("Unable to look up resource", "error", err)
 			return err

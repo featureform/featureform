@@ -126,7 +126,6 @@ type EtcdStorage struct {
 // Create Resource Lookup Using ETCD
 type EtcdResourceLookup struct {
 	Connection EtcdStorage
-	ctx        context.Context
 }
 
 // Wrapper around Resource/Job messages. Allows top level storage for info about saved value
@@ -329,8 +328,8 @@ func (lookup EtcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 	return msg, nil
 }
 
-func (lookup EtcdResourceLookup) Lookup(id ResourceID) (Resource, error) {
-	logger := logging.NewLogger("lookup")
+func (lookup EtcdResourceLookup) Lookup(ctx context.Context, id ResourceID) (Resource, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	key := createKey(id)
 	logger.Infow("Get", "key", key)
 	resp, err := lookup.Connection.Get(key)
@@ -511,8 +510,8 @@ func (lookup EtcdResourceLookup) List() ([]Resource, error) {
 	return resources, nil
 }
 
-func (lookup EtcdResourceLookup) SetStatus(id ResourceID, status pb.ResourceStatus) error {
-	res, err := lookup.Lookup(id)
+func (lookup EtcdResourceLookup) SetStatus(ctx context.Context, id ResourceID, status pb.ResourceStatus) error {
+	res, err := lookup.Lookup(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -523,8 +522,4 @@ func (lookup EtcdResourceLookup) SetStatus(id ResourceID, status pb.ResourceStat
 		return err
 	}
 	return nil
-}
-
-func (lookup EtcdResourceLookup) GetContext() context.Context {
-	return lookup.ctx
 }

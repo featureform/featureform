@@ -129,6 +129,10 @@ func GetLoggerFromContext(ctx context.Context) Logger {
 	return logger.(Logger)
 }
 
+func (logger Logger) GetRequestID() RequestID {
+	return logger.id
+}
+
 func UpdateContext(ctx context.Context, logger Logger, id string) context.Context {
 	contextID := ctx.Value(RequestIDKey)
 	if contextID == nil {

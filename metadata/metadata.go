@@ -227,6 +227,7 @@ type ResourceLookup interface {
 	SetJob(ResourceID, string) error
 	SetStatus(ResourceID, pb.ResourceStatus) error
 	SetSchedule(ResourceID, string) error
+	GetContext() context.Context
 }
 
 type SearchWrapper struct {
@@ -351,6 +352,10 @@ func (lookup LocalResourceLookup) SetSchedule(id ResourceID, schedule string) er
 
 func (lookup LocalResourceLookup) HasJob(id ResourceID) (bool, error) {
 	return false, nil
+}
+
+func (lookup LocalResourceLookup) GetContext() context.Context {
+	return context.Background()
 }
 
 type SourceResource struct {

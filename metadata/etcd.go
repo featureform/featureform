@@ -126,6 +126,7 @@ type EtcdStorage struct {
 // Create Resource Lookup Using ETCD
 type EtcdResourceLookup struct {
 	Connection EtcdStorage
+	ctx        context.Context
 }
 
 // Wrapper around Resource/Job messages. Allows top level storage for info about saved value
@@ -522,4 +523,8 @@ func (lookup EtcdResourceLookup) SetStatus(id ResourceID, status pb.ResourceStat
 		return err
 	}
 	return nil
+}
+
+func (lookup EtcdResourceLookup) GetContext() context.Context {
+	return lookup.ctx
 }

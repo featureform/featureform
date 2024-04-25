@@ -485,7 +485,7 @@ def init_feature(input):
         ("datetime", False),
         ("datetime", False),
         (ScalarType.FLOAT32, False),
-        (VectorType("float32", 128, True) , False),
+        (VectorType("float32", 128, True), False),
         (VectorType("float32", 128, False), False),
         (VectorType(ScalarType.FLOAT32, 128, False), False),
         ("none", True),

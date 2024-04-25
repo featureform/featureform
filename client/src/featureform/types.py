@@ -13,17 +13,22 @@ pd_to_ff_datatype = {
     numpy.dtype("bool"): ScalarType.BOOL,
 }
 
+
 class VectorType:
-    def __init__(self, scalarType: Union[ScalarType, str], dims: int, is_embedding: bool = False):
-        self.scalarType = scalarType if isinstance(scalarType, ScalarType) else ScalarType(scalarType)
+    def __init__(
+        self, scalarType: Union[ScalarType, str], dims: int, is_embedding: bool = False
+    ):
+        self.scalarType = (
+            scalarType if isinstance(scalarType, ScalarType) else ScalarType(scalarType)
+        )
         self.dims = dims
         self.is_embedding = is_embedding
 
     def to_proto(self):
         proto_vec = pb.VectorType(
-                scalar=self.scalarType.to_proto_enum(),
-                dimension=self.dims,
-                is_embedding=self.is_embedding,
+            scalar=self.scalarType.to_proto_enum(),
+            dimension=self.dims,
+            is_embedding=self.is_embedding,
         )
         return pb.ValueType(vector_type=proto_vec)
 
@@ -35,11 +40,12 @@ class VectorType:
         is_embedding = proto_vec.is_embedding
         return VectorType(scalar, dims, is_embedding)
 
+
 def type_from_proto(proto_val):
-    value_type = proto_val.WhichOneOf('type')
-    if value_type == 'scalar':
+    value_type = proto_val.WhichOneOf("type")
+    if value_type == "scalar":
         return ScalarType.from_proto(value_type.scalar)
-    elif value_type == 'vector':
+    elif value_type == "vector":
         return VectorType.from_proto(value_type.vector)
     else:
         return ScalarType.NIL

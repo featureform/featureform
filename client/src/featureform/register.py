@@ -5467,6 +5467,7 @@ def entity(cls):
                 resource.register()
     return cls
 
+
 global_registrar = Registrar()
 state = global_registrar.state
 clear_state = global_registrar.clear_state

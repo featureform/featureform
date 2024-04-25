@@ -743,7 +743,7 @@ func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) (boo
 		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
 		thisProto.GetProvider() == otherProto.GetProvider() &&
 		thisProto.GetEntity() == otherProto.GetEntity() &&
-		proto.Equal(thisProto.GetNewType(), otherProto.GetNewType()) &&
+		proto.Equal(thisProto.GetType(), otherProto.GetType()) &&
 		isEquivalentLocation &&
 		thisProto.Owner == otherProto.Owner {
 
@@ -933,7 +933,7 @@ func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) (bool,
 		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
 		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns()) &&
 		thisProto.Entity == otherProto.Entity &&
-		proto.Equal(thisProto.GetNewType(), otherProto.GetNewType()) &&
+		proto.Equal(thisProto.GetType(), otherProto.GetType()) &&
 		thisProto.Owner == otherProto.Owner {
 
 		return true, nil

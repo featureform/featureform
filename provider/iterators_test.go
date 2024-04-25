@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/featureform/filestore"
-	"github.com/parquet-go/parquet-go"
 	"github.com/featureform/provider/types"
+	"github.com/parquet-go/parquet-go"
 )
 
 func TestMultipleFileParquetIterator(t *testing.T) {

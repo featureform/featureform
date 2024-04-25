@@ -301,7 +301,7 @@ func (def FeatureDef) Serialize() (*pb.FeatureVariant, error) {
 		Name:        def.Name,
 		Variant:     def.Variant,
 		Source:      def.Source.Serialize(),
-		NewType:     typeProto,
+		Type:     typeProto,
 		Entity:      def.Entity,
 		Owner:       def.Owner,
 		Description: def.Description,
@@ -432,7 +432,7 @@ func (def LabelDef) Serialize() (*pb.LabelVariant, error) {
 		Name:        def.Name,
 		Variant:     def.Variant,
 		Description: def.Description,
-		NewType:     typeProto,
+		Type:     typeProto,
 		Source:      def.Source.Serialize(),
 		Entity:      def.Entity,
 		Owner:       def.Owner,
@@ -1548,7 +1548,7 @@ func (variant *FeatureVariant) Variant() string {
 }
 
 func (variant *FeatureVariant) Type() (types.ValueType, error) {
-	return types.FromProto(variant.serialized.GetNewType())
+	return types.FromProto(variant.serialized.GetType())
 }
 
 func (variant *FeatureVariant) Entity() string {
@@ -1915,7 +1915,7 @@ func (variant *LabelVariant) Variant() string {
 }
 
 func (variant *LabelVariant) Type() (types.ValueType, error) {
-	return types.FromProto(variant.serialized.GetNewType())
+	return types.FromProto(variant.serialized.GetType())
 }
 
 func (variant *LabelVariant) Entity() string {

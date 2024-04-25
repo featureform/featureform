@@ -197,7 +197,6 @@ message FeatureVariant {
     string name = 1;
     string variant = 2;
     NameVariant source = 3;
-    // string deprecated_type = 4 [deprecated=true];
     string entity = 5;
     google.protobuf.Timestamp created = 6;
     string owner = 7;
@@ -214,10 +213,8 @@ message FeatureVariant {
     Tags tags = 15;
     Properties properties = 16;
     ComputationMode mode = 18;
-    // bool deprecated_is_embedding = 19 [deprecated=true];
-    // int32 deprecated_dimension = 20 [deprecated=true];
     FeatureParameters additional_parameters = 21;
-	ValueType new_type = 22;
+	ValueType type = 22;
 }
 
 message ValueType {
@@ -277,7 +274,6 @@ message LabelVariant {
     string name = 1;
     string variant = 2;
     string description = 3;
-    // string type = 4;
     NameVariant source = 5;
     string entity = 6;
     google.protobuf.Timestamp created = 7;
@@ -290,7 +286,7 @@ message LabelVariant {
     }
     Tags tags = 13;
     Properties properties = 14;
-	ValueType new_type = 15;
+	ValueType type = 15;
 }
 
 message Provider {

@@ -181,7 +181,7 @@ func Test_redisOnlineTable_Get(t *testing.T) {
 				redisTableKey{},
 				types.VectorType{
 					ScalarType: types.Float32,
-					Dimension: 5,
+					Dimension:  5,
 				},
 			},
 			args{"entity9"},

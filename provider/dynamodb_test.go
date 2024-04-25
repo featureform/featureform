@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	
+
 	vt "github.com/featureform/provider/types"
 )
 
@@ -30,7 +30,7 @@ func TestParsingTableMetadata(t *testing.T) {
 	vecType := vt.VectorType{vt.Float32, 128, true}
 	successCases := map[dynamodbMetadataEntry]*dynamodbTableMetadata{
 		{"test1", vt.SerializeType(vt.Float32), int(serializeV0)}: {vt.Float32, serializeV0},
-		{"test2", vt.SerializeType(vecType), int(serializeV1)}: {vecType, serializeV1},
+		{"test2", vt.SerializeType(vecType), int(serializeV1)}:    {vecType, serializeV1},
 	}
 	errorCases := map[string]*dynamodbMetadataEntry{
 		"Unknown type":              {"a", "unknown_type", 0},
@@ -92,14 +92,14 @@ func TestDynamoSerializers(t *testing.T) {
 	}
 	smallBitSerializers := []serializeVersion{}
 	nilTests := testCases{
-		vt.NilType:                       nil,
-		vt.Int:                           nil,
-		vt.Int32:                         nil,
-		vt.Int64:                         nil,
-		vt.Float32:                       nil,
-		vt.Float64:                       nil,
-		vt.String:                        nil,
-		vt.Bool:                          nil,
+		vt.NilType:                          nil,
+		vt.Int:                              nil,
+		vt.Int32:                            nil,
+		vt.Int64:                            nil,
+		vt.Float32:                          nil,
+		vt.Float64:                          nil,
+		vt.String:                           nil,
+		vt.Bool:                             nil,
 		vt.VectorType{vt.Float32, 1, false}: nil,
 	}
 	nilSerializers := allSerializers

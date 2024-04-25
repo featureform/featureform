@@ -156,28 +156,34 @@ var bannedStrings = [...]string{"__"}
 var bannedPrefixes = [...]string{"_"}
 var bannedSuffixes = [...]string{"_"}
 
-func resourceNamedSafely(id ResourceID) error {
+func resourceNamedSafely(id ResourceID, logger logging.Logger) error {
 	for _, substr := range bannedStrings {
 		if strings.Contains(id.Name, substr) {
+			logger.Errorw("Name contains banned string", "name", id.Name, "banned substring", substr)
 			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource name contains banned string %s", substr))
 		}
 		if strings.Contains(id.Variant, substr) {
+			logger.Errorw("Variant contains banned string", "variant", id.Variant, "banned substring", substr)
 			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource variant %s contains banned string %s", id.Name, substr))
 		}
 	}
 	for _, substr := range bannedPrefixes {
 		if strings.HasPrefix(id.Name, substr) {
+			logger.Errorw("Name contains banned prefix", "name", id.Name, "banned prefix", substr)
 			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource name %s contains banned prefix %s", id.Name, substr))
 		}
 		if strings.HasPrefix(id.Variant, substr) {
+			logger.Errorw("Variant contains banned prefix", "variant", id.Variant, "banned prefix", substr)
 			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource variant %s contains banned prefix %s", id.Name, substr))
 		}
 	}
 	for _, substr := range bannedSuffixes {
 		if strings.HasSuffix(id.Name, substr) {
+			logger.Errorw("Name contains banned suffix", "name", id.Name, "banned suffix", substr)
 			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource name %s contains banned suffix %s", id.Name, substr))
 		}
 		if strings.HasSuffix(id.Variant, substr) {
+			logger.Errorw("Variant contains banned suffix", "variant", id.Variant, "banned suffix", substr)
 			return fferr.NewInvalidResourceVariantNameError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("resource variant %s contains banned suffix %s", id.Name, substr))
 		}
 	}
@@ -371,6 +377,7 @@ func (resource *SourceResource) Proto() proto.Message {
 }
 
 func (this *SourceResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+	// TODO: Add logs after adding context to Lookup
 	otherId := that.ID()
 	isVariant := otherId.Type == SOURCE_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -447,6 +454,7 @@ func (resource *sourceVariantResource) Proto() proto.Message {
 }
 
 func (sourceVariantResource *sourceVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+	// TODO: Add logs after adding context to Lookup
 	id := that.ID()
 	t := id.Type
 	key := id.Proto()
@@ -582,6 +590,7 @@ func (resource *featureResource) Proto() proto.Message {
 }
 
 func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+	// TODO: Add logs after adding context to Lookup
 	otherId := that.ID()
 	isVariant := otherId.Type == FEATURE_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -673,6 +682,7 @@ func (resource *featureVariantResource) Proto() proto.Message {
 }
 
 func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+	// TODO: Add logs after adding context to Lookup
 	if !PRECOMPUTED.Equals(this.serialized.Mode) {
 		return nil
 	}
@@ -702,6 +712,7 @@ func (resource *featureVariantResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *featureVariantResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	// TODO: Add logs after adding context to Lookup
 	deserialized := updateRes.Proto()
 	variantUpdate, ok := deserialized.(*pb.FeatureVariant)
 	if !ok {
@@ -788,6 +799,7 @@ func (resource *labelResource) Proto() proto.Message {
 }
 
 func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+	// TODO: Add logs after adding context to Lookup
 	otherId := that.ID()
 	isVariant := otherId.Type == LABEL_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -873,6 +885,7 @@ func (resource *labelVariantResource) Proto() proto.Message {
 }
 
 func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+	// TODO: Add logs after adding context to Lookup
 	id := that.ID()
 	releventOp := op == create_op && id.Type == TRAINING_SET_VARIANT
 	if !releventOp {
@@ -897,6 +910,7 @@ func (resource *labelVariantResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *labelVariantResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	// TODO: Add logs after adding context to Lookup
 	deserialized := updateRes.Proto()
 	variantUpdate, ok := deserialized.(*pb.LabelVariant)
 	if !ok {
@@ -966,6 +980,7 @@ func (resource *trainingSetResource) Proto() proto.Message {
 }
 
 func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+	// TODO: Add logs after adding context to Lookup
 	otherId := that.ID()
 	isVariant := otherId.Type == TRAINING_SET_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -1073,6 +1088,7 @@ func (resource *trainingSetVariantResource) UpdateSchedule(schedule string) erro
 }
 
 func (resource *trainingSetVariantResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	// TODO: Add logs after adding context to Lookup
 	deserialized := updateRes.Proto()
 	variantUpdate, ok := deserialized.(*pb.TrainingSetVariant)
 	if !ok {
@@ -1186,6 +1202,7 @@ func (resource *modelResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *modelResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	// TODO: Add logs after adding context to Lookup
 	deserialized := updateRes.Proto()
 	modelUpdate, ok := deserialized.(*pb.Model)
 	if !ok {
@@ -1258,6 +1275,7 @@ func (resource *userResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *userResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	// TODO: Add logs after adding context to Lookup
 	deserialized := updateRes.Proto()
 	userUpdate, ok := deserialized.(*pb.User)
 	if !ok {
@@ -1328,6 +1346,7 @@ func (resource *providerResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *providerResource) Update(lookup ResourceLookup, resourceUpdate Resource) error {
+	// TODO: Add logs after adding context to Lookup
 	providerUpdate, ok := resourceUpdate.Proto().(*pb.Provider)
 	if !ok {
 		return fferr.NewInternalError(errors.New("failed to deserialize existing provider record"))
@@ -1433,6 +1452,7 @@ func (resource *entityResource) UpdateSchedule(schedule string) error {
 }
 
 func (resource *entityResource) Update(lookup ResourceLookup, updateRes Resource) error {
+	// TODO: Add logs after adding context to Lookup
 	deserialized := updateRes.Proto()
 	entityUpdate, ok := deserialized.(*pb.Entity)
 	if !ok {
@@ -1457,11 +1477,13 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	lookup, err := config.StorageProvider.GetResourceLookup()
 
 	if err != nil {
+		config.Logger.Errorw("Could not get resource lookup", "error", err.Error())
 		return nil, err
 	}
 	if config.SearchParams != nil {
 		searcher, errInitializeSearch := search.NewMeilisearch(config.SearchParams)
 		if errInitializeSearch != nil {
+			config.Logger.Errorw("Could not initialize Meili search", "error", errInitializeSearch.Error())
 			return nil, errInitializeSearch
 		}
 		lookup = &SearchWrapper{
@@ -1560,11 +1582,12 @@ func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.S
 }
 
 func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetStatusRequest) (*pb.Empty, error) {
-	serv.Logger.Infow("Setting resource status", "resource_id", req.ResourceId, "status", req.Status.Status)
+	logger := logging.GetLoggerFromContext(ctx)
+	logger.Infow("Setting resource status", "resource_id", req.ResourceId, "status", req.Status.Status)
 	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
 	err := serv.lookup.SetStatus(resID, *req.Status)
 	if err != nil {
-		serv.Logger.Errorw("Could not set resource status", "error", err.Error())
+		logger.Errorw("Could not set resource status", "error", err.Error())
 	}
 	return &pb.Empty{}, err
 }
@@ -1838,7 +1861,9 @@ func (serv *MetadataServer) GetModels(stream pb.Metadata_GetModelsServer) error 
 
 // GetEquivalent attempts to find an equivalent resource based on the provided ResourceVariant.
 func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariant) (*pb.ResourceVariant, error) {
-	return serv.getEquivalent(req, true)
+	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
+	logger.Info("Getting Equivalent Resource Variant, %v", req.Resource)
+	return serv.getEquivalent(ctx, req, true)
 }
 
 /*
@@ -1846,21 +1871,28 @@ func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceV
 This method is used to get the equivalent resource variant for a given resource variant. readyStatus is used to determine
 if we should only return the equivalent resource variant if it is ready.
 */
-func (serv *MetadataServer) getEquivalent(req *pb.ResourceVariant, filterReadyStatus bool) (*pb.ResourceVariant, error) {
+func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.ResourceVariant, filterReadyStatus bool) (*pb.ResourceVariant, error) {
 	noEquivalentResponse := &pb.ResourceVariant{}
+	logger := logging.GetLoggerFromContext(ctx)
 
 	currentResource, resourceType, err := serv.extractResourceVariant(req)
 	if err != nil {
+		logger.Errorw("Error extracting resource variant", "resource variant", req, "error", err)
 		return nil, err
 	}
 
+	resourceProto := currentResource.ToResourceVariantProto()
+	logger = logger.WithResource(resourceType.String(), resourceProto.GetFeatureVariant().Name, resourceProto.GetFeatureVariant().Variant)
+
 	resourcesForType, err := serv.lookup.ListForType(resourceType)
 	if err != nil {
+		logger.Errorw("Unable to list resources", "error", err)
 		return nil, err
 	}
 
 	equivalentResourceVariant, err := findEquivalent(resourcesForType, currentResource, filterReadyStatus)
 	if err != nil {
+		logger.Errorw("Unable to find equivalent resource", "error", err)
 		return nil, err
 	}
 
@@ -1934,7 +1966,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	logger.Debugw("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
 
 	id := res.ID()
-	if err := resourceNamedSafely(id); err != nil {
+	if err := resourceNamedSafely(id, logger); err != nil {
 		logger.Errorw("Resource name is not valid", "error", err)
 		return nil, err
 	}

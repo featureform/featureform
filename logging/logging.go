@@ -79,6 +79,22 @@ func (logger Logger) WithProvider(providerType, providerName string) Logger {
 	}
 }
 
+func (logger Logger) WithValues(values map[string]interface{}) Logger {
+	if values == nil {
+		logger.Warn("Values are empty")
+	}
+	combinedValues := logger.values
+	for k, v := range values {
+		combinedValues[k] = v
+		logger.SugaredLogger = logger.SugaredLogger.With(k, v)
+	}
+	return Logger{
+		SugaredLogger: logger.SugaredLogger,
+		id:            logger.id,
+		values:        combinedValues,
+	}
+}
+
 func (logger Logger) InitializeRequestID(ctx context.Context) (string, context.Context, Logger) {
 	requestID := ctx.Value(RequestIDKey)
 	if requestID == nil {

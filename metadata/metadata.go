@@ -1891,15 +1891,17 @@ type sendFn func(proto.Message) error
 type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
-	logger := logging.GetLoggerFromContext(ctx)
+	logger := logging.GetLoggerFromContext(ctx).WithValues(map[string]interface{}{"resource-id": res.ID()})
 	logger.Debugw("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
 
 	id := res.ID()
 	if err := resourceNamedSafely(id); err != nil {
+		logger.Errorw("Resource name is not valid", "error", err)
 		return nil, err
 	}
 	existing, err := serv.lookup.Lookup(id)
 	if _, isResourceError := err.(*fferr.KeyNotFoundError); err != nil && !isResourceError {
+		logger.Errorf("Error looking up resource: %v", err)
 		// TODO: consider checking the GRPCError interface to avoid double wrapping error
 		return nil, fferr.NewInternalError(err)
 	}
@@ -1907,38 +1909,45 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	if existing != nil {
 		err = serv.validateExisting(res, existing)
 		if err != nil {
+			logger.Errorw("ID exists but is not equivalent", "Error", err)
 			return nil, err
 		}
 		if err := existing.Update(serv.lookup, res); err != nil {
+			logger.Errorw("Error updating existing resource", "Error", err)
 			return nil, err
 		}
 		res = existing
 	}
 	if err := serv.lookup.Set(id, res); err != nil {
+		logger.Errorw("Error setting resource to lookup", "Error", err)
 		return nil, err
 	}
 	if serv.needsJob(res) && existing == nil {
-		logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
+		logger.Info("Creating Job")
 		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
 			return nil, err
 		}
-		logger.Info("Successfully Created Job: ", res.ID().Name, res.ID().Variant)
+		logger.Info("Successfully Created Job")
 	}
 	parentId, hasParent := id.Parent()
 	if hasParent {
 		parentExists, err := serv.lookup.Has(parentId)
 		if err != nil {
+			logger.Errorw("Parent does not exist", "parent-id", parentId, "Error", err)
 			return nil, err
 		}
 
 		if !parentExists {
+			logger.Warn("Parent does not exist, creating new parent")
 			parent := init(id.Name, id.Variant)
 			err = serv.lookup.Set(parentId, parent)
 			if err != nil {
+				logger.Errorw("Unable to create new parent", "parent-id", parentId, "Error", err)
 				return nil, err
 			}
 		} else {
 			if err := serv.setDefaultVariant(parentId, res.ID().Variant); err != nil {
+				logger.Errorw("Error setting default variant", "parent-id", parentId, "variant", res.ID().Variant, "Error", err)
 				return nil, err
 			}
 		}

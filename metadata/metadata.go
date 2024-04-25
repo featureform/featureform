@@ -1570,7 +1570,9 @@ func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetSt
 }
 
 func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {
-	return serv.genericList(FEATURE, func(msg proto.Message) error {
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened List Features stream")
+	return serv.genericList(ctx, FEATURE, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Feature))
 	})
 }
@@ -1611,7 +1613,9 @@ func (serv *MetadataServer) GetFeatureVariants(stream pb.Metadata_GetFeatureVari
 }
 
 func (serv *MetadataServer) ListLabels(_ *pb.Empty, stream pb.Metadata_ListLabelsServer) error {
-	return serv.genericList(LABEL, func(msg proto.Message) error {
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened List Labels stream")
+	return serv.genericList(ctx, LABEL, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Label))
 	})
 }
@@ -1652,7 +1656,9 @@ func (serv *MetadataServer) GetLabelVariants(stream pb.Metadata_GetLabelVariants
 }
 
 func (serv *MetadataServer) ListTrainingSets(_ *pb.Empty, stream pb.Metadata_ListTrainingSetsServer) error {
-	return serv.genericList(TRAINING_SET, func(msg proto.Message) error {
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened List Training Sets stream")
+	return serv.genericList(ctx, TRAINING_SET, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.TrainingSet))
 	})
 }
@@ -1693,7 +1699,9 @@ func (serv *MetadataServer) GetTrainingSetVariants(stream pb.Metadata_GetTrainin
 }
 
 func (serv *MetadataServer) ListSources(_ *pb.Empty, stream pb.Metadata_ListSourcesServer) error {
-	return serv.genericList(SOURCE, func(msg proto.Message) error {
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened List Sources stream")
+	return serv.genericList(ctx, SOURCE, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Source))
 	})
 }
@@ -1734,7 +1742,9 @@ func (serv *MetadataServer) GetSourceVariants(stream pb.Metadata_GetSourceVarian
 }
 
 func (serv *MetadataServer) ListUsers(_ *pb.Empty, stream pb.Metadata_ListUsersServer) error {
-	return serv.genericList(USER, func(msg proto.Message) error {
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened List Users stream")
+	return serv.genericList(ctx, USER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.User))
 	})
 }
@@ -1756,7 +1766,9 @@ func (serv *MetadataServer) GetUsers(stream pb.Metadata_GetUsersServer) error {
 }
 
 func (serv *MetadataServer) ListProviders(_ *pb.Empty, stream pb.Metadata_ListProvidersServer) error {
-	return serv.genericList(PROVIDER, func(msg proto.Message) error {
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened List Providers stream")
+	return serv.genericList(ctx, PROVIDER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Provider))
 	})
 }
@@ -1779,7 +1791,9 @@ func (serv *MetadataServer) GetProviders(stream pb.Metadata_GetProvidersServer) 
 }
 
 func (serv *MetadataServer) ListEntities(_ *pb.Empty, stream pb.Metadata_ListEntitiesServer) error {
-	return serv.genericList(ENTITY, func(msg proto.Message) error {
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened List Entities stream")
+	return serv.genericList(ctx, ENTITY, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Entity))
 	})
 }
@@ -1800,7 +1814,9 @@ func (serv *MetadataServer) GetEntities(stream pb.Metadata_GetEntitiesServer) er
 }
 
 func (serv *MetadataServer) ListModels(_ *pb.Empty, stream pb.Metadata_ListModelsServer) error {
-	return serv.genericList(MODEL, func(msg proto.Message) error {
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened List Models stream")
+	return serv.genericList(ctx, MODEL, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Model))
 	})
 }
@@ -2131,14 +2147,20 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 	}
 }
 
-func (serv *MetadataServer) genericList(t ResourceType, send sendFn) error {
+func (serv *MetadataServer) genericList(ctx context.Context, t ResourceType, send sendFn) error {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger.Infow("Listing Resources", "type", t)
 	resources, err := serv.lookup.ListForType(t)
 	if err != nil {
+		logger.Error("Unable to lookup list for type %v: %v", t, err)
 		return err
 	}
 	for _, res := range resources {
+		loggerWithResource := logger.WithResource(t.String(), res.ID().Name, res.ID().Variant)
+		loggerWithResource.Debug("Getting %v", t)
 		serialized := res.Proto()
 		if err := send(serialized); err != nil {
+			loggerWithResource.Errorw("Error sending resource", "error", err)
 			return fferr.NewInternalError(err)
 		}
 	}

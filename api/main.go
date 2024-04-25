@@ -1041,56 +1041,68 @@ func (serv *OnlineServer) TrainTestSplit(stream srv.Feature_TrainTestSplitServer
 }
 
 func (serv *OnlineServer) TrainingDataColumns(ctx context.Context, req *srv.TrainingDataColumnsRequest) (*srv.TrainingColumns, error) {
-	serv.Logger.Infow("Serving Training Set Columns", "id", req.Id.String())
+	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
+	logger.Infow("Serving Training Set Columns", "id", req.Id.String())
 	return serv.client.TrainingDataColumns(ctx, req)
 }
 
 func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feature_SourceDataServer) error {
-	serv.Logger.Infow("Serving Source Data", "id", req.Id.String())
+	_, ctx, logger := serv.Logger.InitializeRequestID(context.Background())
+	logger.Infow("Serving Source Data", "id", req.Id.String())
 	if req.Limit == 0 {
+		logger.Errorw("Limit must be greater than 0", "invalid-argument", req.Limit)
 		return fferr.NewInvalidArgumentError(fmt.Errorf("limit must be greater than 0"))
 	}
-	client, err := serv.client.SourceData(context.Background(), req)
+	client, err := serv.client.SourceData(ctx, req)
 	if err != nil {
+		logger.Errorf("Failed to get Source Data client: %v", err)
 		return err
 	}
 	for {
 		row, err := client.Recv()
+		logger.Debugw("Getting row from client", "row", row)
 		if err != nil {
 			if err == io.EOF {
 				return nil
 			}
+			logger.Errorw("Failed to receive row from client", "row", row, "Error", err)
 			return err
 		}
 		if err := stream.Send(row); err != nil {
-			serv.Logger.Errorf("failed to write to source data stream: %w", err)
+			logger.Errorf("failed to write to source data stream: %w", err)
 			return err
 		}
 	}
 }
 
 func (serv *OnlineServer) SourceColumns(ctx context.Context, req *srv.SourceColumnRequest) (*srv.SourceDataColumns, error) {
-	serv.Logger.Infow("Serving Source Columns", "id", req.Id.String())
+	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
+	logger.Infow("Serving Source Columns", "id", req.Id.String())
 	return serv.client.SourceColumns(ctx, req)
 }
 
 func (serv *OnlineServer) Nearest(ctx context.Context, req *srv.NearestRequest) (*srv.NearestResponse, error) {
-	serv.Logger.Infow("Serving Nearest", "id", req.Id.String())
+	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
+	logger.Infow("Serving Nearest", "id", req.Id.String())
 	return serv.client.Nearest(ctx, req)
 }
 
 func (serv *OnlineServer) GetResourceLocation(ctx context.Context, req *srv.ResourceIdRequest) (*srv.ResourceLocation, error) {
-	serv.Logger.Infow("Serving Resource Location", "resource", req.String())
+	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
+	logger.Infow("Serving Resource Location", "resource", req.String())
 	return serv.client.GetResourceLocation(ctx, req)
 }
 
 func (serv *ApiServer) Serve() error {
-
+	logger := logging.NewLogger("serve")
+	logger.Infow("Starting server", "address", serv.address)
 	if serv.grpcServer != nil {
+		logger.Errorf("Server already running")
 		return fferr.NewInternalError(fmt.Errorf("server already running"))
 	}
 	lis, err := net.Listen("tcp", serv.address)
 	if err != nil {
+		logger.Errorf("Failed to listen: %v", err)
 		return fferr.NewInternalError(err)
 	}
 	opts := []grpc.DialOption{
@@ -1100,20 +1112,24 @@ func (serv *ApiServer) Serve() error {
 	}
 	metaConn, err := grpc.Dial(serv.metadata.address, opts...)
 	if err != nil {
+		logger.Errorf("Failed to dial metadata server: %v", err)
 		return fferr.NewInternalError(err)
 	}
 	servConn, err := grpc.Dial(serv.online.address, opts...)
 	if err != nil {
+		logger.Errorf("Failed to dial serving server: %v", err)
 		return fferr.NewInternalError(err)
 	}
 	serv.metadata.meta = pb.NewMetadataClient(metaConn)
 	client, err := metadata.NewClient(serv.metadata.address, serv.Logger)
 	if err != nil {
+		logger.Errorf("Failed to create metadata client: %v", err)
 		return err
 	}
 	serv.metadata.client = client
 	serv.online.client = srv.NewFeatureClient(servConn)
 	serv.metadata.health = health.NewHealth(client)
+	logger.Infof("Created metadata client successfully.")
 	return serv.ServeOnListener(lis)
 }
 

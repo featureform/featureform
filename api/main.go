@@ -470,10 +470,11 @@ func (serv *MetadataServer) GetEntities(stream pb.Api_GetEntitiesServer) error {
 }
 
 func (serv *MetadataServer) GetModels(stream pb.Api_GetModelsServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	for {
-		name, err := stream.Recv()
-		logger.Debugw("Get model %v from stream", name)
+		nameRequest, err := stream.Recv()
+		logger.Debugw("Get model %v from stream", nameRequest.Name)
+		nameRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
@@ -486,9 +487,9 @@ func (serv *MetadataServer) GetModels(stream pb.Api_GetModelsServer) error {
 			logger.Errorf("Failed to get models from server: %v", err)
 			return err
 		}
-		sErr := proxyStream.Send(name)
+		sErr := proxyStream.Send(nameRequest)
 		if sErr != nil {
-			logger.Errorf("Failed to send %v to the server: %v", name, err)
+			logger.Errorf("Failed to send %v to the server: %v", nameRequest.Name, err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
@@ -508,10 +509,10 @@ func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceV
 	return serv.meta.GetEquivalent(ctx, req)
 }
 
-func (serv *MetadataServer) ListUsers(in *pb.Empty, stream pb.Api_ListUsersServer) error {
+func (serv *MetadataServer) ListUsers(listRequest *pb.ListRequest, stream pb.Api_ListUsersServer) error {
 	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	logger.Infow("Listing Users")
-	proxyStream, err := serv.meta.ListUsers(ctx, in)
+	proxyStream, err := serv.meta.ListUsers(ctx, listRequest)
 	if err != nil {
 		logger.Errorf("Failed to list users: %v", err)
 		return err
@@ -534,36 +535,37 @@ func (serv *MetadataServer) ListUsers(in *pb.Empty, stream pb.Api_ListUsersServe
 	}
 }
 
-func (serv *MetadataServer) ListFeatures(in *pb.Empty, stream pb.Api_ListFeaturesServer) error {
+func (serv *MetadataServer) ListFeatures(listRequest *pb.ListRequest, stream pb.Api_ListFeaturesServer) error {
 	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	logger.Infow("Listing Features")
-	proxyStream, err := serv.meta.ListFeatures(ctx, in)
+	proxyStream, err := serv.meta.ListFeatures(ctx, listRequest)
 	if err != nil {
 		logger.Errorf("Failed to list features: %v", err)
 		return err
 	}
 	for {
 		res, err := proxyStream.Recv()
-		logger.Debugw("Getting %v from stream", res.Name)
+		loggerWithResource := logger.WithResource("feature", res.Name, res.DefaultVariant)
+		loggerWithResource.Debugw("Getting %v from stream", res.Name)
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			logger.Errorf("Failed to receive feature from server: %v", err)
+			loggerWithResource.Errorf("Failed to receive feature from server: %v", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			logger.Errorf("Failed to send feature to client: %v", err)
+			loggerWithResource.Errorf("Failed to send feature to client: %v", err)
 			return sendErr
 		}
 	}
 }
 
-func (serv *MetadataServer) ListLabels(in *pb.Empty, stream pb.Api_ListLabelsServer) error {
+func (serv *MetadataServer) ListLabels(listRequest *pb.ListRequest, stream pb.Api_ListLabelsServer) error {
 	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	logger.Infow("Listing Labels")
-	proxyStream, err := serv.meta.ListLabels(ctx, in)
+	proxyStream, err := serv.meta.ListLabels(ctx, listRequest)
 	if err != nil {
 		logger.Errorf("Failed to list labels: %v", err)
 		return err
@@ -586,10 +588,10 @@ func (serv *MetadataServer) ListLabels(in *pb.Empty, stream pb.Api_ListLabelsSer
 	}
 }
 
-func (serv *MetadataServer) ListSources(in *pb.Empty, stream pb.Api_ListSourcesServer) error {
+func (serv *MetadataServer) ListSources(listRequest *pb.ListRequest, stream pb.Api_ListSourcesServer) error {
 	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	logger.Infow("Listing Sources")
-	proxyStream, err := serv.meta.ListSources(ctx, in)
+	proxyStream, err := serv.meta.ListSources(ctx, listRequest)
 	if err != nil {
 		logger.Errorf("Failed to list sources: %v", err)
 		return err
@@ -612,10 +614,10 @@ func (serv *MetadataServer) ListSources(in *pb.Empty, stream pb.Api_ListSourcesS
 	}
 }
 
-func (serv *MetadataServer) ListTrainingSets(in *pb.Empty, stream pb.Api_ListTrainingSetsServer) error {
+func (serv *MetadataServer) ListTrainingSets(listRequest *pb.ListRequest, stream pb.Api_ListTrainingSetsServer) error {
 	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	logger.Infow("Listing Training Sets")
-	proxyStream, err := serv.meta.ListTrainingSets(ctx, in)
+	proxyStream, err := serv.meta.ListTrainingSets(ctx, listRequest)
 	if err != nil {
 		logger.Errorf("Failed to list training sets: %v", err)
 		return err
@@ -638,10 +640,10 @@ func (serv *MetadataServer) ListTrainingSets(in *pb.Empty, stream pb.Api_ListTra
 	}
 }
 
-func (serv *MetadataServer) ListModels(in *pb.Empty, stream pb.Api_ListModelsServer) error {
+func (serv *MetadataServer) ListModels(listRequest *pb.ListRequest, stream pb.Api_ListModelsServer) error {
 	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	logger.Infow("Listing Models")
-	proxyStream, err := serv.meta.ListModels(ctx, in)
+	proxyStream, err := serv.meta.ListModels(ctx, listRequest)
 	if err != nil {
 		logger.Errorf("Failed to list models: %v", err)
 		return err
@@ -664,10 +666,10 @@ func (serv *MetadataServer) ListModels(in *pb.Empty, stream pb.Api_ListModelsSer
 	}
 }
 
-func (serv *MetadataServer) ListEntities(in *pb.Empty, stream pb.Api_ListEntitiesServer) error {
+func (serv *MetadataServer) ListEntities(listRequest *pb.ListRequest, stream pb.Api_ListEntitiesServer) error {
 	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	logger.Infow("Listing Entities")
-	proxyStream, err := serv.meta.ListEntities(ctx, in)
+	proxyStream, err := serv.meta.ListEntities(ctx, listRequest)
 	if err != nil {
 		logger.Errorf("Failed to list entities: %v", err)
 		return err
@@ -690,10 +692,10 @@ func (serv *MetadataServer) ListEntities(in *pb.Empty, stream pb.Api_ListEntitie
 	}
 }
 
-func (serv *MetadataServer) ListProviders(in *pb.Empty, stream pb.Api_ListProvidersServer) error {
+func (serv *MetadataServer) ListProviders(listRequest *pb.ListRequest, stream pb.Api_ListProvidersServer) error {
 	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	logger.Infow("Listing Providers")
-	proxyStream, err := serv.meta.ListProviders(ctx, in)
+	proxyStream, err := serv.meta.ListProviders(ctx, listRequest)
 	if err != nil {
 		logger.Errorf("Failed to list providers: %v", err)
 		return err
@@ -758,7 +760,7 @@ func (serv *MetadataServer) shouldCheckProviderHealth(ctx context.Context, provi
 			logger.Errorf("Failed to get providers from metadata server: %v", err)
 			return false, err
 		}
-		if err := stream.Send(&pb.Name{Name: provider.Name}); err != nil {
+		if err := stream.Send(&pb.NameRequest{Name: &pb.Name{Name: provider.Name}, RequestId: logger.GetRequestID().String()}); err != nil {
 			logger.Errorf("Failed to send provider %v to server: %v", provider.Name, err)
 			return false, err
 		}

@@ -196,7 +196,7 @@ type ResourceVariant interface {
 }
 
 type Resource interface {
-	Notify(ResourceLookup, operation, Resource) error
+	Notify(context.Context, ResourceLookup, operation, Resource) error
 	ID() ResourceID
 	Schedule() string
 	Dependencies(ResourceLookup) (ResourceLookup, error)
@@ -378,7 +378,7 @@ func (resource *SourceResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *SourceResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *SourceResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	// TODO: Add logs after adding context to Lookup
 	otherId := that.ID()
 	isVariant := otherId.Type == SOURCE_VARIANT && otherId.Name == this.serialized.Name
@@ -455,7 +455,7 @@ func (resource *sourceVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (sourceVariantResource *sourceVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (sourceVariantResource *sourceVariantResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	// TODO: Add logs after adding context to Lookup
 	id := that.ID()
 	t := id.Type
@@ -591,7 +591,7 @@ func (resource *featureResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *featureResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	// TODO: Add logs after adding context to Lookup
 	otherId := that.ID()
 	isVariant := otherId.Type == FEATURE_VARIANT && otherId.Name == this.serialized.Name
@@ -683,7 +683,7 @@ func (resource *featureVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *featureVariantResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	// TODO: Add logs after adding context to Lookup
 	if !PRECOMPUTED.Equals(this.serialized.Mode) {
 		return nil
@@ -800,7 +800,7 @@ func (resource *labelResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *labelResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	// TODO: Add logs after adding context to Lookup
 	otherId := that.ID()
 	isVariant := otherId.Type == LABEL_VARIANT && otherId.Name == this.serialized.Name
@@ -886,7 +886,7 @@ func (resource *labelVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *labelVariantResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	// TODO: Add logs after adding context to Lookup
 	id := that.ID()
 	releventOp := op == create_op && id.Type == TRAINING_SET_VARIANT
@@ -981,7 +981,7 @@ func (resource *trainingSetResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *trainingSetResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	// TODO: Add logs after adding context to Lookup
 	otherId := that.ID()
 	isVariant := otherId.Type == TRAINING_SET_VARIANT && otherId.Name == this.serialized.Name
@@ -1070,7 +1070,7 @@ func (resource *trainingSetVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *trainingSetVariantResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	return nil
 }
 
@@ -1187,7 +1187,7 @@ func (resource *modelResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *modelResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *modelResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	return nil
 }
 
@@ -1240,7 +1240,7 @@ func (resource *userResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *userResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	if isDep, err := isDirectDependency(lookup, this, that); err != nil {
 		return err
 	} else if !isDep {
@@ -1311,7 +1311,7 @@ func (resource *providerResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *providerResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *providerResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	if isDep, err := isDirectDependency(lookup, this, that); err != nil {
 		return err
 	} else if !isDep {
@@ -1424,7 +1424,7 @@ func (resource *entityResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *entityResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	id := that.ID()
 	key := id.Proto()
 	t := id.Type
@@ -2029,7 +2029,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 			}
 		}
 	}
-	if err := serv.propagateChange(res); err != nil {
+	if err := serv.propagateChange(ctx, res); err != nil {
 		logger.Error(err)
 		return nil, err
 	}
@@ -2102,38 +2102,44 @@ func (serv *MetadataServer) isEquivalent(newRes Resource, existing Resource) (bo
 	return isEquivalent, nil
 }
 
-func (serv *MetadataServer) propagateChange(newRes Resource) error {
+func (serv *MetadataServer) propagateChange(ctx context.Context, newRes Resource) error {
 	visited := make(map[ResourceID]struct{})
 	// We have to make it a var so that the anonymous function can call itself.
-	var propagateChange func(parent Resource) error
-	propagateChange = func(parent Resource) error {
+	logger := logging.GetLoggerFromContext(ctx)
+	var propagateChange func(ctx context.Context, parent Resource) error
+	propagateChange = func(ctx context.Context, parent Resource) error {
 		deps, err := parent.Dependencies(serv.lookup)
 		if err != nil {
+			logger.Errorw("Error getting parent dependencies", "parent resource", parent, "Error", err)
 			return err
 		}
 		depList, err := deps.List()
 		if err != nil {
+			logger.Errorw("Error getting parent dependency list", "parent resource", parent, "Error", err)
 			return err
 		}
 		for _, res := range depList {
 			id := res.ID()
+			logger.Debugw("Propagating change through dependencies", "resource-id", id)
 			if _, has := visited[id]; has {
 				continue
 			}
 			visited[id] = struct{}{}
-			if err := res.Notify(serv.lookup, create_op, newRes); err != nil {
+			if err := res.Notify(ctx, serv.lookup, create_op, newRes); err != nil {
 				return err
 			}
 			if err := serv.lookup.Set(res.ID(), res); err != nil {
+				logger.Errorw("Unable to set resource to LookupResource", "resource-id", id, "Error", err)
 				return err
 			}
-			if err := propagateChange(res); err != nil {
+			if err := propagateChange(ctx, res); err != nil {
+				logger.Errorw("Error propagating change", "resource-id", id, "Error", err)
 				return err
 			}
 		}
 		return nil
 	}
-	return propagateChange(newRes)
+	return propagateChange(ctx, newRes)
 }
 
 func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, t ResourceType, send sendFn) error {

@@ -123,7 +123,7 @@ func GetLoggerFromContext(ctx context.Context) Logger {
 	logger := ctx.Value(LoggerKey)
 	if logger == nil {
 		NewLogger("logging").Warn("Logger not found in context")
-		return Logger{}
+		return NewLogger("logger")
 	}
 
 	return logger.(Logger)
@@ -144,6 +144,14 @@ func UpdateContext(ctx context.Context, logger Logger, id string) context.Contex
 	contextLogger := ctx.Value(LoggerKey)
 	if contextLogger == nil {
 		logger = logger.WithRequestID(RequestID(id))
+		ctx = context.WithValue(ctx, LoggerKey, logger)
+	}
+	return ctx
+}
+
+func AddLoggerToContext(ctx context.Context, logger Logger) context.Context {
+	contextLogger := ctx.Value(LoggerKey)
+	if contextLogger == nil {
 		ctx = context.WithValue(ctx, LoggerKey, logger)
 	}
 	return ctx

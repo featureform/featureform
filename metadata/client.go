@@ -199,14 +199,15 @@ func (client *Client) GetFeatures(ctx context.Context, features []string) ([]*Fe
 }
 
 func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant) ([]*FeatureVariant, error) {
-	logger := client.Logger
+	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetFeatureVariants(ctx)
 	if err != nil {
+		logger.Errorw("Failed to get feature variants", "ids", ids, "Err", err)
 		return nil, err
 	}
 	go func() {
 		for _, id := range ids {
-			stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
+			stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx)})
 		}
 		err := stream.CloseSend()
 		if err != nil {
@@ -461,17 +462,19 @@ func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) erro
 }
 
 func (client *Client) GetLabelVariants(ctx context.Context, ids []NameVariant) ([]*LabelVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetLabelVariants(ctx)
 	if err != nil {
+		logger.Errorw("Failed to get label variants", "ids", ids, "Err", err)
 		return nil, err
 	}
 	go func() {
 		for _, id := range ids {
-			stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
+			stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx)})
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseLabelVariantStream(stream)
@@ -607,17 +610,19 @@ func (client *Client) GetTrainingSetVariant(ctx context.Context, id NameVariant)
 }
 
 func (client *Client) GetTrainingSetVariants(ctx context.Context, ids []NameVariant) ([]*TrainingSetVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetTrainingSetVariants(ctx)
 	if err != nil {
+		logger.Errorw("Failed to get training set variants", "ids", ids, "Err", err)
 		return nil, err
 	}
 	go func() {
 		for _, id := range ids {
-			stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
+			stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx)})
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	return client.parseTrainingSetVariantStream(stream)
@@ -841,20 +846,22 @@ func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) er
 }
 
 func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) ([]*SourceVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetSourceVariants(ctx)
 	if err != nil {
+		logger.Errorw("Failed to get source variants", "ids", ids, "Err", err)
 		return nil, err
 	}
 	go func() {
 		for _, id := range ids {
-			err := stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
+			stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx)})
 			if err != nil {
-				client.Logger.Errorw("Failed to send source variant", "name", id.Name, "variant", id.Variant, "error", err)
+				logger.Errorw("Failed to send source variant", "name", id.Name, "variant", id.Variant, "error", err)
 			}
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "Err", err)
 		}
 	}()
 	variants, err := client.parseSourceVariantStream(stream)

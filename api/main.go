@@ -85,10 +85,11 @@ func (serv *MetadataServer) CreateUser(ctx context.Context, userRequest *pb.User
 }
 
 func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	for {
-		name, err := stream.Recv()
-		logger.Debugw("Get user %v from stream", name)
+		nameRequest, err := stream.Recv()
+		logger.Debugw("Get user %v from stream", nameRequest.Name)
+		nameRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
@@ -101,9 +102,9 @@ func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
 			logger.Errorf("Failed to get users from server: %v", err)
 			return err
 		}
-		sErr := proxyStream.Send(name)
+		sErr := proxyStream.Send(nameRequest)
 		if sErr != nil {
-			logger.Errorf("Failed to send %v to the server: %v", name, err)
+			logger.Errorf("Failed to send %v to the server: %v", nameRequest.Name, err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
@@ -120,10 +121,11 @@ func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
 }
 
 func (serv *MetadataServer) GetFeatures(stream pb.Api_GetFeaturesServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	reuqestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	for {
-		name, err := stream.Recv()
-		logger.Debugw("Get feature %v from stream", name)
+		nameRequest, err := stream.Recv()
+		logger.Debugw("Get feature %v from stream", nameRequest.Name)
+		nameRequest.RequestId = reuqestID
 		if err == io.EOF {
 			return nil
 		}
@@ -136,9 +138,9 @@ func (serv *MetadataServer) GetFeatures(stream pb.Api_GetFeaturesServer) error {
 			logger.Errorf("Failed to get features from server: %v", err)
 			return err
 		}
-		sErr := proxyStream.Send(name)
+		sErr := proxyStream.Send(nameRequest)
 		if sErr != nil {
-			logger.Errorf("Failed to send %v to the server: %v", name, err)
+			logger.Errorf("Failed to send %v to the server: %v", nameRequest.Name, err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
@@ -155,10 +157,11 @@ func (serv *MetadataServer) GetFeatures(stream pb.Api_GetFeaturesServer) error {
 }
 
 func (serv *MetadataServer) GetFeatureVariants(stream pb.Api_GetFeatureVariantsServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	for {
-		nameVariant, err := stream.Recv()
-		logger.Debugw("Get feature variant %v from stream", nameVariant)
+		nameVariantRequest, err := stream.Recv()
+		logger.Debugw("Get feature variant %v from stream", nameVariantRequest.NameVariant)
+		nameVariantRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
@@ -171,9 +174,9 @@ func (serv *MetadataServer) GetFeatureVariants(stream pb.Api_GetFeatureVariantsS
 			logger.Errorf("Failed to get feature variants from server: %v", err)
 			return err
 		}
-		sErr := proxyStream.Send(nameVariant)
+		sErr := proxyStream.Send(nameVariantRequest)
 		if sErr != nil {
-			logger.Errorf("Failed to send %v to the server: %v", nameVariant, err)
+			logger.Errorf("Failed to send %v to the server: %v", nameVariantRequest.NameVariant, err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
@@ -190,10 +193,11 @@ func (serv *MetadataServer) GetFeatureVariants(stream pb.Api_GetFeatureVariantsS
 }
 
 func (serv *MetadataServer) GetLabels(stream pb.Api_GetLabelsServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	for {
-		name, err := stream.Recv()
-		logger.Debugw("Get label %v from stream", name)
+		nameRequest, err := stream.Recv()
+		logger.Debugw("Get label %v from stream", nameRequest.Name)
+		nameRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
@@ -206,9 +210,9 @@ func (serv *MetadataServer) GetLabels(stream pb.Api_GetLabelsServer) error {
 			logger.Errorf("Failed to get labels from server: %v", err)
 			return err
 		}
-		sErr := proxyStream.Send(name)
+		sErr := proxyStream.Send(nameRequest)
 		if sErr != nil {
-			logger.Errorf("Failed to send %v to the server: %v", name, err)
+			logger.Errorf("Failed to send %v to the server: %v", nameRequest.Name, err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
@@ -225,10 +229,11 @@ func (serv *MetadataServer) GetLabels(stream pb.Api_GetLabelsServer) error {
 }
 
 func (serv *MetadataServer) GetLabelVariants(stream pb.Api_GetLabelVariantsServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	for {
-		nameVariant, err := stream.Recv()
-		logger.Debugw("Get label variant %v from stream", nameVariant)
+		nameVariantRequest, err := stream.Recv()
+		logger.Debugw("Get label variant %v from stream", nameVariantRequest.NameVariant)
+		nameVariantRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
@@ -241,9 +246,9 @@ func (serv *MetadataServer) GetLabelVariants(stream pb.Api_GetLabelVariantsServe
 			logger.Errorf("Failed to get label variants from server: %v", err)
 			return err
 		}
-		sErr := proxyStream.Send(nameVariant)
+		sErr := proxyStream.Send(nameVariantRequest)
 		if sErr != nil {
-			logger.Errorf("Failed to send %v to the server: %v", nameVariant, err)
+			logger.Errorf("Failed to send %v to the server: %v", nameVariantRequest.NameVariant, err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
@@ -260,10 +265,11 @@ func (serv *MetadataServer) GetLabelVariants(stream pb.Api_GetLabelVariantsServe
 }
 
 func (serv *MetadataServer) GetSources(stream pb.Api_GetSourcesServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	for {
-		name, err := stream.Recv()
-		logger.Debugw("Get source %v from stream", name)
+		nameRequest, err := stream.Recv()
+		logger.Debugw("Get source %v from stream", nameRequest)
+		nameRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
@@ -276,9 +282,9 @@ func (serv *MetadataServer) GetSources(stream pb.Api_GetSourcesServer) error {
 			logger.Errorf("Failed to get sources from server: %v", err)
 			return err
 		}
-		sErr := proxyStream.Send(name)
+		sErr := proxyStream.Send(nameRequest)
 		if sErr != nil {
-			logger.Errorf("Failed to send %v to the server: %v", name, err)
+			logger.Errorf("Failed to send %v to the server: %v", nameRequest, err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
@@ -295,10 +301,11 @@ func (serv *MetadataServer) GetSources(stream pb.Api_GetSourcesServer) error {
 }
 
 func (serv *MetadataServer) GetSourceVariants(stream pb.Api_GetSourceVariantsServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	for {
-		nameVariant, err := stream.Recv()
-		logger.Debugw("Get source variant %v from stream", nameVariant)
+		nameVariantRequest, err := stream.Recv()
+		logger.Debugw("Get source variant %v from stream", nameVariantRequest.NameVariant)
+		nameVariantRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
@@ -311,9 +318,9 @@ func (serv *MetadataServer) GetSourceVariants(stream pb.Api_GetSourceVariantsSer
 			logger.Errorf("Failed to get source variants from server: %v", err)
 			return err
 		}
-		sErr := proxyStream.Send(nameVariant)
+		sErr := proxyStream.Send(nameVariantRequest)
 		if sErr != nil {
-			logger.Errorf("Failed to send %v to the server: %v", nameVariant, err)
+			logger.Errorf("Failed to send %v to the server: %v", nameVariantRequest.NameVariant, err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
@@ -330,10 +337,11 @@ func (serv *MetadataServer) GetSourceVariants(stream pb.Api_GetSourceVariantsSer
 }
 
 func (serv *MetadataServer) GetTrainingSets(stream pb.Api_GetTrainingSetsServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	for {
-		name, err := stream.Recv()
-		logger.Debugw("Get training set %v from stream", name)
+		nameRequest, err := stream.Recv()
+		logger.Debugw("Get training set %v from stream", nameRequest.Name)
+		nameRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
@@ -346,9 +354,9 @@ func (serv *MetadataServer) GetTrainingSets(stream pb.Api_GetTrainingSetsServer)
 			logger.Errorf("Failed to get training sets from server: %v", err)
 			return err
 		}
-		sErr := proxyStream.Send(name)
+		sErr := proxyStream.Send(nameRequest)
 		if sErr != nil {
-			logger.Errorf("Failed to send %v to the server: %v", name, err)
+			logger.Errorf("Failed to send %v to the server: %v", nameRequest.Name, err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
@@ -365,10 +373,11 @@ func (serv *MetadataServer) GetTrainingSets(stream pb.Api_GetTrainingSetsServer)
 }
 
 func (serv *MetadataServer) GetTrainingSetVariants(stream pb.Api_GetTrainingSetVariantsServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	for {
-		nameVariant, err := stream.Recv()
-		logger.Debugw("Get training set variant %v from stream", nameVariant)
+		nameVariantRequest, err := stream.Recv()
+		logger.Debugw("Get training set variant %v from stream", nameVariantRequest.NameVariant)
+		nameVariantRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
@@ -381,9 +390,9 @@ func (serv *MetadataServer) GetTrainingSetVariants(stream pb.Api_GetTrainingSetV
 			logger.Errorf("Failed to get training set variants from server: %v", err)
 			return err
 		}
-		sErr := proxyStream.Send(nameVariant)
+		sErr := proxyStream.Send(nameVariantRequest)
 		if sErr != nil {
-			logger.Errorf("Failed to send %v to the server: %v", nameVariant, err)
+			logger.Errorf("Failed to send %v to the server: %v", nameVariantRequest.NameVariant, err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
@@ -400,10 +409,11 @@ func (serv *MetadataServer) GetTrainingSetVariants(stream pb.Api_GetTrainingSetV
 }
 
 func (serv *MetadataServer) GetProviders(stream pb.Api_GetProvidersServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	for {
-		name, err := stream.Recv()
-		logger.Debugw("Get provider %v from stream", name)
+		nameRequest, err := stream.Recv()
+		logger.Debugw("Get provider %v from stream", nameRequest.Name)
+		nameRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
@@ -416,9 +426,9 @@ func (serv *MetadataServer) GetProviders(stream pb.Api_GetProvidersServer) error
 			logger.Errorf("Failed to get providers from server: %v", err)
 			return err
 		}
-		sErr := proxyStream.Send(name)
+		sErr := proxyStream.Send(nameRequest)
 		if sErr != nil {
-			logger.Errorf("Failed to send %v to the server: %v", name, err)
+			logger.Errorf("Failed to send %v to the server: %v", nameRequest.Name, err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
@@ -435,10 +445,11 @@ func (serv *MetadataServer) GetProviders(stream pb.Api_GetProvidersServer) error
 }
 
 func (serv *MetadataServer) GetEntities(stream pb.Api_GetEntitiesServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	for {
-		name, err := stream.Recv()
-		logger.Debugw("Get entity %v from stream", name)
+		nameRequest, err := stream.Recv()
+		logger.Debugw("Get entity %v from stream", nameRequest.Name)
+		nameRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
@@ -451,9 +462,9 @@ func (serv *MetadataServer) GetEntities(stream pb.Api_GetEntitiesServer) error {
 			logger.Errorf("Failed to get entities from server: %v", err)
 			return err
 		}
-		sErr := proxyStream.Send(name)
+		sErr := proxyStream.Send(nameRequest)
 		if sErr != nil {
-			logger.Errorf("Failed to send %v to the server: %v", name, err)
+			logger.Errorf("Failed to send %v to the server: %v", nameRequest.Name, err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()

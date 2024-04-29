@@ -98,7 +98,7 @@ def step_impl(context, feature_column, feature_type, entity_column, label_column
 @then("I can register a training set based on the feature")
 def step_impl(context):
     training_set = ff.register_training_set(
-        name="fraud_training",
+        name="fraud_training_set",
         features=[context.user_feature],
         label=context.user_label,
     )
@@ -151,7 +151,7 @@ def step_impl(context):
     context.model = "fraud-model"
     try:
         dataset = context.client.training_set(
-            name="fraud_training",
+            name=context.training_set.name,
             variant="non-existent",
             model=context.model,
         )

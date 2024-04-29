@@ -228,7 +228,7 @@ func testFileUploadAndDownload(t *testing.T, store FileStore) {
 		t.Fatalf("could not set source path because %v", err)
 	}
 
-	destinationPath, err := store.CreateFilePath(destFile)
+	destinationPath, err := store.CreateFilePath(destFile, false)
 	if err != nil {
 		t.Fatalf("could not create destination file path because %v", err)
 	}
@@ -268,7 +268,7 @@ func testFileUploadAndDownload(t *testing.T, store FileStore) {
 func testFilestoreReadAndWrite(t *testing.T, store FileStore) {
 	testWrite := []byte("example data")
 	testKey := uuidWithoutDashes()
-	testFilePath, err := store.CreateFilePath(testKey)
+	testFilePath, err := store.CreateFilePath(testKey, false)
 	if err != nil {
 		t.Fatalf("Could not create test filepath: %v", err)
 	}
@@ -401,7 +401,7 @@ func Test_parquetIteratorFromReader(t *testing.T) {
 }
 
 func testExists(t *testing.T, store FileStore) {
-	randomFilePath, err := store.CreateFilePath(uuid.New().String())
+	randomFilePath, err := store.CreateFilePath(uuid.New().String(), false)
 	if err != nil {
 		t.Fatalf("Could not create random file path: %v", err)
 	}
@@ -423,7 +423,7 @@ func testExists(t *testing.T, store FileStore) {
 }
 
 func testNotExists(t *testing.T, store FileStore) {
-	randomFilePath, err := store.CreateFilePath(uuid.New().String())
+	randomFilePath, err := store.CreateFilePath(uuid.New().String(), false)
 	if err != nil {
 		t.Fatalf("Could not create random file path: %v", err)
 	}
@@ -480,8 +480,9 @@ func testServe(t *testing.T, store FileStore) {
 	if err != nil {
 		t.Fatalf("could not convert struct list to parquet bytes: %v", err)
 	}
-	randomParquetKey := fmt.Sprintf("%s.parquet", uuid.New().String())
-	randomParqetFilePath, err := store.CreateFilePath(randomParquetKey)
+	// TODO: check that this outputs files to test_files
+	randomParquetKey := fmt.Sprintf("/test_files/%s.parquet", uuid.New().String())
+	randomParqetFilePath, err := store.CreateFilePath(randomParquetKey, false)
 	if err != nil {
 		t.Fatalf("Could not create random file path: %v", err)
 	}
@@ -523,7 +524,7 @@ func testServeDirectory(t *testing.T, store FileStore) {
 	parquetNumRows := 5
 	parquetNumFiles := 5
 	randomDirKey := uuid.New().String()
-	randomDirectory, err := store.CreateDirPath(randomDirKey)
+	randomDirectory, err := store.CreateFilePath(fmt.Sprintf("test_files/%s", randomDirKey), true)
 	if err != nil {
 		t.Fatalf("Could not create random directory: %v", err)
 	}
@@ -537,8 +538,8 @@ func testServeDirectory(t *testing.T, store FileStore) {
 			t.Fatalf("could not convert struct list to parquet bytes: %v", err)
 		}
 		randomKey := fmt.Sprintf("part000%d%s.parquet", i, uuid.New().String())
-		randomPath := fmt.Sprintf("%s/%s", randomDirKey, randomKey)
-		randomFilePath, err := store.CreateFilePath(randomPath)
+		randomPath := fmt.Sprintf("test_files/%s/%s", randomDirKey, randomKey)
+		randomFilePath, err := store.CreateFilePath(randomPath, false)
 		if err != nil {
 			t.Fatalf("Could not create random file path: %v", err)
 		}
@@ -585,7 +586,7 @@ func testServeDirectory(t *testing.T, store FileStore) {
 }
 
 func testDelete(t *testing.T, store FileStore) {
-	randomFilePath, err := store.CreateFilePath(uuid.New().String())
+	randomFilePath, err := store.CreateFilePath(uuid.New().String(), false)
 	if err != nil {
 		t.Fatalf("Could not create random file path: %v", err)
 	}
@@ -616,7 +617,7 @@ func testDelete(t *testing.T, store FileStore) {
 func testDeleteAll(t *testing.T, store FileStore) {
 	randomListLength := 5
 	randomDirKey := uuid.New().String()
-	randomDirectory, err := store.CreateDirPath(randomDirKey)
+	randomDirectory, err := store.CreateFilePath(randomDirKey, true)
 	if err != nil {
 		t.Fatalf("Could not create random directory: %v", err)
 	}
@@ -625,7 +626,7 @@ func testDeleteAll(t *testing.T, store FileStore) {
 		randomKeyList[i] = uuid.New().String()
 		randomData := []byte(uuid.New().String())
 		randomPath := fmt.Sprintf("%s/%s", randomDirKey, randomKeyList[i])
-		randomFilePath, err := store.CreateFilePath(randomPath)
+		randomFilePath, err := store.CreateFilePath(randomPath, false)
 		if err != nil {
 			t.Fatalf("Could not create random file path: %v", err)
 		}
@@ -636,7 +637,7 @@ func testDeleteAll(t *testing.T, store FileStore) {
 	}
 	for i := 0; i < randomListLength; i++ {
 		randomPath := fmt.Sprintf("%s/%s", randomDirKey, randomKeyList[i])
-		randomFilePath, err := store.CreateFilePath(randomPath)
+		randomFilePath, err := store.CreateFilePath(randomPath, false)
 		if err != nil {
 			t.Fatalf("Could not create random file path: %v", err)
 		}
@@ -653,7 +654,7 @@ func testDeleteAll(t *testing.T, store FileStore) {
 	}
 	for i := 0; i < randomListLength; i++ {
 		randomPath := fmt.Sprintf("%s/%s", randomDirectory, randomKeyList[i])
-		randomFilePath, err := store.CreateFilePath(randomPath)
+		randomFilePath, err := store.CreateFilePath(randomPath, false)
 		if err != nil {
 			t.Fatalf("Could not create random file path: %v", err)
 		}
@@ -672,7 +673,7 @@ func testNewestFile(t *testing.T, store FileStore) {
 	// write a bunch of blobs with different timestamps
 	randomListLength := 5
 	randomDirKey := uuid.New().String()
-	randomDirectory, err := store.CreateDirPath(randomDirKey)
+	randomDirectory, err := store.CreateFilePath(randomDirKey, true)
 	if err != nil {
 		t.Fatalf("Could not create random directory: %v", err)
 	}
@@ -681,7 +682,7 @@ func testNewestFile(t *testing.T, store FileStore) {
 		randomKeyList[i] = uuid.New().String()
 		randomData := []byte(uuid.New().String())
 		randomPath := fmt.Sprintf("%s/%s.parquet", randomDirKey, randomKeyList[i])
-		randomFilePath, err := store.CreateFilePath(randomPath)
+		randomFilePath, err := store.CreateFilePath(randomPath, false)
 		if err != nil {
 			t.Fatalf("Could not create random file path: %v", err)
 		}
@@ -711,7 +712,7 @@ func testNumRows(t *testing.T, store FileStore) {
 	if err != nil {
 		t.Fatalf("could not convert struct list to parquet bytes: %v", err)
 	}
-	randomParquetPath, err := store.CreateFilePath(fmt.Sprintf("%s.parquet", uuid.New().String()))
+	randomParquetPath, err := store.CreateFilePath(fmt.Sprintf("%s.parquet", uuid.New().String()), false)
 	if err != nil {
 		t.Fatalf("Could not create random file path: %v", err)
 	}

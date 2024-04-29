@@ -54,7 +54,10 @@ def step_impl(context, online_provider_type):
 
 @when('I register a dataset located at "{dataset_path}"')
 def step_impl(context, dataset_path):
-    if context.offline_provider._OfflineProvider__provider.config.type() == "SPARK_OFFLINE":
+    if (
+        context.offline_provider._OfflineProvider__provider.config.type()
+        == "SPARK_OFFLINE"
+    ):
         dataset = context.offline_provider.register_file(
             name="transactions",
             file_path=dataset_path,
@@ -69,13 +72,17 @@ def step_impl(context, dataset_path):
     context.dataset = dataset
 
 
-@when('I register a feature on "{feature_column}" with type "{feature_type}" with "{entity_column}" and "{label_column}"')
+@when(
+    'I register a feature on "{feature_column}" with type "{feature_type}" with "{entity_column}" and "{label_column}"'
+)
 def step_impl(context, feature_column, feature_type, entity_column, label_column):
     @ff.entity
     class User:
         user_feature = ff.Feature(
             context.dataset[[entity_column, feature_column]],
-            type=ScalarType(feature_type.lower()),  # converts the string into Featureform type
+            type=ScalarType(
+                feature_type.lower()
+            ),  # converts the string into Featureform type
             inference_store=context.online_provider,
         )
         user_label = ff.Label(
@@ -179,5 +186,5 @@ def step_impl(context):
 
 
 def random_word(length):
-   letters = string.ascii_lowercase
-   return ''.join(random.choice(letters) for i in range(length))
+    letters = string.ascii_lowercase
+    return "".join(random.choice(letters) for i in range(length))

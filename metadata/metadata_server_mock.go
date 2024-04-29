@@ -15,7 +15,7 @@ type mockSourceClient struct {
 	sent bool
 }
 
-func (x *mockSourceClient) Send(*pb.NameVariant) error {
+func (x *mockSourceClient) Send(*pb.NameVariantRequest) error {
 	return nil
 }
 
@@ -55,7 +55,7 @@ type mockProviderClient struct {
 	sent bool
 }
 
-func (x *mockProviderClient) Send(*pb.Name) error {
+func (x *mockProviderClient) Send(*pb.NameRequest) error {
 	return nil
 }
 

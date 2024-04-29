@@ -193,7 +193,7 @@ func Test_EtcdResourceLookup_Lookup(t *testing.T) {
 			lookup := EtcdResourceLookup{
 				Connection: store,
 			}
-			got, err := lookup.Lookup(tt.args.id)
+			got, err := lookup.Lookup(ctx, tt.args.id)
 
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Lookup() error = %v, wantErr %v", err, tt.wantErr)

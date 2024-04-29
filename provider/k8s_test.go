@@ -1014,8 +1014,8 @@ func TestParquetIterator_vector32(t *testing.T) {
 		if value == nil {
 			break
 		}
-		if _, ok := value.([]float32); !ok {
-			t.Fatalf("could not cast type: %T to []any", value)
+		if _, ok := value.([]float64); !ok {
+			t.Fatalf("could not cast type: %T to []float64", value)
 		}
 	}
 }

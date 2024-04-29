@@ -542,17 +542,18 @@ func (serv *MetadataServer) ListUsers(listRequest *pb.ListRequest, stream pb.Api
 	}
 	for {
 		res, err := proxyStream.Recv()
-		logger.Debugw("Getting %v from stream", res.Name)
+		loggerWithResource := logger.WithResource("user", res.Name, "")
+		loggerWithResource.Debugw("Getting resource from stream", "name", res.Name)
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			logger.Errorf("Failed to receive user from server: %v", err)
+			loggerWithResource.Errorf("Failed to receive user from server: %v", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			logger.Errorf("Failed to send user to client: %v", err)
+			loggerWithResource.Errorf("Failed to send user to client: %v", err)
 			return sendErr
 		}
 	}
@@ -569,7 +570,7 @@ func (serv *MetadataServer) ListFeatures(listRequest *pb.ListRequest, stream pb.
 	for {
 		res, err := proxyStream.Recv()
 		loggerWithResource := logger.WithResource("feature", res.Name, res.DefaultVariant)
-		loggerWithResource.Debugw("Getting %v from stream", res.Name)
+		loggerWithResource.Debugw("Getting resource from stream", "name", res.Name, "default variant", res.DefaultVariant)
 		if err == io.EOF {
 			return nil
 		}
@@ -595,17 +596,18 @@ func (serv *MetadataServer) ListLabels(listRequest *pb.ListRequest, stream pb.Ap
 	}
 	for {
 		res, err := proxyStream.Recv()
-		logger.Debugw("Getting %v from stream", res.Name)
+		loggerWithResource := logger.WithResource("label", res.Name, res.DefaultVariant)
+		loggerWithResource.Debugw("Getting resource from stream", "name", res.Name, "default variant", res.DefaultVariant)
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			logger.Errorf("Failed to receive label from server: %v", err)
+			loggerWithResource.Errorf("Failed to receive label from server: %v", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			logger.Errorf("Failed to send label to client: %v", err)
+			loggerWithResource.Errorf("Failed to send label to client: %v", err)
 			return sendErr
 		}
 	}
@@ -621,17 +623,18 @@ func (serv *MetadataServer) ListSources(listRequest *pb.ListRequest, stream pb.A
 	}
 	for {
 		res, err := proxyStream.Recv()
-		logger.Debugw("Getting %v from stream", res.Name)
+		loggerWithResource := logger.WithResource("source", res.Name, res.DefaultVariant)
+		loggerWithResource.Debugw("Getting resource from stream", "name", res.Name, "default variant", res.DefaultVariant)
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			logger.Errorf("Failed to receive source from server: %v", err)
+			loggerWithResource.Errorf("Failed to receive source from server: %v", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			logger.Errorf("Failed to send source to client: %v", err)
+			loggerWithResource.Errorf("Failed to send source to client: %v", err)
 			return sendErr
 		}
 	}
@@ -647,17 +650,18 @@ func (serv *MetadataServer) ListTrainingSets(listRequest *pb.ListRequest, stream
 	}
 	for {
 		res, err := proxyStream.Recv()
-		logger.Debugw("Getting %v from stream", res.Name)
+		loggerWithResource := logger.WithResource("training-set", res.Name, res.DefaultVariant)
+		loggerWithResource.Debugw("Getting resource from stream", "name", res.Name, "default variant", res.DefaultVariant)
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			logger.Errorf("Failed to receive training set from server: %v", err)
+			loggerWithResource.Errorf("Failed to receive training set from server: %v", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			logger.Errorf("Failed to send training set to client: %v", err)
+			loggerWithResource.Errorf("Failed to send training set to client: %v", err)
 			return sendErr
 		}
 	}
@@ -673,17 +677,18 @@ func (serv *MetadataServer) ListModels(listRequest *pb.ListRequest, stream pb.Ap
 	}
 	for {
 		res, err := proxyStream.Recv()
-		logger.Debugw("Getting %v from stream", res.Name)
+		loggerWithResource := logger.WithResource("model", res.Name, "")
+		loggerWithResource.Debugw("Getting resource from stream", "name", res.Name)
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			logger.Errorf("Failed to receive model from server: %v", err)
+			loggerWithResource.Errorf("Failed to receive model from server: %v", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			logger.Errorf("Failed to send model to client: %v", err)
+			loggerWithResource.Errorf("Failed to send model to client: %v", err)
 			return sendErr
 		}
 	}
@@ -699,17 +704,18 @@ func (serv *MetadataServer) ListEntities(listRequest *pb.ListRequest, stream pb.
 	}
 	for {
 		res, err := proxyStream.Recv()
-		logger.Debugw("Getting %v from stream", res.Name)
+		loggerWithResource := logger.WithResource("entity", res.Name, "")
+		loggerWithResource.Debugw("Getting resource from stream", "name", res.Name)
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			logger.Errorf("Failed to receive entity from server: %v", err)
+			loggerWithResource.Errorf("Failed to receive entity from server: %v", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			logger.Errorf("Failed to send entity to client: %v", err)
+			loggerWithResource.Errorf("Failed to send entity to client: %v", err)
 			return sendErr
 		}
 	}
@@ -725,17 +731,18 @@ func (serv *MetadataServer) ListProviders(listRequest *pb.ListRequest, stream pb
 	}
 	for {
 		res, err := proxyStream.Recv()
-		logger.Debugw("Getting %v from stream", res.Name)
+		loggerWithResource := logger.WithResource("provider", res.Name, "")
+		loggerWithResource.Debugw("Getting resource from stream", "name", res.Name)
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			logger.Errorf("Failed to receive provider from server: %v", err)
+			loggerWithResource.Errorf("Failed to receive provider from server: %v", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			logger.Errorf("Failed to send provider to client: %v", err)
+			loggerWithResource.Errorf("Failed to send provider to client: %v", err)
 			return sendErr
 		}
 	}

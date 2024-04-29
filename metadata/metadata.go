@@ -1862,10 +1862,10 @@ func (serv *MetadataServer) GetModels(stream pb.Metadata_GetModelsServer) error 
 }
 
 // GetEquivalent attempts to find an equivalent resource based on the provided ResourceVariant.
-func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariant) (*pb.ResourceVariant, error) {
+func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariantRequest) (*pb.ResourceVariant, error) {
 	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
-	logger.Info("Getting Equivalent Resource Variant, %v", req.Resource)
-	return serv.getEquivalent(ctx, req, true)
+	logger.Info("Getting Equivalent Resource Variant, %v", req.ResourceVariant.Resource)
+	return serv.getEquivalent(ctx, req.ResourceVariant, true)
 }
 
 /*

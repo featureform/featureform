@@ -1232,7 +1232,7 @@ class SourceVariant(ResourceVariant):
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized.source_variant, "source_variant", stub)
+        _get_and_set_equivalent_variant(serialized, "source_variant", stub)
         stub.CreateSourceVariant(serialized)
         return serialized.source_variant.variant
 
@@ -1445,7 +1445,7 @@ class FeatureVariant(ResourceVariant):
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized.feature_variant, "feature_variant", stub)
+        _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
         return serialized.feature_variant.variant
 
@@ -1511,7 +1511,7 @@ class OnDemandFeatureVariant(ResourceVariant):
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized.feature_variant, "feature_variant", stub)
+        _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
         return serialized.feature_variant.variant
 
@@ -1637,7 +1637,7 @@ class LabelVariant(ResourceVariant):
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized.label_variant, "label_variant", stub)
+        _get_and_set_equivalent_variant(serialized, "label_variant", stub)
         stub.CreateLabelVariant(serialized)
         return serialized.label_variant.variant
 
@@ -1850,7 +1850,7 @@ class TrainingSetVariant(ResourceVariant):
             ),
             request_id="",
         )
-        _get_and_set_equivalent_variant(serialized.training_set_variant, "training_set_variant", stub)
+        _get_and_set_equivalent_variant(serialized, "training_set_variant", stub)
         stub.CreateTrainingSetVariant(serialized)
         return serialized.training_set_variant.variant
 
@@ -2300,7 +2300,7 @@ def _get_and_set_equivalent_variant(
     if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
         # Get equivalent from stub
         equivalent = stub.GetEquivalent(
-            pb.ResourceVariant(**{variant_field: resource_variant_proto})
+            pb.ResourceVariantRequest(**{variant_field: resource_variant_proto})
         )
 
         # grpc call returns the default ResourceVariant proto when equivalent doesn't exist which explains the below check

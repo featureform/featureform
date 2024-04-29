@@ -40,7 +40,7 @@ service Metadata {
       * GetEquivalent returns a resourceVariant that matches on key attributes,
       * i.e. for a sourceVariant it will only match on key attributes (name, definition, owner, provider)
      */
-    rpc GetEquivalent(ResourceVariant) returns (ResourceVariant);
+    rpc GetEquivalent(ResourceVariantRequest) returns (ResourceVariant);
 
     rpc ListFeatures(ListRequest) returns (stream Feature);
     rpc ListLabels(ListRequest) returns (stream Label);
@@ -81,7 +81,7 @@ service Api {
       * GetEquivalent returns a resourceVariant that matches on key attributes,
       * i.e. for a sourceVariant it will only match on key attributes (name, definition, owner, provider)
      */
-    rpc GetEquivalent(ResourceVariant) returns (ResourceVariant);
+    rpc GetEquivalent(ResourceVariantRequest) returns (ResourceVariant);
 
     rpc ListFeatures(ListRequest) returns (stream Feature);
     rpc ListLabels(ListRequest) returns (stream Label);
@@ -205,6 +205,11 @@ message ResourceVariant {
         TrainingSetVariant training_set_variant = 3;
         SourceVariant source_variant = 4;
     }
+}
+
+message ResourceVariantRequest {
+    ResourceVariant resource_variant = 1;
+    string request_id = 2;
 }
 
 message FeatureVariant {

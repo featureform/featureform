@@ -59,12 +59,12 @@ def step_impl(context, dataset_path):
         == "SPARK_OFFLINE"
     ):
         dataset = context.offline_provider.register_file(
-            name="transactions",
+            name="transactions_model",
             file_path=dataset_path,
         )
     else:
         dataset = context.offline_provider.register_table(
-            name="transactions",
+            name="transactions_model",
             table=dataset_path,
         )
 

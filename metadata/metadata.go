@@ -269,7 +269,7 @@ func (lookup LocalResourceLookup) Lookup(ctx context.Context, id ResourceID) (Re
 	logger := logging.GetLoggerFromContext(ctx)
 	res, has := lookup[id]
 	if !has {
-		logger.Errorf("resource %s not found", id.String())
+		logger.Errorw("resource not found", "resource ID", id.String())
 		wrapped := fferr.NewKeyNotFoundError(id.String(), nil)
 		wrapped.AddDetail("resource_type", id.Type.String())
 		return nil, wrapped
@@ -1974,7 +1974,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	}
 	existing, err := serv.lookup.Lookup(ctx, id)
 	if _, isResourceError := err.(*fferr.KeyNotFoundError); err != nil && !isResourceError {
-		logger.Errorf("Error looking up resource: %v", err)
+		logger.Errorw("Error looking up resource", "resource ID", id, "Error", err)
 		// TODO: consider checking the GRPCError interface to avoid double wrapping error
 		return nil, fferr.NewInternalError(err)
 	}

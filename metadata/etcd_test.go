@@ -66,7 +66,7 @@ func Test_EtcdResourceLookup_Set(t *testing.T) {
 		ResourceID{Name: "test", Variant: FEATURE_VARIANT.String(), Type: FEATURE},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "featureVariantResource",
-			Type: types.Float32.ToProto(),
+			Type:    types.Float32.ToProto(),
 			Created: tspb.Now(),
 		}},
 	}
@@ -136,7 +136,7 @@ func Test_EtcdResourceLookup_Lookup(t *testing.T) {
 	}
 	doWant := &featureVariantResource{&pb.FeatureVariant{
 		Name:    "featureVariant",
-		Type: types.Float32.ToProto(),
+		Type:    types.Float32.ToProto(),
 		Created: tspb.Now(),
 	}}
 
@@ -222,7 +222,7 @@ func Test_EtcdResourceLookup_Has(t *testing.T) {
 	}
 	doWant := &featureVariantResource{&pb.FeatureVariant{
 		Name:    "resource1",
-		Type: types.Float32.ToProto(),
+		Type:    types.Float32.ToProto(),
 		Created: tspb.Now(),
 	}}
 	args1 := args{

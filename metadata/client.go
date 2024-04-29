@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/provider/types"
 	pb "github.com/featureform/metadata/proto"
+	"github.com/featureform/provider/types"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -244,7 +244,7 @@ type FeatureDef struct {
 	Mode        ComputationMode
 	IsOnDemand  bool
 	Definition  string
-	Type        types.ValueType;
+	Type        types.ValueType
 }
 
 type ResourceVariantColumns struct {
@@ -301,7 +301,7 @@ func (def FeatureDef) Serialize() (*pb.FeatureVariant, error) {
 		Name:        def.Name,
 		Variant:     def.Variant,
 		Source:      def.Source.Serialize(),
-		Type:     typeProto,
+		Type:        typeProto,
 		Entity:      def.Entity,
 		Owner:       def.Owner,
 		Description: def.Description,
@@ -432,7 +432,7 @@ func (def LabelDef) Serialize() (*pb.LabelVariant, error) {
 		Name:        def.Name,
 		Variant:     def.Variant,
 		Description: def.Description,
-		Type:     typeProto,
+		Type:        typeProto,
 		Source:      def.Source.Serialize(),
 		Entity:      def.Entity,
 		Owner:       def.Owner,

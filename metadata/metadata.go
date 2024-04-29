@@ -2092,12 +2092,12 @@ type TrainingSetVariantResource struct {
 }
 
 type FeatureVariantResource struct {
-	Created      time.Time                               `json:"created"`
-	Description  string                                  `json:"description"`
-	Entity       string                                  `json:"entity"`
-	Name         string                                  `json:"name"`
-	Owner        string                                  `json:"owner"`
-	Provider     string                                  `json:"provider"`
+	Created     time.Time `json:"created"`
+	Description string    `json:"description"`
+	Entity      string    `json:"entity"`
+	Name        string    `json:"name"`
+	Owner       string    `json:"owner"`
+	Provider    string    `json:"provider"`
 	// TODO(simba) Make this not a string
 	DataType     string                                  `json:"data-type"`
 	Variant      string                                  `json:"variant"`

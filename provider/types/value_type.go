@@ -57,15 +57,15 @@ var ScalarTypes = map[ScalarType]bool{
 	Datetime:  true,
 }
 
-var scalarToProto = map[ScalarType]pb.ScalarType {
-	NilType:   pb.ScalarType_NULL,
-	Int:       pb.ScalarType_INT,
-	Int32:     pb.ScalarType_INT32,
-	Int64:     pb.ScalarType_INT64,
-	Float32:   pb.ScalarType_FLOAT32,
-	Float64:   pb.ScalarType_FLOAT64,
-	String:    pb.ScalarType_STRING,
-	Bool:      pb.ScalarType_BOOL,
+var scalarToProto = map[ScalarType]pb.ScalarType{
+	NilType: pb.ScalarType_NULL,
+	Int:     pb.ScalarType_INT,
+	Int32:   pb.ScalarType_INT32,
+	Int64:   pb.ScalarType_INT64,
+	Float32: pb.ScalarType_FLOAT32,
+	Float64: pb.ScalarType_FLOAT64,
+	String:  pb.ScalarType_STRING,
+	Bool:    pb.ScalarType_BOOL,
 }
 
 // Created in init() as the inverse of scalarToProto
@@ -104,8 +104,8 @@ func FromProto(protoVal *pb.ValueType) (ValueType, error) {
 		scalar, has := protoToScalar[protoVec.Scalar]
 		if has {
 			return VectorType{
-				ScalarType: scalar,
-				Dimension: protoVec.Dimension,
+				ScalarType:  scalar,
+				Dimension:   protoVec.Dimension,
 				IsEmbedding: protoVec.IsEmbedding,
 			}, nil
 		}
@@ -197,8 +197,8 @@ func (t VectorType) ToProto() *pb.ValueType {
 	return &pb.ValueType{
 		Type: &pb.ValueType_Vector{
 			Vector: &pb.VectorType{
-				Scalar: scalarEnum,
-				Dimension: t.Dimension,
+				Scalar:      scalarEnum,
+				Dimension:   t.Dimension,
 				IsEmbedding: t.IsEmbedding,
 			},
 		},

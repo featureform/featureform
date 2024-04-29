@@ -75,7 +75,7 @@ class ScalarType(Enum):
             pb.ScalarType.BOOL: ScalarType.BOOL,
             pb.ScalarType.DATETIME: ScalarType.DATETIME,
         }
-        return mapping[proto_val.scalar_type]
+        return mapping[proto_val]
 
 
 class ResourceStatus(str, Enum):

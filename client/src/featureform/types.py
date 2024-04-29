@@ -42,10 +42,10 @@ class VectorType:
 
 
 def type_from_proto(proto_val):
-    value_type = proto_val.WhichOneOf("type")
+    value_type = proto_val.WhichOneof("Type")
     if value_type == "scalar":
-        return ScalarType.from_proto(value_type.scalar)
+        return ScalarType.from_proto(proto_val.scalar)
     elif value_type == "vector":
-        return VectorType.from_proto(value_type.vector)
+        return VectorType.from_proto(proto_val.vector)
     else:
         return ScalarType.NIL

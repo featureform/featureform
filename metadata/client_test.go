@@ -251,9 +251,9 @@ func TestEmptyKubernetesArgsSpecs(t *testing.T) {
 
 func TestVectorValueType(t *testing.T) {
 	valType := types.VectorType{
-		ScalarType: types.Float32,
+		ScalarType:  types.Float32,
 		IsEmbedding: true,
-		Dimension: 384,
+		Dimension:   384,
 	}
 	fv := &pb.FeatureVariant{
 		Name:    "vector",
@@ -262,7 +262,7 @@ func TestVectorValueType(t *testing.T) {
 			Name:    "vector_source",
 			Variant: "vector_source_variant",
 		},
-		Type:  valType.ToProto(),
+		Type:     valType.ToProto(),
 		Entity:   "vector_entity",
 		Owner:    "vector_owner",
 		Provider: "vector_provider",
@@ -287,7 +287,7 @@ func TestVectorValueType(t *testing.T) {
 func TestFeatureVariant_ToShallowMap(t *testing.T) {
 	valType := types.VectorType{
 		ScalarType: types.Float32,
-		Dimension: 64,
+		Dimension:  64,
 	}
 	tests := []struct {
 		name       string
@@ -301,7 +301,7 @@ func TestFeatureVariant_ToShallowMap(t *testing.T) {
 				Name:    "source name",
 				Variant: "source variant",
 			},
-			Type: valType.ToProto(),
+			Type:    valType.ToProto(),
 			Entity:  "entity",
 			Created: &timestamppb.Timestamp{},
 			Owner:   "owner",
@@ -357,7 +357,7 @@ func TestFeatureVariant_ToShallowMap(t *testing.T) {
 		{"ClientComputed", &pb.FeatureVariant{
 			Name:    "name",
 			Variant: "variant",
-			Type: valType.ToProto(),
+			Type:    valType.ToProto(),
 			Entity:  "entity",
 			Created: &timestamppb.Timestamp{},
 			Owner:   "owner",
@@ -438,7 +438,7 @@ func TestLabelVariant_ToShallowMap(t *testing.T) {
 					Name:    "source name",
 					Variant: "source variant",
 				},
-				Type: types.Float32.ToProto(),
+				Type:    types.Float32.ToProto(),
 				Entity:  "entity",
 				Created: &timestamppb.Timestamp{},
 				Owner:   "owner",

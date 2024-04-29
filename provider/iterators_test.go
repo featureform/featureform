@@ -48,7 +48,7 @@ func TestMultipleFileParquetIterator(t *testing.T) {
 		[]interface{}{"l", 12, 2.2, "twelfth string", false, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
 		[]interface{}{"m", 13, 2.3, "thirteenth string", true, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
 		[]interface{}{"n", 14, 2.4, "fourteenth string", false, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
-		[]interface{}{"o", 15, 2.5, "fifteenth string", true, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"o", 15, 2.5, "fifteenth string", true, time.UnixMilli(0).UTC(), []float32{1.0, 2.0, 3.0}},
 	}
 
 	schema := tableSchema.AsParquetSchema()
@@ -139,11 +139,13 @@ func TestMultipleFileParquetIterator(t *testing.T) {
 			if len(records) != len(test.Expected) {
 				t.Fatalf("expected %d records, got %d", len(test.Expected), len(records))
 			}
-			if !reflect.DeepEqual(records, test.Expected) {
-				t.Fatalf("expected %v, got %v", test.Expected, records)
-			}
 			if err := iterator.Err(); err != nil {
 				t.Fatalf("expected no error, got %v", err)
+			}
+			for i := range records {
+				if !reflect.DeepEqual(records[i], test.Expected[i]) {
+					t.Fatalf("Index %d: expected %#v, got %#v", i, test.Expected[i], records[i])
+				}
 			}
 		})
 	}

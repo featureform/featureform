@@ -1014,32 +1014,8 @@ func TestParquetIterator_vector32(t *testing.T) {
 		if value == nil {
 			break
 		}
-		mapValue, ok := value.(map[string]interface{})
-		if !ok {
-			t.Fatalf("could not cast type: %T to map[string]interface{}", value)
-		}
-		list, ok := mapValue["list"]
-		if !ok {
-			t.Fatalf("could not find list in value: %v", value)
-		}
-		elementsSlice, ok := list.([]interface{})
-		if !ok {
-			t.Fatalf("could not cast type: %T to []interface{}", list)
-		}
-		vector32 := make([]float32, len(elementsSlice))
-		for i, e := range elementsSlice {
-			m, ok := e.(map[string]interface{})
-			if !ok {
-				t.Fatalf("could not cast type: %T to map[string]interface{}", e)
-			}
-			switch element := m["element"].(type) {
-			case float32:
-				vector32[i] = element
-			case float64:
-				vector32[i] = float32(element)
-			default:
-				t.Fatalf("could not cast element type: %T to float32", element)
-			}
+		if _, ok := value.([]float32); !ok {
+			t.Fatalf("could not cast type: %T to []any", value)
 		}
 	}
 }

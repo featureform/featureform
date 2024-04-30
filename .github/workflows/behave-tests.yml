@@ -97,13 +97,13 @@ jobs:
         if: github.ref != 'refs/heads/main'
         working-directory: ./tests/end_to_end/
         # run: behavex -t '~@wip' -t '~@long' --no-capture --parallel-processes 5 --parallel-scheme scenario
-        run: behavex -n "Serving Batch Features" --no-capture --parallel-processes 5 --parallel-scheme scenario
+        run: behave -n "Serving Batch Features" --no-capture
 
       - name: Run Behavioral Tests
         if: github.ref == 'refs/heads/main'
         working-directory: ./tests/end_to_end/
         # run: behavex -t '~@wip' -t '@long' --no-capture  --parallel-processes 5 --parallel-scheme scenario
-        run: behavex -n "Serving Batch Features" --no-capture --parallel-processes 5 --parallel-scheme scenario
+        run: behave -n "Serving Batch Features" --no-capture
 
       - name: Archive test results
         if: always()

@@ -43,12 +43,13 @@ func (logger Logger) WithRequestID(id RequestID) Logger {
 		return logger
 	}
 	if logger.id != "" {
-		logger.Warnw("Request ID already set in logger", "current request-id", logger.id, "new request-id", id)
+		logger.Warnw("Request ID already set in logger. Using existing Request ID", "current request-id", logger.id, "new request-id", id)
 		return logger
 	}
 
 	return Logger{SugaredLogger: logger.With("request-id", id),
-		id: id}
+		id:     id,
+		values: logger.values}
 }
 
 func (logger Logger) WithResource(resourceType, name, variant string) Logger {
@@ -57,7 +58,7 @@ func (logger Logger) WithResource(resourceType, name, variant string) Logger {
 		combinedValues["resource-type"] = resourceType
 		logger.SugaredLogger = logger.SugaredLogger.With("resource-type", resourceType)
 	} else {
-		logger.Warn("Resource type is empty")
+		logger.Warn("Resource type is an empty string")
 	}
 
 	if name != "" {
@@ -123,11 +124,13 @@ func (logger Logger) WithValues(values map[string]interface{}) Logger {
 func (logger Logger) InitializeRequestID(ctx context.Context) (string, context.Context, Logger) {
 	requestID := ctx.Value(RequestIDKey)
 	if requestID == nil {
+		logger.Debugw("Creating new Request ID", "request-id", requestID)
 		requestID = NewRequestID()
 		ctx = context.WithValue(ctx, RequestIDKey, requestID)
 	}
 	ctxLogger := ctx.Value(LoggerKey)
 	if ctxLogger == nil {
+		logger.Debugw("Adding logger to context")
 		ctxLogger = logger.WithRequestID(requestID.(RequestID))
 		ctx = context.WithValue(ctx, LoggerKey, ctxLogger)
 	}
@@ -192,6 +195,7 @@ func NewLogger(service string) Logger {
 	logger := baseLogger.Sugar().Named(service)
 	return Logger{
 		SugaredLogger: logger,
+		values:        make(map[string]interface{}),
 	}
 }
 

@@ -28,6 +28,7 @@ import (
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 )
 
 const PythonFunc = `def average_user_transaction(transactions):
@@ -385,6 +386,7 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Entity:   "mockEntity",
 			Source:   metadata.NameVariant{"mockSource", "var"},
 			Owner:    "Featureform",
+			Type:     types.String,
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
 				Value:  "col2",
@@ -494,7 +496,7 @@ func createMockOnlineStoreFactory(recsMap map[provider.ResourceID][]provider.Res
 			if id.Type != provider.Feature {
 				continue
 			}
-			table, err := store.CreateTable(id.Name, id.Variant, provider.String)
+			table, err := store.CreateTable(id.Name, id.Variant, types.String)
 			if err != nil {
 				panic(err)
 			}

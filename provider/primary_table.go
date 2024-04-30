@@ -7,6 +7,7 @@ import (
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
+	"github.com/featureform/provider/types"
 	"github.com/parquet-go/parquet-go"
 )
 
@@ -18,9 +19,8 @@ type FileStorePrimaryTable struct {
 	id               ResourceID
 }
 
-// TODO: implement
 func (tbl *FileStorePrimaryTable) Write(record GenericRecord) error {
-	return fferr.NewInternalError(fmt.Errorf("not implemented"))
+	return fferr.NewInternalErrorf("You cannot write to a primary table")
 }
 
 func (tbl *FileStorePrimaryTable) WriteBatch(records []GenericRecord) error {
@@ -78,7 +78,7 @@ func (tbl *FileStorePrimaryTable) append(iter Iterator, newRecords []GenericReco
 				// we need to rely on the parquet schema's field metadata to determine whether
 				// the field is a timestamp or not. If it is, we need to convert it to its
 				// corresponding Go type (time.Time).
-				if col.Scalar() == Timestamp {
+				if col.Scalar() == types.Timestamp {
 					record = append(record, time.UnixMilli(assertedVal).UTC())
 				} else {
 					record = append(record, int(assertedVal))
@@ -102,7 +102,7 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 	if tbl.source.IsDir() {
 		// The key should only be a directory in the case of transformations.
 		if !tbl.isTransformation {
-			return nil, fferr.NewInternalError(fmt.Errorf("expected a file but got a directory: %s", tbl.source.Key()))
+			return nil, fferr.NewInternalErrorf("expected a file but got a directory: %s", tbl.source.Key())
 		}
 		// The file structure in cloud storage for transformations is /featureform/Transformation/<NAME>/<VARIANT>
 		// but there is an additional directory that's named using a timestamp that contains the transformation file
@@ -129,7 +129,7 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 		return newMultipleFileParquetIterator(sources, tbl.store, n)
 	case filestore.CSV:
 		if len(sources) > 1 {
-			return nil, fferr.NewInternalError(fmt.Errorf("multiple CSV files found for table (%v)", tbl.id))
+			return nil, fferr.NewInternalErrorf("multiple CSV files found for table (%v)", tbl.id)
 		}
 		fmt.Printf("Reading file at key %s in file store type %s\n", sources[0].Key(), tbl.store.FilestoreType())
 		b, err := tbl.store.Read(sources[0])

@@ -8,6 +8,7 @@ import (
 
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
+	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 )
@@ -169,12 +170,13 @@ func getS3FilestorePrimaryTable() (*FileStorePrimaryTable, error) {
 		schema: TableSchema{
 			SourceTable: source.ToURI(),
 			Columns: []TableColumn{
-				{Name: "entity", ValueType: String},
-				{Name: "int", ValueType: Int},
-				{Name: "flt", ValueType: Float64},
-				{Name: "str", ValueType: String},
-				{Name: "bool", ValueType: Bool},
-				{Name: "ts", ValueType: Timestamp},
+				{Name: "entity", ValueType: types.String},
+				{Name: "int", ValueType: types.Int},
+				{Name: "flt", ValueType: types.Float64},
+				{Name: "str", ValueType: types.String},
+				{Name: "bool", ValueType: types.Bool},
+				{Name: "fltvec", ValueType: types.VectorType{types.Float64, 3, false}},
+				{Name: "ts", ValueType: types.Timestamp},
 			},
 		},
 		isTransformation: false,
@@ -184,10 +186,10 @@ func getS3FilestorePrimaryTable() (*FileStorePrimaryTable, error) {
 
 func getRecords() []GenericRecord {
 	return []GenericRecord{
-		[]interface{}{"a", 1, 1.1, "test string", true, time.UnixMilli(0)},
-		[]interface{}{"b", 2, 1.2, "second string", false, time.UnixMilli(0)},
-		[]interface{}{"c", 3, 1.3, "third string", nil, time.UnixMilli(0)},
-		[]interface{}{"d", 4, 1.4, "fourth string", false, time.UnixMilli(0)},
-		[]interface{}{"e", 5, 1.5, "fifth string", true, time.UnixMilli(0)},
+		[]interface{}{"a", 1, 1.1, "test string", true, []float64{1.0, 1.0, 1.0}, time.UnixMilli(0)},
+		[]interface{}{"b", 2, 1.2, "second string", false, []float64{1.0, 2.0, 1.0}, time.UnixMilli(0)},
+		[]interface{}{"c", 3, 1.3, "third string", nil, []float64{1.0, 3.0, 1.0}, time.UnixMilli(0)},
+		[]interface{}{"d", 4, 1.4, "fourth string", false, []float64{1.0, 4.0, 1.0}, time.UnixMilli(0)},
+		[]interface{}{"e", 5, 1.5, "fifth string", true, []float64{1.0, 5.0, 1.0}, time.UnixMilli(0)},
 	}
 }

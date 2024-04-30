@@ -13,6 +13,7 @@ import (
 	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 )
 
@@ -72,7 +73,7 @@ func (store *pineconeOnlineStore) Close() error {
 	return nil
 }
 
-func (store *pineconeOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+func (store *pineconeOnlineStore) CreateTable(feature, variant string, valueType types.ValueType) (OnlineStoreTable, error) {
 	return &pineconeOnlineTable{
 		api:       store.client,
 		indexName: store.createIndexName(feature, variant),
@@ -90,7 +91,7 @@ func (store *pineconeOnlineStore) CheckHealth() (bool, error) {
 	return false, fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
-func (store *pineconeOnlineStore) CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error) {
+func (store *pineconeOnlineStore) CreateIndex(feature, variant string, vectorType types.VectorType) (VectorStoreTable, error) {
 	indexName := store.createIndexName(feature, variant)
 	if err := store.client.createIndex(indexName, vectorType.Dimension); err != nil {
 		return nil, err
@@ -131,9 +132,9 @@ func (store *pineconeOnlineStore) getTableForReadyIndex(indexName, feature, vari
 			api:       store.client,
 			indexName: indexName,
 			namespace: fmt.Sprintf(namespaceTemplate, feature, variant),
-			valueType: VectorType{
+			valueType: types.VectorType{
 				Dimension:   dimension,
-				ScalarType:  Float32,
+				ScalarType:  types.Float32,
 				IsEmbedding: true,
 			},
 		}, nil
@@ -163,9 +164,9 @@ func (store *pineconeOnlineStore) GetTable(feature, variant string) (OnlineStore
 		api:       store.client,
 		indexName: indexName,
 		namespace: fmt.Sprintf(namespaceTemplate, feature, variant),
-		valueType: VectorType{
+		valueType: types.VectorType{
 			Dimension:   dimension,
-			ScalarType:  Float32,
+			ScalarType:  types.Float32,
 			IsEmbedding: true,
 		},
 	}, nil
@@ -180,7 +181,7 @@ type pineconeOnlineTable struct {
 	api       *pineconeAPI
 	indexName string
 	namespace string
-	valueType ValueType
+	valueType types.ValueType
 }
 
 func (table pineconeOnlineTable) Set(entity string, value interface{}) error {

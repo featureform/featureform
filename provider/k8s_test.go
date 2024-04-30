@@ -17,6 +17,7 @@ import (
 	"github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	pc "github.com/featureform/provider/provider_config"
+	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/mitchellh/mapstructure"
@@ -439,12 +440,12 @@ func testNotExists(t *testing.T, store FileStore) {
 func getMockSchemaAndRecords(length int) (TableSchema, []GenericRecord) {
 	schema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "ID", ValueType: Int},
-			{Name: "Name", ValueType: String},
-			{Name: "Points", ValueType: Float32},
-			{Name: "Score", ValueType: Float64},
-			{Name: "Registered", ValueType: Bool},
-			{Name: "Created", ValueType: Timestamp},
+			{Name: "ID", ValueType: types.Int},
+			{Name: "Name", ValueType: types.String},
+			{Name: "Points", ValueType: types.Float32},
+			{Name: "Score", ValueType: types.Float64},
+			{Name: "Registered", ValueType: types.Bool},
+			{Name: "Created", ValueType: types.Timestamp},
 		},
 	}
 
@@ -1013,32 +1014,8 @@ func TestParquetIterator_vector32(t *testing.T) {
 		if value == nil {
 			break
 		}
-		mapValue, ok := value.(map[string]interface{})
-		if !ok {
-			t.Fatalf("could not cast type: %T to map[string]interface{}", value)
-		}
-		list, ok := mapValue["list"]
-		if !ok {
-			t.Fatalf("could not find list in value: %v", value)
-		}
-		elementsSlice, ok := list.([]interface{})
-		if !ok {
-			t.Fatalf("could not cast type: %T to []interface{}", list)
-		}
-		vector32 := make([]float32, len(elementsSlice))
-		for i, e := range elementsSlice {
-			m, ok := e.(map[string]interface{})
-			if !ok {
-				t.Fatalf("could not cast type: %T to map[string]interface{}", e)
-			}
-			switch element := m["element"].(type) {
-			case float32:
-				vector32[i] = element
-			case float64:
-				vector32[i] = float32(element)
-			default:
-				t.Fatalf("could not cast element type: %T to float32", element)
-			}
+		if _, ok := value.([]float64); !ok {
+			t.Fatalf("could not cast type: %T to []float64", value)
 		}
 	}
 }

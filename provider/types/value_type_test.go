@@ -1,4 +1,4 @@
-package provider
+package types
 
 import (
 	"encoding/json"
@@ -22,8 +22,8 @@ func TestSerializeDeserialize(t *testing.T) {
 		}
 	}
 	for _, typ := range types {
-		str := serializeType(typ)
-		desT, err := deserializeType(str)
+		str := SerializeType(typ)
+		desT, err := DeserializeType(str)
 		if err != nil {
 			t.Fatalf("Failed to serialize/deserialize %v\nSerialized: %s\n%s", typ, str, err.Error())
 		}

@@ -5,14 +5,14 @@ import (
 	"testing"
 )
 
-func Test_NewLogger(t *testing.T) {
+func TestNewLogger(t *testing.T) {
 	logger := NewLogger("test-logger")
 	if logger.id != "" || logger.SugaredLogger == nil {
 		t.Fatalf("Logger created incorrectly.")
 	}
 }
 
-func Test_WithResource(t *testing.T) {
+func TestWithResource(t *testing.T) {
 	logger := NewLogger("test-logger")
 	logger = logger.WithResource("test-resource", "test-name", "test-variant")
 	if logger.SugaredLogger == nil {
@@ -29,7 +29,7 @@ func Test_WithResource(t *testing.T) {
 	}
 }
 
-func Test_WithProvider(t *testing.T) {
+func TestWithProvider(t *testing.T) {
 	logger := NewLogger("test-logger")
 	logger = logger.WithProvider("test-provider", "test-name")
 	if logger.SugaredLogger == nil {
@@ -47,7 +47,7 @@ func newContext() context.Context {
 	return context.Background()
 }
 
-func Test_InitializeRequestID(t *testing.T) {
+func TestInitializeRequestID(t *testing.T) {
 	logger := NewLogger("test-logger")
 	ctx := newContext()
 	requestID, updatedContext, newLogger := logger.InitializeRequestID(ctx)
@@ -64,7 +64,7 @@ func Test_InitializeRequestID(t *testing.T) {
 	}
 }
 
-func Test_UpdateContext(t *testing.T) {
+func TestUpdateContext(t *testing.T) {
 	logger := NewLogger("test-logger")
 	ctx := newContext()
 	requestID := NewRequestID()

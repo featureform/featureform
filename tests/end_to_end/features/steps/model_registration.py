@@ -75,12 +75,16 @@ def step_impl(context, dataset_path):
 @when(
     'I register a feature on "{feature_column}" with type "{feature_type}" with "{entity_column}", "{timestamp_column}", and "{label_column}"'
 )
-def step_impl(context, feature_column, feature_type, entity_column, timestamp_column, label_column):
+def step_impl(
+    context, feature_column, feature_type, entity_column, timestamp_column, label_column
+):
     if timestamp_column == "empty":
         feature_dataset = context.dataset[[entity_column, feature_column]]
         label_dataset = context.dataset[[entity_column, label_column]]
     else:
-        feature_dataset = context.dataset[[entity_column, feature_column, timestamp_column]]
+        feature_dataset = context.dataset[
+            [entity_column, feature_column, timestamp_column]
+        ]
         label_dataset = context.dataset[[entity_column, label_column, timestamp_column]]
 
     @ff.entity
@@ -186,7 +190,7 @@ def step_impl(context):
         model=context.model,
     )
 
-    # TODO: check the output of the dataset 
+    # TODO: check the output of the dataset
     training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
     for i, feature_batch in enumerate(training_dataset):
         if i >= 1:

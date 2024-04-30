@@ -20,6 +20,7 @@ import (
 	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 	"github.com/parquet-go/parquet-go"
 )
@@ -145,9 +146,9 @@ func testCreateGetOfflineTable(t *testing.T, store OfflineStore) {
 	id := randomID(Feature, Label)
 	schema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Int},
-			{Name: "ts", ValueType: Timestamp},
+			{Name: "entity", ValueType: types.String},
+			{Name: "value", ValueType: types.Int},
+			{Name: "ts", ValueType: types.Timestamp},
 		},
 	}
 	if tab, err := store.CreateResourceTable(id, schema); tab == nil || err != nil {
@@ -171,11 +172,11 @@ func testResourceLocation(t *testing.T, store OfflineStore) {
 
 	schema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "int", ValueType: Int},
-			{Name: "bool", ValueType: Bool},
-			{Name: "string", ValueType: String},
-			{Name: "float", ValueType: Float32},
+			{Name: "entity", ValueType: types.String},
+			{Name: "int", ValueType: types.Int},
+			{Name: "bool", ValueType: types.Bool},
+			{Name: "string", ValueType: types.String},
+			{Name: "float", ValueType: types.Float32},
 		},
 	}
 
@@ -211,14 +212,14 @@ func testOfflineTableAlreadyExists(t *testing.T, store OfflineStore) {
 	schema := TableSchema{
 		// TODO: Verify whether these should be empty strings or not
 		// Columns: []TableColumn{
-		// 	{Name: "", ValueType: String},
-		// 	{Name: "", ValueType: Int},
-		// 	{Name: "", ValueType: Timestamp},
+		// 	{Name: "", ValueType: types.String},
+		// 	{Name: "", ValueType: types.Int},
+		// 	{Name: "", ValueType: types.Timestamp},
 		// },
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Int},
-			{Name: "ts", ValueType: Timestamp},
+			{Name: "entity", ValueType: types.String},
+			{Name: "value", ValueType: types.Int},
+			{Name: "ts", ValueType: types.Timestamp},
 		},
 	}
 	if _, err := store.CreateResourceTable(id, schema); err != nil {
@@ -255,9 +256,9 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 
 	schemaInt := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Int},
-			{Name: "ts", ValueType: Timestamp},
+			{Name: "entity", ValueType: types.String},
+			{Name: "value", ValueType: types.Int},
+			{Name: "ts", ValueType: types.Timestamp},
 		},
 	}
 	tests := map[string]TestCase{
@@ -476,15 +477,15 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 
 	schemaWithTimestamp := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Int},
-			{Name: "ts", ValueType: Timestamp},
+			{Name: "entity", ValueType: types.String},
+			{Name: "value", ValueType: types.Int},
+			{Name: "ts", ValueType: types.Timestamp},
 		},
 	}
 	schemaWithoutTimestamp := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Int},
+			{Name: "entity", ValueType: types.String},
+			{Name: "value", ValueType: types.Int},
 		},
 	}
 	tests := map[string]TestCase{
@@ -787,9 +788,9 @@ func testWriteInvalidResourceRecord(t *testing.T, store OfflineStore) {
 	id := randomID(Feature)
 	schema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Int},
-			{Name: "ts", ValueType: Timestamp},
+			{Name: "entity", ValueType: types.String},
+			{Name: "value", ValueType: types.Int},
+			{Name: "ts", ValueType: types.Timestamp},
 		},
 	}
 	table, err := store.CreateResourceTable(id, schema)
@@ -805,9 +806,9 @@ func testInvalidMaterialization(t *testing.T, store OfflineStore) {
 	id := randomID(Label)
 	schema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Int},
-			{Name: "ts", ValueType: Timestamp},
+			{Name: "entity", ValueType: types.String},
+			{Name: "value", ValueType: types.Int},
+			{Name: "ts", ValueType: types.Timestamp},
 		},
 	}
 	if _, err := store.CreateResourceTable(id, schema); err != nil {
@@ -847,9 +848,9 @@ func testMaterializationNotFound(t *testing.T, store OfflineStore) {
 func testInvalidResourceIDs(t *testing.T, store OfflineStore) {
 	schema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Int},
-			{Name: "ts", ValueType: Timestamp},
+			{Name: "entity", ValueType: types.String},
+			{Name: "value", ValueType: types.Int},
+			{Name: "ts", ValueType: types.Timestamp},
 		},
 	}
 	invalidIds := []ResourceID{
@@ -885,18 +886,18 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 			FeatureSchema: []TableSchema{
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Int},
-						{Name: "ts", ValueType: Timestamp},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Int},
+						{Name: "ts", ValueType: types.Timestamp},
 					},
 				},
 			},
 			LabelRecords: []ResourceRecord{},
 			LabelSchema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "value", ValueType: Int},
-					{Name: "ts", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "value", ValueType: types.Int},
+					{Name: "ts", ValueType: types.Timestamp},
 				},
 			},
 			// No rows expected
@@ -918,14 +919,14 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 			FeatureSchema: []TableSchema{
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Int},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Int},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.String},
 					},
 				},
 			},
@@ -936,8 +937,8 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 			},
 			LabelSchema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "value", ValueType: Bool},
+					{Name: "entity", ValueType: types.String},
+					{Name: "value", ValueType: types.Bool},
 				},
 			},
 			ExpectedRows: []expectedTrainingRow{
@@ -995,37 +996,37 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 			FeatureSchema: []TableSchema{
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Int},
-						{Name: "ts", ValueType: Timestamp},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Int},
+						{Name: "ts", ValueType: types.Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
-						{Name: "ts", ValueType: Timestamp},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.String},
+						{Name: "ts", ValueType: types.Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
-						{Name: "ts", ValueType: Timestamp},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.String},
+						{Name: "ts", ValueType: types.Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
-						{Name: "ts", ValueType: Timestamp},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.String},
+						{Name: "ts", ValueType: types.Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
-						{Name: "ts", ValueType: Timestamp},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.String},
+						{Name: "ts", ValueType: types.Timestamp},
 					},
 				},
 			},
@@ -1037,9 +1038,9 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 			},
 			LabelSchema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "value", ValueType: Int},
-					{Name: "ts", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "value", ValueType: types.Int},
+					{Name: "ts", ValueType: types.Timestamp},
 				},
 			},
 			ExpectedRows: []expectedTrainingRow{
@@ -1183,18 +1184,18 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 			},
 			FeatureSchema: []TableSchema{{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "value", ValueType: Int},
-					{Name: "ts", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "value", ValueType: types.Int},
+					{Name: "ts", ValueType: types.Timestamp},
 				},
 			}},
 			LabelRecords:        []ResourceRecord{},
 			UpdatedLabelRecords: []ResourceRecord{},
 			LabelSchema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "value", ValueType: Int},
-					{Name: "ts", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "value", ValueType: types.Int},
+					{Name: "ts", ValueType: types.Timestamp},
 				},
 			},
 			// No rows expected
@@ -1225,14 +1226,14 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 			FeatureSchema: []TableSchema{
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Int},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Int},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.String},
 					},
 				},
 			},
@@ -1249,8 +1250,8 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 			},
 			LabelSchema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "value", ValueType: Bool},
+					{Name: "entity", ValueType: types.String},
+					{Name: "value", ValueType: types.Bool},
 				},
 			},
 			ExpectedRows: []expectedTrainingRow{
@@ -1349,36 +1350,36 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 			FeatureSchema: []TableSchema{
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Int},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Int},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
-						{Name: "ts", ValueType: Timestamp},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.String},
+						{Name: "ts", ValueType: types.Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
-						{Name: "ts", ValueType: Timestamp},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.String},
+						{Name: "ts", ValueType: types.Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
-						{Name: "ts", ValueType: Timestamp},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.String},
+						{Name: "ts", ValueType: types.Timestamp},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
-						{Name: "ts", ValueType: Timestamp},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.String},
+						{Name: "ts", ValueType: types.Timestamp},
 					},
 				},
 			},
@@ -1391,9 +1392,9 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 			UpdatedLabelRecords: []ResourceRecord{},
 			LabelSchema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "value", ValueType: Int},
-					{Name: "ts", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "value", ValueType: types.Int},
+					{Name: "ts", ValueType: types.Timestamp},
 				},
 			},
 			ExpectedRows: []expectedTrainingRow{
@@ -1648,9 +1649,9 @@ func testLabelTableNotFound(t *testing.T, store OfflineStore) {
 	featureID := randomID(Feature)
 	schema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Int},
-			{Name: "ts", ValueType: Timestamp},
+			{Name: "entity", ValueType: types.String},
+			{Name: "value", ValueType: types.Int},
+			{Name: "ts", ValueType: types.Timestamp},
 		},
 	}
 	if _, err := store.CreateResourceTable(featureID, schema); err != nil {
@@ -1672,9 +1673,9 @@ func testFeatureTableNotFound(t *testing.T, store OfflineStore) {
 	labelID := randomID(Label)
 	schema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Int},
-			{Name: "ts", ValueType: Timestamp},
+			{Name: "entity", ValueType: types.String},
+			{Name: "value", ValueType: types.Int},
+			{Name: "ts", ValueType: types.Timestamp},
 		},
 	}
 	if _, err := store.CreateResourceTable(labelID, schema); err != nil {
@@ -1695,9 +1696,9 @@ func testFeatureTableNotFound(t *testing.T, store OfflineStore) {
 func testTrainingSetDefShorthand(t *testing.T, store OfflineStore) {
 	schema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: String},
-			{Name: "ts", ValueType: Timestamp},
+			{Name: "entity", ValueType: types.String},
+			{Name: "value", ValueType: types.String},
+			{Name: "ts", ValueType: types.Timestamp},
 		},
 	}
 	fId := randomID(Feature)
@@ -1789,11 +1790,11 @@ func testPrimaryCreateTable(t *testing.T, store OfflineStore) {
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "int", ValueType: Int},
-					{Name: "bool", ValueType: Bool},
-					{Name: "string", ValueType: String},
-					{Name: "float", ValueType: Float32},
+					{Name: "entity", ValueType: types.String},
+					{Name: "int", ValueType: types.Int},
+					{Name: "bool", ValueType: types.Bool},
+					{Name: "string", ValueType: types.String},
+					{Name: "float", ValueType: types.Float32},
 				},
 			},
 			ExpectError: false,
@@ -1836,9 +1837,9 @@ func testPrimaryTableWrite(t *testing.T, store OfflineStore) {
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "value", ValueType: Int},
-					{Name: "timestamp", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "value", ValueType: types.Int},
+					{Name: "timestamp", ValueType: types.Timestamp},
 				},
 			},
 			Records:     []GenericRecord{},
@@ -1853,9 +1854,9 @@ func testPrimaryTableWrite(t *testing.T, store OfflineStore) {
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "value", ValueType: Int},
-					{Name: "timestamp", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "value", ValueType: types.Int},
+					{Name: "timestamp", ValueType: types.Timestamp},
 				},
 			},
 			Records:     []GenericRecord{},
@@ -1869,9 +1870,9 @@ func testPrimaryTableWrite(t *testing.T, store OfflineStore) {
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "value", ValueType: Int},
-					{Name: "timestamp", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "value", ValueType: types.Int},
+					{Name: "timestamp", ValueType: types.Timestamp},
 				},
 			},
 			Records: []GenericRecord{
@@ -1927,12 +1928,12 @@ func testTransform(t *testing.T, store OfflineStore) {
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "int", ValueType: Int},
-					{Name: "flt", ValueType: Float64},
-					{Name: "str", ValueType: String},
-					{Name: "bool", ValueType: Bool},
-					{Name: "ts", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "int", ValueType: types.Int},
+					{Name: "flt", ValueType: types.Float64},
+					{Name: "str", ValueType: types.String},
+					{Name: "bool", ValueType: types.Bool},
+					{Name: "ts", ValueType: types.Timestamp},
 				},
 			},
 			Records: []GenericRecord{
@@ -1973,11 +1974,11 @@ func testTransform(t *testing.T, store OfflineStore) {
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "int", ValueType: Int},
-					{Name: "str", ValueType: String},
-					{Name: "bool", ValueType: Bool},
-					{Name: "ts", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "int", ValueType: types.Int},
+					{Name: "str", ValueType: types.String},
+					{Name: "bool", ValueType: types.Bool},
+					{Name: "ts", ValueType: types.Timestamp},
 				},
 			},
 			Records: []GenericRecord{
@@ -2105,12 +2106,12 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "int", ValueType: Int},
-					{Name: "flt", ValueType: Float64},
-					{Name: "str", ValueType: String},
-					{Name: "bool", ValueType: Bool},
-					{Name: "ts", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "int", ValueType: types.Int},
+					{Name: "flt", ValueType: types.Float64},
+					{Name: "str", ValueType: types.String},
+					{Name: "bool", ValueType: types.Bool},
+					{Name: "ts", ValueType: types.Timestamp},
 				},
 			},
 			Records: []GenericRecord{
@@ -2286,12 +2287,12 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "int", ValueType: Int},
-					{Name: "flt", ValueType: Float64},
-					{Name: "str", ValueType: String},
-					{Name: "bool", ValueType: Bool},
-					{Name: "ts", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "int", ValueType: types.Int},
+					{Name: "flt", ValueType: types.Float64},
+					{Name: "str", ValueType: types.String},
+					{Name: "bool", ValueType: types.Bool},
+					{Name: "ts", ValueType: types.Timestamp},
 				},
 			},
 			Records: []GenericRecord{
@@ -2345,11 +2346,11 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "int", ValueType: Int},
-					{Name: "str", ValueType: String},
-					{Name: "bool", ValueType: Bool},
-					{Name: "ts", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "int", ValueType: types.Int},
+					{Name: "str", ValueType: types.String},
+					{Name: "bool", ValueType: types.Bool},
+					{Name: "ts", ValueType: types.Timestamp},
 				},
 			},
 			Records: []GenericRecord{
@@ -2509,12 +2510,12 @@ func testTransformCreateFeature(t *testing.T, store OfflineStore) {
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "int", ValueType: Int},
-					{Name: "flt", ValueType: Float64},
-					{Name: "str", ValueType: String},
-					{Name: "bool", ValueType: Bool},
-					{Name: "ts", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "int", ValueType: types.Int},
+					{Name: "flt", ValueType: types.Float64},
+					{Name: "str", ValueType: types.String},
+					{Name: "bool", ValueType: types.Bool},
+					{Name: "ts", ValueType: types.Timestamp},
 				},
 			},
 			Records: []GenericRecord{
@@ -2595,7 +2596,7 @@ func testCreateDuplicatePrimaryTable(t *testing.T, store OfflineStore) {
 		Columns: []TableColumn{
 			{
 				Name:      "entity",
-				ValueType: Int,
+				ValueType: types.Int,
 			},
 		},
 	}
@@ -2629,12 +2630,12 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "int_col", ValueType: Int},
-					{Name: "flt_col", ValueType: Float64},
-					{Name: "str_col", ValueType: String},
-					{Name: "bool_col", ValueType: Bool},
-					{Name: "ts", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "int_col", ValueType: types.Int},
+					{Name: "flt_col", ValueType: types.Float64},
+					{Name: "str_col", ValueType: types.String},
+					{Name: "bool_col", ValueType: types.Bool},
+					{Name: "ts", ValueType: types.Timestamp},
 				},
 			},
 			Records: []GenericRecord{
@@ -2675,9 +2676,9 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "int_col", ValueType: Int},
-					{Name: "str_col", ValueType: String},
+					{Name: "entity", ValueType: types.String},
+					{Name: "int_col", ValueType: types.Int},
+					{Name: "str_col", ValueType: types.String},
 				},
 			},
 			Config: TransformationConfig{
@@ -2830,9 +2831,9 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 			},
 			Schema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "value", ValueType: Int},
-					{Name: "ts", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "value", ValueType: types.Int},
+					{Name: "ts", ValueType: types.Timestamp},
 				},
 			},
 			Records: []GenericRecord{
@@ -2927,10 +2928,10 @@ func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 	}
 	schema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "col1", ValueType: String},
-			{Name: "col2", ValueType: Int},
-			{Name: "col3", ValueType: String},
-			{Name: "col4", ValueType: Timestamp},
+			{Name: "col1", ValueType: types.String},
+			{Name: "col2", ValueType: types.Int},
+			{Name: "col3", ValueType: types.String},
+			{Name: "col4", ValueType: types.Timestamp},
 		},
 	}
 	table, err := store.CreatePrimaryTable(primaryID, schema)
@@ -3017,10 +3018,10 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 	}
 	schema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "col1", ValueType: String},
-			{Name: "col2", ValueType: Int},
-			{Name: "col3", ValueType: String},
-			{Name: "col4", ValueType: Bool},
+			{Name: "col1", ValueType: types.String},
+			{Name: "col2", ValueType: types.Int},
+			{Name: "col3", ValueType: types.String},
+			{Name: "col4", ValueType: types.Bool},
 		},
 	}
 	table, err := store.CreatePrimaryTable(primaryID, schema)
@@ -3155,10 +3156,10 @@ func testCreatePrimaryFromNonExistentSource(t *testing.T, store OfflineStore) {
 	}
 	schema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "col1", ValueType: String},
-			{Name: "col2", ValueType: Int},
-			{Name: "col3", ValueType: String},
-			{Name: "col4", ValueType: Timestamp},
+			{Name: "col1", ValueType: types.String},
+			{Name: "col2", ValueType: types.Int},
+			{Name: "col3", ValueType: types.String},
+			{Name: "col4", ValueType: types.Timestamp},
 		},
 	}
 
@@ -3189,10 +3190,10 @@ func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 	}
 	schema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "col1", ValueType: String},
-			{Name: "col2", ValueType: Int},
-			{Name: "col3", ValueType: String},
-			{Name: "col4", ValueType: Timestamp},
+			{Name: "col1", ValueType: types.String},
+			{Name: "col2", ValueType: types.Int},
+			{Name: "col3", ValueType: types.String},
+			{Name: "col4", ValueType: types.Timestamp},
 		},
 	}
 	table, err := store.CreatePrimaryTable(primaryID, schema)
@@ -3496,9 +3497,9 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 			FeatureSchema: []TableSchema{
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Int},
-						{Name: "ts", ValueType: Timestamp},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Int},
+						{Name: "ts", ValueType: types.Timestamp},
 					},
 				},
 			},
@@ -3519,9 +3520,9 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 			},
 			LabelSchema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "value", ValueType: Bool},
-					{Name: "ts", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "value", ValueType: types.Bool},
+					{Name: "ts", ValueType: types.Timestamp},
 				},
 			},
 			ExpectedRows: []expectedTrainingRow{
@@ -3559,9 +3560,9 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 			FeatureSchema: []TableSchema{
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Int},
-						{Name: "ts", ValueType: Timestamp},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Int},
+						{Name: "ts", ValueType: types.Timestamp},
 					},
 				},
 			},
@@ -3590,9 +3591,9 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 			},
 			LabelSchema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "value", ValueType: Int},
-					{Name: "ts", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "value", ValueType: types.Int},
+					{Name: "ts", ValueType: types.Timestamp},
 				},
 			},
 			ExpectedRows: []expectedTrainingRow{
@@ -3716,12 +3717,12 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 func TestTableSchemaValue(t *testing.T) {
 	tableSchema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "int", ValueType: Int},
-			{Name: "flt", ValueType: Float64},
-			{Name: "str", ValueType: String},
-			{Name: "bool", ValueType: Bool},
-			{Name: "ts", ValueType: Timestamp},
+			{Name: "entity", ValueType: types.String},
+			{Name: "int", ValueType: types.Int},
+			{Name: "flt", ValueType: types.Float64},
+			{Name: "str", ValueType: types.String},
+			{Name: "bool", ValueType: types.Bool},
+			{Name: "ts", ValueType: types.Timestamp},
 		},
 	}
 
@@ -3788,9 +3789,9 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 			FeatureSchema: []TableSchema{
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Int},
-						{Name: "ts", ValueType: Timestamp},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Int},
+						{Name: "ts", ValueType: types.Timestamp},
 					},
 				},
 			},
@@ -3809,9 +3810,9 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 			FeatureSchema: []TableSchema{
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Int},
-						{Name: "ts", ValueType: Timestamp},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Int},
+						{Name: "ts", ValueType: types.Timestamp},
 					},
 				},
 			},
@@ -3854,14 +3855,14 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 			FeatureSchema: []TableSchema{
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Int},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Int},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Bool},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Bool},
 					},
 				},
 			},
@@ -3913,20 +3914,20 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 			FeatureSchema: []TableSchema{
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Int},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Int},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.String},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Bool},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Bool},
 					},
 				},
 			},
@@ -3996,26 +3997,26 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 			FeatureSchema: []TableSchema{
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Int},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Int},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.String},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Bool},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Bool},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Int},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Int},
 					},
 				},
 			},
@@ -4101,26 +4102,26 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 			FeatureSchema: []TableSchema{
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Int},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Int},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: String},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.String},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Bool},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Bool},
 					},
 				},
 				{
 					Columns: []TableColumn{
-						{Name: "entity", ValueType: String},
-						{Name: "value", ValueType: Int},
+						{Name: "entity", ValueType: types.String},
+						{Name: "value", ValueType: types.Int},
 					},
 				},
 			},
@@ -4268,12 +4269,12 @@ func TestTableSchemaToParquetRecords(t *testing.T) {
 		"WithoutNilValues": {
 			Schema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "int", ValueType: Int},
-					{Name: "flt", ValueType: Float64},
-					{Name: "str", ValueType: String},
-					{Name: "bool", ValueType: Bool},
-					{Name: "ts", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "int", ValueType: types.Int},
+					{Name: "flt", ValueType: types.Float64},
+					{Name: "str", ValueType: types.String},
+					{Name: "bool", ValueType: types.Bool},
+					{Name: "ts", ValueType: types.Timestamp},
 				},
 			},
 			Records: []GenericRecord{
@@ -4294,12 +4295,12 @@ func TestTableSchemaToParquetRecords(t *testing.T) {
 		"WithNilValues": {
 			Schema: TableSchema{
 				Columns: []TableColumn{
-					{Name: "entity", ValueType: String},
-					{Name: "int", ValueType: Int},
-					{Name: "flt", ValueType: Float64},
-					{Name: "str", ValueType: String},
-					{Name: "bool", ValueType: Bool},
-					{Name: "ts", ValueType: Timestamp},
+					{Name: "entity", ValueType: types.String},
+					{Name: "int", ValueType: types.Int},
+					{Name: "flt", ValueType: types.Float64},
+					{Name: "str", ValueType: types.String},
+					{Name: "bool", ValueType: types.Bool},
+					{Name: "ts", ValueType: types.Timestamp},
 				},
 			},
 			Records: []GenericRecord{
@@ -4404,14 +4405,14 @@ func testTrainTestSplit(t *testing.T, store OfflineStore) {
 	FeatureSchema := []TableSchema{
 		{
 			Columns: []TableColumn{
-				{Name: "entity", ValueType: String},
-				{Name: "value", ValueType: Int},
+				{Name: "entity", ValueType: types.String},
+				{Name: "value", ValueType: types.Int},
 			},
 		},
 		{
 			Columns: []TableColumn{
-				{Name: "entity", ValueType: String},
-				{Name: "value", ValueType: String},
+				{Name: "entity", ValueType: types.String},
+				{Name: "value", ValueType: types.String},
 			},
 		},
 	}
@@ -4429,8 +4430,8 @@ func testTrainTestSplit(t *testing.T, store OfflineStore) {
 	}
 	LabelSchema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Bool},
+			{Name: "entity", ValueType: types.String},
+			{Name: "value", ValueType: types.Bool},
 		},
 	}
 

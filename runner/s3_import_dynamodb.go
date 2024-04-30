@@ -15,6 +15,7 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
+	vt "github.com/featureform/provider/types"
 	"github.com/featureform/types"
 	"go.uber.org/zap"
 )
@@ -41,7 +42,7 @@ type S3ImportDynamoDBRunner struct {
 	Offline     provider.OfflineStore
 	OfflineType pt.Type
 	ID          provider.ResourceID
-	VType       provider.ValueType
+	VType       vt.ValueType
 	IsUpdate    bool // Not currently useable
 	Logger      *zap.SugaredLogger
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/featureform/filestore"
+	"github.com/featureform/provider/types"
 	"github.com/parquet-go/parquet-go"
 )
 
@@ -22,32 +23,32 @@ func TestMultipleFileParquetIterator(t *testing.T) {
 
 	tableSchema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "int", ValueType: Int},
-			{Name: "flt", ValueType: Float64},
-			{Name: "str", ValueType: String},
-			{Name: "bool", ValueType: Bool},
-			{Name: "ts", ValueType: Timestamp},
-			{Name: "fltvec", ValueType: VectorType{Float32, 3, false}},
+			{Name: "entity", ValueType: types.String},
+			{Name: "int", ValueType: types.Int},
+			{Name: "flt", ValueType: types.Float64},
+			{Name: "str", ValueType: types.String},
+			{Name: "bool", ValueType: types.Bool},
+			{Name: "ts", ValueType: types.Timestamp},
+			{Name: "fltvec", ValueType: types.VectorType{types.Float64, 3, false}},
 		},
 	}
 
 	allRecords := []GenericRecord{
 		[]interface{}{nil, 1, 1.1, "test string", true, time.UnixMilli(0).UTC(), nil},
-		[]interface{}{"b", nil, 1.2, "second string", false, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
-		[]interface{}{"c", 3, nil, "third string", true, time.UnixMilli(0).UTC(), []float32{0, 0, 0}},
-		[]interface{}{"d", -4, 1.4, nil, false, time.UnixMilli(0).UTC(), []float32{-1, -2, -3}},
-		[]interface{}{"e", 5, 1.5, "fifth string", nil, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
-		[]interface{}{"f", 6, 1.6, "sixth string", false, nil, []float32{1, 2, 3}},
-		[]interface{}{"g", 7, 1.7, "seventh string", true, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
-		[]interface{}{"h", 8, 1.8, "eighth string", false, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
-		[]interface{}{"i", 9, 1.9, "ninth string", true, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
-		[]interface{}{"j", 10, 2.0, "tenth string", false, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
-		[]interface{}{"k", 11, 2.1, "eleventh string", true, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
-		[]interface{}{"l", 12, 2.2, "twelfth string", false, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
-		[]interface{}{"m", 13, 2.3, "thirteenth string", true, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
-		[]interface{}{"n", 14, 2.4, "fourteenth string", false, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
-		[]interface{}{"o", 15, 2.5, "fifteenth string", true, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"b", nil, 1.2, "second string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"c", 3, nil, "third string", true, time.UnixMilli(0).UTC(), []float64{0, 0, 0}},
+		[]interface{}{"d", -4, 1.4, nil, false, time.UnixMilli(0).UTC(), []float64{-1, -2, -3}},
+		[]interface{}{"e", 5, 1.5, "fifth string", nil, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"f", 6, 1.6, "sixth string", false, nil, []float64{1, 2, 3}},
+		[]interface{}{"g", 7, 1.7, "seventh string", true, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"h", 8, 1.8, "eighth string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"i", 9, 1.9, "ninth string", true, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"j", 10, 2.0, "tenth string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"k", 11, 2.1, "eleventh string", true, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"l", 12, 2.2, "twelfth string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"m", 13, 2.3, "thirteenth string", true, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"n", 14, 2.4, "fourteenth string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
+		[]interface{}{"o", 15, 2.5, "fifteenth string", true, time.UnixMilli(0).UTC(), []float64{1.0, 2.0, 3.0}},
 	}
 
 	schema := tableSchema.AsParquetSchema()
@@ -138,11 +139,13 @@ func TestMultipleFileParquetIterator(t *testing.T) {
 			if len(records) != len(test.Expected) {
 				t.Fatalf("expected %d records, got %d", len(test.Expected), len(records))
 			}
-			if !reflect.DeepEqual(records, test.Expected) {
-				t.Fatalf("expected %v, got %v", test.Expected, records)
-			}
 			if err := iterator.Err(); err != nil {
 				t.Fatalf("expected no error, got %v", err)
+			}
+			for i := range records {
+				if !reflect.DeepEqual(records[i], test.Expected[i]) {
+					t.Fatalf("Index %d: expected %#v, got %#v", i, test.Expected[i], records[i])
+				}
 			}
 		})
 	}

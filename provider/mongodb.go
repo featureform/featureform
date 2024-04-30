@@ -11,6 +11,7 @@ import (
 	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 	sn "github.com/mrz1836/go-sanitize"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -35,7 +36,7 @@ type mongoDBOnlineTable struct {
 	client    *mongo.Client
 	database  string
 	name      string
-	valueType ValueType
+	valueType types.ValueType
 }
 
 func mongoOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
@@ -106,7 +107,7 @@ func (store *mongoDBOnlineStore) GetMetadataTableName() string {
 	return "featureform__metadata"
 }
 
-func (store *mongoDBOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+func (store *mongoDBOnlineStore) CreateTable(feature, variant string, valueType types.ValueType) (OnlineStoreTable, error) {
 	tableName := store.GetTableName(feature, variant)
 	vType := string(valueType.Scalar())
 	getTable, _ := store.GetTable(feature, variant)
@@ -174,7 +175,7 @@ func (store *mongoDBOnlineStore) GetTable(feature, variant string) (OnlineStoreT
 		client:    store.client,
 		database:  store.database,
 		name:      tableName,
-		valueType: ScalarType(row.T),
+		valueType: types.ScalarType(row.T),
 	}
 	return table, nil
 }
@@ -241,17 +242,17 @@ func (table mongoDBOnlineTable) Get(entity string) (interface{}, error) {
 	}
 
 	switch table.valueType {
-	case Int:
+	case types.Int:
 		return int(row.Value.(int32)), nil
-	case Int64:
+	case types.Int64:
 		return row.Value.(int64), nil
-	case Float32:
+	case types.Float32:
 		return float32(row.Value.(float64)), nil
-	case Float64:
+	case types.Float64:
 		return row.Value.(float64), nil
-	case Bool:
+	case types.Bool:
 		return row.Value.(bool), nil
-	case String, NilType:
+	case types.String, types.NilType:
 		return row.Value.(string), nil
 	default:
 		return nil, fferr.NewDataTypeNotFoundErrorf(table.valueType, "could not get table value")

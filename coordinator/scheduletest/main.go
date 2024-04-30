@@ -14,6 +14,7 @@ import (
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 
 	"github.com/google/uuid"
 	db "github.com/jackc/pgx/v4"
@@ -625,7 +626,7 @@ func createTrainingSetWithProvider(sourceName string, featureName string, labelN
 			Name:        labelName,
 			Variant:     "",
 			Description: "",
-			Type:        string(provider.Int),
+			Type:        types.Int,
 			Source:      metadata.NameVariant{sourceName, ""},
 			Entity:      entityName,
 			Owner:       userName,
@@ -640,7 +641,7 @@ func createTrainingSetWithProvider(sourceName string, featureName string, labelN
 			Name:        featureName,
 			Variant:     "",
 			Source:      metadata.NameVariant{sourceName, ""},
-			Type:        string(provider.Int),
+			Type:        types.Int,
 			Entity:      entityName,
 			Owner:       userName,
 			Description: "",
@@ -714,7 +715,7 @@ func materializeFeatureWithProvider(featureName string, sourceName string, origi
 			Name:        featureName,
 			Variant:     "",
 			Source:      metadata.NameVariant{sourceName, ""},
-			Type:        string(provider.Int),
+			Type:        types.Int,
 			Entity:      entityName,
 			Owner:       userName,
 			Description: "",

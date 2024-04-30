@@ -15,6 +15,7 @@ import (
 	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
 )
@@ -32,7 +33,7 @@ type firestoreOnlineStore struct {
 type firestoreOnlineTable struct {
 	document  *firestore.DocumentRef
 	key       firestoreTableKey
-	valueType ValueType
+	valueType types.ValueType
 }
 
 type firestoreTableKey struct {
@@ -118,11 +119,11 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 	return &firestoreOnlineTable{
 		document:  table.Ref,
 		key:       key,
-		valueType: ScalarType(valueType.(string)),
+		valueType: types.ScalarType(valueType.(string)),
 	}, nil
 }
 
-func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueType types.ValueType) (OnlineStoreTable, error) {
 	table, _ := store.GetTable(feature, variant)
 	if table != nil {
 		return nil, fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
@@ -199,10 +200,10 @@ func (table firestoreOnlineTable) Get(entity string) (interface{}, error) {
 	}
 
 	switch table.valueType {
-	case Int:
+	case types.Int:
 		var intVal int64 = value.(int64)
 		return int(intVal), nil
-	case Float32:
+	case types.Float32:
 		var floatVal float64 = value.(float64)
 		return float32(floatVal), nil
 	}

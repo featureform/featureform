@@ -169,7 +169,7 @@ func (client *Client) ListFeatures(ctx context.Context) ([]*Feature, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.ListFeatures(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
 	if err != nil {
-		logger.Errorw("Failed to list features", "Err", err)
+		logger.Errorw("Failed to list features", "error", err)
 		return nil, err
 	}
 	return client.parseFeatureStream(stream)
@@ -187,7 +187,7 @@ func (client *Client) GetFeatures(ctx context.Context, features []string) ([]*Fe
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetFeatures(ctx)
 	if err != nil {
-		logger.Errorw("Failed to get features", "features", features, "Err", err)
+		logger.Errorw("Failed to get features", "features", features, "error", err)
 		return nil, err
 	}
 	go func() {
@@ -196,7 +196,7 @@ func (client *Client) GetFeatures(ctx context.Context, features []string) ([]*Fe
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseFeatureStream(stream)
@@ -206,7 +206,7 @@ func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant)
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetFeatureVariants(ctx)
 	if err != nil {
-		logger.Errorw("Failed to get feature variants", "ids", ids, "Err", err)
+		logger.Errorw("Failed to get feature variants", "ids", ids, "error", err)
 		return nil, err
 	}
 	go func() {
@@ -215,7 +215,7 @@ func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant)
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseFeatureVariantStream(stream)
@@ -379,7 +379,7 @@ func (client *Client) ListLabels(ctx context.Context) ([]*Label, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.ListLabels(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
 	if err != nil {
-		logger.Errorw("Failed to list labels", "Err", err)
+		logger.Errorw("Failed to list labels", "error", err)
 		return nil, err
 	}
 	return client.parseLabelStream(stream)
@@ -397,7 +397,7 @@ func (client *Client) GetLabels(ctx context.Context, labels []string) ([]*Label,
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetLabels(ctx)
 	if err != nil {
-		logger.Errorw("Failed to get labels", "labels", labels, "Err", err)
+		logger.Errorw("Failed to get labels", "labels", labels, "error", err)
 		return nil, err
 	}
 	go func() {
@@ -406,7 +406,7 @@ func (client *Client) GetLabels(ctx context.Context, labels []string) ([]*Label,
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseLabelStream(stream)
@@ -473,7 +473,7 @@ func (client *Client) GetLabelVariants(ctx context.Context, ids []NameVariant) (
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetLabelVariants(ctx)
 	if err != nil {
-		logger.Errorw("Failed to get label variants", "ids", ids, "Err", err)
+		logger.Errorw("Failed to get label variants", "ids", ids, "error", err)
 		return nil, err
 	}
 	go func() {
@@ -482,7 +482,7 @@ func (client *Client) GetLabelVariants(ctx context.Context, ids []NameVariant) (
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseLabelVariantStream(stream)
@@ -536,7 +536,7 @@ func (client *Client) ListTrainingSets(ctx context.Context) ([]*TrainingSet, err
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.ListTrainingSets(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
 	if err != nil {
-		logger.Errorw("Failed to list training sets", "Err", err)
+		logger.Errorw("Failed to list training sets", "error", err)
 		return nil, err
 	}
 	return client.parseTrainingSetStream(stream)
@@ -554,7 +554,7 @@ func (client *Client) GetTrainingSets(ctx context.Context, trainingSets []string
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetTrainingSets(ctx)
 	if err != nil {
-		logger.Errorw("Failed to get training sets", "trainingSets", trainingSets, "Err", err)
+		logger.Errorw("Failed to get training sets", "trainingSets", trainingSets, "error", err)
 		return nil, err
 	}
 	go func() {
@@ -563,7 +563,7 @@ func (client *Client) GetTrainingSets(ctx context.Context, trainingSets []string
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseTrainingSetStream(stream)
@@ -625,7 +625,7 @@ func (client *Client) GetTrainingSetVariants(ctx context.Context, ids []NameVari
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetTrainingSetVariants(ctx)
 	if err != nil {
-		logger.Errorw("Failed to get training set variants", "ids", ids, "Err", err)
+		logger.Errorw("Failed to get training set variants", "ids", ids, "error", err)
 		return nil, err
 	}
 	go func() {
@@ -634,7 +634,7 @@ func (client *Client) GetTrainingSetVariants(ctx context.Context, ids []NameVari
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseTrainingSetVariantStream(stream)
@@ -680,7 +680,7 @@ func (client *Client) ListSources(ctx context.Context) ([]*Source, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.ListSources(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
 	if err != nil {
-		logger.Errorw("Failed to list sources", "Err", err)
+		logger.Errorw("Failed to list sources", "error", err)
 		return nil, err
 	}
 	return client.parseSourceStream(stream)
@@ -698,7 +698,7 @@ func (client *Client) GetSources(ctx context.Context, sources []string) ([]*Sour
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetSources(ctx)
 	if err != nil {
-		logger.Errorw("Failed to get sources", "sources", sources, "Err", err)
+		logger.Errorw("Failed to get sources", "sources", sources, "error", err)
 		return nil, err
 	}
 	go func() {
@@ -707,7 +707,7 @@ func (client *Client) GetSources(ctx context.Context, sources []string) ([]*Sour
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseSourceStream(stream)
@@ -865,7 +865,7 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetSourceVariants(ctx)
 	if err != nil {
-		logger.Errorw("Failed to get source variants", "ids", ids, "Err", err)
+		logger.Errorw("Failed to get source variants", "ids", ids, "error", err)
 		return nil, err
 	}
 	go func() {
@@ -877,7 +877,7 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	variants, err := client.parseSourceVariantStream(stream)
@@ -943,7 +943,7 @@ func (client *Client) ListUsers(ctx context.Context) ([]*User, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.ListUsers(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
 	if err != nil {
-		logger.Errorw("Failed to list users", "Err", err)
+		logger.Errorw("Failed to list users", "error", err)
 		return nil, err
 	}
 	return client.parseUserStream(stream)
@@ -961,7 +961,7 @@ func (client *Client) GetUsers(ctx context.Context, users []string) ([]*User, er
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetUsers(ctx)
 	if err != nil {
-		logger.Errorw("Failed to get users", "users", users, "Err", err)
+		logger.Errorw("Failed to get users", "users", users, "error", err)
 		return nil, err
 	}
 	go func() {
@@ -970,7 +970,7 @@ func (client *Client) GetUsers(ctx context.Context, users []string) ([]*User, er
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseUserStream(stream)
@@ -1024,7 +1024,7 @@ func (client *Client) ListProviders(ctx context.Context) ([]*Provider, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.ListProviders(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
 	if err != nil {
-		logger.Errorw("Failed to list providers", "Err", err)
+		logger.Errorw("Failed to list providers", "error", err)
 		return nil, err
 	}
 	return client.parseProviderStream(stream)
@@ -1042,7 +1042,7 @@ func (client *Client) GetProviders(ctx context.Context, providers []string) ([]*
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetProviders(ctx)
 	if err != nil {
-		logger.Errorw("Failed to get providers", "providers", providers, "Err", err)
+		logger.Errorw("Failed to get providers", "providers", providers, "error", err)
 		return nil, err
 	}
 	go func() {
@@ -1051,7 +1051,7 @@ func (client *Client) GetProviders(ctx context.Context, providers []string) ([]*
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseProviderStream(stream)
@@ -1116,7 +1116,7 @@ func (client *Client) ListEntities(ctx context.Context) ([]*Entity, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.ListEntities(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
 	if err != nil {
-		logger.Errorw("Failed to list entities", "Err", err)
+		logger.Errorw("Failed to list entities", "error", err)
 		return nil, err
 	}
 	return client.parseEntityStream(stream)
@@ -1134,7 +1134,7 @@ func (client *Client) GetEntities(ctx context.Context, entities []string) ([]*En
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetEntities(ctx)
 	if err != nil {
-		logger.Errorw("Failed to get entities", "entities", entities, "Err", err)
+		logger.Errorw("Failed to get entities", "entities", entities, "error", err)
 		return nil, err
 	}
 	go func() {
@@ -1143,7 +1143,7 @@ func (client *Client) GetEntities(ctx context.Context, entities []string) ([]*En
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseEntityStream(stream)
@@ -1199,7 +1199,7 @@ func (client *Client) ListModels(ctx context.Context) ([]*Model, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.ListModels(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
 	if err != nil {
-		logger.Errorw("Failed to list models", "Err", err)
+		logger.Errorw("Failed to list models", "error", err)
 		return nil, err
 	}
 	return client.parseModelStream(stream)
@@ -1217,7 +1217,7 @@ func (client *Client) GetModels(ctx context.Context, models []string) ([]*Model,
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetModels(ctx)
 	if err != nil {
-		logger.Errorw("Failed to get models", "models", models, "Err", err)
+		logger.Errorw("Failed to get models", "models", models, "error", err)
 		return nil, err
 	}
 	go func() {
@@ -1226,7 +1226,7 @@ func (client *Client) GetModels(ctx context.Context, models []string) ([]*Model,
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseModelStream(stream)
@@ -2490,6 +2490,6 @@ func NewClient(host string, logger logging.Logger) (*Client, error) {
 
 func (client *Client) Close() {
 	if err := client.conn.Close(); err != nil {
-		client.Logger.Errorw("Failed to close connection", "Err", err)
+		client.Logger.Errorw("Failed to close connection", "error", err)
 	}
 }

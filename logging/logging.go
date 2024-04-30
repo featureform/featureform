@@ -19,7 +19,10 @@ type Logger struct {
 type RequestID string
 type contextKey string
 
-const SkipProviderType string = ""
+const (
+	SkipProviderType string = ""
+	NoVariant        string = ""
+)
 
 const (
 	RequestIDKey = contextKey("request-id")

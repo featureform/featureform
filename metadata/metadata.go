@@ -1775,7 +1775,7 @@ func (serv *MetadataServer) ListUsers(request *pb.ListRequest, stream pb.Metadat
 }
 
 func (serv *MetadataServer) CreateUser(ctx context.Context, userRequest *pb.UserRequest) (*pb.Empty, error) {
-	logger := serv.Logger.WithRequestID(logging.RequestID(userRequest.RequestId)).WithResource("user", userRequest.User.Name, "")
+	logger := serv.Logger.WithRequestID(logging.RequestID(userRequest.RequestId)).WithResource("user", userRequest.User.Name, logging.NoVariant)
 	logger.Info("Creating User")
 	ctx = logging.UpdateContext(ctx, logger, userRequest.RequestId)
 
@@ -1824,7 +1824,7 @@ func (serv *MetadataServer) ListEntities(request *pb.ListRequest, stream pb.Meta
 }
 
 func (serv *MetadataServer) CreateEntity(ctx context.Context, entityRequest *pb.EntityRequest) (*pb.Empty, error) {
-	logger := serv.Logger.WithRequestID(logging.RequestID(entityRequest.RequestId)).WithResource("entity", entityRequest.Entity.Name, "")
+	logger := serv.Logger.WithRequestID(logging.RequestID(entityRequest.RequestId)).WithResource("entity", entityRequest.Entity.Name, logging.NoVariant)
 	logger.Info("Creating Entity")
 	ctx = logging.UpdateContext(ctx, logger, entityRequest.RequestId)
 	return serv.genericCreate(ctx, &entityResource{entityRequest.Entity}, nil)
@@ -1847,7 +1847,7 @@ func (serv *MetadataServer) ListModels(request *pb.ListRequest, stream pb.Metada
 }
 
 func (serv *MetadataServer) CreateModel(ctx context.Context, modelRequest *pb.ModelRequest) (*pb.Empty, error) {
-	logger := serv.Logger.WithRequestID(logging.RequestID(modelRequest.RequestId)).WithResource("model", modelRequest.Model.Name, "")
+	logger := serv.Logger.WithRequestID(logging.RequestID(modelRequest.RequestId)).WithResource("model", modelRequest.Model.Name, logging.NoVariant)
 	logger.Info("Creating Model")
 	ctx = logging.UpdateContext(ctx, logger, modelRequest.RequestId)
 	return serv.genericCreate(ctx, &modelResource{modelRequest.Model}, nil)
@@ -2146,7 +2146,7 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 				Name: req.GetName().Name,
 				Type: t,
 			}
-			loggerWithResource = logger.WithRequestID(logging.RequestID(req.GetRequestId())).WithResource(id.Type.String(), id.Name, "")
+			loggerWithResource = logger.WithRequestID(logging.RequestID(req.GetRequestId())).WithResource(id.Type.String(), id.Name, logging.NoVariant)
 		case variantStream:
 			req, err := casted.Recv()
 			recvErr = err

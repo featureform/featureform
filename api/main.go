@@ -78,7 +78,7 @@ func NewApiServer(logger logging.Logger, address string, metaAddr string, srvAdd
 
 func (serv *MetadataServer) CreateUser(ctx context.Context, userRequest *pb.UserRequest) (*pb.Empty, error) {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(ctx)
-	logger = logger.WithResource("user", userRequest.User.Name, "")
+	logger = logger.WithResource("user", userRequest.User.Name, logging.NoVariant)
 	logger.Infow("Creating User")
 	userRequest.RequestId = requestID
 	return serv.meta.CreateUser(ctx, userRequest)
@@ -86,36 +86,37 @@ func (serv *MetadataServer) CreateUser(ctx context.Context, userRequest *pb.User
 
 func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Infow("Getting Users")
 	for {
 		nameRequest, err := stream.Recv()
-		loggerWithResource := logger.WithResource("user", nameRequest.Name.Name, "")
+		loggerWithResource := logger.WithResource("user", nameRequest.Name.Name, logging.NoVariant)
 		loggerWithResource.Debugw("Get user %v from stream", nameRequest.Name)
 		nameRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to read client request", "Error", err)
+			loggerWithResource.Errorw("Failed to read client request", "error", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetUsers(ctx)
 		if err != nil {
-			loggerWithResource.Errorw("Failed to get users from server", "Error", err)
+			loggerWithResource.Errorw("Failed to get users from server", "error", err)
 			return err
 		}
 		sErr := proxyStream.Send(nameRequest)
 		if sErr != nil {
-			loggerWithResource.Errorw("Failed to send user to the server", "user", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send user to the server", "error", err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive users from server", "user", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to receive users from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send users to client", "user", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send users to client", "error", err)
 			return sendErr
 		}
 	}
@@ -123,36 +124,37 @@ func (serv *MetadataServer) GetUsers(stream pb.Api_GetUsersServer) error {
 
 func (serv *MetadataServer) GetFeatures(stream pb.Api_GetFeaturesServer) error {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Infow("Getting Features")
 	for {
 		nameRequest, err := stream.Recv()
-		loggerWithResource := logger.WithResource("feature", nameRequest.Name.Name, "")
+		loggerWithResource := logger.WithResource("feature", nameRequest.Name.Name, logging.NoVariant)
 		loggerWithResource.Debugw("Get feature %v from stream", nameRequest.Name)
 		nameRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to read client request", "Error", err)
+			loggerWithResource.Errorw("Failed to read client request", "error", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetFeatures(ctx)
 		if err != nil {
-			loggerWithResource.Errorw("Failed to get features from server", "feature", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to get features from server", "error", err)
 			return err
 		}
 		sErr := proxyStream.Send(nameRequest)
 		if sErr != nil {
-			loggerWithResource.Errorw("Failed to send feature to the server", "feature", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send feature to the server", "error", err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive features from server", "feature", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to receive features from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send features to client", "feature", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send features to client", "error", err)
 			return sendErr
 		}
 	}
@@ -160,36 +162,37 @@ func (serv *MetadataServer) GetFeatures(stream pb.Api_GetFeaturesServer) error {
 
 func (serv *MetadataServer) GetFeatureVariants(stream pb.Api_GetFeatureVariantsServer) error {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Infow("Getting Feature Variants")
 	for {
 		nameVariantRequest, err := stream.Recv()
 		loggerWithResource := logger.WithResource("feature", nameVariantRequest.NameVariant.Name, nameVariantRequest.NameVariant.Variant)
-		loggerWithResource.Debugw("Get feature variant %v from stream", nameVariantRequest.NameVariant)
+		loggerWithResource.Debugw("Get feature variant from stream")
 		nameVariantRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to read client request", "Error", err)
+			loggerWithResource.Errorw("Failed to read client request", "error", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetFeatureVariants(ctx)
 		if err != nil {
-			loggerWithResource.Errorw("Failed to get feature variants from server", "feature", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to get feature variants from server", "error", err)
 			return err
 		}
 		sErr := proxyStream.Send(nameVariantRequest)
 		if sErr != nil {
-			loggerWithResource.Errorw("Failed to send feature variant to the server", "feature", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to send feature variant to the server", "error", err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive feature variants from server", "feature", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to receive feature variants from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send feature variants to client", "feature", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to send feature variants to client", "error", err)
 			return sendErr
 		}
 	}
@@ -197,36 +200,37 @@ func (serv *MetadataServer) GetFeatureVariants(stream pb.Api_GetFeatureVariantsS
 
 func (serv *MetadataServer) GetLabels(stream pb.Api_GetLabelsServer) error {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Infow("Getting Labels")
 	for {
 		nameRequest, err := stream.Recv()
-		loggerWithResource := logger.WithResource("label", nameRequest.Name.Name, "")
+		loggerWithResource := logger.WithResource("label", nameRequest.Name.Name, logging.NoVariant)
 		loggerWithResource.Debugw("Get label %v from stream", nameRequest.Name)
 		nameRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to read client request", "Error", err)
+			loggerWithResource.Errorw("Failed to read client request", "error", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetLabels(ctx)
 		if err != nil {
-			loggerWithResource.Errorw("Failed to get labels from server", "label", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to get labels from server", "error", err)
 			return err
 		}
 		sErr := proxyStream.Send(nameRequest)
 		if sErr != nil {
-			loggerWithResource.Errorw("Failed to send labels to the server", "label", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send labels to the server", "error", err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive labels from server", "label", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to receive labels from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send labels to client", "label", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send labels to client", "error", err)
 			return sendErr
 		}
 	}
@@ -234,6 +238,7 @@ func (serv *MetadataServer) GetLabels(stream pb.Api_GetLabelsServer) error {
 
 func (serv *MetadataServer) GetLabelVariants(stream pb.Api_GetLabelVariantsServer) error {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Infow("Getting Label Variants")
 	for {
 		nameVariantRequest, err := stream.Recv()
 		loggerWithResource := logger.WithResource("label", nameVariantRequest.NameVariant.Name, nameVariantRequest.NameVariant.Variant)
@@ -243,27 +248,27 @@ func (serv *MetadataServer) GetLabelVariants(stream pb.Api_GetLabelVariantsServe
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to read client request", "label variant", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to read client request", "error", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetLabelVariants(ctx)
 		if err != nil {
-			loggerWithResource.Errorw("Failed to get label variants from server", "label variant", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to get label variants from server", "error", err)
 			return err
 		}
 		sErr := proxyStream.Send(nameVariantRequest)
 		if sErr != nil {
-			loggerWithResource.Errorw("Failed to send label variants to the server", "label variant", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to send label variants to the server", "error", err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive label variants from server", "label variant", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to receive label variants from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send label variants to client", "label variant", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to send label variants to client", "error", err)
 			return sendErr
 		}
 	}
@@ -271,36 +276,37 @@ func (serv *MetadataServer) GetLabelVariants(stream pb.Api_GetLabelVariantsServe
 
 func (serv *MetadataServer) GetSources(stream pb.Api_GetSourcesServer) error {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Infow("Getting Sources")
 	for {
 		nameRequest, err := stream.Recv()
-		loggerWithResource := logger.WithResource("source", nameRequest.Name.Name, "")
+		loggerWithResource := logger.WithResource("source", nameRequest.Name.Name, logging.NoVariant)
 		loggerWithResource.Debugw("Get source %v from stream", nameRequest)
 		nameRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to read client request", "source", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to read client request", "error", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetSources(ctx)
 		if err != nil {
-			loggerWithResource.Errorw("Failed to get sources from server", "source", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to get sources from server", "error", err)
 			return err
 		}
 		sErr := proxyStream.Send(nameRequest)
 		if sErr != nil {
-			loggerWithResource.Errorw("Failed to send source to the server", "source", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send source to the server", "error", err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive sources from server", "source", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to receive sources from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send sources to client", "source", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send sources to client", "error", err)
 			return sendErr
 		}
 	}
@@ -308,6 +314,7 @@ func (serv *MetadataServer) GetSources(stream pb.Api_GetSourcesServer) error {
 
 func (serv *MetadataServer) GetSourceVariants(stream pb.Api_GetSourceVariantsServer) error {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Infow("Getting Source Variants")
 	for {
 		nameVariantRequest, err := stream.Recv()
 		loggerWithResource := logger.WithResource("source", nameVariantRequest.NameVariant.Name, nameVariantRequest.NameVariant.Variant)
@@ -317,27 +324,27 @@ func (serv *MetadataServer) GetSourceVariants(stream pb.Api_GetSourceVariantsSer
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to read client request", "source variant", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to read client request", "error", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetSourceVariants(ctx)
 		if err != nil {
-			loggerWithResource.Errorw("Failed to get source variants from server", "source variant", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to get source variants from server", "error", err)
 			return err
 		}
 		sErr := proxyStream.Send(nameVariantRequest)
 		if sErr != nil {
-			loggerWithResource.Errorw("Failed to send source to the server", "source variant", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to send source to the server", "error", err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive source variants from server", "source variant", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to receive source variants from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send source variants to client", "source variant", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to send source variants to client", "error", err)
 			return sendErr
 		}
 	}
@@ -345,36 +352,37 @@ func (serv *MetadataServer) GetSourceVariants(stream pb.Api_GetSourceVariantsSer
 
 func (serv *MetadataServer) GetTrainingSets(stream pb.Api_GetTrainingSetsServer) error {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Infow("Getting Training Sets")
 	for {
 		nameRequest, err := stream.Recv()
-		loggerWithResource := logger.WithResource("training-set", nameRequest.Name.Name, "")
+		loggerWithResource := logger.WithResource("training-set", nameRequest.Name.Name, logging.NoVariant)
 		loggerWithResource.Debugw("Get training set %v from stream", nameRequest.Name)
 		nameRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to read client request", "training-set", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to read client request", "error", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetTrainingSets(ctx)
 		if err != nil {
-			loggerWithResource.Errorw("Failed to get training sets from server", "training-set", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to get training sets from server", "error", err)
 			return err
 		}
 		sErr := proxyStream.Send(nameRequest)
 		if sErr != nil {
-			loggerWithResource.Errorw("Failed to send training set to the server", "training-set", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send training set to the server", "error", err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive training sets from server", "training-set", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to receive training sets from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send training sets to client", "training-set", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send training sets to client", "error", err)
 			return sendErr
 		}
 	}
@@ -382,6 +390,7 @@ func (serv *MetadataServer) GetTrainingSets(stream pb.Api_GetTrainingSetsServer)
 
 func (serv *MetadataServer) GetTrainingSetVariants(stream pb.Api_GetTrainingSetVariantsServer) error {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Infow("Getting Training Set Variants")
 	for {
 		nameVariantRequest, err := stream.Recv()
 		loggerWithResource := logger.WithResource("training-set", nameVariantRequest.NameVariant.Name, nameVariantRequest.NameVariant.Variant)
@@ -391,27 +400,27 @@ func (serv *MetadataServer) GetTrainingSetVariants(stream pb.Api_GetTrainingSetV
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to read client request", "training-set variant", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to read client request", "error", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetTrainingSetVariants(ctx)
 		if err != nil {
-			loggerWithResource.Errorw("Failed to get training set variants from server", "training-set variant", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to get training set variants from server", "error", err)
 			return err
 		}
 		sErr := proxyStream.Send(nameVariantRequest)
 		if sErr != nil {
-			loggerWithResource.Errorw("Failed to send training set to the server", "training-set variant", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to send training set to the server", "error", err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive training set variants from server", "training-set variant", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to receive training set variants from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send training set variants to client", "training-set variant", nameVariantRequest.NameVariant, "Error", err)
+			loggerWithResource.Errorw("Failed to send training set variants to client", "error", err)
 			return sendErr
 		}
 	}
@@ -419,36 +428,37 @@ func (serv *MetadataServer) GetTrainingSetVariants(stream pb.Api_GetTrainingSetV
 
 func (serv *MetadataServer) GetProviders(stream pb.Api_GetProvidersServer) error {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Infow("Getting Providers")
 	for {
 		nameRequest, err := stream.Recv()
-		loggerWithResource := logger.WithResource("provider", nameRequest.Name.Name, "")
+		loggerWithResource := logger.WithResource("provider", nameRequest.Name.Name, logging.NoVariant)
 		loggerWithResource.Debugw("Get provider %v from stream", nameRequest.Name)
 		nameRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to read client request", "provider", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to read client request", "error", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetProviders(ctx)
 		if err != nil {
-			loggerWithResource.Errorw("Failed to get providers from server", "provider", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to get providers from server", "error", err)
 			return err
 		}
 		sErr := proxyStream.Send(nameRequest)
 		if sErr != nil {
-			loggerWithResource.Errorw("Failed to send provider to the server", "provider", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send provider to the server", "error", err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive providers from server", "provider", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to receive providers from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send providers to client", "provider", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send providers to client", "error", err)
 			return sendErr
 		}
 	}
@@ -456,36 +466,37 @@ func (serv *MetadataServer) GetProviders(stream pb.Api_GetProvidersServer) error
 
 func (serv *MetadataServer) GetEntities(stream pb.Api_GetEntitiesServer) error {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Infow("Getting Entities")
 	for {
 		nameRequest, err := stream.Recv()
-		loggerWithResource := logger.WithResource("entity", nameRequest.Name.Name, "")
+		loggerWithResource := logger.WithResource("entity", nameRequest.Name.Name, logging.NoVariant)
 		loggerWithResource.Debugw("Get entity %v from stream", nameRequest.Name)
 		nameRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to read client request", "entity", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to read client request", "error", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetEntities(ctx)
 		if err != nil {
-			loggerWithResource.Errorw("Failed to get entities from server", "entity", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to get entities from server", "error", err)
 			return err
 		}
 		sErr := proxyStream.Send(nameRequest)
 		if sErr != nil {
-			loggerWithResource.Errorw("Failed to send entity to the server", "entity", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send entity to the server", "error", err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive entities from server", "entity", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to receive entities from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send entities to client", "entity", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send entities to client", "error", err)
 			return sendErr
 		}
 	}
@@ -493,36 +504,37 @@ func (serv *MetadataServer) GetEntities(stream pb.Api_GetEntitiesServer) error {
 
 func (serv *MetadataServer) GetModels(stream pb.Api_GetModelsServer) error {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Infow("Getting Models")
 	for {
 		nameRequest, err := stream.Recv()
-		loggerWithResource := logger.WithResource("model", nameRequest.Name.Name, "")
+		loggerWithResource := logger.WithResource("model", nameRequest.Name.Name, logging.NoVariant)
 		loggerWithResource.Debugw("Get model %v from stream", nameRequest.Name)
 		nameRequest.RequestId = requestID
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to read client request", "model", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to read client request", "error", err)
 			return err
 		}
 		proxyStream, err := serv.meta.GetModels(ctx)
 		if err != nil {
-			loggerWithResource.Errorw("Failed to get models from server", "model", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to get models from server", "error", err)
 			return err
 		}
 		sErr := proxyStream.Send(nameRequest)
 		if sErr != nil {
-			loggerWithResource.Errorw("Failed to send model to the server", "model", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send model to the server", "error", err)
 			return sErr
 		}
 		res, err := proxyStream.Recv()
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive models from server", "model", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to receive models from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send models to client", "model", nameRequest.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send models to client", "error", err)
 			return sendErr
 		}
 	}
@@ -530,6 +542,7 @@ func (serv *MetadataServer) GetModels(stream pb.Api_GetModelsServer) error {
 
 func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariantRequest) (*pb.ResourceVariant, error) {
 	logger := serv.Logger.WithRequestID(logging.RequestID(req.RequestId))
+	logger.Infow("Getting equivalent resource")
 	ctx = logging.AddLoggerToContext(ctx, logger)
 	return serv.meta.GetEquivalent(ctx, req)
 }
@@ -544,18 +557,18 @@ func (serv *MetadataServer) ListUsers(listRequest *pb.ListRequest, stream pb.Api
 	}
 	for {
 		res, err := proxyStream.Recv()
-		loggerWithResource := logger.WithResource("user", res.Name, "")
+		loggerWithResource := logger.WithResource("user", res.Name, logging.NoVariant)
 		loggerWithResource.Debugw("Getting resource from stream", "name", res.Name)
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive user from server", "user", res.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to receive user from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send user to client", "user", res.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send user to client", "error", err)
 			return sendErr
 		}
 	}
@@ -577,12 +590,12 @@ func (serv *MetadataServer) ListFeatures(listRequest *pb.ListRequest, stream pb.
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive feature from server", "feature", res.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to receive feature from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send feature to client", "feature", res.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send feature to client", "error", err)
 			return sendErr
 		}
 	}
@@ -604,12 +617,12 @@ func (serv *MetadataServer) ListLabels(listRequest *pb.ListRequest, stream pb.Ap
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive label from server", "label", res.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to receive label from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send label to client", "label", res.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send label to client", "error", err)
 			return sendErr
 		}
 	}
@@ -620,7 +633,7 @@ func (serv *MetadataServer) ListSources(listRequest *pb.ListRequest, stream pb.A
 	logger.Infow("Listing Sources")
 	proxyStream, err := serv.meta.ListSources(ctx, listRequest)
 	if err != nil {
-		logger.Errorw("Failed to list sources", "Error", err)
+		logger.Errorw("Failed to list sources", "error", err)
 		return err
 	}
 	for {
@@ -631,12 +644,12 @@ func (serv *MetadataServer) ListSources(listRequest *pb.ListRequest, stream pb.A
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive source from server", "source", res.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to receive source from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send source to client", "source", res.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send source to client", "error", err)
 			return sendErr
 		}
 	}
@@ -647,7 +660,7 @@ func (serv *MetadataServer) ListTrainingSets(listRequest *pb.ListRequest, stream
 	logger.Infow("Listing Training Sets")
 	proxyStream, err := serv.meta.ListTrainingSets(ctx, listRequest)
 	if err != nil {
-		logger.Errorw("Failed to list training sets", "Error", err)
+		logger.Errorw("Failed to list training sets", "error", err)
 		return err
 	}
 	for {
@@ -658,12 +671,12 @@ func (serv *MetadataServer) ListTrainingSets(listRequest *pb.ListRequest, stream
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive training set from server", "training-set", res.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to receive training set from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send training set to client", "training-set", res.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send training set to client", "error", err)
 			return sendErr
 		}
 	}
@@ -674,23 +687,23 @@ func (serv *MetadataServer) ListModels(listRequest *pb.ListRequest, stream pb.Ap
 	logger.Infow("Listing Models")
 	proxyStream, err := serv.meta.ListModels(ctx, listRequest)
 	if err != nil {
-		logger.Errorw("Failed to list models", "Error", err)
+		logger.Errorw("Failed to list models", "error", err)
 		return err
 	}
 	for {
 		res, err := proxyStream.Recv()
-		loggerWithResource := logger.WithResource("model", res.Name, "")
+		loggerWithResource := logger.WithResource("model", res.Name, logging.NoVariant)
 		loggerWithResource.Debugw("Getting resource from stream", "name", res.Name)
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive model from server", "model", res.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to receive model from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send model to client", "model", res.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send model to client", "error", err)
 			return sendErr
 		}
 	}
@@ -701,23 +714,23 @@ func (serv *MetadataServer) ListEntities(listRequest *pb.ListRequest, stream pb.
 	logger.Infow("Listing Entities")
 	proxyStream, err := serv.meta.ListEntities(ctx, listRequest)
 	if err != nil {
-		logger.Errorw("Failed to list entities", "Error", err)
+		logger.Errorw("Failed to list entities", "error", err)
 		return err
 	}
 	for {
 		res, err := proxyStream.Recv()
-		loggerWithResource := logger.WithResource("entity", res.Name, "")
+		loggerWithResource := logger.WithResource("entity", res.Name, logging.NoVariant)
 		loggerWithResource.Debugw("Getting resource from stream", "name", res.Name)
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive entity from server", "entity", res.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to receive entity from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send entity to client", "entity", res.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send entity to client", "error", err)
 			return sendErr
 		}
 	}
@@ -728,23 +741,23 @@ func (serv *MetadataServer) ListProviders(listRequest *pb.ListRequest, stream pb
 	logger.Infow("Listing Providers")
 	proxyStream, err := serv.meta.ListProviders(ctx, listRequest)
 	if err != nil {
-		logger.Errorw("Failed to list providers", "Error", err)
+		logger.Errorw("Failed to list providers", "error", err)
 		return err
 	}
 	for {
 		res, err := proxyStream.Recv()
-		loggerWithResource := logger.WithResource("provider", res.Name, "")
+		loggerWithResource := logger.WithResource("provider", res.Name, logging.NoVariant)
 		loggerWithResource.Debugw("Getting resource from stream", "name", res.Name)
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
-			loggerWithResource.Errorw("Failed to receive provider from server", "provider", res.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to receive provider from server", "error", err)
 			return err
 		}
 		sendErr := stream.Send(res)
 		if sendErr != nil {
-			loggerWithResource.Errorw("Failed to send provider to client", "provider", res.Name, "Error", err)
+			loggerWithResource.Errorw("Failed to send provider to client", "error", err)
 			return sendErr
 		}
 	}
@@ -752,7 +765,7 @@ func (serv *MetadataServer) ListProviders(listRequest *pb.ListRequest, stream pb
 
 func (serv *MetadataServer) CreateProvider(ctx context.Context, providerRequest *pb.ProviderRequest) (*pb.Empty, error) {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(ctx)
-	logger = logger.WithResource("provider", providerRequest.Provider.Name, "").WithProvider(providerRequest.Provider.Type, providerRequest.Provider.Name)
+	logger = logger.WithResource("provider", providerRequest.Provider.Name, logging.NoVariant).WithProvider(providerRequest.Provider.Type, providerRequest.Provider.Name)
 	provider := providerRequest.Provider
 	logger.Infow("Creating Provider")
 	providerRequest.RequestId = requestID
@@ -793,7 +806,7 @@ func (serv *MetadataServer) shouldCheckProviderHealth(ctx context.Context, provi
 			return false, err
 		}
 		if err := stream.Send(&pb.NameRequest{Name: &pb.Name{Name: provider.Name}, RequestId: logger.GetRequestID().String()}); err != nil {
-			logger.Errorw("Failed to send provider to server", "provider", provider.Name, "Error", err)
+			logger.Errorw("Failed to send provider to server", "error", err)
 			return false, err
 		}
 		res, err := stream.Recv()
@@ -801,7 +814,7 @@ func (serv *MetadataServer) shouldCheckProviderHealth(ctx context.Context, provi
 			break
 		}
 		if err != nil {
-			logger.Errorw("Failed to receive provider from server", "provider", provider.Name, "Error", err)
+			logger.Errorw("Failed to receive provider from server", "error", err)
 			return false, err
 		}
 		if res.Name == provider.Name && res.Type == provider.Type {
@@ -822,7 +835,7 @@ func (serv *MetadataServer) shouldCheckProviderHealth(ctx context.Context, provi
 func (serv *MetadataServer) checkProviderHealth(ctx context.Context, providerName string) error {
 	var status *pb.ResourceStatus
 	logger := logging.GetLoggerFromContext(ctx)
-	logger.Debugw("Checking provider health", "name", providerName)
+	logger.Infow("Checking provider health", "name", providerName)
 	isHealthy, err := serv.health.CheckProvider(providerName)
 	if err != nil || !isHealthy {
 		logger.Errorw("Provider health check failed", "error", err)
@@ -892,7 +905,7 @@ func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, sourceReque
 
 func (serv *MetadataServer) CreateEntity(ctx context.Context, entityRequest *pb.EntityRequest) (*pb.Empty, error) {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(ctx)
-	logger = logger.WithResource("entity", entityRequest.Entity.Name, "")
+	logger = logger.WithResource("entity", entityRequest.Entity.Name, logging.NoVariant)
 	logger.Infow("Creating Entity")
 	entityRequest.RequestId = requestID
 
@@ -962,7 +975,7 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, trainR
 
 func (serv *MetadataServer) CreateModel(ctx context.Context, modelRequest *pb.ModelRequest) (*pb.Empty, error) {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(ctx)
-	logger = logger.WithResource("model", modelRequest.Model.Name, "")
+	logger = logger.WithResource("model", modelRequest.Model.Name, logging.NoVariant)
 	logger.Infow("Creating Model")
 	modelRequest.RequestId = requestID
 
@@ -980,7 +993,7 @@ func (serv *OnlineServer) BatchFeatureServe(req *srv.BatchFeatureServeRequest, s
 	logger.Infow("Serving Batch Features", "request", req.String())
 	client, err := serv.client.BatchFeatureServe(ctx, req)
 	if err != nil {
-		logger.Errorw("Failed to serve batch features", "request", req.String(), "Error", err)
+		logger.Errorw("Failed to serve batch features", "request", req.String(), "error", err)
 		return fmt.Errorf("could not serve batch features: %w", err)
 	}
 	for {
@@ -990,11 +1003,11 @@ func (serv *OnlineServer) BatchFeatureServe(req *srv.BatchFeatureServeRequest, s
 			if err == io.EOF {
 				return nil
 			}
-			logger.Errorw("Failed to receive row from client", "row", row, "Error", err)
+			logger.Errorw("Failed to receive row from client", "row", row, "error", err)
 			return err
 		}
 		if err := stream.Send(row); err != nil {
-			logger.Errorw("Failed to write to stream", "Error", err)
+			logger.Errorw("Failed to write to stream", "error", err)
 			return err
 		}
 	}
@@ -1006,7 +1019,7 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 	logger.Infow("Serving Training Data", "id", req.Id.String())
 	client, err := serv.client.TrainingData(ctx, req)
 	if err != nil {
-		logger.Errorw("Failed to get Training Data client", "Error", err)
+		logger.Errorw("Failed to get Training Data client", "error", err)
 		return err
 	}
 	for {
@@ -1016,11 +1029,11 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 			if err == io.EOF {
 				return nil
 			}
-			logger.Errorw("Failed to receive row from client", "row", row, "Error", err)
+			logger.Errorw("Failed to receive row from client", "row", row, "error", err)
 			return err
 		}
 		if err := stream.Send(row); err != nil {
-			logger.Errorw("Failed to write to stream", "Error", err)
+			logger.Errorw("Failed to write to stream", "error", err)
 			return err
 		}
 	}
@@ -1031,7 +1044,7 @@ func (serv *OnlineServer) TrainTestSplit(stream srv.Feature_TrainTestSplitServer
 	logger.Infow("Starting Training Test Split Stream")
 	clientStream, err := serv.client.TrainTestSplit(ctx)
 	if err != nil {
-		logger.Errorw("Failed to serve training test split", "Error", err)
+		logger.Errorw("Failed to serve training test split", "error", err)
 		return fmt.Errorf("could not serve training test split: %w", err)
 	}
 
@@ -1041,7 +1054,7 @@ func (serv *OnlineServer) TrainTestSplit(stream srv.Feature_TrainTestSplitServer
 		if err == io.EOF {
 			logger.Infow("Client has closed the stream")
 			if err := clientStream.CloseSend(); err != nil {
-				logger.Errorw("Failed to close send direction to downstream service", "Error", err)
+				logger.Errorw("Failed to close send direction to downstream service", "error", err)
 				return fmt.Errorf("failed to close send direction to downstream service: %w", err)
 			}
 			return nil
@@ -1089,7 +1102,7 @@ func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feat
 	}
 	client, err := serv.client.SourceData(ctx, req)
 	if err != nil {
-		logger.Errorw("Failed to get Source Data client", "Error", err)
+		logger.Errorw("Failed to get Source Data client", "error", err)
 		return err
 	}
 	for {
@@ -1099,11 +1112,11 @@ func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feat
 			if err == io.EOF {
 				return nil
 			}
-			logger.Errorw("Failed to receive row from client", "row", row, "Error", err)
+			logger.Errorw("Failed to receive row from client", "row", row, "error", err)
 			return err
 		}
 		if err := stream.Send(row); err != nil {
-			logger.Errorw("failed to write to source data stream", "row", row, "Error", err)
+			logger.Errorw("failed to write to source data stream", "row", row, "error", err)
 			return err
 		}
 	}
@@ -1136,7 +1149,7 @@ func (serv *ApiServer) Serve() error {
 	}
 	lis, err := net.Listen("tcp", serv.address)
 	if err != nil {
-		logger.Errorw("Failed to listen", "Error", err)
+		logger.Errorw("Failed to listen", "error", err)
 		return fferr.NewInternalError(err)
 	}
 	opts := []grpc.DialOption{
@@ -1146,18 +1159,18 @@ func (serv *ApiServer) Serve() error {
 	}
 	metaConn, err := grpc.Dial(serv.metadata.address, opts...)
 	if err != nil {
-		logger.Errorw("Failed to dial metadata server", "Error", err)
+		logger.Errorw("Failed to dial metadata server", "error", err)
 		return fferr.NewInternalError(err)
 	}
 	servConn, err := grpc.Dial(serv.online.address, opts...)
 	if err != nil {
-		logger.Errorw("Failed to dial serving server", "Error", err)
+		logger.Errorw("Failed to dial serving server", "error", err)
 		return fferr.NewInternalError(err)
 	}
 	serv.metadata.meta = pb.NewMetadataClient(metaConn)
 	client, err := metadata.NewClient(serv.metadata.address, serv.Logger)
 	if err != nil {
-		logger.Errorw("Failed to create metadata client", "Error", err)
+		logger.Errorw("Failed to create metadata client", "error", err)
 		return err
 	}
 	serv.metadata.client = client

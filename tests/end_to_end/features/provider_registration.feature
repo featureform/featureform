@@ -24,4 +24,4 @@ Feature: Provider Registration
       | name | cloud_provider | bucket_name  | path | exception |
       | test |       AWS      |     test     | test |   type of argument "credentials" must be featureform.providers.credentials.GCPCredentials; got featureform.providers.credentials.AWSCredentials instead    |
       | test |       GCP      |     test     | test |   None    |
-    
+

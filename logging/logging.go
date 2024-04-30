@@ -19,6 +19,8 @@ type Logger struct {
 type RequestID string
 type contextKey string
 
+const SkipProviderType string = ""
+
 const (
 	RequestIDKey = contextKey("request-id")
 	LoggerKey    = contextKey("logger")
@@ -47,35 +49,55 @@ func (logger Logger) WithRequestID(id RequestID) Logger {
 }
 
 func (logger Logger) WithResource(resourceType, name, variant string) Logger {
-	if resourceType == "" {
+	combinedValues := logger.values
+	if resourceType != "" {
+		combinedValues["resource-type"] = resourceType
+		logger.SugaredLogger = logger.SugaredLogger.With("resource-type", resourceType)
+	} else {
 		logger.Warn("Resource type is empty")
 	}
-	if name == "" {
+
+	if name != "" {
+		combinedValues["resource-name"] = name
+		logger.SugaredLogger = logger.SugaredLogger.With("resource-name", name)
+	} else {
 		logger.Warn("Resource name is empty")
 	}
-	if variant == "" {
+
+	if variant != "" {
+		combinedValues["resource-variant"] = variant
+		logger.SugaredLogger = logger.SugaredLogger.With("resource-variant", variant)
+	} else {
 		logger.Warn("Resource variant is empty")
 	}
-	resourceValues := map[string]interface{}{"resource-type": resourceType, "resource-name": name, "resource-variant": variant}
+
 	return Logger{
-		SugaredLogger: logger.With("resource-type", resourceType, "name", name, "variant", variant),
+		SugaredLogger: logger.SugaredLogger,
 		id:            logger.id,
-		values:        resourceValues,
+		values:        combinedValues,
 	}
 }
 
 func (logger Logger) WithProvider(providerType, providerName string) Logger {
-	if providerType == "" {
+	combinedValues := logger.values
+	if providerType != "" {
+		combinedValues["provider-type"] = providerType
+		logger.SugaredLogger = logger.SugaredLogger.With("provider-type", providerType)
+	} else {
 		logger.Warn("Provider type is empty")
 	}
-	if providerName == "" {
+
+	if providerName != "" {
+		combinedValues["provider-name"] = providerName
+		logger.SugaredLogger = logger.SugaredLogger.With("provider-name", providerName)
+	} else {
 		logger.Warn("Provider name is empty")
 	}
-	providerValues := map[string]interface{}{"provider-type": providerType, "provider-name": providerName}
+
 	return Logger{
-		SugaredLogger: logger.With("provider-type", providerType, "provider-name", providerName),
+		SugaredLogger: logger.SugaredLogger,
 		id:            logger.id,
-		values:        providerValues,
+		values:        combinedValues,
 	}
 }
 

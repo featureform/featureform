@@ -862,7 +862,7 @@ func (serv *MetadataServer) checkProviderHealth(ctx context.Context, providerNam
 
 func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, sourceRequest *pb.SourceVariantRequest) (*pb.Empty, error) {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(ctx)
-	logger = logger.WithResource("source", sourceRequest.SourceVariant.Name, sourceRequest.SourceVariant.Variant).WithProvider("", sourceRequest.SourceVariant.Provider)
+	logger = logger.WithResource("source", sourceRequest.SourceVariant.Name, sourceRequest.SourceVariant.Variant).WithProvider(logging.SkipProviderType, sourceRequest.SourceVariant.Provider)
 	source := sourceRequest.SourceVariant
 	logger.Infow("Creating Source Variant")
 	sourceRequest.RequestId = requestID
@@ -907,7 +907,7 @@ func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.S
 
 func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, featureRequest *pb.FeatureVariantRequest) (*pb.Empty, error) {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(ctx)
-	logger = logger.WithResource("feature_variant", featureRequest.FeatureVariant.Name, featureRequest.FeatureVariant.Variant).WithProvider("", featureRequest.FeatureVariant.Provider)
+	logger = logger.WithResource("feature_variant", featureRequest.FeatureVariant.Name, featureRequest.FeatureVariant.Variant).WithProvider(logging.SkipProviderType, featureRequest.FeatureVariant.Provider)
 	logger.Infow("Creating Feature Variant")
 	featureRequest.RequestId = requestID
 
@@ -916,7 +916,7 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, featureReq
 
 func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, labelRequest *pb.LabelVariantRequest) (*pb.Empty, error) {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(ctx)
-	logger = logger.WithResource("label_variant", labelRequest.LabelVariant.Name, labelRequest.LabelVariant.Variant).WithProvider("", labelRequest.LabelVariant.Provider)
+	logger = logger.WithResource("label_variant", labelRequest.LabelVariant.Name, labelRequest.LabelVariant.Variant).WithProvider(logging.SkipProviderType, labelRequest.LabelVariant.Provider)
 	label := labelRequest.LabelVariant
 	logger.Infow("Creating Label Variant")
 	labelRequest.RequestId = requestID
@@ -939,7 +939,7 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, labelRequest
 
 func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, trainRequest *pb.TrainingSetVariantRequest) (*pb.Empty, error) {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(ctx)
-	logger = logger.WithResource("training_set_variant", trainRequest.TrainingSetVariant.Name, trainRequest.TrainingSetVariant.Variant).WithProvider("", trainRequest.TrainingSetVariant.Provider)
+	logger = logger.WithResource("training_set_variant", trainRequest.TrainingSetVariant.Name, trainRequest.TrainingSetVariant.Variant).WithProvider(logging.SkipProviderType, trainRequest.TrainingSetVariant.Provider)
 	train := trainRequest.TrainingSetVariant
 	logger.Infow("Creating Training Set Variant")
 	trainRequest.RequestId = requestID

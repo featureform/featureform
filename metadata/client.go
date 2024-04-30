@@ -15,7 +15,6 @@ import (
 	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/provider/types"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	grpc_status "google.golang.org/grpc/status"
@@ -298,12 +297,18 @@ func (def FeatureDef) ResourceType() ResourceType {
 
 func (def FeatureDef) Serialize(ctx context.Context) (*pb.FeatureVariantRequest, error) {
 	requestID := logging.GetRequestIDFromContext(ctx)
+	var typeProto *pb.ValueType
+	if def.Type == nil {
+		typeProto = types.NilType.ToProto()
+	} else {
+		typeProto = def.Type.ToProto()
+	}
 	serialized := &pb.FeatureVariantRequest{
 		FeatureVariant: &pb.FeatureVariant{
 			Name:        def.Name,
 			Variant:     def.Variant,
 			Source:      def.Source.Serialize(),
-			Type:        def.Type,
+			Type:        typeProto,
 			Entity:      def.Entity,
 			Owner:       def.Owner,
 			Description: def.Description,
@@ -313,7 +318,6 @@ func (def FeatureDef) Serialize(ctx context.Context) (*pb.FeatureVariantRequest,
 			Tags:        &pb.Tags{Tag: def.Tags},
 			Properties:  def.Properties.Serialize(),
 			Mode:        pb.ComputationMode(def.Mode),
-			IsEmbedding: def.IsEmbedding,
 		},
 		RequestId: requestID,
 	}
@@ -433,12 +437,18 @@ func (def LabelDef) ResourceType() ResourceType {
 
 func (def LabelDef) Serialize(ctx context.Context) (*pb.LabelVariantRequest, error) {
 	requestID := logging.GetRequestIDFromContext(ctx)
+	var typeProto *pb.ValueType
+	if def.Type == nil {
+		typeProto = types.NilType.ToProto()
+	} else {
+		typeProto = def.Type.ToProto()
+	}
 	serialized := &pb.LabelVariantRequest{
 		LabelVariant: &pb.LabelVariant{
 			Name:        def.Name,
 			Variant:     def.Variant,
 			Description: def.Description,
-			Type:        def.Type,
+			Type:        typeProto,
 			Source:      def.Source.Serialize(),
 			Entity:      def.Entity,
 			Owner:       def.Owner,

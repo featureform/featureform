@@ -12,13 +12,14 @@ import (
 
 	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
+	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 )
 
 type OnlineResource struct {
 	Entity string
 	Value  interface{}
-	Type   ValueType
+	Type   types.ValueType
 }
 
 type OnlineStoreTest struct {
@@ -74,7 +75,7 @@ func randomFeatureVariant() (string, string) {
 func testCreateGetTable(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
 	defer store.DeleteTable(mockFeature, mockVariant)
-	if tab, err := store.CreateTable(mockFeature, mockVariant, String); tab == nil || err != nil {
+	if tab, err := store.CreateTable(mockFeature, mockVariant, types.String); tab == nil || err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
 	if tab, err := store.GetTable(mockFeature, mockVariant); tab == nil || err != nil {
@@ -85,10 +86,10 @@ func testCreateGetTable(t *testing.T, store OnlineStore) {
 func testTableAlreadyExists(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
 	defer store.DeleteTable(mockFeature, mockVariant)
-	if _, err := store.CreateTable(mockFeature, mockVariant, String); err != nil {
+	if _, err := store.CreateTable(mockFeature, mockVariant, types.String); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
-	if _, err := store.CreateTable(mockFeature, mockVariant, String); err == nil {
+	if _, err := store.CreateTable(mockFeature, mockVariant, types.String); err == nil {
 		t.Fatalf("Succeeded in creating table twice")
 	} else if casted, valid := err.(*fferr.DatasetAlreadyExistsError); !valid {
 		t.Fatalf("Wrong error for table already exists: %T", err)
@@ -112,7 +113,7 @@ func testSetGetEntity(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
 	defer store.DeleteTable(mockFeature, mockVariant)
 	entity, val := "e", "val"
-	tab, err := store.CreateTable(mockFeature, mockVariant, String)
+	tab, err := store.CreateTable(mockFeature, mockVariant, types.String)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -131,7 +132,7 @@ func testSetGetEntity(t *testing.T, store OnlineStore) {
 func testBatchSetGetEntity(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
 	defer store.DeleteTable(mockFeature, mockVariant)
-	tab, err := store.CreateTable(mockFeature, mockVariant, String)
+	tab, err := store.CreateTable(mockFeature, mockVariant, types.String)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -185,7 +186,7 @@ func testEntityNotFound(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := uuid.NewString(), "v"
 	entity := "e"
 	defer store.DeleteTable(mockFeature, mockVariant)
-	tab, err := store.CreateTable(mockFeature, mockVariant, String)
+	tab, err := store.CreateTable(mockFeature, mockVariant, types.String)
 	if err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
@@ -209,7 +210,7 @@ func testMassTableWrite(t *testing.T, store OnlineStore) {
 		entityList[i] = uuid.New().String()
 	}
 	for i := range tableList {
-		tab, err := store.CreateTable(tableList[i].Name, tableList[i].Variant, ScalarType("int"))
+		tab, err := store.CreateTable(tableList[i].Name, tableList[i].Variant, types.Int)
 		if err != nil {
 			t.Fatalf("could not create table %v in online store: %v", tableList[i], err)
 		}
@@ -242,32 +243,32 @@ func testNilValues(t *testing.T, store OnlineStore) {
 		{
 			Entity: "a",
 			Value:  nil,
-			Type:   Int,
+			Type:   types.Int,
 		},
 		{
 			Entity: "b",
 			Value:  nil,
-			Type:   Int64,
+			Type:   types.Int64,
 		},
 		{
 			Entity: "c",
 			Value:  nil,
-			Type:   Float32,
+			Type:   types.Float32,
 		},
 		{
 			Entity: "d",
 			Value:  nil,
-			Type:   Float64,
+			Type:   types.Float64,
 		},
 		{
 			Entity: "e",
 			Value:  nil,
-			Type:   String,
+			Type:   types.String,
 		},
 		{
 			Entity: "f",
 			Value:  nil,
-			Type:   Bool,
+			Type:   types.Bool,
 		},
 	}
 	for _, resource := range onlineResources {
@@ -295,22 +296,22 @@ func testFloatVecValues(t *testing.T, store OnlineStore) {
 		{
 			Entity: "a",
 			Value:  nil,
-			Type:   VectorType{ScalarType: Float32, Dimension: 3, IsEmbedding: true},
+			Type:   types.VectorType{ScalarType: types.Float32, Dimension: 3, IsEmbedding: true},
 		},
 		{
 			Entity: "b",
 			Value:  nil,
-			Type:   VectorType{ScalarType: Float32, Dimension: 3, IsEmbedding: false},
+			Type:   types.VectorType{ScalarType: types.Float32, Dimension: 3, IsEmbedding: false},
 		},
 		{
 			Entity: "c",
 			Value:  []float32{1, 2, 3},
-			Type:   VectorType{ScalarType: Float32, Dimension: 3, IsEmbedding: true},
+			Type:   types.VectorType{ScalarType: types.Float32, Dimension: 3, IsEmbedding: true},
 		},
 		{
 			Entity: "d",
 			Value:  []float32{4, 5, 6},
-			Type:   VectorType{ScalarType: Float32, Dimension: 3, IsEmbedding: false},
+			Type:   types.VectorType{ScalarType: types.Float32, Dimension: 3, IsEmbedding: false},
 		},
 	}
 	for _, resource := range onlineResources {
@@ -338,32 +339,32 @@ func testTypeCasting(t *testing.T, store OnlineStore) {
 		{
 			Entity: "a",
 			Value:  int(1),
-			Type:   Int,
+			Type:   types.Int,
 		},
 		{
 			Entity: "b",
 			Value:  int64(1),
-			Type:   Int64,
+			Type:   types.Int64,
 		},
 		{
 			Entity: "c",
 			Value:  float32(1.0),
-			Type:   Float32,
+			Type:   types.Float32,
 		},
 		{
 			Entity: "d",
 			Value:  float64(1.0),
-			Type:   Float64,
+			Type:   types.Float64,
 		},
 		{
 			Entity: "e",
 			Value:  "1.0",
-			Type:   String,
+			Type:   types.String,
 		},
 		{
 			Entity: "f",
 			Value:  false,
-			Type:   Bool,
+			Type:   types.Bool,
 		},
 	}
 	for _, resource := range onlineResources {

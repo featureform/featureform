@@ -7,6 +7,9 @@ package serving
 import (
 	"context"
 	"fmt"
+	"io"
+	"sync"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
@@ -14,8 +17,6 @@ import (
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
 	"go.uber.org/zap"
-	"io"
-	"sync"
 )
 
 type FeatureServer struct {
@@ -47,13 +48,6 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 	defer featureObserver.Finish()
 	logger := serv.Logger.With("Name", name, "Variant", variant)
 	logger.Info("Serving training data")
-	if model := req.GetModel(); model != nil {
-		trainingSets := []metadata.NameVariant{{Name: name, Variant: variant}}
-		err := serv.Metadata.CreateModel(stream.Context(), metadata.ModelDef{Name: model.GetName(), Trainingsets: trainingSets})
-		if err != nil {
-			return err
-		}
-	}
 	iter, err := serv.getTrainingSetIterator(name, variant)
 	if err != nil {
 		logger.Errorw("Failed to get training set iterator", "Error", err)
@@ -77,6 +71,16 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 		featureObserver.SetError()
 		return err
 	}
+
+	logger.Info("Creating model")
+	if model := req.GetModel(); model != nil {
+		trainingSets := []metadata.NameVariant{{Name: name, Variant: variant}}
+		err := serv.Metadata.CreateModel(stream.Context(), metadata.ModelDef{Name: model.GetName(), Trainingsets: trainingSets})
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -537,16 +541,16 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 		entityMap[entity.GetName()] = entity.GetValues()
 	}
 
+	rows, err := serv.getFeatureRows(ctx, features, entityMap)
+	if err != nil {
+		return nil, err
+	}
+
 	if model := req.GetModel(); model != nil {
 		err := serv.addModel(ctx, model, features)
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	rows, err := serv.getFeatureRows(ctx, features, entityMap)
-	if err != nil {
-		return nil, err
 	}
 
 	return &pb.FeatureRow{

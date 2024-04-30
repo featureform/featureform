@@ -11,6 +11,7 @@ import (
 	fs "github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 )
 
 var cassandraTypeMap = map[string]string{
@@ -36,7 +37,7 @@ func GetOnlineStore(t pt.Type, c pc.SerializedConfig) (OnlineStore, error) {
 
 type OnlineStore interface {
 	GetTable(feature, variant string) (OnlineStoreTable, error)
-	CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error)
+	CreateTable(feature, variant string, valueType types.ValueType) (OnlineStoreTable, error)
 	DeleteTable(feature, variant string) error
 	Close() error
 	Provider
@@ -56,7 +57,7 @@ type Import interface {
 // this interface for the purpose of support the S3 import feature.
 type ImportableOnlineStore interface {
 	OnlineStore
-	ImportTable(feature, variant string, valueType ValueType, source fs.Filepath) (ImportID, error)
+	ImportTable(feature, variant string, valueType types.ValueType, source fs.Filepath) (ImportID, error)
 	GetImport(id ImportID) (Import, error)
 }
 
@@ -66,7 +67,7 @@ type OnlineStoreTable interface {
 }
 
 type VectorStore interface {
-	CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error)
+	CreateIndex(feature, variant string, vectorType types.VectorType) (VectorStoreTable, error)
 	DeleteIndex(feature, variant string) error
 	OnlineStore
 }
@@ -124,7 +125,7 @@ func (store *localOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 	return table, nil
 }
 
-func (store *localOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+func (store *localOnlineStore) CreateTable(feature, variant string, valueType types.ValueType) (OnlineStoreTable, error) {
 	key := tableKey{feature, variant}
 	if _, has := store.tables[key]; has {
 		wrapped := fferr.NewDatasetAlreadyExistsError(feature, variant, nil)

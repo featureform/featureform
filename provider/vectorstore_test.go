@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/featureform/provider/types"
 )
 
 type VectorStoreTest struct {
@@ -49,8 +51,8 @@ func testCreateIndex(t *testing.T, store OnlineStore) {
 	if !isVectorStore {
 		t.Fatalf("Expected VectorStore but received %T", store)
 	}
-	vectorType := VectorType{
-		ScalarType:  Float32,
+	vectorType := types.VectorType{
+		ScalarType:  types.Float32,
 		Dimension:   768,
 		IsEmbedding: true,
 	}
@@ -69,8 +71,8 @@ func testGetSet(t *testing.T, store OnlineStore) {
 	if !isVectorStore {
 		t.Errorf("Expected VectorStore but received %T", store)
 	}
-	vectorType := VectorType{
-		ScalarType:  Float32,
+	vectorType := types.VectorType{
+		ScalarType:  types.Float32,
 		Dimension:   768,
 		IsEmbedding: true,
 	}
@@ -115,8 +117,8 @@ func testNearest(t *testing.T, store OnlineStore) {
 	if !isVectorStore {
 		t.Fatalf("Expected VectorStore but received %T", store)
 	}
-	vectorType := VectorType{
-		ScalarType:  Float32,
+	vectorType := types.VectorType{
+		ScalarType:  types.Float32,
 		Dimension:   768,
 		IsEmbedding: true,
 	}

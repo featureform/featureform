@@ -9,6 +9,7 @@ import (
 	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 	_ "github.com/lib/pq"
 )
 
@@ -112,19 +113,19 @@ func (q postgresSQLQueries) materializationExists() string {
 	return "SELECT * FROM pg_matviews WHERE matviewname = $1"
 }
 
-func (q postgresSQLQueries) determineColumnType(valueType ValueType) (string, error) {
+func (q postgresSQLQueries) determineColumnType(valueType types.ValueType) (string, error) {
 	switch valueType {
-	case Int, Int32, Int64:
+	case types.Int, types.Int32, types.Int64:
 		return "INT", nil
-	case Float32, Float64:
+	case types.Float32, types.Float64:
 		return "FLOAT8", nil
-	case String:
+	case types.String:
 		return "VARCHAR", nil
-	case Bool:
+	case types.Bool:
 		return "BOOLEAN", nil
-	case Timestamp:
+	case types.Timestamp:
 		return "TIMESTAMPTZ", nil
-	case NilType:
+	case types.NilType:
 		return "VARCHAR", nil
 	default:
 		return "", fferr.NewDataTypeNotFoundErrorf(valueType, "could not determine column type")

@@ -226,7 +226,7 @@ func TestAzure_Download(t *testing.T) {
 			if err := az.Init(); (err != nil) != tt.wantErr {
 				t.Fatalf("Init() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			src, err := az.store.CreateFilePath(tt.args.src)
+			src, err := az.store.CreateFilePath(tt.args.src, false)
 			if err != nil {
 				t.Fatalf("CreateFilePath error = %v", err)
 			}

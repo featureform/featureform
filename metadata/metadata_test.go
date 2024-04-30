@@ -18,6 +18,7 @@ import (
 
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 	"go.uber.org/zap/zaptest"
 )
@@ -139,7 +140,7 @@ func filledResourceDefs() []ResourceDef {
 			Variant:     "variant",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "float",
+			Type:        types.Float32,
 			Description: "Feature variant",
 			Source:      NameVariant{"mockSource", "var"},
 			Owner:       "Featureform",
@@ -158,7 +159,7 @@ func filledResourceDefs() []ResourceDef {
 			Variant:     "variant2",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "int",
+			Type:        types.Int,
 			Description: "Feature variant2",
 			Source:      NameVariant{"mockSource", "var2"},
 			Owner:       "Featureform",
@@ -177,7 +178,7 @@ func filledResourceDefs() []ResourceDef {
 			Variant:     "variant",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "string",
+			Type:        types.String,
 			Description: "Feature2 variant",
 			Source:      NameVariant{"mockSource", "var"},
 			Owner:       "Featureform",
@@ -207,7 +208,7 @@ func filledResourceDefs() []ResourceDef {
 		LabelDef{
 			Name:        "label",
 			Variant:     "variant",
-			Type:        "int64",
+			Type:        types.Int64,
 			Description: "label variant",
 			Provider:    "mockOffline",
 			Entity:      "user",
@@ -1141,7 +1142,7 @@ type FeatureVariantTest struct {
 	Name         string
 	Variant      string
 	Description  string
-	Type         string
+	Type         types.ValueType
 	Owner        string
 	Entity       string
 	Provider     string
@@ -1165,7 +1166,11 @@ func (test FeatureVariantTest) Test(t *testing.T, client *Client, res interface{
 	assertEqual(t, feature.Description(), test.Description)
 	assertEqual(t, feature.Owner(), test.Owner)
 	if feature.Mode() == PRECOMPUTED {
-		assertEqual(t, feature.Type(), test.Type)
+		fType, err := feature.Type()
+		if err != nil {
+			t.Fatalf("Failed to parse type: %+v\n%s", feature, err)
+		}
+		assertEqual(t, fType, test.Type)
 		assertEqual(t, feature.Provider(), test.Provider)
 		assertEqual(t, feature.Source(), test.Source)
 		assertEqual(t, feature.Entity(), test.Entity)
@@ -1195,7 +1200,7 @@ func expectedFeatureVariants() ResourceTests {
 			Variant:     "variant",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "float",
+			Type:        types.Float32,
 			Description: "Feature variant",
 			Source:      NameVariant{"mockSource", "var"},
 			Owner:       "Featureform",
@@ -1214,7 +1219,7 @@ func expectedFeatureVariants() ResourceTests {
 			Variant:     "variant2",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "int",
+			Type:        types.Int,
 			Description: "Feature variant2",
 			Source:      NameVariant{"mockSource", "var2"},
 			Owner:       "Featureform",
@@ -1234,7 +1239,7 @@ func expectedFeatureVariants() ResourceTests {
 			Variant:     "variant",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "string",
+			Type:        types.String,
 			Description: "Feature2 variant",
 			Source:      NameVariant{"mockSource", "var"},
 			Owner:       "Featureform",
@@ -1305,7 +1310,7 @@ type LabelVariantTest struct {
 	Name         string
 	Variant      string
 	Description  string
-	Type         string
+	Type         types.ValueType
 	Owner        string
 	Entity       string
 	Provider     string
@@ -1322,10 +1327,14 @@ func (test LabelVariantTest) NameVariant() NameVariant {
 func (test LabelVariantTest) Test(t *testing.T, client *Client, res interface{}, shouldFetch bool) {
 	t.Logf("Testing label: %s %s", test.Name, test.Variant)
 	label := res.(*LabelVariant)
+	lType, err := label.Type()
+	if err != nil {
+		t.Fatalf("Failed to parse type: %+v\n%s", label, err)
+	}
 	assertEqual(t, label.Name(), test.Name)
 	assertEqual(t, label.Variant(), test.Variant)
 	assertEqual(t, label.Description(), test.Description)
-	assertEqual(t, label.Type(), test.Type)
+	assertEqual(t, lType, test.Type)
 	assertEqual(t, label.Owner(), test.Owner)
 	assertEqual(t, label.Provider(), test.Provider)
 	assertEqual(t, label.Source(), test.Source)
@@ -1345,7 +1354,7 @@ func expectedLabelVariants() ResourceTests {
 		LabelVariantTest{
 			Name:        "label",
 			Variant:     "variant",
-			Type:        "int64",
+			Type:        types.Int64,
 			Description: "label variant",
 			Provider:    "mockOffline",
 			Entity:      "user",
@@ -2265,7 +2274,7 @@ func Test_GetEquivalent(t *testing.T) {
 	labelDef := LabelDef{
 		Name:        "label",
 		Variant:     "variant",
-		Type:        "int64",
+		Type:        types.Int64,
 		Description: "label variant",
 		Provider:    "mockOffline",
 		Entity:      "user",
@@ -2544,7 +2553,7 @@ func Test_CreateResourceVariantResourceChanged(t *testing.T) {
 	labelDef := LabelDef{
 		Name:        "label",
 		Variant:     "variant",
-		Type:        "int64",
+		Type:        types.Int64,
 		Description: "label variant",
 		Provider:    "mockOffline",
 		Entity:      "user",

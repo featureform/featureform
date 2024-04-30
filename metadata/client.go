@@ -14,6 +14,8 @@ import (
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
+	"github.com/featureform/provider/types"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	grpc_status "google.golang.org/grpc/status"
@@ -237,7 +239,6 @@ type FeatureDef struct {
 	Name        string
 	Variant     string
 	Source      NameVariant
-	Type        string
 	Entity      string
 	Owner       string
 	Description string
@@ -248,8 +249,8 @@ type FeatureDef struct {
 	Properties  Properties
 	Mode        ComputationMode
 	IsOnDemand  bool
-	IsEmbedding bool
 	Definition  string
+	Type        types.ValueType
 }
 
 type ResourceVariantColumns struct {
@@ -416,7 +417,7 @@ type LabelDef struct {
 	Name        string
 	Variant     string
 	Description string
-	Type        string
+	Type        types.ValueType
 	Source      NameVariant
 	Entity      string
 	Owner       string
@@ -1487,30 +1488,6 @@ func (fn fetchPropertiesFn) Properties() Properties {
 	return properties
 }
 
-type isEmbeddingGetter interface {
-	GetIsEmbedding() bool
-}
-
-type fetchIsEmbeddingFn struct {
-	getter isEmbeddingGetter
-}
-
-func (fn fetchIsEmbeddingFn) IsEmbedding() bool {
-	return fn.getter.GetIsEmbedding()
-}
-
-type dimensionGetter interface {
-	GetDimension() int32
-}
-
-type fetchDimensionFn struct {
-	getter dimensionGetter
-}
-
-func (fn fetchDimensionFn) Dimension() int32 {
-	return fn.getter.GetDimension()
-}
-
 type Feature struct {
 	serialized *pb.Feature
 	variantsFns
@@ -1539,8 +1516,6 @@ type FeatureVariant struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
-	fetchIsEmbeddingFn
-	fetchDimensionFn
 }
 
 func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
@@ -1554,8 +1529,6 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 		protoStringer:        protoStringer{serialized},
 		fetchTagsFn:          fetchTagsFn{serialized},
 		fetchPropertiesFn:    fetchPropertiesFn{serialized},
-		fetchIsEmbeddingFn:   fetchIsEmbeddingFn{serialized},
-		fetchDimensionFn:     fetchDimensionFn{serialized},
 	}
 }
 
@@ -1568,6 +1541,21 @@ func columnsToMap(columns ResourceVariantColumns) map[string]string {
 	return featureColumns
 }
 
+type typedVariant interface {
+	Type() (types.ValueType, error)
+}
+
+func typeString(t typedVariant) string {
+	dataType, err := t.Type()
+	var dataTypeStr string
+	if err != nil {
+		dataTypeStr = "Unknown"
+	} else {
+		dataTypeStr = dataType.String()
+	}
+	return dataTypeStr
+}
+
 func (variant *FeatureVariant) ToShallowMap() FeatureVariantResource {
 	fv := FeatureVariantResource{}
 	switch variant.Mode() {
@@ -1577,7 +1565,7 @@ func (variant *FeatureVariant) ToShallowMap() FeatureVariantResource {
 			Description: variant.Description(),
 			Entity:      variant.Entity(),
 			Name:        variant.Name(),
-			DataType:    variant.Type(),
+			DataType:    typeString(variant),
 			Variant:     variant.Variant(),
 			Owner:       variant.Owner(),
 			Provider:    variant.Provider(),
@@ -1628,8 +1616,8 @@ func (variant *FeatureVariant) Variant() string {
 	return variant.serialized.GetVariant()
 }
 
-func (variant *FeatureVariant) Type() string {
-	return variant.serialized.GetType()
+func (variant *FeatureVariant) Type() (types.ValueType, error) {
+	return types.FromProto(variant.serialized.GetType())
 }
 
 func (variant *FeatureVariant) Entity() string {
@@ -1719,11 +1707,25 @@ func (variant *FeatureVariant) IsOnDemand() bool {
 }
 
 func (variant *FeatureVariant) IsEmbedding() bool {
-	return variant.fetchIsEmbeddingFn.IsEmbedding()
+	t, err := variant.Type()
+	if err != nil {
+		return false
+	}
+	if vec, ok := t.(types.VectorType); ok {
+		return vec.IsEmbedding
+	}
+	return false
 }
 
 func (variant *FeatureVariant) Dimension() int32 {
-	return variant.fetchDimensionFn.Dimension()
+	t, err := variant.Type()
+	if err != nil {
+		return -1
+	}
+	if vec, ok := t.(types.VectorType); ok {
+		return vec.Dimension
+	}
+	return 0
 }
 
 type User struct {
@@ -1952,7 +1954,7 @@ func (variant *LabelVariant) ToShallowMap() LabelVariantResource {
 		Description: variant.Description(),
 		Entity:      variant.Entity(),
 		Name:        variant.Name(),
-		DataType:    variant.Type(),
+		DataType:    typeString(variant),
 		Variant:     variant.Variant(),
 		Owner:       variant.Owner(),
 		Provider:    variant.Provider(),
@@ -1977,8 +1979,8 @@ func (variant *LabelVariant) Variant() string {
 	return variant.serialized.GetVariant()
 }
 
-func (variant *LabelVariant) Type() string {
-	return variant.serialized.GetType()
+func (variant *LabelVariant) Type() (types.ValueType, error) {
+	return types.FromProto(variant.serialized.GetType())
 }
 
 func (variant *LabelVariant) Entity() string {

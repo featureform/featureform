@@ -73,7 +73,7 @@ from .resources import (
 from .search import search
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
-from .types import pd_to_ff_datatype
+from .types import pd_to_ff_datatype, VectorType
 from .variant_names_generator import get_current_timestamp_variant
 from .variant_names_generator import get_random_name
 
@@ -3889,14 +3889,17 @@ class Registrar:
             feature_tags = feature.get("tags", [])
             feature_properties = feature.get("properties", {})
             additional_Parameters = self._get_additional_parameters(ondemand_feature)
+            is_embedding = feature.get("is_embedding", False)
+            dims = feature.get("dims", 0)
+            value_type = ScalarType(feature["type"])
+            if dims > 0:
+                value_type = VectorType(value_type, dims, is_embedding)
             resource = FeatureVariant(
                 created=None,
                 name=feature["name"],
                 variant=variant,
                 source=source,
-                value_type=feature["type"],
-                is_embedding=feature.get("is_embedding", False),
-                dims=feature.get("dims", 0),
+                value_type=value_type,
                 entity=entity,
                 owner=owner,
                 provider=inference_store,

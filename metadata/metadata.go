@@ -756,7 +756,7 @@ func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) (boo
 		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
 		thisProto.GetProvider() == otherProto.GetProvider() &&
 		thisProto.GetEntity() == otherProto.GetEntity() &&
-		thisProto.Type == otherProto.Type &&
+		proto.Equal(thisProto.GetType(), otherProto.GetType()) &&
 		isEquivalentLocation &&
 		thisProto.Owner == otherProto.Owner {
 
@@ -770,11 +770,15 @@ func (resource *featureVariantResource) ToResourceVariantProto() *pb.ResourceVar
 }
 
 func (resource *featureVariantResource) GetDefinition() string {
-	def := ""
-	if resource.serialized.Type == "ondemand_feature" {
-		def = resource.serialized.GetAdditionalParameters().GetOndemand().GetDefinition()
+	params := resource.serialized.GetAdditionalParameters().GetFeatureType()
+	if params == nil {
+		return ""
 	}
-	return def
+	ondemand, isOnDemand := params.(*pb.FeatureParameters_Ondemand)
+	if !isOnDemand {
+		return ""
+	}
+	return ondemand.Ondemand.GetDefinition()
 }
 
 type labelResource struct {
@@ -945,7 +949,7 @@ func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) (bool,
 		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
 		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns()) &&
 		thisProto.Entity == otherProto.Entity &&
-		thisProto.Type == otherProto.Type &&
+		proto.Equal(thisProto.GetType(), otherProto.GetType()) &&
 		thisProto.Owner == otherProto.Owner {
 
 		return true, nil
@@ -2220,12 +2224,13 @@ type TrainingSetVariantResource struct {
 }
 
 type FeatureVariantResource struct {
-	Created      time.Time                               `json:"created"`
-	Description  string                                  `json:"description"`
-	Entity       string                                  `json:"entity"`
-	Name         string                                  `json:"name"`
-	Owner        string                                  `json:"owner"`
-	Provider     string                                  `json:"provider"`
+	Created     time.Time `json:"created"`
+	Description string    `json:"description"`
+	Entity      string    `json:"entity"`
+	Name        string    `json:"name"`
+	Owner       string    `json:"owner"`
+	Provider    string    `json:"provider"`
+	// TODO(simba) Make this not a string
 	DataType     string                                  `json:"data-type"`
 	Variant      string                                  `json:"variant"`
 	Status       string                                  `json:"status"`

@@ -1931,30 +1931,31 @@ func testFetchProvider(t *testing.T, client *Client, fetcher providerFetcher) {
 func TestBannedStrings(t *testing.T) {
 	resourceInvalidName := ResourceID{"nam__e", "variant", FEATURE}
 	resourceInvalidVariant := ResourceID{"name", "varian__t", FEATURE}
-	if err := resourceNamedSafely(resourceInvalidName); err == nil {
+	logger := logging.NewLogger("metadata-test")
+	if err := resourceNamedSafely(resourceInvalidName, logger); err == nil {
 		t.Fatalf("testing didn't catch error on valid resource name")
 	}
-	if err := resourceNamedSafely(resourceInvalidVariant); err == nil {
+	if err := resourceNamedSafely(resourceInvalidVariant, logger); err == nil {
 		t.Fatalf("testing didn't catch error on valid resource name")
 	}
 	invalidNamePrefix := ResourceID{"_name", "variant", FEATURE}
 	invalidVariantPrefix := ResourceID{"name", "_variant", FEATURE}
-	if err := resourceNamedSafely(invalidNamePrefix); err == nil {
+	if err := resourceNamedSafely(invalidNamePrefix, logger); err == nil {
 		t.Fatalf("testing didn't catch error on valid resource prefix")
 	}
-	if err := resourceNamedSafely(invalidVariantPrefix); err == nil {
+	if err := resourceNamedSafely(invalidVariantPrefix, logger); err == nil {
 		t.Fatalf("testing didn't catch error on valid variant prefix")
 	}
 	invalidNameSuffix := ResourceID{"name_", "variant", FEATURE}
 	invalidVariantSuffix := ResourceID{"name", "variant_", FEATURE}
-	if err := resourceNamedSafely(invalidNameSuffix); err == nil {
+	if err := resourceNamedSafely(invalidNameSuffix, logger); err == nil {
 		t.Fatalf("testing didn't catch error on valid resource prefix")
 	}
-	if err := resourceNamedSafely(invalidVariantSuffix); err == nil {
+	if err := resourceNamedSafely(invalidVariantSuffix, logger); err == nil {
 		t.Fatalf("testing didn't catch error on valid variant prefix")
 	}
 	validName := ResourceID{"name", "variant", FEATURE}
-	if err := resourceNamedSafely(validName); err != nil {
+	if err := resourceNamedSafely(validName, logger); err != nil {
 		t.Fatalf("valid resource triggered an error")
 	}
 }
@@ -2311,7 +2312,7 @@ func Test_GetEquivalent(t *testing.T) {
 		t.Fatalf("Failed to serialize source def: %s", err)
 	}
 	resourceVariant := &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto.SourceVariant}}
-	equivalent, err := serv.getEquivalent(resourceVariant, false)
+	equivalent, err := serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2333,7 +2334,7 @@ func Test_GetEquivalent(t *testing.T) {
 		t.Fatalf("Failed to serialize source def: %s", err)
 	}
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto2.SourceVariant}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2348,7 +2349,7 @@ func Test_GetEquivalent(t *testing.T) {
 		t.Fatalf("Failed to serialize label def: %s", err)
 	}
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_LabelVariant{lvProto.LabelVariant}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2364,7 +2365,7 @@ func Test_GetEquivalent(t *testing.T) {
 		t.Fatalf("Failed to serialize feature def: %s", err)
 	}
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto.FeatureVariant}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2376,7 +2377,7 @@ func Test_GetEquivalent(t *testing.T) {
 	}
 	fvProto, err = featureDef.Serialize(context)
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto.FeatureVariant}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2393,7 +2394,7 @@ func Test_GetEquivalent(t *testing.T) {
 		},
 	}
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto2.FeatureVariant}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2405,7 +2406,7 @@ func Test_GetEquivalent(t *testing.T) {
 	trainingSetDef.Description = "Some other description"
 	tsvProto := trainingSetDef.Serialize(context)
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2420,7 +2421,7 @@ func Test_GetEquivalent(t *testing.T) {
 	}
 	tsvProto = trainingSetDef.Serialize(context)
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2435,7 +2436,7 @@ func Test_GetEquivalent(t *testing.T) {
 	trainingSetDef.Label = NameVariant{"label_doesnt_exist", "variant"}
 	tsvProto = trainingSetDef.Serialize(context)
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}

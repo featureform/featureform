@@ -1640,8 +1640,6 @@ func (variant *FeatureVariant) IsOnDemand() bool {
 func (variant *FeatureVariant) IsEmbedding() bool {
 	t, err := variant.Type()
 	if err != nil {
-		fmt.Println("TYPE", err)
-		// This would only happen if the type is unable to be parsed
 		return false
 	}
 	if vec, ok := t.(types.VectorType); ok {
@@ -1653,8 +1651,6 @@ func (variant *FeatureVariant) IsEmbedding() bool {
 func (variant *FeatureVariant) Dimension() int32 {
 	t, err := variant.Type()
 	if err != nil {
-		// This would only happen if the type is unable to be parsed
-		fmt.Println("TYPE", err)
 		return -1
 	}
 	if vec, ok := t.(types.VectorType); ok {

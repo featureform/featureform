@@ -81,7 +81,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Run Container
-        run: docker run -p 7878:7878 -p 80:80 featureform > docker-logs.txt
+        run: docker run -d -p 7878:7878 -p 80:80 featureform
 
       - name: Setup Proto
         run: ./gen_grpc.sh
@@ -109,10 +109,3 @@ jobs:
         with:
           name: behave-reports
           path: ./tests/end_to_end/output/
-
-      - name: Archive docker logs
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: docker-logs
-          path: ./docker-logs.txt

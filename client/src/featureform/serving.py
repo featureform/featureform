@@ -176,9 +176,7 @@ class HostedClientImpl:
         else:
             return secure_channel(host, cert_path)
 
-    def training_set(
-        self, name, variation, model: Union[str, Model] = None
-    ):
+    def training_set(self, name, variation, model: Union[str, Model] = None):
         training_set_stream = TrainingSetStream(self._stub, name, variation, model)
         return Dataset(training_set_stream)
 

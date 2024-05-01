@@ -28,7 +28,26 @@ def step_impl(context, offline_provider_type):
     elif offline_provider_type.lower() == "bigquery":
         raise NotImplementedError("BigQuery registration is not implemented")
     elif offline_provider_type.lower() == "spark":
-        raise NotImplementedError("Spark registration is not implemented")
+        """
+        Need to register spark with s3 and databricks
+        TODO: modify this so you can create spark with different Filestore & Executor
+        """
+
+        # create a s3 filestore
+        context.execute_steps(
+            """
+            when I register "s3" filestore with bucket "featureform-spark-testing" and root path "behave"
+            """
+        )
+
+        # register databricks and spark
+        context.execute_steps(
+            """
+            when I register databricks
+            """
+        )
+        context.offline_provider = context.spark
+
     else:
         raise ValueError(f"Unknown offline provider {offline_provider_type}")
 
@@ -73,20 +92,31 @@ def step_impl(context, dataset_path):
 
 
 @when(
-    'I register a feature on "{feature_column}" with type "{feature_type}" with "{entity_column}" and "{label_column}"'
+    'I register a feature on "{feature_column}" with type "{feature_type}" with "{entity_column}", "{timestamp_column}", and "{label_column}"'
 )
-def step_impl(context, feature_column, feature_type, entity_column, label_column):
+def step_impl(
+    context, feature_column, feature_type, entity_column, timestamp_column, label_column
+):
+    if timestamp_column == "empty":
+        feature_dataset = context.dataset[[entity_column, feature_column]]
+        label_dataset = context.dataset[[entity_column, label_column]]
+    else:
+        feature_dataset = context.dataset[
+            [entity_column, feature_column, timestamp_column]
+        ]
+        label_dataset = context.dataset[[entity_column, label_column, timestamp_column]]
+
     @ff.entity
     class User:
         user_feature = ff.Feature(
-            context.dataset[[entity_column, feature_column]],
+            feature_dataset,
             type=ScalarType(
                 feature_type.lower()
             ),  # converts the string into Featureform type
             inference_store=context.online_provider,
         )
         user_label = ff.Label(
-            context.dataset[[entity_column, label_column]],
+            label_dataset,
             type=ff.Bool,
         )
 
@@ -129,16 +159,21 @@ def step_impl(context):
     raise ValueError("Expected an error but none was raised")
 
 
-@then("I can serve the registered feature with the model")
-def step_impl(context):
+@then(
+    'I can serve the registered feature with the model for "{user}" with "{expected_value}"'
+)
+def step_impl(context, user, expected_value):
     context.model = "fraud-model"
     feature = context.client.features(
         [(context.user_feature.name, context.user_feature.variant)],
-        {"user": "C5841053"},
+        {"user": user},
         model=context.model,
     )
 
-    assert len(feature) > 0
+    assert len(feature) == 1, f"Expected 1 feature but got {len(feature)}"
+    assert feature[0] == float(
+        expected_value
+    ), f"Expected {expected_value} but got {feature[0]}"
 
 
 @then("I cannot serve the non-existing training set with the model")
@@ -178,6 +213,7 @@ def step_impl(context):
         model=context.model,
     )
 
+    # TODO: check the output of the dataset
     training_dataset = dataset.repeat(10).shuffle(1000).batch(8)
     for i, feature_batch in enumerate(training_dataset):
         if i >= 1:

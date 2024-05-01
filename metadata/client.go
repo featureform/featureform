@@ -144,9 +144,6 @@ func (client *Client) CreateAll(ctx context.Context, defs []ResourceDef) error {
 }
 
 func (client *Client) Create(ctx context.Context, def ResourceDef) error {
-	// TODO: Can change this to AddResource but first need to figure out how to get the name and variant
-	childLogger := client.Logger.AddRequestID(logging.RequestID(logging.NewRequestID()))
-	ctxWithValue := context.WithValue(ctx, "logger", childLogger)
 	switch casted := def.(type) {
 	case FeatureDef:
 		return client.CreateFeatureVariant(ctx, casted)
@@ -159,7 +156,7 @@ func (client *Client) Create(ctx context.Context, def ResourceDef) error {
 	case UserDef:
 		return client.CreateUser(ctx, casted)
 	case ProviderDef:
-		return client.CreateProvider(ctxWithValue, casted)
+		return client.CreateProvider(ctx, casted)
 	case EntityDef:
 		return client.CreateEntity(ctx, casted)
 	case ModelDef:

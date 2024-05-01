@@ -50,6 +50,8 @@ def step_impl(context):
 def step_impl(context, storage_provider, bucket, root_path):
     from dotenv import load_dotenv
 
+    load_dotenv("../../../.env")
+
     run = ff.get_run()
 
     if root_path == "empty":

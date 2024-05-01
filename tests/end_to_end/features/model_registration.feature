@@ -9,11 +9,10 @@ Feature: Model Registration
     And I register a feature on "<feature_column>" with type "<feature_type>" with "<entity_column>", "<timestamp_column>", and "<label_column>"
     Then I can register a training set based on the feature
     And I cannot serve the non-existing feature with the model
-    And I can serve the registered feature with the model
+    And I can serve the registered feature with the model for "<user>" with "<expected_value>"
     And I cannot serve the non-existing training set with the model
     And I can serve the registered training set with the model
     
     Examples:
-      | online_provider_type | offline_provider_type | dataset_path |  feature_column   | feature_type | entity_column | timestamp_column | label_column |
-      |        redis         |        postgres       | transactions | transactionamount |    float64   |   customerid  |       empty      |   isfraud    |
-      |        redis         |        postgres       | transactions | transactionamount |    float64   |   customerid  |     timestamp    |   isfraud    |
+      | online_provider_type | offline_provider_type |                     dataset_path                      |  feature_column   | feature_type | entity_column | timestamp_column | label_column |   user   | expected_value |
+      |        redis         |        postgres       |                     transactions                      | transactionamount |    float64   |   customerid  |       empty      |   isfraud    | C5841053 |       25       |

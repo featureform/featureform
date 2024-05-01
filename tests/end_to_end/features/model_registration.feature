@@ -12,6 +12,7 @@ Feature: Model Registration
     And I can serve the registered feature with the model for "<user>" with "<expected_value>"
     And I cannot serve the non-existing training set with the model
     And I can serve the registered training set with the model
+    And I turn off autovariants
     
     Examples:
       | online_provider_type | offline_provider_type |                     dataset_path                      |  feature_column   | feature_type | entity_column | timestamp_column | label_column |   user   | expected_value |

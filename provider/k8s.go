@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/araddon/dateparse"
 	"github.com/featureform/metadata"
 	"github.com/parquet-go/parquet-go"
 	"github.com/pkg/errors"
@@ -1164,6 +1165,15 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 
 func castToTimestamp(timestamp interface{}) (time.Time, error) {
 	if ts, ok := timestamp.(time.Time); !ok {
+		// TODO: this is a temporary fix for the timestamp issue
+		if strForm, isString := timestamp.(string); isString {
+			dt, err := dateparse.ParseIn(strForm, time.UTC)
+			if err != nil {
+				return time.UnixMilli(0).UTC(), fferr.NewDataTypeNotFoundErrorf(timestamp, "could not parse timestamp as string")
+			}
+			return dt, nil
+		}
+
 		return time.UnixMilli(0).UTC(), fferr.NewDataTypeNotFoundErrorf(timestamp, "expected timestamp to be of type time.Time")
 	} else {
 		return ts, nil

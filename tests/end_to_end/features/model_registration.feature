@@ -15,4 +15,4 @@ Feature: Model Registration
     
     Examples:
       | online_provider_type | offline_provider_type |                     dataset_path                      |  feature_column   | feature_type | entity_column | timestamp_column | label_column |   user   | expected_value |
-      |        redis         |        postgres       |                     transactions                      | transactionamount |    float64   |   customerid  |       empty      |   isfraud    | C5841053 |       25       |
+      |        redis         |        postgres       |                     transactions                      | transactionamount |    float64   |   customerid  |       empty      |   isfraud    | C5841053 |      25.0      |

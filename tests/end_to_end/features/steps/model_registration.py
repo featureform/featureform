@@ -172,7 +172,7 @@ def step_impl(context, user, expected_value):
 
     assert len(feature) == 1, f"Expected 1 feature but got {len(feature)}"
     assert (
-        feature[0] == expected_value
+        feature[0] == float(expected_value)
     ), f"Expected {expected_value} but got {feature[0]}"
 
 

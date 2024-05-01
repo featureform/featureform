@@ -1183,7 +1183,7 @@ func castToTimestamp(timestamp interface{}) (time.Time, error) {
 		}
 		return dt, nil
 	default:
-		return time.UnixMilli(0).UTC(), fferr.NewDataTypeNotFoundErrorf(timestamp, "could not parse timestamp")
+		return time.UnixMilli(0).UTC(), fferr.NewDataTypeNotFoundErrorf(timestamp, "expected timestamp to be of type time.Time")
 	}
 }
 

@@ -1164,19 +1164,26 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 }
 
 func castToTimestamp(timestamp interface{}) (time.Time, error) {
-	if ts, ok := timestamp.(time.Time); !ok {
-		// TODO: this is a temporary fix for the timestamp issue
-		if strForm, isString := timestamp.(string); isString {
-			dt, err := dateparse.ParseIn(strForm, time.UTC)
-			if err != nil {
-				return time.UnixMilli(0).UTC(), fferr.NewDataTypeNotFoundErrorf(timestamp, "could not parse timestamp as string")
-			}
-			return dt, nil
+	switch timestamp.(type) {
+	case time.Time:
+		ts, ok := timestamp.(time.Time)
+		if !ok {
+			return time.UnixMilli(0).UTC(), fferr.NewDataTypeNotFoundErrorf(timestamp, "could not parse timestamp as time.Time")
 		}
-
-		return time.UnixMilli(0).UTC(), fferr.NewDataTypeNotFoundErrorf(timestamp, "expected timestamp to be of type time.Time")
-	} else {
 		return ts, nil
+	case string:
+		// TODO: this is a temporary fix for the timestamp issue
+		strForm, isString := timestamp.(string)
+		if !isString {
+			return time.UnixMilli(0).UTC(), fferr.NewDataTypeNotFoundErrorf(timestamp, "could not parse timestamp as string")
+		}
+		dt, err := dateparse.ParseIn(strForm, time.UTC)
+		if err != nil {
+			return time.UnixMilli(0).UTC(), fferr.NewDataTypeNotFoundErrorf(timestamp, "could not parse timestamp as string")
+		}
+		return dt, nil
+	default:
+		return time.UnixMilli(0).UTC(), fferr.NewDataTypeNotFoundErrorf(timestamp, "could not parse timestamp")
 	}
 }
 

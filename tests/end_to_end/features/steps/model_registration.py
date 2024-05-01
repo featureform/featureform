@@ -159,7 +159,9 @@ def step_impl(context):
     raise ValueError("Expected an error but none was raised")
 
 
-@then('I can serve the registered feature with the model for "{user}" with "{expected_value}"')
+@then(
+    'I can serve the registered feature with the model for "{user}" with "{expected_value}"'
+)
 def step_impl(context, user, expected_value):
     context.model = "fraud-model"
     feature = context.client.features(
@@ -169,7 +171,9 @@ def step_impl(context, user, expected_value):
     )
 
     assert len(feature) == 1, f"Expected 1 feature but got {len(feature)}"
-    assert feature[0] == expected_value, f"Expected {expected_value} but got {feature[0]}"
+    assert (
+        feature[0] == expected_value
+    ), f"Expected {expected_value} but got {feature[0]}"
 
 
 @then("I cannot serve the non-existing training set with the model")

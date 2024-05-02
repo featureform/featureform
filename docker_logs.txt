@@ -1,0 +1,231 @@
+2024-05-02 18:59:39,276 CRIT Supervisor is running as root.  Privileges were not dropped because no user is specified in the config file.  If you intend to run as root, you can set user=root in the config file to avoid this message.
+2024-05-02 18:59:39,276 INFO Included extra file "/etc/supervisor/conf.d/supervisord.conf" during parsing
+2024-05-02 18:59:39,279 INFO RPC interface 'supervisor' initialized
+2024-05-02 18:59:39,279 CRIT Server 'unix_http_server' running without any HTTP authentication checking
+2024-05-02 18:59:39,279 INFO supervisord started with pid 1
+2024-05-02 18:59:40,288 INFO spawned: 'api' with pid 7
+2024-05-02 18:59:40,292 INFO spawned: 'coordinator' with pid 8
+2024-05-02 18:59:40,296 INFO spawned: 'dashboard' with pid 9
+2024-05-02 18:59:40,300 INFO spawned: 'dashboard_backend' with pid 10
+2024-05-02 18:59:40,303 INFO spawned: 'dashboard_node' with pid 11
+2024-05-02 18:59:40,306 INFO spawned: 'etcd' with pid 12
+2024-05-02 18:59:40,309 INFO spawned: 'metadata' with pid 13
+2024-05-02 18:59:40,311 INFO spawned: 'search' with pid 14
+2024-05-02 18:59:40,314 INFO spawned: 'serving' with pid 15
+2024-05-02T18:59:40.485Z	INFO	metadata	server/server.go:38	Connecting to search	{"host": "", "port": ""}
+2024-05-02T18:59:40.487Z	DEBUG	metadata	metadata/metadata.go:1482	Creating new metadata serverAddress::8080
+running etcd on unsupported architecture "arm64" since ETCD_UNSUPPORTED_ARCH is set
+
+888b     d888          d8b 888 d8b                                            888
+8888b   d8888          Y8P 888 Y8P                                            888
+88888b.d88888              888                                                888
+888Y88888P888  .d88b.  888 888 888 .d8888b   .d88b.   8888b.  888d888 .d8888b 88888b.
+888 Y888P 888 d8P  Y8b 888 888 888 88K      d8P  Y8b     "88b 888P"  d88P"    888 "88b
+888  Y8P  888 88888888 888 888 888 "Y8888b. 88888888 .d888888 888    888      888  888
+888   "   888 Y8b.     888 888 888      X88 Y8b.     888  888 888    Y88b.    888  888
+888       888  "Y8888  888 888 888  88888P'  "Y8888  "Y888888 888     "Y8888P 888  888
+
+Config file path:	"none"
+Database path:		"./data.ms"
+Server listening on:	"http://localhost:7700"
+Environment:		"development"
+Commit SHA:		"unknown"
+Commit date:		"unknown"
+Package version:	"1.7.6"
+
+Thank you for using Meilisearch!
+
+
+We collect anonymized analytics to improve our product and your experience. To learn more, including how to turn off analytics, visit our dedicated documentation page: https://www.meilisearch.com/docs/learn/what_is_meilisearch/telemetry
+
+Anonymous telemetry:	"Enabled"
+Instance UID:		"d7655eb3-f1b9-4532-a224-f15c89314844"
+
+
+
+ No master key was found. The server will accept unidentified requests.
+
+ A master key of at least 16 bytes will be required when switching to a production environment.
+
+
+We generated a new secure master key for you (you can safely use this token):
+
+>> --master-key YAlxmakBFMVrvV8h1TPUymgNYxGawgSWuExsv3w1O4A <<
+
+Restart Meilisearch with the argument above to use this new and secure master key.
+
+Check out Meilisearch Cloud!	https://www.meilisearch.com/cloud?utm_campaign=oss&utm_source=engine&utm_medium=cli
+Documentation:			https://www.meilisearch.com/docs
+Source code:			https://github.com/meilisearch/meilisearch
+Discord:			https://discord.meilisearch.com
+
+connecting to etcd: localhost:2379
+connecting to metadata: localhost:8080
+Error loading .env file
+starting HTTP server on port :84432024-05-02T18:59:40.710Z	INFO	serve	api/main.go:1145	Starting server	{"address": "0.0.0.0:7878"}
+2024-05-02T18:59:40.717Z	INFO	serve	api/main.go:1179	Created metadata client successfully.
+time="2024-05-02T18:59:40Z" level=info msg="[core] [Server #7] Server created" system=system
+2024-05-02T18:59:40.718Z	INFO	api-gateway	api/main.go:1227	Server starting	{"Address": "[::]:7878"}
+time="2024-05-02T18:59:40Z" level=info msg="[core] [Server #7 ListenSocket #8] ListenSocket created" system=system
+time="2024-05-02T18:59:40Z" level=info msg="[core] [pick-first-lb 0x40017590e0] Received SubConn state update: 0x4001759170, {ConnectivityState:CONNECTING ConnectionError:<nil>}" system=system
+time="2024-05-02T18:59:40Z" level=info msg="[core] [pick-first-lb 0x4001758de0] Received SubConn state update: 0x4001758e70, {ConnectivityState:CONNECTING ConnectionError:<nil>}" system=system
+time="2024-05-02T18:59:40Z" level=info msg="[core] Creating new client transport to \"{Addr: \\\"0.0.0.0:8082\\\", ServerName: \\\"0.0.0.0:8082\\\", }\": connection error: desc = \"transport: Error while dialing: dial tcp 0.0.0.0:8082: connect: connection refused\"" system=system
+time="2024-05-02T18:59:40Z" level=warning msg="[core] [Channel #3 SubChannel #4] grpc: addrConn.createTransport failed to connect to {Addr: \"0.0.0.0:8082\", ServerName: \"0.0.0.0:8082\", }. Err: connection error: desc = \"transport: Error while dialing: dial tcp 0.0.0.0:8082: connect: connection refused\"" system=system
+time="2024-05-02T18:59:40Z" level=info msg="[core] [Channel #3 SubChannel #4] Subchannel Connectivity change to TRANSIENT_FAILURE, last error: connection error: desc = \"transport: Error while dialing: dial tcp 0.0.0.0:8082: connect: connection refused\"" system=system
+time="2024-05-02T18:59:40Z" level=info msg="[core] [pick-first-lb 0x4001758de0] Received SubConn state update: 0x4001758e70, {ConnectivityState:TRANSIENT_FAILURE ConnectionError:connection error: desc = \"transport: Error while dialing: dial tcp 0.0.0.0:8082: connect: connection refused\"}" system=system
+time="2024-05-02T18:59:40Z" level=info msg="[core] [Channel #3] Channel Connectivity change to TRANSIENT_FAILURE" system=system
+time="2024-05-02T18:59:40Z" level=info msg="[core] Creating new client transport to \"{Addr: \\\"localhost:8080\\\", ServerName: \\\"localhost:8080\\\", }\": connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"" system=system
+time="2024-05-02T18:59:40Z" level=warning msg="[core] [Channel #1 SubChannel #2] grpc: addrConn.createTransport failed to connect to {Addr: \"localhost:8080\", ServerName: \"localhost:8080\", }. Err: connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"" system=system
+time="2024-05-02T18:59:40Z" level=info msg="[core] [Channel #1 SubChannel #2] Subchannel Connectivity change to TRANSIENT_FAILURE, last error: connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"" system=system
+time="2024-05-02T18:59:40Z" level=info msg="[core] [pick-first-lb 0x4001758a80] Received SubConn state update: 0x4001758b10, {ConnectivityState:TRANSIENT_FAILURE ConnectionError:connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"}" system=system
+time="2024-05-02T18:59:40Z" level=info msg="[core] [Channel #1] Channel Connectivity change to TRANSIENT_FAILURE" system=system
+time="2024-05-02T18:59:40Z" level=info msg="[core] Creating new client transport to \"{Addr: \\\"localhost:8080\\\", ServerName: \\\"localhost:8080\\\", }\": connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"" system=system
+time="2024-05-02T18:59:40Z" level=warning msg="[core] [Channel #5 SubChannel #6] grpc: addrConn.createTransport failed to connect to {Addr: \"localhost:8080\", ServerName: \"localhost:8080\", }. Err: connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"" system=system
+time="2024-05-02T18:59:40Z" level=info msg="[core] [Channel #5 SubChannel #6] Subchannel Connectivity change to TRANSIENT_FAILURE, last error: connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"" system=system
+time="2024-05-02T18:59:40Z" level=info msg="[core] [pick-first-lb 0x40017590e0] Received SubConn state update: 0x4001759170, {ConnectivityState:TRANSIENT_FAILURE ConnectionError:connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"}" system=system
+time="2024-05-02T18:59:40Z" level=info msg="[core] [Channel #5] Channel Connectivity change to TRANSIENT_FAILURE" system=system
+{"level":"info","msg":"Connecting to typesense at: http://localhost:7700\n"}
+2024-05-02T18:59:40.733Z	DEBUG	serving	serving/serving.go:33	Creating new training data server
+2024-05-02T18:59:40.736Z	INFO	serving	main/main.go:51	Serving metrics	{"Port": ":9090"}
+2024-05-02T18:59:40.736Z	INFO	serving	main/main.go:53	Server starting	{"Port": "0.0.0.0:8082"}
+{"level":"info","msg":"Looking for metadata at: localhost:8080\n"}
+{"level":"debug","msg":"Creating new metadata server"}
+{"level":"warn","ts":"2024-05-02T18:59:40.817Z","logger":"etcd-client","caller":"v3@v3.5.6/retry_interceptor.go:62","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x40017e5a40/localhost:2379","attempt":0,"error":"rpc error: code = FailedPrecondition desc = etcdserver: authentication is not enabled"}
+connected to etcd
+2024-05-02T18:59:40.818Z	DEBUG	coordinator	main/main.go:43	Connected to ETCD
+2024-05-02T18:59:40.819Z	DEBUG	coordinator	main/main.go:49	Connected to Metadata
+2024-05-02T18:59:40.819Z	INFO	coordinator	coordinator/coordinator.go:244	Creating new coordinator
+2024-05-02T18:59:40.819Z	DEBUG	coordinator	main/main.go:61	Begin Job Watch
+2024-05-02T18:59:40.819Z	INFO	coordinator	coordinator/coordinator.go:272	Watching for new jobs
+{"level":"warn","ts":"2024-05-02T18:59:40.817Z","logger":"etcd-client","caller":"v3@v3.5.6/retry_interceptor.go:62","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x40010c61c0/localhost:2379","attempt":0,"error":"rpc error: code = FailedPrecondition desc = etcdserver: authentication is not enabled"}
+{"level":"info","msg":"Serving HTTP Metadata on port: :3001\n"}
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /data/:type               --> main.(*MetadataServer).GetMetadataList-fm (4 handlers)
+[GIN-debug] GET    /data/:type/:resource     --> main.(*MetadataServer).GetMetadata-fm (4 handlers)
+[GIN-debug] GET    /data/search              --> main.(*MetadataServer).GetSearch-fm (4 handlers)
+[GIN-debug] GET    /data/version             --> main.(*MetadataServer).GetVersionMap-fm (4 handlers)
+[GIN-debug] GET    /data/sourcedata          --> main.(*MetadataServer).GetSourceData-fm (4 handlers)
+[GIN-debug] GET    /data/filestatdata        --> main.(*MetadataServer).GetFeatureFileStats-fm (4 handlers)
+[GIN-debug] POST   /data/:type/:resource/gettags --> main.(*MetadataServer).GetTags-fm (4 handlers)
+[GIN-debug] POST   /data/:type/:resource/tags --> main.(*MetadataServer).PostTags-fm (4 handlers)
+[GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
+Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.
+[GIN-debug] Listening and serving HTTP on :3001
+{"level":"warn","ts":"2024-05-02T18:59:40.820Z","logger":"etcd-client","caller":"v3@v3.5.6/retry_interceptor.go:62","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x40017e5a40/localhost:2379","attempt":0,"error":"rpc error: code = FailedPrecondition desc = etcdserver: authentication is not enabled"}
+Listening on port 3000
+{"level":"warn","ts":"2024-05-02T18:59:41.494Z","logger":"etcd-client","caller":"v3@v3.5.6/retry_interceptor.go:62","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x400041e1c0/localhost:2379","attempt":0,"error":"rpc error: code = DeadlineExceeded desc = latest balancer error: last connection error: connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:2379: connect: connection refused\""}
+2024-05-02 18:59:41,494 INFO success: api entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+2024-05-02 18:59:41,494 INFO success: coordinator entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+2024-05-02 18:59:41,494 INFO success: dashboard entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+2024-05-02 18:59:41,494 INFO success: dashboard_backend entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+2024-05-02 18:59:41,494 INFO success: dashboard_node entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+2024-05-02 18:59:41,494 INFO success: etcd entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+2024-05-02 18:59:41,494 INFO success: metadata entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+2024-05-02 18:59:41,494 INFO success: search entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+2024-05-02 18:59:41,494 INFO success: serving entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+2024-05-02T18:59:41.495Z	ERROR	metadata	metadata/metadata.go:1486	Could not get resource lookup	{"error": "Internal Error: context deadline exceeded\n"}
+github.com/featureform/metadata.NewMetadataServer
+	/app/metadata/metadata.go:1486
+main.main
+	/app/metadata/server/server.go:46
+runtime.main
+	/usr/local/go/src/runtime/proc.go:267
+2024-05-02T18:59:41.495Z	PANIC	metadata	server/server.go:48	Failed to create metadata server	{"Err": "Internal Error: context deadline exceeded\n"}
+main.main
+	/app/metadata/server/server.go:48
+runtime.main
+	/usr/local/go/src/runtime/proc.go:267
+panic: Failed to create metadata server
+
+goroutine 1 [running]:
+go.uber.org/zap/zapcore.CheckWriteAction.OnWrite(0x80?, 0x1?, {0x2?, 0x0?, 0x0?})
+	/go/pkg/mod/go.uber.org/zap@v1.27.0/zapcore/entry.go:196 +0x78
+go.uber.org/zap/zapcore.(*CheckedEntry).Write(0x4000118340, {0x4000138180, 0x1, 0x2})
+	/go/pkg/mod/go.uber.org/zap@v1.27.0/zapcore/entry.go:262 +0x2c0
+go.uber.org/zap.(*SugaredLogger).log(0x40001952e8, 0x4, {0x83ae2e?, 0x14?}, {0x0?, 0x0?, 0x0?}, {0x400009de80, 0x2, 0x2})
+	/go/pkg/mod/go.uber.org/zap@v1.27.0/sugar.go:355 +0xe8
+go.uber.org/zap.(*SugaredLogger).Panicw(...)
+	/go/pkg/mod/go.uber.org/zap@v1.27.0/sugar.go:282
+main.main()
+	/app/metadata/server/server.go:48 +0x4b0
+2024-05-02 18:59:41,498 WARN exited: metadata (exit status 2; not expected)
+time="2024-05-02T18:59:41Z" level=info msg="[core] [Channel #3 SubChannel #4] Subchannel Connectivity change to IDLE, last error: connection error: desc = \"transport: Error while dialing: dial tcp 0.0.0.0:8082: connect: connection refused\"" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [pick-first-lb 0x4001758de0] Received SubConn state update: 0x4001758e70, {ConnectivityState:IDLE ConnectionError:connection error: desc = \"transport: Error while dialing: dial tcp 0.0.0.0:8082: connect: connection refused\"}" system=system
+2024-05-02 18:59:41,721 INFO spawned: 'metadata' with pid 93
+time="2024-05-02T18:59:41Z" level=info msg="[core] [Channel #1 SubChannel #2] Subchannel Connectivity change to IDLE, last error: connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [pick-first-lb 0x4001758a80] Received SubConn state update: 0x4001758b10, {ConnectivityState:IDLE ConnectionError:connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"}" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [Channel #3 SubChannel #4] Subchannel Connectivity change to CONNECTING" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [Channel #3 SubChannel #4] Subchannel picks a new address \"0.0.0.0:8082\" to connect" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [Channel #5 SubChannel #6] Subchannel Connectivity change to IDLE, last error: connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [pick-first-lb 0x40017590e0] Received SubConn state update: 0x4001759170, {ConnectivityState:IDLE ConnectionError:connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"}" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [Channel #5 SubChannel #6] Subchannel Connectivity change to CONNECTING" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [Channel #5 SubChannel #6] Subchannel picks a new address \"localhost:8080\" to connect" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [Channel #1 SubChannel #2] Subchannel Connectivity change to CONNECTING" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [Channel #1 SubChannel #2] Subchannel picks a new address \"localhost:8080\" to connect" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [pick-first-lb 0x4001758de0] Received SubConn state update: 0x4001758e70, {ConnectivityState:CONNECTING ConnectionError:<nil>}" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [pick-first-lb 0x40017590e0] Received SubConn state update: 0x4001759170, {ConnectivityState:CONNECTING ConnectionError:<nil>}" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [pick-first-lb 0x4001758a80] Received SubConn state update: 0x4001758b10, {ConnectivityState:CONNECTING ConnectionError:<nil>}" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] Creating new client transport to \"{Addr: \\\"localhost:8080\\\", ServerName: \\\"localhost:8080\\\", }\": connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"" system=system
+time="2024-05-02T18:59:41Z" level=warning msg="[core] [Channel #5 SubChannel #6] grpc: addrConn.createTransport failed to connect to {Addr: \"localhost:8080\", ServerName: \"localhost:8080\", }. Err: connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [Channel #5 SubChannel #6] Subchannel Connectivity change to TRANSIENT_FAILURE, last error: connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [pick-first-lb 0x40017590e0] Received SubConn state update: 0x4001759170, {ConnectivityState:TRANSIENT_FAILURE ConnectionError:connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"}" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] Creating new client transport to \"{Addr: \\\"localhost:8080\\\", ServerName: \\\"localhost:8080\\\", }\": connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"" system=system
+time="2024-05-02T18:59:41Z" level=warning msg="[core] [Channel #1 SubChannel #2] grpc: addrConn.createTransport failed to connect to {Addr: \"localhost:8080\", ServerName: \"localhost:8080\", }. Err: connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [Channel #1 SubChannel #2] Subchannel Connectivity change to TRANSIENT_FAILURE, last error: connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [pick-first-lb 0x4001758a80] Received SubConn state update: 0x4001758b10, {ConnectivityState:TRANSIENT_FAILURE ConnectionError:connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"}" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [Channel #3 SubChannel #4] Subchannel Connectivity change to READY" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [pick-first-lb 0x4001758de0] Received SubConn state update: 0x4001758e70, {ConnectivityState:READY ConnectionError:<nil>}" system=system
+time="2024-05-02T18:59:41Z" level=info msg="[core] [Channel #3] Channel Connectivity change to READY" system=system
+2024-05-02T18:59:41.728Z	INFO	metadata	server/server.go:38	Connecting to search	{"host": "", "port": ""}
+2024-05-02T18:59:41.728Z	DEBUG	metadata	metadata/metadata.go:1482	Creating new metadata serverAddress::8080
+{"level":"warn","ts":"2024-05-02T18:59:41.730Z","logger":"etcd-client","caller":"v3@v3.5.6/retry_interceptor.go:62","msg":"retrying of unary invoker failed","target":"etcd-endpoints://0x400037a1c0/localhost:2379","attempt":0,"error":"rpc error: code = FailedPrecondition desc = etcdserver: authentication is not enabled"}
+2024-05-02T18:59:41.736Z	INFO	metadata	metadata/metadata.go:1523	Server starting	{"Address": "[::]:8080"}
+2024-05-02 18:59:42,738 INFO success: metadata entered RUNNING state, process has stayed up for > than 1 seconds (startsecs)
+time="2024-05-02T18:59:43Z" level=info msg="[core] [Channel #5 SubChannel #6] Subchannel Connectivity change to IDLE, last error: connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"" system=system
+time="2024-05-02T18:59:43Z" level=info msg="[core] [pick-first-lb 0x40017590e0] Received SubConn state update: 0x4001759170, {ConnectivityState:IDLE ConnectionError:connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"}" system=system
+time="2024-05-02T18:59:43Z" level=info msg="[core] [Channel #5 SubChannel #6] Subchannel Connectivity change to CONNECTING" system=system
+time="2024-05-02T18:59:43Z" level=info msg="[core] [Channel #5 SubChannel #6] Subchannel picks a new address \"localhost:8080\" to connect" system=system
+time="2024-05-02T18:59:43Z" level=info msg="[core] [pick-first-lb 0x40017590e0] Received SubConn state update: 0x4001759170, {ConnectivityState:CONNECTING ConnectionError:<nil>}" system=system
+time="2024-05-02T18:59:43Z" level=info msg="[core] [Channel #5 SubChannel #6] Subchannel Connectivity change to READY" system=system
+time="2024-05-02T18:59:43Z" level=info msg="[core] [pick-first-lb 0x40017590e0] Received SubConn state update: 0x4001759170, {ConnectivityState:READY ConnectionError:<nil>}" system=system
+time="2024-05-02T18:59:43Z" level=info msg="[core] [Channel #5] Channel Connectivity change to READY" system=system
+time="2024-05-02T18:59:43Z" level=info msg="[core] [Channel #1 SubChannel #2] Subchannel Connectivity change to IDLE, last error: connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"" system=system
+time="2024-05-02T18:59:43Z" level=info msg="[core] [pick-first-lb 0x4001758a80] Received SubConn state update: 0x4001758b10, {ConnectivityState:IDLE ConnectionError:connection error: desc = \"transport: Error while dialing: dial tcp 127.0.0.1:8080: connect: connection refused\"}" system=system
+time="2024-05-02T18:59:43Z" level=info msg="[core] [Channel #1 SubChannel #2] Subchannel Connectivity change to CONNECTING" system=system
+time="2024-05-02T18:59:43Z" level=info msg="[core] [Channel #1 SubChannel #2] Subchannel picks a new address \"localhost:8080\" to connect" system=system
+time="2024-05-02T18:59:43Z" level=info msg="[core] [pick-first-lb 0x4001758a80] Received SubConn state update: 0x4001758b10, {ConnectivityState:CONNECTING ConnectionError:<nil>}" system=system
+time="2024-05-02T18:59:43Z" level=info msg="[core] [Channel #1 SubChannel #2] Subchannel Connectivity change to READY" system=system
+time="2024-05-02T18:59:43Z" level=info msg="[core] [pick-first-lb 0x4001758a80] Received SubConn state update: 0x4001758b10, {ConnectivityState:READY ConnectionError:<nil>}" system=system
+time="2024-05-02T18:59:43Z" level=info msg="[core] [Channel #1] Channel Connectivity change to READY" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #5] Closing the name resolver" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #3] Closing the name resolver" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #5] ccBalancerWrapper: closing" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #3] ccBalancerWrapper: closing" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #5] Channel Connectivity change to IDLE" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #5] Channel entering idle mode" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #1] Closing the name resolver" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #1] ccBalancerWrapper: closing" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #1] Channel Connectivity change to IDLE" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #1] Channel entering idle mode" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #3] Channel Connectivity change to IDLE" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #3] Channel entering idle mode" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #5 SubChannel #6] Subchannel Connectivity change to SHUTDOWN" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #5 SubChannel #6] Subchannel deleted" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[transport] [client-transport 0x4000cf2240] GracefulClose called" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[transport] [client-transport 0x4000cf2240] Closing: connection error: desc = \"no active streams left to process while draining\"" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #3 SubChannel #4] Subchannel Connectivity change to SHUTDOWN" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #3 SubChannel #4] Subchannel deleted" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[transport] [client-transport 0x4001656000] GracefulClose called" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[transport] [client-transport 0x4001656000] Closing: connection error: desc = \"no active streams left to process while draining\"" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #1 SubChannel #2] Subchannel Connectivity change to SHUTDOWN" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[core] [Channel #1 SubChannel #2] Subchannel deleted" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[transport] [client-transport 0x4001656240] GracefulClose called" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[transport] [client-transport 0x4001656240] Closing: connection error: desc = \"no active streams left to process while draining\"" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[transport] [client-transport 0x4001656000] loopyWriter exiting with error: transport closed by client" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[transport] [client-transport 0x4000cf2240] loopyWriter exiting with error: transport closed by client" system=system
+time="2024-05-02T20:19:26Z" level=info msg="[transport] [client-transport 0x4001656240] loopyWriter exiting with error: transport closed by client" system=system

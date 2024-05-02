@@ -1880,17 +1880,32 @@ if we should only return the equivalent resource variant if it is ready.
 func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.ResourceVariant, filterReadyStatus bool) (*pb.ResourceVariant, error) {
 	noEquivalentResponse := &pb.ResourceVariant{}
 	logger := logging.GetLoggerFromContext(ctx)
-
 	currentResource, resourceType, err := serv.extractResourceVariant(req)
 	if err != nil {
 		logger.Errorw("Error extracting resource variant", "resource variant", req, "error", err)
 		return nil, err
 	}
-	if currentResource == nil {
-		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("resource variant is nil"))
-	}
 	resourceProto := currentResource.ToResourceVariantProto()
-	logger = logger.WithResource(resourceType.String(), resourceProto.GetFeatureVariant().Name, resourceProto.GetFeatureVariant().Variant)
+	var resourceName string
+	var resourceVariant string
+	switch resourceType {
+	case SOURCE_VARIANT:
+		resourceName = resourceProto.GetSourceVariant().Name
+		resourceVariant = resourceProto.GetSourceVariant().Variant
+	case FEATURE_VARIANT:
+		resourceName = resourceProto.GetFeatureVariant().Name
+		resourceVariant = resourceProto.GetFeatureVariant().Variant
+	case LABEL_VARIANT:
+		resourceName = resourceProto.GetLabelVariant().Name
+		resourceVariant = resourceProto.GetLabelVariant().Variant
+	case TRAINING_SET_VARIANT:
+		resourceName = resourceProto.GetTrainingSetVariant().Name
+		resourceVariant = resourceProto.GetTrainingSetVariant().Variant
+	default:
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("unknown resource variant type: %T", req.Resource))
+	}
+	logger = logger.WithResource(resourceType.String(), resourceName, resourceVariant)
+
 	resourcesForType, err := serv.lookup.ListForType(resourceType)
 	if err != nil {
 		logger.Errorw("Unable to list resources", "error", err)

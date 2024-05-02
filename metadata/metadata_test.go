@@ -8,12 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/stretchr/testify/assert"
 	grpc_status "google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 
 	pc "github.com/featureform/provider/provider_config"

@@ -248,7 +248,7 @@ func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
 		allTags = res.(*featureVariantResource).serialized.FeatureVariant.Tags.Tag
 
 	case *labelVariantResource:
-		allTags = res.(*labelVariantResource).serialized.Tags.Tag
+		allTags = res.(*labelVariantResource).serialized.LabelVariant.Tags.Tag
 
 	case *trainingSetVariantResource:
 		allTags = res.(*trainingSetVariantResource).serialized.TrainingSetVariant.Tags.Tag
@@ -839,13 +839,13 @@ func (resource *labelResource) Update(lookup ResourceLookup, updateRes Resource)
 }
 
 type labelVariantResource struct {
-	serialized *pb.LabelVariant
+	serialized *pb.LabelVariantRequest
 }
 
 func (resource *labelVariantResource) ID() ResourceID {
 	return ResourceID{
-		Name:    resource.serialized.Name,
-		Variant: resource.serialized.Variant,
+		Name:    resource.serialized.LabelVariant.Name,
+		Variant: resource.serialized.LabelVariant.Variant,
 		Type:    LABEL_VARIANT,
 	}
 }
@@ -858,24 +858,24 @@ func (resource *labelVariantResource) Dependencies(lookup ResourceLookup) (Resou
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
-			Name:    serialized.Source.Name,
-			Variant: serialized.Source.Variant,
+			Name:    serialized.LabelVariant.Source.Name,
+			Variant: serialized.LabelVariant.Source.Variant,
 			Type:    SOURCE_VARIANT,
 		},
 		{
-			Name: serialized.Entity,
+			Name: serialized.LabelVariant.Entity,
 			Type: ENTITY,
 		},
 		{
-			Name: serialized.Owner,
+			Name: serialized.LabelVariant.Owner,
 			Type: USER,
 		},
 		{
-			Name: serialized.Provider,
+			Name: serialized.LabelVariant.Provider,
 			Type: PROVIDER,
 		},
 		{
-			Name: serialized.Name,
+			Name: serialized.LabelVariant.Name,
 			Type: LABEL,
 		},
 	}
@@ -898,16 +898,16 @@ func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, th
 		return nil
 	}
 	key := id.Proto()
-	this.serialized.Trainingsets = append(this.serialized.Trainingsets, key)
+	this.serialized.LabelVariant.Trainingsets = append(this.serialized.LabelVariant.Trainingsets, key)
 	return nil
 }
 
 func (resource *labelVariantResource) GetStatus() *pb.ResourceStatus {
-	return resource.serialized.GetStatus()
+	return resource.serialized.LabelVariant.GetStatus()
 }
 
 func (resource *labelVariantResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
+	resource.serialized.LabelVariant.Status = &status
 	return nil
 }
 
@@ -922,8 +922,8 @@ func (resource *labelVariantResource) Update(lookup ResourceLookup, updateRes Re
 	if !ok {
 		return fferr.NewInternalError(fmt.Errorf("failed to deserialize existing label variant record"))
 	}
-	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
-	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
+	resource.serialized.LabelVariant.Tags = UnionTags(resource.serialized.LabelVariant.Tags, variantUpdate.Tags)
+	resource.serialized.LabelVariant.Properties = mergeProperties(resource.serialized.LabelVariant.Properties, variantUpdate.Properties)
 	return nil
 }
 
@@ -945,12 +945,12 @@ func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) (bool,
 	thisProto := resource.serialized
 	otherProto := otherVariant.serialized
 
-	if thisProto.GetName() == otherProto.GetName() &&
-		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
-		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns()) &&
-		thisProto.Entity == otherProto.Entity &&
-		proto.Equal(thisProto.GetType(), otherProto.GetType()) &&
-		thisProto.Owner == otherProto.Owner {
+	if thisProto.LabelVariant.GetName() == otherProto.LabelVariant.GetName() &&
+		proto.Equal(thisProto.LabelVariant.GetSource(), otherProto.LabelVariant.GetSource()) &&
+		proto.Equal(thisProto.LabelVariant.GetColumns(), otherProto.LabelVariant.GetColumns()) &&
+		thisProto.LabelVariant.Entity == otherProto.LabelVariant.Entity &&
+		proto.Equal(thisProto.LabelVariant.GetType(), otherProto.LabelVariant.GetType()) &&
+		thisProto.LabelVariant.Owner == otherProto.LabelVariant.Owner {
 
 		return true, nil
 	}
@@ -1611,8 +1611,8 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variantReq
 	logger.Info("Creating Feature Variant")
 	ctx = logging.UpdateContext(ctx, logger, variantRequest.RequestId)
 
-	variant := variantRequest.FeatureVariant
-	variant.Created = tspb.New(time.Now())
+	variant := variantRequest
+	variant.FeatureVariant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &featureVariantResource{variant}, func(name, variant string) Resource {
 		return &featureResource{
 			&pb.Feature{
@@ -1654,8 +1654,8 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variantReque
 	logger.Info("Creating Label Variant")
 	ctx = logging.UpdateContext(ctx, logger, variantRequest.RequestId)
 
-	variant := variantRequest.LabelVariant
-	variant.Created = tspb.New(time.Now())
+	variant := variantRequest
+	variant.LabelVariant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &labelVariantResource{variant}, func(name, variant string) Resource {
 		return &labelResource{
 			&pb.Label{
@@ -1740,8 +1740,8 @@ func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variantRequ
 	logger.Info("Creating Source Variant")
 	ctx = logging.UpdateContext(ctx, logger, variantRequest.RequestId)
 
-	variant := variantRequest.SourceVariant
-	variant.Created = tspb.New(time.Now())
+	variant := variantRequest
+	variant.SourceVariant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &sourceVariantResource{variant}, func(name, variant string) Resource {
 		return &SourceResource{
 			&pb.Source{

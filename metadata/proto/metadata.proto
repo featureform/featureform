@@ -207,11 +207,6 @@ message ResourceVariant {
     }
 }
 
-message ResourceVariantRequest {
-    ResourceVariant resource_variant = 1;
-    string request_id = 2;
-}
-
 message FeatureVariant {
     string name = 1;
     string variant = 2;

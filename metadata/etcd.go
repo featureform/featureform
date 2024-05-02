@@ -258,13 +258,13 @@ func (lookup EtcdResourceLookup) createEmptyResource(t ResourceType) (Resource, 
 		resource = &featureResource{&pb.Feature{}}
 		break
 	case FEATURE_VARIANT:
-		resource = &featureVariantResource{&pb.FeatureVariant{}}
+		resource = &featureVariantResource{&pb.FeatureVariantRequest{}}
 		break
 	case LABEL:
 		resource = &labelResource{&pb.Label{}}
 		break
 	case LABEL_VARIANT:
-		resource = &labelVariantResource{&pb.LabelVariant{}}
+		resource = &labelVariantResource{&pb.LabelVariantRequest{}}
 		break
 	case USER:
 		resource = &userResource{&pb.User{}}
@@ -279,13 +279,13 @@ func (lookup EtcdResourceLookup) createEmptyResource(t ResourceType) (Resource, 
 		resource = &SourceResource{&pb.Source{}}
 		break
 	case SOURCE_VARIANT:
-		resource = &sourceVariantResource{&pb.SourceVariant{}}
+		resource = &sourceVariantResource{&pb.SourceVariantRequest{}}
 		break
 	case TRAINING_SET:
 		resource = &trainingSetResource{&pb.TrainingSet{}}
 		break
 	case TRAINING_SET_VARIANT:
-		resource = &trainingSetVariantResource{&pb.TrainingSetVariant{}}
+		resource = &trainingSetVariantResource{&pb.TrainingSetVariantRequest{}}
 		break
 	case MODEL:
 		resource = &modelResource{&pb.Model{}}

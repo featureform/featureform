@@ -64,11 +64,15 @@ func Test_EtcdResourceLookup_Set(t *testing.T) {
 
 	args1 := args{
 		ResourceID{Name: "test", Variant: FEATURE_VARIANT.String(), Type: FEATURE},
-		&featureVariantResource{&pb.FeatureVariant{
-			Name:    "featureVariantResource",
-			Type:    types.Float32.ToProto(),
-			Created: tspb.Now(),
-		}},
+		&featureVariantResource{
+			&pb.FeatureVariantRequest{
+				FeatureVariant: &pb.FeatureVariant{
+					Name:    "featureVariantResource",
+					Type:    types.Float32.ToProto(),
+					Created: tspb.Now(),
+				},
+				RequestId: "request1"},
+		},
 	}
 	tests := []struct {
 		name    string
@@ -110,7 +114,7 @@ func Test_EtcdResourceLookup_Set(t *testing.T) {
 			cancel()
 			value := resp.Kvs[0].Value
 			resource := featureVariantResource{
-				&pb.FeatureVariant{},
+				&pb.FeatureVariantRequest{},
 			}
 
 			var msg EtcdRowTemp
@@ -134,11 +138,15 @@ func Test_EtcdResourceLookup_Lookup(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	doWant := &featureVariantResource{&pb.FeatureVariant{
-		Name:    "featureVariant",
-		Type:    types.Float32.ToProto(),
-		Created: tspb.Now(),
-	}}
+	doWant := &featureVariantResource{&pb.FeatureVariantRequest{
+		FeatureVariant: &pb.FeatureVariant{
+			Name:    "featureVariant",
+			Type:    types.Float32.ToProto(),
+			Created: tspb.Now(),
+		},
+		RequestId: "request1",
+	},
+	}
 
 	args1 := ResourceID{Name: "test2", Type: FEATURE}
 
@@ -220,10 +228,12 @@ func Test_EtcdResourceLookup_Has(t *testing.T) {
 	type args struct {
 		id ResourceID
 	}
-	doWant := &featureVariantResource{&pb.FeatureVariant{
-		Name:    "resource1",
-		Type:    types.Float32.ToProto(),
-		Created: tspb.Now(),
+	doWant := &featureVariantResource{&pb.FeatureVariantRequest{
+		FeatureVariant: &pb.FeatureVariant{
+			Name:    "resource1",
+			Created: tspb.Now(),
+		},
+		RequestId: "request1",
 	}}
 	args1 := args{
 		ResourceID{
@@ -313,17 +323,26 @@ func Test_EtcdResourceLookup_ListForType(t *testing.T) {
 	}
 
 	featureResources := []Resource{
-		&featureVariantResource{&pb.FeatureVariant{
-			Name:    "feature1",
-			Created: tspb.Now(),
+		&featureVariantResource{&pb.FeatureVariantRequest{
+			FeatureVariant: &pb.FeatureVariant{
+				Name:    "feature1",
+				Created: tspb.Now(),
+			},
+			RequestId: "request1",
 		}},
-		&featureVariantResource{&pb.FeatureVariant{
-			Name:    "feature2",
-			Created: tspb.Now(),
+		&featureVariantResource{&pb.FeatureVariantRequest{
+			FeatureVariant: &pb.FeatureVariant{
+				Name:    "feature2",
+				Created: tspb.Now(),
+			},
+			RequestId: "request2",
 		}},
-		&featureVariantResource{&pb.FeatureVariant{
-			Name:    "feature3",
-			Created: tspb.Now(),
+		&featureVariantResource{&pb.FeatureVariantRequest{
+			FeatureVariant: &pb.FeatureVariant{
+				Name:    "feature3",
+				Created: tspb.Now(),
+			},
+			RequestId: "request3",
 		}},
 	}
 
@@ -407,17 +426,26 @@ func Test_EtcdResourceLookup_List(t *testing.T) {
 	}
 
 	featureResources := []Resource{
-		&featureVariantResource{&pb.FeatureVariant{
-			Name:    "feature1",
-			Created: tspb.Now(),
+		&featureVariantResource{&pb.FeatureVariantRequest{
+			FeatureVariant: &pb.FeatureVariant{
+				Name:    "feature1",
+				Created: tspb.Now(),
+			},
+			RequestId: "request1",
 		}},
-		&featureVariantResource{&pb.FeatureVariant{
-			Name:    "feature2",
-			Created: tspb.Now(),
+		&featureVariantResource{&pb.FeatureVariantRequest{
+			FeatureVariant: &pb.FeatureVariant{
+				Name:    "feature2",
+				Created: tspb.Now(),
+			},
+			RequestId: "request2",
 		}},
-		&featureVariantResource{&pb.FeatureVariant{
-			Name:    "feature3",
-			Created: tspb.Now(),
+		&featureVariantResource{&pb.FeatureVariantRequest{
+			FeatureVariant: &pb.FeatureVariant{
+				Name:    "feature3",
+				Created: tspb.Now(),
+			},
+			RequestId: "request3",
 		}},
 	}
 
@@ -502,17 +530,26 @@ func Test_EtcdResourceLookup_Submap(t *testing.T) {
 	}
 
 	featureResources := []Resource{
-		&featureVariantResource{&pb.FeatureVariant{
-			Name:    "feature1",
-			Created: tspb.Now(),
+		&featureVariantResource{&pb.FeatureVariantRequest{
+			FeatureVariant: &pb.FeatureVariant{
+				Name:    "feature1",
+				Created: tspb.Now(),
+			},
+			RequestId: "request1",
 		}},
-		&featureVariantResource{&pb.FeatureVariant{
-			Name:    "feature2",
-			Created: tspb.Now(),
+		&featureVariantResource{&pb.FeatureVariantRequest{
+			FeatureVariant: &pb.FeatureVariant{
+				Name:    "feature2",
+				Created: tspb.Now(),
+			},
+			RequestId: "request2",
 		}},
-		&featureVariantResource{&pb.FeatureVariant{
-			Name:    "feature3",
-			Created: tspb.Now(),
+		&featureVariantResource{&pb.FeatureVariantRequest{
+			FeatureVariant: &pb.FeatureVariant{
+				Name:    "feature3",
+				Created: tspb.Now(),
+			},
+			RequestId: "request3",
 		}}}
 
 	resources := LocalResourceLookup{
@@ -616,16 +653,16 @@ func Test_EtcdResourceLookup_findResourceType(t *testing.T) {
 		wantErr bool
 	}{
 		{"Test Feature", fields{}, args{FEATURE}, &featureResource{&pb.Feature{}}, false},
-		{"Test Feature Variant", fields{}, args{FEATURE_VARIANT}, &featureVariantResource{&pb.FeatureVariant{}}, false},
+		{"Test Feature Variant", fields{}, args{FEATURE_VARIANT}, &featureVariantResource{&pb.FeatureVariantRequest{}}, false},
 		{"Test Label", fields{}, args{LABEL}, &labelResource{&pb.Label{}}, false},
-		{"Test Label Variant", fields{}, args{LABEL_VARIANT}, &labelVariantResource{&pb.LabelVariant{}}, false},
+		{"Test Label Variant", fields{}, args{LABEL_VARIANT}, &labelVariantResource{&pb.LabelVariantRequest{}}, false},
 		{"Test User", fields{}, args{USER}, &userResource{&pb.User{}}, false},
 		{"Test Entity", fields{}, args{ENTITY}, &entityResource{&pb.Entity{}}, false},
 		{"Test Provider", fields{}, args{PROVIDER}, &providerResource{&pb.Provider{}}, false},
 		{"Test Source", fields{}, args{SOURCE}, &SourceResource{&pb.Source{}}, false},
-		{"Test Source Variant", fields{}, args{SOURCE_VARIANT}, &sourceVariantResource{&pb.SourceVariant{}}, false},
+		{"Test Source Variant", fields{}, args{SOURCE_VARIANT}, &sourceVariantResource{&pb.SourceVariantRequest{}}, false},
 		{"Test Training Set", fields{}, args{TRAINING_SET}, &trainingSetResource{&pb.TrainingSet{}}, false},
-		{"Test Training Set Variant", fields{}, args{TRAINING_SET_VARIANT}, &trainingSetVariantResource{&pb.TrainingSetVariant{}}, false},
+		{"Test Training Set Variant", fields{}, args{TRAINING_SET_VARIANT}, &trainingSetVariantResource{&pb.TrainingSetVariantRequest{}}, false},
 		{"Test Model", fields{}, args{MODEL}, &modelResource{&pb.Model{}}, false},
 	}
 	for _, tt := range tests {

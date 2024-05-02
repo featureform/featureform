@@ -115,7 +115,7 @@ func (serv *MetadataServer) needsJob(res Resource) bool {
 			serv.Logger.Errorf("resource has type FEATURE VARIANT but failed to cast %s", res.ID())
 			return false
 		} else {
-			return PRECOMPUTED.Equals(fv.serialized.Mode)
+			return PRECOMPUTED.Equals(fv.serialized.FeatureVariant.Mode)
 		}
 	}
 	return false
@@ -242,16 +242,16 @@ func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
 	var allTags []string
 	switch res.(type) {
 	case *sourceVariantResource:
-		allTags = res.(*sourceVariantResource).serialized.Tags.Tag
+		allTags = res.(*sourceVariantResource).serialized.SourceVariant.Tags.Tag
 
 	case *featureVariantResource:
-		allTags = res.(*featureVariantResource).serialized.Tags.Tag
+		allTags = res.(*featureVariantResource).serialized.FeatureVariant.Tags.Tag
 
 	case *labelVariantResource:
 		allTags = res.(*labelVariantResource).serialized.Tags.Tag
 
 	case *trainingSetVariantResource:
-		allTags = res.(*trainingSetVariantResource).serialized.Tags.Tag
+		allTags = res.(*trainingSetVariantResource).serialized.TrainingSetVariant.Tags.Tag
 	}
 
 	doc := search.ResourceDoc{
@@ -413,34 +413,34 @@ func (resource *SourceResource) Update(lookup ResourceLookup, updateRes Resource
 }
 
 type sourceVariantResource struct {
-	serialized *pb.SourceVariant
+	serialized *pb.SourceVariantRequest
 }
 
 func (resource *sourceVariantResource) ID() ResourceID {
 	return ResourceID{
-		Name:    resource.serialized.Name,
-		Variant: resource.serialized.Variant,
+		Name:    resource.serialized.SourceVariant.Name,
+		Variant: resource.serialized.SourceVariant.Variant,
 		Type:    SOURCE_VARIANT,
 	}
 }
 
 func (resource *sourceVariantResource) Schedule() string {
-	return resource.serialized.Schedule
+	return resource.serialized.SourceVariant.Schedule
 }
 
 func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
-			Name: serialized.Owner,
+			Name: serialized.SourceVariant.Owner,
 			Type: USER,
 		},
 		{
-			Name: serialized.Provider,
+			Name: serialized.SourceVariant.Provider,
 			Type: PROVIDER,
 		},
 		{
-			Name: serialized.Name,
+			Name: serialized.SourceVariant.Name,
 			Type: SOURCE,
 		},
 	}
@@ -463,27 +463,27 @@ func (sourceVariantResource *sourceVariantResource) Notify(lookup ResourceLookup
 	serialized := sourceVariantResource.serialized
 	switch t {
 	case TRAINING_SET_VARIANT:
-		serialized.Trainingsets = append(serialized.Trainingsets, key)
+		serialized.SourceVariant.Trainingsets = append(serialized.SourceVariant.Trainingsets, key)
 	case FEATURE_VARIANT:
-		serialized.Features = append(serialized.Features, key)
+		serialized.SourceVariant.Features = append(serialized.SourceVariant.Features, key)
 	case LABEL_VARIANT:
-		serialized.Labels = append(serialized.Labels, key)
+		serialized.SourceVariant.Labels = append(serialized.SourceVariant.Labels, key)
 	}
 	return nil
 }
 
 func (resource *sourceVariantResource) GetStatus() *pb.ResourceStatus {
-	return resource.serialized.GetStatus()
+	return resource.serialized.SourceVariant.GetStatus()
 }
 
 func (resource *sourceVariantResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.LastUpdated = tspb.Now()
-	resource.serialized.Status = &status
+	resource.serialized.SourceVariant.LastUpdated = tspb.Now()
+	resource.serialized.SourceVariant.Status = &status
 	return nil
 }
 
 func (resource *sourceVariantResource) UpdateSchedule(schedule string) error {
-	resource.serialized.Schedule = schedule
+	resource.serialized.SourceVariant.Schedule = schedule
 	return nil
 }
 
@@ -493,8 +493,8 @@ func (resource *sourceVariantResource) Update(lookup ResourceLookup, updateRes R
 	if !ok {
 		return fferr.NewInternalError(fmt.Errorf("failed to deserialize existing source variant record"))
 	}
-	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
-	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
+	resource.serialized.SourceVariant.Tags = UnionTags(resource.serialized.SourceVariant.Tags, variantUpdate.Tags)
+	resource.serialized.SourceVariant.Properties = mergeProperties(resource.serialized.SourceVariant.Properties, variantUpdate.Properties)
 	return nil
 }
 
@@ -516,9 +516,9 @@ func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) (bool
 
 	isDefinitionEqual := false
 	var err error
-	switch thisDef := thisProto.Definition.(type) {
+	switch thisDef := thisProto.SourceVariant.Definition.(type) {
 	case *pb.SourceVariant_Transformation:
-		if otherDef, ok := otherProto.Definition.(*pb.SourceVariant_Transformation); ok {
+		if otherDef, ok := otherProto.SourceVariant.Definition.(*pb.SourceVariant_Transformation); ok {
 			isDefinitionEqual, err = isSourceProtoDefinitionEqual(thisDef, otherDef)
 			if err != nil {
 				return false, fferr.NewInternalError(fmt.Errorf("error comparing source definitions: %v", err))
@@ -526,14 +526,14 @@ func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) (bool
 
 		}
 	case *pb.SourceVariant_PrimaryData:
-		if otherDef, ok := otherProto.Definition.(*pb.SourceVariant_PrimaryData); ok {
+		if otherDef, ok := otherProto.SourceVariant.Definition.(*pb.SourceVariant_PrimaryData); ok {
 			isDefinitionEqual = proto.Equal(thisDef.PrimaryData, otherDef.PrimaryData)
 		}
 	}
 
-	if thisProto.GetName() == otherProto.GetName() &&
-		thisProto.GetOwner() == otherProto.GetOwner() &&
-		thisProto.GetProvider() == otherProto.GetProvider() &&
+	if thisProto.SourceVariant.GetName() == otherProto.SourceVariant.GetName() &&
+		thisProto.SourceVariant.GetOwner() == otherProto.SourceVariant.GetOwner() &&
+		thisProto.SourceVariant.GetProvider() == otherProto.SourceVariant.GetProvider() &&
 		isDefinitionEqual {
 
 		return true, nil
@@ -626,48 +626,48 @@ func (resource *featureResource) Update(lookup ResourceLookup, updateRes Resourc
 }
 
 type featureVariantResource struct {
-	serialized *pb.FeatureVariant
+	serialized *pb.FeatureVariantRequest
 }
 
 func (resource *featureVariantResource) ID() ResourceID {
 	return ResourceID{
-		Name:    resource.serialized.Name,
-		Variant: resource.serialized.Variant,
+		Name:    resource.serialized.FeatureVariant.Name,
+		Variant: resource.serialized.FeatureVariant.Variant,
 		Type:    FEATURE_VARIANT,
 	}
 }
 
 func (resource *featureVariantResource) Schedule() string {
-	return resource.serialized.Schedule
+	return resource.serialized.FeatureVariant.Schedule
 }
 
 func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
-			Name: serialized.Owner,
+			Name: serialized.FeatureVariant.Owner,
 			Type: USER,
 		},
 		{
-			Name: serialized.Name,
+			Name: serialized.FeatureVariant.Name,
 			Type: FEATURE,
 		},
 	}
-	if PRECOMPUTED.Equals(serialized.Mode) {
+	if PRECOMPUTED.Equals(serialized.FeatureVariant.Mode) {
 		depIds = append(depIds, ResourceID{
-			Name:    serialized.Source.Name,
-			Variant: serialized.Source.Variant,
+			Name:    serialized.FeatureVariant.Source.Name,
+			Variant: serialized.FeatureVariant.Source.Variant,
 			Type:    SOURCE_VARIANT,
 		},
 			ResourceID{
-				Name: serialized.Entity,
+				Name: serialized.FeatureVariant.Entity,
 				Type: ENTITY,
 			})
 
 		// Only add the Provider if it is non-empty
-		if serialized.Provider != "" {
+		if serialized.FeatureVariant.Provider != "" {
 			depIds = append(depIds, ResourceID{
-				Name: serialized.Provider,
+				Name: serialized.FeatureVariant.Provider,
 				Type: PROVIDER,
 			})
 		}
@@ -685,7 +685,7 @@ func (resource *featureVariantResource) Proto() proto.Message {
 
 func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
 	// TODO: Add logs after adding context to Lookup
-	if !PRECOMPUTED.Equals(this.serialized.Mode) {
+	if !PRECOMPUTED.Equals(this.serialized.FeatureVariant.Mode) {
 		return nil
 	}
 	id := that.ID()
@@ -694,22 +694,22 @@ func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, 
 		return nil
 	}
 	key := id.Proto()
-	this.serialized.Trainingsets = append(this.serialized.Trainingsets, key)
+	this.serialized.FeatureVariant.Trainingsets = append(this.serialized.FeatureVariant.Trainingsets, key)
 	return nil
 }
 
 func (resource *featureVariantResource) GetStatus() *pb.ResourceStatus {
-	return resource.serialized.GetStatus()
+	return resource.serialized.FeatureVariant.GetStatus()
 }
 
 func (resource *featureVariantResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.LastUpdated = tspb.Now()
-	resource.serialized.Status = &status
+	resource.serialized.FeatureVariant.LastUpdated = tspb.Now()
+	resource.serialized.FeatureVariant.Status = &status
 	return nil
 }
 
 func (resource *featureVariantResource) UpdateSchedule(schedule string) error {
-	resource.serialized.Schedule = schedule
+	resource.serialized.FeatureVariant.Schedule = schedule
 	return nil
 }
 
@@ -720,8 +720,8 @@ func (resource *featureVariantResource) Update(lookup ResourceLookup, updateRes 
 	if !ok {
 		return fferr.NewInternalError(fmt.Errorf("failed to deserialize existing feature variant record"))
 	}
-	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
-	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
+	resource.serialized.FeatureVariant.Tags = UnionTags(resource.serialized.FeatureVariant.Tags, variantUpdate.Tags)
+	resource.serialized.FeatureVariant.Properties = mergeProperties(resource.serialized.FeatureVariant.Properties, variantUpdate.Properties)
 	return nil
 }
 
@@ -746,19 +746,19 @@ func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) (boo
 	otherProto := otherVariant.serialized
 
 	isEquivalentLocation := false
-	if thisProto.GetFunction() != nil {
-		isEquivalentLocation = proto.Equal(thisProto.GetFunction(), otherProto.GetFunction())
+	if thisProto.FeatureVariant.GetFunction() != nil {
+		isEquivalentLocation = proto.Equal(thisProto.FeatureVariant.GetFunction(), otherProto.FeatureVariant.GetFunction())
 	} else {
-		isEquivalentLocation = proto.Equal(thisProto.GetColumns(), otherProto.GetColumns())
+		isEquivalentLocation = proto.Equal(thisProto.FeatureVariant.GetColumns(), otherProto.FeatureVariant.GetColumns())
 	}
 
-	if thisProto.GetName() == otherProto.GetName() &&
-		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
-		thisProto.GetProvider() == otherProto.GetProvider() &&
-		thisProto.GetEntity() == otherProto.GetEntity() &&
-		proto.Equal(thisProto.GetType(), otherProto.GetType()) &&
+	if thisProto.FeatureVariant.GetName() == otherProto.FeatureVariant.GetName() &&
+		proto.Equal(thisProto.FeatureVariant.GetSource(), otherProto.FeatureVariant.GetSource()) &&
+		thisProto.FeatureVariant.GetProvider() == otherProto.FeatureVariant.GetProvider() &&
+		thisProto.FeatureVariant.GetEntity() == otherProto.FeatureVariant.GetEntity() &&
+		proto.Equal(thisProto.FeatureVariant.GetType(), otherProto.FeatureVariant.GetType()) &&
 		isEquivalentLocation &&
-		thisProto.Owner == otherProto.Owner {
+		thisProto.FeatureVariant.Owner == otherProto.FeatureVariant.Owner {
 
 		return true, nil
 	}
@@ -770,7 +770,7 @@ func (resource *featureVariantResource) ToResourceVariantProto() *pb.ResourceVar
 }
 
 func (resource *featureVariantResource) GetDefinition() string {
-	params := resource.serialized.GetAdditionalParameters().GetFeatureType()
+	params := resource.serialized.FeatureVariant.GetAdditionalParameters().GetFeatureType()
 	if params == nil {
 		return ""
 	}
@@ -1020,43 +1020,43 @@ func (resource *trainingSetResource) Update(lookup ResourceLookup, updateRes Res
 }
 
 type trainingSetVariantResource struct {
-	serialized *pb.TrainingSetVariant
+	serialized *pb.TrainingSetVariantRequest
 }
 
 func (resource *trainingSetVariantResource) ID() ResourceID {
 	return ResourceID{
-		Name:    resource.serialized.Name,
-		Variant: resource.serialized.Variant,
+		Name:    resource.serialized.TrainingSetVariant.Name,
+		Variant: resource.serialized.TrainingSetVariant.Variant,
 		Type:    TRAINING_SET_VARIANT,
 	}
 }
 
 func (resource *trainingSetVariantResource) Schedule() string {
-	return resource.serialized.Schedule
+	return resource.serialized.TrainingSetVariant.Schedule
 }
 
 func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
-			Name: serialized.Owner,
+			Name: serialized.TrainingSetVariant.Owner,
 			Type: USER,
 		},
 		{
-			Name: serialized.Provider,
+			Name: serialized.TrainingSetVariant.Provider,
 			Type: PROVIDER,
 		},
 		{
-			Name:    serialized.Label.Name,
-			Variant: serialized.Label.Variant,
+			Name:    serialized.TrainingSetVariant.Label.Name,
+			Variant: serialized.TrainingSetVariant.Label.Variant,
 			Type:    LABEL_VARIANT,
 		},
 		{
-			Name: serialized.Name,
+			Name: serialized.TrainingSetVariant.Name,
 			Type: TRAINING_SET,
 		},
 	}
-	for _, feature := range serialized.Features {
+	for _, feature := range serialized.TrainingSetVariant.Features {
 		depIds = append(depIds, ResourceID{
 			Name:    feature.Name,
 			Variant: feature.Variant,
@@ -1079,17 +1079,17 @@ func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op operati
 }
 
 func (resource *trainingSetVariantResource) GetStatus() *pb.ResourceStatus {
-	return resource.serialized.GetStatus()
+	return resource.serialized.TrainingSetVariant.GetStatus()
 }
 
 func (resource *trainingSetVariantResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.LastUpdated = tspb.Now()
-	resource.serialized.Status = &status
+	resource.serialized.TrainingSetVariant.LastUpdated = tspb.Now()
+	resource.serialized.TrainingSetVariant.Status = &status
 	return nil
 }
 
 func (resource *trainingSetVariantResource) UpdateSchedule(schedule string) error {
-	resource.serialized.Schedule = schedule
+	resource.serialized.TrainingSetVariant.Schedule = schedule
 	return nil
 }
 
@@ -1100,8 +1100,8 @@ func (resource *trainingSetVariantResource) Update(lookup ResourceLookup, update
 	if !ok {
 		return fferr.NewInternalError(fmt.Errorf("failed to deserialize existing training set variant record"))
 	}
-	resource.serialized.Tags = UnionTags(resource.serialized.Tags, variantUpdate.Tags)
-	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, variantUpdate.Properties)
+	resource.serialized.TrainingSetVariant.Tags = UnionTags(resource.serialized.TrainingSetVariant.Tags, variantUpdate.Tags)
+	resource.serialized.TrainingSetVariant.Properties = mergeProperties(resource.serialized.TrainingSetVariant.Properties, variantUpdate.Properties)
 	return nil
 }
 
@@ -1122,15 +1122,15 @@ func (resource *trainingSetVariantResource) IsEquivalent(other ResourceVariant) 
 	thisProto := resource.serialized
 	otherProto := otherVariant.serialized
 
-	equivalentLabals := proto.Equal(thisProto.GetLabel(), otherProto.GetLabel())
-	equivalentFeatures := lib.EqualProtoSlices(thisProto.GetFeatures(), otherProto.GetFeatures())
-	equivalentLagFeatures := lib.EqualProtoSlices(thisProto.GetFeatureLags(), otherProto.GetFeatureLags())
+	equivalentLabals := proto.Equal(thisProto.TrainingSetVariant.GetLabel(), otherProto.TrainingSetVariant.GetLabel())
+	equivalentFeatures := lib.EqualProtoSlices(thisProto.TrainingSetVariant.GetFeatures(), otherProto.TrainingSetVariant.GetFeatures())
+	equivalentLagFeatures := lib.EqualProtoSlices(thisProto.TrainingSetVariant.GetFeatureLags(), otherProto.TrainingSetVariant.GetFeatureLags())
 
-	if thisProto.GetName() == otherProto.GetName() &&
+	if thisProto.TrainingSetVariant.GetName() == otherProto.TrainingSetVariant.GetName() &&
 		equivalentLabals &&
 		equivalentFeatures &&
 		equivalentLagFeatures &&
-		thisProto.Owner == otherProto.Owner {
+		thisProto.TrainingSetVariant.Owner == otherProto.TrainingSetVariant.Owner {
 
 		return true, nil
 	}
@@ -1697,8 +1697,8 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, varian
 	logger.Info("Creating TrainingSet Variant")
 	ctx = logging.UpdateContext(ctx, logger, variantRequest.RequestId)
 
-	variant := variantRequest.TrainingSetVariant
-	variant.Created = tspb.New(time.Now())
+	variant := variantRequest
+	variant.TrainingSetVariant.Created = tspb.New(time.Now())
 	return serv.genericCreate(ctx, &trainingSetVariantResource{variant}, func(name, variant string) Resource {
 		return &trainingSetResource{
 			&pb.TrainingSet{
@@ -1866,10 +1866,10 @@ func (serv *MetadataServer) GetModels(stream pb.Metadata_GetModelsServer) error 
 }
 
 // GetEquivalent attempts to find an equivalent resource based on the provided ResourceVariant.
-func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariantRequest) (*pb.ResourceVariant, error) {
+func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariant) (*pb.ResourceVariant, error) {
 	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
-	logger.Info("Getting Equivalent Resource Variant, %v", req.ResourceVariant.Resource)
-	return serv.getEquivalent(ctx, req.ResourceVariant, true)
+	logger.Info("Getting Equivalent Resource Variant, %v", req.Resource)
+	return serv.getEquivalent(ctx, req, true)
 }
 
 /*
@@ -1890,17 +1890,17 @@ func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.ResourceV
 	var resourceVariant string
 	switch resourceType {
 	case SOURCE_VARIANT:
-		resourceName = resourceProto.GetSourceVariant().Name
-		resourceVariant = resourceProto.GetSourceVariant().Variant
+		resourceName = resourceProto.GetSourceVariant().SourceVariant.Name
+		resourceVariant = resourceProto.GetSourceVariant().SourceVariant.Variant
 	case FEATURE_VARIANT:
-		resourceName = resourceProto.GetFeatureVariant().Name
-		resourceVariant = resourceProto.GetFeatureVariant().Variant
+		resourceName = resourceProto.GetFeatureVariant().FeatureVariant.Name
+		resourceVariant = resourceProto.GetFeatureVariant().FeatureVariant.Variant
 	case LABEL_VARIANT:
-		resourceName = resourceProto.GetLabelVariant().Name
-		resourceVariant = resourceProto.GetLabelVariant().Variant
+		resourceName = resourceProto.GetLabelVariant().LabelVariant.Name
+		resourceVariant = resourceProto.GetLabelVariant().LabelVariant.Variant
 	case TRAINING_SET_VARIANT:
-		resourceName = resourceProto.GetTrainingSetVariant().Name
-		resourceVariant = resourceProto.GetTrainingSetVariant().Variant
+		resourceName = resourceProto.GetTrainingSetVariant().TrainingSetVariant.Name
+		resourceVariant = resourceProto.GetTrainingSetVariant().TrainingSetVariant.Variant
 	default:
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("unknown resource variant type: %T", req.Resource))
 	}

@@ -40,7 +40,7 @@ service Metadata {
       * GetEquivalent returns a resourceVariant that matches on key attributes,
       * i.e. for a sourceVariant it will only match on key attributes (name, definition, owner, provider)
      */
-    rpc GetEquivalent(ResourceVariantRequest) returns (ResourceVariant);
+    rpc GetEquivalent(ResourceVariant) returns (ResourceVariant);
 
     rpc ListFeatures(ListRequest) returns (stream Feature);
     rpc ListLabels(ListRequest) returns (stream Label);
@@ -81,7 +81,7 @@ service Api {
       * GetEquivalent returns a resourceVariant that matches on key attributes,
       * i.e. for a sourceVariant it will only match on key attributes (name, definition, owner, provider)
      */
-    rpc GetEquivalent(ResourceVariantRequest) returns (ResourceVariant);
+    rpc GetEquivalent(ResourceVariant) returns (ResourceVariant);
 
     rpc ListFeatures(ListRequest) returns (stream Feature);
     rpc ListLabels(ListRequest) returns (stream Label);
@@ -200,10 +200,10 @@ enum ComputationMode {
 
 message ResourceVariant {
     oneof resource {
-        FeatureVariant feature_variant = 1;
-        LabelVariant label_variant = 2;
-        TrainingSetVariant training_set_variant = 3;
-        SourceVariant source_variant = 4;
+        FeatureVariantRequest feature_variant = 1;
+        LabelVariantRequest label_variant = 2;
+        TrainingSetVariantRequest training_set_variant = 3;
+        SourceVariantRequest source_variant = 4;
     }
 }
 

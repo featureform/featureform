@@ -540,8 +540,8 @@ func (serv *MetadataServer) GetModels(stream pb.Api_GetModelsServer) error {
 	}
 }
 
-func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariantRequest) (*pb.ResourceVariant, error) {
-	logger := serv.Logger.WithRequestID(logging.RequestID(req.RequestId))
+func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariant) (*pb.ResourceVariant, error) {
+	logger := serv.Logger.WithRequestID(logging.RequestID(logging.NewRequestID()))
 	logger.Infow("Getting equivalent resource")
 	ctx = logging.AddLoggerToContext(ctx, logger)
 	return serv.meta.GetEquivalent(ctx, req)

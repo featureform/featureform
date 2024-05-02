@@ -2291,7 +2291,7 @@ def _get_and_set_equivalent_variant(
     if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
         # Get equivalent from stub
         equivalent = stub.GetEquivalent(
-            pb.ResourceVariantRequest(**{variant_field: resource_variant_proto})
+            pb.ResourceVariant(**{variant_field: resource_variant_proto})
         )
 
         # grpc call returns the default ResourceVariant proto when equivalent doesn't exist which explains the below check

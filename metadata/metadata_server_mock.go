@@ -152,7 +152,7 @@ func (MetadataServerMock) GetSources(ctx context.Context, opts ...grpc.CallOptio
 	return nil, nil
 }
 
-func (MetadataServerMock) GetEquivalent(ctx context.Context, req *pb.ResourceVariantRequest, opts ...grpc.CallOption) (*pb.ResourceVariant, error) {
+func (MetadataServerMock) GetEquivalent(ctx context.Context, req *pb.ResourceVariant, opts ...grpc.CallOption) (*pb.ResourceVariant, error) {
 	return nil, nil
 }
 

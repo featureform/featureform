@@ -874,7 +874,7 @@ class Provider:
         return "provider"
 
     def get(self, stub) -> "Provider":
-        name = pb.Name(name=self.name)
+        name = pb.NameRequest(name_variant=pb.Name(name=self.name))
         provider = next(stub.GetProviders(iter([name])))
 
         return Provider(
@@ -1173,7 +1173,7 @@ class SourceVariant(ResourceVariant):
         return "source"
 
     def get(self, stub):
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(name_variant=pb.NameVariant(name=self.name, variant=self.variant))
         source = next(stub.GetSourceVariants(iter([name_variant])))
         definition = self._get_source_definition(source)
 
@@ -1387,7 +1387,7 @@ class FeatureVariant(ResourceVariant):
         return "feature"
 
     def get(self, stub) -> "FeatureVariant":
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(name_variant=pb.NameVariant(name=self.name, variant=self.variant))
         feature = next(stub.GetFeatureVariants(iter([name_variant])))
 
         return FeatureVariant(
@@ -1422,8 +1422,6 @@ class FeatureVariant(ResourceVariant):
                     variant=self.source[1],
                 ),
                 type=self.value_type,
-                is_embedding=self.is_embedding,
-                dimension=self.dims,
                 entity=self.entity,
                 owner=self.owner,
                 description=self.description,
@@ -1510,7 +1508,7 @@ class OnDemandFeatureVariant(ResourceVariant):
         return serialized.feature_variant.variant
 
     def get(self, stub) -> "OnDemandFeatureVariant":
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(name_variant=pb.NameVariant(name=self.name, variant=self.variant))
         ondemand_feature = next(stub.GetFeatureVariants(iter([name_variant])))
         additional_Parameters = self._get_additional_parameters(ondemand_feature)
 
@@ -1585,7 +1583,7 @@ class LabelVariant(ResourceVariant):
         return "label"
 
     def get(self, stub) -> "LabelVariant":
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(name_variant=pb.NameVariant(name=self.name, variant=self.variant))
         label = next(stub.GetLabelVariants(iter([name_variant])))
 
         return LabelVariant(
@@ -1654,7 +1652,7 @@ class EntityReference:
         return "entity"
 
     def _get(self, stub):
-        entityList = stub.GetEntities(iter([pb.Name(name=self.name)]))
+        entityList = stub.GetEntities(iter([pb.NameRequest(name_variant=pb.Name(name=self.name))]))
         try:
             for entity in entityList:
                 self.obj = entity
@@ -1678,7 +1676,7 @@ class ProviderReference:
         return "provider"
 
     def _get(self, stub):
-        providerList = stub.GetProviders(iter([pb.Name(name=self.name)]))
+        providerList = stub.GetProviders(iter([pb.NameRequest(name_variant=pb.Name(name=self.name))]))
         try:
             for provider in providerList:
                 self.obj = provider
@@ -1705,7 +1703,7 @@ class SourceReference:
 
     def _get(self, stub):
         sourceList = stub.GetSourceVariants(
-            iter([pb.NameVariant(name=self.name, variant=self.variant)])
+            iter([pb.NameVariantRequest(name_variant=pb.NameVariant(name=self.name, variant=self.variant))])
         )
         try:
             for source in sourceList:
@@ -1782,7 +1780,7 @@ class TrainingSetVariant(ResourceVariant):
         return "training-set"
 
     def get(self, stub):
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(name_variant=pb.NameVariant(name=self.name, variant=self.variant))
         ts = next(stub.GetTrainingSetVariants(iter([name_variant])))
 
         return TrainingSetVariant(

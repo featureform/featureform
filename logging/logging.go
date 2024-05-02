@@ -13,7 +13,7 @@ import (
 type Logger struct {
 	*zap.SugaredLogger
 	id     RequestID
-	values map[string]interface{}
+	Values map[string]interface{}
 }
 
 type RequestID string
@@ -49,11 +49,11 @@ func (logger Logger) WithRequestID(id RequestID) Logger {
 
 	return Logger{SugaredLogger: logger.With("request-id", id),
 		id:     id,
-		values: logger.values}
+		Values: logger.Values}
 }
 
 func (logger Logger) WithResource(resourceType, name, variant string) Logger {
-	combinedValues := logger.values
+	combinedValues := logger.Values
 	if resourceType != "" {
 		combinedValues["resource-type"] = resourceType
 		logger.SugaredLogger = logger.SugaredLogger.With("resource-type", resourceType)
@@ -78,12 +78,12 @@ func (logger Logger) WithResource(resourceType, name, variant string) Logger {
 	return Logger{
 		SugaredLogger: logger.SugaredLogger,
 		id:            logger.id,
-		values:        combinedValues,
+		Values:        combinedValues,
 	}
 }
 
 func (logger Logger) WithProvider(providerType, providerName string) Logger {
-	combinedValues := logger.values
+	combinedValues := logger.Values
 	if providerType != "" {
 		combinedValues["provider-type"] = providerType
 		logger.SugaredLogger = logger.SugaredLogger.With("provider-type", providerType)
@@ -101,7 +101,7 @@ func (logger Logger) WithProvider(providerType, providerName string) Logger {
 	return Logger{
 		SugaredLogger: logger.SugaredLogger,
 		id:            logger.id,
-		values:        combinedValues,
+		Values:        combinedValues,
 	}
 }
 
@@ -109,7 +109,7 @@ func (logger Logger) WithValues(values map[string]interface{}) Logger {
 	if values == nil {
 		logger.Warn("Values are empty")
 	}
-	combinedValues := logger.values
+	combinedValues := logger.Values
 	for k, v := range values {
 		combinedValues[k] = v
 		logger.SugaredLogger = logger.SugaredLogger.With(k, v)
@@ -117,7 +117,7 @@ func (logger Logger) WithValues(values map[string]interface{}) Logger {
 	return Logger{
 		SugaredLogger: logger.SugaredLogger,
 		id:            logger.id,
-		values:        combinedValues,
+		Values:        combinedValues,
 	}
 }
 
@@ -153,7 +153,6 @@ func GetLoggerFromContext(ctx context.Context) Logger {
 		NewLogger("logging").Warn("Logger not found in context")
 		return NewLogger("logger")
 	}
-
 	return logger.(Logger)
 }
 
@@ -195,7 +194,7 @@ func NewLogger(service string) Logger {
 	logger := baseLogger.Sugar().Named(service)
 	return Logger{
 		SugaredLogger: logger,
-		values:        make(map[string]interface{}),
+		Values:        make(map[string]interface{}),
 	}
 }
 

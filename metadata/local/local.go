@@ -15,7 +15,7 @@ import (
 
 func main() {
 	sugaredLogger := zap.NewExample().Sugar()
-	logger := logging.Logger{SugaredLogger: sugaredLogger}
+	logger := logging.Logger{SugaredLogger: sugaredLogger, Values: make(map[string]interface{})}
 	addr := help.GetEnv("METADATA_PORT", "8080")
 	config := &metadata.Config{
 		Logger:          logger,

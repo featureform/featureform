@@ -8,8 +8,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-
 	vt "github.com/featureform/provider/types"
 )
 

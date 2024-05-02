@@ -405,7 +405,7 @@ func (ctx *testContext) Destroy() {
 func startServ(t *testing.T) (*MetadataServer, string) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logging.Logger{SugaredLogger: logger.Sugar()},
+		Logger:          logging.Logger{SugaredLogger: logger.Sugar(), Values: make(map[string]interface{})},
 		StorageProvider: LocalStorageProvider{},
 	}
 	serv, err := NewMetadataServer(config)
@@ -428,7 +428,7 @@ func startServ(t *testing.T) (*MetadataServer, string) {
 func startServNoPanic(t *testing.T) (*MetadataServer, string) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logging.Logger{SugaredLogger: logger.Sugar()},
+		Logger:          logging.Logger{SugaredLogger: logger.Sugar(), Values: make(map[string]interface{})},
 		StorageProvider: LocalStorageProvider{},
 	}
 	serv, err := NewMetadataServer(config)
@@ -449,7 +449,7 @@ func startServNoPanic(t *testing.T) (*MetadataServer, string) {
 }
 
 func client(t *testing.T, addr string) *Client {
-	logger := logging.Logger{SugaredLogger: zaptest.NewLogger(t).Sugar()}
+	logger := logging.Logger{SugaredLogger: zaptest.NewLogger(t).Sugar(), Values: make(map[string]interface{})}
 	client, err := NewClient(addr, logger)
 	if err != nil {
 		t.Fatalf("Failed to create client: %s", err)
@@ -507,7 +507,7 @@ func TestClosedServer(t *testing.T) {
 func TestServeGracefulStop(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logging.Logger{SugaredLogger: logger.Sugar()},
+		Logger:          logging.Logger{SugaredLogger: logger.Sugar(), Values: make(map[string]interface{})},
 		StorageProvider: LocalStorageProvider{},
 		Address:         ":0",
 	}

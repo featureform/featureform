@@ -18,14 +18,14 @@ func TestWithResource(t *testing.T) {
 	if logger.SugaredLogger == nil {
 		t.Fatalf("SugaredLogger doesnt exist.")
 	}
-	if logger.values["resource-type"] != "test-resource" {
-		t.Fatalf("Incorrect values for logger, expected %s, got %s", "test-resource", logger.values["resource-type"])
+	if logger.Values["resource-type"] != "test-resource" {
+		t.Fatalf("Incorrect values for logger, expected %s, got %s", "test-resource", logger.Values["resource-type"])
 	}
-	if logger.values["resource-name"] != "test-name" {
-		t.Fatalf("Incorrect values for logger, expected %s, got %s", "test-name", logger.values["resource-name"])
+	if logger.Values["resource-name"] != "test-name" {
+		t.Fatalf("Incorrect values for logger, expected %s, got %s", "test-name", logger.Values["resource-name"])
 	}
-	if logger.values["resource-variant"] != "test-variant" {
-		t.Fatalf("Incorrect values for logger, expected %s, got %s", "test-variant", logger.values["resource-variant"])
+	if logger.Values["resource-variant"] != "test-variant" {
+		t.Fatalf("Incorrect values for logger, expected %s, got %s", "test-variant", logger.Values["resource-variant"])
 	}
 }
 
@@ -35,11 +35,11 @@ func TestWithProvider(t *testing.T) {
 	if logger.SugaredLogger == nil {
 		t.Fatalf("SugaredLogger doesnt exist.")
 	}
-	if logger.values["provider-type"] != "test-provider" {
-		t.Fatalf("Incorrect values for logger, expected %s, got %s", "test-provider", logger.values["provider-type"])
+	if logger.Values["provider-type"] != "test-provider" {
+		t.Fatalf("Incorrect values for logger, expected %s, got %s", "test-provider", logger.Values["provider-type"])
 	}
-	if logger.values["provider-name"] != "test-name" {
-		t.Fatalf("Incorrect values for logger, expected %s, got %s", "test-name", logger.values["provider-name"])
+	if logger.Values["provider-name"] != "test-name" {
+		t.Fatalf("Incorrect values for logger, expected %s, got %s", "test-name", logger.Values["provider-name"])
 	}
 }
 

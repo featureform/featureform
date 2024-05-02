@@ -98,9 +98,8 @@ func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 		},
 	}
 	config := &metadata.Config{
-		Logger:          logging.Logger{SugaredLogger: logger},
-		StorageProvider: storageProvider,
-	}
+		Logger:          logging.Logger{SugaredLogger: logger, Values: make(map[string]interface{})},
+		StorageProvider: storageProvider}
 	serv, err := metadata.NewMetadataServer(config)
 	if err != nil {
 		panic(err)
@@ -120,7 +119,7 @@ func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 
 func createNewCoordinator(addr string) (*Coordinator, error) {
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger})
+	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger, Values: make(map[string]interface{})})
 	if err != nil {
 		return nil, err
 	}
@@ -999,7 +998,7 @@ func TestCoordinatorCalls(t *testing.T) {
 	serv, addr := startServ(t)
 	defer serv.Stop()
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger})
+	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger, Values: make(map[string]interface{})})
 	if err != nil {
 		t.Fatalf("could not set up metadata client: %v", err)
 	}
@@ -1252,7 +1251,7 @@ func createTrainingSetWithProvider(client *metadata.Client, offlineConfig pc.Ser
 
 func testCoordinatorTrainingSet(addr string) error {
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger})
+	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger, Values: make(map[string]interface{})})
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
@@ -1387,7 +1386,7 @@ func testCoordinatorTrainingSet(addr string) error {
 
 func testCoordinatorMaterializeFeature(addr string) error {
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger})
+	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger, Values: make(map[string]interface{})})
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
@@ -1499,7 +1498,7 @@ func CreateOriginalPostgresTable(tableName string) error {
 
 func testRegisterPrimaryTableFromSource(addr string) error {
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger})
+	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger, Values: make(map[string]interface{})})
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
@@ -1604,7 +1603,7 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 
 func testRegisterTransformationFromSource(addr string) error {
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger})
+	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger, Values: make(map[string]interface{})})
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}

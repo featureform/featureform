@@ -1886,10 +1886,11 @@ func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.ResourceV
 		logger.Errorw("Error extracting resource variant", "resource variant", req, "error", err)
 		return nil, err
 	}
-
+	if currentResource == nil {
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("resource variant is nil"))
+	}
 	resourceProto := currentResource.ToResourceVariantProto()
 	logger = logger.WithResource(resourceType.String(), resourceProto.GetFeatureVariant().Name, resourceProto.GetFeatureVariant().Variant)
-
 	resourcesForType, err := serv.lookup.ListForType(resourceType)
 	if err != nil {
 		logger.Errorw("Unable to list resources", "error", err)
@@ -2146,6 +2147,13 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 		case nameStream:
 			req, err := casted.Recv()
 			recvErr = err
+			if recvErr == io.EOF {
+				return nil
+			}
+			if err != nil {
+				logger.Errorw("Unable to receive request", "error", recvErr)
+				return fferr.NewInternalError(recvErr)
+			}
 			id = ResourceID{
 				Name: req.GetName().Name,
 				Type: t,
@@ -2154,6 +2162,13 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 		case variantStream:
 			req, err := casted.Recv()
 			recvErr = err
+			if recvErr == io.EOF {
+				return nil
+			}
+			if err != nil {
+				logger.Errorw("Unable to receive request", "error", recvErr)
+				return fferr.NewInternalError(recvErr)
+			}
 			id = ResourceID{
 				Name:    req.GetNameVariant().Name,
 				Variant: req.GetNameVariant().Variant,
@@ -2163,13 +2178,6 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 		default:
 			logger.Errorw("Invalid Stream for Get", "type", fmt.Sprintf("%T", casted))
 			return fferr.NewInternalError(fmt.Errorf("invalid Stream for Get: %T", casted))
-		}
-		if recvErr == io.EOF {
-			return nil
-		}
-		if recvErr != nil {
-			loggerWithResource.Errorw("Unable to receive request", "error", recvErr)
-			return fferr.NewInternalError(recvErr)
 		}
 		loggerWithResource.Debug("Looking up Resource")
 		resource, err := serv.lookup.Lookup(ctx, id)

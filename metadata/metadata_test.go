@@ -2013,7 +2013,7 @@ func (mocker) GetProperties() *pb.Properties {
 
 func getSourceVariant() *SourceVariant {
 	sv := &SourceVariant{
-		serialized:           &pb.SourceVariant{Name: "test.name", Variant: "test.variant"},
+		serialized:           &pb.SourceVariantRequest{SourceVariant: &pb.SourceVariant{Name: "test.name", Variant: "test.variant"}},
 		fetchFeaturesFns:     fetchFeaturesFns{},
 		fetchLabelsFns:       fetchLabelsFns{},
 		fetchProviderFns:     fetchProviderFns{getter: mocker{}},
@@ -2142,14 +2142,14 @@ func TestSourceShallowMapOK(t *testing.T) {
 		t.Run(currTest.name, func(t *testing.T) {
 			sv := getSourceVariant()
 			if currTest.sourceType == "Primary Table" {
-				sv.serialized.Definition = &currTest.svPrimary
+				sv.serialized.SourceVariant.Definition = &currTest.svPrimary
 			} else {
-				sv.serialized.Definition = &currTest.svTransform
+				sv.serialized.SourceVariant.Definition = &currTest.svTransform
 			}
 			svResource := SourceShallowMap(sv)
 
-			assert.Equal(t, sv.serialized.Name, svResource.Name)
-			assert.Equal(t, sv.serialized.Variant, svResource.Variant)
+			assert.Equal(t, sv.serialized.SourceVariant.Name, svResource.Name)
+			assert.Equal(t, sv.serialized.SourceVariant.Variant, svResource.Variant)
 			assert.Equal(t, sourceText, svResource.Definition)
 			assert.Equal(t, currTest.sourceType, svResource.SourceType)
 			assert.Equal(t, sv.Provider(), svResource.Provider)

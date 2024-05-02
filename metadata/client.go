@@ -375,7 +375,7 @@ func (client *Client) parseFeatureVariantStream(stream featureVariantStream) ([]
 		} else if err != nil {
 			return nil, err
 		}
-		features = append(features, wrapProtoFeatureVariant(serial))
+		features = append(features, wrapProtoFeatureVariant(&pb.FeatureVariantRequest{FeatureVariant: serial}))
 	}
 	return features, nil
 }
@@ -538,7 +538,7 @@ func (client *Client) parseLabelVariantStream(stream labelVariantStream) ([]*Lab
 		} else if err != nil {
 			return nil, err
 		}
-		features = append(features, wrapProtoLabelVariant(serial))
+		features = append(features, wrapProtoLabelVariant(&pb.LabelVariantRequest{LabelVariant: serial}))
 	}
 	return features, nil
 }
@@ -682,7 +682,7 @@ func (client *Client) parseTrainingSetVariantStream(stream trainingSetVariantStr
 		} else if err != nil {
 			return nil, err
 		}
-		features = append(features, wrapProtoTrainingSetVariant(serial))
+		features = append(features, wrapProtoTrainingSetVariant(&pb.TrainingSetVariantRequest{TrainingSetVariant: serial}))
 	}
 	return features, nil
 }
@@ -945,7 +945,7 @@ func (client *Client) parseSourceVariantStream(stream sourceVariantStream) ([]*S
 			}
 			return nil, err
 		}
-		sourceVariants = append(sourceVariants, wrapProtoSourceVariant(serial))
+		sourceVariants = append(sourceVariants, wrapProtoSourceVariant(&pb.SourceVariantRequest{SourceVariant: serial}))
 	}
 	return sourceVariants, nil
 }
@@ -1517,7 +1517,7 @@ func (feature Feature) FetchVariants(client *Client, ctx context.Context) ([]*Fe
 }
 
 type FeatureVariant struct {
-	serialized *pb.FeatureVariant
+	serialized *pb.FeatureVariantRequest
 	fetchTrainingSetsFns
 	fetchProviderFns
 	fetchSourceFns
@@ -1528,17 +1528,17 @@ type FeatureVariant struct {
 	fetchPropertiesFn
 }
 
-func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
+func wrapProtoFeatureVariant(serialized *pb.FeatureVariantRequest) *FeatureVariant {
 	return &FeatureVariant{
 		serialized:           serialized,
-		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
-		fetchProviderFns:     fetchProviderFns{serialized},
-		fetchSourceFns:       fetchSourceFns{serialized},
-		createdFn:            createdFn{serialized},
-		lastUpdatedFn:        lastUpdatedFn{serialized},
-		protoStringer:        protoStringer{serialized},
-		fetchTagsFn:          fetchTagsFn{serialized},
-		fetchPropertiesFn:    fetchPropertiesFn{serialized},
+		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized.FeatureVariant},
+		fetchProviderFns:     fetchProviderFns{serialized.FeatureVariant},
+		fetchSourceFns:       fetchSourceFns{serialized.FeatureVariant},
+		createdFn:            createdFn{serialized.FeatureVariant},
+		lastUpdatedFn:        lastUpdatedFn{serialized.FeatureVariant},
+		protoStringer:        protoStringer{serialized.FeatureVariant},
+		fetchTagsFn:          fetchTagsFn{serialized.FeatureVariant},
+		fetchPropertiesFn:    fetchPropertiesFn{serialized.FeatureVariant},
 	}
 }
 
@@ -1615,64 +1615,64 @@ func (variant *FeatureVariant) ToShallowMap() FeatureVariantResource {
 }
 
 func (variant *FeatureVariant) Name() string {
-	return variant.serialized.GetName()
+	return variant.serialized.FeatureVariant.GetName()
 }
 
 func (variant *FeatureVariant) Description() string {
-	return variant.serialized.GetDescription()
+	return variant.serialized.FeatureVariant.GetDescription()
 }
 
 func (variant *FeatureVariant) Variant() string {
-	return variant.serialized.GetVariant()
+	return variant.serialized.FeatureVariant.GetVariant()
 }
 
 func (variant *FeatureVariant) Type() (types.ValueType, error) {
-	return types.FromProto(variant.serialized.GetType())
+	return types.FromProto(variant.serialized.FeatureVariant.GetType())
 }
 
 func (variant *FeatureVariant) Entity() string {
-	return variant.serialized.GetEntity()
+	return variant.serialized.FeatureVariant.GetEntity()
 }
 
 func (variant *FeatureVariant) Owner() string {
-	return variant.serialized.GetOwner()
+	return variant.serialized.FeatureVariant.GetOwner()
 }
 
 func (variant *FeatureVariant) Status() ResourceStatus {
-	if variant.serialized.GetStatus() != nil {
-		return ResourceStatus(variant.serialized.GetStatus().Status)
+	if variant.serialized.FeatureVariant.GetStatus() != nil {
+		return ResourceStatus(variant.serialized.FeatureVariant.GetStatus().Status)
 	}
 	return ResourceStatus(0)
 }
 
 func (variant *FeatureVariant) Error() string {
-	if variant.serialized.GetStatus() != nil {
-		return fferr.ToDashboardError(variant.serialized.GetStatus())
+	if variant.serialized.FeatureVariant.GetStatus() != nil {
+		return fferr.ToDashboardError(variant.serialized.FeatureVariant.GetStatus())
 	}
 	return ""
 }
 
 func (variant *FeatureVariant) Location() interface{} {
-	return variant.serialized.GetLocation()
+	return variant.serialized.FeatureVariant.GetLocation()
 }
 
 func (variant *FeatureVariant) Definition() string {
 	def := ""
 	if variant.IsOnDemand() {
-		def = variant.serialized.GetAdditionalParameters().GetOndemand().GetDefinition()
+		def = variant.serialized.FeatureVariant.GetAdditionalParameters().GetOndemand().GetDefinition()
 	}
 	return def
 }
 
 func (variant *FeatureVariant) isTable() bool {
-	return reflect.TypeOf(variant.serialized.GetLocation()) == reflect.TypeOf(&pb.FeatureVariant_Columns{})
+	return reflect.TypeOf(variant.serialized.FeatureVariant.GetLocation()) == reflect.TypeOf(&pb.FeatureVariant_Columns{})
 }
 
 func (variant *FeatureVariant) LocationColumns() interface{} {
 	if variant.Mode() != PRECOMPUTED {
 		return nil
 	}
-	src := variant.serialized.GetColumns()
+	src := variant.serialized.FeatureVariant.GetColumns()
 	columns := ResourceVariantColumns{
 		Entity: src.Entity,
 		Value:  src.Value,
@@ -1685,7 +1685,7 @@ func (variant *FeatureVariant) LocationFunction() interface{} {
 	if variant.Mode() != CLIENT_COMPUTED {
 		return nil
 	}
-	src := variant.serialized.GetFunction()
+	src := variant.serialized.FeatureVariant.GetFunction()
 	function := PythonFunction{
 		Query: src.Query,
 	}
@@ -1701,7 +1701,7 @@ func (variant *FeatureVariant) Properties() Properties {
 }
 
 func (variant *FeatureVariant) Mode() ComputationMode {
-	return ComputationMode(variant.serialized.GetMode())
+	return ComputationMode(variant.serialized.FeatureVariant.GetMode())
 }
 
 func (variant *FeatureVariant) IsOnDemand() bool {
@@ -1935,7 +1935,7 @@ func (label Label) FetchVariants(client *Client, ctx context.Context) ([]*LabelV
 }
 
 type LabelVariant struct {
-	serialized *pb.LabelVariant
+	serialized *pb.LabelVariantRequest
 	fetchTrainingSetsFns
 	fetchProviderFns
 	fetchSourceFns
@@ -1945,16 +1945,16 @@ type LabelVariant struct {
 	fetchPropertiesFn
 }
 
-func wrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
+func wrapProtoLabelVariant(serialized *pb.LabelVariantRequest) *LabelVariant {
 	return &LabelVariant{
 		serialized:           serialized,
-		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
-		fetchProviderFns:     fetchProviderFns{serialized},
-		fetchSourceFns:       fetchSourceFns{serialized},
-		createdFn:            createdFn{serialized},
-		protoStringer:        protoStringer{serialized},
-		fetchTagsFn:          fetchTagsFn{serialized},
-		fetchPropertiesFn:    fetchPropertiesFn{serialized},
+		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized.LabelVariant},
+		fetchProviderFns:     fetchProviderFns{serialized.LabelVariant},
+		fetchSourceFns:       fetchSourceFns{serialized.LabelVariant},
+		createdFn:            createdFn{serialized.LabelVariant},
+		protoStringer:        protoStringer{serialized.LabelVariant},
+		fetchTagsFn:          fetchTagsFn{serialized.LabelVariant},
+		fetchPropertiesFn:    fetchPropertiesFn{serialized.LabelVariant},
 	}
 }
 
@@ -1978,53 +1978,53 @@ func (variant *LabelVariant) ToShallowMap() LabelVariantResource {
 }
 
 func (variant *LabelVariant) Name() string {
-	return variant.serialized.GetName()
+	return variant.serialized.LabelVariant.GetName()
 }
 
 func (variant *LabelVariant) Description() string {
-	return variant.serialized.GetDescription()
+	return variant.serialized.LabelVariant.GetDescription()
 }
 
 func (variant *LabelVariant) Variant() string {
-	return variant.serialized.GetVariant()
+	return variant.serialized.LabelVariant.GetVariant()
 }
 
 func (variant *LabelVariant) Type() (types.ValueType, error) {
-	return types.FromProto(variant.serialized.GetType())
+	return types.FromProto(variant.serialized.LabelVariant.GetType())
 }
 
 func (variant *LabelVariant) Entity() string {
-	return variant.serialized.GetEntity()
+	return variant.serialized.LabelVariant.GetEntity()
 }
 
 func (variant *LabelVariant) Owner() string {
-	return variant.serialized.GetOwner()
+	return variant.serialized.LabelVariant.GetOwner()
 }
 
 func (variant *LabelVariant) Status() ResourceStatus {
-	if variant.serialized.GetStatus() != nil {
-		return ResourceStatus(variant.serialized.GetStatus().Status)
+	if variant.serialized.LabelVariant.GetStatus() != nil {
+		return ResourceStatus(variant.serialized.LabelVariant.GetStatus().Status)
 	}
 	return ResourceStatus(0)
 }
 
 func (variant *LabelVariant) Error() string {
-	if variant.serialized.GetStatus() != nil {
-		return fferr.ToDashboardError(variant.serialized.GetStatus())
+	if variant.serialized.LabelVariant.GetStatus() != nil {
+		return fferr.ToDashboardError(variant.serialized.LabelVariant.GetStatus())
 	}
 	return ""
 }
 
 func (variant *LabelVariant) Location() interface{} {
-	return variant.serialized.GetLocation()
+	return variant.serialized.LabelVariant.GetLocation()
 }
 
 func (variant *LabelVariant) isTable() bool {
-	return reflect.TypeOf(variant.serialized.GetLocation()) == reflect.TypeOf(&pb.LabelVariant_Columns{})
+	return reflect.TypeOf(variant.serialized.LabelVariant.GetLocation()) == reflect.TypeOf(&pb.LabelVariant_Columns{})
 }
 
 func (variant *LabelVariant) LocationColumns() interface{} {
-	src := variant.serialized.GetColumns()
+	src := variant.serialized.LabelVariant.GetColumns()
 	columns := ResourceVariantColumns{
 		Entity: src.Entity,
 		Value:  src.Value,
@@ -2060,7 +2060,7 @@ func (trainingSet TrainingSet) FetchVariants(client *Client, ctx context.Context
 }
 
 type TrainingSetVariant struct {
-	serialized *pb.TrainingSetVariant
+	serialized *pb.TrainingSetVariantRequest
 	fetchFeaturesFns
 	fetchProviderFns
 	createdFn
@@ -2070,16 +2070,16 @@ type TrainingSetVariant struct {
 	fetchPropertiesFn
 }
 
-func wrapProtoTrainingSetVariant(serialized *pb.TrainingSetVariant) *TrainingSetVariant {
+func wrapProtoTrainingSetVariant(serialized *pb.TrainingSetVariantRequest) *TrainingSetVariant {
 	return &TrainingSetVariant{
 		serialized:        serialized,
-		fetchFeaturesFns:  fetchFeaturesFns{serialized},
-		fetchProviderFns:  fetchProviderFns{serialized},
-		createdFn:         createdFn{serialized},
-		lastUpdatedFn:     lastUpdatedFn{serialized},
-		protoStringer:     protoStringer{serialized},
-		fetchTagsFn:       fetchTagsFn{serialized},
-		fetchPropertiesFn: fetchPropertiesFn{serialized},
+		fetchFeaturesFns:  fetchFeaturesFns{serialized.TrainingSetVariant},
+		fetchProviderFns:  fetchProviderFns{serialized.TrainingSetVariant},
+		createdFn:         createdFn{serialized.TrainingSetVariant},
+		lastUpdatedFn:     lastUpdatedFn{serialized.TrainingSetVariant},
+		protoStringer:     protoStringer{serialized.TrainingSetVariant},
+		fetchTagsFn:       fetchTagsFn{serialized.TrainingSetVariant},
+		fetchPropertiesFn: fetchPropertiesFn{serialized.TrainingSetVariant},
 	}
 }
 
@@ -2100,41 +2100,41 @@ func (variant *TrainingSetVariant) ToShallowMap() TrainingSetVariantResource {
 }
 
 func (variant *TrainingSetVariant) Name() string {
-	return variant.serialized.GetName()
+	return variant.serialized.TrainingSetVariant.GetName()
 }
 
 func (variant *TrainingSetVariant) Description() string {
-	return variant.serialized.GetDescription()
+	return variant.serialized.TrainingSetVariant.GetDescription()
 }
 
 func (variant *TrainingSetVariant) Variant() string {
-	return variant.serialized.GetVariant()
+	return variant.serialized.TrainingSetVariant.GetVariant()
 }
 
 func (variant *TrainingSetVariant) Owner() string {
-	return variant.serialized.GetOwner()
+	return variant.serialized.TrainingSetVariant.GetOwner()
 }
 
 func (variant *TrainingSetVariant) Status() ResourceStatus {
-	if variant.serialized.GetStatus() != nil {
-		return ResourceStatus(variant.serialized.GetStatus().Status)
+	if variant.serialized.TrainingSetVariant.GetStatus() != nil {
+		return ResourceStatus(variant.serialized.TrainingSetVariant.GetStatus().Status)
 	}
 	return ResourceStatus(0)
 }
 
 func (variant *TrainingSetVariant) Error() string {
-	if variant.serialized.GetStatus() == nil {
+	if variant.serialized.TrainingSetVariant.GetStatus() == nil {
 		return ""
 	}
-	return fferr.ToDashboardError(variant.serialized.GetStatus())
+	return fferr.ToDashboardError(variant.serialized.TrainingSetVariant.GetStatus())
 }
 
 func (variant *TrainingSetVariant) Label() NameVariant {
-	return parseNameVariant(variant.serialized.GetLabel())
+	return parseNameVariant(variant.serialized.TrainingSetVariant.GetLabel())
 }
 
 func (variant *TrainingSetVariant) LagFeatures() []*pb.FeatureLag {
-	return variant.serialized.GetFeatureLags()
+	return variant.serialized.TrainingSetVariant.GetFeatureLags()
 }
 
 func (variant *TrainingSetVariant) FetchLabel(client *Client, ctx context.Context) (*LabelVariant, error) {
@@ -2172,7 +2172,7 @@ func (source Source) FetchVariants(client *Client, ctx context.Context) ([]*Sour
 }
 
 type SourceVariant struct {
-	serialized *pb.SourceVariant
+	serialized *pb.SourceVariantRequest
 	fetchTrainingSetsFns
 	fetchFeaturesFns
 	fetchLabelsFns
@@ -2223,7 +2223,7 @@ func (arg KubernetesArgs) Type() TransformationArgType {
 }
 
 func (variant *SourceVariant) parseKubernetesArgs() KubernetesArgs {
-	args := variant.serialized.GetTransformation().GetKubernetesArgs()
+	args := variant.serialized.SourceVariant.GetTransformation().GetKubernetesArgs()
 	specs := args.GetSpecs()
 	return KubernetesArgs{
 		DockerImage: args.GetDockerImage(),
@@ -2240,21 +2240,21 @@ func (variant *SourceVariant) DFTransformationQuerySource() string {
 	if !variant.IsDFTransformation() {
 		return ""
 	}
-	return variant.serialized.GetTransformation().GetDFTransformation().GetSourceText()
+	return variant.serialized.SourceVariant.GetTransformation().GetDFTransformation().GetSourceText()
 }
 
-func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
+func wrapProtoSourceVariant(serialized *pb.SourceVariantRequest) *SourceVariant {
 	return &SourceVariant{
 		serialized:           serialized,
-		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
-		fetchFeaturesFns:     fetchFeaturesFns{serialized},
-		fetchLabelsFns:       fetchLabelsFns{serialized},
-		fetchProviderFns:     fetchProviderFns{serialized},
-		createdFn:            createdFn{serialized},
-		lastUpdatedFn:        lastUpdatedFn{serialized},
-		protoStringer:        protoStringer{serialized},
-		fetchTagsFn:          fetchTagsFn{serialized},
-		fetchPropertiesFn:    fetchPropertiesFn{serialized},
+		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized.SourceVariant},
+		fetchFeaturesFns:     fetchFeaturesFns{serialized.SourceVariant},
+		fetchLabelsFns:       fetchLabelsFns{serialized.SourceVariant},
+		fetchProviderFns:     fetchProviderFns{serialized.SourceVariant},
+		createdFn:            createdFn{serialized.SourceVariant},
+		lastUpdatedFn:        lastUpdatedFn{serialized.SourceVariant},
+		protoStringer:        protoStringer{serialized.SourceVariant},
+		fetchTagsFn:          fetchTagsFn{serialized.SourceVariant},
+		fetchPropertiesFn:    fetchPropertiesFn{serialized.SourceVariant},
 	}
 }
 
@@ -2291,66 +2291,66 @@ func (variant *SourceVariant) ToShallowMap() SourceVariantResource {
 }
 
 func (variant *SourceVariant) Name() string {
-	return variant.serialized.GetName()
+	return variant.serialized.SourceVariant.GetName()
 }
 
 func (variant *SourceVariant) Schedule() string {
-	return variant.serialized.GetSchedule()
+	return variant.serialized.SourceVariant.GetSchedule()
 }
 
 func (variant *SourceVariant) Variant() string {
-	return variant.serialized.GetVariant()
+	return variant.serialized.SourceVariant.GetVariant()
 }
 
 func (variant *SourceVariant) Description() string {
-	return variant.serialized.GetDescription()
+	return variant.serialized.SourceVariant.GetDescription()
 }
 
 func (variant *SourceVariant) Definition() interface{} {
-	return variant.serialized.GetDefinition()
+	return variant.serialized.SourceVariant.GetDefinition()
 }
 
 func (variant *SourceVariant) Owner() string {
-	return variant.serialized.GetOwner()
+	return variant.serialized.SourceVariant.GetOwner()
 }
 
 func (variant *SourceVariant) Status() ResourceStatus {
-	if variant.serialized.GetStatus() != nil {
-		return ResourceStatus(variant.serialized.GetStatus().Status)
+	if variant.serialized.SourceVariant.GetStatus() != nil {
+		return ResourceStatus(variant.serialized.SourceVariant.GetStatus().Status)
 	}
 	return ResourceStatus(0)
 }
 
 func (variant *SourceVariant) Error() string {
-	if variant.serialized.GetStatus() == nil {
+	if variant.serialized.SourceVariant.GetStatus() == nil {
 		return ""
 	}
-	return fferr.ToDashboardError(variant.serialized.GetStatus())
+	return fferr.ToDashboardError(variant.serialized.SourceVariant.GetStatus())
 }
 
 func (variant *SourceVariant) IsTransformation() bool {
-	return reflect.TypeOf(variant.serialized.GetDefinition()) == reflect.TypeOf(&pb.SourceVariant_Transformation{})
+	return reflect.TypeOf(variant.serialized.SourceVariant.GetDefinition()) == reflect.TypeOf(&pb.SourceVariant_Transformation{})
 }
 
 func (variant *SourceVariant) IsSQLTransformation() bool {
 	if !variant.IsTransformation() {
 		return false
 	}
-	return reflect.TypeOf(variant.serialized.GetTransformation().Type) == reflect.TypeOf(&pb.Transformation_SQLTransformation{})
+	return reflect.TypeOf(variant.serialized.SourceVariant.GetTransformation().Type) == reflect.TypeOf(&pb.Transformation_SQLTransformation{})
 }
 
 func (variant *SourceVariant) SQLTransformationQuery() string {
 	if !variant.IsSQLTransformation() {
 		return ""
 	}
-	return variant.serialized.GetTransformation().GetSQLTransformation().GetQuery()
+	return variant.serialized.SourceVariant.GetTransformation().GetSQLTransformation().GetQuery()
 }
 
 func (variant *SourceVariant) SQLTransformationSources() []NameVariant {
 	if !variant.IsSQLTransformation() {
 		return nil
 	}
-	nameVariants := variant.serialized.GetTransformation().GetSQLTransformation().GetSource()
+	nameVariants := variant.serialized.SourceVariant.GetTransformation().GetSQLTransformation().GetSource()
 	var variants []NameVariant
 	for _, nv := range nameVariants {
 		variants = append(variants, NameVariant{Name: nv.Name, Variant: nv.Variant})
@@ -2362,21 +2362,21 @@ func (variant *SourceVariant) IsDFTransformation() bool {
 	if !variant.IsTransformation() {
 		return false
 	}
-	return reflect.TypeOf(variant.serialized.GetTransformation().Type) == reflect.TypeOf(&pb.Transformation_DFTransformation{})
+	return reflect.TypeOf(variant.serialized.SourceVariant.GetTransformation().Type) == reflect.TypeOf(&pb.Transformation_DFTransformation{})
 }
 
 func (variant *SourceVariant) DFTransformationQuery() []byte {
 	if !variant.IsDFTransformation() {
 		return nil
 	}
-	return variant.serialized.GetTransformation().GetDFTransformation().GetQuery()
+	return variant.serialized.SourceVariant.GetTransformation().GetDFTransformation().GetQuery()
 }
 
 func (variant *SourceVariant) DFTransformationSources() []NameVariant {
 	if !variant.IsDFTransformation() {
 		return nil
 	}
-	inputSources := variant.serialized.GetTransformation().GetDFTransformation().GetInputs()
+	inputSources := variant.serialized.SourceVariant.GetTransformation().GetDFTransformation().GetInputs()
 
 	var variants []NameVariant
 	for _, nv := range inputSources {
@@ -2386,7 +2386,7 @@ func (variant *SourceVariant) DFTransformationSources() []NameVariant {
 }
 
 func (variant *SourceVariant) HasKubernetesArgs() bool {
-	return variant.serialized.GetTransformation().GetKubernetesArgs() != nil
+	return variant.serialized.SourceVariant.GetTransformation().GetKubernetesArgs() != nil
 }
 
 func (variant *SourceVariant) TransformationArgs() TransformationArgs {
@@ -2401,21 +2401,21 @@ func (variant *SourceVariant) TransformationArgs() TransformationArgs {
 }
 
 func (variant *SourceVariant) isPrimaryData() bool {
-	return reflect.TypeOf(variant.serialized.GetDefinition()) == reflect.TypeOf(&pb.SourceVariant_PrimaryData{})
+	return reflect.TypeOf(variant.serialized.SourceVariant.GetDefinition()) == reflect.TypeOf(&pb.SourceVariant_PrimaryData{})
 }
 
 func (variant *SourceVariant) IsPrimaryDataSQLTable() bool {
 	if !variant.isPrimaryData() {
 		return false
 	}
-	return reflect.TypeOf(variant.serialized.GetPrimaryData().GetLocation()) == reflect.TypeOf(&pb.PrimaryData_Table{})
+	return reflect.TypeOf(variant.serialized.SourceVariant.GetPrimaryData().GetLocation()) == reflect.TypeOf(&pb.PrimaryData_Table{})
 }
 
 func (variant *SourceVariant) PrimaryDataSQLTableName() string {
 	if !variant.IsPrimaryDataSQLTable() {
 		return ""
 	}
-	return variant.serialized.GetPrimaryData().GetTable().GetName()
+	return variant.serialized.SourceVariant.GetPrimaryData().GetTable().GetName()
 }
 
 func (variant *SourceVariant) Tags() Tags {

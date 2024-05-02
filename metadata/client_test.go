@@ -2,10 +2,11 @@ package metadata
 
 import (
 	"encoding/json"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"reflect"
 	"testing"
 	"time"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/provider/types"
@@ -13,7 +14,7 @@ import (
 
 func TestSourceVariant_IsTransformation(t *testing.T) {
 	type fields struct {
-		serialized           *pb.SourceVariant
+		serialized           *pb.SourceVariantRequest
 		fetchTrainingSetsFns fetchTrainingSetsFns
 		fetchFeaturesFns     fetchFeaturesFns
 		fetchLabelsFns       fetchLabelsFns
@@ -27,7 +28,7 @@ func TestSourceVariant_IsTransformation(t *testing.T) {
 		want   bool
 	}{
 		{name: "test", fields: fields{
-			serialized:           &pb.SourceVariant{Definition: &pb.SourceVariant_Transformation{}},
+			serialized:           &pb.SourceVariantRequest{SourceVariant: &pb.SourceVariant{Definition: &pb.SourceVariant_Transformation{}}},
 			fetchFeaturesFns:     fetchFeaturesFns{},
 			fetchLabelsFns:       fetchLabelsFns{},
 			fetchProviderFns:     fetchProviderFns{},
@@ -55,7 +56,7 @@ func TestSourceVariant_IsTransformation(t *testing.T) {
 
 func TestSourceVariant_TransformationArgs(t *testing.T) {
 	type fields struct {
-		serialized           *pb.SourceVariant
+		serialized           *pb.SourceVariantRequest
 		fetchTrainingSetsFns fetchTrainingSetsFns
 		fetchFeaturesFns     fetchFeaturesFns
 		fetchLabelsFns       fetchLabelsFns
@@ -72,7 +73,7 @@ func TestSourceVariant_TransformationArgs(t *testing.T) {
 		{
 			"Kubernetes Proto",
 			fields{
-				serialized: &pb.SourceVariant{
+				serialized: &pb.SourceVariantRequest{SourceVariant: &pb.SourceVariant{
 					Definition: &pb.SourceVariant_Transformation{
 						Transformation: &pb.Transformation{
 							Args: &pb.Transformation_KubernetesArgs{
@@ -89,6 +90,7 @@ func TestSourceVariant_TransformationArgs(t *testing.T) {
 						},
 					},
 				},
+				},
 			},
 			KubernetesArgs{
 				DockerImage: "",
@@ -103,12 +105,13 @@ func TestSourceVariant_TransformationArgs(t *testing.T) {
 		{
 			"Nil Proto",
 			fields{
-				serialized: &pb.SourceVariant{
+				serialized: &pb.SourceVariantRequest{SourceVariant: &pb.SourceVariant{
 					Definition: &pb.SourceVariant_Transformation{
 						Transformation: &pb.Transformation{
 							Args: nil,
 						},
 					},
+				},
 				},
 			},
 			nil,
@@ -177,7 +180,7 @@ func TestKubernetesArgs_Format(t *testing.T) {
 
 func TestSourceVariant_HasKubernetesArgs(t *testing.T) {
 	type fields struct {
-		serialized *pb.SourceVariant
+		serialized *pb.SourceVariantRequest
 	}
 	tests := []struct {
 		name   string
@@ -186,7 +189,7 @@ func TestSourceVariant_HasKubernetesArgs(t *testing.T) {
 	}{
 		{"Has Kubernetes Args",
 			fields{
-				serialized: &pb.SourceVariant{
+				serialized: &pb.SourceVariantRequest{SourceVariant: &pb.SourceVariant{
 					Definition: &pb.SourceVariant_Transformation{
 						Transformation: &pb.Transformation{
 							Args: &pb.Transformation_KubernetesArgs{
@@ -197,15 +200,17 @@ func TestSourceVariant_HasKubernetesArgs(t *testing.T) {
 						},
 					},
 				},
+				},
 			},
 			true,
 		},
 		{"Does Not Have Kubernetes Args",
 			fields{
-				serialized: &pb.SourceVariant{
+				serialized: &pb.SourceVariantRequest{SourceVariant: &pb.SourceVariant{
 					Definition: &pb.SourceVariant_Transformation{
 						Transformation: &pb.Transformation{},
 					},
+				},
 				},
 			},
 			false,
@@ -225,7 +230,7 @@ func TestSourceVariant_HasKubernetesArgs(t *testing.T) {
 
 func TestEmptyKubernetesArgsSpecs(t *testing.T) {
 	type fields struct {
-		serialized *pb.SourceVariant
+		serialized *pb.SourceVariantRequest
 	}
 	tests := []struct {
 		name   string
@@ -233,7 +238,7 @@ func TestEmptyKubernetesArgsSpecs(t *testing.T) {
 		want   KubernetesArgs
 	}{
 		{"Empty", fields{
-			serialized: &pb.SourceVariant{},
+			serialized: &pb.SourceVariantRequest{SourceVariant: &pb.SourceVariant{}},
 		}, KubernetesArgs{},
 		},
 	}
@@ -255,21 +260,23 @@ func TestVectorValueType(t *testing.T) {
 		IsEmbedding: true,
 		Dimension:   384,
 	}
-	fv := &pb.FeatureVariant{
-		Name:    "vector",
-		Variant: "vector_variant",
-		Source: &pb.NameVariant{
-			Name:    "vector_source",
-			Variant: "vector_source_variant",
-		},
-		Type:     valType.ToProto(),
-		Entity:   "vector_entity",
-		Owner:    "vector_owner",
-		Provider: "vector_provider",
-		Location: &pb.FeatureVariant_Columns{
-			Columns: &pb.Columns{
-				Entity: "vector_entity",
-				Value:  "vector_value",
+	fv := &pb.FeatureVariantRequest{
+		FeatureVariant: &pb.FeatureVariant{
+			Name:    "vector",
+			Variant: "vector_variant",
+			Source: &pb.NameVariant{
+				Name:    "vector_source",
+				Variant: "vector_source_variant",
+			},
+			Type:     valType.ToProto(),
+			Entity:   "vector_entity",
+			Owner:    "vector_owner",
+			Provider: "vector_provider",
+			Location: &pb.FeatureVariant_Columns{
+				Columns: &pb.Columns{
+					Entity: "vector_entity",
+					Value:  "vector_value",
+				},
 			},
 		},
 	}
@@ -291,41 +298,43 @@ func TestFeatureVariant_ToShallowMap(t *testing.T) {
 	}
 	tests := []struct {
 		name       string
-		serialized *pb.FeatureVariant
+		serialized *pb.FeatureVariantRequest
 		want       FeatureVariantResource
 	}{
-		{"Precomputed", &pb.FeatureVariant{
-			Name:    "name",
-			Variant: "variant",
-			Source: &pb.NameVariant{
-				Name:    "source name",
-				Variant: "source variant",
-			},
-			Type:    valType.ToProto(),
-			Entity:  "entity",
-			Created: &timestamppb.Timestamp{},
-			Owner:   "owner",
-			Location: &pb.FeatureVariant_Columns{
-				Columns: &pb.Columns{
-					Entity: "entity",
-					Value:  "value",
-					Ts:     "ts",
+		{"Precomputed", &pb.FeatureVariantRequest{
+			FeatureVariant: &pb.FeatureVariant{
+				Name:    "name",
+				Variant: "variant",
+				Source: &pb.NameVariant{
+					Name:    "source name",
+					Variant: "source variant",
 				},
+				Type:    valType.ToProto(),
+				Entity:  "entity",
+				Created: &timestamppb.Timestamp{},
+				Owner:   "owner",
+				Location: &pb.FeatureVariant_Columns{
+					Columns: &pb.Columns{
+						Entity: "entity",
+						Value:  "value",
+						Ts:     "ts",
+					},
+				},
+				Description: "description",
+				Provider:    "provider",
+				Status: &pb.ResourceStatus{
+					Status:       pb.ResourceStatus_NO_STATUS,
+					ErrorMessage: "error",
+					ErrorStatus:  &pb.ErrorStatus{},
+				},
+				Trainingsets:         []*pb.NameVariant{},
+				LastUpdated:          &timestamppb.Timestamp{},
+				Schedule:             "* * * * *",
+				Tags:                 &pb.Tags{},
+				Properties:           &pb.Properties{},
+				Mode:                 pb.ComputationMode_PRECOMPUTED,
+				AdditionalParameters: &pb.FeatureParameters{},
 			},
-			Description: "description",
-			Provider:    "provider",
-			Status: &pb.ResourceStatus{
-				Status:       pb.ResourceStatus_NO_STATUS,
-				ErrorMessage: "error",
-				ErrorStatus:  &pb.ErrorStatus{},
-			},
-			Trainingsets:         []*pb.NameVariant{},
-			LastUpdated:          &timestamppb.Timestamp{},
-			Schedule:             "* * * * *",
-			Tags:                 &pb.Tags{},
-			Properties:           &pb.Properties{},
-			Mode:                 pb.ComputationMode_PRECOMPUTED,
-			AdditionalParameters: &pb.FeatureParameters{},
 		}, FeatureVariantResource{
 			Created:     time.UnixMilli(0).UTC(),
 			Description: "description",
@@ -354,33 +363,34 @@ func TestFeatureVariant_ToShallowMap(t *testing.T) {
 			IsOnDemand:   false,
 			Definition:   "",
 		}},
-		{"ClientComputed", &pb.FeatureVariant{
-			Name:    "name",
-			Variant: "variant",
-			Type:    valType.ToProto(),
-			Entity:  "entity",
-			Created: &timestamppb.Timestamp{},
-			Owner:   "owner",
-			Location: &pb.FeatureVariant_Function{
-				Function: &pb.PythonFunction{
-					Query: []byte("abcd"),
+		{"ClientComputed", &pb.FeatureVariantRequest{
+			FeatureVariant: &pb.FeatureVariant{
+				Name:    "name",
+				Variant: "variant",
+				Type:    valType.ToProto(),
+				Entity:  "entity",
+				Created: &timestamppb.Timestamp{},
+				Owner:   "owner",
+				Location: &pb.FeatureVariant_Function{
+					Function: &pb.PythonFunction{
+						Query: []byte("abcd"),
+					},
 				},
-			},
-			Description: "description",
-			Provider:    "provider",
-			Status: &pb.ResourceStatus{
-				Status:       pb.ResourceStatus_NO_STATUS,
-				ErrorMessage: "error",
-				ErrorStatus:  &pb.ErrorStatus{},
-			},
-			Trainingsets:         []*pb.NameVariant{},
-			LastUpdated:          &timestamppb.Timestamp{},
-			Schedule:             "* * * * *",
-			Tags:                 &pb.Tags{},
-			Properties:           &pb.Properties{},
-			Mode:                 pb.ComputationMode_CLIENT_COMPUTED,
-			AdditionalParameters: &pb.FeatureParameters{},
-		}, FeatureVariantResource{
+				Description: "description",
+				Provider:    "provider",
+				Status: &pb.ResourceStatus{
+					Status:       pb.ResourceStatus_NO_STATUS,
+					ErrorMessage: "error",
+					ErrorStatus:  &pb.ErrorStatus{},
+				},
+				Trainingsets:         []*pb.NameVariant{},
+				LastUpdated:          &timestamppb.Timestamp{},
+				Schedule:             "* * * * *",
+				Tags:                 &pb.Tags{},
+				Properties:           &pb.Properties{},
+				Mode:                 pb.ComputationMode_CLIENT_COMPUTED,
+				AdditionalParameters: &pb.FeatureParameters{},
+			}}, FeatureVariantResource{
 			Created:     time.UnixMilli(0).UTC(),
 			Description: "description",
 			Name:        "name",
@@ -407,14 +417,14 @@ func TestFeatureVariant_ToShallowMap(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			variant := &FeatureVariant{
 				serialized:           tt.serialized,
-				fetchTrainingSetsFns: fetchTrainingSetsFns{tt.serialized},
-				fetchProviderFns:     fetchProviderFns{tt.serialized},
-				fetchSourceFns:       fetchSourceFns{tt.serialized},
-				createdFn:            createdFn{tt.serialized},
-				lastUpdatedFn:        lastUpdatedFn{tt.serialized},
+				fetchTrainingSetsFns: fetchTrainingSetsFns{tt.serialized.FeatureVariant},
+				fetchProviderFns:     fetchProviderFns{tt.serialized.FeatureVariant},
+				fetchSourceFns:       fetchSourceFns{tt.serialized.FeatureVariant},
+				createdFn:            createdFn{tt.serialized.FeatureVariant},
+				lastUpdatedFn:        lastUpdatedFn{tt.serialized.FeatureVariant},
 				protoStringer:        protoStringer{tt.serialized},
-				fetchTagsFn:          fetchTagsFn{tt.serialized},
-				fetchPropertiesFn:    fetchPropertiesFn{tt.serialized},
+				fetchTagsFn:          fetchTagsFn{tt.serialized.FeatureVariant},
+				fetchPropertiesFn:    fetchPropertiesFn{tt.serialized.FeatureVariant},
 			}
 			if got := variant.ToShallowMap(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ToShallowMap() = \n%#v, \nwant \n%#v", got, tt.want)
@@ -426,40 +436,42 @@ func TestFeatureVariant_ToShallowMap(t *testing.T) {
 func TestLabelVariant_ToShallowMap(t *testing.T) {
 	tests := []struct {
 		name       string
-		serialized *pb.LabelVariant
+		serialized *pb.LabelVariantRequest
 		want       LabelVariantResource
 	}{
 		{
 			"Simple",
-			&pb.LabelVariant{
-				Name:    "name",
-				Variant: "variant",
-				Source: &pb.NameVariant{
-					Name:    "source name",
-					Variant: "source variant",
-				},
-				Type:    types.Float32.ToProto(),
-				Entity:  "entity",
-				Created: &timestamppb.Timestamp{},
-				Owner:   "owner",
-				Location: &pb.LabelVariant_Columns{
-					Columns: &pb.Columns{
-						Entity: "entity",
-						Value:  "value",
-						Ts:     "ts",
+			&pb.LabelVariantRequest{
+				LabelVariant: &pb.LabelVariant{
+					Name:    "name",
+					Variant: "variant",
+					Source: &pb.NameVariant{
+						Name:    "source name",
+						Variant: "source variant",
 					},
-				},
-				Description: "description",
-				Provider:    "provider",
-				Status: &pb.ResourceStatus{
-					Status:       pb.ResourceStatus_NO_STATUS,
-					ErrorMessage: "error",
-					ErrorStatus:  &pb.ErrorStatus{},
-				},
-				Trainingsets: []*pb.NameVariant{},
+					Type:    types.Float32.ToProto(),
+					Entity:  "entity",
+					Created: &timestamppb.Timestamp{},
+					Owner:   "owner",
+					Location: &pb.LabelVariant_Columns{
+						Columns: &pb.Columns{
+							Entity: "entity",
+							Value:  "value",
+							Ts:     "ts",
+						},
+					},
+					Description: "description",
+					Provider:    "provider",
+					Status: &pb.ResourceStatus{
+						Status:       pb.ResourceStatus_NO_STATUS,
+						ErrorMessage: "error",
+						ErrorStatus:  &pb.ErrorStatus{},
+					},
+					Trainingsets: []*pb.NameVariant{},
 
-				Tags:       &pb.Tags{},
-				Properties: &pb.Properties{},
+					Tags:       &pb.Tags{},
+					Properties: &pb.Properties{},
+				},
 			}, LabelVariantResource{
 				Created:     time.UnixMilli(0).UTC(),
 				Description: "description",
@@ -490,13 +502,13 @@ func TestLabelVariant_ToShallowMap(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			variant := &LabelVariant{
 				serialized:           tt.serialized,
-				fetchTrainingSetsFns: fetchTrainingSetsFns{tt.serialized},
-				fetchProviderFns:     fetchProviderFns{tt.serialized},
-				fetchSourceFns:       fetchSourceFns{tt.serialized},
-				createdFn:            createdFn{tt.serialized},
+				fetchTrainingSetsFns: fetchTrainingSetsFns{tt.serialized.LabelVariant},
+				fetchProviderFns:     fetchProviderFns{tt.serialized.LabelVariant},
+				fetchSourceFns:       fetchSourceFns{tt.serialized.LabelVariant},
+				createdFn:            createdFn{tt.serialized.LabelVariant},
 				protoStringer:        protoStringer{tt.serialized},
-				fetchTagsFn:          fetchTagsFn{tt.serialized},
-				fetchPropertiesFn:    fetchPropertiesFn{tt.serialized},
+				fetchTagsFn:          fetchTagsFn{tt.serialized.LabelVariant},
+				fetchPropertiesFn:    fetchPropertiesFn{tt.serialized.LabelVariant},
 			}
 			if got := variant.ToShallowMap(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ToShallowMap() = %v, want %v", got, tt.want)
@@ -507,37 +519,39 @@ func TestLabelVariant_ToShallowMap(t *testing.T) {
 func TestSourceVariant_ToShallowMap(t *testing.T) {
 	tests := []struct {
 		name       string
-		serialized *pb.SourceVariant
+		serialized *pb.SourceVariantRequest
 		want       SourceVariantResource
 	}{
 		{
 			"Simple",
-			&pb.SourceVariant{
-				Name:        "name",
-				Variant:     "variant",
-				Created:     &timestamppb.Timestamp{},
-				Owner:       "owner",
-				Description: "description",
-				Provider:    "provider",
-				Definition: &pb.SourceVariant_PrimaryData{
-					PrimaryData: &pb.PrimaryData{
-						Location: &pb.PrimaryData_Table{
-							Table: &pb.PrimarySQLTable{
-								Name: "table",
+			&pb.SourceVariantRequest{
+				SourceVariant: &pb.SourceVariant{
+					Name:        "name",
+					Variant:     "variant",
+					Created:     &timestamppb.Timestamp{},
+					Owner:       "owner",
+					Description: "description",
+					Provider:    "provider",
+					Definition: &pb.SourceVariant_PrimaryData{
+						PrimaryData: &pb.PrimaryData{
+							Location: &pb.PrimaryData_Table{
+								Table: &pb.PrimarySQLTable{
+									Name: "table",
+								},
 							},
 						},
 					},
+					Status: &pb.ResourceStatus{
+						Status:       pb.ResourceStatus_NO_STATUS,
+						ErrorMessage: "error",
+						ErrorStatus:  &pb.ErrorStatus{},
+					},
+					Trainingsets: []*pb.NameVariant{},
+					LastUpdated:  &timestamppb.Timestamp{},
+					Schedule:     "* * * * *",
+					Tags:         &pb.Tags{},
+					Properties:   &pb.Properties{},
 				},
-				Status: &pb.ResourceStatus{
-					Status:       pb.ResourceStatus_NO_STATUS,
-					ErrorMessage: "error",
-					ErrorStatus:  &pb.ErrorStatus{},
-				},
-				Trainingsets: []*pb.NameVariant{},
-				LastUpdated:  &timestamppb.Timestamp{},
-				Schedule:     "* * * * *",
-				Tags:         &pb.Tags{},
-				Properties:   &pb.Properties{},
 			},
 			SourceVariantResource{
 				Created:        time.UnixMilli(0).UTC(),
@@ -564,13 +578,13 @@ func TestSourceVariant_ToShallowMap(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			variant := &SourceVariant{
 				serialized:           tt.serialized,
-				fetchTrainingSetsFns: fetchTrainingSetsFns{tt.serialized},
-				fetchProviderFns:     fetchProviderFns{tt.serialized},
-				createdFn:            createdFn{tt.serialized},
-				lastUpdatedFn:        lastUpdatedFn{tt.serialized},
+				fetchTrainingSetsFns: fetchTrainingSetsFns{tt.serialized.SourceVariant},
+				fetchProviderFns:     fetchProviderFns{tt.serialized.SourceVariant},
+				createdFn:            createdFn{tt.serialized.SourceVariant},
+				lastUpdatedFn:        lastUpdatedFn{tt.serialized.SourceVariant},
 				protoStringer:        protoStringer{tt.serialized},
-				fetchTagsFn:          fetchTagsFn{tt.serialized},
-				fetchPropertiesFn:    fetchPropertiesFn{tt.serialized},
+				fetchTagsFn:          fetchTagsFn{tt.serialized.SourceVariant},
+				fetchPropertiesFn:    fetchPropertiesFn{tt.serialized.SourceVariant},
 			}
 			if got := variant.ToShallowMap(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ToShallowMap() = \n%#v, \nwant \n%#v", got, tt.want)
@@ -582,34 +596,36 @@ func TestSourceVariant_ToShallowMap(t *testing.T) {
 func TestTrainingSetVariant_ToShallowMap(t *testing.T) {
 	tests := []struct {
 		name       string
-		serialized *pb.TrainingSetVariant
+		serialized *pb.TrainingSetVariantRequest
 		want       TrainingSetVariantResource
 	}{
 		{
 			"Simple",
-			&pb.TrainingSetVariant{
-				Name:        "name",
-				Variant:     "variant",
-				Created:     &timestamppb.Timestamp{},
-				Owner:       "owner",
-				Description: "description",
-				Provider:    "provider",
-				Label: &pb.NameVariant{
-					Name:    "label name",
-					Variant: "label variant",
+			&pb.TrainingSetVariantRequest{
+				TrainingSetVariant: &pb.TrainingSetVariant{
+					Name:        "name",
+					Variant:     "variant",
+					Created:     &timestamppb.Timestamp{},
+					Owner:       "owner",
+					Description: "description",
+					Provider:    "provider",
+					Label: &pb.NameVariant{
+						Name:    "label name",
+						Variant: "label variant",
+					},
+					Features: []*pb.NameVariant{
+						{Name: "feature name", Variant: "feature variant"},
+					},
+					Status: &pb.ResourceStatus{
+						Status:       pb.ResourceStatus_NO_STATUS,
+						ErrorMessage: "error",
+						ErrorStatus:  &pb.ErrorStatus{},
+					},
+					LastUpdated: &timestamppb.Timestamp{},
+					Schedule:    "* * * * *",
+					Tags:        &pb.Tags{},
+					Properties:  &pb.Properties{},
 				},
-				Features: []*pb.NameVariant{
-					{Name: "feature name", Variant: "feature variant"},
-				},
-				Status: &pb.ResourceStatus{
-					Status:       pb.ResourceStatus_NO_STATUS,
-					ErrorMessage: "error",
-					ErrorStatus:  &pb.ErrorStatus{},
-				},
-				LastUpdated: &timestamppb.Timestamp{},
-				Schedule:    "* * * * *",
-				Tags:        &pb.Tags{},
-				Properties:  &pb.Properties{},
 			},
 			TrainingSetVariantResource{
 				Created:     time.UnixMilli(0).UTC(),
@@ -630,12 +646,12 @@ func TestTrainingSetVariant_ToShallowMap(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			variant := &TrainingSetVariant{
 				serialized:        tt.serialized,
-				fetchProviderFns:  fetchProviderFns{tt.serialized},
-				createdFn:         createdFn{tt.serialized},
-				lastUpdatedFn:     lastUpdatedFn{tt.serialized},
+				fetchProviderFns:  fetchProviderFns{tt.serialized.TrainingSetVariant},
+				createdFn:         createdFn{tt.serialized.TrainingSetVariant},
+				lastUpdatedFn:     lastUpdatedFn{tt.serialized.TrainingSetVariant},
 				protoStringer:     protoStringer{tt.serialized},
-				fetchTagsFn:       fetchTagsFn{tt.serialized},
-				fetchPropertiesFn: fetchPropertiesFn{tt.serialized},
+				fetchTagsFn:       fetchTagsFn{tt.serialized.TrainingSetVariant},
+				fetchPropertiesFn: fetchPropertiesFn{tt.serialized.TrainingSetVariant},
 			}
 			if got := variant.ToShallowMap(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ToShallowMap() = \n%#v, \nwant \n%#v", got, tt.want)

@@ -269,7 +269,7 @@ func (lookup LocalResourceLookup) Lookup(ctx context.Context, id ResourceID) (Re
 	logger := logging.GetLoggerFromContext(ctx)
 	res, has := lookup[id]
 	if !has {
-		logger.Errorf("resource %s not found", id.String())
+		logger.Errorw("resource not found", "resource ID", id.String())
 		wrapped := fferr.NewKeyNotFoundError(id.String(), nil)
 		wrapped.AddDetail("resource_type", id.Type.String())
 		return nil, wrapped
@@ -756,7 +756,7 @@ func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) (boo
 		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
 		thisProto.GetProvider() == otherProto.GetProvider() &&
 		thisProto.GetEntity() == otherProto.GetEntity() &&
-		thisProto.Type == otherProto.Type &&
+		proto.Equal(thisProto.GetType(), otherProto.GetType()) &&
 		isEquivalentLocation &&
 		thisProto.Owner == otherProto.Owner {
 
@@ -770,11 +770,15 @@ func (resource *featureVariantResource) ToResourceVariantProto() *pb.ResourceVar
 }
 
 func (resource *featureVariantResource) GetDefinition() string {
-	def := ""
-	if resource.serialized.Type == "ondemand_feature" {
-		def = resource.serialized.GetAdditionalParameters().GetOndemand().GetDefinition()
+	params := resource.serialized.GetAdditionalParameters().GetFeatureType()
+	if params == nil {
+		return ""
 	}
-	return def
+	ondemand, isOnDemand := params.(*pb.FeatureParameters_Ondemand)
+	if !isOnDemand {
+		return ""
+	}
+	return ondemand.Ondemand.GetDefinition()
 }
 
 type labelResource struct {
@@ -945,7 +949,7 @@ func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) (bool,
 		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
 		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns()) &&
 		thisProto.Entity == otherProto.Entity &&
-		thisProto.Type == otherProto.Type &&
+		proto.Equal(thisProto.GetType(), otherProto.GetType()) &&
 		thisProto.Owner == otherProto.Owner {
 
 		return true, nil
@@ -1594,9 +1598,9 @@ func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetSt
 	return &pb.Empty{}, err
 }
 
-func (serv *MetadataServer) ListFeatures(_ *pb.Empty, stream pb.Metadata_ListFeaturesServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened List Features stream")
+func (serv *MetadataServer) ListFeatures(request *pb.ListRequest, stream pb.Metadata_ListFeaturesServer) error {
+	ctx := logging.UpdateContext(stream.Context(), serv.Logger, request.RequestId)
+	logging.GetLoggerFromContext(ctx).Info("Opened List Features stream")
 	return serv.genericList(ctx, FEATURE, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Feature))
 	})
@@ -1622,24 +1626,24 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variantReq
 }
 
 func (serv *MetadataServer) GetFeatures(stream pb.Metadata_GetFeaturesServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened Get Features stream")
+	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
+	serv.Logger.Info("Opened Get Features stream")
 	return serv.genericGet(ctx, stream, FEATURE, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Feature))
 	})
 }
 
 func (serv *MetadataServer) GetFeatureVariants(stream pb.Metadata_GetFeatureVariantsServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened Get Feature Variants stream")
+	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
+	serv.Logger.Info("Opened Get Feature Variants stream")
 	return serv.genericGet(ctx, stream, FEATURE_VARIANT, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.FeatureVariant))
 	})
 }
 
-func (serv *MetadataServer) ListLabels(_ *pb.Empty, stream pb.Metadata_ListLabelsServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened List Labels stream")
+func (serv *MetadataServer) ListLabels(request *pb.ListRequest, stream pb.Metadata_ListLabelsServer) error {
+	ctx := logging.UpdateContext(stream.Context(), serv.Logger, request.RequestId)
+	logging.GetLoggerFromContext(ctx).Info("Opened List Labels stream")
 	return serv.genericList(ctx, LABEL, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Label))
 	})
@@ -1665,24 +1669,24 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variantReque
 }
 
 func (serv *MetadataServer) GetLabels(stream pb.Metadata_GetLabelsServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened Get Labels stream")
+	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
+	serv.Logger.Info("Opened Get Labels stream")
 	return serv.genericGet(ctx, stream, LABEL, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Label))
 	})
 }
 
 func (serv *MetadataServer) GetLabelVariants(stream pb.Metadata_GetLabelVariantsServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened Get Label Variants stream")
+	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
+	serv.Logger.Info("Opened Get Label Variants stream")
 	return serv.genericGet(ctx, stream, LABEL_VARIANT, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.LabelVariant))
 	})
 }
 
-func (serv *MetadataServer) ListTrainingSets(_ *pb.Empty, stream pb.Metadata_ListTrainingSetsServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened List Training Sets stream")
+func (serv *MetadataServer) ListTrainingSets(request *pb.ListRequest, stream pb.Metadata_ListTrainingSetsServer) error {
+	ctx := logging.UpdateContext(stream.Context(), serv.Logger, request.RequestId)
+	logging.GetLoggerFromContext(ctx).Info("Opened List Training Sets stream")
 	return serv.genericList(ctx, TRAINING_SET, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.TrainingSet))
 	})
@@ -1708,24 +1712,24 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, varian
 }
 
 func (serv *MetadataServer) GetTrainingSets(stream pb.Metadata_GetTrainingSetsServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened Get Training Sets stream")
+	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
+	serv.Logger.Info("Opened Get Training Sets stream")
 	return serv.genericGet(ctx, stream, TRAINING_SET, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.TrainingSet))
 	})
 }
 
 func (serv *MetadataServer) GetTrainingSetVariants(stream pb.Metadata_GetTrainingSetVariantsServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened Get Training Set Variants stream")
+	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
+	serv.Logger.Info("Opened Get Training Set Variants stream")
 	return serv.genericGet(ctx, stream, TRAINING_SET_VARIANT, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.TrainingSetVariant))
 	})
 }
 
-func (serv *MetadataServer) ListSources(_ *pb.Empty, stream pb.Metadata_ListSourcesServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened List Sources stream")
+func (serv *MetadataServer) ListSources(request *pb.ListRequest, stream pb.Metadata_ListSourcesServer) error {
+	ctx := logging.UpdateContext(stream.Context(), serv.Logger, request.RequestId)
+	logging.GetLoggerFromContext(ctx).Info("Opened List Sources stream")
 	return serv.genericList(ctx, SOURCE, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Source))
 	})
@@ -1751,31 +1755,31 @@ func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variantRequ
 }
 
 func (serv *MetadataServer) GetSources(stream pb.Metadata_GetSourcesServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened Get Sources stream")
+	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
+	serv.Logger.Info("Opened Get Sources stream")
 	return serv.genericGet(ctx, stream, SOURCE, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Source))
 	})
 }
 
 func (serv *MetadataServer) GetSourceVariants(stream pb.Metadata_GetSourceVariantsServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened Get Source Variants stream")
+	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
+	serv.Logger.Info("Opened Get Source Variants stream")
 	return serv.genericGet(ctx, stream, SOURCE_VARIANT, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.SourceVariant))
 	})
 }
 
-func (serv *MetadataServer) ListUsers(_ *pb.Empty, stream pb.Metadata_ListUsersServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened List Users stream")
+func (serv *MetadataServer) ListUsers(request *pb.ListRequest, stream pb.Metadata_ListUsersServer) error {
+	ctx := logging.UpdateContext(stream.Context(), serv.Logger, request.RequestId)
+	logging.GetLoggerFromContext(ctx).Info("Opened List Users stream")
 	return serv.genericList(ctx, USER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.User))
 	})
 }
 
 func (serv *MetadataServer) CreateUser(ctx context.Context, userRequest *pb.UserRequest) (*pb.Empty, error) {
-	logger := serv.Logger.WithRequestID(logging.RequestID(userRequest.RequestId)).WithResource("user", userRequest.User.Name, "")
+	logger := serv.Logger.WithRequestID(logging.RequestID(userRequest.RequestId)).WithResource("user", userRequest.User.Name, logging.NoVariant)
 	logger.Info("Creating User")
 	ctx = logging.UpdateContext(ctx, logger, userRequest.RequestId)
 
@@ -1783,16 +1787,16 @@ func (serv *MetadataServer) CreateUser(ctx context.Context, userRequest *pb.User
 }
 
 func (serv *MetadataServer) GetUsers(stream pb.Metadata_GetUsersServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened Get Users stream")
+	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
+	serv.Logger.Info("Opened Get Users stream")
 	return serv.genericGet(ctx, stream, USER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.User))
 	})
 }
 
-func (serv *MetadataServer) ListProviders(_ *pb.Empty, stream pb.Metadata_ListProvidersServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened List Providers stream")
+func (serv *MetadataServer) ListProviders(request *pb.ListRequest, stream pb.Metadata_ListProvidersServer) error {
+	ctx := logging.UpdateContext(stream.Context(), serv.Logger, request.RequestId)
+	logging.GetLoggerFromContext(ctx).Info("Opened List Providers stream")
 	return serv.genericList(ctx, PROVIDER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Provider))
 	})
@@ -1808,64 +1812,64 @@ func (serv *MetadataServer) CreateProvider(ctx context.Context, providerRequest 
 }
 
 func (serv *MetadataServer) GetProviders(stream pb.Metadata_GetProvidersServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened Get Providers stream")
+	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
+	serv.Logger.Info("Opened Get Providers stream")
 	return serv.genericGet(ctx, stream, PROVIDER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Provider))
 	})
 }
 
-func (serv *MetadataServer) ListEntities(_ *pb.Empty, stream pb.Metadata_ListEntitiesServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened List Entities stream")
+func (serv *MetadataServer) ListEntities(request *pb.ListRequest, stream pb.Metadata_ListEntitiesServer) error {
+	ctx := logging.UpdateContext(stream.Context(), serv.Logger, request.RequestId)
+	logging.GetLoggerFromContext(ctx).Info("Opened List Entities stream")
 	return serv.genericList(ctx, ENTITY, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Entity))
 	})
 }
 
 func (serv *MetadataServer) CreateEntity(ctx context.Context, entityRequest *pb.EntityRequest) (*pb.Empty, error) {
-	logger := serv.Logger.WithRequestID(logging.RequestID(entityRequest.RequestId)).WithResource("entity", entityRequest.Entity.Name, "")
+	logger := serv.Logger.WithRequestID(logging.RequestID(entityRequest.RequestId)).WithResource("entity", entityRequest.Entity.Name, logging.NoVariant)
 	logger.Info("Creating Entity")
 	ctx = logging.UpdateContext(ctx, logger, entityRequest.RequestId)
 	return serv.genericCreate(ctx, &entityResource{entityRequest.Entity}, nil)
 }
 
 func (serv *MetadataServer) GetEntities(stream pb.Metadata_GetEntitiesServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened Get Entities stream")
+	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
+	serv.Logger.Info("Opened Get Entities stream")
 	return serv.genericGet(ctx, stream, ENTITY, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Entity))
 	})
 }
 
-func (serv *MetadataServer) ListModels(_ *pb.Empty, stream pb.Metadata_ListModelsServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened List Models stream")
+func (serv *MetadataServer) ListModels(request *pb.ListRequest, stream pb.Metadata_ListModelsServer) error {
+	ctx := logging.UpdateContext(stream.Context(), serv.Logger, request.RequestId)
+	logging.GetLoggerFromContext(ctx).Info("Opened List Models stream")
 	return serv.genericList(ctx, MODEL, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Model))
 	})
 }
 
 func (serv *MetadataServer) CreateModel(ctx context.Context, modelRequest *pb.ModelRequest) (*pb.Empty, error) {
-	logger := serv.Logger.WithRequestID(logging.RequestID(modelRequest.RequestId)).WithResource("model", modelRequest.Model.Name, "")
+	logger := serv.Logger.WithRequestID(logging.RequestID(modelRequest.RequestId)).WithResource("model", modelRequest.Model.Name, logging.NoVariant)
 	logger.Info("Creating Model")
 	ctx = logging.UpdateContext(ctx, logger, modelRequest.RequestId)
 	return serv.genericCreate(ctx, &modelResource{modelRequest.Model}, nil)
 }
 
 func (serv *MetadataServer) GetModels(stream pb.Metadata_GetModelsServer) error {
-	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
-	logger.Info("Opened Get Models stream")
+	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
+	serv.Logger.Info("Opened Get Models stream")
 	return serv.genericGet(ctx, stream, MODEL, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Model))
 	})
 }
 
 // GetEquivalent attempts to find an equivalent resource based on the provided ResourceVariant.
-func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariant) (*pb.ResourceVariant, error) {
+func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariantRequest) (*pb.ResourceVariant, error) {
 	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
-	logger.Info("Getting Equivalent Resource Variant, %v", req.Resource)
-	return serv.getEquivalent(ctx, req, true)
+	logger.Info("Getting Equivalent Resource Variant, %v", req.ResourceVariant.Resource)
+	return serv.getEquivalent(ctx, req.ResourceVariant, true)
 }
 
 /*
@@ -1876,29 +1880,45 @@ if we should only return the equivalent resource variant if it is ready.
 func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.ResourceVariant, filterReadyStatus bool) (*pb.ResourceVariant, error) {
 	noEquivalentResponse := &pb.ResourceVariant{}
 	logger := logging.GetLoggerFromContext(ctx)
-
 	currentResource, resourceType, err := serv.extractResourceVariant(req)
 	if err != nil {
 		logger.Errorw("Error extracting resource variant", "resource variant", req, "error", err)
 		return nil, err
 	}
-
 	resourceProto := currentResource.ToResourceVariantProto()
-	logger = logger.WithResource(resourceType.String(), resourceProto.GetFeatureVariant().Name, resourceProto.GetFeatureVariant().Variant)
+	var resourceName string
+	var resourceVariant string
+	switch resourceType {
+	case SOURCE_VARIANT:
+		resourceName = resourceProto.GetSourceVariant().Name
+		resourceVariant = resourceProto.GetSourceVariant().Variant
+	case FEATURE_VARIANT:
+		resourceName = resourceProto.GetFeatureVariant().Name
+		resourceVariant = resourceProto.GetFeatureVariant().Variant
+	case LABEL_VARIANT:
+		resourceName = resourceProto.GetLabelVariant().Name
+		resourceVariant = resourceProto.GetLabelVariant().Variant
+	case TRAINING_SET_VARIANT:
+		resourceName = resourceProto.GetTrainingSetVariant().Name
+		resourceVariant = resourceProto.GetTrainingSetVariant().Variant
+	default:
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("unknown resource variant type: %T", req.Resource))
+	}
+	logger = logger.WithResource(resourceType.String(), resourceName, resourceVariant)
+
 	resourcesForType, err := serv.lookup.ListForType(resourceType)
 	if err != nil {
 		logger.Errorw("Unable to list resources", "error", err)
 		return nil, err
 	}
 
-	equivalentResourceVariant, err := findEquivalent(ctx, resourcesForType, currentResource, filterReadyStatus)
+	equivalentResourceVariant, err := findEquivalent(resourcesForType, currentResource, filterReadyStatus)
 	if err != nil {
 		logger.Errorw("Unable to find equivalent resource", "error", err)
 		return nil, err
 	}
 
 	if equivalentResourceVariant == nil {
-		logger.Info("No equivalent resource found")
 		return noEquivalentResponse, nil
 	}
 
@@ -1906,8 +1926,7 @@ func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.ResourceV
 }
 
 // findEquivalent searches through a slice of Resources to find an equivalent ResourceVariant.
-func findEquivalent(ctx context.Context, resources []Resource, resource ResourceVariant, filterReadyStatus bool) (ResourceVariant, error) {
-	logger := logging.GetLoggerFromContext(ctx)
+func findEquivalent(resources []Resource, resource ResourceVariant, filterReadyStatus bool) (ResourceVariant, error) {
 	for _, res := range resources {
 		// If we are filtering by ready status, we only want to return the equivalent resource variant if it is ready.
 		if filterReadyStatus && !isResourceReady(res) {
@@ -1916,17 +1935,14 @@ func findEquivalent(ctx context.Context, resources []Resource, resource Resource
 
 		other, ok := res.(ResourceVariant)
 		if !ok {
-			logger.Errorf("%T is not a ResourceVariant", res)
 			return nil, fferr.NewInvalidResourceTypeError(res.ID().Name, res.ID().Variant, fferr.ResourceType(res.ID().Type.String()), fmt.Errorf("resource is not a ResourceVariant: %T", res))
 		}
 
 		equivalent, err := resource.IsEquivalent(other)
 		if err != nil {
-			logger.Errorw("Error checking equivalence", "error", err)
 			return nil, fferr.NewInternalError(err)
 		}
 		if equivalent {
-			logger.Debugf("Found equivalent resource")
 			return other, nil
 		}
 	}
@@ -1956,11 +1972,11 @@ func isResourceReady(res Resource) bool {
 }
 
 type nameStream interface {
-	Recv() (*pb.Name, error)
+	Recv() (*pb.NameRequest, error)
 }
 
 type variantStream interface {
-	Recv() (*pb.NameVariant, error)
+	Recv() (*pb.NameVariantRequest, error)
 }
 
 type sendFn func(proto.Message) error
@@ -1978,7 +1994,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 	}
 	existing, err := serv.lookup.Lookup(ctx, id)
 	if _, isResourceError := err.(*fferr.KeyNotFoundError); err != nil && !isResourceError {
-		logger.Errorf("Error looking up resource: %v", err)
+		logger.Errorw("Error looking up resource", "resource ID", id, "Error", err)
 		// TODO: consider checking the GRPCError interface to avoid double wrapping error
 		return nil, fferr.NewInternalError(err)
 	}
@@ -2147,33 +2163,42 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 	for {
 		var recvErr error
 		var id ResourceID
+		var loggerWithResource logging.Logger
 		switch casted := stream.(type) {
 		case nameStream:
 			req, err := casted.Recv()
 			recvErr = err
+			if recvErr == io.EOF {
+				return nil
+			}
+			if err != nil {
+				logger.Errorw("Unable to receive request", "error", recvErr)
+				return fferr.NewInternalError(recvErr)
+			}
 			id = ResourceID{
-				Name: req.GetName(),
+				Name: req.GetName().Name,
 				Type: t,
 			}
+			loggerWithResource = logger.WithRequestID(logging.RequestID(req.GetRequestId())).WithResource(id.Type.String(), id.Name, logging.NoVariant)
 		case variantStream:
 			req, err := casted.Recv()
 			recvErr = err
+			if recvErr == io.EOF {
+				return nil
+			}
+			if err != nil {
+				logger.Errorw("Unable to receive request", "error", recvErr)
+				return fferr.NewInternalError(recvErr)
+			}
 			id = ResourceID{
-				Name:    req.GetName(),
-				Variant: req.GetVariant(),
+				Name:    req.GetNameVariant().Name,
+				Variant: req.GetNameVariant().Variant,
 				Type:    t,
 			}
+			loggerWithResource = logger.WithRequestID(logging.RequestID(req.GetRequestId())).WithResource(id.Type.String(), id.Name, id.Variant)
 		default:
-			logger.Error("Invalid Stream for Get", "type", fmt.Sprintf("%T", casted))
+			logger.Errorw("Invalid Stream for Get", "type", fmt.Sprintf("%T", casted))
 			return fferr.NewInternalError(fmt.Errorf("invalid Stream for Get: %T", casted))
-		}
-		loggerWithResource := logger.WithResource(id.Type.String(), id.Name, id.Variant)
-		if recvErr == io.EOF {
-			return nil
-		}
-		if recvErr != nil {
-			loggerWithResource.Errorw("Unable to receive request", "error", recvErr)
-			return fferr.NewInternalError(recvErr)
 		}
 		loggerWithResource.Debug("Looking up Resource")
 		resource, err := serv.lookup.Lookup(ctx, id)
@@ -2228,12 +2253,13 @@ type TrainingSetVariantResource struct {
 }
 
 type FeatureVariantResource struct {
-	Created      time.Time                               `json:"created"`
-	Description  string                                  `json:"description"`
-	Entity       string                                  `json:"entity"`
-	Name         string                                  `json:"name"`
-	Owner        string                                  `json:"owner"`
-	Provider     string                                  `json:"provider"`
+	Created     time.Time `json:"created"`
+	Description string    `json:"description"`
+	Entity      string    `json:"entity"`
+	Name        string    `json:"name"`
+	Owner       string    `json:"owner"`
+	Provider    string    `json:"provider"`
+	// TODO(simba) Make this not a string
 	DataType     string                                  `json:"data-type"`
 	Variant      string                                  `json:"variant"`
 	Status       string                                  `json:"status"`

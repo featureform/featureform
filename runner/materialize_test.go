@@ -5,10 +5,12 @@
 package runner
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	vt "github.com/featureform/provider/types"
 	"github.com/featureform/types"
 	"github.com/google/uuid"
 	"go.uber.org/zap/zaptest"
@@ -34,15 +36,15 @@ func testMaterializationRunner(t *testing.T, offline provider.OfflineStore, onli
 
 	schema := provider.TableSchema{
 		Columns: []provider.TableColumn{
-			{Name: "entity", ValueType: provider.String},
-			{Name: "value", ValueType: provider.Float32},
-			{Name: "ts", ValueType: provider.Timestamp},
+			{Name: "entity", ValueType: vt.String},
+			{Name: "value", ValueType: vt.Float32},
+			{Name: "ts", ValueType: vt.Timestamp},
 		},
 	}
-	records := []provider.ResourceRecord{
-		{Entity: "a", Value: float32(1)},
-		{Entity: "b", Value: float32(2)},
-		{Entity: "c", Value: float32(3)},
+	records := make([]provider.ResourceRecord, 99)
+	for i := 0; i < 99; i++ {
+		entity, val := strconv.Itoa(i), float32(i)
+		records[i] = provider.ResourceRecord{Entity: entity, Value: val}
 	}
 	id, mat := createMaterialization(t, offline, schema, records)
 	defer offline.DeleteMaterialization(mat.ID())
@@ -50,7 +52,7 @@ func testMaterializationRunner(t *testing.T, offline provider.OfflineStore, onli
 		Online:  online,
 		Offline: offline,
 		ID:      id,
-		VType:   provider.Float32,
+		VType:   vt.Float32,
 		// Only testing initial materializations
 		IsUpdate: false,
 		// Not testing K8s
@@ -154,7 +156,7 @@ func TestMockMaterializeRunner(t *testing.T) {
 			Variant: "test",
 			Type:    provider.Feature,
 		},
-		VType:  provider.String,
+		VType:  vt.String,
 		Cloud:  LocalMaterializeRunner,
 		Logger: zaptest.NewLogger(t).Sugar(),
 	}

@@ -13,11 +13,16 @@ import (
 type Logger struct {
 	*zap.SugaredLogger
 	id     RequestID
-	values map[string]interface{}
+	Values map[string]interface{}
 }
 
 type RequestID string
 type contextKey string
+
+const (
+	SkipProviderType string = ""
+	NoVariant        string = ""
+)
 
 const (
 	RequestIDKey = contextKey("request-id")
@@ -38,44 +43,65 @@ func (logger Logger) WithRequestID(id RequestID) Logger {
 		return logger
 	}
 	if logger.id != "" {
-		logger.Warnw("Request ID already set in logger", "current request-id", logger.id, "new request-id", id)
+		logger.Warnw("Request ID already set in logger. Using existing Request ID", "current request-id", logger.id, "new request-id", id)
 		return logger
 	}
 
 	return Logger{SugaredLogger: logger.With("request-id", id),
-		id: id}
+		id:     id,
+		Values: logger.Values}
 }
 
 func (logger Logger) WithResource(resourceType, name, variant string) Logger {
-	if resourceType == "" {
-		logger.Warn("Resource type is empty")
+	combinedValues := logger.Values
+	if resourceType != "" {
+		combinedValues["resource-type"] = resourceType
+		logger.SugaredLogger = logger.SugaredLogger.With("resource-type", resourceType)
+	} else {
+		logger.Warn("Resource type is an empty string")
 	}
-	if name == "" {
+
+	if name != "" {
+		combinedValues["resource-name"] = name
+		logger.SugaredLogger = logger.SugaredLogger.With("resource-name", name)
+	} else {
 		logger.Warn("Resource name is empty")
 	}
-	if variant == "" {
+
+	if variant != "" {
+		combinedValues["resource-variant"] = variant
+		logger.SugaredLogger = logger.SugaredLogger.With("resource-variant", variant)
+	} else {
 		logger.Warn("Resource variant is empty")
 	}
-	resourceValues := map[string]interface{}{"resource-type": resourceType, "resource-name": name, "resource-variant": variant}
+
 	return Logger{
-		SugaredLogger: logger.With("resource-type", resourceType, "name", name, "variant", variant),
+		SugaredLogger: logger.SugaredLogger,
 		id:            logger.id,
-		values:        resourceValues,
+		Values:        combinedValues,
 	}
 }
 
 func (logger Logger) WithProvider(providerType, providerName string) Logger {
-	if providerType == "" {
+	combinedValues := logger.Values
+	if providerType != "" {
+		combinedValues["provider-type"] = providerType
+		logger.SugaredLogger = logger.SugaredLogger.With("provider-type", providerType)
+	} else {
 		logger.Warn("Provider type is empty")
 	}
-	if providerName == "" {
+
+	if providerName != "" {
+		combinedValues["provider-name"] = providerName
+		logger.SugaredLogger = logger.SugaredLogger.With("provider-name", providerName)
+	} else {
 		logger.Warn("Provider name is empty")
 	}
-	providerValues := map[string]interface{}{"provider-type": providerType, "provider-name": providerName}
+
 	return Logger{
-		SugaredLogger: logger.With("provider-type", providerType, "provider-name", providerName),
+		SugaredLogger: logger.SugaredLogger,
 		id:            logger.id,
-		values:        providerValues,
+		Values:        combinedValues,
 	}
 }
 
@@ -83,7 +109,7 @@ func (logger Logger) WithValues(values map[string]interface{}) Logger {
 	if values == nil {
 		logger.Warn("Values are empty")
 	}
-	combinedValues := logger.values
+	combinedValues := logger.Values
 	for k, v := range values {
 		combinedValues[k] = v
 		logger.SugaredLogger = logger.SugaredLogger.With(k, v)
@@ -91,18 +117,20 @@ func (logger Logger) WithValues(values map[string]interface{}) Logger {
 	return Logger{
 		SugaredLogger: logger.SugaredLogger,
 		id:            logger.id,
-		values:        combinedValues,
+		Values:        combinedValues,
 	}
 }
 
 func (logger Logger) InitializeRequestID(ctx context.Context) (string, context.Context, Logger) {
 	requestID := ctx.Value(RequestIDKey)
 	if requestID == nil {
+		logger.Debugw("Creating new Request ID", "request-id", requestID)
 		requestID = NewRequestID()
 		ctx = context.WithValue(ctx, RequestIDKey, requestID)
 	}
 	ctxLogger := ctx.Value(LoggerKey)
 	if ctxLogger == nil {
+		logger.Debugw("Adding logger to context")
 		ctxLogger = logger.WithRequestID(requestID.(RequestID))
 		ctx = context.WithValue(ctx, LoggerKey, ctxLogger)
 	}
@@ -123,9 +151,8 @@ func GetLoggerFromContext(ctx context.Context) Logger {
 	logger := ctx.Value(LoggerKey)
 	if logger == nil {
 		NewLogger("logging").Warn("Logger not found in context")
-		return Logger{}
+		return NewLogger("logger")
 	}
-
 	return logger.(Logger)
 }
 
@@ -149,6 +176,14 @@ func UpdateContext(ctx context.Context, logger Logger, id string) context.Contex
 	return ctx
 }
 
+func AddLoggerToContext(ctx context.Context, logger Logger) context.Context {
+	contextLogger := ctx.Value(LoggerKey)
+	if contextLogger == nil {
+		ctx = context.WithValue(ctx, LoggerKey, logger)
+	}
+	return ctx
+}
+
 func NewLogger(service string) Logger {
 	baseLogger, err := zap.NewDevelopment(
 		zap.AddStacktrace(zap.WarnLevel),
@@ -159,6 +194,7 @@ func NewLogger(service string) Logger {
 	logger := baseLogger.Sugar().Named(service)
 	return Logger{
 		SugaredLogger: logger,
+		Values:        make(map[string]interface{}),
 	}
 }
 

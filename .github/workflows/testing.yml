@@ -257,7 +257,7 @@ jobs:
           go-version: 1.21
 
       - name: Install grpc_tools
-        run: pip install grpcio-tools build
+        run: pip install grpcio-tools==1.62.2 build
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic

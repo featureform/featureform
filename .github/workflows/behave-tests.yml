@@ -24,6 +24,7 @@ env:
   SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
   SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
   POSTGRES_HOST: 172.17.0.1
+  REDIS_HOST: 172.17.0.1
 
 
 jobs:
@@ -59,7 +60,7 @@ jobs:
           python-version: '3.8'
 
       - name: Install grpc_tools
-        run: pip install grpcio-tools build
+        run: pip install grpcio-tools==1.62.2 build
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic

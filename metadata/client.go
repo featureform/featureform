@@ -14,6 +14,7 @@ import (
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
+	"github.com/featureform/provider/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	grpc_status "google.golang.org/grpc/status"
@@ -166,8 +167,10 @@ func (client *Client) Create(ctx context.Context, def ResourceDef) error {
 }
 
 func (client *Client) ListFeatures(ctx context.Context) ([]*Feature, error) {
-	stream, err := client.GrpcConn.ListFeatures(ctx, &pb.Empty{})
+	logger := logging.GetLoggerFromContext(ctx)
+	stream, err := client.GrpcConn.ListFeatures(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
 	if err != nil {
+		logger.Errorw("Failed to list features", "error", err)
 		return nil, err
 	}
 	return client.parseFeatureStream(stream)
@@ -182,35 +185,38 @@ func (client *Client) GetFeature(ctx context.Context, feature string) (*Feature,
 }
 
 func (client *Client) GetFeatures(ctx context.Context, features []string) ([]*Feature, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetFeatures(ctx)
 	if err != nil {
+		logger.Errorw("Failed to get features", "features", features, "error", err)
 		return nil, err
 	}
 	go func() {
 		for _, feature := range features {
-			stream.Send(&pb.Name{Name: feature})
+			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: feature}, RequestId: logging.GetRequestIDFromContext(ctx)})
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseFeatureStream(stream)
 }
 
 func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant) ([]*FeatureVariant, error) {
-	logger := client.Logger
+	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetFeatureVariants(ctx)
 	if err != nil {
+		logger.Errorw("Failed to get feature variants", "ids", ids, "error", err)
 		return nil, err
 	}
 	go func() {
 		for _, id := range ids {
-			stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
+			stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx)})
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseFeatureVariantStream(stream)
@@ -232,7 +238,6 @@ type FeatureDef struct {
 	Name        string
 	Variant     string
 	Source      NameVariant
-	Type        string
 	Entity      string
 	Owner       string
 	Description string
@@ -243,8 +248,8 @@ type FeatureDef struct {
 	Properties  Properties
 	Mode        ComputationMode
 	IsOnDemand  bool
-	IsEmbedding bool
 	Definition  string
+	Type        types.ValueType
 }
 
 type ResourceVariantColumns struct {
@@ -292,12 +297,18 @@ func (def FeatureDef) ResourceType() ResourceType {
 
 func (def FeatureDef) Serialize(ctx context.Context) (*pb.FeatureVariantRequest, error) {
 	requestID := logging.GetRequestIDFromContext(ctx)
+	var typeProto *pb.ValueType
+	if def.Type == nil {
+		typeProto = types.NilType.ToProto()
+	} else {
+		typeProto = def.Type.ToProto()
+	}
 	serialized := &pb.FeatureVariantRequest{
 		FeatureVariant: &pb.FeatureVariant{
 			Name:        def.Name,
 			Variant:     def.Variant,
 			Source:      def.Source.Serialize(),
-			Type:        def.Type,
+			Type:        typeProto,
 			Entity:      def.Entity,
 			Owner:       def.Owner,
 			Description: def.Description,
@@ -307,7 +318,6 @@ func (def FeatureDef) Serialize(ctx context.Context) (*pb.FeatureVariantRequest,
 			Tags:        &pb.Tags{Tag: def.Tags},
 			Properties:  def.Properties.Serialize(),
 			Mode:        pb.ComputationMode(def.Mode),
-			IsEmbedding: def.IsEmbedding,
 		},
 		RequestId: requestID,
 	}
@@ -371,8 +381,10 @@ func (client *Client) parseFeatureVariantStream(stream featureVariantStream) ([]
 }
 
 func (client *Client) ListLabels(ctx context.Context) ([]*Label, error) {
-	stream, err := client.GrpcConn.ListLabels(ctx, &pb.Empty{})
+	logger := logging.GetLoggerFromContext(ctx)
+	stream, err := client.GrpcConn.ListLabels(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
 	if err != nil {
+		logger.Errorw("Failed to list labels", "error", err)
 		return nil, err
 	}
 	return client.parseLabelStream(stream)
@@ -387,17 +399,19 @@ func (client *Client) GetLabel(ctx context.Context, label string) (*Label, error
 }
 
 func (client *Client) GetLabels(ctx context.Context, labels []string) ([]*Label, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetLabels(ctx)
 	if err != nil {
+		logger.Errorw("Failed to get labels", "labels", labels, "error", err)
 		return nil, err
 	}
 	go func() {
 		for _, label := range labels {
-			stream.Send(&pb.Name{Name: label})
+			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: label}, RequestId: logging.GetRequestIDFromContext(ctx)})
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseLabelStream(stream)
@@ -407,7 +421,7 @@ type LabelDef struct {
 	Name        string
 	Variant     string
 	Description string
-	Type        string
+	Type        types.ValueType
 	Source      NameVariant
 	Entity      string
 	Owner       string
@@ -423,12 +437,18 @@ func (def LabelDef) ResourceType() ResourceType {
 
 func (def LabelDef) Serialize(ctx context.Context) (*pb.LabelVariantRequest, error) {
 	requestID := logging.GetRequestIDFromContext(ctx)
+	var typeProto *pb.ValueType
+	if def.Type == nil {
+		typeProto = types.NilType.ToProto()
+	} else {
+		typeProto = def.Type.ToProto()
+	}
 	serialized := &pb.LabelVariantRequest{
 		LabelVariant: &pb.LabelVariant{
 			Name:        def.Name,
 			Variant:     def.Variant,
 			Description: def.Description,
-			Type:        def.Type,
+			Type:        typeProto,
 			Source:      def.Source.Serialize(),
 			Entity:      def.Entity,
 			Owner:       def.Owner,
@@ -461,17 +481,19 @@ func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) erro
 }
 
 func (client *Client) GetLabelVariants(ctx context.Context, ids []NameVariant) ([]*LabelVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetLabelVariants(ctx)
 	if err != nil {
+		logger.Errorw("Failed to get label variants", "ids", ids, "error", err)
 		return nil, err
 	}
 	go func() {
 		for _, id := range ids {
-			stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
+			stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx)})
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseLabelVariantStream(stream)
@@ -522,8 +544,10 @@ func (client *Client) parseLabelVariantStream(stream labelVariantStream) ([]*Lab
 }
 
 func (client *Client) ListTrainingSets(ctx context.Context) ([]*TrainingSet, error) {
-	stream, err := client.GrpcConn.ListTrainingSets(ctx, &pb.Empty{})
+	logger := logging.GetLoggerFromContext(ctx)
+	stream, err := client.GrpcConn.ListTrainingSets(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
 	if err != nil {
+		logger.Errorw("Failed to list training sets", "error", err)
 		return nil, err
 	}
 	return client.parseTrainingSetStream(stream)
@@ -538,17 +562,19 @@ func (client *Client) GetTrainingSet(ctx context.Context, trainingSet string) (*
 }
 
 func (client *Client) GetTrainingSets(ctx context.Context, trainingSets []string) ([]*TrainingSet, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetTrainingSets(ctx)
 	if err != nil {
+		logger.Errorw("Failed to get training sets", "trainingSets", trainingSets, "error", err)
 		return nil, err
 	}
 	go func() {
 		for _, trainingSet := range trainingSets {
-			stream.Send(&pb.Name{Name: trainingSet})
+			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: trainingSet}, RequestId: logging.GetRequestIDFromContext(ctx)})
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseTrainingSetStream(stream)
@@ -607,17 +633,19 @@ func (client *Client) GetTrainingSetVariant(ctx context.Context, id NameVariant)
 }
 
 func (client *Client) GetTrainingSetVariants(ctx context.Context, ids []NameVariant) ([]*TrainingSetVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetTrainingSetVariants(ctx)
 	if err != nil {
+		logger.Errorw("Failed to get training set variants", "ids", ids, "error", err)
 		return nil, err
 	}
 	go func() {
 		for _, id := range ids {
-			stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
+			stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx)})
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseTrainingSetVariantStream(stream)
@@ -660,8 +688,10 @@ func (client *Client) parseTrainingSetVariantStream(stream trainingSetVariantStr
 }
 
 func (client *Client) ListSources(ctx context.Context) ([]*Source, error) {
-	stream, err := client.GrpcConn.ListSources(ctx, &pb.Empty{})
+	logger := logging.GetLoggerFromContext(ctx)
+	stream, err := client.GrpcConn.ListSources(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
 	if err != nil {
+		logger.Errorw("Failed to list sources", "error", err)
 		return nil, err
 	}
 	return client.parseSourceStream(stream)
@@ -676,17 +706,19 @@ func (client *Client) GetSource(ctx context.Context, source string) (*Source, er
 }
 
 func (client *Client) GetSources(ctx context.Context, sources []string) ([]*Source, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetSources(ctx)
 	if err != nil {
+		logger.Errorw("Failed to get sources", "sources", sources, "error", err)
 		return nil, err
 	}
 	go func() {
 		for _, source := range sources {
-			stream.Send(&pb.Name{Name: source})
+			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: source}, RequestId: logging.GetRequestIDFromContext(ctx)})
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseSourceStream(stream)
@@ -841,20 +873,22 @@ func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) er
 }
 
 func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) ([]*SourceVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetSourceVariants(ctx)
 	if err != nil {
+		logger.Errorw("Failed to get source variants", "ids", ids, "error", err)
 		return nil, err
 	}
 	go func() {
 		for _, id := range ids {
-			err := stream.Send(&pb.NameVariant{Name: id.Name, Variant: id.Variant})
+			stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx)})
 			if err != nil {
-				client.Logger.Errorw("Failed to send source variant", "name", id.Name, "variant", id.Variant, "error", err)
+				logger.Errorw("Failed to send source variant", "name", id.Name, "variant", id.Variant, "error", err)
 			}
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	variants, err := client.parseSourceVariantStream(stream)
@@ -917,8 +951,10 @@ func (client *Client) parseSourceVariantStream(stream sourceVariantStream) ([]*S
 }
 
 func (client *Client) ListUsers(ctx context.Context) ([]*User, error) {
-	stream, err := client.GrpcConn.ListUsers(ctx, &pb.Empty{})
+	logger := logging.GetLoggerFromContext(ctx)
+	stream, err := client.GrpcConn.ListUsers(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
 	if err != nil {
+		logger.Errorw("Failed to list users", "error", err)
 		return nil, err
 	}
 	return client.parseUserStream(stream)
@@ -933,17 +969,19 @@ func (client *Client) GetUser(ctx context.Context, user string) (*User, error) {
 }
 
 func (client *Client) GetUsers(ctx context.Context, users []string) ([]*User, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetUsers(ctx)
 	if err != nil {
+		logger.Errorw("Failed to get users", "users", users, "error", err)
 		return nil, err
 	}
 	go func() {
 		for _, user := range users {
-			stream.Send(&pb.Name{Name: user})
+			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: user}, RequestId: logging.GetRequestIDFromContext(ctx)})
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseUserStream(stream)
@@ -994,8 +1032,10 @@ func (client *Client) parseUserStream(stream userStream) ([]*User, error) {
 }
 
 func (client *Client) ListProviders(ctx context.Context) ([]*Provider, error) {
-	stream, err := client.GrpcConn.ListProviders(ctx, &pb.Empty{})
+	logger := logging.GetLoggerFromContext(ctx)
+	stream, err := client.GrpcConn.ListProviders(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
 	if err != nil {
+		logger.Errorw("Failed to list providers", "error", err)
 		return nil, err
 	}
 	return client.parseProviderStream(stream)
@@ -1010,17 +1050,19 @@ func (client *Client) GetProvider(ctx context.Context, provider string) (*Provid
 }
 
 func (client *Client) GetProviders(ctx context.Context, providers []string) ([]*Provider, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetProviders(ctx)
 	if err != nil {
+		logger.Errorw("Failed to get providers", "providers", providers, "error", err)
 		return nil, err
 	}
 	go func() {
 		for _, provider := range providers {
-			stream.Send(&pb.Name{Name: provider})
+			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: provider}, RequestId: logging.GetRequestIDFromContext(ctx)})
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseProviderStream(stream)
@@ -1082,8 +1124,10 @@ func (client *Client) parseProviderStream(stream providerStream) ([]*Provider, e
 }
 
 func (client *Client) ListEntities(ctx context.Context) ([]*Entity, error) {
-	stream, err := client.GrpcConn.ListEntities(ctx, &pb.Empty{})
+	logger := logging.GetLoggerFromContext(ctx)
+	stream, err := client.GrpcConn.ListEntities(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
 	if err != nil {
+		logger.Errorw("Failed to list entities", "error", err)
 		return nil, err
 	}
 	return client.parseEntityStream(stream)
@@ -1098,17 +1142,19 @@ func (client *Client) GetEntity(ctx context.Context, entity string) (*Entity, er
 }
 
 func (client *Client) GetEntities(ctx context.Context, entities []string) ([]*Entity, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetEntities(ctx)
 	if err != nil {
+		logger.Errorw("Failed to get entities", "entities", entities, "error", err)
 		return nil, err
 	}
 	go func() {
 		for _, entity := range entities {
-			stream.Send(&pb.Name{Name: entity})
+			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: entity}, RequestId: logging.GetRequestIDFromContext(ctx)})
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseEntityStream(stream)
@@ -1161,8 +1207,10 @@ func (client *Client) parseEntityStream(stream entityStream) ([]*Entity, error) 
 }
 
 func (client *Client) ListModels(ctx context.Context) ([]*Model, error) {
-	stream, err := client.GrpcConn.ListModels(ctx, &pb.Empty{})
+	logger := logging.GetLoggerFromContext(ctx)
+	stream, err := client.GrpcConn.ListModels(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
 	if err != nil {
+		logger.Errorw("Failed to list models", "error", err)
 		return nil, err
 	}
 	return client.parseModelStream(stream)
@@ -1177,17 +1225,19 @@ func (client *Client) GetModel(ctx context.Context, model string) (*Model, error
 }
 
 func (client *Client) GetModels(ctx context.Context, models []string) ([]*Model, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.GetModels(ctx)
 	if err != nil {
+		logger.Errorw("Failed to get models", "models", models, "error", err)
 		return nil, err
 	}
 	go func() {
 		for _, model := range models {
-			stream.Send(&pb.Name{Name: model})
+			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: model}, RequestId: logging.GetRequestIDFromContext(ctx)})
 		}
 		err := stream.CloseSend()
 		if err != nil {
-			client.Logger.Errorw("Failed to close send", "Err", err)
+			logger.Errorw("Failed to close send", "error", err)
 		}
 	}()
 	return client.parseModelStream(stream)
@@ -1448,30 +1498,6 @@ func (fn fetchPropertiesFn) Properties() Properties {
 	return properties
 }
 
-type isEmbeddingGetter interface {
-	GetIsEmbedding() bool
-}
-
-type fetchIsEmbeddingFn struct {
-	getter isEmbeddingGetter
-}
-
-func (fn fetchIsEmbeddingFn) IsEmbedding() bool {
-	return fn.getter.GetIsEmbedding()
-}
-
-type dimensionGetter interface {
-	GetDimension() int32
-}
-
-type fetchDimensionFn struct {
-	getter dimensionGetter
-}
-
-func (fn fetchDimensionFn) Dimension() int32 {
-	return fn.getter.GetDimension()
-}
-
 type Feature struct {
 	serialized *pb.Feature
 	variantsFns
@@ -1500,8 +1526,6 @@ type FeatureVariant struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
-	fetchIsEmbeddingFn
-	fetchDimensionFn
 }
 
 func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
@@ -1515,8 +1539,6 @@ func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 		protoStringer:        protoStringer{serialized},
 		fetchTagsFn:          fetchTagsFn{serialized},
 		fetchPropertiesFn:    fetchPropertiesFn{serialized},
-		fetchIsEmbeddingFn:   fetchIsEmbeddingFn{serialized},
-		fetchDimensionFn:     fetchDimensionFn{serialized},
 	}
 }
 
@@ -1529,6 +1551,21 @@ func columnsToMap(columns ResourceVariantColumns) map[string]string {
 	return featureColumns
 }
 
+type typedVariant interface {
+	Type() (types.ValueType, error)
+}
+
+func typeString(t typedVariant) string {
+	dataType, err := t.Type()
+	var dataTypeStr string
+	if err != nil {
+		dataTypeStr = "Unknown"
+	} else {
+		dataTypeStr = dataType.String()
+	}
+	return dataTypeStr
+}
+
 func (variant *FeatureVariant) ToShallowMap() FeatureVariantResource {
 	fv := FeatureVariantResource{}
 	switch variant.Mode() {
@@ -1538,7 +1575,7 @@ func (variant *FeatureVariant) ToShallowMap() FeatureVariantResource {
 			Description: variant.Description(),
 			Entity:      variant.Entity(),
 			Name:        variant.Name(),
-			DataType:    variant.Type(),
+			DataType:    typeString(variant),
 			Variant:     variant.Variant(),
 			Owner:       variant.Owner(),
 			Provider:    variant.Provider(),
@@ -1589,8 +1626,8 @@ func (variant *FeatureVariant) Variant() string {
 	return variant.serialized.GetVariant()
 }
 
-func (variant *FeatureVariant) Type() string {
-	return variant.serialized.GetType()
+func (variant *FeatureVariant) Type() (types.ValueType, error) {
+	return types.FromProto(variant.serialized.GetType())
 }
 
 func (variant *FeatureVariant) Entity() string {
@@ -1680,11 +1717,25 @@ func (variant *FeatureVariant) IsOnDemand() bool {
 }
 
 func (variant *FeatureVariant) IsEmbedding() bool {
-	return variant.fetchIsEmbeddingFn.IsEmbedding()
+	t, err := variant.Type()
+	if err != nil {
+		return false
+	}
+	if vec, ok := t.(types.VectorType); ok {
+		return vec.IsEmbedding
+	}
+	return false
 }
 
 func (variant *FeatureVariant) Dimension() int32 {
-	return variant.fetchDimensionFn.Dimension()
+	t, err := variant.Type()
+	if err != nil {
+		return -1
+	}
+	if vec, ok := t.(types.VectorType); ok {
+		return vec.Dimension
+	}
+	return 0
 }
 
 type User struct {
@@ -1913,7 +1964,7 @@ func (variant *LabelVariant) ToShallowMap() LabelVariantResource {
 		Description: variant.Description(),
 		Entity:      variant.Entity(),
 		Name:        variant.Name(),
-		DataType:    variant.Type(),
+		DataType:    typeString(variant),
 		Variant:     variant.Variant(),
 		Owner:       variant.Owner(),
 		Provider:    variant.Provider(),
@@ -1938,8 +1989,8 @@ func (variant *LabelVariant) Variant() string {
 	return variant.serialized.GetVariant()
 }
 
-func (variant *LabelVariant) Type() string {
-	return variant.serialized.GetType()
+func (variant *LabelVariant) Type() (types.ValueType, error) {
+	return types.FromProto(variant.serialized.GetType())
 }
 
 func (variant *LabelVariant) Entity() string {
@@ -2451,6 +2502,6 @@ func NewClient(host string, logger logging.Logger) (*Client, error) {
 
 func (client *Client) Close() {
 	if err := client.conn.Close(); err != nil {
-		client.Logger.Errorw("Failed to close connection", "Err", err)
+		client.Logger.Errorw("Failed to close connection", "error", err)
 	}
 }

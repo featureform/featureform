@@ -22,6 +22,7 @@ import (
 	"github.com/featureform/metadata"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 	"github.com/parquet-go/parquet-go"
 	"golang.org/x/text/cases"
@@ -75,6 +76,7 @@ type ResourceID struct {
 	Type          OfflineResourceType
 }
 
+// TODO: deprecate
 func (id *ResourceID) ToFilestorePath() string {
 	return fmt.Sprintf("featureform/%s/%s/%s", id.Type, id.Name, id.Variant)
 }
@@ -522,7 +524,7 @@ func (schema *TableSchema) Serialize() ([]byte, error) {
 	for i, col := range schema.Columns {
 		wrapper.Columns[i] = TableColumnJSONWrapper{
 			Name:      col.Name,
-			ValueType: ValueTypeJSONWrapper{col.ValueType},
+			ValueType: types.ValueTypeJSONWrapper{col.ValueType},
 		}
 	}
 	config, err := json.Marshal(wrapper)
@@ -596,12 +598,12 @@ func (schema *TableSchema) ToParquetRecords(records []GenericRecord) ([]any, err
 
 type TableColumnJSONWrapper struct {
 	Name      string
-	ValueType ValueTypeJSONWrapper
+	ValueType types.ValueTypeJSONWrapper
 }
 
 type TableColumn struct {
 	Name string
-	ValueType
+	types.ValueType
 }
 
 type memoryOfflineStore struct {

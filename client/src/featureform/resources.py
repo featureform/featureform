@@ -17,6 +17,7 @@ from google.protobuf.duration_pb2 import Duration
 from google.rpc import error_details_pb2
 
 from . import feature_flag
+from .types import VectorType, type_from_proto
 from .enums import *
 from .exceptions import *
 from .version import check_up_to_date
@@ -873,7 +874,7 @@ class Provider:
         return "provider"
 
     def get(self, stub) -> "Provider":
-        name = pb.Name(name=self.name)
+        name = pb.NameRequest(name_variant=pb.Name(name=self.name))
         provider = next(stub.GetProviders(iter([name])))
 
         return Provider(
@@ -1172,7 +1173,7 @@ class SourceVariant(ResourceVariant):
         return "source"
 
     def get(self, stub):
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(name_variant=pb.NameVariant(name=self.name, variant=self.variant))
         source = next(stub.GetSourceVariants(iter([name_variant])))
         definition = self._get_source_definition(source)
 
@@ -1232,7 +1233,7 @@ class SourceVariant(ResourceVariant):
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized.source_variant, "source_variant", stub)
+        _get_and_set_equivalent_variant(serialized, "source_variant", stub)
         stub.CreateSourceVariant(serialized)
         return serialized.source_variant.variant
 
@@ -1347,7 +1348,7 @@ Additional_Parameters = Union[
 class FeatureVariant(ResourceVariant):
     name: str
     source: Any
-    value_type: str
+    value_type: Union[VectorType, ScalarType, str]
     entity: str
     owner: str
     location: ResourceLocation
@@ -1355,8 +1356,6 @@ class FeatureVariant(ResourceVariant):
     variant: str
     provider: Optional[str] = None
     created: str = None
-    is_embedding: bool = False
-    dims: int = 0
     tags: list = None
     properties: dict = None
     schedule: str = ""
@@ -1367,11 +1366,8 @@ class FeatureVariant(ResourceVariant):
     server_status: Optional[ServerStatus] = None
 
     def __post_init__(self):
-        col_types = [member.value for member in ScalarType]
-        if self.value_type not in col_types:
-            raise ValueError(
-                f"Invalid feature type ({self.value_type}) must be one of: {col_types}"
-            )
+        if isinstance(self.value_type, str):
+            self.value_type = ScalarType(self.value_type)
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1391,7 +1387,7 @@ class FeatureVariant(ResourceVariant):
         return "feature"
 
     def get(self, stub) -> "FeatureVariant":
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(name_variant=pb.NameVariant(name=self.name, variant=self.variant))
         feature = next(stub.GetFeatureVariants(iter([name_variant])))
 
         return FeatureVariant(
@@ -1399,9 +1395,7 @@ class FeatureVariant(ResourceVariant):
             name=feature.name,
             variant=feature.variant,
             source=(feature.source.name, feature.source.variant),
-            value_type=feature.type,
-            is_embedding=feature.is_embedding,
-            dims=feature.dimension,
+            value_type=type_from_proto(feature.type),
             entity=feature.entity,
             owner=feature.owner,
             provider=feature.provider,
@@ -1419,17 +1413,14 @@ class FeatureVariant(ResourceVariant):
         if hasattr(self.source, "name_variant"):
             self.source = self.source.name_variant()
 
-        serialized = pb.FeatureVariantRequest(
-            feature_variant=pb.FeatureVariant(
+        feature_variant_message = pb.FeatureVariant(
                 name=self.name,
                 variant=self.variant,
                 source=pb.NameVariant(
                     name=self.source[0],
                     variant=self.source[1],
                 ),
-                type=self.value_type,
-                is_embedding=self.is_embedding,
-                dimension=self.dims,
+                type=self.value_type.to_proto(),
                 entity=self.entity,
                 owner=self.owner,
                 description=self.description,
@@ -1441,11 +1432,15 @@ class FeatureVariant(ResourceVariant):
                 properties=Properties(self.properties).serialized,
                 status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
                 additional_parameters=None,
-            ),
+        )
+
+        # Initialize the FeatureVariantRequest message with the FeatureVariant message
+        serialized = pb.FeatureVariantRequest(
+            feature_variant=feature_variant_message,
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized.feature_variant, "feature_variant", stub)
+        _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
         return serialized.feature_variant.variant
 
@@ -1511,12 +1506,12 @@ class OnDemandFeatureVariant(ResourceVariant):
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized.feature_variant, "feature_variant", stub)
+        _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
         return serialized.feature_variant.variant
 
     def get(self, stub) -> "OnDemandFeatureVariant":
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(name_variant=pb.NameVariant(name=self.name, variant=self.variant))
         ondemand_feature = next(stub.GetFeatureVariants(iter([name_variant])))
         additional_Parameters = self._get_additional_parameters(ondemand_feature)
 
@@ -1564,7 +1559,7 @@ class Label:
 class LabelVariant(ResourceVariant):
     name: str
     source: Any
-    value_type: str
+    value_type: Union[VectorType, ScalarType, str]
     entity: str
     owner: str
     description: str
@@ -1579,11 +1574,8 @@ class LabelVariant(ResourceVariant):
     server_status: Optional[ServerStatus] = None
 
     def __post_init__(self):
-        col_types = [member.value for member in ScalarType]
-        if self.value_type not in col_types:
-            raise ValueError(
-                f"Invalid label type ({self.value_type}) must be one of: {col_types}"
-            )
+        if isinstance(self.value_type, str):
+            self.value_type = ScalarType(self.value_type)
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -1594,14 +1586,14 @@ class LabelVariant(ResourceVariant):
         return "label"
 
     def get(self, stub) -> "LabelVariant":
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(name_variant=pb.NameVariant(name=self.name, variant=self.variant))
         label = next(stub.GetLabelVariants(iter([name_variant])))
 
         return LabelVariant(
             name=label.name,
             variant=label.variant,
             source=(label.source.name, label.source.variant),
-            value_type=label.type,
+            value_type=type_from_proto(label.type),
             entity=label.entity,
             owner=label.owner,
             provider=label.provider,
@@ -1625,7 +1617,7 @@ class LabelVariant(ResourceVariant):
                     name=self.source[0],
                     variant=self.source[1],
                 ),
-                type=self.value_type,
+                type=self.value_type.to_proto(),
                 entity=self.entity,
                 owner=self.owner,
                 description=self.description,
@@ -1637,7 +1629,7 @@ class LabelVariant(ResourceVariant):
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized.label_variant, "label_variant", stub)
+        _get_and_set_equivalent_variant(serialized, "label_variant", stub)
         stub.CreateLabelVariant(serialized)
         return serialized.label_variant.variant
 
@@ -1663,7 +1655,7 @@ class EntityReference:
         return "entity"
 
     def _get(self, stub):
-        entityList = stub.GetEntities(iter([pb.Name(name=self.name)]))
+        entityList = stub.GetEntities(iter([pb.NameRequest(name_variant=pb.Name(name=self.name))]))
         try:
             for entity in entityList:
                 self.obj = entity
@@ -1687,7 +1679,7 @@ class ProviderReference:
         return "provider"
 
     def _get(self, stub):
-        providerList = stub.GetProviders(iter([pb.Name(name=self.name)]))
+        providerList = stub.GetProviders(iter([pb.NameRequest(name_variant=pb.Name(name=self.name))]))
         try:
             for provider in providerList:
                 self.obj = provider
@@ -1714,7 +1706,7 @@ class SourceReference:
 
     def _get(self, stub):
         sourceList = stub.GetSourceVariants(
-            iter([pb.NameVariant(name=self.name, variant=self.variant)])
+            iter([pb.NameVariantRequest(name_variant=pb.NameVariant(name=self.name, variant=self.variant))])
         )
         try:
             for source in sourceList:
@@ -1791,7 +1783,7 @@ class TrainingSetVariant(ResourceVariant):
         return "training-set"
 
     def get(self, stub):
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(name_variant=pb.NameVariant(name=self.name, variant=self.variant))
         ts = next(stub.GetTrainingSetVariants(iter([name_variant])))
 
         return TrainingSetVariant(
@@ -1850,7 +1842,7 @@ class TrainingSetVariant(ResourceVariant):
             ),
             request_id="",
         )
-        _get_and_set_equivalent_variant(serialized.training_set_variant, "training_set_variant", stub)
+        _get_and_set_equivalent_variant(serialized, "training_set_variant", stub)
         stub.CreateTrainingSetVariant(serialized)
         return serialized.training_set_variant.variant
 
@@ -2300,7 +2292,7 @@ def _get_and_set_equivalent_variant(
     if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
         # Get equivalent from stub
         equivalent = stub.GetEquivalent(
-            pb.ResourceVariant(**{variant_field: resource_variant_proto})
+            pb.ResourceVariantRequest(**{variant_field: resource_variant_proto})
         )
 
         # grpc call returns the default ResourceVariant proto when equivalent doesn't exist which explains the below check

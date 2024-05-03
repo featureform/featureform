@@ -19,6 +19,7 @@ import (
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	vt "github.com/featureform/provider/types"
 	"github.com/featureform/types"
 )
 
@@ -35,7 +36,7 @@ type MaterializeRunner struct {
 	Online   provider.OnlineStore
 	Offline  provider.OfflineStore
 	ID       provider.ResourceID
-	VType    provider.ValueType
+	VType    vt.ValueType
 	IsUpdate bool
 	Cloud    JobCloud
 	Logger   *zap.SugaredLogger
@@ -119,7 +120,7 @@ func (m MaterializeRunner) MaterializeToOnline(materialization provider.Material
 	// inference store. This is currently only required for RediSearch, but other
 	// vector databases allow for manual index configuration even if they support
 	// autogeneration of indexes.
-	if vectorType, ok := m.VType.(provider.VectorType); ok && vectorType.IsEmbedding {
+	if vectorType, ok := m.VType.(vt.VectorType); ok && vectorType.IsEmbedding {
 		m.Logger.Infow("Creating Index", "name", m.ID.Name, "variant", m.ID.Variant)
 		vectorStore, ok := m.Online.(provider.VectorStore)
 		if !ok {
@@ -242,7 +243,7 @@ type MaterializedRunnerConfig struct {
 	OnlineConfig  pc.SerializedConfig
 	OfflineConfig pc.SerializedConfig
 	ResourceID    provider.ResourceID
-	VType         provider.ValueTypeJSONWrapper
+	VType         vt.ValueTypeJSONWrapper
 	Cloud         JobCloud
 	IsUpdate      bool
 }

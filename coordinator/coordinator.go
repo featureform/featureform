@@ -22,6 +22,7 @@ import (
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	vt "github.com/featureform/provider/types"
 	"github.com/featureform/runner"
 	"github.com/featureform/types"
 )
@@ -758,15 +759,9 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		}
 	}
 
-	var vType provider.ValueType
-	if feature.IsEmbedding() {
-		vType = provider.VectorType{
-			ScalarType:  provider.ScalarType(feature.Type()),
-			Dimension:   feature.Dimension(),
-			IsEmbedding: true,
-		}
-	} else {
-		vType = provider.ScalarType(feature.Type())
+	vType, err := feature.Type()
+	if err != nil {
+		return err
 	}
 
 	var sourceTableName string
@@ -809,7 +804,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		OfflineType:   pt.Type(sourceProvider.Type()),
 		OfflineConfig: sourceProvider.SerializedConfig(),
 		ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
-		VType:         provider.ValueTypeJSONWrapper{ValueType: vType},
+		VType:         vt.ValueTypeJSONWrapper{ValueType: vType},
 		Cloud:         runner.LocalMaterializeRunner,
 		IsUpdate:      false,
 	}

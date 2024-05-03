@@ -9,6 +9,7 @@ import (
 	"github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 )
 
 const STORE_PREFIX = ".featureform/inferencestore"
@@ -64,7 +65,7 @@ func (store OnlineFileStore) tableExists(feature, variant string) (bool, error) 
 	return store.Exists(&filepath)
 }
 
-func (store OnlineFileStore) readTableValue(feature, variant string) (ValueType, error) {
+func (store OnlineFileStore) readTableValue(feature, variant string) (types.ValueType, error) {
 	tableKey := blobTableKey(store.Prefix, feature, variant)
 	filepath := filestore.AzureFilepath{}
 	if err := filepath.ParseFilePath(tableKey); err != nil {
@@ -72,12 +73,12 @@ func (store OnlineFileStore) readTableValue(feature, variant string) (ValueType,
 	}
 	value, err := store.Read(&filepath)
 	if err != nil {
-		return NilType, err
+		return types.NilType, err
 	}
-	return ScalarType(string(value)), nil
+	return types.ScalarType(string(value)), nil
 }
 
-func (store OnlineFileStore) writeTableValue(feature, variant string, valueType ValueType) error {
+func (store OnlineFileStore) writeTableValue(feature, variant string, valueType types.ValueType) error {
 	tableKey := blobTableKey(store.Prefix, feature, variant)
 	filepath := filestore.AzureFilepath{}
 	if err := filepath.ParseFilePath(tableKey); err != nil {
@@ -123,7 +124,7 @@ func (store OnlineFileStore) GetTable(feature, variant string) (OnlineStoreTable
 	return OnlineFileStoreTable{store, feature, variant, store.Prefix, tableType}, nil
 }
 
-func (store OnlineFileStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+func (store OnlineFileStore) CreateTable(feature, variant string, valueType types.ValueType) (OnlineStoreTable, error) {
 	exists, err := store.tableExists(feature, variant)
 	if err != nil {
 		return nil, err
@@ -148,7 +149,7 @@ type OnlineFileStoreTable struct {
 	feature   string
 	variant   string
 	prefix    string
-	valueType ValueType
+	valueType types.ValueType
 }
 
 func (store OnlineFileStore) DeleteTable(feature, variant string) error {
@@ -216,29 +217,29 @@ func (table OnlineFileStoreTable) Get(entity string) (interface{}, error) {
 	return castBytesToValue(value.([]byte), table.valueType)
 }
 
-func castBytesToValue(value []byte, valueType ValueType) (interface{}, error) {
+func castBytesToValue(value []byte, valueType types.ValueType) (interface{}, error) {
 	valueString := string(value)
 	var val interface{}
 	var err error
 	switch valueType {
-	case NilType, String:
+	case types.NilType, types.String:
 		return valueString, nil
-	case Int, Int32:
+	case types.Int, types.Int32:
 		val, err = strconv.ParseInt(valueString, 10, 32)
 		return int(val.(int64)), err
-	case Int64:
+	case types.Int64:
 		val, err = strconv.ParseInt(valueString, 10, 64)
 		return int64(val.(int64)), err
-	case Float32:
+	case types.Float32:
 		val, err = strconv.ParseFloat(valueString, 32)
 		return float32(val.(float64)), err
-	case Float64:
+	case types.Float64:
 		val, err = strconv.ParseFloat(valueString, 64)
 		return float64(val.(float64)), err
-	case Bool:
+	case types.Bool:
 		val, err = strconv.ParseBool(valueString)
 		return bool(val.(bool)), err
-	case Timestamp:
+	case types.Timestamp:
 		return time.Parse(time.ANSIC, valueString)
 	default:
 		return nil, fferr.NewDataTypeNotFoundErrorf(valueType, "cannot cast unknown value type")

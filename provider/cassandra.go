@@ -12,6 +12,7 @@ import (
 	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 	"github.com/gocql/gocql"
 	sn "github.com/mrz1836/go-sanitize"
 )
@@ -37,7 +38,7 @@ type cassandraOnlineStore struct {
 type cassandraOnlineTable struct {
 	session   *gocql.Session
 	key       cassandraTableKey
-	valueType ValueType
+	valueType types.ValueType
 }
 
 func cassandraOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
@@ -109,7 +110,7 @@ func GetMetadataTableName(keyspace string) string {
 	return metadataTableName
 }
 
-func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+func (store *cassandraOnlineStore) CreateTable(feature, variant string, valueType types.ValueType) (OnlineStoreTable, error) {
 	tableName := GetTableName(store.keyspace, feature, variant)
 	vType := cassandraTypeMap[string(valueType.Scalar())]
 	key := cassandraTableKey{store.keyspace, feature, variant}
@@ -169,7 +170,7 @@ func (store *cassandraOnlineStore) GetTable(feature, variant string) (OnlineStor
 	table := &cassandraOnlineTable{
 		session:   store.session,
 		key:       key,
-		valueType: ScalarType(vType),
+		valueType: types.ScalarType(vType),
 	}
 
 	return table, nil
@@ -222,17 +223,17 @@ func (table cassandraOnlineTable) Get(entity string) (interface{}, error) {
 
 	var ptr interface{}
 	switch table.valueType {
-	case Int:
+	case types.Int:
 		ptr = new(int)
-	case Int64:
+	case types.Int64:
 		ptr = new(int64)
-	case Float32:
+	case types.Float32:
 		ptr = new(float32)
-	case Float64:
+	case types.Float64:
 		ptr = new(float64)
-	case Bool:
+	case types.Bool:
 		ptr = new(bool)
-	case String, NilType:
+	case types.String, types.NilType:
 		ptr = new(string)
 	default:
 		return nil, fferr.NewDataTypeNotFoundErrorf(table.valueType, "could not determine column type")

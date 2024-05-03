@@ -8,16 +8,16 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/stretchr/testify/assert"
 	grpc_status "google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 	"go.uber.org/zap/zaptest"
 )
@@ -139,7 +139,7 @@ func filledResourceDefs() []ResourceDef {
 			Variant:     "variant",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "float",
+			Type:        types.Float32,
 			Description: "Feature variant",
 			Source:      NameVariant{"mockSource", "var"},
 			Owner:       "Featureform",
@@ -158,7 +158,7 @@ func filledResourceDefs() []ResourceDef {
 			Variant:     "variant2",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "int",
+			Type:        types.Int,
 			Description: "Feature variant2",
 			Source:      NameVariant{"mockSource", "var2"},
 			Owner:       "Featureform",
@@ -177,7 +177,7 @@ func filledResourceDefs() []ResourceDef {
 			Variant:     "variant",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "string",
+			Type:        types.String,
 			Description: "Feature2 variant",
 			Source:      NameVariant{"mockSource", "var"},
 			Owner:       "Featureform",
@@ -207,7 +207,7 @@ func filledResourceDefs() []ResourceDef {
 		LabelDef{
 			Name:        "label",
 			Variant:     "variant",
-			Type:        "int64",
+			Type:        types.Int64,
 			Description: "label variant",
 			Provider:    "mockOffline",
 			Entity:      "user",
@@ -404,7 +404,7 @@ func (ctx *testContext) Destroy() {
 func startServ(t *testing.T) (*MetadataServer, string) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logging.Logger{SugaredLogger: logger.Sugar()},
+		Logger:          logging.Logger{SugaredLogger: logger.Sugar(), Values: make(map[string]interface{})},
 		StorageProvider: LocalStorageProvider{},
 	}
 	serv, err := NewMetadataServer(config)
@@ -427,7 +427,7 @@ func startServ(t *testing.T) (*MetadataServer, string) {
 func startServNoPanic(t *testing.T) (*MetadataServer, string) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logging.Logger{SugaredLogger: logger.Sugar()},
+		Logger:          logging.Logger{SugaredLogger: logger.Sugar(), Values: make(map[string]interface{})},
 		StorageProvider: LocalStorageProvider{},
 	}
 	serv, err := NewMetadataServer(config)
@@ -448,7 +448,7 @@ func startServNoPanic(t *testing.T) (*MetadataServer, string) {
 }
 
 func client(t *testing.T, addr string) *Client {
-	logger := logging.Logger{SugaredLogger: zaptest.NewLogger(t).Sugar()}
+	logger := logging.Logger{SugaredLogger: zaptest.NewLogger(t).Sugar(), Values: make(map[string]interface{})}
 	client, err := NewClient(addr, logger)
 	if err != nil {
 		t.Fatalf("Failed to create client: %s", err)
@@ -506,7 +506,7 @@ func TestClosedServer(t *testing.T) {
 func TestServeGracefulStop(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logging.Logger{SugaredLogger: logger.Sugar()},
+		Logger:          logging.Logger{SugaredLogger: logger.Sugar(), Values: make(map[string]interface{})},
 		StorageProvider: LocalStorageProvider{},
 		Address:         ":0",
 	}
@@ -1141,7 +1141,7 @@ type FeatureVariantTest struct {
 	Name         string
 	Variant      string
 	Description  string
-	Type         string
+	Type         types.ValueType
 	Owner        string
 	Entity       string
 	Provider     string
@@ -1165,7 +1165,11 @@ func (test FeatureVariantTest) Test(t *testing.T, client *Client, res interface{
 	assertEqual(t, feature.Description(), test.Description)
 	assertEqual(t, feature.Owner(), test.Owner)
 	if feature.Mode() == PRECOMPUTED {
-		assertEqual(t, feature.Type(), test.Type)
+		fType, err := feature.Type()
+		if err != nil {
+			t.Fatalf("Failed to parse type: %+v\n%s", feature, err)
+		}
+		assertEqual(t, fType, test.Type)
 		assertEqual(t, feature.Provider(), test.Provider)
 		assertEqual(t, feature.Source(), test.Source)
 		assertEqual(t, feature.Entity(), test.Entity)
@@ -1195,7 +1199,7 @@ func expectedFeatureVariants() ResourceTests {
 			Variant:     "variant",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "float",
+			Type:        types.Float32,
 			Description: "Feature variant",
 			Source:      NameVariant{"mockSource", "var"},
 			Owner:       "Featureform",
@@ -1214,7 +1218,7 @@ func expectedFeatureVariants() ResourceTests {
 			Variant:     "variant2",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "int",
+			Type:        types.Int,
 			Description: "Feature variant2",
 			Source:      NameVariant{"mockSource", "var2"},
 			Owner:       "Featureform",
@@ -1234,7 +1238,7 @@ func expectedFeatureVariants() ResourceTests {
 			Variant:     "variant",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "string",
+			Type:        types.String,
 			Description: "Feature2 variant",
 			Source:      NameVariant{"mockSource", "var"},
 			Owner:       "Featureform",
@@ -1305,7 +1309,7 @@ type LabelVariantTest struct {
 	Name         string
 	Variant      string
 	Description  string
-	Type         string
+	Type         types.ValueType
 	Owner        string
 	Entity       string
 	Provider     string
@@ -1322,10 +1326,14 @@ func (test LabelVariantTest) NameVariant() NameVariant {
 func (test LabelVariantTest) Test(t *testing.T, client *Client, res interface{}, shouldFetch bool) {
 	t.Logf("Testing label: %s %s", test.Name, test.Variant)
 	label := res.(*LabelVariant)
+	lType, err := label.Type()
+	if err != nil {
+		t.Fatalf("Failed to parse type: %+v\n%s", label, err)
+	}
 	assertEqual(t, label.Name(), test.Name)
 	assertEqual(t, label.Variant(), test.Variant)
 	assertEqual(t, label.Description(), test.Description)
-	assertEqual(t, label.Type(), test.Type)
+	assertEqual(t, lType, test.Type)
 	assertEqual(t, label.Owner(), test.Owner)
 	assertEqual(t, label.Provider(), test.Provider)
 	assertEqual(t, label.Source(), test.Source)
@@ -1345,7 +1353,7 @@ func expectedLabelVariants() ResourceTests {
 		LabelVariantTest{
 			Name:        "label",
 			Variant:     "variant",
-			Type:        "int64",
+			Type:        types.Int64,
 			Description: "label variant",
 			Provider:    "mockOffline",
 			Entity:      "user",
@@ -1931,30 +1939,31 @@ func testFetchProvider(t *testing.T, client *Client, fetcher providerFetcher) {
 func TestBannedStrings(t *testing.T) {
 	resourceInvalidName := ResourceID{"nam__e", "variant", FEATURE}
 	resourceInvalidVariant := ResourceID{"name", "varian__t", FEATURE}
-	if err := resourceNamedSafely(resourceInvalidName); err == nil {
+	logger := logging.NewLogger("metadata-test")
+	if err := resourceNamedSafely(resourceInvalidName, logger); err == nil {
 		t.Fatalf("testing didn't catch error on valid resource name")
 	}
-	if err := resourceNamedSafely(resourceInvalidVariant); err == nil {
+	if err := resourceNamedSafely(resourceInvalidVariant, logger); err == nil {
 		t.Fatalf("testing didn't catch error on valid resource name")
 	}
 	invalidNamePrefix := ResourceID{"_name", "variant", FEATURE}
 	invalidVariantPrefix := ResourceID{"name", "_variant", FEATURE}
-	if err := resourceNamedSafely(invalidNamePrefix); err == nil {
+	if err := resourceNamedSafely(invalidNamePrefix, logger); err == nil {
 		t.Fatalf("testing didn't catch error on valid resource prefix")
 	}
-	if err := resourceNamedSafely(invalidVariantPrefix); err == nil {
+	if err := resourceNamedSafely(invalidVariantPrefix, logger); err == nil {
 		t.Fatalf("testing didn't catch error on valid variant prefix")
 	}
 	invalidNameSuffix := ResourceID{"name_", "variant", FEATURE}
 	invalidVariantSuffix := ResourceID{"name", "variant_", FEATURE}
-	if err := resourceNamedSafely(invalidNameSuffix); err == nil {
+	if err := resourceNamedSafely(invalidNameSuffix, logger); err == nil {
 		t.Fatalf("testing didn't catch error on valid resource prefix")
 	}
-	if err := resourceNamedSafely(invalidVariantSuffix); err == nil {
+	if err := resourceNamedSafely(invalidVariantSuffix, logger); err == nil {
 		t.Fatalf("testing didn't catch error on valid variant prefix")
 	}
 	validName := ResourceID{"name", "variant", FEATURE}
-	if err := resourceNamedSafely(validName); err != nil {
+	if err := resourceNamedSafely(validName, logger); err != nil {
 		t.Fatalf("valid resource triggered an error")
 	}
 }
@@ -2264,7 +2273,7 @@ func Test_GetEquivalent(t *testing.T) {
 	labelDef := LabelDef{
 		Name:        "label",
 		Variant:     "variant",
-		Type:        "int64",
+		Type:        types.Int64,
 		Description: "label variant",
 		Provider:    "mockOffline",
 		Entity:      "user",
@@ -2311,7 +2320,7 @@ func Test_GetEquivalent(t *testing.T) {
 		t.Fatalf("Failed to serialize source def: %s", err)
 	}
 	resourceVariant := &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto.SourceVariant}}
-	equivalent, err := serv.getEquivalent(resourceVariant, false)
+	equivalent, err := serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2333,7 +2342,7 @@ func Test_GetEquivalent(t *testing.T) {
 		t.Fatalf("Failed to serialize source def: %s", err)
 	}
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto2.SourceVariant}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2348,7 +2357,7 @@ func Test_GetEquivalent(t *testing.T) {
 		t.Fatalf("Failed to serialize label def: %s", err)
 	}
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_LabelVariant{lvProto.LabelVariant}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2364,7 +2373,7 @@ func Test_GetEquivalent(t *testing.T) {
 		t.Fatalf("Failed to serialize feature def: %s", err)
 	}
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto.FeatureVariant}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2376,7 +2385,7 @@ func Test_GetEquivalent(t *testing.T) {
 	}
 	fvProto, err = featureDef.Serialize(context)
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto.FeatureVariant}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2393,7 +2402,7 @@ func Test_GetEquivalent(t *testing.T) {
 		},
 	}
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto2.FeatureVariant}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2405,7 +2414,7 @@ func Test_GetEquivalent(t *testing.T) {
 	trainingSetDef.Description = "Some other description"
 	tsvProto := trainingSetDef.Serialize(context)
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2420,7 +2429,7 @@ func Test_GetEquivalent(t *testing.T) {
 	}
 	tsvProto = trainingSetDef.Serialize(context)
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2435,7 +2444,7 @@ func Test_GetEquivalent(t *testing.T) {
 	trainingSetDef.Label = NameVariant{"label_doesnt_exist", "variant"}
 	tsvProto = trainingSetDef.Serialize(context)
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2543,7 +2552,7 @@ func Test_CreateResourceVariantResourceChanged(t *testing.T) {
 	labelDef := LabelDef{
 		Name:        "label",
 		Variant:     "variant",
-		Type:        "int64",
+		Type:        types.Int64,
 		Description: "label variant",
 		Provider:    "mockOffline",
 		Entity:      "user",

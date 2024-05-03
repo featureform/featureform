@@ -16,6 +16,7 @@ import (
 	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 )
 
 const (
@@ -156,7 +157,7 @@ func (store *clickHouseOfflineStore) getValueIndex(columns []TableColumn) int {
 	return -1
 }
 
-func (store *clickHouseOfflineStore) newsqlOfflineTable(db *sql.DB, name string, valueType ValueType) (*clickhouseOfflineTable, error) {
+func (store *clickHouseOfflineStore) newsqlOfflineTable(db *sql.DB, name string, valueType types.ValueType) (*clickhouseOfflineTable, error) {
 	columnType, err := determineColumnType(valueType)
 	if err != nil {
 		return nil, err
@@ -750,11 +751,11 @@ func (store *clickHouseOfflineStore) CreateResourceTable(id ResourceID, schema T
 	if err != nil {
 		return nil, err
 	}
-	var valueType ValueType
+	var valueType types.ValueType
 	if valueIndex := store.getValueIndex(schema.Columns); valueIndex > 0 {
 		valueType = schema.Columns[valueIndex].ValueType
 	} else {
-		valueType = NilType
+		valueType = types.NilType
 
 	}
 	table, err := store.newsqlOfflineTable(store.db, tableName, valueType)
@@ -1216,38 +1217,38 @@ func (q clickhouseSQLQueries) materializationExists() string {
 	return q.tableExists()
 }
 
-func (q clickhouseSQLQueries) determineColumnType(valueType ValueType) (string, error) {
+func (q clickhouseSQLQueries) determineColumnType(valueType types.ValueType) (string, error) {
 	switch valueType {
-	case Int:
+	case types.Int:
 		return chInt, nil
-	case Int8:
+	case types.Int8:
 		return chInt8, nil
-	case Int16:
+	case types.Int16:
 		return chInt16, nil
-	case Int64:
+	case types.Int64:
 		return chInt64, nil
-	case Int32:
+	case types.Int32:
 		return chInt32, nil
-	case UInt8:
+	case types.UInt8:
 		return chUInt8, nil
-	case UInt16:
+	case types.UInt16:
 		return chUInt16, nil
-	case UInt32:
+	case types.UInt32:
 		return chUInt32, nil
-	case UInt64:
+	case types.UInt64:
 		return chUInt64, nil
-	case Float32:
+	case types.Float32:
 		return chFloat32, nil
-	case Float64:
+	case types.Float64:
 		return chFloat64, nil
-	case String:
+	case types.String:
 		return chString, nil
-	case Bool:
+	case types.Bool:
 		return chBool, nil
-	case Timestamp:
+	case types.Timestamp:
 		//TODO: determine precision
 		return chDateTime, nil
-	case NilType:
+	case types.NilType:
 		return "Null", nil
 	default:
 		return "", fferr.NewDataTypeNotFoundErrorf(valueType, "could not determine column type")

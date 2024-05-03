@@ -23,6 +23,7 @@ import (
 	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	vt "github.com/featureform/provider/types"
 	sn "github.com/mrz1836/go-sanitize"
 	"go.uber.org/zap"
 )
@@ -72,7 +73,7 @@ type dynamodbOnlineStore struct {
 type dynamodbOnlineTable struct {
 	client    *dynamodb.Client
 	key       dynamodbTableKey
-	valueType ValueType
+	valueType vt.ValueType
 	version   serializeVersion
 }
 
@@ -93,7 +94,7 @@ func (entry dynamodbMetadataEntry) ToTableMetadata() (*dynamodbTableMetadata, er
 		wrapped.AddDetail("dynamo_metadata_entry_name", entry.Tablename)
 		return nil, wrapped
 	}
-	t, err := deserializeType(entry.Valuetype)
+	t, err := vt.DeserializeType(entry.Valuetype)
 	if err != nil {
 		wrapped := fferr.NewInternalError(err)
 		wrapped.AddDetail("type_string", entry.Valuetype)
@@ -106,7 +107,7 @@ func (entry dynamodbMetadataEntry) ToTableMetadata() (*dynamodbTableMetadata, er
 // dynamodbTableMetadata is created by taking an entry from the Metadata table and
 // casting and validating its values.
 type dynamodbTableMetadata struct {
-	Valuetype ValueType
+	Valuetype vt.ValueType
 	Version   serializeVersion
 }
 
@@ -207,11 +208,11 @@ func CreateMetadataTable(client *dynamodb.Client, logger *zap.SugaredLogger) err
 	return nil
 }
 
-func (store *dynamodbOnlineStore) updateMetadataTable(tablename string, valueType ValueType, version serializeVersion) error {
+func (store *dynamodbOnlineStore) updateMetadataTable(tablename string, valueType vt.ValueType, version serializeVersion) error {
 	input := &dynamodb.UpdateItemInput{
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":valtype": &types.AttributeValueMemberS{
-				Value: serializeType(valueType),
+				Value: vt.SerializeType(valueType),
 			},
 			":serializeVersion": &types.AttributeValueMemberN{
 				Value: fmt.Sprintf("%d", version),
@@ -280,7 +281,7 @@ func (store *dynamodbOnlineStore) GetTable(feature, variant string) (OnlineStore
 	return table, nil
 }
 
-func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType vt.ValueType) (OnlineStoreTable, error) {
 	key := dynamodbTableKey{store.prefix, feature, variant}
 	tableName := formatDynamoTableName(store.prefix, feature, variant)
 	_, err := store.getFromMetadataTable(tableName)
@@ -339,7 +340,7 @@ func (store *dynamodbOnlineStore) CheckHealth() (bool, error) {
 }
 
 // TODO(simba) Make this work with Serialize V1
-func (store *dynamodbOnlineStore) ImportTable(feature, variant string, valueType ValueType, source filestore.Filepath) (ImportID, error) {
+func (store *dynamodbOnlineStore) ImportTable(feature, variant string, valueType vt.ValueType, source filestore.Filepath) (ImportID, error) {
 	tableName := formatDynamoTableName(store.prefix, feature, variant)
 	store.logger.Infof("Checking metadata table for existing table %s\n", tableName)
 	_, err := store.getFromMetadataTable(tableName)
@@ -597,8 +598,8 @@ func (v serializeVersion) String() string {
 // serializer provides methods to serialize and deserialize values into DynamoDB columns
 type serializer interface {
 	Version() serializeVersion
-	Serialize(t ValueType, value any) (types.AttributeValue, error)
-	Deserialize(t ValueType, value types.AttributeValue) (any, error)
+	Serialize(t vt.ValueType, value any) (types.AttributeValue, error)
+	Deserialize(t vt.ValueType, value types.AttributeValue) (any, error)
 }
 
 // serializers is the map of all serializers. If a new version is added it should be added
@@ -615,8 +616,8 @@ func (ser serializerV0) Version() serializeVersion {
 	return serializeV0
 }
 
-func (ser serializerV0) Serialize(t ValueType, value any) (types.AttributeValue, error) {
-	if t.Scalar() == Timestamp || t.Scalar() == Datetime {
+func (ser serializerV0) Serialize(t vt.ValueType, value any) (types.AttributeValue, error) {
+	if t.Scalar() == vt.Timestamp || t.Scalar() == vt.Datetime {
 		return nil, fferr.NewTypeErrorf(t.String(), value, "Type not supported by Dynamo Serializer v0")
 	}
 	if value == nil {
@@ -630,8 +631,8 @@ func (ser serializerV0) Serialize(t ValueType, value any) (types.AttributeValue,
 	}
 }
 
-func (ser serializerV0) Deserialize(t ValueType, value types.AttributeValue) (any, error) {
-	if t.Scalar() == Timestamp || t.Scalar() == Datetime {
+func (ser serializerV0) Deserialize(t vt.ValueType, value types.AttributeValue) (any, error) {
+	if t.Scalar() == vt.Timestamp || t.Scalar() == vt.Datetime {
 		return nil, fferr.NewInternalErrorf("Unable to deserialize %s", t)
 	}
 	if _, isNil := value.(*types.AttributeValueMemberNULL); isNil {
@@ -648,23 +649,23 @@ func (ser serializerV0) Deserialize(t ValueType, value types.AttributeValue) (an
 	var result interface{}
 	var err error
 	switch t {
-	case NilType, String:
+	case vt.NilType, vt.String:
 		result, err = valString, nil
-	case Int:
+	case vt.Int:
 		result, err = strconv.Atoi(valString)
-	case Int32:
+	case vt.Int32:
 		res64, perr := strconv.ParseInt(valString, 0, 32)
 		err = perr
 		result = int32(res64)
-	case Int64:
+	case vt.Int64:
 		result, err = strconv.ParseInt(valString, 0, 64)
-	case Float32:
+	case vt.Float32:
 		var result_float float64
 		result_float, err = strconv.ParseFloat(valString, 32)
 		result = float32(result_float)
-	case Float64:
+	case vt.Float64:
 		result, err = strconv.ParseFloat(valString, 64)
-	case Bool:
+	case vt.Bool:
 		result, err = strconv.ParseBool(valString)
 	default:
 		return nil, fferr.NewInternalErrorf("Unsupported type %s", t.String())
@@ -682,7 +683,7 @@ func (ser serializerV1) Version() serializeVersion {
 	return serializeV1
 }
 
-func (ser serializerV1) Serialize(t ValueType, value any) (types.AttributeValue, error) {
+func (ser serializerV1) Serialize(t vt.ValueType, value any) (types.AttributeValue, error) {
 	// TODO support unsigned ints
 	if value == nil {
 		return &types.AttributeValueMemberNULL{Value: true}, nil
@@ -694,8 +695,8 @@ func (ser serializerV1) Serialize(t ValueType, value any) (types.AttributeValue,
 	}
 }
 
-func (ser serializerV1) serializeVector(t ValueType, value any) (types.AttributeValue, error) {
-	vecT := t.(VectorType)
+func (ser serializerV1) serializeVector(t vt.ValueType, value any) (types.AttributeValue, error) {
+	vecT := t.(vt.VectorType)
 	scalar := vecT.Scalar()
 
 	list := reflect.ValueOf(value)
@@ -728,15 +729,15 @@ func (ser serializerV1) serializeVector(t ValueType, value any) (types.Attribute
 	}, nil
 }
 
-func (ser serializerV1) serializeScalar(t ValueType, value any) (types.AttributeValue, error) {
+func (ser serializerV1) serializeScalar(t vt.ValueType, value any) (types.AttributeValue, error) {
 	if value == nil {
 		return &types.AttributeValueMemberNULL{Value: true}, nil
 	}
 	// Dynamo teats all numerical types as strings, so we have to serialize.
 	switch t {
-	case NilType:
+	case vt.NilType:
 		return &types.AttributeValueMemberNULL{Value: true}, nil
-	case Int:
+	case vt.Int:
 		// This rounds via Go if needed
 		intVal, err := castNumberToInt(value)
 		if err != nil {
@@ -746,7 +747,7 @@ func (ser serializerV1) serializeScalar(t ValueType, value any) (types.Attribute
 		}
 		intStr := strconv.FormatInt(int64(intVal), 10)
 		return &types.AttributeValueMemberN{Value: intStr}, nil
-	case Int32:
+	case vt.Int32:
 		// This rounds via Go if needed
 		intVal, err := castNumberToInt32(value)
 		if err != nil {
@@ -756,7 +757,7 @@ func (ser serializerV1) serializeScalar(t ValueType, value any) (types.Attribute
 		}
 		intStr := strconv.FormatInt(int64(intVal), 10)
 		return &types.AttributeValueMemberN{Value: intStr}, nil
-	case Int64:
+	case vt.Int64:
 		intVal, err := castNumberToInt64(value)
 		if err != nil {
 			wrapped := fferr.NewTypeError(t.String(), value, err)
@@ -765,7 +766,7 @@ func (ser serializerV1) serializeScalar(t ValueType, value any) (types.Attribute
 		}
 		intStr := strconv.FormatInt(intVal, 10)
 		return &types.AttributeValueMemberN{Value: intStr}, nil
-	case Float32:
+	case vt.Float32:
 		floatVal, err := castNumberToFloat32(value)
 		if err != nil {
 			wrapped := fferr.NewTypeError(t.String(), value, err)
@@ -774,7 +775,7 @@ func (ser serializerV1) serializeScalar(t ValueType, value any) (types.Attribute
 		}
 		floatStr := strconv.FormatFloat(float64(floatVal), 'e', -1, 32)
 		return &types.AttributeValueMemberN{Value: floatStr}, nil
-	case Float64:
+	case vt.Float64:
 		floatVal, err := castNumberToFloat64(value)
 		if err != nil {
 			wrapped := fferr.NewTypeError(t.String(), value, err)
@@ -783,7 +784,7 @@ func (ser serializerV1) serializeScalar(t ValueType, value any) (types.Attribute
 		}
 		floatStr := strconv.FormatFloat(floatVal, 'e', -1, 64)
 		return &types.AttributeValueMemberN{Value: floatStr}, nil
-	case Bool:
+	case vt.Bool:
 		casted, err := castBool(value)
 		if err != nil {
 			wrapped := fferr.NewTypeError(t.String(), value, err)
@@ -791,7 +792,7 @@ func (ser serializerV1) serializeScalar(t ValueType, value any) (types.Attribute
 			return nil, wrapped
 		}
 		return &types.AttributeValueMemberBOOL{Value: casted}, nil
-	case String:
+	case vt.String:
 		casted, ok := value.(string)
 		if !ok {
 			wrapped := fferr.NewTypeError(t.String(), value, nil)
@@ -799,7 +800,7 @@ func (ser serializerV1) serializeScalar(t ValueType, value any) (types.Attribute
 			return nil, wrapped
 		}
 		return &types.AttributeValueMemberS{Value: casted}, nil
-	case Timestamp, Datetime:
+	case vt.Timestamp, vt.Datetime:
 		ts, isTs := value.(time.Time)
 		if isTs {
 			intStr := strconv.FormatInt(ts.Unix(), 10)
@@ -828,7 +829,7 @@ func (ser serializerV1) serializeScalar(t ValueType, value any) (types.Attribute
 		return &types.AttributeValueMemberN{Value: intStr}, nil
 	default:
 		wrapped := fferr.NewInternalErrorf("dynamo doesn't support type")
-		wrapped.AddDetail("type", serializeType(t))
+		wrapped.AddDetail("type", vt.SerializeType(t))
 		return nil, wrapped
 	}
 }
@@ -999,7 +1000,7 @@ func castBool(value any) (bool, error) {
 	}
 }
 
-func (ser serializerV1) Deserialize(t ValueType, value types.AttributeValue) (any, error) {
+func (ser serializerV1) Deserialize(t vt.ValueType, value types.AttributeValue) (any, error) {
 	// TODO support unsigned ints
 
 	// Dynamo teats all numerical types as strings, so we have to deserialize.
@@ -1018,7 +1019,7 @@ func (ser serializerV1) Deserialize(t ValueType, value types.AttributeValue) (an
 		return nil, wrapped
 	}
 	values := list.Value
-	dims := t.(VectorType).Dimension
+	dims := t.(vt.VectorType).Dimension
 	if len(values) != int(dims) {
 		msg := "unable to deserialize dynamodb value into list, wrong size %d. Expected %d"
 		wrapped := fferr.NewInternalErrorf(msg, len(values), dims)
@@ -1027,28 +1028,28 @@ func (ser serializerV1) Deserialize(t ValueType, value types.AttributeValue) (an
 	}
 	scalar := t.Scalar()
 	switch scalar {
-	case Int:
+	case vt.Int:
 		return deserializeList[int](scalar, values, version)
-	case Int32:
+	case vt.Int32:
 		return deserializeList[int32](scalar, values, version)
-	case Int64:
+	case vt.Int64:
 		return deserializeList[int64](scalar, values, version)
-	case Float32:
+	case vt.Float32:
 		return deserializeList[float32](scalar, values, version)
-	case Float64:
+	case vt.Float64:
 		return deserializeList[float64](scalar, values, version)
-	case Bool:
+	case vt.Bool:
 		return deserializeList[bool](scalar, values, version)
-	case String:
+	case vt.String:
 		return deserializeList[string](scalar, values, version)
 	default:
 		wrapped := fferr.NewInternalErrorf("dynamo doesn't support type")
-		wrapped.AddDetail("type", serializeType(t))
+		wrapped.AddDetail("type", vt.SerializeType(t))
 		return nil, wrapped
 	}
 }
 
-func deserializeList[T any](scalar ScalarType, values []types.AttributeValue, version string) ([]T, error) {
+func deserializeList[T any](scalar vt.ScalarType, values []types.AttributeValue, version string) ([]T, error) {
 	deserList := make([]T, len(values))
 	for i, value := range values {
 		deser, err := deserializeScalar(scalar, value, version)
@@ -1072,10 +1073,10 @@ func deserializeList[T any](scalar ScalarType, values []types.AttributeValue, ve
 	return deserList, nil
 }
 
-func deserializeScalar(t ScalarType, value types.AttributeValue, version string) (any, error) {
+func deserializeScalar(t vt.ScalarType, value types.AttributeValue, version string) (any, error) {
 	// Dynamo teats all numerical types as strings, so we have to deserialize.
 	switch t {
-	case Int:
+	case vt.Int:
 		castedValue, ok := value.(*types.AttributeValueMemberN)
 		if !ok {
 			wrapped := fferr.NewInternalErrorf("unable to deserialize dynamodb value into numerical, is %T", value)
@@ -1084,7 +1085,7 @@ func deserializeScalar(t ScalarType, value types.AttributeValue, version string)
 		}
 		val, err := strconv.ParseInt(castedValue.Value, 10, 0)
 		return int(val), err
-	case Int32:
+	case vt.Int32:
 		castedValue, ok := value.(*types.AttributeValueMemberN)
 		if !ok {
 			wrapped := fferr.NewInternalErrorf("unable to deserialize dynamodb value into numerical, is %T", value)
@@ -1093,7 +1094,7 @@ func deserializeScalar(t ScalarType, value types.AttributeValue, version string)
 		}
 		val, err := strconv.ParseInt(castedValue.Value, 10, 32)
 		return int32(val), err
-	case Int64:
+	case vt.Int64:
 		castedValue, ok := value.(*types.AttributeValueMemberN)
 		if !ok {
 			wrapped := fferr.NewInternalErrorf("unable to deserialize dynamodb value into numerical, is %T", value)
@@ -1101,7 +1102,7 @@ func deserializeScalar(t ScalarType, value types.AttributeValue, version string)
 			return nil, wrapped
 		}
 		return strconv.ParseInt(castedValue.Value, 10, 64)
-	case Float32:
+	case vt.Float32:
 		castedValue, ok := value.(*types.AttributeValueMemberN)
 		if !ok {
 			wrapped := fferr.NewInternalErrorf("unable to deserialize dynamodb value into numerical, is %T", value)
@@ -1110,7 +1111,7 @@ func deserializeScalar(t ScalarType, value types.AttributeValue, version string)
 		}
 		val, err := strconv.ParseFloat(castedValue.Value, 32)
 		return float32(val), err
-	case Float64:
+	case vt.Float64:
 		castedValue, ok := value.(*types.AttributeValueMemberN)
 		if !ok {
 			wrapped := fferr.NewInternalErrorf("unable to deserialize dynamodb value into numerical, is %T", value)
@@ -1118,7 +1119,7 @@ func deserializeScalar(t ScalarType, value types.AttributeValue, version string)
 			return nil, wrapped
 		}
 		return strconv.ParseFloat(castedValue.Value, 64)
-	case Bool:
+	case vt.Bool:
 		castedValue, ok := value.(*types.AttributeValueMemberBOOL)
 		if !ok {
 			wrapped := fferr.NewInternalErrorf("unable to deserialize dynamodb value into bool, is %T", value)
@@ -1126,7 +1127,7 @@ func deserializeScalar(t ScalarType, value types.AttributeValue, version string)
 			return nil, wrapped
 		}
 		return castedValue.Value, nil
-	case String:
+	case vt.String:
 		castedValue, ok := value.(*types.AttributeValueMemberS)
 		if !ok {
 			wrapped := fferr.NewInternalErrorf("unable to deserialize dynamodb value into string, is %T", value)
@@ -1134,7 +1135,7 @@ func deserializeScalar(t ScalarType, value types.AttributeValue, version string)
 			return nil, wrapped
 		}
 		return castedValue.Value, nil
-	case Timestamp, Datetime:
+	case vt.Timestamp, vt.Datetime:
 		castedValue, ok := value.(*types.AttributeValueMemberN)
 		if !ok {
 			wrapped := fferr.NewInternalErrorf("unable to deserialize dynamodb value into timestamp, is %T", value)

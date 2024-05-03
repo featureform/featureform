@@ -16,6 +16,7 @@ import (
 	fs "github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 )
@@ -165,9 +166,9 @@ func testImportTable(t *testing.T, offlineStore OfflineStore, importableOnlineSt
 
 	schemaInt := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Int},
-			{Name: "ts", ValueType: Timestamp},
+			{Name: "entity", ValueType: types.String},
+			{Name: "value", ValueType: types.Int},
+			{Name: "ts", ValueType: types.Timestamp},
 		},
 	}
 
@@ -211,7 +212,7 @@ func testImportTable(t *testing.T, offlineStore OfflineStore, importableOnlineSt
 
 	importSourcePath := getImportSourcePath(t, offlineStore, mat.ID())
 
-	importID, err := importableOnlineStore.ImportTable(resourceID.Name, resourceID.Variant, Int, importSourcePath)
+	importID, err := importableOnlineStore.ImportTable(resourceID.Name, resourceID.Variant, types.Int, importSourcePath)
 	if err != nil {
 		t.Fatalf("failed to import table: %v", err)
 	}
@@ -250,7 +251,8 @@ func getImportSourcePath(t *testing.T, offlineStore OfflineStore, materializatio
 			t.Fatalf("offline store is not a SparkOfflineStore")
 		}
 
-		sourceDirPath, err := sparkOffline.Store.CreateDirPath(fmt.Sprintf("featureform/%s", materializationID))
+		// TODO: move materialization source path creation to provider_schema package
+		sourceDirPath, err := sparkOffline.Store.CreateFilePath(fmt.Sprintf("featureform/%s", materializationID), true)
 		if err != nil {
 			t.Fatalf("failed to create source dir path for resource: %v", err)
 		}

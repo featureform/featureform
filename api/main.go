@@ -820,12 +820,12 @@ func (serv *MetadataServer) shouldCheckProviderHealth(ctx context.Context, provi
 			return false, err
 		}
 		res, err := stream.Recv()
-		if grpc_status.Code(err) == codes.NotFound {
-			break
-		}
 		if err != nil {
 			logger.Errorw("Failed to receive provider from server", "error", err)
 			return false, err
+		}
+		if grpc_status.Code(err) == codes.NotFound {
+			break
 		}
 		if res.Name == provider.Name && res.Type == provider.Type {
 			existingProvider = res
@@ -1008,7 +1008,6 @@ func (serv *OnlineServer) BatchFeatureServe(req *srv.BatchFeatureServeRequest, s
 	}
 	for {
 		row, err := client.Recv()
-		logger.Debugw("Getting row from client", "row", row, "entity", row.Entity)
 		if err != nil {
 			if err == io.EOF {
 				return nil
@@ -1016,6 +1015,7 @@ func (serv *OnlineServer) BatchFeatureServe(req *srv.BatchFeatureServeRequest, s
 			logger.Errorw("Failed to receive row from client", "row", row, "error", err)
 			return err
 		}
+		logger.Debugw("Getting row from client", "row", row, "entity", row.Entity)
 		if err := stream.Send(row); err != nil {
 			logger.Errorw("Failed to write to stream", "error", err)
 			return err
@@ -1034,7 +1034,6 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 	}
 	for {
 		row, err := client.Recv()
-		logger.Infow("Getting row from client", "row", row)
 		if err != nil {
 			if err == io.EOF {
 				return nil
@@ -1042,6 +1041,7 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 			logger.Errorw("Failed to receive row from client", "row", row, "error", err)
 			return err
 		}
+		logger.Infow("Getting row from client", "row", row)
 		if err := stream.Send(row); err != nil {
 			logger.Errorw("Failed to write to stream", "error", err)
 			return err
@@ -1060,7 +1060,6 @@ func (serv *OnlineServer) TrainTestSplit(stream srv.Feature_TrainTestSplitServer
 
 	for {
 		req, err := stream.Recv()
-		logger.Infow("Getting request from stream, Training data id", req.Id)
 		if err == io.EOF {
 			logger.Infow("Client has closed the stream")
 			if err := clientStream.CloseSend(); err != nil {
@@ -1073,7 +1072,7 @@ func (serv *OnlineServer) TrainTestSplit(stream srv.Feature_TrainTestSplitServer
 			logger.Errorw("Error receiving from client stream", "error", err)
 			return err
 		}
-
+		logger.Infow("Getting request from stream, Training data id", req.Id)
 		if err := clientStream.Send(req); err != nil {
 			logger.Errorw("Failed to send request to downstream service", "error", err)
 			return err
@@ -1117,7 +1116,6 @@ func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feat
 	}
 	for {
 		row, err := client.Recv()
-		logger.Infow("Getting row from client", "row", row)
 		if err != nil {
 			if err == io.EOF {
 				return nil
@@ -1125,6 +1123,7 @@ func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feat
 			logger.Errorw("Failed to receive row from client", "row", row, "error", err)
 			return err
 		}
+		logger.Infow("Getting row from client", "row", row)
 		if err := stream.Send(row); err != nil {
 			logger.Errorw("failed to write to source data stream", "row", row, "error", err)
 			return err

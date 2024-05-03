@@ -1413,15 +1413,14 @@ class FeatureVariant(ResourceVariant):
         if hasattr(self.source, "name_variant"):
             self.source = self.source.name_variant()
 
-        serialized = pb.FeatureVariantRequest(
-            feature_variant=pb.FeatureVariant(
+        feature_variant_message = pb.FeatureVariant(
                 name=self.name,
                 variant=self.variant,
                 source=pb.NameVariant(
                     name=self.source[0],
                     variant=self.source[1],
                 ),
-                type=self.value_type,
+                type=self.value_type.to_proto(),
                 entity=self.entity,
                 owner=self.owner,
                 description=self.description,
@@ -1433,7 +1432,11 @@ class FeatureVariant(ResourceVariant):
                 properties=Properties(self.properties).serialized,
                 status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
                 additional_parameters=None,
-            ),
+        )
+
+        # Initialize the FeatureVariantRequest message with the FeatureVariant message
+        serialized = pb.FeatureVariantRequest(
+            feature_variant=feature_variant_message,
             request_id="",
         )
 
@@ -1614,7 +1617,7 @@ class LabelVariant(ResourceVariant):
                     name=self.source[0],
                     variant=self.source[1],
                 ),
-                type=self.value_type,
+                type=self.value_type.to_proto(),
                 entity=self.entity,
                 owner=self.owner,
                 description=self.description,

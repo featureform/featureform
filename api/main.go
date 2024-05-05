@@ -784,6 +784,7 @@ func (serv *MetadataServer) CreateProvider(ctx context.Context, providerRequest 
 	// needs to happen prior to the call to CreateProvider, which is an upsert operation.
 	shouldCheckProviderHealth, err := serv.shouldCheckProviderHealth(ctx, provider)
 	if err != nil {
+		logger.Errorw("Failed to check provider health", "error", err)
 		return nil, err
 	}
 	_, err = serv.meta.CreateProvider(ctx, providerRequest)

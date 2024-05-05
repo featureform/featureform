@@ -1235,10 +1235,7 @@ class SourceVariant(ResourceVariant):
             request_id="",
         )
 
-        print("RESOURCE.PY CHECK")
-        print(serialized)
-
-        _get_and_set_equivalent_variant(serialized.source_variant, "source_variant", stub)
+        _get_and_set_equivalent_variant(serialized, "source_variant", stub)
         stub.CreateSourceVariant(serialized)
         return serialized.source_variant.variant
 
@@ -1447,7 +1444,7 @@ class FeatureVariant(ResourceVariant):
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized.feature_variant, "feature_variant", stub)
+        _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
         return serialized.feature_variant.variant
 
@@ -1513,7 +1510,7 @@ class OnDemandFeatureVariant(ResourceVariant):
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized.feature_variant, "feature_variant", stub)
+        _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
         return serialized.feature_variant.variant
 
@@ -1640,7 +1637,7 @@ class LabelVariant(ResourceVariant):
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized.label_variant, "label_variant", stub)
+        _get_and_set_equivalent_variant(serialized, "label_variant", stub)
         stub.CreateLabelVariant(serialized)
         return serialized.label_variant.variant
 
@@ -1867,7 +1864,7 @@ class TrainingSetVariant(ResourceVariant):
             ),
             request_id="",
         )
-        _get_and_set_equivalent_variant(serialized.training_set_variant, "training_set_variant", stub)
+        _get_and_set_equivalent_variant(serialized, "training_set_variant", stub)
         stub.CreateTrainingSetVariant(serialized)
         return serialized.training_set_variant.variant
 
@@ -2314,32 +2311,45 @@ class SparkCredentials:
 def _get_and_set_equivalent_variant(
     resource_variant_proto, variant_field, stub
 ) -> Optional[str]:
+    rv_proto = None
     if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
         # Get equivalent from stub
         if variant_field == "source_variant":
             equivalent = stub.GetEquivalent(
-                pb.ResourceVariant(
-                    source_variant=resource_variant_proto
-                )
+                pb.ResourceVariantRequest(
+                    resource_variant=pb.ResourceVariant(
+                    source_variant=resource_variant_proto.source_variant
+                ), 
+                request_id=resource_variant_proto.request_id)
             )
+            rv_proto = resource_variant_proto.source_variant
         elif variant_field == "feature_variant":
             equivalent = stub.GetEquivalent(
-                pb.ResourceVariant(
-                    feature_variant=resource_variant_proto
-                )
+                pb.ResourceVariantRequest(
+                    resource_variant=pb.ResourceVariant(
+                    feature_variant=resource_variant_proto.feature_variant
+                ), 
+                request_id=resource_variant_proto.request_id)
             )
+            rv_proto = resource_variant_proto.feature_variant
         elif variant_field == "label_variant":
             equivalent = stub.GetEquivalent(
-                pb.ResourceVariant(
-                    label_variant=resource_variant_proto
-                )
+                pb.ResourceVariantRequest(
+                    resource_variant=pb.ResourceVariant(
+                    label_variant=resource_variant_proto.label_variant
+                ), 
+                request_id=resource_variant_proto.request_id)
             )
+            rv_proto = resource_variant_proto.label_variant
         elif variant_field == "training_set_variant":
             equivalent = stub.GetEquivalent(
-                pb.ResourceVariant(
-                    training_set_variant=resource_variant_proto
-                )
+                pb.ResourceVariantRequest(
+                    resource_variant=pb.ResourceVariant(
+                    training_set_variant=resource_variant_proto.training_set_variant
+                ), 
+                request_id=resource_variant_proto.request_id)
             )
+            rv_proto = resource_variant_proto.training_set_variant
         else:
             raise Exception(f"Unsupported variant field: {variant_field}")
 
@@ -2351,7 +2361,7 @@ def _get_and_set_equivalent_variant(
                 variant_value,
             )
             # TODO add confirmation from user before using equivalent variant
-            resource_variant_proto.variant = variant_value
+            rv_proto.variant = variant_value
             return variant_value
     return None
 

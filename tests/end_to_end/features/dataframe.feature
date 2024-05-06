@@ -1,4 +1,4 @@
-Feature: Features with Timestamp
+Feature: Serving Pandas Dataframe with client.dataframe method 
   Scenario Outline: Getting the Dataframe of a Transformation
     Given Featureform is installed
     When I turn on autovariants

@@ -881,7 +881,7 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 	}
 	go func() {
 		for _, id := range ids {
-			stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx)})
+			err := stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx)})
 			if err != nil {
 				logger.Errorw("Failed to send source variant", "name", id.Name, "variant", id.Variant, "error", err)
 			}

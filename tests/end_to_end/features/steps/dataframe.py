@@ -5,10 +5,13 @@ from behave import when, then
 def step_impl(context, transformation_type, limit):
     if transformation_type == "df":
         if limit == "none":
+
             @context.offline_provider.df_transformation()
             def transformation(df):
                 return df
+
         else:
+
             @context.offline_provider.df_transformation()
             def transformation(df):
                 return df.limit(int(limit))

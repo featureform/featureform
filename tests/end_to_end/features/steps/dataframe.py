@@ -6,7 +6,7 @@ def step_impl(context, transformation_type, limit):
     if transformation_type == "df":
         if limit == "none":
 
-            @context.offline_provider.df_transformation()
+            @context.offline_provider.df_transformation(inputs=[context.dataset])
             def transformation(df):
                 return df
 

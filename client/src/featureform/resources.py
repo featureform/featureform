@@ -874,7 +874,7 @@ class Provider:
         return "provider"
 
     def get(self, stub) -> "Provider":
-        name = pb.NameRequest(name_variant=pb.Name(name=self.name))
+        name = pb.NameRequest(name=pb.Name(name=self.name))
         provider = next(stub.GetProviders(iter([name])))
 
         return Provider(
@@ -1664,7 +1664,7 @@ class EntityReference:
 
     def _get(self, stub):
         entityList = stub.GetEntities(
-            iter([pb.NameRequest(name_variant=pb.Name(name=self.name))])
+            iter([pb.NameRequest(name=pb.Name(name=self.name))])
         )
         try:
             for entity in entityList:
@@ -1690,7 +1690,7 @@ class ProviderReference:
 
     def _get(self, stub):
         providerList = stub.GetProviders(
-            iter([pb.NameRequest(name_variant=pb.Name(name=self.name))])
+            iter([pb.NameRequest(name=pb.Name(name=self.name))])
         )
         try:
             for provider in providerList:

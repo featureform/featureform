@@ -47,10 +47,10 @@ func (logger Logger) WithRequestID(id RequestID) Logger {
 		logger.Warnw("Request ID already set in logger. Using existing Request ID", "current request-id", logger.id, "new request-id", id)
 		return logger
 	}
-
+	valuesWithRequestID := logger.appendValueMap(map[string]interface{}{"request-id": id})
 	return Logger{SugaredLogger: logger.With("request-id", id),
 		id:     id,
-		Values: logger.Values}
+		Values: valuesWithRequestID}
 }
 
 func (logger Logger) WithResource(resourceType, name, variant string) Logger {
@@ -182,19 +182,24 @@ func (logger Logger) GetRequestID() RequestID {
 	return logger.id
 }
 
-func UpdateContext(ctx context.Context, logger Logger, id string) context.Context {
+func UpdateLoggerAndContext(ctx context.Context, logger Logger, id string) context.Context {
 	contextID := ctx.Value(RequestIDKey)
 	if contextID == nil {
 		if id == "" {
 			id = NewRequestID().String()
+			logger.Warnw("Request ID is empty. Creating new request ID", "request-id", id)
 		}
-		ctx = context.WithValue(ctx, RequestIDKey, RequestID(id))
+	} else {
+		if id == "" {
+			logger.Warn("Request ID already set in context")
+			return ctx
+		} else {
+			logger.Warnw("Request ID already set in context. Overwriting request ID", "old request-id", contextID, "new request-id", id)
+		}
 	}
-	contextLogger := ctx.Value(LoggerKey)
-	if contextLogger == nil {
-		logger = logger.WithRequestID(RequestID(id))
-		ctx = context.WithValue(ctx, LoggerKey, logger)
-	}
+	ctx = context.WithValue(ctx, RequestIDKey, RequestID(id))
+	logger = logger.WithRequestID(RequestID(id))
+	ctx = context.WithValue(ctx, LoggerKey, logger)
 	return ctx
 }
 

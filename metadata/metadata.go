@@ -1989,7 +1989,7 @@ type sendFn func(proto.Message) error
 type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
-	logger := logging.GetLoggerFromContext(ctx).WithValues(map[string]interface{}{"resource-id": res.ID()})
+	logger := logging.GetLoggerFromContext(ctx).WithResource(res.ID().Type.String(), res.ID().Name, res.ID().Variant)
 	logger.Debugw("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
 
 	id := res.ID()

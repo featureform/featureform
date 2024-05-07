@@ -2311,15 +2311,16 @@ class SparkCredentials:
 def _get_and_set_equivalent_variant(
     resource_variant_proto, variant_field, stub
 ) -> Optional[str]:
-    rv_proto = None
     if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
-        res_pb = pb.ResourceVariant(**{variant_field: getattr(resource_variant_proto, variant_field)})
+        res_pb = pb.ResourceVariant(
+            **{variant_field: getattr(resource_variant_proto, variant_field)}
+        )
         equivalent = stub.GetEquivalent(
-                pb.ResourceVariantRequest(
-                    resource_variant=res_pb,
-                    request_id=resource_variant_proto.request_id,
-                )
+            pb.ResourceVariantRequest(
+                resource_variant=res_pb,
+                request_id=resource_variant_proto.request_id,
             )
+        )
         rv_proto = getattr(resource_variant_proto, variant_field)
 
         # grpc call returns the default ResourceVariant proto when equivalent doesn't exist which explains the below check

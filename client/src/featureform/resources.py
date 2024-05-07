@@ -2313,49 +2313,14 @@ def _get_and_set_equivalent_variant(
 ) -> Optional[str]:
     rv_proto = None
     if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
-        # Get equivalent from stub
-        if variant_field == "source_variant":
-            equivalent = stub.GetEquivalent(
+        res_pb = pb.ResourceVariant(**{variant_field: getattr(resource_variant_proto, variant_field)})
+        equivalent = stub.GetEquivalent(
                 pb.ResourceVariantRequest(
-                    resource_variant=pb.ResourceVariant(
-                        source_variant=resource_variant_proto.source_variant
-                    ),
+                    resource_variant=res_pb,
                     request_id=resource_variant_proto.request_id,
                 )
             )
-            rv_proto = resource_variant_proto.source_variant
-        elif variant_field == "feature_variant":
-            equivalent = stub.GetEquivalent(
-                pb.ResourceVariantRequest(
-                    resource_variant=pb.ResourceVariant(
-                        feature_variant=resource_variant_proto.feature_variant
-                    ),
-                    request_id=resource_variant_proto.request_id,
-                )
-            )
-            rv_proto = resource_variant_proto.feature_variant
-        elif variant_field == "label_variant":
-            equivalent = stub.GetEquivalent(
-                pb.ResourceVariantRequest(
-                    resource_variant=pb.ResourceVariant(
-                        label_variant=resource_variant_proto.label_variant
-                    ),
-                    request_id=resource_variant_proto.request_id,
-                )
-            )
-            rv_proto = resource_variant_proto.label_variant
-        elif variant_field == "training_set_variant":
-            equivalent = stub.GetEquivalent(
-                pb.ResourceVariantRequest(
-                    resource_variant=pb.ResourceVariant(
-                        training_set_variant=resource_variant_proto.training_set_variant
-                    ),
-                    request_id=resource_variant_proto.request_id,
-                )
-            )
-            rv_proto = resource_variant_proto.training_set_variant
-        else:
-            raise Exception(f"Unsupported variant field: {variant_field}")
+        rv_proto = getattr(resource_variant_proto, variant_field)
 
         # grpc call returns the default ResourceVariant proto when equivalent doesn't exist which explains the below check
         if equivalent != pb.ResourceVariant():

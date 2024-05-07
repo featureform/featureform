@@ -8,22 +8,33 @@ import (
 	"time"
 )
 
-func TestMemoryStorageProvider(t *testing.T) {
-	testFns := map[string]func(*testing.T){
-		"SetStorageProvider":  StorageProviderSet,
-		"GetStorageProvider":  StorageProviderGet,
-		"ListStorageProvider": StorageProviderList,
+type StorageProviderTest struct {
+	t       *testing.T
+	storage StorageProvider
+}
+
+func (test *StorageProviderTest) Run() {
+	t := test.t
+	storage := test.storage
+
+	testFns := map[string]func(*testing.T, StorageProvider){
+		"SetStorageProvider":          StorageProviderSet,
+		"GetStorageProvider":          StorageProviderGet,
+		"ListStorageProvider":         StorageProviderList,
+		"LockAndUnlock":               LockAndUnlock,
+		"LockTimeUpdates":             LockTimeUpdates,
+		"LockAndUnlockWithGoRoutines": LockAndUnlockWithGoRoutines,
+		"StressTestLockAndUnlock":     StressTestLockAndUnlock,
 	}
 
 	for name, fn := range testFns {
 		t.Run(name, func(t *testing.T) {
-			fn(t)
+			fn(t, storage)
 		})
 	}
 }
 
-func StorageProviderSet(t *testing.T) {
-	provider := &MemoryStorageProvider{storage: sync.Map{}, lockedItems: sync.Map{}}
+func StorageProviderSet(t *testing.T, provider StorageProvider) {
 	type TestCase struct {
 		key   string
 		value string
@@ -49,13 +60,16 @@ func StorageProviderSet(t *testing.T) {
 			if err != nil && err.Error() != test.err.Error() {
 				t.Errorf("Set(%s, %s): expected error %v, got %v", test.key, test.value, test.err, err)
 			}
-			provider.Unlock(test.key, lockObject)
+
+			err = provider.Delete(test.key, lockObject)
+			if err != nil {
+				t.Errorf("could not delete key: %v", err)
+			}
 		})
 	}
 }
 
-func StorageProviderGet(t *testing.T) {
-	provider := &MemoryStorageProvider{storage: sync.Map{}, lockedItems: sync.Map{}}
+func StorageProviderGet(t *testing.T, provider StorageProvider) {
 	type TestCase struct {
 		key     string
 		prefix  bool
@@ -92,6 +106,26 @@ func StorageProviderGet(t *testing.T) {
 		if !compareMaps(results, test.results) {
 			t.Errorf("Get(%s, %v): expected results %v, got %v", test.key, test.prefix, test.results, results)
 		}
+
+		err = provider.Delete("key1", lockObject1)
+		if err != nil {
+			t.Fatalf("could not delete key1: %v", err)
+		}
+
+		err = provider.Delete("key2", lockObject2)
+		if err != nil {
+			t.Fatalf("could not delete key2: %v", err)
+		}
+
+		err = provider.Delete("prefix/key3", lockObject3)
+		if err != nil {
+			t.Fatalf("could not delete prefix/key3: %v", err)
+		}
+
+		err = provider.Delete("prefix/key4", lockObject4)
+		if err != nil {
+			t.Fatalf("could not delete prefix/key4: %v", err)
+		}
 	}
 
 	for name, test := range tests {
@@ -101,7 +135,7 @@ func StorageProviderGet(t *testing.T) {
 	}
 }
 
-func StorageProviderList(t *testing.T) {
+func StorageProviderList(t *testing.T, provider StorageProvider) {
 	type TestCase struct {
 		keys        []string
 		prefix      string
@@ -117,7 +151,6 @@ func StorageProviderList(t *testing.T) {
 	}
 
 	runTestCase := func(t *testing.T, test TestCase) {
-		provider := &MemoryStorageProvider{storage: sync.Map{}, lockedItems: sync.Map{}}
 		for _, key := range test.keys {
 			lockObject, err := provider.Lock(key)
 			if err != nil {
@@ -126,6 +159,9 @@ func StorageProviderList(t *testing.T) {
 			err = provider.Set(key, "value", lockObject)
 			if err != nil {
 				t.Fatalf("could not set key: %v", err)
+			}
+			if err = provider.Unlock(key, lockObject); err != nil {
+				t.Fatalf("could not unlock key: %v", err)
 			}
 		}
 
@@ -138,6 +174,17 @@ func StorageProviderList(t *testing.T) {
 		}
 		for !compareStringSlices(results, test.results) {
 			t.Fatalf("Expected List: %v, Got List: %v", test.results, results)
+		}
+
+		for _, key := range test.keys {
+			lockObject, err := provider.Lock(key)
+			if err != nil {
+				t.Fatalf("could not lock key: %v", err)
+			}
+			err = provider.Delete(key, lockObject)
+			if err != nil {
+				t.Fatalf("could not set key: %v", err)
+			}
 		}
 	}
 
@@ -176,9 +223,7 @@ func compareMaps(a, b map[string]string) bool {
 	return true
 }
 
-func TestLockAndUnlock(t *testing.T) {
-	provider := &MemoryStorageProvider{storage: sync.Map{}, lockedItems: sync.Map{}}
-
+func LockAndUnlock(t *testing.T, provider StorageProvider) {
 	key := "/tasks/metadata/task_id=1"
 
 	// Test Lock
@@ -204,11 +249,19 @@ func TestLockAndUnlock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unlock failed: %v", err)
 	}
+
+	// Lock & Delete key
+	lock, err = provider.Lock(key)
+	if err != nil {
+		t.Fatalf("Lock failed: %v", err)
+	}
+	err = provider.Delete(key, lock)
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
 }
 
-func TestLockAndUnlockWithGoRoutines(t *testing.T) {
-	provider := &MemoryStorageProvider{storage: sync.Map{}, lockedItems: sync.Map{}}
-
+func LockAndUnlockWithGoRoutines(t *testing.T, provider StorageProvider) {
 	key := "/tasks/metadata/task_id=2"
 	lockChannel := make(chan LockObject)
 	errChan := make(chan error)
@@ -243,11 +296,19 @@ func TestLockAndUnlockWithGoRoutines(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unlock failed: %v", err)
 	}
+
+	// Lock & Delete key
+	lock, err = provider.Lock(key)
+	if err != nil {
+		t.Fatalf("Lock failed: %v", err)
+	}
+	err = provider.Delete(key, lock)
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
 }
 
-func TestLockTimeUpdates(t *testing.T) {
-	provider := NewMemoryStorageProvider()
-
+func LockTimeUpdates(t *testing.T, provider StorageProvider) {
 	key := "/tasks/metadata/task_id=3"
 	lock, err := provider.Lock(key)
 	if err != nil {
@@ -262,36 +323,84 @@ func TestLockTimeUpdates(t *testing.T) {
 	// Wait for 2 x ValidTimePeriod
 	time.Sleep(2 * ValidTimePeriod)
 
-	// Check if date has been updated
-	lockInfo, ok := provider.lockedItems.Load(key)
-	if !ok {
-		t.Fatalf("Key not found")
-	}
-	lockDetail := lockInfo.(LockInformation)
-	if time.Since(lockDetail.Date) > ValidTimePeriod {
-		t.Fatalf("Lock time not updated: current time: %s, lock time: %s", time.Now().String(), lockDetail.Date.String())
-	}
+	// Set the value to something else
+	err = provider.Set(key, "value2", lock)
 
-	// Unlock the key
-	err = provider.Unlock(key, lock)
+	// Check if the value has been updated
+	results, err := provider.Get(key, false)
 	if err != nil {
-		t.Fatalf("Unlock failed: %v", err)
+		t.Fatalf("Get failed: %v", err)
+	}
+	if results[key] != "value2" {
+		t.Fatalf("Value not updated")
 	}
 
-	// Check if key has been deleted
-	_, ok = provider.lockedItems.Load(key)
-	if ok {
-		t.Fatalf("Key not deleted")
+	err = provider.Delete(key, lock)
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+
+	// Test the lock has been released
+	err = provider.Set(key, "value3", lock)
+	if err == nil {
+		t.Fatalf("Set should have failed")
 	}
 }
 
-func lockGoRoutine(provider *MemoryStorageProvider, key string, lockChannel chan LockObject, errChan chan error) {
+func StressTestLockAndUnlock(t *testing.T, provider StorageProvider) {
+	key := "/tasks/metadata/task_id=5"
+
+	var wg sync.WaitGroup
+	// Use a counter to track the number of errors
+	errorCount := 0
+
+	// In 1000 threads, lock and unlock the same key
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+		go func(t *testing.T, id int) {
+			defer wg.Done()
+			// So only one thread will be able to lock and unlock the key
+			// if multiple threads are able to lock the key, it means
+			// there is a race condition. And we are able to detect it because
+			// we will fail to unlock the key
+
+			lock, err := provider.Lock(key)
+			if err != nil {
+				return
+			}
+
+			time.Sleep(100 * time.Millisecond)
+
+			err = provider.Unlock(key, lock)
+			if err != nil {
+				errorCount++
+				return
+			}
+		}(t, i)
+	}
+	wg.Wait()
+
+	lock, err := provider.Lock(key)
+	if err != nil {
+		t.Fatalf("Lock for deletion failed: %v", err)
+	}
+	err = provider.Delete(key, lock)
+	if err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+
+	if errorCount > 0 {
+		t.Fatalf("race condition detected! %d threads failed to unlock the key", errorCount)
+	}
+}
+
+func lockGoRoutine(provider StorageProvider, key string, lockChannel chan LockObject, errChan chan error) {
 	lockObject, err := provider.Lock(key)
 	lockChannel <- lockObject
 	errChan <- err
 }
 
-func unlockGoRoutine(provider *MemoryStorageProvider, lock LockObject, key string, errChan chan error) {
+func unlockGoRoutine(provider StorageProvider, lock LockObject, key string, errChan chan error) {
 	err := provider.Unlock(key, lock)
 	errChan <- err
 }

@@ -42,7 +42,6 @@ func main() {
 			ApiKey: help.GetEnv("MEILISEARCH_APIKEY", ""),
 		}
 	}
-
 	server, err := metadata.NewMetadataServer(config)
 	if err != nil {
 		logger.Panicw("Failed to create metadata server", "Err", err)

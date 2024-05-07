@@ -2318,36 +2318,40 @@ def _get_and_set_equivalent_variant(
             equivalent = stub.GetEquivalent(
                 pb.ResourceVariantRequest(
                     resource_variant=pb.ResourceVariant(
-                    source_variant=resource_variant_proto.source_variant
-                ), 
-                request_id=resource_variant_proto.request_id)
+                        source_variant=resource_variant_proto.source_variant
+                    ),
+                    request_id=resource_variant_proto.request_id,
+                )
             )
             rv_proto = resource_variant_proto.source_variant
         elif variant_field == "feature_variant":
             equivalent = stub.GetEquivalent(
                 pb.ResourceVariantRequest(
                     resource_variant=pb.ResourceVariant(
-                    feature_variant=resource_variant_proto.feature_variant
-                ), 
-                request_id=resource_variant_proto.request_id)
+                        feature_variant=resource_variant_proto.feature_variant
+                    ),
+                    request_id=resource_variant_proto.request_id,
+                )
             )
             rv_proto = resource_variant_proto.feature_variant
         elif variant_field == "label_variant":
             equivalent = stub.GetEquivalent(
                 pb.ResourceVariantRequest(
                     resource_variant=pb.ResourceVariant(
-                    label_variant=resource_variant_proto.label_variant
-                ), 
-                request_id=resource_variant_proto.request_id)
+                        label_variant=resource_variant_proto.label_variant
+                    ),
+                    request_id=resource_variant_proto.request_id,
+                )
             )
             rv_proto = resource_variant_proto.label_variant
         elif variant_field == "training_set_variant":
             equivalent = stub.GetEquivalent(
                 pb.ResourceVariantRequest(
                     resource_variant=pb.ResourceVariant(
-                    training_set_variant=resource_variant_proto.training_set_variant
-                ), 
-                request_id=resource_variant_proto.request_id)
+                        training_set_variant=resource_variant_proto.training_set_variant
+                    ),
+                    request_id=resource_variant_proto.request_id,
+                )
             )
             rv_proto = resource_variant_proto.training_set_variant
         else:

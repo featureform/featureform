@@ -68,7 +68,7 @@ func TestUpdateContext(t *testing.T) {
 	logger := NewLogger("test-logger")
 	ctx := newContext()
 	requestID := NewRequestID()
-	updatedCtx := UpdateLoggerAndContext(ctx, logger, requestID.String())
+	updatedCtx := AttachRequestID(requestID.String(), ctx, logger)
 
 	requestIDFromContext := GetRequestIDFromContext(updatedCtx)
 	if requestID.String() != requestIDFromContext {

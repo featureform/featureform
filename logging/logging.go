@@ -182,7 +182,11 @@ func (logger Logger) GetRequestID() RequestID {
 	return logger.id
 }
 
-func UpdateLoggerAndContext(ctx context.Context, logger Logger, id string) context.Context {
+func AttachRequestID(id string, ctx context.Context, logger Logger) context.Context {
+	if ctx == nil {
+		logger.Error("Context is nil")
+		return ctx
+	}
 	contextID := ctx.Value(RequestIDKey)
 	if contextID == nil {
 		if id == "" {

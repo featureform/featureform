@@ -779,11 +779,11 @@ func (serv *MetadataServer) CreateProvider(ctx context.Context, providerRequest 
 	provider := providerRequest.Provider
 	logger.Infow("Creating Provider")
 	providerRequest.RequestId = requestID
-
 	// The existence of a provider is part of the determination for checking provider health, hence why it
 	// needs to happen prior to the call to CreateProvider, which is an upsert operation.
 	shouldCheckProviderHealth, err := serv.shouldCheckProviderHealth(ctx, provider)
 	if err != nil {
+		logger.Errorw("Failed to check provider health", "error", err)
 		return nil, err
 	}
 	_, err = serv.meta.CreateProvider(ctx, providerRequest)
@@ -820,12 +820,12 @@ func (serv *MetadataServer) shouldCheckProviderHealth(ctx context.Context, provi
 			return false, err
 		}
 		res, err := stream.Recv()
+		if grpc_status.Code(err) == codes.NotFound {
+			break
+		}
 		if err != nil {
 			logger.Errorw("Failed to receive provider from server", "error", err)
 			return false, err
-		}
-		if grpc_status.Code(err) == codes.NotFound {
-			break
 		}
 		if res.Name == provider.Name && res.Type == provider.Type {
 			existingProvider = res

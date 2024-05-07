@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"net"
 	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -546,7 +547,7 @@ func startMetadata() (*metadata.MetadataServer, string) {
 		panic(err)
 	}
 	config := &metadata.Config{
-		Logger:          logging.Logger{SugaredLogger: logger.Sugar(), Values: make(map[string]interface{})},
+		Logger:          logging.Logger{SugaredLogger: logger.Sugar(), Values: &sync.Map{}},
 		StorageProvider: metadata.LocalStorageProvider{},
 	}
 	serv, err := metadata.NewMetadataServer(config)
@@ -568,7 +569,7 @@ func startMetadata() (*metadata.MetadataServer, string) {
 
 func metadataClient(t *testing.T, addr string) *metadata.Client {
 	logger := zaptest.NewLogger(t).Sugar()
-	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger, Values: make(map[string]interface{})})
+	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger, Values: &sync.Map{}})
 	if err != nil {
 		t.Fatalf("Failed to create client: %s", err)
 	}

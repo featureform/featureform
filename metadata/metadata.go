@@ -1353,15 +1353,20 @@ func (resource *providerResource) UpdateSchedule(schedule string) error {
 
 func (resource *providerResource) Update(lookup ResourceLookup, resourceUpdate Resource) error {
 	// TODO: Add logs after adding context to Lookup
+	logger := logging.NewLogger("metadata-update")
+	logger.Infow("Update provider resource", "Provider resource", resource, "Resource update", resourceUpdate)
 	providerUpdate, ok := resourceUpdate.Proto().(*pb.Provider)
 	if !ok {
+		logger.Errorw("Failed to deserialize existing provider record", "providerUpdate", providerUpdate)
 		return fferr.NewInternalError(errors.New("failed to deserialize existing provider record"))
 	}
 	isValid, err := resource.isValidConfigUpdate(providerUpdate.SerializedConfig)
 	if err != nil {
+		logger.Errorw("Failed to validate config update", "is valid", isValid, "error", err)
 		return err
 	}
 	if !isValid {
+		logger.Errorw("Invalid config update", "providerUpdate", providerUpdate)
 		wrapped := fferr.NewResourceInternalError(resource.ID().Name, resource.ID().Variant, fferr.ResourceType(resource.ID().Type.String()), fmt.Errorf("invalid config update"))
 		return wrapped
 	}
@@ -1479,7 +1484,7 @@ type MetadataServer struct {
 }
 
 func NewMetadataServer(config *Config) (*MetadataServer, error) {
-	config.Logger.Debug("Creating new metadata server", "Address:", config.Address)
+	config.Logger.Infow("Creating new metadata server", "Address:", config.Address)
 	lookup, err := config.StorageProvider.GetResourceLookup()
 
 	if err != nil {

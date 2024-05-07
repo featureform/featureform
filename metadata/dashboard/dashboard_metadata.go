@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	filestore "github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
@@ -1391,7 +1392,7 @@ func main() {
 	SearchClient = sc
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	logger.Infof("Looking for metadata at: %s\n", metadataAddress)
-	client, err := metadata.NewClient(metadataAddress, logging.Logger{SugaredLogger: logger, Values: make(map[string]interface{})})
+	client, err := metadata.NewClient(metadataAddress, logging.Logger{SugaredLogger: logger, Values: &sync.Map{}})
 	if err != nil {
 		logger.Panicw("Failed to connect", "error", err)
 	}

@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"sync"
 
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
@@ -15,7 +16,7 @@ import (
 
 func main() {
 	sugaredLogger := zap.NewExample().Sugar()
-	logger := logging.Logger{SugaredLogger: sugaredLogger, Values: make(map[string]interface{})}
+	logger := logging.Logger{SugaredLogger: sugaredLogger, Values: &sync.Map{}}
 	addr := help.GetEnv("METADATA_PORT", "8080")
 	config := &metadata.Config{
 		Logger:          logger,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"sync"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -13,7 +14,7 @@ import (
 type Logger struct {
 	*zap.SugaredLogger
 	id     RequestID
-	Values map[string]interface{}
+	Values *sync.Map
 }
 
 type RequestID string
@@ -53,27 +54,29 @@ func (logger Logger) WithRequestID(id RequestID) Logger {
 }
 
 func (logger Logger) WithResource(resourceType, name, variant string) Logger {
-	combinedValues := logger.Values
+	newValues := make(map[string]interface{})
 	if resourceType != "" {
-		combinedValues["resource-type"] = resourceType
+		newValues["resource-type"] = resourceType
 		logger.SugaredLogger = logger.SugaredLogger.With("resource-type", resourceType)
 	} else {
 		logger.Warn("Resource type is an empty string")
 	}
 
 	if name != "" {
-		combinedValues["resource-name"] = name
+		newValues["resource-name"] = name
 		logger.SugaredLogger = logger.SugaredLogger.With("resource-name", name)
 	} else {
 		logger.Warn("Resource name is empty")
 	}
 
 	if variant != "" {
-		combinedValues["resource-variant"] = variant
+		newValues["resource-variant"] = variant
 		logger.SugaredLogger = logger.SugaredLogger.With("resource-variant", variant)
 	} else {
 		logger.Warn("Resource variant is empty")
 	}
+
+	combinedValues := logger.appendValueMap(newValues)
 
 	return Logger{
 		SugaredLogger: logger.SugaredLogger,
@@ -83,20 +86,22 @@ func (logger Logger) WithResource(resourceType, name, variant string) Logger {
 }
 
 func (logger Logger) WithProvider(providerType, providerName string) Logger {
-	combinedValues := logger.Values
+	newValues := make(map[string]interface{})
 	if providerType != "" {
-		combinedValues["provider-type"] = providerType
+		newValues["provider-type"] = providerType
 		logger.SugaredLogger = logger.SugaredLogger.With("provider-type", providerType)
 	} else {
 		logger.Warn("Provider type is empty")
 	}
 
 	if providerName != "" {
-		combinedValues["provider-name"] = providerName
+		newValues["provider-name"] = providerName
 		logger.SugaredLogger = logger.SugaredLogger.With("provider-name", providerName)
 	} else {
 		logger.Warn("Provider name is empty")
 	}
+
+	combinedValues := logger.appendValueMap(newValues)
 
 	return Logger{
 		SugaredLogger: logger.SugaredLogger,
@@ -109,16 +114,33 @@ func (logger Logger) WithValues(values map[string]interface{}) Logger {
 	if values == nil {
 		logger.Warn("Values are empty")
 	}
-	combinedValues := logger.Values
-	for k, v := range values {
-		combinedValues[k] = v
-		logger.SugaredLogger = logger.SugaredLogger.With(k, v)
-	}
+	combinedValues := logger.appendValueMap(values)
 	return Logger{
 		SugaredLogger: logger.SugaredLogger,
 		id:            logger.id,
 		Values:        combinedValues,
 	}
+}
+
+func (logger Logger) GetValue(key string) interface{} {
+	value, ok := logger.Values.Load(key)
+	if !ok {
+		logger.Warnw("Value not found", "key", key)
+	}
+	return value
+}
+
+func (logger Logger) appendValueMap(values map[string]interface{}) *sync.Map {
+
+	combinedValues := &sync.Map{}
+	for k, v := range values {
+		combinedValues.Store(k, v)
+	}
+	logger.Values.Range(func(key, value interface{}) bool {
+		combinedValues.Store(key, value)
+		return true
+	})
+	return combinedValues
 }
 
 func (logger Logger) InitializeRequestID(ctx context.Context) (string, context.Context, Logger) {
@@ -194,7 +216,7 @@ func NewLogger(service string) Logger {
 	logger := baseLogger.Sugar().Named(service)
 	return Logger{
 		SugaredLogger: logger,
-		Values:        make(map[string]interface{}),
+		Values:        &sync.Map{},
 	}
 }
 

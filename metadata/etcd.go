@@ -355,7 +355,7 @@ func (lookup EtcdResourceLookup) Lookup(ctx context.Context, id ResourceID) (Res
 	return resource, nil
 }
 
-func (lookup EtcdResourceLookup) Has(id ResourceID) (bool, error) {
+func (lookup EtcdResourceLookup) Has(ctx context.Context, id ResourceID) (bool, error) {
 	key := createKey(id)
 	count, err := lookup.Connection.GetCountWithPrefix(key)
 	if err != nil {
@@ -367,16 +367,16 @@ func (lookup EtcdResourceLookup) Has(id ResourceID) (bool, error) {
 	return true, nil
 }
 
-func GetJobKey(id ResourceID) string {
+func GetJobKey(ctx context.Context, id ResourceID) string {
 	return fmt.Sprintf("JOB__%s__%s__%s", id.Type, id.Name, id.Variant)
 }
 
-func GetScheduleJobKey(id ResourceID) string {
+func GetScheduleJobKey(ctx context.Context, id ResourceID) string {
 	return fmt.Sprintf("SCHEDULEJOB__%s__%s__%s", id.Type, id.Name, id.Variant)
 }
 
-func (lookup EtcdResourceLookup) HasJob(id ResourceID) (bool, error) {
-	job_key := GetJobKey(id)
+func (lookup EtcdResourceLookup) HasJob(ctx context.Context, id ResourceID) (bool, error) {
+	job_key := GetJobKey(ctx, id)
 	count, err := lookup.Connection.GetCountWithPrefix(job_key)
 	if err != nil {
 		return false, err
@@ -387,9 +387,9 @@ func (lookup EtcdResourceLookup) HasJob(id ResourceID) (bool, error) {
 	return true, nil
 }
 
-func (lookup EtcdResourceLookup) SetJob(id ResourceID, schedule string) error {
-	if jobAlreadySet, _ := lookup.HasJob(id); jobAlreadySet {
-		return fferr.NewJobAlreadyExistsError(GetJobKey(id), nil)
+func (lookup EtcdResourceLookup) SetJob(ctx context.Context, id ResourceID, schedule string) error {
+	if jobAlreadySet, _ := lookup.HasJob(ctx, id); jobAlreadySet {
+		return fferr.NewJobAlreadyExistsError(GetJobKey(ctx, id), nil)
 	}
 	coordinatorJob := CoordinatorJob{
 		Attempts: 0,
@@ -400,14 +400,14 @@ func (lookup EtcdResourceLookup) SetJob(id ResourceID, schedule string) error {
 	if err != nil {
 		return err
 	}
-	jobKey := GetJobKey(id)
+	jobKey := GetJobKey(ctx, id)
 	if err := lookup.Connection.Put(jobKey, string(serialized)); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (lookup EtcdResourceLookup) SetSchedule(id ResourceID, schedule string) error {
+func (lookup EtcdResourceLookup) SetSchedule(ctx context.Context, id ResourceID, schedule string) error {
 	coordinatorScheduleJob := CoordinatorScheduleJob{
 		Attempts: 0,
 		Resource: id,
@@ -417,14 +417,14 @@ func (lookup EtcdResourceLookup) SetSchedule(id ResourceID, schedule string) err
 	if err != nil {
 		return err
 	}
-	jobKey := GetScheduleJobKey(id)
+	jobKey := GetScheduleJobKey(ctx, id)
 	if err := lookup.Connection.Put(jobKey, string(serialized)); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (lookup EtcdResourceLookup) Set(id ResourceID, res Resource) error {
+func (lookup EtcdResourceLookup) Set(ctx context.Context, id ResourceID, res Resource) error {
 
 	serRes, err := lookup.serializeResource(res)
 	if err != nil {
@@ -438,7 +438,7 @@ func (lookup EtcdResourceLookup) Set(id ResourceID, res Resource) error {
 	return nil
 }
 
-func (lookup EtcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error) {
+func (lookup EtcdResourceLookup) Submap(ctx context.Context, ids []ResourceID) (ResourceLookup, error) {
 	resources := make(LocalResourceLookup, len(ids))
 
 	for _, id := range ids {
@@ -466,7 +466,7 @@ func (lookup EtcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error
 	return resources, nil
 }
 
-func (lookup EtcdResourceLookup) ListForType(t ResourceType) ([]Resource, error) {
+func (lookup EtcdResourceLookup) ListForType(ctx context.Context, t ResourceType) ([]Resource, error) {
 	resources := make([]Resource, 0)
 	resp, err := lookup.Connection.GetWithPrefix(t.String())
 	if err != nil {
@@ -489,7 +489,7 @@ func (lookup EtcdResourceLookup) ListForType(t ResourceType) ([]Resource, error)
 	return resources, nil
 }
 
-func (lookup EtcdResourceLookup) List() ([]Resource, error) {
+func (lookup EtcdResourceLookup) List(ctx context.Context) ([]Resource, error) {
 	resources := make([]Resource, 0)
 	resp, err := lookup.Connection.GetWithPrefix("")
 	if err != nil {
@@ -518,7 +518,7 @@ func (lookup EtcdResourceLookup) SetStatus(ctx context.Context, id ResourceID, s
 	if err := res.UpdateStatus(status); err != nil {
 		return err
 	}
-	if err := lookup.Set(id, res); err != nil {
+	if err := lookup.Set(ctx, id, res); err != nil {
 		return err
 	}
 	return nil

@@ -1276,7 +1276,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 
 	replaceTags(resourceTypeParam, foundResource, &pb.Tags{Tag: requestBody.Tags})
 
-	m.lookup.Set(objID, foundResource)
+	m.lookup.Set(c, objID, foundResource)
 
 	updatedResource := search.ResourceDoc{
 		Name:    name,

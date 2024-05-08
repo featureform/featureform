@@ -973,7 +973,7 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, trainR
 		return nil, err
 	}
 	for _, protoFeature := range train.Features {
-		logger.Debugw("Get feature variant", "name", protoFeature.Name, "variant", protoFeature.Variant)
+		logger.Infow("Get feature variant", "name", protoFeature.Name, "variant", protoFeature.Variant)
 		_, err := serv.client.GetFeatureVariant(ctx, metadata.NameVariant{Name: protoFeature.Name, Variant: protoFeature.Variant})
 		if err != nil {
 			return nil, err

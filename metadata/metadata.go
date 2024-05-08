@@ -56,6 +56,38 @@ const (
 	MODEL                             = ResourceType(pb.ResourceType_MODEL)
 )
 
+func (r ResourceType) ToLoggingResourceType() logging.ResourceType {
+	switch r {
+	case FEATURE:
+		return logging.Feature
+	case FEATURE_VARIANT:
+		return logging.FeatureVariant
+	case LABEL:
+		return logging.Label
+	case LABEL_VARIANT:
+		return logging.LabelVariant
+	case USER:
+		return logging.User
+	case ENTITY:
+		return logging.Entity
+	case PROVIDER:
+		return logging.Provider
+	case SOURCE:
+		return logging.Source
+	case SOURCE_VARIANT:
+		return logging.SourceVariant
+	case TRAINING_SET:
+		return logging.TrainingSet
+	case TRAINING_SET_VARIANT:
+		return logging.TrainingSetVariant
+	case MODEL:
+		return logging.Model
+	default:
+		return ""
+
+	}
+}
+
 func (r ResourceType) String() string {
 	return pb.ResourceType_name[int32(r)]
 }
@@ -1613,7 +1645,7 @@ func (serv *MetadataServer) ListFeatures(request *pb.ListRequest, stream pb.Meta
 
 func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variantRequest *pb.FeatureVariantRequest) (*pb.Empty, error) {
 	ctx = logging.AttachRequestID(variantRequest.RequestId, ctx, serv.Logger)
-	logger := logging.GetLoggerFromContext(ctx).WithResource("feature_variant", variantRequest.FeatureVariant.Name, variantRequest.FeatureVariant.Variant)
+	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.FeatureVariant, variantRequest.FeatureVariant.Name, variantRequest.FeatureVariant.Variant)
 	logger.Info("Creating Feature Variant")
 
 	variant := variantRequest.FeatureVariant
@@ -1656,7 +1688,7 @@ func (serv *MetadataServer) ListLabels(request *pb.ListRequest, stream pb.Metada
 
 func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variantRequest *pb.LabelVariantRequest) (*pb.Empty, error) {
 	ctx = logging.AttachRequestID(variantRequest.RequestId, ctx, serv.Logger)
-	logger := logging.GetLoggerFromContext(ctx).WithResource("label_variant", variantRequest.LabelVariant.Name, variantRequest.LabelVariant.Variant)
+	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.LabelVariant, variantRequest.LabelVariant.Name, variantRequest.LabelVariant.Variant)
 	logger.Info("Creating Label Variant")
 
 	variant := variantRequest.LabelVariant
@@ -1699,7 +1731,7 @@ func (serv *MetadataServer) ListTrainingSets(request *pb.ListRequest, stream pb.
 
 func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, variantRequest *pb.TrainingSetVariantRequest) (*pb.Empty, error) {
 	ctx = logging.AttachRequestID(variantRequest.RequestId, ctx, serv.Logger)
-	logger := logging.GetLoggerFromContext(ctx).WithResource("training_set_variant", variantRequest.TrainingSetVariant.Name, variantRequest.TrainingSetVariant.Variant)
+	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.TrainingSetVariant, variantRequest.TrainingSetVariant.Name, variantRequest.TrainingSetVariant.Variant)
 	logger.Info("Creating TrainingSet Variant")
 
 	variant := variantRequest.TrainingSetVariant
@@ -1742,7 +1774,7 @@ func (serv *MetadataServer) ListSources(request *pb.ListRequest, stream pb.Metad
 
 func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variantRequest *pb.SourceVariantRequest) (*pb.Empty, error) {
 	ctx = logging.AttachRequestID(variantRequest.RequestId, ctx, serv.Logger)
-	logger := logging.GetLoggerFromContext(ctx).WithResource("source_variant", variantRequest.SourceVariant.Name, variantRequest.SourceVariant.Variant)
+	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.SourceVariant, variantRequest.SourceVariant.Name, variantRequest.SourceVariant.Variant)
 	logger.Info("Creating Source Variant")
 
 	variant := variantRequest.SourceVariant
@@ -1785,7 +1817,7 @@ func (serv *MetadataServer) ListUsers(request *pb.ListRequest, stream pb.Metadat
 
 func (serv *MetadataServer) CreateUser(ctx context.Context, userRequest *pb.UserRequest) (*pb.Empty, error) {
 	ctx = logging.AttachRequestID(userRequest.RequestId, ctx, serv.Logger)
-	logger := logging.GetLoggerFromContext(ctx).WithResource("user", userRequest.User.Name, logging.NoVariant)
+	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.User, userRequest.User.Name, logging.NoVariant)
 	logger.Info("Creating User")
 
 	return serv.genericCreate(ctx, &userResource{userRequest.User}, nil)
@@ -1834,7 +1866,7 @@ func (serv *MetadataServer) ListEntities(request *pb.ListRequest, stream pb.Meta
 
 func (serv *MetadataServer) CreateEntity(ctx context.Context, entityRequest *pb.EntityRequest) (*pb.Empty, error) {
 	ctx = logging.AttachRequestID(entityRequest.RequestId, ctx, serv.Logger)
-	logger := logging.GetLoggerFromContext(ctx).WithResource("entity", entityRequest.Entity.Name, logging.NoVariant)
+	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.Entity, entityRequest.Entity.Name, logging.NoVariant)
 	logger.Info("Creating Entity")
 	return serv.genericCreate(ctx, &entityResource{entityRequest.Entity}, nil)
 }
@@ -1857,7 +1889,7 @@ func (serv *MetadataServer) ListModels(request *pb.ListRequest, stream pb.Metada
 
 func (serv *MetadataServer) CreateModel(ctx context.Context, modelRequest *pb.ModelRequest) (*pb.Empty, error) {
 	ctx = logging.AttachRequestID(modelRequest.RequestId, ctx, serv.Logger)
-	logger := logging.GetLoggerFromContext(ctx).WithResource("model", modelRequest.Model.Name, logging.NoVariant)
+	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.Model, modelRequest.Model.Name, logging.NoVariant)
 	logger.Info("Creating Model")
 	return serv.genericCreate(ctx, &modelResource{modelRequest.Model}, nil)
 }
@@ -1893,23 +1925,28 @@ func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.ResourceV
 	resourceProto := currentResource.ToResourceVariantProto()
 	var resourceName string
 	var resourceVariant string
+	var loggingResourceType logging.ResourceType
 	switch resourceType {
 	case SOURCE_VARIANT:
 		resourceName = resourceProto.GetSourceVariant().Name
 		resourceVariant = resourceProto.GetSourceVariant().Variant
+		loggingResourceType = logging.SourceVariant
 	case FEATURE_VARIANT:
 		resourceName = resourceProto.GetFeatureVariant().Name
 		resourceVariant = resourceProto.GetFeatureVariant().Variant
+		loggingResourceType = logging.FeatureVariant
 	case LABEL_VARIANT:
 		resourceName = resourceProto.GetLabelVariant().Name
 		resourceVariant = resourceProto.GetLabelVariant().Variant
+		loggingResourceType = logging.LabelVariant
 	case TRAINING_SET_VARIANT:
 		resourceName = resourceProto.GetTrainingSetVariant().Name
 		resourceVariant = resourceProto.GetTrainingSetVariant().Variant
+		loggingResourceType = logging.TrainingSetVariant
 	default:
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("unknown resource variant type: %T", req.Resource))
 	}
-	logger = logger.WithResource(resourceType.String(), resourceName, resourceVariant)
+	logger = logger.WithResource(loggingResourceType, resourceName, resourceVariant)
 
 	resourcesForType, err := serv.lookup.ListForType(resourceType)
 	if err != nil {
@@ -1989,7 +2026,7 @@ type sendFn func(proto.Message) error
 type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
-	logger := logging.GetLoggerFromContext(ctx).WithResource(res.ID().Type.String(), res.ID().Name, res.ID().Variant)
+	logger := logging.GetLoggerFromContext(ctx).WithResource(res.ID().Type.ToLoggingResourceType(), res.ID().Name, res.ID().Variant)
 	logger.Debugw("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
 
 	id := res.ID()
@@ -2179,7 +2216,7 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 				Type: t,
 			}
 			ctx = logging.AttachRequestID(req.GetRequestId(), ctx, logger)
-			loggerWithResource = logging.GetLoggerFromContext(ctx).WithResource(id.Type.String(), id.Name, logging.NoVariant)
+			loggerWithResource = logging.GetLoggerFromContext(ctx).WithResource(id.Type.ToLoggingResourceType(), id.Name, logging.NoVariant)
 		case variantStream:
 			req, err := casted.Recv()
 			recvErr = err
@@ -2196,7 +2233,7 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 				Type:    t,
 			}
 			ctx = logging.AttachRequestID(req.GetRequestId(), ctx, logger)
-			loggerWithResource = logging.GetLoggerFromContext(ctx).WithResource(id.Type.String(), id.Name, id.Variant)
+			loggerWithResource = logging.GetLoggerFromContext(ctx).WithResource(id.Type.ToLoggingResourceType(), id.Name, id.Variant)
 		default:
 			logger.Errorw("Invalid Stream for Get", "type", fmt.Sprintf("%T", casted))
 			return fferr.NewInternalError(fmt.Errorf("invalid Stream for Get: %T", casted))
@@ -2226,7 +2263,7 @@ func (serv *MetadataServer) genericList(ctx context.Context, t ResourceType, sen
 		return err
 	}
 	for _, res := range resources {
-		loggerWithResource := logger.WithResource(t.String(), res.ID().Name, res.ID().Variant)
+		loggerWithResource := logger.WithResource(t.ToLoggingResourceType(), res.ID().Name, res.ID().Variant)
 		loggerWithResource.Debug("Getting %v", t)
 		serialized := res.Proto()
 		if err := send(serialized); err != nil {

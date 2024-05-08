@@ -19,6 +19,7 @@ type Logger struct {
 
 type RequestID string
 type contextKey string
+type ResourceType string
 
 const (
 	SkipProviderType string = ""
@@ -28,6 +29,21 @@ const (
 const (
 	RequestIDKey = contextKey("request-id")
 	LoggerKey    = contextKey("logger")
+)
+
+const (
+	Provider           ResourceType = "provider"
+	User               ResourceType = "user"
+	Feature            ResourceType = "feature"
+	FeatureVariant     ResourceType = "feature-variant"
+	Source             ResourceType = "source"
+	SourceVariant      ResourceType = "source-variant"
+	TrainingSet        ResourceType = "training-set"
+	TrainingSetVariant ResourceType = "training-set-variant"
+	Entity             ResourceType = "entity"
+	Model              ResourceType = "model"
+	Label              ResourceType = "label"
+	LabelVariant       ResourceType = "label-variant"
 )
 
 func NewRequestID() RequestID {
@@ -53,7 +69,7 @@ func (logger Logger) WithRequestID(id RequestID) Logger {
 		Values: valuesWithRequestID}
 }
 
-func (logger Logger) WithResource(resourceType, name, variant string) Logger {
+func (logger Logger) WithResource(resourceType ResourceType, name, variant string) Logger {
 	newValues := make(map[string]interface{})
 	if resourceType != "" {
 		newValues["resource-type"] = resourceType

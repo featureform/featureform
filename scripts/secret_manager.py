@@ -49,7 +49,7 @@ def get_secrets_with_values(client):
                 NextToken=next_token,
             )
 
-        for s in response["SecretValues"]:
+        for s in response.get("SecretValues", []):
             secret_value = json.loads(s["SecretString"])
             for key, value in secret_value.items():
                 secrets[key] = f'"{value}"'

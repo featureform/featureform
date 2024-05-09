@@ -9,20 +9,20 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  AZURE_CONN_STRING: ${{ secrets.AZURE_CONN_STRING }}
-  AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
-  AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
-  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
-  DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-  DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-  DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
+  # AZURE_CONN_STRING: ${{ secrets.AZURE_CONN_STRING }}
+  # AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+  # AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+  # AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  # AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
+  # DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+  # DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+  # DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
   FF_TIMESTAMP_VARIANT: "false"
   FF_GET_EQUIVALENT_VARIANTS: "false"
-  SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
-  SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-  SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-  SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
+  # SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
+  # SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+  # SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+  # SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
   POSTGRES_HOST: 172.17.0.1
   REDIS_HOST: 172.17.0.1
 
@@ -58,6 +58,13 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.8'
+
+      - name: Get AWS Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: ${{ secrets.AWS_SECRET_PREFIX }}/*
+          parse-json-secrets: true
+    
 
       - name: Install grpc_tools
         run: pip install grpcio-tools==1.62.2 build

@@ -25,6 +25,7 @@ env:
   # SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
   POSTGRES_HOST: 172.17.0.1
   REDIS_HOST: 172.17.0.1
+  ACTIONS_STEP_DEBUG: true
 
 # These permissions are needed to interact with GitHub’s OIDC Token endpoint.
 permissions:
@@ -74,7 +75,10 @@ jobs:
         with:
           secret-ids: ${{ secrets.AWS_SECRET_PREFIX }}/*
           parse-json-secrets: true
-    
+      
+      - name: Echo Environment Variables
+        run: |
+          env
 
       - name: Install grpc_tools
         run: pip install grpcio-tools==1.62.2 build

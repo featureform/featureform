@@ -91,9 +91,28 @@ jobs:
           python-version: '3.10'
           cache: 'pip' # caching pip dependencies
 
-      - name: Check directory
-        run: |
-          ls -la
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ROLE }}
+      
+      - name: Get AWS Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: ${{ secrets.AWS_SECRET_PREFIX }}/*
+          parse-json-secrets: true
+      
+      - name: Get Firestore Credentials
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: ${{ secrets.FIRESTORE_SECRET }}
+          parse-json-secrets: false
+
+      - name: Get BigQuery Credentials
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: ${{ secrets.BIGQUERY_JSON_SECRET }}
+          parse-json-secrets: false
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -138,14 +157,14 @@ jobs:
         uses: jsdaniell/create-json@1.1.2
         with:
           name: "./provider/firestore_credentials.json"
-          json: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
+          json: ${{ env.${{ secrets.FIRESTORE_SECRET }} }}
 
       - name: create-json
         id: create-json-2
         uses: jsdaniell/create-json@1.1.2
         with:
           name: "./provider/bigquery_credentials.json"
-          json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
+          json: ${{ env.${{ secrets.BIGQUERY_CREDENTIALS_FILE }} }}
 
       - name: Check credentials location
         run: |

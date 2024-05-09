@@ -74,7 +74,10 @@ jobs:
         uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
           secret-ids: |
-            ,${{ secrets.AWS_SECRET_PREFIX }}/*
+            ,testing/aws
+            ,testing/databricks
+            ,testing/azure
+            ,testing/snowflake
           parse-json-secrets: true
       
       - name: Echo Environment Variables

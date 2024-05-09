@@ -7,7 +7,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -17,7 +16,7 @@ import (
 
 func main() {
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient("localhost:8888", logging.Logger{SugaredLogger: logger, Values: &sync.Map{}})
+	client, err := metadata.NewClient("localhost:8888", logging.WrapZapLogger(logger))
 	if err != nil {
 		logger.Panicw("Failed to connect", "Err", err)
 	}

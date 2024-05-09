@@ -14,7 +14,7 @@ import (
 type Logger struct {
 	*zap.SugaredLogger
 	id     RequestID
-	Values *sync.Map
+	values *sync.Map
 }
 
 type RequestID string
@@ -46,6 +46,12 @@ const (
 	LabelVariant       ResourceType = "label-variant"
 )
 
+var GlobalLogger Logger
+
+func init() {
+	GlobalLogger = NewLogger("global-logger")
+}
+
 func NewRequestID() RequestID {
 	return RequestID(uuid.New().String())
 }
@@ -66,7 +72,7 @@ func (logger Logger) withRequestID(id RequestID) Logger {
 	valuesWithRequestID := logger.appendValueMap(map[string]interface{}{"request-id": id})
 	return Logger{SugaredLogger: logger.With("request-id", id),
 		id:     id,
-		Values: valuesWithRequestID}
+		values: valuesWithRequestID}
 }
 
 func (logger Logger) WithResource(resourceType ResourceType, name, variant string) Logger {
@@ -97,7 +103,7 @@ func (logger Logger) WithResource(resourceType ResourceType, name, variant strin
 	return Logger{
 		SugaredLogger: logger.SugaredLogger,
 		id:            logger.id,
-		Values:        combinedValues,
+		values:        combinedValues,
 	}
 }
 
@@ -122,7 +128,7 @@ func (logger Logger) WithProvider(providerType, providerName string) Logger {
 	return Logger{
 		SugaredLogger: logger.SugaredLogger,
 		id:            logger.id,
-		Values:        combinedValues,
+		values:        combinedValues,
 	}
 }
 
@@ -134,12 +140,12 @@ func (logger Logger) WithValues(values map[string]interface{}) Logger {
 	return Logger{
 		SugaredLogger: logger.SugaredLogger,
 		id:            logger.id,
-		Values:        combinedValues,
+		values:        combinedValues,
 	}
 }
 
 func (logger Logger) GetValue(key string) interface{} {
-	value, ok := logger.Values.Load(key)
+	value, ok := logger.values.Load(key)
 	if !ok {
 		logger.Warnw("Value not found", "key", key)
 	}
@@ -152,7 +158,7 @@ func (logger Logger) appendValueMap(values map[string]interface{}) *sync.Map {
 	for k, v := range values {
 		combinedValues.Store(k, v)
 	}
-	logger.Values.Range(func(key, value interface{}) bool {
+	logger.values.Range(func(key, value interface{}) bool {
 		combinedValues.Store(key, value)
 		return true
 	})
@@ -178,7 +184,7 @@ func (logger Logger) InitializeRequestID(ctx context.Context) (string, context.C
 func GetRequestIDFromContext(ctx context.Context) string {
 	requestID := ctx.Value(RequestIDKey)
 	if requestID == nil {
-		NewLogger("logging").Warn("Request ID not found in context")
+		GlobalLogger.Warn("Request ID not found in context")
 		return ""
 	}
 
@@ -188,7 +194,7 @@ func GetRequestIDFromContext(ctx context.Context) string {
 func GetLoggerFromContext(ctx context.Context) Logger {
 	logger := ctx.Value(LoggerKey)
 	if logger == nil {
-		NewLogger("logging").Warn("Logger not found in context")
+		GlobalLogger.Warn("Logger not found in context")
 		return NewLogger("logger")
 	}
 	return logger.(Logger)
@@ -200,22 +206,12 @@ func (logger Logger) GetRequestID() RequestID {
 
 func AttachRequestID(id string, ctx context.Context, logger Logger) context.Context {
 	if ctx == nil {
-		logger.Error("Context is nil")
-		return ctx
+		logger.Warn("Context is nil")
+		return nil
 	}
 	contextID := ctx.Value(RequestIDKey)
-	if contextID == nil {
-		if id == "" {
-			id = NewRequestID().String()
-			logger.Warnw("Request ID is empty. Creating new request ID", "request-id", id)
-		}
-	} else {
-		if id == "" {
-			logger.Warn("Request ID already set in context")
-			return ctx
-		} else {
-			logger.Warnw("Request ID already set in context. Overwriting request ID", "old request-id", contextID, "new request-id", id)
-		}
+	if contextID != nil {
+		logger.Warnw("Request ID already set in context. Overwriting request ID", "old request-id", contextID, "new request-id", id)
 	}
 	ctx = context.WithValue(ctx, RequestIDKey, RequestID(id))
 	logger = logger.withRequestID(RequestID(id))
@@ -241,7 +237,14 @@ func NewLogger(service string) Logger {
 	logger := baseLogger.Sugar().Named(service)
 	return Logger{
 		SugaredLogger: logger,
-		Values:        &sync.Map{},
+		values:        &sync.Map{},
+	}
+}
+
+func WrapZapLogger(sugaredLogger *zap.SugaredLogger) Logger {
+	return Logger{
+		SugaredLogger: sugaredLogger,
+		values:        &sync.Map{},
 	}
 }
 

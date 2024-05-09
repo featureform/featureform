@@ -872,7 +872,7 @@ func (serv *MetadataServer) checkProviderHealth(ctx context.Context, providerNam
 
 		errorStatus, ok := grpc_status.FromError(err)
 		if !ok {
-			logger.Errorw("Failed to convert error to status", "error", err)
+			logger.Infow("Unknown codes", "error status", errorStatus, "error", err)
 			return err
 		}
 		errorProto := errorStatus.Proto()
@@ -1041,7 +1041,6 @@ func (serv *OnlineServer) BatchFeatureServe(req *srv.BatchFeatureServeRequest, s
 			logger.Errorw("Failed to receive row from client", "row", row, "error", err)
 			return err
 		}
-		logger.Debugw("Getting row from client", "row", row, "entity", row.Entity)
 		if err := stream.Send(row); err != nil {
 			logger.Errorw("Failed to write to stream", "error", err)
 			return err
@@ -1068,7 +1067,6 @@ func (serv *OnlineServer) TrainingData(req *srv.TrainingDataRequest, stream srv.
 			logger.Errorw("Failed to receive row from client", "row", row, "error", err)
 			return err
 		}
-		logger.Infow("Getting row from client", "row", row)
 		if err := stream.Send(row); err != nil {
 			logger.Errorw("Failed to write to stream", "error", err)
 			return err
@@ -1151,7 +1149,6 @@ func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feat
 			logger.Errorw("Failed to receive row from client", "row", row, "error", err)
 			return err
 		}
-		logger.Infow("Getting row from client", "row", row)
 		if err := stream.Send(row); err != nil {
 			logger.Errorw("failed to write to source data stream", "row", row, "error", err)
 			return err

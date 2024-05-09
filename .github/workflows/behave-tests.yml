@@ -73,7 +73,8 @@ jobs:
       - name: Get AWS Secrets
         uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
-          secret-ids: ${{ secrets.AWS_SECRET_PREFIX }}/*
+          secret-ids: |
+            ,${{ secrets.AWS_SECRET_PREFIX }}/*
           parse-json-secrets: true
       
       - name: Echo Environment Variables

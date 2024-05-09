@@ -295,8 +295,7 @@ func (def FeatureDef) ResourceType() ResourceType {
 	return FEATURE_VARIANT
 }
 
-func (def FeatureDef) Serialize(ctx context.Context) (*pb.FeatureVariantRequest, error) {
-	requestID := logging.GetRequestIDFromContext(ctx)
+func (def FeatureDef) Serialize(requestID string) (*pb.FeatureVariantRequest, error) {
 	var typeProto *pb.ValueType
 	if def.Type == nil {
 		typeProto = types.NilType.ToProto()
@@ -336,7 +335,8 @@ func (def FeatureDef) Serialize(ctx context.Context) (*pb.FeatureVariantRequest,
 }
 
 func (client *Client) CreateFeatureVariant(ctx context.Context, def FeatureDef) error {
-	serialized, err := def.Serialize(ctx)
+	requestID := logging.GetRequestIDFromContext(ctx)
+	serialized, err := def.Serialize(requestID)
 	if err != nil {
 		return err
 	}
@@ -435,8 +435,7 @@ func (def LabelDef) ResourceType() ResourceType {
 	return LABEL_VARIANT
 }
 
-func (def LabelDef) Serialize(ctx context.Context) (*pb.LabelVariantRequest, error) {
-	requestID := logging.GetRequestIDFromContext(ctx)
+func (def LabelDef) Serialize(requestID string) (*pb.LabelVariantRequest, error) {
 	var typeProto *pb.ValueType
 	if def.Type == nil {
 		typeProto = types.NilType.ToProto()
@@ -472,7 +471,8 @@ func (def LabelDef) Serialize(ctx context.Context) (*pb.LabelVariantRequest, err
 }
 
 func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) error {
-	serialized, err := def.Serialize(ctx)
+	requestID := logging.GetRequestIDFromContext(ctx)
+	serialized, err := def.Serialize(requestID)
 	if err != nil {
 		return err
 	}
@@ -597,8 +597,7 @@ func (def TrainingSetDef) ResourceType() ResourceType {
 	return TRAINING_SET_VARIANT
 }
 
-func (def TrainingSetDef) Serialize(ctx context.Context) *pb.TrainingSetVariantRequest {
-	requestID := logging.GetRequestIDFromContext(ctx)
+func (def TrainingSetDef) Serialize(requestID string) *pb.TrainingSetVariantRequest {
 	return &pb.TrainingSetVariantRequest{
 		TrainingSetVariant: &pb.TrainingSetVariant{
 			Name:        def.Name,
@@ -619,7 +618,8 @@ func (def TrainingSetDef) Serialize(ctx context.Context) *pb.TrainingSetVariantR
 }
 
 func (client *Client) CreateTrainingSetVariant(ctx context.Context, def TrainingSetDef) error {
-	serialized := def.Serialize(ctx)
+	requestID := logging.GetRequestIDFromContext(ctx)
+	serialized := def.Serialize(requestID)
 	_, err := client.GrpcConn.CreateTrainingSetVariant(ctx, serialized)
 	return err
 }
@@ -830,8 +830,7 @@ func (def SourceDef) ResourceType() ResourceType {
 	return SOURCE_VARIANT
 }
 
-func (def SourceDef) Serialize(ctx context.Context) (*pb.SourceVariantRequest, error) {
-	requestID := logging.GetRequestIDFromContext(ctx)
+func (def SourceDef) Serialize(requestID string) (*pb.SourceVariantRequest, error) {
 	serialized := &pb.SourceVariantRequest{
 		SourceVariant: &pb.SourceVariant{
 			Name:        def.Name,
@@ -864,7 +863,8 @@ func (def SourceDef) Serialize(ctx context.Context) (*pb.SourceVariantRequest, e
 }
 
 func (client *Client) CreateSourceVariant(ctx context.Context, def SourceDef) error {
-	serialized, err := def.Serialize(ctx)
+	requestID := logging.GetRequestIDFromContext(ctx)
+	serialized, err := def.Serialize(requestID)
 	if err != nil {
 		return err
 	}

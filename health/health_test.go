@@ -8,7 +8,6 @@ import (
 	"net"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/featureform/helpers"
@@ -167,9 +166,9 @@ func TestHealth_Check(t *testing.T) {
 }
 
 func initMetadataServer(t *testing.T) (*metadata.MetadataServer, string) {
-	logger := zaptest.NewLogger(t)
+	logger := zaptest.NewLogger(t).Sugar()
 	config := &metadata.Config{
-		Logger:          logging.Logger{SugaredLogger: logger.Sugar(), Values: &sync.Map{}},
+		Logger:          logging.WrapZapLogger(logger),
 		StorageProvider: metadata.LocalStorageProvider{},
 	}
 	server, err := metadata.NewMetadataServer(config)
@@ -191,7 +190,7 @@ func initMetadataServer(t *testing.T) (*metadata.MetadataServer, string) {
 
 func initClient(t *testing.T, addr string) *metadata.Client {
 	logger := zaptest.NewLogger(t).Sugar()
-	client, err := metadata.NewClient(addr, logging.Logger{SugaredLogger: logger, Values: &sync.Map{}})
+	client, err := metadata.NewClient(addr, logging.WrapZapLogger(logger))
 	if err != nil {
 		t.Fatalf("Failed to create client: %s", err)
 	}

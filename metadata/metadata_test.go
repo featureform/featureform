@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"reflect"
-	"sync"
 	"testing"
 	"time"
 
@@ -405,7 +404,7 @@ func (ctx *testContext) Destroy() {
 func startServ(t *testing.T) (*MetadataServer, string) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logging.Logger{SugaredLogger: logger.Sugar(), Values: &sync.Map{}},
+		Logger:          logging.WrapZapLogger(logger.Sugar()),
 		StorageProvider: LocalStorageProvider{},
 	}
 	serv, err := NewMetadataServer(config)
@@ -428,7 +427,7 @@ func startServ(t *testing.T) (*MetadataServer, string) {
 func startServNoPanic(t *testing.T) (*MetadataServer, string) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logging.Logger{SugaredLogger: logger.Sugar(), Values: &sync.Map{}},
+		Logger:          logging.WrapZapLogger(logger.Sugar()),
 		StorageProvider: LocalStorageProvider{},
 	}
 	serv, err := NewMetadataServer(config)
@@ -449,7 +448,7 @@ func startServNoPanic(t *testing.T) (*MetadataServer, string) {
 }
 
 func client(t *testing.T, addr string) *Client {
-	logger := logging.Logger{SugaredLogger: zaptest.NewLogger(t).Sugar(), Values: &sync.Map{}}
+	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
 	client, err := NewClient(addr, logger)
 	if err != nil {
 		t.Fatalf("Failed to create client: %s", err)
@@ -505,9 +504,9 @@ func TestClosedServer(t *testing.T) {
 }
 
 func TestServeGracefulStop(t *testing.T) {
-	logger := zaptest.NewLogger(t)
+	logger := zaptest.NewLogger(t).Sugar()
 	config := &Config{
-		Logger:          logging.Logger{SugaredLogger: logger.Sugar(), Values: &sync.Map{}},
+		Logger:          logging.WrapZapLogger(logger),
 		StorageProvider: LocalStorageProvider{},
 		Address:         ":0",
 	}
@@ -1940,31 +1939,30 @@ func testFetchProvider(t *testing.T, client *Client, fetcher providerFetcher) {
 func TestBannedStrings(t *testing.T) {
 	resourceInvalidName := ResourceID{"nam__e", "variant", FEATURE}
 	resourceInvalidVariant := ResourceID{"name", "varian__t", FEATURE}
-	logger := logging.NewLogger("metadata-test")
-	if err := resourceNamedSafely(resourceInvalidName, logger); err == nil {
+	if err := resourceNamedSafely(resourceInvalidName); err == nil {
 		t.Fatalf("testing didn't catch error on valid resource name")
 	}
-	if err := resourceNamedSafely(resourceInvalidVariant, logger); err == nil {
+	if err := resourceNamedSafely(resourceInvalidVariant); err == nil {
 		t.Fatalf("testing didn't catch error on valid resource name")
 	}
 	invalidNamePrefix := ResourceID{"_name", "variant", FEATURE}
 	invalidVariantPrefix := ResourceID{"name", "_variant", FEATURE}
-	if err := resourceNamedSafely(invalidNamePrefix, logger); err == nil {
+	if err := resourceNamedSafely(invalidNamePrefix); err == nil {
 		t.Fatalf("testing didn't catch error on valid resource prefix")
 	}
-	if err := resourceNamedSafely(invalidVariantPrefix, logger); err == nil {
+	if err := resourceNamedSafely(invalidVariantPrefix); err == nil {
 		t.Fatalf("testing didn't catch error on valid variant prefix")
 	}
 	invalidNameSuffix := ResourceID{"name_", "variant", FEATURE}
 	invalidVariantSuffix := ResourceID{"name", "variant_", FEATURE}
-	if err := resourceNamedSafely(invalidNameSuffix, logger); err == nil {
+	if err := resourceNamedSafely(invalidNameSuffix); err == nil {
 		t.Fatalf("testing didn't catch error on valid resource prefix")
 	}
-	if err := resourceNamedSafely(invalidVariantSuffix, logger); err == nil {
+	if err := resourceNamedSafely(invalidVariantSuffix); err == nil {
 		t.Fatalf("testing didn't catch error on valid variant prefix")
 	}
 	validName := ResourceID{"name", "variant", FEATURE}
-	if err := resourceNamedSafely(validName, logger); err != nil {
+	if err := resourceNamedSafely(validName); err != nil {
 		t.Fatalf("valid resource triggered an error")
 	}
 }
@@ -2175,7 +2173,8 @@ func TestSourceShallowMapOK(t *testing.T) {
 func Test_GetEquivalent(t *testing.T) {
 	serv, addr := startServNoPanic(t)
 	client := client(t, addr)
-	context := context.Background()
+	requestID := logging.NewRequestID().String()
+	context := logging.AttachRequestID(requestID, context.Background(), logging.NewLogger("metadata-test"))
 
 	redisConfig := pc.RedisConfig{
 		Addr:     "0.0.0.0",
@@ -2316,7 +2315,7 @@ func Test_GetEquivalent(t *testing.T) {
 	// sourceDef
 	sourceDef.Description = "Some other description"
 	sourceDef.Variant = "var2"
-	svProto, err := sourceDef.Serialize(context)
+	svProto, err := sourceDef.Serialize(requestID)
 	if err != nil {
 		t.Fatalf("Failed to serialize source def: %s", err)
 	}
@@ -2338,7 +2337,7 @@ func Test_GetEquivalent(t *testing.T) {
 			},
 		},
 	}
-	svProto2, err := sourceDef.Serialize(context)
+	svProto2, err := sourceDef.Serialize(requestID)
 	if err != nil {
 		t.Fatalf("Failed to serialize source def: %s", err)
 	}
@@ -2353,7 +2352,7 @@ func Test_GetEquivalent(t *testing.T) {
 
 	// labelDef
 	labelDef.Description = "Some other description"
-	lvProto, err := labelDef.Serialize(context)
+	lvProto, err := labelDef.Serialize(requestID)
 	if err != nil {
 		t.Fatalf("Failed to serialize label def: %s", err)
 	}
@@ -2369,7 +2368,7 @@ func Test_GetEquivalent(t *testing.T) {
 	// featureDef
 	// on demand
 	featureDef.Description = "Some other description"
-	fvProto, err := featureDef.Serialize(context)
+	fvProto, err := featureDef.Serialize(requestID)
 	if err != nil {
 		t.Fatalf("Failed to serialize feature def: %s", err)
 	}
@@ -2384,7 +2383,7 @@ func Test_GetEquivalent(t *testing.T) {
 	featureDef.Location = PythonFunction{
 		Query: []byte("SELECT * FROM dummy"),
 	}
-	fvProto, err = featureDef.Serialize(context)
+	fvProto, err = featureDef.Serialize(requestID)
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto.FeatureVariant}}
 	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
@@ -2394,7 +2393,7 @@ func Test_GetEquivalent(t *testing.T) {
 		t.Fatalf("there was no equivalent but we got one")
 	}
 
-	fvProto2, err := featureDef2.Serialize(context)
+	fvProto2, err := featureDef2.Serialize(requestID)
 	fvProto2.FeatureVariant.Location = &pb.FeatureVariant_Columns{
 		&pb.Columns{
 			Entity: "col10",
@@ -2413,7 +2412,7 @@ func Test_GetEquivalent(t *testing.T) {
 
 	// trainingSetDef
 	trainingSetDef.Description = "Some other description"
-	tsvProto := trainingSetDef.Serialize(context)
+	tsvProto := trainingSetDef.Serialize(requestID)
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
 	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
@@ -2428,7 +2427,7 @@ func Test_GetEquivalent(t *testing.T) {
 		{"feature2", "variant"},
 		{"feature3", "variant"},
 	}
-	tsvProto = trainingSetDef.Serialize(context)
+	tsvProto = trainingSetDef.Serialize(requestID)
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
 	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
@@ -2443,7 +2442,7 @@ func Test_GetEquivalent(t *testing.T) {
 		{"feature2", "variant"},
 	}
 	trainingSetDef.Label = NameVariant{"label_doesnt_exist", "variant"}
-	tsvProto = trainingSetDef.Serialize(context)
+	tsvProto = trainingSetDef.Serialize(requestID)
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
 	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {

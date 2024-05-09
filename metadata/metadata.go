@@ -2205,6 +2205,7 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 			req, err := casted.Recv()
 			recvErr = err
 			if recvErr == io.EOF {
+				logger.Debugw("End of stream reached. Stream request completed")
 				return nil
 			}
 			if err != nil {
@@ -2221,6 +2222,7 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 			req, err := casted.Recv()
 			recvErr = err
 			if recvErr == io.EOF {
+				logger.Debugw("End of stream reached. Stream request completed")
 				return nil
 			}
 			if err != nil {

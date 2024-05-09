@@ -54,7 +54,7 @@ func (r RequestID) String() string {
 	return string(r)
 }
 
-func (logger Logger) WithRequestID(id RequestID) Logger {
+func (logger Logger) withRequestID(id RequestID) Logger {
 	if id == "" {
 		logger.Warn("Request ID is empty")
 		return logger
@@ -169,7 +169,7 @@ func (logger Logger) InitializeRequestID(ctx context.Context) (string, context.C
 	ctxLogger := ctx.Value(LoggerKey)
 	if ctxLogger == nil {
 		logger.Debugw("Adding logger to context")
-		ctxLogger = logger.WithRequestID(requestID.(RequestID))
+		ctxLogger = logger.withRequestID(requestID.(RequestID))
 		ctx = context.WithValue(ctx, LoggerKey, ctxLogger)
 	}
 	return requestID.(RequestID).String(), ctx, ctxLogger.(Logger)
@@ -218,7 +218,7 @@ func AttachRequestID(id string, ctx context.Context, logger Logger) context.Cont
 		}
 	}
 	ctx = context.WithValue(ctx, RequestIDKey, RequestID(id))
-	logger = logger.WithRequestID(RequestID(id))
+	logger = logger.withRequestID(RequestID(id))
 	ctx = context.WithValue(ctx, LoggerKey, logger)
 	return ctx
 }

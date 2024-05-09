@@ -81,7 +81,7 @@ jobs:
       
       - name: Echo Environment Variables
         run: |
-          env
+          env && unset AWS_ACCESS_KEY_ID && unset AWS_SECRET_ACCESS_KEY
 
       - name: Install grpc_tools
         run: pip install grpcio-tools==1.62.2 build

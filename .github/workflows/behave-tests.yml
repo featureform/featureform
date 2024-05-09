@@ -120,11 +120,17 @@ jobs:
       - name: Run Behavioral Tests
         if: github.ref != 'refs/heads/main'
         working-directory: ./tests/end_to_end/
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
         run: behavex -t '~@wip' -t '~@long' --no-capture --parallel-processes 5 --parallel-scheme scenario
 
       - name: Run Behavioral Tests
         if: github.ref == 'refs/heads/main'
         working-directory: ./tests/end_to_end/
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
         run: behavex -t '~@wip' -t '@long' --no-capture  --parallel-processes 5 --parallel-scheme scenario
 
       - name: Archive test results

@@ -105,13 +105,15 @@ jobs:
       - name: Get Firestore Credentials
         uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
-          secret-ids: ${{ secrets.FIRESTORE_SECRET }}
+          secret-ids: |
+            FIRESTORE_CREDENTIALS_FILE, ${{ secrets.FIRESTORE_SECRET }}
           parse-json-secrets: false
 
       - name: Get BigQuery Credentials
         uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
-          secret-ids: ${{ secrets.BIGQUERY_JSON_SECRET }}
+          secret-ids: |
+            BIGQUERY_CREDENTIALS_FILE, ${{ secrets.BIGQUERY_JSON_SECRET }}
           parse-json-secrets: false
 
       - name: Set up Go
@@ -157,14 +159,14 @@ jobs:
         uses: jsdaniell/create-json@1.1.2
         with:
           name: "./provider/firestore_credentials.json"
-          json: ${{ env.${{ secrets.FIRESTORE_SECRET }} }}
+          json: ${{ env.FIRESTORE_CREDENTIALS_FILE }}
 
       - name: create-json
         id: create-json-2
         uses: jsdaniell/create-json@1.1.2
         with:
           name: "./provider/bigquery_credentials.json"
-          json: ${{ env.${{ secrets.BIGQUERY_CREDENTIALS_FILE }} }}
+          json: ${{ env.BIGQUERY_CREDENTIALS_FILE }}
 
       - name: Check credentials location
         run: |

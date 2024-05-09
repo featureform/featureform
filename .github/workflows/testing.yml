@@ -37,6 +37,11 @@ env:
   PINECONE_ENVIRONMENT: ${{ secrets.PINECONE_ENVIRONMENT }}
   PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
 
+# These permissions are needed to interact with GitHub’s OIDC Token endpoint.
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   go-tests:
     name: Run Go Tests

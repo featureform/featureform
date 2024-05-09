@@ -26,6 +26,10 @@ env:
   POSTGRES_HOST: 172.17.0.1
   REDIS_HOST: 172.17.0.1
 
+# These permissions are needed to interact with GitHub’s OIDC Token endpoint.
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   setup:

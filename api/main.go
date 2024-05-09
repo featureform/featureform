@@ -569,7 +569,7 @@ func (serv *MetadataServer) ListUsers(listRequest *pb.ListRequest, stream pb.Api
 	logger.Infow("Listing Users")
 	proxyStream, err := serv.meta.ListUsers(ctx, listRequest)
 	if err != nil {
-		logger.Errorw("Failed to list users", "Error", err)
+		logger.Errorw("Failed to list users", "error", err)
 		return err
 	}
 	for {
@@ -598,7 +598,7 @@ func (serv *MetadataServer) ListFeatures(listRequest *pb.ListRequest, stream pb.
 	logger.Infow("Listing Features")
 	proxyStream, err := serv.meta.ListFeatures(ctx, listRequest)
 	if err != nil {
-		logger.Errorw("Failed to list features", "Error", err)
+		logger.Errorw("Failed to list features", "error", err)
 		return err
 	}
 	for {
@@ -626,7 +626,7 @@ func (serv *MetadataServer) ListLabels(listRequest *pb.ListRequest, stream pb.Ap
 	logger.Infow("Listing Labels")
 	proxyStream, err := serv.meta.ListLabels(ctx, listRequest)
 	if err != nil {
-		logger.Errorw("Failed to list labels", "Error", err)
+		logger.Errorw("Failed to list labels", "error", err)
 		return err
 	}
 	for {
@@ -1131,8 +1131,9 @@ func (serv *OnlineServer) SourceData(req *srv.SourceDataRequest, stream srv.Feat
 	_, ctx, logger := serv.Logger.InitializeRequestID(context.Background())
 	logger.Infow("Serving Source Data", "id", req.Id.String())
 	if req.Limit == 0 {
-		logger.Errorw("Limit must be greater than 0", "invalid-argument", req.Limit)
-		return fferr.NewInvalidArgumentError(fmt.Errorf("limit must be greater than 0"))
+		err := fferr.NewInvalidArgumentError(fmt.Errorf("limit must be greater than 0"))
+		logger.Errorw("Limit must be greater than 0", "invalid-argument", req.Limit, "error", err)
+		return err
 	}
 	client, err := serv.client.SourceData(ctx, req)
 	if err != nil {

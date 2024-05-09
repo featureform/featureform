@@ -19,6 +19,7 @@ type Logger struct {
 
 type RequestID string
 type contextKey string
+type ResourceType string
 
 const (
 	SkipProviderType string = ""
@@ -30,6 +31,21 @@ const (
 	LoggerKey    = contextKey("logger")
 )
 
+const (
+	Provider           ResourceType = "provider"
+	User               ResourceType = "user"
+	Feature            ResourceType = "feature"
+	FeatureVariant     ResourceType = "feature-variant"
+	Source             ResourceType = "source"
+	SourceVariant      ResourceType = "source-variant"
+	TrainingSet        ResourceType = "training-set"
+	TrainingSetVariant ResourceType = "training-set-variant"
+	Entity             ResourceType = "entity"
+	Model              ResourceType = "model"
+	Label              ResourceType = "label"
+	LabelVariant       ResourceType = "label-variant"
+)
+
 func NewRequestID() RequestID {
 	return RequestID(uuid.New().String())
 }
@@ -38,7 +54,7 @@ func (r RequestID) String() string {
 	return string(r)
 }
 
-func (logger Logger) WithRequestID(id RequestID) Logger {
+func (logger Logger) withRequestID(id RequestID) Logger {
 	if id == "" {
 		logger.Warn("Request ID is empty")
 		return logger
@@ -53,7 +69,7 @@ func (logger Logger) WithRequestID(id RequestID) Logger {
 		Values: valuesWithRequestID}
 }
 
-func (logger Logger) WithResource(resourceType, name, variant string) Logger {
+func (logger Logger) WithResource(resourceType ResourceType, name, variant string) Logger {
 	newValues := make(map[string]interface{})
 	if resourceType != "" {
 		newValues["resource-type"] = resourceType
@@ -153,7 +169,7 @@ func (logger Logger) InitializeRequestID(ctx context.Context) (string, context.C
 	ctxLogger := ctx.Value(LoggerKey)
 	if ctxLogger == nil {
 		logger.Debugw("Adding logger to context")
-		ctxLogger = logger.WithRequestID(requestID.(RequestID))
+		ctxLogger = logger.withRequestID(requestID.(RequestID))
 		ctx = context.WithValue(ctx, LoggerKey, ctxLogger)
 	}
 	return requestID.(RequestID).String(), ctx, ctxLogger.(Logger)
@@ -202,7 +218,7 @@ func AttachRequestID(id string, ctx context.Context, logger Logger) context.Cont
 		}
 	}
 	ctx = context.WithValue(ctx, RequestIDKey, RequestID(id))
-	logger = logger.WithRequestID(RequestID(id))
+	logger = logger.withRequestID(RequestID(id))
 	ctx = context.WithValue(ctx, LoggerKey, logger)
 	return ctx
 }

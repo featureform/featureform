@@ -2,6 +2,7 @@ package logging
 
 import (
 	"context"
+	"fmt"
 	"testing"
 )
 
@@ -14,12 +15,13 @@ func TestNewLogger(t *testing.T) {
 
 func TestWithResource(t *testing.T) {
 	logger := NewLogger("test-logger")
-	logger = logger.WithResource("test-resource", "test-name", "test-variant")
+	logger = logger.WithResource(Entity, "test-name", "test-variant")
 	if logger.SugaredLogger == nil {
 		t.Fatalf("SugaredLogger doesnt exist.")
 	}
-	if logger.GetValue("resource-type") != "test-resource" {
-		t.Fatalf("Incorrect values for logger, expected %s, got %s", "test-resource", logger.GetValue("resource-type"))
+	fmt.Println(logger.GetValue("resource-type"))
+	if logger.GetValue("resource-type") != Entity {
+		t.Fatalf("Incorrect values for logger, expected %s, got %s", Entity, logger.GetValue("resource-type"))
 	}
 	if logger.GetValue("resource-name") != "test-name" {
 		t.Fatalf("Incorrect values for logger, expected %s, got %s", "test-name", logger.GetValue("resource-name"))

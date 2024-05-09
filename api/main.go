@@ -871,6 +871,10 @@ func (serv *MetadataServer) checkProviderHealth(ctx context.Context, providerNam
 		logger.Errorw("Provider health check failed", "error", err)
 
 		errorStatus, ok := grpc_status.FromError(err)
+		if !ok {
+			logger.Errorw("Failed to convert error to status", "error", err)
+			return err
+		}
 		errorProto := errorStatus.Proto()
 		var errorStatusProto *pb.ErrorStatus
 		if ok {
@@ -927,6 +931,7 @@ func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, sourceReque
 				sources[i] = &pb.NameVariant{Name: nameVariant[0], Variant: nameVariant[1]}
 				qry = afterSplit[1]
 			}
+			logger.Debugw("Setting the source in the SQL Transformation", "sources", sources)
 			source.Definition.(*pb.SourceVariant_Transformation).Transformation.Type.(*pb.Transformation_SQLTransformation).SQLTransformation.Source = sources
 		}
 	}

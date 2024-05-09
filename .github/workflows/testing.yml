@@ -95,6 +95,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_GITHUB_ROLE }}
+          aws-region: us-east-1
       
       - name: Get AWS Secrets
         uses: aws-actions/aws-secretsmanager-get-secrets@v2

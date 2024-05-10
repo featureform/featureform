@@ -99,15 +99,35 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_GITHUB_ROLE }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: us-east-1
-      
+
       - name: Get AWS Secrets
         uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:
-          secret-ids: ${{ secrets.AWS_SECRET_PREFIX }}/*
+          secret-ids: |
+            ,testing/databricks
+            ,testing/azure
+            ,testing/snowflake
+            ,testing/dynamodb
+            ,testing/firebase
+            ,testing/mongodb
+            ,testing/snowflake
+            ,testing/redshift
+            ,testing/mongodb
+            ,testing/snowflake
+            ,testing/emr
+            ,testing/s3
+            ,testing/bigquery
+            ,testing/gcs
+            ,testing/etcd
           parse-json-secrets: true
-      
+
+      - name: Echo Environment Variables
+        run: |
+          env
+
       - name: Get Firestore Credentials
         uses: aws-actions/aws-secretsmanager-get-secrets@v2
         with:

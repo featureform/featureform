@@ -1222,7 +1222,9 @@ class SourceVariant(ResourceVariant):
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
             **defArgs,
         )
-        existing_variant = _get_and_set_equivalent_variant(serialized, "source_variant", stub)
+        existing_variant = _get_and_set_equivalent_variant(
+            serialized, "source_variant", stub
+        )
         if not existing_variant:
             stub.CreateSourceVariant(serialized)
         return serialized.variant
@@ -1419,7 +1421,9 @@ class FeatureVariant(ResourceVariant):
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
             additional_parameters=None,
         )
-        existing_variant = _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
+        existing_variant = _get_and_set_equivalent_variant(
+            serialized, "feature_variant", stub
+        )
         if not existing_variant:
             stub.CreateFeatureVariant(serialized)
         return serialized.variant
@@ -1482,7 +1486,9 @@ class OnDemandFeatureVariant(ResourceVariant):
             status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
             additional_parameters=self.additional_parameters.proto(),
         )
-        existing_variant = _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
+        existing_variant = _get_and_set_equivalent_variant(
+            serialized, "feature_variant", stub
+        )
         if not existing_variant:
             stub.CreateFeatureVariant(serialized)
         return serialized.variant
@@ -1602,7 +1608,9 @@ class LabelVariant(ResourceVariant):
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
-        existing_variant = _get_and_set_equivalent_variant(serialized, "label_variant", stub)
+        existing_variant = _get_and_set_equivalent_variant(
+            serialized, "label_variant", stub
+        )
         if not existing_variant:
             stub.CreateLabelVariant(serialized)
         return serialized.variant
@@ -1811,7 +1819,9 @@ class TrainingSetVariant(ResourceVariant):
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
         )
-        existing_variant = _get_and_set_equivalent_variant(serialized, "training_set_variant", stub)
+        existing_variant = _get_and_set_equivalent_variant(
+            serialized, "training_set_variant", stub
+        )
         if not existing_variant:
             stub.CreateTrainingSetVariant(serialized)
         return serialized.variant

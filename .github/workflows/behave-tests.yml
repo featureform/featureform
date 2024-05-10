@@ -67,7 +67,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_GITHUB_ROLE }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: us-east-1
 
       - name: Get AWS Secrets
@@ -81,7 +82,7 @@ jobs:
       
       - name: Echo Environment Variables
         run: |
-          env && unset AWS_ACCESS_KEY_ID && unset AWS_SECRET_ACCESS_KEY && unset AWS_SESSION_TOKEN && unset AWS_DEFAULT_REGION
+          env
 
       - name: Install grpc_tools
         run: pip install grpcio-tools==1.62.2 build

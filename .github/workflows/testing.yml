@@ -27,10 +27,10 @@ env:
   CLICKHOUSE_PASSWORD: "password"
   CLICKHOUSE_DB: "default"
   CLICKHOUSE_PORT: "9001"
-  ETCD_HOST: "localhost"
-  ETCD_PORT: 2379
-  REDSHIFT_PORT: 5439
-  REDSHIFT_DATABASE: dev
+  # ETCD_HOST: "localhost"
+  # ETCD_PORT: 2379
+  # REDSHIFT_PORT: 5439
+  # REDSHIFT_DATABASE: dev
   SPARK_LOCAL_SCRIPT_PATH: scripts/spark/offline_store_spark_runner.py
   PYTHON_LOCAL_INIT_PATH: scripts/spark/python_packages.sh
   PINECONE_PROJECT_ID: ${{ secrets.PINECONE_PROJECT_ID }}

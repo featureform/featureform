@@ -15,6 +15,7 @@ import grpc
 from dataclasses import field
 from google.protobuf.duration_pb2 import Duration
 from google.rpc import error_details_pb2
+from .proto import metadata_pb2_grpc as ff_grpc
 
 from . import feature_flag
 from .types import VectorType, type_from_proto
@@ -959,11 +960,13 @@ class SQLTable:
 
 @typechecked
 @dataclass
-class Directory:
+class PrimaryPath:
     path: str
+    format: str
+    is_dir: bool = False
 
 
-Location = Union[SQLTable, Directory]
+Location = Union[SQLTable, PrimaryPath]
 
 
 class ResourceVariant(ABC):
@@ -985,22 +988,41 @@ class ResourceVariant(ABC):
 @typechecked
 @dataclass
 class PrimaryData:
-    location: Location
+    location: Optional[Location] = None
 
     def kwargs(self):
-        return {
-            "primaryData": pb.PrimaryData(
-                table=pb.PrimarySQLTable(
-                    name=self.location.name,
+        if isinstance(self.location, SQLTable):
+            return {
+                "primaryData": pb.PrimaryData(
+                    table=pb.PrimarySQLTable(
+                        name=self.location.name,
+                    ),
                 ),
-            ),
-        }
+            }
+        elif isinstance(self.location, PrimaryPath):
+            return {
+                "primaryData": pb.PrimaryData(
+                    path=pb.PrimaryPath(
+                        path=self.location.path,
+                        file_type=self.location.format,
+                        is_dir=self.location.is_dir,
+                    ),
+                ),
+            }
+        else:
+            raise ValueError("PrimaryData is not a SQLTable or PrimaryPath")
 
     def name(self):
-        return self.location.name
+        if isinstance(self.location, SQLTable):
+            return self.location.name
+        else:
+            raise ValueError("PrimaryData is not a SQLTable")
 
     def path(self):
-        return self.location.path
+        if isinstance(self.location, PrimaryPath):
+            return self.location.path
+        else:
+            raise ValueError("PrimaryData is not a PrimaryPath")
 
 
 class Transformation:
@@ -1186,8 +1208,17 @@ class SourceVariant(ResourceVariant):
         )
 
     def _get_source_definition(self, source):
-        if source.primaryData.table.name:
+        location = source.primaryData.WhichOneof("location")
+        if location == "table":
             return PrimaryData(SQLTable(source.primaryData.table.name))
+        elif location == "path":
+            return PrimaryData(
+                PrimaryPath(
+                    path=source.primaryData.path.path,
+                    format=source.primaryData.path.file_type,
+                    is_dir=source.primaryData.path.is_dir,
+                )
+            )
         elif source.transformation:
             return self._get_transformation_definition(source)
         else:

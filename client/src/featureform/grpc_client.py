@@ -96,14 +96,6 @@ class GrpcClient:
             if e.code() in self.expected_codes:
                 self._handle_expected_error(e)
             elif e.code() == grpc.StatusCode.UNAVAILABLE:
-                raise Exception(
-                    f"Could not connect to Featureform.\n"
-                    "Please check if your FEATUREFORM_HOST and FEATUREFORM_CERT environment variables are set "
-                    "correctly or are explicitly set in the client or command line.\n"
-                    f"Details: {e.details()}",
-                    details=e.details(),
-                ) from e
-            elif e.code() == grpc.StatusCode.UNAVAILABLE:
                 print("\n")
                 raise Exception(
                     f"Could not connect to Featureform.\n"

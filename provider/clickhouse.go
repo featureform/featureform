@@ -14,7 +14,9 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/featureform/fferr"
+	"github.com/featureform/metadata"
 	pc "github.com/featureform/provider/provider_config"
+	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
 )
@@ -48,7 +50,7 @@ type clickHouseOfflineStore struct {
 }
 
 func (store *clickHouseOfflineStore) getResourceTableName(id ResourceID) (string, error) {
-	if err := checkName(id); err != nil {
+	if err := ps.ValidateResourceName(id.Name, id.Variant); err != nil {
 		return "", err
 	}
 	var idType string
@@ -61,7 +63,7 @@ func (store *clickHouseOfflineStore) getResourceTableName(id ResourceID) (string
 }
 
 func (store *clickHouseOfflineStore) getTrainingSetName(id ResourceID) (string, error) {
-	if err := checkName(id); err != nil {
+	if err := ps.ValidateResourceName(id.Name, id.Variant); err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("featureform_trainingset__%s__%s", id.Name, id.Variant), nil
@@ -76,7 +78,7 @@ func (store *clickHouseOfflineStore) tableExists(id ResourceID) (bool, error) {
 	} else if id.check(TrainingSet) == nil {
 		tableName, err = store.getTrainingSetName(id)
 	} else if id.check(Primary) == nil || id.check(Transformation) == nil {
-		tableName, err = GetPrimaryTableName(id)
+		tableName, err = ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	}
 	if err != nil {
 		return false, err
@@ -101,7 +103,7 @@ func (store *clickHouseOfflineStore) tableExists(id ResourceID) (bool, error) {
 func (store *clickHouseOfflineStore) createTransformationName(id ResourceID) (string, error) {
 	switch id.Type {
 	case Transformation:
-		return GetPrimaryTableName(id)
+		return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	case Label:
 		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Label"))
 	case Feature:
@@ -604,7 +606,12 @@ func (store *clickHouseOfflineStore) CheckHealth() (bool, error) {
 	return true, nil
 }
 
-func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, source metadata.PrimarySource) (PrimaryTable, error) {
+	if source.Type() != metadata.PrimaryDataSQLTable {
+		return nil, fferr.NewInternalErrorf("cannot register primary table from source type %s", source.Type())
+
+	}
+	sqlSource := source.(metadata.SQLTable)
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
@@ -613,15 +620,15 @@ func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceI
 	} else if exists {
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
-	tableName, err := GetPrimaryTableName(id)
+	tableName, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	if err != nil {
 		return nil, err
 	}
-	query := store.query.primaryTableRegister(tableName, sourceName)
+	query := store.query.primaryTableRegister(tableName, sqlSource.Name)
 	if _, err := store.db.Exec(query); err != nil {
 		wrapped := fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 		wrapped.AddDetail("table_name", tableName)
-		wrapped.AddDetail("source_name", sourceName)
+		wrapped.AddDetail("source_name", sqlSource.Name)
 		return nil, wrapped
 	}
 
@@ -656,7 +663,7 @@ func (store *clickHouseOfflineStore) CreateTransformation(config TransformationC
 
 func (store *clickHouseOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	n := -1
-	name, err := GetPrimaryTableName(id)
+	name, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	if err != nil {
 		return nil, err
 	}
@@ -704,7 +711,7 @@ func (store *clickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema Ta
 	if len(schema.Columns) == 0 {
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("cannot create primary table without columns"))
 	}
-	tableName, err := GetPrimaryTableName(id)
+	tableName, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	if err != nil {
 		return nil, err
 	}
@@ -716,7 +723,7 @@ func (store *clickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema Ta
 }
 
 func (store *clickHouseOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
-	name, err := GetPrimaryTableName(id)
+	name, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	if err != nil {
 		return nil, err
 	}

@@ -980,6 +980,13 @@ func (test SourceVariantTest) NameVariant() NameVariant {
 func (test SourceVariantTest) Test(t *testing.T, client *Client, res interface{}, shouldFetch bool) {
 	t.Logf("Testing source: %s %s", test.Name, test.Variant)
 	source := res.(*SourceVariant)
+	var sqlTableName string
+	sqlTable, err := source.PrimaryDataSQLTable()
+	if err != nil && test.IsPrimaryDataSQLTable {
+		t.Fatalf("Failed to get primary data SQL table: %s", err)
+	} else {
+		sqlTableName = sqlTable.Name
+	}
 	assertEqual(t, source.Name(), test.Name)
 	assertEqual(t, source.Variant(), test.Variant)
 	assertEqual(t, source.Description(), test.Description)
@@ -992,8 +999,7 @@ func (test SourceVariantTest) Test(t *testing.T, client *Client, res interface{}
 	assertEqual(t, source.IsSQLTransformation(), test.IsSQLTransformation)
 	assertEqual(t, source.SQLTransformationSources(), test.SQLTransformationSources)
 	assertEqual(t, source.isPrimaryData(), test.IsPrimaryData)
-	assertEqual(t, source.IsPrimaryDataSQLTable(), test.IsPrimaryDataSQLTable)
-	assertEqual(t, source.PrimaryDataSQLTableName(), test.PrimaryDataSQLTableName)
+	assertEqual(t, sqlTableName, test.PrimaryDataSQLTableName)
 	if shouldFetch {
 		testFetchProvider(t, client, source)
 		testFetchFeatures(t, client, source)

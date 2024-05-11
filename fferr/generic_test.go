@@ -44,6 +44,8 @@ func setErrorType(err baseError, errorType string) error {
 		return &InternalError{err}
 	case INVALID_ARGUMENT:
 		return &InvalidArgumentError{err}
+	case DATASET_ERROR:
+		return &DatasetError{err}
 
 	// JOBS:
 	case JOB_DOES_NOT_EXIST:
@@ -102,6 +104,7 @@ func TestNewError(t *testing.T) {
 		{"NewInvalidResourceVariantNameError", NewInvalidResourceVariantNameError("name", "variant", FEATURE_VARIANT, fmt.Errorf("test error")), fmt.Errorf("test error"), INVALID_RESOURCE_TYPE, codes.InvalidArgument, []map[string]string{{"resource_name": "name"}, {"resource_variant": "variant"}, {"resource_type": string(FEATURE_VARIANT)}}},
 		{"NewResourceExecutionError", NewResourceExecutionError("provider", "name", "variant", FEATURE_VARIANT, fmt.Errorf("test error")), fmt.Errorf("test error"), EXECUTION_ERROR, codes.FailedPrecondition, []map[string]string{{"provider": "provider"}, {"resource_name": "name"}, {"resource_variant": "variant"}, {"resource_type": string(FEATURE_VARIANT)}}},
 		{"NewProviderConfigError", NewProviderConfigError("provider", fmt.Errorf("test error")), fmt.Errorf("test error"), EXECUTION_ERROR, codes.InvalidArgument, []map[string]string{{"provider": "provider"}}},
+		{"NewDatasetError", NewDatasetError(fmt.Errorf("test error")), fmt.Errorf("test error"), DATASET_ERROR, codes.Internal, []map[string]string{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -154,6 +157,7 @@ func TestNewErrorEmptyInner(t *testing.T) {
 		{"NewInvalidResourceVariantNameError", NewInvalidResourceVariantNameError("name", "variant", FEATURE_VARIANT, nil), fmt.Errorf("invalid resource variant name or variant"), INVALID_RESOURCE_TYPE, codes.InvalidArgument, []map[string]string{{"resource_name": "name"}, {"resource_variant": "variant"}, {"resource_type": string(FEATURE_VARIANT)}}},
 		{"NewResourceExecutionError", NewResourceExecutionError("provider", "name", "variant", FEATURE_VARIANT, nil), fmt.Errorf("execution failed on resource"), EXECUTION_ERROR, codes.FailedPrecondition, []map[string]string{{"provider": "provider"}, {"resource_name": "name"}, {"resource_variant": "variant"}, {"resource_type": string(FEATURE_VARIANT)}}},
 		{"NewProviderConfigError", NewProviderConfigError("provider", nil), fmt.Errorf("provider config"), EXECUTION_ERROR, codes.InvalidArgument, []map[string]string{{"provider": "provider"}}},
+		{"NewDatasetError", NewDatasetError(fmt.Errorf("test error")), fmt.Errorf("test error"), DATASET_ERROR, codes.Internal, []map[string]string{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

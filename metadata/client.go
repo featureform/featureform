@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/filestore"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/provider/types"
 	"go.uber.org/zap"
@@ -714,9 +715,6 @@ func (t PrimaryDataSource) isSourceType() bool {
 func (t SQLTransformationType) IsTransformationType() bool {
 	return true
 }
-func (t SQLTable) isPrimaryData() bool {
-	return true
-}
 
 type TransformationSource struct {
 	TransformationType TransformationType
@@ -731,6 +729,12 @@ type SQLTransformationType struct {
 	Sources NameVariants
 }
 
+type PrimarySource interface {
+	Type() PrimaryDataType
+}
+
+// Only currently used in tests as an implementation
+// of the SourceType interface
 type PrimaryDataSource struct {
 	Location PrimaryDataLocationType
 }
@@ -742,6 +746,36 @@ type PrimaryDataLocationType interface {
 type SQLTable struct {
 	Name string
 }
+
+func (t SQLTable) isPrimaryData() bool {
+	return true
+}
+
+func (t SQLTable) Type() PrimaryDataType {
+	return PrimaryDataSQLTable
+}
+
+type PrimaryPath struct {
+	Path     filestore.Filepath
+	FileType filestore.FileType
+	IsDir    bool
+}
+
+func (pp PrimaryPath) isPrimaryData() bool {
+	return true
+}
+
+func (pp PrimaryPath) Type() PrimaryDataType {
+	return PrimaryDataFilePath
+}
+
+type PrimaryDataType string
+
+const (
+	PrimaryDataFilePath PrimaryDataType = "path"
+	PrimaryDataSQLTable PrimaryDataType = "table"
+	UnknownPrimaryData  PrimaryDataType = "unknown"
+)
 
 type TransformationSourceDef struct {
 	Def interface{}
@@ -771,19 +805,29 @@ func (s TransformationSource) Serialize() (*pb.SourceVariant_Transformation, err
 
 func (s PrimaryDataSource) Serialize() (*pb.SourceVariant_PrimaryData, error) {
 	var primaryData *pb.PrimaryData
-	switch x := s.Location.(type) {
+	switch lt := s.Location.(type) {
 	case SQLTable:
 		primaryData = &pb.PrimaryData{
 			Location: &pb.PrimaryData_Table{
 				Table: &pb.PrimarySQLTable{
-					Name: s.Location.(SQLTable).Name,
+					Name: lt.Name,
+				},
+			},
+		}
+	case PrimaryPath:
+		primaryData = &pb.PrimaryData{
+			Location: &pb.PrimaryData_Path{
+				Path: &pb.PrimaryPath{
+					Path:     lt.Path.ToURI(),
+					FileType: string(lt.FileType),
+					IsDir:    lt.IsDir,
 				},
 			},
 		}
 	case nil:
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("PrimaryDataSource Type not set"))
 	default:
-		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("PrimaryDataSource Type has unexpected type %T", x))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("PrimaryDataSource Type has unexpected type %T", lt))
 	}
 	return &pb.SourceVariant_PrimaryData{
 		PrimaryData: primaryData,
@@ -2321,22 +2365,61 @@ func (variant *SourceVariant) TransformationArgs() TransformationArgs {
 	return nil
 }
 
+func (variant *SourceVariant) IsPrimary() bool {
+	return variant.isPrimaryData()
+}
+
 func (variant *SourceVariant) isPrimaryData() bool {
 	return reflect.TypeOf(variant.serialized.GetDefinition()) == reflect.TypeOf(&pb.SourceVariant_PrimaryData{})
 }
 
-func (variant *SourceVariant) IsPrimaryDataSQLTable() bool {
-	if !variant.isPrimaryData() {
-		return false
+func (variant *SourceVariant) PrimaryDataSQLTable() (SQLTable, error) {
+	if variant.PrimaryDataLocationType() != PrimaryDataSQLTable {
+		return SQLTable{}, fferr.NewInternalErrorf("primary data is not a SQL table")
 	}
-	return reflect.TypeOf(variant.serialized.GetPrimaryData().GetLocation()) == reflect.TypeOf(&pb.PrimaryData_Table{})
+	tbl := variant.serialized.GetPrimaryData().GetTable()
+
+	return SQLTable{
+		Name: tbl.GetName(),
+	}, nil
 }
 
-func (variant *SourceVariant) PrimaryDataSQLTableName() string {
-	if !variant.IsPrimaryDataSQLTable() {
-		return ""
+func (variant *SourceVariant) PrimaryDataFilePath() (PrimaryPath, error) {
+	if variant.PrimaryDataLocationType() != PrimaryDataFilePath {
+		return PrimaryPath{}, fferr.NewInternalErrorf("primary data is not a file path")
 	}
-	return variant.serialized.GetPrimaryData().GetTable().GetName()
+
+	primaryPath := variant.serialized.GetPrimaryData().GetPath()
+
+	path, err := filestore.ParseFilePath(primaryPath.Path)
+	if err != nil {
+		return PrimaryPath{}, err
+	}
+
+	var fileType filestore.FileType
+	switch primaryPath.FileType {
+	case string(filestore.CSV), string(filestore.Parquet):
+		fileType = filestore.FileType(primaryPath.FileType)
+	default:
+		return PrimaryPath{}, fferr.NewInternalErrorf("file type %s is not currently supported as a primary data source", primaryPath.FileType)
+	}
+
+	return PrimaryPath{
+		Path:     path,
+		FileType: fileType,
+		IsDir:    primaryPath.GetIsDir(),
+	}, nil
+}
+
+func (variant *SourceVariant) PrimaryDataLocationType() PrimaryDataType {
+	switch variant.serialized.GetPrimaryData().GetLocation().(type) {
+	case *pb.PrimaryData_Table:
+		return PrimaryDataSQLTable
+	case *pb.PrimaryData_Path:
+		return PrimaryDataFilePath
+	default:
+		return UnknownPrimaryData
+	}
 }
 
 func (variant *SourceVariant) Tags() Tags {

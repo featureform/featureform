@@ -3,6 +3,7 @@ package provider
 import (
 	"fmt"
 
+	"github.com/featureform/metadata"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
@@ -182,7 +183,7 @@ func (M MockUnitTestOfflineStore) RegisterResourceFromSourceTable(id ResourceID,
 	return nil, nil
 }
 
-func (M MockUnitTestOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+func (M MockUnitTestOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, source metadata.PrimarySource) (PrimaryTable, error) {
 	return nil, nil
 }
 

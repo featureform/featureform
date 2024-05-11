@@ -9,7 +9,9 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"github.com/featureform/fferr"
+	"github.com/featureform/metadata"
 	pc "github.com/featureform/provider/provider_config"
+	ps "github.com/featureform/provider/provider_schema"
 	p_type "github.com/featureform/provider/provider_type"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
@@ -848,7 +850,12 @@ func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sche
 	}, nil
 }
 
-func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, source metadata.PrimarySource) (PrimaryTable, error) {
+	if source.Type() != metadata.PrimaryDataSQLTable {
+		return nil, fferr.NewInternalErrorf("cannot register primary table from source type %s", source.Type())
+
+	}
+	sqlSource := source.(metadata.SQLTable)
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
@@ -858,11 +865,11 @@ func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourc
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 
-	tableName, err := GetPrimaryTableName(id)
+	tableName, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	if err != nil {
 		return nil, err
 	}
-	query := store.query.primaryTableRegister(tableName, sourceName)
+	query := store.query.primaryTableRegister(tableName, sqlSource.Name)
 
 	bqQ := store.client.Query(query)
 	job, err := bqQ.Run(store.query.getContext())
@@ -907,7 +914,7 @@ func (store *bqOfflineStore) CreateTransformation(config TransformationConfig) e
 func (store *bqOfflineStore) createTransformationName(id ResourceID) (string, error) {
 	switch id.Type {
 	case Transformation:
-		return GetPrimaryTableName(id)
+		return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	case Label:
 		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Label"))
 	case Feature:
@@ -922,7 +929,7 @@ func (store *bqOfflineStore) createTransformationName(id ResourceID) (string, er
 }
 
 func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	name, err := GetPrimaryTableName(id)
+	name, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	if err != nil {
 		return nil, err
 	}
@@ -982,7 +989,7 @@ func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchem
 	if len(schema.Columns) == 0 {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("cannot create primary table without columns"))
 	}
-	tableName, err := GetPrimaryTableName(id)
+	tableName, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	if err != nil {
 		return nil, err
 	}
@@ -994,7 +1001,7 @@ func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchem
 }
 
 func (store *bqOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
-	name, err := GetPrimaryTableName(id)
+	name, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	if err != nil {
 		return nil, err
 	}
@@ -1336,7 +1343,7 @@ func (store *bqOfflineStore) ResourceLocation(id ResourceID) (string, error) {
 	} else if id.check(TrainingSet) == nil {
 		tableName, err = store.getTrainingSetName(id)
 	} else if id.check(Primary) == nil || id.check(Transformation) == nil {
-		tableName, err = GetPrimaryTableName(id)
+		tableName, err = ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	}
 
 	return tableName, err
@@ -1425,7 +1432,7 @@ func (store *bqOfflineStore) tableExists(id ResourceID) (bool, error) {
 	} else if id.check(TrainingSet) == nil {
 		tableName, err = store.getTrainingSetName(id)
 	} else if id.check(Primary) == nil || id.check(Transformation) == nil {
-		tableName, err = GetPrimaryTableName(id)
+		tableName, err = ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	}
 	if err != nil {
 		return false, err
@@ -1496,7 +1503,7 @@ func (store *bqOfflineStore) createBigQueryPrimaryTableQuery(name string, schema
 }
 
 func (store *bqOfflineStore) getResourceTableName(id ResourceID) (string, error) {
-	if err := checkName(id); err != nil {
+	if err := ps.ValidateResourceName(id.Name, id.Variant); err != nil {
 		return "", err
 	}
 	var idType string
@@ -1509,7 +1516,7 @@ func (store *bqOfflineStore) getResourceTableName(id ResourceID) (string, error)
 }
 
 func (store *bqOfflineStore) getTrainingSetName(id ResourceID) (string, error) {
-	if err := checkName(id); err != nil {
+	if err := ps.ValidateResourceName(id.Name, id.Variant); err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("featureform_trainingset__%s__%s", id.Name, id.Variant), nil

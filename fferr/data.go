@@ -229,3 +229,22 @@ func NewResourceChangedError(resourceName, resourceVariant string, resourceType 
 type ResourceChangedError struct {
 	baseError
 }
+
+func NewDatasetError(err error) *DatasetError {
+	if err == nil {
+		err = fmt.Errorf("dataset error")
+	}
+	baseError := newBaseError(err, DATASET_ERROR, codes.Internal)
+
+	return &DatasetError{
+		baseError,
+	}
+}
+
+type DatasetError struct {
+	baseError
+}
+
+func NewDatasetErrorf(format string, args ...any) *DatasetError {
+	return NewDatasetError(fmt.Errorf(format, args...))
+}

@@ -11,6 +11,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -374,7 +375,7 @@ func (store *BrokenNumChunksOfflineStore) GetPrimaryTable(id provider.ResourceID
 func (store *BrokenNumChunksOfflineStore) RegisterResourceFromSourceTable(id provider.ResourceID, schema provider.ResourceSchema) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (store *BrokenNumChunksOfflineStore) RegisterPrimaryFromSourceTable(id provider.ResourceID, sourceName string) (provider.PrimaryTable, error) {
+func (store *BrokenNumChunksOfflineStore) RegisterPrimaryFromSourceTable(id provider.ResourceID, source metadata.PrimarySource) (provider.PrimaryTable, error) {
 	return nil, nil
 }
 func (store *BrokenNumChunksOfflineStore) CreateTransformation(config provider.TransformationConfig) error {
@@ -688,7 +689,7 @@ func (m MockOfflineStore) GetPrimaryTable(id provider.ResourceID) (provider.Prim
 func (m MockOfflineStore) RegisterResourceFromSourceTable(id provider.ResourceID, schema provider.ResourceSchema) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (m MockOfflineStore) RegisterPrimaryFromSourceTable(id provider.ResourceID, sourceName string) (provider.PrimaryTable, error) {
+func (m MockOfflineStore) RegisterPrimaryFromSourceTable(id provider.ResourceID, source metadata.PrimarySource) (provider.PrimaryTable, error) {
 	return nil, nil
 }
 func (m MockOfflineStore) CreateTransformation(config provider.TransformationConfig) error {

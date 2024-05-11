@@ -19,6 +19,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/featureform/logging"
+	"github.com/featureform/metadata"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/emr"
@@ -1522,13 +1523,13 @@ func (d *DatabricksExecutor) writeSubmitParamsToFileStore(query string, sources 
 	return paramsPath, nil
 }
 
-func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourcePath string) (PrimaryTable, error) {
-	return blobRegisterPrimary(id, sourcePath, spark.Logger, spark.Store)
-}
+func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, source metadata.PrimarySource) (PrimaryTable, error) {
+	if source.Type() != metadata.PrimaryDataFilePath {
+		return nil, fferr.NewInternalError(fmt.Errorf("cannot register primary table from source type %s", source.Type()))
 
-func (spark *SparkOfflineStore) pysparkArgs(destinationURI string, templatedQuery string, sourceList []string, jobType JobType) *[]string {
-	args := []string{}
-	return &args
+	}
+	pathSource := source.(metadata.PrimaryPath)
+	return blobRegisterPrimary(id, pathSource, spark.Logger, spark.Store)
 }
 
 func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
@@ -1587,7 +1588,7 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 }
 
 func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, isUpdate bool) error {
-	logger := spark.Logger.With("type", config.Type, "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant)
+	logger := spark.Logger.With("type", config.Type.String(), "name", config.TargetTableID.Name, "variant", config.TargetTableID.Variant, "source_mapping", config.SourceMapping)
 	logger.Debugw("Creating DF transformation")
 
 	pickledTransformationPath, err := spark.Store.CreateFilePath(ps.ResourceToPicklePath(config.TargetTableID.Name, config.TargetTableID.Variant), false)
@@ -1615,9 +1616,11 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return fferr.NewDatasetNotFoundError(config.TargetTableID.Name, config.TargetTableID.Variant, fmt.Errorf(pickledTransformationPath.ToURI()))
 	}
 
-	// It's important to set the scheme to s3:// here because the runner script uses boto3 to read the file, and it expects an s3:// path
-	if err := pickledTransformationPath.SetScheme(filestore.S3Prefix); err != nil {
-		return err
+	if spark.Store.FilestoreType() == filestore.S3 {
+		// It's important to set the scheme to s3:// here because the runner script uses boto3 to read the file, and it expects an s3:// path
+		if err := pickledTransformationPath.SetScheme(filestore.S3Prefix); err != nil {
+			return err
+		}
 	}
 
 	if err := spark.Store.Write(pickledTransformationPath, config.Code); err != nil {
@@ -1652,7 +1655,6 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	return nil
 }
 
-// TODO: _possibly_ delete this method in favor of Filepath methods
 func (spark *SparkOfflineStore) getSources(mapping []SourceMapping) ([]string, error) {
 	sources := []string{}
 
@@ -1698,115 +1700,66 @@ func (spark *SparkOfflineStore) updateQuery(query string, mapping []SourceMappin
 	return updatedQuery, sources, nil
 }
 
-// TODO: delete this method in favor of Filepath methods
-func (spark *SparkOfflineStore) getSourcePath(path string) (string, error) {
-	fileType, fileName, fileVariant := spark.getResourceInformationFromFilePath(path)
-	var filePath string
-	if fileType == "primary" {
-		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Primary}
-		fileTable, err := spark.GetPrimaryTable(fileResourceId)
-		if err != nil {
-			spark.Logger.Errorw("Issue getting primary table", fileResourceId, err)
-			return "", err
-		}
-		fsPrimary, ok := fileTable.(*FileStorePrimaryTable)
-		if !ok {
-			return "", fferr.NewInternalError(fmt.Errorf("expected primary table to be a FileStorePrimaryTable"))
-		}
-		filePath, err := fsPrimary.GetSource()
+func (spark *SparkOfflineStore) getSourcePath(tableName string) (string, error) {
+	logger := spark.Logger.With("table", tableName)
+	resourceType, name, variant, err := ps.TableNameToResource(tableName)
+	if err != nil {
+		return "", err
+	}
+	resourceID := ResourceID{Name: name, Variant: variant}
+	logger.Debugw("Getting source path for table", "type", resourceType, "name", name, "variant", variant)
+	var sourcePath filestore.Filepath
+	switch resourceType {
+	case Primary.String():
+		resourceID.Type = Primary
+		primaryTable, err := spark.GetPrimaryTable(resourceID)
 		if err != nil {
 			return "", err
 		}
-		return filePath.ToURI(), nil
-	} else if fileType == "transformation" {
-		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
-
-		transformationDirPath, err := spark.Store.CreateFilePath(fileResourceId.ToFilestorePath(), true)
+		fsPrimaryTable, isFsPrimaryTable := primaryTable.(*FileStorePrimaryTable)
+		if !isFsPrimaryTable {
+			return "", fferr.NewInternalError(fmt.Errorf("table is not a filestore primary table"))
+		}
+		sourcePath, err = fsPrimaryTable.GetSource()
 		if err != nil {
 			return "", err
 		}
-
-		transformationPath, err := spark.Store.NewestFileOfType(transformationDirPath, filestore.Parquet)
+		logger.Debugw("Retrieved primary source", "path", sourcePath.ToURI())
+	case Transformation.String():
+		resourceID.Type = Transformation
+		transformationDirPath, err := spark.Store.CreateFilePath(ps.ResourceToDirectoryPath(Transformation.String(), name, variant), true)
 		if err != nil {
 			return "", err
 		}
-		exists, err := spark.Store.Exists(transformationPath)
+		// NOTE: This logic is only necessary until we deprecate the use of writing the transformation output to a directory
+		// that we name using a Datetime in offline_store_spark_runner.py given this value isn't fetched from the job output
+		// for use in identifying the most recent run of the transformation.
+		newestFile, err := spark.Store.NewestFileOfType(transformationDirPath, filestore.Parquet)
 		if err != nil {
-			spark.Logger.Errorf("could not check if transformation file exists: %v", err)
+			return "", err
+		}
+		// Given the newest file is returned as a product of bucket.List, we can be confident this check is redundant; however,
+		// we'll keep it here for now to be safe.
+		exists, err := spark.Store.Exists(newestFile)
+		if err != nil {
 			return "", err
 		}
 		if !exists {
-			spark.Logger.Errorf("transformation file does not exist: %s", transformationPath.ToURI())
-			return "", fmt.Errorf("transformation file does not exist: %s", transformationPath.ToURI())
+			return "", fferr.NewDatasetNotFoundError(name, variant, fmt.Errorf(newestFile.ToURI()))
 		}
-		transformationDirPathDateTime, err := spark.Store.CreateFilePath(transformationPath.KeyPrefix(), true)
+		// Once we can be 100% certain the newest file exists, we take its directory path to use as the source path.
+		// This path will look like: s3://<bucket-name>/featureform/Transformation/<name>/<variant>/<datetime>
+		transformationDirPathDateTime, err := spark.Store.CreateFilePath(newestFile.KeyPrefix(), true)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("could not create directory path for spark newestFile: %v", err)
 		}
-		return transformationDirPathDateTime.ToURI(), nil
-	} else {
-		return filePath, fferr.NewDatasetNotFoundError("", "", fmt.Errorf("could not find path for %s; fileType: %s, fileName: %s, fileVariant: %s", path, fileType, fileName, fileVariant))
+		sourcePath = transformationDirPathDateTime
+		logger.Debugw("Retrieved transformation source", "path", sourcePath.ToURI())
+	default:
+		return "", fferr.NewInternalError(fmt.Errorf("unsupported resource type '%s'", resourceType))
 	}
-}
 
-// TODO: delete this method in favor of Filepath methods
-func (spark *SparkOfflineStore) getResourceInformationFromFilePath(path string) (string, string, string) {
-	var fileType string
-	var fileName string
-	var fileVariant string
-	containsSlashes := strings.Contains(path, "/")
-	if strings.HasPrefix(path, filestore.AzureBlobPrefix) {
-		id := ResourceID{}
-		err := id.FromFilestorePath(path)
-		if err != nil {
-			spark.Logger.Errorf("could not construct ResourceID for Azure Blob Storage path %s due to %v", path, err)
-			return "", "", ""
-		}
-		fileType, fileName, fileVariant = strings.ToLower(id.Type.String()), id.Name, id.Variant
-	} else if strings.HasPrefix(path, filestore.S3Prefix) {
-		id := ResourceID{}
-		err := id.FromFilestorePath(path)
-		if err != nil {
-			spark.Logger.Errorf("could not construct ResourceID for S3 path %s due to %v", path, err)
-			return "", "", ""
-		}
-		fileType, fileName, fileVariant = strings.ToLower(id.Type.String()), id.Name, id.Variant
-	} else if strings.HasPrefix(path, filestore.S3APrefix) {
-		id := ResourceID{}
-		err := id.FromFilestorePath(path)
-		if err != nil {
-			spark.Logger.Errorf("could not construct ResourceID for S3A path %s due to %v", path, err)
-			return "", "", ""
-		}
-		fileType, fileName, fileVariant = strings.ToLower(id.Type.String()), id.Name, id.Variant
-	} else if strings.HasPrefix(path, filestore.HDFSPrefix) {
-		filePaths := strings.Split(path[len(filestore.HDFSPrefix):], "/")
-		if len(filePaths) <= 4 {
-			return "", "", ""
-		}
-		fileType, fileName, fileVariant = strings.ToLower(filePaths[2]), filePaths[3], filePaths[4]
-	} else if strings.HasPrefix(path, filestore.GSPrefix) {
-		id := ResourceID{}
-		err := id.FromFilestorePath(path)
-		if err != nil {
-			spark.Logger.Errorf("could not construct ResourceID for Google Cloud Storage path %s due to %v", path, err)
-			return "", "", ""
-		}
-		fileType, fileName, fileVariant = strings.ToLower(id.Type.String()), id.Name, id.Variant
-	} else if containsSlashes {
-		filePaths := strings.Split(path[len("featureform/"):], "/")
-		if len(filePaths) <= 2 {
-			return "", "", ""
-		}
-		fileType, fileName, fileVariant = strings.ToLower(filePaths[0]), filePaths[1], filePaths[2]
-	} else {
-		filePaths := strings.Split(path[len("featureform_"):], "__")
-		if len(filePaths) <= 2 {
-			return "", "", ""
-		}
-		fileType, fileName, fileVariant = filePaths[0], filePaths[1], filePaths[2]
-	}
-	return fileType, fileName, fileVariant
+	return sourcePath.ToURI(), nil
 }
 
 func (spark *SparkOfflineStore) ResourceLocation(id ResourceID) (string, error) {
@@ -1897,7 +1850,8 @@ func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (Transform
 		return nil, err
 	}
 	spark.Logger.Debugw("Retrieved transformation source", "id", id, "filePath", transformationPath.ToURI())
-	return &FileStorePrimaryTable{spark.Store, transformationPath, TableSchema{}, true, id}, nil
+	// TODO: populate the schema
+	return &FileStorePrimaryTable{spark.Store, transformationPath, TableSchema{}, true, id, spark.Logger}, nil
 }
 
 func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig) error {
@@ -1931,7 +1885,7 @@ func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSc
 	if err != nil {
 		return nil, err
 	}
-	return &FileStorePrimaryTable{spark.Store, primaryTableFilepath, schema, false, id}, nil
+	return &FileStorePrimaryTable{spark.Store, primaryTableFilepath, schema, false, id, spark.Logger}, nil
 }
 
 func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {

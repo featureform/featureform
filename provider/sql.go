@@ -14,7 +14,9 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/metadata"
 	pc "github.com/featureform/provider/provider_config"
+	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
@@ -99,15 +101,8 @@ func NewSQLOfflineStore(config SQLOfflineStoreConfig) (*sqlOfflineStore, error) 
 	}, nil
 }
 
-func checkName(id ResourceID) error {
-	if strings.Contains(id.Name, "__") || strings.Contains(id.Variant, "__") {
-		return fferr.NewInvalidArgumentError(fmt.Errorf("names cannot contain double underscores '__': %s", id.Name))
-	}
-	return nil
-}
-
 func (store *sqlOfflineStore) getResourceTableName(id ResourceID) (string, error) {
-	if err := checkName(id); err != nil {
+	if err := ps.ValidateResourceName(id.Name, id.Variant); err != nil {
 		return "", err
 	}
 	var idType string
@@ -129,18 +124,10 @@ func (store *sqlOfflineStore) getJoinedMaterializationTableName(materializationI
 }
 
 func (store *sqlOfflineStore) getTrainingSetName(id ResourceID) (string, error) {
-	if err := checkName(id); err != nil {
+	if err := ps.ValidateResourceName(id.Name, id.Variant); err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("featureform_trainingset__%s__%s", id.Name, id.Variant), nil
-}
-
-func GetPrimaryTableName(id ResourceID) (string, error) {
-	if err := checkName(id); err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("featureform_primary__%s__%s", id.Name, id.Variant), nil
 }
 
 func (store *sqlOfflineStore) tableExists(tableName string) (bool, error) {
@@ -170,7 +157,7 @@ func (store *sqlOfflineStore) tableExistsForResourceId(id ResourceID) (bool, err
 	} else if id.check(TrainingSet) == nil {
 		tableName, err = store.getTrainingSetName(id)
 	} else if id.check(Primary) == nil || id.check(Transformation) == nil {
-		tableName, err = GetPrimaryTableName(id)
+		tableName, err = ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	}
 	if err != nil {
 		return false, err
@@ -233,7 +220,12 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 	}, nil
 }
 
-func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, source metadata.PrimarySource) (PrimaryTable, error) {
+	if source.Type() != metadata.PrimaryDataSQLTable {
+		return nil, fferr.NewInternalErrorf("cannot register primary table from source type %s", source.Type())
+
+	}
+	sqlSource := source.(metadata.SQLTable)
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
@@ -242,18 +234,18 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sour
 	} else if exists {
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
-	tableName, err := GetPrimaryTableName(id)
+	tableName, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	if err != nil {
 		return nil, err
 	}
-	sourceExists, err := store.tableExists(sourceName)
+	sourceExists, err := store.tableExists(sqlSource.Name)
 	if err != nil {
 		return nil, err
 	}
 	if !sourceExists {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("source table '%s' does not exist", sourceName))
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("source table '%s' does not exist", sqlSource.Name))
 	}
-	query := store.query.primaryTableRegister(tableName, sourceName)
+	query := store.query.primaryTableRegister(tableName, sqlSource.Name)
 	if _, err := store.db.Exec(query); err != nil {
 		return nil, err
 	}
@@ -283,7 +275,7 @@ func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSche
 	if len(schema.Columns) == 0 {
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("cannot create primary table without columns"))
 	}
-	tableName, err := GetPrimaryTableName(id)
+	tableName, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	if err != nil {
 		return nil, err
 	}
@@ -329,7 +321,7 @@ func (store *sqlOfflineStore) createsqlPrimaryTableQuery(name string, schema Tab
 }
 
 func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
-	name, err := GetPrimaryTableName(id)
+	name, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	if err != nil {
 		return nil, err
 	}
@@ -350,7 +342,7 @@ func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, erro
 }
 
 func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	name, err := GetPrimaryTableName(id)
+	name, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	if err != nil {
 		return nil, err
 	}
@@ -437,7 +429,7 @@ func (store *sqlOfflineStore) ResourceLocation(id ResourceID) (string, error) {
 	} else if id.check(TrainingSet) == nil {
 		tableName, err = store.getTrainingSetName(id)
 	} else if id.check(Primary) == nil || id.check(Transformation) == nil {
-		tableName, err = GetPrimaryTableName(id)
+		tableName, err = ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	}
 
 	return tableName, err
@@ -1294,7 +1286,7 @@ func (store *sqlOfflineStore) UpdateTransformation(config TransformationConfig) 
 func (store *sqlOfflineStore) createTransformationName(id ResourceID) (string, error) {
 	switch id.Type {
 	case Transformation:
-		return GetPrimaryTableName(id)
+		return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	case Label:
 		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Label"))
 	case Feature:
@@ -1753,11 +1745,4 @@ func (q defaultOfflineSQLQueries) transformationUpdate(db *sql.DB, tableName str
 func (q defaultOfflineSQLQueries) transformationExists() string {
 	bind := q.newVariableBindingIterator()
 	return fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=%s", bind.Next())
-}
-
-func GetTransformationTableName(id ResourceID) (string, error) {
-	if err := checkName(id); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("featureform_transformation__%s__%s", id.Name, id.Variant), nil
 }

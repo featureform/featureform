@@ -69,6 +69,16 @@ func GetFileExtension(file string) string {
 	return strings.ReplaceAll(ext, ".", "")
 }
 
+var schemeToStoreType = map[string]FileStoreType{
+	GSPrefix:         GCS,
+	S3Prefix:         S3,
+	S3APrefix:        S3,
+	S3NPrefix:        S3,
+	AzureBlobPrefix:  Azure,
+	HDFSPrefix:       HDFS,
+	FileSystemPrefix: FileSystem,
+}
+
 type Filepath interface {
 	// Scheme encompasses
 	// * protocol (e.g. s3://, gs://, abfss://)
@@ -134,27 +144,30 @@ func NewEmptyFilepath(storeType FileStoreType) (Filepath, error) {
 	}
 }
 
-func NewEmptyDirpath(storeType FileStoreType) (Filepath, error) {
-	switch storeType {
-	case S3:
-		return &S3Filepath{FilePath{isDir: true}}, nil
-	case Azure:
-		return &AzureFilepath{}, nil
-	case GCS:
-		return &GCSFilepath{FilePath{isDir: true}}, nil
-	case Memory:
-		return nil, fferr.NewInternalError(fmt.Errorf("currently unsupported file store type '%s'", storeType))
-	case FileSystem:
-		return nil, fferr.NewInternalError(fmt.Errorf("currently unsupported file store type '%s'", storeType))
-	//case DB:
-	//	return nil, fmt.Errorf("currently unsupported file store type '%s'", storeType)
-	case HDFS:
-		return &HDFSFilepath{FilePath{isDir: true}}, nil
-	default:
-		err := fferr.NewInternalError(fmt.Errorf("unknown store type"))
-		err.AddDetail("store_type", string(storeType))
+func ParseFilePath(path string) (Filepath, error) {
+	u, err := url.Parse(path)
+	if err != nil {
+		return nil, fferr.NewInternalError(err)
+	}
+	// url.Parse returns the scheme without the "://" suffix, so we need to add it back
+	// to ensure comparison with our hardcoded schemes works, as well as building the
+	// absolute path.
+	// TODO: changes constants to remove :// and use the scheme directly
+	scheme := fmt.Sprintf("%s://", u.Scheme)
+
+	storeType, exists := schemeToStoreType[scheme]
+	if !exists {
+		return nil, fferr.NewInternalErrorf("unknown scheme '%s'", scheme)
+	}
+	fp, err := NewEmptyFilepath(storeType)
+	if err != nil {
 		return nil, err
 	}
+	err = fp.ParseFilePath(path)
+	if err != nil {
+		return nil, err
+	}
+	return fp, nil
 }
 
 type FilePath struct {

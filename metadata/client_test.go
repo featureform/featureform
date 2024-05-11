@@ -2,10 +2,11 @@ package metadata
 
 import (
 	"encoding/json"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"reflect"
 	"testing"
 	"time"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/provider/types"
@@ -511,7 +512,7 @@ func TestSourceVariant_ToShallowMap(t *testing.T) {
 		want       SourceVariantResource
 	}{
 		{
-			"Simple",
+			"Simple (SQL)",
 			&pb.SourceVariant{
 				Name:        "name",
 				Variant:     "variant",
@@ -552,6 +553,57 @@ func TestSourceVariant_ToShallowMap(t *testing.T) {
 				Tags:           Tags{},
 				Properties:     Properties{},
 				Definition:     "table",
+				LastUpdated:    time.UnixMilli(0).UTC(),
+				Schedule:       "* * * * *",
+				SourceType:     "Primary Table",
+				Specifications: map[string]string{},
+				Inputs:         NameVariants{},
+			},
+		},
+		{
+			"Simple (Filepath)",
+			&pb.SourceVariant{
+				Name:        "name",
+				Variant:     "variant",
+				Created:     &timestamppb.Timestamp{},
+				Owner:       "owner",
+				Description: "description",
+				Provider:    "provider",
+				Definition: &pb.SourceVariant_PrimaryData{
+					PrimaryData: &pb.PrimaryData{
+						Location: &pb.PrimaryData_Path{
+							Path: &pb.PrimaryPath{
+								Path:     "s3://bucket/path/file.csv",
+								FileType: "csv",
+								IsDir:    false,
+							},
+						},
+					},
+				},
+				Status: &pb.ResourceStatus{
+					Status:       pb.ResourceStatus_NO_STATUS,
+					ErrorMessage: "error",
+					ErrorStatus:  &pb.ErrorStatus{},
+				},
+				Trainingsets: []*pb.NameVariant{},
+				LastUpdated:  &timestamppb.Timestamp{},
+				Schedule:     "* * * * *",
+				Tags:         &pb.Tags{},
+				Properties:   &pb.Properties{},
+			},
+			SourceVariantResource{
+				Created:        time.UnixMilli(0).UTC(),
+				Description:    "description",
+				Name:           "name",
+				Variant:        "variant",
+				Owner:          "owner",
+				Provider:       "provider",
+				Status:         "NO_STATUS",
+				Error:          "error",
+				TrainingSets:   nil,
+				Tags:           Tags{},
+				Properties:     Properties{},
+				Definition:     "s3://bucket/path/file.csv",
 				LastUpdated:    time.UnixMilli(0).UTC(),
 				Schedule:       "* * * * *",
 				SourceType:     "Primary Table",

@@ -21,6 +21,7 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
+	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 	vt "github.com/featureform/provider/types"
 	"github.com/featureform/runner"
@@ -373,13 +374,13 @@ func (c *Coordinator) mapNameVariantsToTables(sources []metadata.NameVariant) (m
 
 		if (sourceProvider.Type() == "SPARK_OFFLINE" || sourceProvider.Type() == "K8S_OFFLINE") && (source.IsDFTransformation() || source.IsSQLTransformation()) {
 			providerResourceID.Type = provider.Transformation
-			tableName, err = provider.GetTransformationTableName(providerResourceID)
+			tableName, err = ps.ResourceToTableName(providerResourceID.Type.String(), providerResourceID.Name, providerResourceID.Variant)
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			providerResourceID.Type = provider.Primary
-			tableName, err = provider.GetPrimaryTableName(providerResourceID)
+			tableName, err = ps.ResourceToTableName(providerResourceID.Type.String(), providerResourceID.Name, providerResourceID.Variant)
 			if err != nil {
 				return nil, err
 			}
@@ -585,14 +586,26 @@ func getOrderedSourceMappings(sources []metadata.NameVariant, sourceMap map[stri
 func (c *Coordinator) runPrimaryTableJob(source *metadata.SourceVariant, resID metadata.ResourceID, offlineStore provider.OfflineStore, schedule string) error {
 	c.Logger.Info("Running primary table job on resource: ", resID)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Primary}
-	if !source.IsPrimaryDataSQLTable() {
-		return fferr.NewInvalidArgumentError(fmt.Errorf("%s is not a primary table", source.Name()))
+
+	if !source.IsPrimary() {
+		return fferr.NewInvalidArgumentError(fmt.Errorf("%s is not a primary table", source.PrimaryDataLocationType()))
 	}
-	sourceName := source.PrimaryDataSQLTableName()
-	if sourceName == "" {
-		return fferr.NewInvalidArgumentError(fmt.Errorf("source name is not set"))
+
+	var primarySource metadata.PrimarySource
+	var srcErr error
+	switch source.PrimaryDataLocationType() {
+	case metadata.PrimaryDataSQLTable:
+		primarySource, srcErr = source.PrimaryDataSQLTable()
+	case metadata.PrimaryDataFilePath:
+		primarySource, srcErr = source.PrimaryDataFilePath()
+	default:
+		srcErr = fferr.NewInternalErrorf("source location type not implemented: %s", source.PrimaryDataLocationType())
 	}
-	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, sourceName); err != nil {
+	if srcErr != nil {
+		return srcErr
+	}
+
+	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, primarySource); err != nil {
 		return err
 	}
 	if err := c.Metadata.SetStatus(context.Background(), resID, metadata.READY, ""); err != nil {
@@ -629,7 +642,7 @@ func (c *Coordinator) runRegisterSourceJob(resID metadata.ResourceID, schedule s
 		return c.runSQLTransformationJob(source, resID, sourceStore, schedule, sourceProvider)
 	} else if source.IsDFTransformation() {
 		return c.runDFTransformationJob(source, resID, sourceStore, schedule, sourceProvider)
-	} else if source.IsPrimaryDataSQLTable() {
+	} else if source.IsPrimary() {
 		return c.runPrimaryTableJob(source, resID, sourceStore, schedule)
 	} else {
 		return fferr.NewInternalError(fmt.Errorf("source type not implemented"))
@@ -675,14 +688,14 @@ func (c *Coordinator) runLabelRegisterJob(resID metadata.ResourceID, schedule st
 	}(sourceStore)
 	var sourceTableName string
 	if source.IsSQLTransformation() || source.IsDFTransformation() {
-		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Transformation}
+		sourceResourceID := provider.ResourceID{Name: sourceNameVariant.Name, Variant: sourceNameVariant.Variant, Type: provider.Transformation}
 		sourceTable, err := sourceStore.GetTransformationTable(sourceResourceID)
 		if err != nil {
 			return err
 		}
 		sourceTableName = sourceTable.GetName()
-	} else if source.IsPrimaryDataSQLTable() {
-		sourceResourceID := provider.ResourceID{sourceNameVariant.Name, sourceNameVariant.Variant, provider.Primary}
+	} else if source.IsPrimary() {
+		sourceResourceID := provider.ResourceID{Name: sourceNameVariant.Name, Variant: sourceNameVariant.Variant, Type: provider.Primary}
 		sourceTable, err := sourceStore.GetPrimaryTable(sourceResourceID)
 		if err != nil {
 			return err
@@ -772,7 +785,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 			return err
 		}
 		sourceTableName = sourceTable.GetName()
-	} else if source.IsPrimaryDataSQLTable() {
+	} else if source.IsPrimary() {
 		sourceResourceID := provider.ResourceID{Name: sourceNameVariant.Name, Variant: sourceNameVariant.Variant, Type: provider.Primary}
 		sourceTable, err := sourceStore.GetPrimaryTable(sourceResourceID)
 		if err != nil {

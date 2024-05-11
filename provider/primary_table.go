@@ -2,13 +2,13 @@ package provider
 
 import (
 	"bytes"
-	"fmt"
 	"time"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	"github.com/featureform/provider/types"
 	"github.com/parquet-go/parquet-go"
+	"go.uber.org/zap"
 )
 
 type FileStorePrimaryTable struct {
@@ -17,6 +17,7 @@ type FileStorePrimaryTable struct {
 	schema           TableSchema
 	isTransformation bool
 	id               ResourceID
+	logger           *zap.SugaredLogger
 }
 
 func (tbl *FileStorePrimaryTable) Write(record GenericRecord) error {
@@ -98,12 +99,17 @@ func (tbl *FileStorePrimaryTable) GetName() string {
 }
 
 func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
-	sources := []filestore.Filepath{tbl.source}
-	if tbl.source.IsDir() {
-		// The key should only be a directory in the case of transformations.
-		if !tbl.isTransformation {
-			return nil, fferr.NewInternalErrorf("expected a file but got a directory: %s", tbl.source.Key())
-		}
+	logger := tbl.logger.With("resourceID", tbl.id, "source", tbl.source.ToURI())
+	sources := make([]filestore.Filepath, 0)
+	// Default to parquet unless we find CSV file(s)
+	file_type := filestore.Parquet
+	// Given we currently don't allow Spark to write the output of transformations in any other format
+	// other than parquet, we can safely assume that the source file is a directory of parquet files.
+	// NOTE: we'll have to change the "groups" logic here once we fetch the output of transformations,
+	// which happens to be the directory path with the datetime directory part of the path, which is added
+	// by offline_store_spark_runner.py
+	if tbl.isTransformation {
+		logger.Debugw("Reading transformation file(s)")
 		// The file structure in cloud storage for transformations is /featureform/Transformation/<NAME>/<VARIANT>
 		// but there is an additional directory that's named using a timestamp that contains the transformation file
 		// we need to access. NewestFileOfType will recursively search for the newest file of the given type (i.e.
@@ -120,25 +126,33 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 		if err != nil {
 			return nil, err
 		}
-		sources = newestFiles
-	}
-	fmt.Printf("Sources: %d found\n", len(sources))
-	fmt.Printf("Source %s extension %s\n", sources[0].ToURI(), string(sources[0].Ext()))
-	switch sources[0].Ext() {
-	case filestore.Parquet:
-		return newMultipleFileParquetIterator(sources, tbl.store, n)
-	case filestore.CSV:
-		if len(sources) > 1 {
-			return nil, fferr.NewInternalErrorf("multiple CSV files found for table (%v)", tbl.id)
-		}
-		fmt.Printf("Reading file at key %s in file store type %s\n", sources[0].Key(), tbl.store.FilestoreType())
-		b, err := tbl.store.Read(sources[0])
+		sources = append(sources, newestFiles...)
+	} else if tbl.schema.IsDir {
+		logger.Debugw("Reading primary directory", "file_type", tbl.schema.FileType)
+		file_type = tbl.schema.FileType
+		primarySources, err := tbl.store.List(tbl.source, tbl.schema.FileType)
 		if err != nil {
 			return nil, err
 		}
-		return newCSVIterator(b, n)
+		sources = append(sources, primarySources...)
+	} else {
+		logger.Debugw("Reading primary file", "file_type", tbl.schema.FileType)
+		sources = append(sources, tbl.source)
+		file_type = tbl.schema.FileType
+	}
+
+	logger.Debugw("Sources found", "len", len(sources), "file_type", file_type)
+
+	switch file_type {
+	case filestore.Parquet:
+		logger.Debugw("Getting parquet iterator", "len", len(sources), "store_type", tbl.store.FilestoreType(), "n", n)
+		return newMultipleFileParquetIterator(sources, tbl.store, n)
+	case filestore.CSV:
+		logger.Debugw("Getting CSV iterator", "len", len(sources), "store_type", tbl.store.FilestoreType(), "n", n)
+		return newCSVIterator(sources, tbl.store, n)
 	default:
-		return nil, fferr.NewInvalidFileTypeError(string(sources[0].Ext()), nil)
+		logger.Errorw("Invalid file type", "file_type", file_type)
+		return nil, fferr.NewInvalidFileTypeError(string(file_type), nil)
 	}
 }
 

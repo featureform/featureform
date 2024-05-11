@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
 )
@@ -66,7 +67,7 @@ func (m MockOfflineCreateTrainingSetFail) RegisterResourceFromSourceTable(id pro
 	return nil, nil
 }
 
-func (m MockOfflineCreateTrainingSetFail) RegisterPrimaryFromSourceTable(id provider.ResourceID, sourceName string) (provider.PrimaryTable, error) {
+func (m MockOfflineCreateTrainingSetFail) RegisterPrimaryFromSourceTable(id provider.ResourceID, source metadata.PrimarySource) (provider.PrimaryTable, error) {
 	return nil, nil
 }
 

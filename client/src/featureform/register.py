@@ -4795,7 +4795,7 @@ class ResourceClient:
 
         definition = self._get_source_definition(source)
 
-        return SourceVariant(
+        source_variant = SourceVariant(
             created=None,
             name=source.name,
             definition=definition,
@@ -4810,6 +4810,7 @@ class ResourceClient:
                 definition.source_text if type(definition) == DFTransformation else ""
             ),
         )
+        return ColumnSourceRegistrar(self, source_variant)
 
     def _get_source_definition(self, source):
         if source.primaryData.table.name:

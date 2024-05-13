@@ -1,4 +1,5 @@
-name: Testing
+# Unit tests, integration tests, and code coverage
+name: Testing  
 on:
   push:
     branches:
@@ -36,6 +37,7 @@ env:
   PINECONE_PROJECT_ID: ${{ secrets.PINECONE_PROJECT_ID }}
   PINECONE_ENVIRONMENT: ${{ secrets.PINECONE_ENVIRONMENT }}
   PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+
 
 jobs:
   go-tests:

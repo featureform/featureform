@@ -1,5 +1,3 @@
-#  Unit tests, integration tests, and code coverage
-
 name: Testing
 on:
   push:

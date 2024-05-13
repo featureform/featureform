@@ -96,7 +96,7 @@ func TestImportableOnlineStore(t *testing.T) {
 			},
 			BucketRegion: checkEnv("S3_BUCKET_REGION"),
 			BucketPath:   checkEnv("S3_BUCKET_PATH"),
-			Path:         "importable_online_store_test",
+			Path:         uuid.NewString(),
 		}
 
 		return &pc.SparkConfig{

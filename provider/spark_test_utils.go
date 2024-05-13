@@ -1,12 +1,14 @@
 package provider
 
 import (
+	"testing"
+
 	fs "github.com/featureform/filestore"
 	"github.com/featureform/helpers"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
-	"testing"
 )
 
 func GetTestingBlobDatabricks(t *testing.T) *SparkOfflineStore {
@@ -39,6 +41,7 @@ func GetTestingS3Databricks(t *testing.T) *SparkOfflineStore {
 		Credentials:  awsCreds,
 		BucketRegion: helpers.GetEnv("S3_BUCKET_REGION", "us-east-2"),
 		BucketPath:   helpers.GetEnv("S3_BUCKET_PATH", "featureform-spark-testing"),
+		Path:         uuid.NewString(),
 	}
 	t.Logf("S3 CONFIG TestingS3Databricks: %+v\n", s3Config)
 	return getTestingDatabricks(t, s3Config, fs.S3)

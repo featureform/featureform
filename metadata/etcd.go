@@ -367,16 +367,16 @@ func (lookup EtcdResourceLookup) Has(ctx context.Context, id ResourceID) (bool, 
 	return true, nil
 }
 
-func GetJobKey(ctx context.Context, id ResourceID) string {
+func GetJobKey(id ResourceID) string {
 	return fmt.Sprintf("JOB__%s__%s__%s", id.Type, id.Name, id.Variant)
 }
 
-func GetScheduleJobKey(ctx context.Context, id ResourceID) string {
+func GetScheduleJobKey(id ResourceID) string {
 	return fmt.Sprintf("SCHEDULEJOB__%s__%s__%s", id.Type, id.Name, id.Variant)
 }
 
 func (lookup EtcdResourceLookup) HasJob(ctx context.Context, id ResourceID) (bool, error) {
-	job_key := GetJobKey(ctx, id)
+	job_key := GetJobKey(id)
 	count, err := lookup.Connection.GetCountWithPrefix(job_key)
 	if err != nil {
 		return false, err
@@ -389,7 +389,7 @@ func (lookup EtcdResourceLookup) HasJob(ctx context.Context, id ResourceID) (boo
 
 func (lookup EtcdResourceLookup) SetJob(ctx context.Context, id ResourceID, schedule string) error {
 	if jobAlreadySet, _ := lookup.HasJob(ctx, id); jobAlreadySet {
-		return fferr.NewJobAlreadyExistsError(GetJobKey(ctx, id), nil)
+		return fferr.NewJobAlreadyExistsError(GetJobKey(id), nil)
 	}
 	coordinatorJob := CoordinatorJob{
 		Attempts: 0,
@@ -400,7 +400,7 @@ func (lookup EtcdResourceLookup) SetJob(ctx context.Context, id ResourceID, sche
 	if err != nil {
 		return err
 	}
-	jobKey := GetJobKey(ctx, id)
+	jobKey := GetJobKey(id)
 	if err := lookup.Connection.Put(jobKey, string(serialized)); err != nil {
 		return err
 	}
@@ -417,7 +417,7 @@ func (lookup EtcdResourceLookup) SetSchedule(ctx context.Context, id ResourceID,
 	if err != nil {
 		return err
 	}
-	jobKey := GetScheduleJobKey(ctx, id)
+	jobKey := GetScheduleJobKey(id)
 	if err := lookup.Connection.Put(jobKey, string(serialized)); err != nil {
 		return err
 	}

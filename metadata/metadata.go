@@ -261,8 +261,6 @@ type SearchWrapper struct {
 }
 
 func (wrapper SearchWrapper) Set(ctx context.Context, id ResourceID, res Resource) error {
-	logger := logging.NewLogger("metadata-search-wrapper")
-	_, ctx, logger = logger.InitializeRequestID(ctx)
 	if err := wrapper.ResourceLookup.Set(ctx, id, res); err != nil {
 		return err
 	}
@@ -1907,7 +1905,7 @@ func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.ResourceV
 		logger.Errorw("Error extracting resource variant", "resource variant", req, "error", err)
 		return nil, err
 	}
-	resourcesForType, err := serv.lookup.ListForType(resourceType)
+	resourcesForType, err := serv.lookup.ListForType(ctx, resourceType)
 	if err != nil {
 		logger.Errorw("Unable to list resources", "error", err)
 		return nil, err
@@ -2012,7 +2010,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		}
 		res = existing
 	}
-  
+
 	if err := serv.lookup.Set(ctx, id, res); err != nil {
 		logger.Errorw("Error setting resource to lookup", "error", err)
 		return nil, err

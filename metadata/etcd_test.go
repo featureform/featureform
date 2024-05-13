@@ -910,9 +910,8 @@ func TestGetJobKeys(t *testing.T) {
 	resID := ResourceID{Name: "test", Variant: "foo", Type: FEATURE}
 	expectedJobKey := "JOB__FEATURE__test__foo"
 	expectedScheduleJobKey := "SCHEDULEJOB__FEATURE__test__foo"
-	ctx := context.TODO()
-	jobKey := GetJobKey(ctx, resID)
-	scheduleJobKey := GetScheduleJobKey(ctx, resID)
+	jobKey := GetJobKey(resID)
+	scheduleJobKey := GetScheduleJobKey(resID)
 	if jobKey != expectedJobKey {
 		t.Fatalf("Could not generate correct job key")
 	}

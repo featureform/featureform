@@ -9,14 +9,10 @@ from behave import when, then
 def step_impl(context):
     os.environ["FF_GET_EQUIVALENT_VARIANTS"] = "true"
 
-    context.variant = ff.get_run()
-
 
 @then("I turn off autovariants")
 def step_impl(context):
     os.environ["FF_GET_EQUIVALENT_VARIANTS"] = "false"
-
-    context.variant = ff.get_run()
 
 
 @when("I register a transformation with auto variant")

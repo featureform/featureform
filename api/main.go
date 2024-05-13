@@ -783,7 +783,6 @@ func (serv *MetadataServer) ListProviders(listRequest *pb.ListRequest, stream pb
 			logger.Errorw("Failed to receive provider from server", "error", err)
 			return err
 		}
-
 		loggerWithResource := logger.WithResource(logging.Provider, res.Name, logging.NoVariant).WithProvider(res.Type, res.Name)
 		loggerWithResource.Infow("Sending resource on stream")
 		sendErr := stream.Send(res)

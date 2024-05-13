@@ -120,7 +120,7 @@ func (r S3ImportDynamoDBRunner) Run() (types.CompletionWatcher, error) {
 		status:    "PENDING",
 		store:     r.Online,
 		importArn: importArn,
-		logger:    logging.NewLogger("s3importWatcher"),
+		logger:    logging.NewLogger("s3importWatcher").SugaredLogger,
 	}
 
 	watcher.Poll()
@@ -251,6 +251,6 @@ func S3ImportDynamoDBRunnerFactory(config Config) (types.Runner, error) {
 		ID:       runnerConfig.ResourceID,
 		VType:    runnerConfig.VType.ValueType,
 		IsUpdate: runnerConfig.IsUpdate,
-		Logger:   logging.NewLogger("s3importer"),
+		Logger:   logging.NewLogger("s3importer").SugaredLogger,
 	}, nil
 }

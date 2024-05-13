@@ -53,7 +53,7 @@ func main() {
 	} else {
 		spawner = &coordinator.KubernetesJobSpawner{EtcdConfig: etcdConfig}
 	}
-	coord, err := coordinator.NewCoordinator(client, logger, cli, spawner)
+	coord, err := coordinator.NewCoordinator(client, logger.SugaredLogger, cli, spawner)
 	if err != nil {
 		logger.Errorw("Failed to set up coordinator: %v", err)
 		panic(err)

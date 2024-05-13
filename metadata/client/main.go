@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider/types"
 	"go.uber.org/zap"
@@ -15,7 +16,7 @@ import (
 
 func main() {
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient("localhost:8888", logger)
+	client, err := metadata.NewClient("localhost:8888", logging.WrapZapLogger(logger))
 	if err != nil {
 		logger.Panicw("Failed to connect", "Err", err)
 	}

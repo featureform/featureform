@@ -153,13 +153,13 @@ func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, e
 		return nil, fferr.NewConnectionError("DynamoDB", err)
 	}
 	logger := logging.NewLogger("dynamodb")
-	if err := CreateMetadataTable(client, logger); err != nil {
+	if err := CreateMetadataTable(client, logger.SugaredLogger); err != nil {
 		return nil, err
 	}
 	return &dynamodbOnlineStore{client, options.Prefix, BaseProvider{
 		ProviderType:   pt.DynamoDBOnline,
 		ProviderConfig: options.Serialized(),
-	}, defaultDynamoTableTimeout, logger,
+	}, defaultDynamoTableTimeout, logger.SugaredLogger,
 	}, nil
 }
 

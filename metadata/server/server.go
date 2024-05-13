@@ -6,9 +6,10 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata/search"
-	"os"
 
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
@@ -41,7 +42,6 @@ func main() {
 			ApiKey: help.GetEnv("MEILISEARCH_APIKEY", ""),
 		}
 	}
-
 	server, err := metadata.NewMetadataServer(config)
 	if err != nil {
 		logger.Panicw("Failed to create metadata server", "Err", err)

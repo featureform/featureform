@@ -13,6 +13,7 @@ import (
 
 	filestore "github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/metadata/search"
@@ -1264,7 +1265,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 		Variant: variant,
 		Type:    resourceType,
 	}
-	foundResource, err := m.lookup.Lookup(objID)
+	foundResource, err := m.lookup.Lookup(c, objID)
 
 	if err != nil {
 		fetchError := m.GetTagError(400, err, c, "PostTags - Error finding the resource with resourceID")
@@ -1390,7 +1391,7 @@ func main() {
 	SearchClient = sc
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	logger.Infof("Looking for metadata at: %s\n", metadataAddress)
-	client, err := metadata.NewClient(metadataAddress, logger)
+	client, err := metadata.NewClient(metadataAddress, logging.WrapZapLogger(logger))
 	if err != nil {
 		logger.Panicw("Failed to connect", "error", err)
 	}

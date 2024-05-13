@@ -100,15 +100,6 @@ class GrpcClient:
                     f"Could not connect to Featureform.\n"
                     "Please check if your FEATUREFORM_HOST and FEATUREFORM_CERT environment variables are set "
                     "correctly or are explicitly set in the client or command line.\n"
-                    f"Details: {e.details()}",
-                    details=e.details(),
-                ) from e
-            elif e.code() == grpc.StatusCode.UNAVAILABLE:
-                print("\n")
-                raise Exception(
-                    f"Could not connect to Featureform.\n"
-                    "Please check if your FEATUREFORM_HOST and FEATUREFORM_CERT environment variables are set "
-                    "correctly or are explicitly set in the client or command line.\n"
                     f"Details: {e.details()}"
                 ) from ex
             elif e.code() == grpc.StatusCode.UNKNOWN:

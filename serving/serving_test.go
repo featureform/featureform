@@ -8,20 +8,22 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"google.golang.org/protobuf/proto"
 	"io"
 	"math/rand"
 	"net"
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"google.golang.org/protobuf/proto"
+
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 	grpcmeta "google.golang.org/grpc/metadata"
 
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
@@ -544,7 +546,7 @@ func startMetadata() (*metadata.MetadataServer, string) {
 		panic(err)
 	}
 	config := &metadata.Config{
-		Logger:          logger.Sugar(),
+		Logger:          logging.WrapZapLogger(logger.Sugar()),
 		StorageProvider: metadata.LocalStorageProvider{},
 	}
 	serv, err := metadata.NewMetadataServer(config)
@@ -566,7 +568,7 @@ func startMetadata() (*metadata.MetadataServer, string) {
 
 func metadataClient(t *testing.T, addr string) *metadata.Client {
 	logger := zaptest.NewLogger(t).Sugar()
-	client, err := metadata.NewClient(addr, logger)
+	client, err := metadata.NewClient(addr, logging.WrapZapLogger(logger))
 	if err != nil {
 		t.Fatalf("Failed to create client: %s", err)
 	}

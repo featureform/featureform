@@ -2824,7 +2824,7 @@ func createEMRAndS3(bucketName string) (SparkExecutor, SparkFileStore, error) {
 	}
 
 	logger := logging.NewLogger("spark-unit-tests")
-	emr, err := NewEMRExecutor(emrConfig, logger)
+	emr, err := NewEMRExecutor(emrConfig, logger.SugaredLogger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not create new EMR executor: %v", err)
 	}

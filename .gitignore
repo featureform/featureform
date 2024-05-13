@@ -63,3 +63,4 @@ featureform_quickstart
 quickstart
 .coverage*
 *.out
+docker_logs.txt

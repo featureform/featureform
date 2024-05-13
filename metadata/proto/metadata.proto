@@ -13,88 +13,93 @@ option go_package = "github.com/featureform/metadata/proto";
 package featureform.serving.metadata.proto;
 
 service Metadata {
-    rpc CreateUser(User) returns (Empty);
-    rpc CreateProvider(Provider) returns (Empty);
-    rpc CreateSourceVariant(SourceVariant) returns (Empty);
-    rpc CreateEntity(Entity) returns (Empty);
-    rpc CreateFeatureVariant(FeatureVariant) returns (Empty);
-    rpc CreateLabelVariant(LabelVariant) returns (Empty);
-    rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
-    rpc CreateModel(Model) returns (Empty);
+    rpc CreateUser(UserRequest) returns (Empty);
+    rpc CreateProvider(ProviderRequest) returns (Empty);
+    rpc CreateSourceVariant(SourceVariantRequest) returns (Empty);
+    rpc CreateEntity(EntityRequest) returns (Empty);
+    rpc CreateFeatureVariant(FeatureVariantRequest) returns (Empty);
+    rpc CreateLabelVariant(LabelVariantRequest) returns (Empty);
+    rpc CreateTrainingSetVariant(TrainingSetVariantRequest) returns (Empty);
+    rpc CreateModel(ModelRequest) returns (Empty);
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
 
-    rpc GetUsers(stream Name) returns (stream User);
-    rpc GetFeatures(stream Name) returns (stream Feature);
-    rpc GetFeatureVariants(stream NameVariant) returns (stream FeatureVariant);
-    rpc GetLabels(stream Name) returns (stream Label);
-    rpc GetLabelVariants(stream NameVariant) returns (stream LabelVariant);
-    rpc GetTrainingSets(stream Name) returns (stream TrainingSet);
-    rpc GetTrainingSetVariants(stream NameVariant) returns (stream TrainingSetVariant);
-    rpc GetSources(stream Name) returns (stream Source);
-    rpc GetSourceVariants(stream NameVariant) returns (stream SourceVariant);
-    rpc GetProviders(stream Name) returns (stream Provider);
-    rpc GetEntities(stream Name) returns (stream Entity);
-    rpc GetModels(stream Name) returns (stream Model);
+    rpc GetUsers(stream NameRequest) returns (stream User);
+    rpc GetFeatures(stream NameRequest) returns (stream Feature);
+    rpc GetFeatureVariants(stream NameVariantRequest) returns (stream FeatureVariant);
+    rpc GetLabels(stream NameRequest) returns (stream Label);
+    rpc GetLabelVariants(stream NameVariantRequest) returns (stream LabelVariant);
+    rpc GetTrainingSets(stream NameRequest) returns (stream TrainingSet);
+    rpc GetTrainingSetVariants(stream NameVariantRequest) returns (stream TrainingSetVariant);
+    rpc GetSources(stream NameRequest) returns (stream Source);
+    rpc GetSourceVariants(stream NameVariantRequest) returns (stream SourceVariant);
+    rpc GetProviders(stream NameRequest) returns (stream Provider);
+    rpc GetEntities(stream NameRequest) returns (stream Entity);
+    rpc GetModels(stream NameRequest) returns (stream Model);
 
     /**
       * GetEquivalent returns a resourceVariant that matches on key attributes,
       * i.e. for a sourceVariant it will only match on key attributes (name, definition, owner, provider)
      */
-    rpc GetEquivalent(ResourceVariant) returns (ResourceVariant);
+    rpc GetEquivalent(ResourceVariantRequest) returns (ResourceVariant);
 
-    rpc ListFeatures(Empty) returns (stream Feature);
-    rpc ListLabels(Empty) returns (stream Label);
-    rpc ListTrainingSets(Empty) returns (stream TrainingSet);
-    rpc ListSources(Empty) returns (stream Source);
-    rpc ListUsers(Empty) returns (stream User);
-    rpc ListProviders(Empty) returns (stream Provider);
-    rpc ListEntities(Empty) returns (stream Entity);
-    rpc ListModels(Empty) returns (stream Model);
+    rpc ListFeatures(ListRequest) returns (stream Feature);
+    rpc ListLabels(ListRequest) returns (stream Label);
+    rpc ListTrainingSets(ListRequest) returns (stream TrainingSet);
+    rpc ListSources(ListRequest) returns (stream Source);
+    rpc ListUsers(ListRequest) returns (stream User);
+    rpc ListProviders(ListRequest) returns (stream Provider);
+    rpc ListEntities(ListRequest) returns (stream Entity);
+    rpc ListModels(ListRequest) returns (stream Model);
 
     rpc SetResourceStatus(SetStatusRequest) returns (Empty);
 }
 
 service Api {
-    rpc CreateUser(User) returns (Empty);
-    rpc CreateProvider(Provider) returns (Empty);
-    rpc CreateSourceVariant(SourceVariant) returns (Empty);
-    rpc CreateEntity(Entity) returns (Empty);
-    rpc CreateFeatureVariant(FeatureVariant) returns (Empty);
-    rpc CreateLabelVariant(LabelVariant) returns (Empty);
-    rpc CreateTrainingSetVariant(TrainingSetVariant) returns (Empty);
-    rpc CreateModel(Model) returns (Empty);
+    rpc CreateUser(UserRequest) returns (Empty);
+    rpc CreateProvider(ProviderRequest) returns (Empty);
+    rpc CreateSourceVariant(SourceVariantRequest) returns (Empty);
+    rpc CreateEntity(EntityRequest) returns (Empty);
+    rpc CreateFeatureVariant(FeatureVariantRequest) returns (Empty);
+    rpc CreateLabelVariant(LabelVariantRequest) returns (Empty);
+    rpc CreateTrainingSetVariant(TrainingSetVariantRequest) returns (Empty);
+    rpc CreateModel(ModelRequest) returns (Empty);
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
 
-    rpc GetUsers(stream Name) returns (stream User);
-    rpc GetFeatures(stream Name) returns (stream Feature);
-    rpc GetFeatureVariants(stream NameVariant) returns (stream FeatureVariant);
-    rpc GetLabels(stream Name) returns (stream Label);
-    rpc GetLabelVariants(stream NameVariant) returns (stream LabelVariant);
-    rpc GetTrainingSets(stream Name) returns (stream TrainingSet);
-    rpc GetTrainingSetVariants(stream NameVariant) returns (stream TrainingSetVariant);
-    rpc GetSources(stream Name) returns (stream Source);
-    rpc GetSourceVariants(stream NameVariant) returns (stream SourceVariant);
-    rpc GetProviders(stream Name) returns (stream Provider);
-    rpc GetEntities(stream Name) returns (stream Entity);
-    rpc GetModels(stream Name) returns (stream Model);
+    rpc GetUsers(stream NameRequest) returns (stream User);
+    rpc GetFeatures(stream NameRequest) returns (stream Feature);
+    rpc GetFeatureVariants(stream NameVariantRequest) returns (stream FeatureVariant);
+    rpc GetLabels(stream NameRequest) returns (stream Label);
+    rpc GetLabelVariants(stream NameVariantRequest) returns (stream LabelVariant);
+    rpc GetTrainingSets(stream NameRequest) returns (stream TrainingSet);
+    rpc GetTrainingSetVariants(stream NameVariantRequest) returns (stream TrainingSetVariant);
+    rpc GetSources(stream NameRequest) returns (stream Source);
+    rpc GetSourceVariants(stream NameVariantRequest) returns (stream SourceVariant);
+    rpc GetProviders(stream NameRequest) returns (stream Provider);
+    rpc GetEntities(stream NameRequest) returns (stream Entity);
+    rpc GetModels(stream NameRequest) returns (stream Model);
     /**
       * GetEquivalent returns a resourceVariant that matches on key attributes,
       * i.e. for a sourceVariant it will only match on key attributes (name, definition, owner, provider)
      */
-    rpc GetEquivalent(ResourceVariant) returns (ResourceVariant);
+    rpc GetEquivalent(ResourceVariantRequest) returns (ResourceVariant);
 
-    rpc ListFeatures(Empty) returns (stream Feature);
-    rpc ListLabels(Empty) returns (stream Label);
-    rpc ListTrainingSets(Empty) returns (stream TrainingSet);
-    rpc ListSources(Empty) returns (stream Source);
-    rpc ListUsers(Empty) returns (stream User);
-    rpc ListProviders(Empty) returns (stream Provider);
-    rpc ListEntities(Empty) returns (stream Entity);
-    rpc ListModels(Empty) returns (stream Model);
+    rpc ListFeatures(ListRequest) returns (stream Feature);
+    rpc ListLabels(ListRequest) returns (stream Label);
+    rpc ListTrainingSets(ListRequest) returns (stream TrainingSet);
+    rpc ListSources(ListRequest) returns (stream Source);
+    rpc ListUsers(ListRequest) returns (stream User);
+    rpc ListProviders(ListRequest) returns (stream Provider);
+    rpc ListEntities(ListRequest) returns (stream Entity);
+    rpc ListModels(ListRequest) returns (stream Model);
 }
 
 message Name {
     string name = 1;
+}
+
+message NameRequest {
+    Name name = 1;
+    string request_id = 2;
 }
 
 
@@ -160,7 +165,16 @@ message NameVariant {
     string variant = 2;
 }
 
+message NameVariantRequest {
+    NameVariant name_variant = 1;
+    string request_id = 2;
+}
+
 message Empty {}
+
+message ListRequest {
+    string request_id = 1;
+}
 
 message Feature {
     string name = 1;
@@ -193,6 +207,11 @@ message ResourceVariant {
     }
 }
 
+message ResourceVariantRequest {
+    ResourceVariant resource_variant = 1;
+    string request_id = 2;
+}
+
 message FeatureVariant {
     string name = 1;
     string variant = 2;
@@ -214,8 +233,14 @@ message FeatureVariant {
     Properties properties = 16;
     ComputationMode mode = 18;
     FeatureParameters additional_parameters = 21;
-	ValueType type = 22;
+    ValueType type = 22;
 }
+
+message FeatureVariantRequest {
+    FeatureVariant feature_variant = 1;
+    string request_id = 2;
+    }
+	
 
 message ValueType {
 	oneof Type {
@@ -289,6 +314,11 @@ message LabelVariant {
 	ValueType type = 15;
 }
 
+message LabelVariantRequest {
+    LabelVariant label_variant = 1;
+    string request_id = 2;
+}
+
 message Provider {
     string name = 1;
     string description = 2;
@@ -303,6 +333,11 @@ message Provider {
     repeated NameVariant labels = 11;
     Tags tags = 12;
     Properties properties = 13;
+}
+
+message ProviderRequest {
+    Provider provider = 1;
+    string request_id = 2;
 }
 
 message TrainingSet {
@@ -329,6 +364,11 @@ message TrainingSetVariant {
     Properties properties = 17;
 }
 
+message TrainingSetVariantRequest {
+    TrainingSetVariant training_set_variant = 1;
+    string request_id = 2;
+}
+
 message Entity {
     string name = 1;
     string description = 2;
@@ -338,6 +378,11 @@ message Entity {
     repeated NameVariant trainingsets = 6;
     Tags tags = 7;
     Properties properties = 8;
+}
+
+message EntityRequest {
+    Entity entity = 1;
+    string request_id = 2;
 }
 
 message Model {
@@ -350,6 +395,11 @@ message Model {
     Properties properties = 7;
 }
 
+message ModelRequest {
+    Model model = 1;
+    string request_id = 2;
+}
+
 message User {
     string name = 1;
     ResourceStatus status = 2;
@@ -359,6 +409,11 @@ message User {
     repeated NameVariant sources = 6;
     Tags tags = 8;
     Properties properties = 9;
+}
+
+message UserRequest {
+    User user = 1;
+    string request_id = 2;
 }
 
 message Source {
@@ -388,6 +443,11 @@ message SourceVariant {
     string schedule = 16;
     Tags tags = 17;
     Properties properties = 18;
+}
+
+message SourceVariantRequest {
+    SourceVariant source_variant = 1;
+    string request_id = 2;
 }
 
 message Transformation {

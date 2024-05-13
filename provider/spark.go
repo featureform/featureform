@@ -894,7 +894,7 @@ func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		return nil, err
 	}
 	logger.Infow("Creating Spark executor:", "type", sc.ExecutorType)
-	exec, err := NewSparkExecutor(sc.ExecutorType, sc.ExecutorConfig, logger)
+	exec, err := NewSparkExecutor(sc.ExecutorType, sc.ExecutorConfig, logger.SugaredLogger)
 	if err != nil {
 		logger.Errorw("Failure initializing Spark executor", "type", sc.ExecutorType, "error", err)
 		return nil, err
@@ -922,7 +922,7 @@ func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sparkOfflineStore := SparkOfflineStore{
 		Executor: exec,
 		Store:    store,
-		Logger:   logger,
+		Logger:   logger.SugaredLogger,
 		query:    &queries,
 		BaseProvider: BaseProvider{
 			ProviderType:   pt.SparkOffline,

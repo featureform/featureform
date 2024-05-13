@@ -874,7 +874,7 @@ class Provider:
         return "provider"
 
     def get(self, stub) -> "Provider":
-        name = pb.Name(name=self.name)
+        name = pb.NameRequest(name=pb.Name(name=self.name))
         provider = next(stub.GetProviders(iter([name])))
 
         return Provider(
@@ -893,15 +893,18 @@ class Provider:
         )
 
     def _create(self, stub) -> None:
-        serialized = pb.Provider(
-            name=self.name,
-            description=self.description,
-            type=self.config.type(),
-            software=self.config.software(),
-            team=self.team,
-            serialized_config=self.config.serialize(),
-            tags=pb.Tags(tag=self.tags),
-            properties=Properties(self.properties).serialized,
+        serialized = pb.ProviderRequest(
+            provider=pb.Provider(
+                name=self.name,
+                description=self.description,
+                type=self.config.type(),
+                software=self.config.software(),
+                team=self.team,
+                serialized_config=self.config.serialize(),
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+            ),
+            request_id="",
         )
         stub.CreateProvider(serialized)
 
@@ -935,11 +938,15 @@ class User:
         return "user"
 
     def _create(self, stub) -> None:
-        serialized = pb.User(
-            name=self.name,
-            tags=pb.Tags(tag=self.tags),
-            properties=Properties(self.properties).serialized,
+        serialized = pb.UserRequest(
+            user=pb.User(
+                name=self.name,
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+            ),
+            request_id="",
         )
+
         stub.CreateUser(serialized)
 
     def to_dictionary(self):
@@ -1166,7 +1173,9 @@ class SourceVariant(ResourceVariant):
         return "source"
 
     def get(self, stub):
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(
+            name_variant=pb.NameVariant(name=self.name, variant=self.variant)
+        )
         source = next(stub.GetSourceVariants(iter([name_variant])))
         definition = self._get_source_definition(source)
 
@@ -1209,22 +1218,26 @@ class SourceVariant(ResourceVariant):
     def _create(self, stub) -> Optional[str]:
         defArgs = self.definition.kwargs()
 
-        serialized = pb.SourceVariant(
-            created=None,
-            name=self.name,
-            variant=self.variant,
-            owner=self.owner,
-            description=self.description,
-            schedule=self.schedule,
-            provider=self.provider,
-            tags=pb.Tags(tag=self.tags),
-            properties=Properties(self.properties).serialized,
-            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
-            **defArgs,
+        serialized = pb.SourceVariantRequest(
+            source_variant=pb.SourceVariant(
+                created=None,
+                name=self.name,
+                variant=self.variant,
+                owner=self.owner,
+                description=self.description,
+                schedule=self.schedule,
+                provider=self.provider,
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+                status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+                **defArgs,
+            ),
+            request_id="",
         )
+
         _get_and_set_equivalent_variant(serialized, "source_variant", stub)
         stub.CreateSourceVariant(serialized)
-        return serialized.variant
+        return serialized.source_variant.variant
 
     def get_status(self):
         return ResourceStatus(self.status)
@@ -1254,12 +1267,16 @@ class Entity:
         return "entity"
 
     def _create(self, stub) -> None:
-        serialized = pb.Entity(
-            name=self.name,
-            description=self.description,
-            tags=pb.Tags(tag=self.tags),
-            properties=Properties(self.properties).serialized,
+        serialized = pb.EntityRequest(
+            entity=pb.Entity(
+                name=self.name,
+                description=self.description,
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+            ),
+            request_id="",
         )
+
         stub.CreateEntity(serialized)
 
     def to_dictionary(self):
@@ -1372,7 +1389,9 @@ class FeatureVariant(ResourceVariant):
         return "feature"
 
     def get(self, stub) -> "FeatureVariant":
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(
+            name_variant=pb.NameVariant(name=self.name, variant=self.variant)
+        )
         feature = next(stub.GetFeatureVariants(iter([name_variant])))
 
         return FeatureVariant(
@@ -1398,7 +1417,7 @@ class FeatureVariant(ResourceVariant):
         if hasattr(self.source, "name_variant"):
             self.source = self.source.name_variant()
 
-        serialized = pb.FeatureVariant(
+        feature_variant_message = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
             source=pb.NameVariant(
@@ -1418,9 +1437,16 @@ class FeatureVariant(ResourceVariant):
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
             additional_parameters=None,
         )
+
+        # Initialize the FeatureVariantRequest message with the FeatureVariant message
+        serialized = pb.FeatureVariantRequest(
+            feature_variant=feature_variant_message,
+            request_id="",
+        )
+
         _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
-        return serialized.variant
+        return serialized.feature_variant.variant
 
     def get_status(self):
         return ResourceStatus(self.status)
@@ -1468,24 +1494,30 @@ class OnDemandFeatureVariant(ResourceVariant):
         return "ondemand_feature"
 
     def _create(self, stub) -> Optional[str]:
-        serialized = pb.FeatureVariant(
-            name=self.name,
-            variant=self.variant,
-            owner=self.owner,
-            description=self.description,
-            function=pb.PythonFunction(query=self.query),
-            mode=ComputationMode.CLIENT_COMPUTED.proto(),
-            tags=pb.Tags(tag=self.tags),
-            properties=Properties(self.properties).serialized,
-            status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
-            additional_parameters=self.additional_parameters.proto(),
+        serialized = pb.FeatureVariantRequest(
+            feature_variant=pb.FeatureVariant(
+                name=self.name,
+                variant=self.variant,
+                owner=self.owner,
+                description=self.description,
+                function=pb.PythonFunction(query=self.query),
+                mode=ComputationMode.CLIENT_COMPUTED.proto(),
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+                status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
+                additional_parameters=self.additional_parameters.proto(),
+            ),
+            request_id="",
         )
+
         _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
-        return serialized.variant
+        return serialized.feature_variant.variant
 
     def get(self, stub) -> "OnDemandFeatureVariant":
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(
+            name_variant=pb.NameVariant(name=self.name, variant=self.variant)
+        )
         ondemand_feature = next(stub.GetFeatureVariants(iter([name_variant])))
         additional_Parameters = self._get_additional_parameters(ondemand_feature)
 
@@ -1560,7 +1592,9 @@ class LabelVariant(ResourceVariant):
         return "label"
 
     def get(self, stub) -> "LabelVariant":
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(
+            name_variant=pb.NameVariant(name=self.name, variant=self.variant)
+        )
         label = next(stub.GetLabelVariants(iter([name_variant])))
 
         return LabelVariant(
@@ -1583,25 +1617,29 @@ class LabelVariant(ResourceVariant):
     def _create(self, stub) -> Optional[str]:
         if hasattr(self.source, "name_variant"):
             self.source = self.source.name_variant()
-        serialized = pb.LabelVariant(
-            name=self.name,
-            variant=self.variant,
-            source=pb.NameVariant(
-                name=self.source[0],
-                variant=self.source[1],
+        serialized = pb.LabelVariantRequest(
+            label_variant=pb.LabelVariant(
+                name=self.name,
+                variant=self.variant,
+                source=pb.NameVariant(
+                    name=self.source[0],
+                    variant=self.source[1],
+                ),
+                type=self.value_type.to_proto(),
+                entity=self.entity,
+                owner=self.owner,
+                description=self.description,
+                columns=self.location.proto(),
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+                status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
             ),
-            type=self.value_type.to_proto(),
-            entity=self.entity,
-            owner=self.owner,
-            description=self.description,
-            columns=self.location.proto(),
-            tags=pb.Tags(tag=self.tags),
-            properties=Properties(self.properties).serialized,
-            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+            request_id="",
         )
+
         _get_and_set_equivalent_variant(serialized, "label_variant", stub)
         stub.CreateLabelVariant(serialized)
-        return serialized.variant
+        return serialized.label_variant.variant
 
     def get_status(self):
         return ResourceStatus(self.status)
@@ -1625,7 +1663,9 @@ class EntityReference:
         return "entity"
 
     def _get(self, stub):
-        entityList = stub.GetEntities(iter([pb.Name(name=self.name)]))
+        entityList = stub.GetEntities(
+            iter([pb.NameRequest(name=pb.Name(name=self.name))])
+        )
         try:
             for entity in entityList:
                 self.obj = entity
@@ -1649,7 +1689,9 @@ class ProviderReference:
         return "provider"
 
     def _get(self, stub):
-        providerList = stub.GetProviders(iter([pb.Name(name=self.name)]))
+        providerList = stub.GetProviders(
+            iter([pb.NameRequest(name=pb.Name(name=self.name))])
+        )
         try:
             for provider in providerList:
                 self.obj = provider
@@ -1676,7 +1718,15 @@ class SourceReference:
 
     def _get(self, stub):
         sourceList = stub.GetSourceVariants(
-            iter([pb.NameVariant(name=self.name, variant=self.variant)])
+            iter(
+                [
+                    pb.NameVariantRequest(
+                        name_variant=pb.NameVariant(
+                            name=self.name, variant=self.variant
+                        )
+                    )
+                ]
+            )
         )
         try:
             for source in sourceList:
@@ -1753,7 +1803,9 @@ class TrainingSetVariant(ResourceVariant):
         return "training-set"
 
     def get(self, stub):
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(
+            name_variant=pb.NameVariant(name=self.name, variant=self.variant)
+        )
         ts = next(stub.GetTrainingSetVariants(iter([name_variant])))
 
         return TrainingSetVariant(
@@ -1793,23 +1845,28 @@ class TrainingSetVariant(ResourceVariant):
         if hasattr(self.label, "name_variant"):
             self.label = self.label.name_variant()
 
-        serialized = pb.TrainingSetVariant(
-            created=None,
-            name=self.name,
-            variant=self.variant,
-            description=self.description,
-            schedule=self.schedule,
-            owner=self.owner,
-            features=[pb.NameVariant(name=v[0], variant=v[1]) for v in self.features],
-            label=pb.NameVariant(name=self.label[0], variant=self.label[1]),
-            feature_lags=feature_lags,
-            tags=pb.Tags(tag=self.tags),
-            properties=Properties(self.properties).serialized,
-            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+        serialized = pb.TrainingSetVariantRequest(
+            training_set_variant=pb.TrainingSetVariant(
+                created=None,
+                name=self.name,
+                variant=self.variant,
+                description=self.description,
+                schedule=self.schedule,
+                owner=self.owner,
+                features=[
+                    pb.NameVariant(name=v[0], variant=v[1]) for v in self.features
+                ],
+                label=pb.NameVariant(name=self.label[0], variant=self.label[1]),
+                feature_lags=feature_lags,
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+                status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+            ),
+            request_id="",
         )
         _get_and_set_equivalent_variant(serialized, "training_set_variant", stub)
         stub.CreateTrainingSetVariant(serialized)
-        return serialized.variant
+        return serialized.training_set_variant.variant
 
     def get_status(self):
         return ResourceStatus(self.status)
@@ -1835,11 +1892,15 @@ class Model:
 
     def _create(self, stub) -> None:
         properties = pb.Properties(property=self.properties)
-        serialized = pb.Model(
-            name=self.name,
-            tags=pb.Tags(tag=self.tags),
-            properties=Properties(self.properties).serialized,
+        serialized = pb.ModelRequest(
+            model=pb.Model(
+                name=self.name,
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+            ),
+            request_id="",
         )
+
         stub.CreateModel(serialized)
 
     def to_dictionary(self):
@@ -2251,10 +2312,16 @@ def _get_and_set_equivalent_variant(
     resource_variant_proto, variant_field, stub
 ) -> Optional[str]:
     if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
-        # Get equivalent from stub
-        equivalent = stub.GetEquivalent(
-            pb.ResourceVariant(**{variant_field: resource_variant_proto})
+        res_pb = pb.ResourceVariant(
+            **{variant_field: getattr(resource_variant_proto, variant_field)}
         )
+        equivalent = stub.GetEquivalent(
+            pb.ResourceVariantRequest(
+                resource_variant=res_pb,
+                request_id=resource_variant_proto.request_id,
+            )
+        )
+        rv_proto = getattr(resource_variant_proto, variant_field)
 
         # grpc call returns the default ResourceVariant proto when equivalent doesn't exist which explains the below check
         if equivalent != pb.ResourceVariant():
@@ -2264,7 +2331,7 @@ def _get_and_set_equivalent_variant(
                 variant_value,
             )
             # TODO add confirmation from user before using equivalent variant
-            resource_variant_proto.variant = variant_value
+            rv_proto.variant = variant_value
             return variant_value
     return None
 

@@ -41,7 +41,7 @@ func main() {
 		logger.Panicw("Failed to connect to metadata", "Err", err)
 	}
 
-	serv, err := serving.NewFeatureServer(meta, promMetrics, logger)
+	serv, err := serving.NewFeatureServer(meta, promMetrics, logger.SugaredLogger)
 	if err != nil {
 		logger.Panicw("Failed to create training server", "Err", err)
 	}

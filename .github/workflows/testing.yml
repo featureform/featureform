@@ -1,4 +1,5 @@
-name: Testing
+# Unit tests, integration tests, and code coverage
+name: Testing  
 on:
   push:
     branches:

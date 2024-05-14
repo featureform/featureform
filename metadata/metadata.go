@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"regexp"
 	"strings"
 	"time"
 
@@ -580,12 +581,20 @@ func isSourceProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transforma
 		}
 	case *pb.Transformation_SQLTransformation:
 		if _, ok := otherDef.Transformation.Type.(*pb.Transformation_SQLTransformation); ok {
-			isDefinitionEqual = thisDef.Transformation.GetSQLTransformation().Query == otherDef.Transformation.GetSQLTransformation().Query
+			isDefinitionEqual = isSqlEqual(thisDef.Transformation.GetSQLTransformation().Query, otherDef.Transformation.GetSQLTransformation().Query)
 		}
 	}
 
 	kubernetesArgsEqual := proto.Equal(thisDef.Transformation.GetKubernetesArgs(), otherDef.Transformation.GetKubernetesArgs())
 	return isDefinitionEqual && kubernetesArgsEqual, nil
+}
+
+func isSqlEqual(thisSql, otherSql string) bool {
+	re := regexp.MustCompile(`\s+`)
+
+	thisSql = re.ReplaceAllString(thisSql, " ")
+	otherSql = re.ReplaceAllString(otherSql, " ")
+	return thisSql == otherSql
 }
 
 func (resource *sourceVariantResource) ToResourceVariantProto() *pb.ResourceVariant {

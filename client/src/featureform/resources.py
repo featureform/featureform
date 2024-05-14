@@ -749,6 +749,37 @@ class K8sConfig:
 
 @typechecked
 @dataclass
+class QdrantConfig:
+    grpc_host: str = ""
+    api_key: str = ""
+    use_tls: bool = False
+
+    def software(self) -> str:
+        return "qdrant"
+
+    def type(self) -> str:
+        return "QDRANT_ONLINE"
+
+    def serialize(self) -> bytes:
+        if self.grpc_host == "":
+            raise Exception("gRPC host cannot be empty")
+        config = {
+            "GrpcHost": self.grpc_host,
+            "ApiKey": self.api_key,
+            "UseTls": self.use_tls,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+    def deserialize(self, config):
+        config = json.loads(config)
+        self.grpc_host = config["GrpcHost"]
+        self.api_key = config["ApiKey"]
+        self.use_tls = config["UseTls"]
+        return self
+
+
+@typechecked
+@dataclass
 class EmptyConfig:
     def software(self) -> str:
         return ""
@@ -785,6 +816,7 @@ Config = Union[
     WeaviateConfig,
     DynamodbConfig,
     CassandraConfig,
+    QdrantConfig,
 ]
 
 

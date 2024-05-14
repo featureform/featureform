@@ -65,6 +65,22 @@ def test_register_weaviate():
 
 
 @pytest.mark.local
+def test_register_qdrant():
+    reg = Registrar()
+    result = reg.register_qdrant(
+        name="quickstart",
+        grpc_host="host",
+        api_key="<API KEY>",
+        use_tls=False,
+        description="desc",
+        team="team",
+        tags=[],
+        properties={},
+    )
+    assert isinstance(result, OnlineProvider)
+
+
+@pytest.mark.local
 def test_register_blob_store():
     reg = Registrar()
     result = reg.register_blob_store(

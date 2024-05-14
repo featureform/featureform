@@ -26,6 +26,7 @@ from featureform.resources import (
     SparkConfig,
     K8sConfig,
     RedshiftConfig,
+    QdrantConfig,
 )
 import featureform.resources as resources
 import inspect
@@ -300,6 +301,18 @@ def test_k8sconfig():
         store_type="store_type",
         store_config=dict(),
         docker_image="docker_image",
+    )
+    serialized_config = conf.serialize()
+    assert json.loads(serialized_config) == expected_config
+
+
+@pytest.mark.local
+def test_qdrant():
+    expected_config = connection_configs["QdrantConfig"]
+    conf = QdrantConfig(
+        grpc_host="xyz-example.eu-central.aws.cloud.qdrant.io:6334",
+        api_key="api_key",
+        use_tls=False,
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config

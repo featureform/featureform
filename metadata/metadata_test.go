@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
+	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/stretchr/testify/assert"
 	grpc_status "google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 
 	pc "github.com/featureform/provider/provider_config"
@@ -404,7 +404,7 @@ func (ctx *testContext) Destroy() {
 func startServ(t *testing.T) (*MetadataServer, string) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logger.Sugar(),
+		Logger:          logging.WrapZapLogger(logger.Sugar()),
 		StorageProvider: LocalStorageProvider{},
 	}
 	serv, err := NewMetadataServer(config)
@@ -427,7 +427,7 @@ func startServ(t *testing.T) (*MetadataServer, string) {
 func startServNoPanic(t *testing.T) (*MetadataServer, string) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logger.Sugar(),
+		Logger:          logging.WrapZapLogger(logger.Sugar()),
 		StorageProvider: LocalStorageProvider{},
 	}
 	serv, err := NewMetadataServer(config)
@@ -448,7 +448,7 @@ func startServNoPanic(t *testing.T) (*MetadataServer, string) {
 }
 
 func client(t *testing.T, addr string) *Client {
-	logger := zaptest.NewLogger(t).Sugar()
+	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
 	client, err := NewClient(addr, logger)
 	if err != nil {
 		t.Fatalf("Failed to create client: %s", err)
@@ -504,9 +504,9 @@ func TestClosedServer(t *testing.T) {
 }
 
 func TestServeGracefulStop(t *testing.T) {
-	logger := zaptest.NewLogger(t)
+	logger := zaptest.NewLogger(t).Sugar()
 	config := &Config{
-		Logger:          logger.Sugar(),
+		Logger:          logging.WrapZapLogger(logger),
 		StorageProvider: LocalStorageProvider{},
 		Address:         ":0",
 	}
@@ -2173,7 +2173,8 @@ func TestSourceShallowMapOK(t *testing.T) {
 func Test_GetEquivalent(t *testing.T) {
 	serv, addr := startServNoPanic(t)
 	client := client(t, addr)
-	context := context.Background()
+	requestID := logging.NewRequestID().String()
+	context := logging.AttachRequestID(requestID, context.Background(), logging.NewLogger("metadata-test"))
 
 	redisConfig := pc.RedisConfig{
 		Addr:     "0.0.0.0",
@@ -2314,12 +2315,12 @@ func Test_GetEquivalent(t *testing.T) {
 	// sourceDef
 	sourceDef.Description = "Some other description"
 	sourceDef.Variant = "var2"
-	svProto, err := sourceDef.Serialize()
+	svProto, err := sourceDef.Serialize(requestID)
 	if err != nil {
 		t.Fatalf("Failed to serialize source def: %s", err)
 	}
-	resourceVariant := &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto}}
-	equivalent, err := serv.getEquivalent(resourceVariant, false)
+	resourceVariant := &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto.SourceVariant}}
+	equivalent, err := serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2336,12 +2337,12 @@ func Test_GetEquivalent(t *testing.T) {
 			},
 		},
 	}
-	svProto2, err := sourceDef.Serialize()
+	svProto2, err := sourceDef.Serialize(requestID)
 	if err != nil {
 		t.Fatalf("Failed to serialize source def: %s", err)
 	}
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto2}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto2.SourceVariant}}
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2351,12 +2352,12 @@ func Test_GetEquivalent(t *testing.T) {
 
 	// labelDef
 	labelDef.Description = "Some other description"
-	lvProto, err := labelDef.Serialize()
+	lvProto, err := labelDef.Serialize(requestID)
 	if err != nil {
 		t.Fatalf("Failed to serialize label def: %s", err)
 	}
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_LabelVariant{lvProto}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_LabelVariant{lvProto.LabelVariant}}
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2367,12 +2368,12 @@ func Test_GetEquivalent(t *testing.T) {
 	// featureDef
 	// on demand
 	featureDef.Description = "Some other description"
-	fvProto, err := featureDef.Serialize()
+	fvProto, err := featureDef.Serialize(requestID)
 	if err != nil {
 		t.Fatalf("Failed to serialize feature def: %s", err)
 	}
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto.FeatureVariant}}
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2382,9 +2383,9 @@ func Test_GetEquivalent(t *testing.T) {
 	featureDef.Location = PythonFunction{
 		Query: []byte("SELECT * FROM dummy"),
 	}
-	fvProto, err = featureDef.Serialize()
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	fvProto, err = featureDef.Serialize(requestID)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto.FeatureVariant}}
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2392,16 +2393,16 @@ func Test_GetEquivalent(t *testing.T) {
 		t.Fatalf("there was no equivalent but we got one")
 	}
 
-	fvProto2, err := featureDef2.Serialize()
-	fvProto2.Location = &pb.FeatureVariant_Columns{
+	fvProto2, err := featureDef2.Serialize(requestID)
+	fvProto2.FeatureVariant.Location = &pb.FeatureVariant_Columns{
 		&pb.Columns{
 			Entity: "col10",
 			Value:  "col11",
 			Ts:     "col12",
 		},
 	}
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto2}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto2.FeatureVariant}}
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2411,9 +2412,9 @@ func Test_GetEquivalent(t *testing.T) {
 
 	// trainingSetDef
 	trainingSetDef.Description = "Some other description"
-	tsvProto := trainingSetDef.Serialize()
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	tsvProto := trainingSetDef.Serialize(requestID)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2426,9 +2427,9 @@ func Test_GetEquivalent(t *testing.T) {
 		{"feature2", "variant"},
 		{"feature3", "variant"},
 	}
-	tsvProto = trainingSetDef.Serialize()
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	tsvProto = trainingSetDef.Serialize(requestID)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2441,9 +2442,9 @@ func Test_GetEquivalent(t *testing.T) {
 		{"feature2", "variant"},
 	}
 	trainingSetDef.Label = NameVariant{"label_doesnt_exist", "variant"}
-	tsvProto = trainingSetDef.Serialize()
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	tsvProto = trainingSetDef.Serialize(requestID)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}

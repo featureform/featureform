@@ -204,7 +204,7 @@ func k8sOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		logger.Errorw("Failure serializing executor", "executor_type", k8.ExecutorType, "error", err)
 		return nil, err
 	}
-	executor, err := CreateExecutor(string(k8.ExecutorType), serializedExecutor, logger)
+	executor, err := CreateExecutor(string(k8.ExecutorType), serializedExecutor, logger.SugaredLogger)
 	if err != nil {
 		logger.Errorw("Failure initializing executor", "executor_type", k8.ExecutorType, "error", err)
 		return nil, err
@@ -226,7 +226,7 @@ func k8sOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	k8sOfflineStore := K8sOfflineStore{
 		executor: executor,
 		store:    store,
-		logger:   logger,
+		logger:   logger.SugaredLogger,
 		query:    &queries,
 		BaseProvider: BaseProvider{
 			ProviderType:   "K8S_OFFLINE",

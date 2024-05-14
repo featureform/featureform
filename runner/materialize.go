@@ -295,6 +295,6 @@ func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 		VType:    runnerConfig.VType.ValueType,
 		IsUpdate: runnerConfig.IsUpdate,
 		Cloud:    runnerConfig.Cloud,
-		Logger:   logging.NewLogger("materializer"),
+		Logger:   logging.NewLogger("materializer").SugaredLogger,
 	}, nil
 }

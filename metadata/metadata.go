@@ -590,12 +590,13 @@ func isSourceProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transforma
 	return isDefinitionEqual && kubernetesArgsEqual, nil
 }
 
+// isSqlEqual checks if two SQL strings are equal after normalizing whitespace.
 func isSqlEqual(thisSql, otherSql string) bool {
 	re := regexp.MustCompile(`\s+`)
 
 	thisSql = re.ReplaceAllString(thisSql, " ")
 	otherSql = re.ReplaceAllString(otherSql, " ")
-	return thisSql == otherSql
+	return strings.TrimSpace(thisSql) == strings.TrimSpace(otherSql)
 }
 
 func (resource *sourceVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
@@ -1977,6 +1978,7 @@ func isValidStatusForEquivalent(res Resource) bool {
 	equivalentStatuses := mapset.NewSet(
 		pb.ResourceStatus_READY,
 		pb.ResourceStatus_PENDING,
+		pb.ResourceStatus_RUNNING,
 		pb.ResourceStatus_CREATED,
 		pb.ResourceStatus_READY,
 	)

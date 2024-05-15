@@ -2629,3 +2629,127 @@ func Test_CreateResourceVariantResourceChanged(t *testing.T) {
 		t.Fatalf("Expected error but got none")
 	}
 }
+
+// TestIsSqlEqual tests the isSqlEqual function.
+func TestIsSqlEqual(t *testing.T) {
+	tests := []struct {
+		name     string
+		thisSql  string
+		otherSql string
+		want     bool
+	}{
+		{
+			name:     "equal SQL with single spaces",
+			thisSql:  "SELECT * FROM table",
+			otherSql: "SELECT * FROM table",
+			want:     true,
+		},
+		{
+			name:     "equal SQL with multiple spaces",
+			thisSql:  "SELECT  *  FROM  table",
+			otherSql: "SELECT * FROM table",
+			want:     true,
+		},
+		{
+			name:     "different SQL statements",
+			thisSql:  "SELECT * FROM table1",
+			otherSql: "SELECT * FROM table2",
+			want:     false,
+		},
+		{
+			name:     "equal SQL with different whitespace",
+			thisSql:  "SELECT   *    FROM table",
+			otherSql: "SELECT * FROM   table",
+			want:     true,
+		},
+		{
+			name:     "SQL with leading/trailing whitespace",
+			thisSql:  "  SELECT * FROM table  ",
+			otherSql: "SELECT * FROM table",
+			want:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isSqlEqual(tt.thisSql, tt.otherSql); got != tt.want {
+				t.Errorf("isSqlEqual() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_findEquivalentStatus(t *testing.T) {
+	// Helper function to clone and set status
+	cloneAndSetStatus := func(sv *pb.SourceVariant, status pb.ResourceStatus_Status) *pb.SourceVariant {
+		cloned := proto.Clone(sv).(*pb.SourceVariant)
+		cloned.Status = &pb.ResourceStatus{Status: status}
+		return cloned
+	}
+
+	// Base SourceVariant
+	svBase := &pb.SourceVariant{
+		Name:    "test.name",
+		Variant: "test.variant",
+		Definition: &pb.SourceVariant_PrimaryData{
+			PrimaryData: &pb.PrimaryData{
+				Location: &pb.PrimaryData_Table{
+					Table: &pb.PrimarySQLTable{
+						Name: "test.name",
+					},
+				},
+			},
+		},
+	}
+
+	// Clones with different statuses
+	svReady := cloneAndSetStatus(svBase, pb.ResourceStatus_READY)
+	svPending := cloneAndSetStatus(svBase, pb.ResourceStatus_PENDING)
+	svFailed := cloneAndSetStatus(svBase, pb.ResourceStatus_FAILED)
+	svRunning := cloneAndSetStatus(svBase, pb.ResourceStatus_RUNNING)
+
+	tests := []struct {
+		name        string
+		resources   []Resource
+		target      *pb.SourceVariant
+		expectFound bool
+	}{
+		{
+			name:        "Find equivalent - READY status",
+			resources:   []Resource{&sourceVariantResource{serialized: svReady}},
+			target:      svBase,
+			expectFound: true,
+		},
+		{
+			name:        "Do not find equivalent - FAILED status",
+			resources:   []Resource{&sourceVariantResource{serialized: svFailed}},
+			target:      svBase,
+			expectFound: false,
+		},
+		{
+			name:        "Find equivalent - RUNNING status",
+			resources:   []Resource{&sourceVariantResource{serialized: svRunning}},
+			target:      svBase,
+			expectFound: true,
+		},
+		{
+			name:        "Find equivalent - PENDING status",
+			resources:   []Resource{&sourceVariantResource{serialized: svPending}},
+			target:      svBase,
+			expectFound: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			eq, err := findEquivalent(tt.resources, &sourceVariantResource{serialized: tt.target}, true)
+			if err != nil {
+				t.Fatalf("Failed to find equivalent: %s", err)
+			}
+			found := eq != nil
+			if found != tt.expectFound {
+				t.Fatalf("Expected to find equivalent: %v, but got: %v", !tt.expectFound, eq == nil)
+			}
+		})
+	}
+}

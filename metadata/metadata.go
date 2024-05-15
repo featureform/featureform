@@ -1980,7 +1980,6 @@ func isValidStatusForEquivalent(res Resource) bool {
 		pb.ResourceStatus_PENDING,
 		pb.ResourceStatus_RUNNING,
 		pb.ResourceStatus_CREATED,
-		pb.ResourceStatus_READY,
 	)
 
 	return resourceStatus != nil && equivalentStatuses.Contains(resourceStatus.Status)

@@ -6,8 +6,8 @@ package runner
 
 import (
 	"encoding/json"
-	"fmt"
 
+	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	"github.com/featureform/types"
@@ -49,7 +49,7 @@ type CreateTransformationConfig struct {
 func (c *CreateTransformationConfig) Serialize() (Config, error) {
 	config, err := json.Marshal(c)
 	if err != nil {
-		return nil, fmt.Errorf("could not marshal transformation config: %w", err)
+		return nil, fferr.NewInternalError(err)
 	}
 	return config, nil
 }
@@ -57,7 +57,7 @@ func (c *CreateTransformationConfig) Serialize() (Config, error) {
 func (c *CreateTransformationConfig) Deserialize(config Config) error {
 	err := json.Unmarshal(config, c)
 	if err != nil {
-		return fmt.Errorf("could not unmarshal transformation config: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -87,15 +87,15 @@ func CreateTransformationRunnerFactory(config Config) (types.Runner, error) {
 		},
 	}
 	if err := transformationConfig.Deserialize(config); err != nil {
-		return nil, fmt.Errorf("failed to deserialize create transformation config: %w", err)
+		return nil, err
 	}
 	offlineProvider, err := provider.Get(transformationConfig.OfflineType, transformationConfig.OfflineConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure offline provider: %w", err)
+		return nil, err
 	}
 	offlineStore, err := offlineProvider.AsOfflineStore()
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert provider to offline store: %w", err)
+		return nil, err
 	}
 	return &CreateTransformationRunner{
 		Offline:              offlineStore,

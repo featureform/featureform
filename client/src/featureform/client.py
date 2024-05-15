@@ -1,12 +1,13 @@
-import featureform.resources
-from typing import Union, Optional
+from typing import Optional, Union
 
+import featureform.resources
 from .constants import NO_RECORD_LIMIT
+from .enums import ResourceType
 from .register import (
+    FeatureColumnResource,
     ResourceClient,
     SourceRegistrar,
     SubscriptableTransformation,
-    FeatureColumnResource,
     TriggerResource,
     TrainingSetVariant,
 )
@@ -17,22 +18,22 @@ from featureform.proto import metadata_pb2
 
 class Client(ResourceClient, ServingClient):
     """
-    Client for interacting with Featureform APIs (resources and serving)
+        Client for interacting with Featureform APIs (resources and serving)
 
-    **Using the Client:**
-    ```py title="definitions.py"
-    import featureform as ff
-    from featureform import Client
-from featureform.client.src.featureform import metadata_pb2
+        **Using the Client:**
+        ```py title="definitions.py"
+        import featureform as ff
+        from featureform import Client
+    from featureform.client.src.featureform import metadata_pb2
 
-    client = Client()
+        client = Client()
 
-    # Example 1: Get a registered provider
-    redis = client.get_provider("redis-quickstart")
+        # Example 1: Get a registered provider
+        redis = client.get_provider("redis-quickstart")
 
-    # Example 2: Compute a dataframe from a registered source
-    transactions_df = client.dataframe("transactions", "quickstart")
-    ```
+        # Example 2: Compute a dataframe from a registered source
+        transactions_df = client.dataframe("transactions", "quickstart")
+        ```
     """
 
     def __init__(
@@ -231,7 +232,7 @@ from featureform.client.src.featureform import metadata_pb2
         req.resource.CopyFrom(resource_req)
 
         self._stub.AddTrigger(req)
-    
+
     def remove_trigger(self, trigger, resource):
         """
         Remove a trigger from a resource
@@ -269,9 +270,9 @@ from featureform.client.src.featureform import metadata_pb2
         else:
             raise ValueError("Invalid resource type")
         req.resource.CopyFrom(resource_req)
-        
+
         self._stub.RemoveTrigger(req)
-    
+
     def update_trigger(self, trigger, schedule):
         """
         Update the schedule of the trigger
@@ -297,7 +298,7 @@ from featureform.client.src.featureform import metadata_pb2
         req.schedule_trigger.CopyFrom(schedule_req)
 
         self._stub.UpdateTrigger(req)
-    
+
     def delete_trigger(self, trigger):
         """
         Delete a trigger from the storage provider
@@ -320,6 +321,40 @@ from featureform.client.src.featureform import metadata_pb2
         # TODO: Make sure that if there is a resource which uses this trigger, you call delete trigger first
         self._stub.DeleteTrigger(req)
 
+    def columns(
+        self,
+        source: Union[SourceRegistrar, SubscriptableTransformation, str],
+        variant: Optional[str] = None,
+    ):
+        """
+        Returns the columns of a registered source or transformation
+
+        **Example:**
+        ```py title="definitions.py"
+        columns = client.columns("transactions", "quickstart")
+        ```
+
+        Args:
+            source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to get the columns from
+            variant (str): The source variant; can't be None if source is a string
+
+        Returns:
+            columns (List[str]): The columns of the source or transformation
+        """
+        if isinstance(source, (SourceRegistrar, SubscriptableTransformation)):
+            name, variant = source.name_variant()
+        elif isinstance(source, str):
+            name = source
+            if variant is None:
+                raise ValueError("variant must be specified if source is a string")
+            if variant == "":
+                raise ValueError("variant cannot be an empty string")
+        else:
+            raise ValueError(
+                f"source must be of type SourceRegistrar, SubscriptableTransformation or str, not {type(source)}\n"
+                "use client.columns(name, variant) or client.columns(source) or client.columns(transformation)"
+            )
+        return self.impl._get_source_columns(name, variant)
 
     @staticmethod
     def _validate_host(host):

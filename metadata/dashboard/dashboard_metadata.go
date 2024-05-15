@@ -9,26 +9,39 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"reflect"
+	"slices"
+	"sort"
+	"strconv"
 	"strings"
+	"time"
+
+	rand "math/rand"
 
 	filestore "github.com/featureform/filestore"
 	help "github.com/featureform/helpers"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/metadata/search"
 	"github.com/featureform/proto"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
+	sc "github.com/featureform/scheduling"
 	"github.com/featureform/serving"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
 var SearchClient search.Searcher
+
+// todox: remove later
+var taskRunStaticList []sc.TaskRunMetadata
+var taskMetadataStaticList []sc.TaskMetadata
+var taskTriggerList []TriggerResponse
 
 type StorageProvider interface {
 	GetResourceLookup() (metadata.ResourceLookup, error)
@@ -39,24 +52,6 @@ type LocalStorageProvider struct {
 
 func (sp LocalStorageProvider) GetResourceLookup() (metadata.ResourceLookup, error) {
 	lookup := make(metadata.LocalResourceLookup)
-	return lookup, nil
-}
-
-type EtcdStorageProvider struct {
-	Config metadata.EtcdConfig
-}
-
-func (sp EtcdStorageProvider) GetResourceLookup() (metadata.ResourceLookup, error) {
-
-	client, err := sp.Config.InitClient()
-	if err != nil {
-		return nil, fmt.Errorf("could not init etcd client: %v", err)
-	}
-	lookup := metadata.EtcdResourceLookup{
-		Connection: metadata.EtcdStorage{
-			Client: client,
-		},
-	}
 	return lookup, nil
 }
 
@@ -175,156 +170,6 @@ func (m *FetchError) Error() string {
 	return fmt.Sprintf("Error %d: Failed to fetch %s", m.StatusCode, m.Type)
 }
 
-func columnsToMap(columns metadata.ResourceVariantColumns) map[string]string {
-	columnNameValues := reflect.ValueOf(columns)
-	featureColumns := make(map[string]string)
-	for i := 0; i < columnNameValues.NumField(); i++ {
-		featureColumns[columnNameValues.Type().Field(i).Name] = fmt.Sprintf("%v", columnNameValues.Field(i).Interface())
-	}
-	return featureColumns
-}
-
-func featureShallowMap(variant *metadata.FeatureVariant) metadata.FeatureVariantResource {
-	fv := metadata.FeatureVariantResource{}
-	switch variant.Mode() {
-	case metadata.PRECOMPUTED:
-		fv = metadata.FeatureVariantResource{
-			Created:     variant.Created(),
-			Description: variant.Description(),
-			Entity:      variant.Entity(),
-			Name:        variant.Name(),
-			DataType:    variant.Type(),
-			Variant:     variant.Variant(),
-			Owner:       variant.Owner(),
-			Provider:    variant.Provider(),
-			Source:      variant.Source(),
-			Location:    columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns)),
-			Status:      variant.Status().String(),
-			Error:       variant.Error(),
-			Tags:        variant.Tags(),
-			Properties:  variant.Properties(),
-			Mode:        variant.Mode().String(),
-			IsOnDemand:  variant.IsOnDemand(),
-		}
-	case metadata.CLIENT_COMPUTED:
-		location := make(map[string]string)
-		if pyFunc, ok := variant.LocationFunction().(metadata.PythonFunction); ok {
-			location["query"] = string(pyFunc.Query)
-		}
-		fv = metadata.FeatureVariantResource{
-			Created:     variant.Created(),
-			Description: variant.Description(),
-			Name:        variant.Name(),
-			Variant:     variant.Variant(),
-			Owner:       variant.Owner(),
-			Location:    location,
-			Status:      variant.Status().String(),
-			Error:       variant.Error(),
-			Tags:        variant.Tags(),
-			Properties:  variant.Properties(),
-			Mode:        variant.Mode().String(),
-			IsOnDemand:  variant.IsOnDemand(),
-			Definition:  variant.Definition(),
-		}
-	default:
-		fmt.Printf("Unknown computation mode %v\n", variant.Mode())
-	}
-	return fv
-}
-
-func labelShallowMap(variant *metadata.LabelVariant) metadata.LabelVariantResource {
-	return metadata.LabelVariantResource{
-		Created:     variant.Created(),
-		Description: variant.Description(),
-		Entity:      variant.Entity(),
-		Name:        variant.Name(),
-		DataType:    variant.Type(),
-		Variant:     variant.Variant(),
-		Owner:       variant.Owner(),
-		Provider:    variant.Provider(),
-		Source:      variant.Source(),
-		Location:    columnsToMap(variant.LocationColumns().(metadata.ResourceVariantColumns)),
-		Status:      variant.Status().String(),
-		Error:       variant.Error(),
-		Tags:        variant.Tags(),
-		Properties:  variant.Properties(),
-	}
-}
-
-func trainingSetShallowMap(variant *metadata.TrainingSetVariant) metadata.TrainingSetVariantResource {
-	return metadata.TrainingSetVariantResource{
-		Created:     variant.Created(),
-		Description: variant.Description(),
-		Name:        variant.Name(),
-		Variant:     variant.Variant(),
-		Owner:       variant.Owner(),
-		Provider:    variant.Provider(),
-		Label:       variant.Label(),
-		Status:      variant.Status().String(),
-		Error:       variant.Error(),
-		Tags:        variant.Tags(),
-		Properties:  variant.Properties(),
-	}
-}
-
-func sourceShallowMap(variant *metadata.SourceVariant) metadata.SourceVariantResource {
-	return metadata.SourceVariantResource{
-		Name:           variant.Name(),
-		Variant:        variant.Variant(),
-		Definition:     getSourceString(variant),
-		Owner:          variant.Owner(),
-		Description:    variant.Description(),
-		Provider:       variant.Provider(),
-		Created:        variant.Created(),
-		Status:         variant.Status().String(),
-		LastUpdated:    variant.LastUpdated(),
-		Schedule:       variant.Schedule(),
-		Tags:           variant.Tags(),
-		SourceType:     getSourceType(variant),
-		Properties:     variant.Properties(),
-		Error:          variant.Error(),
-		Specifications: getSourceArgs(variant),
-		Inputs:         getInputs(variant),
-	}
-}
-
-func getInputs(variant *metadata.SourceVariant) []metadata.NameVariant {
-	if variant.IsSQLTransformation() {
-		return variant.SQLTransformationSources()
-	} else if variant.IsDFTransformation() {
-		return variant.DFTransformationSources()
-	} else {
-		return []metadata.NameVariant{}
-	}
-}
-
-func getSourceString(variant *metadata.SourceVariant) string {
-	if variant.IsSQLTransformation() {
-		return variant.SQLTransformationQuery()
-	} else if variant.IsDFTransformation() {
-		return variant.DFTransformationQuerySource()
-	} else {
-		return variant.PrimaryDataSQLTableName()
-	}
-}
-
-func getSourceType(variant *metadata.SourceVariant) string {
-	if variant.IsSQLTransformation() {
-		return "SQL Transformation"
-	} else if variant.IsDFTransformation() {
-		return "Dataframe Transformation"
-	} else {
-		return "Primary Table"
-	}
-}
-
-func getSourceArgs(variant *metadata.SourceVariant) map[string]string {
-	if variant.HasKubernetesArgs() {
-		return variant.TransformationArgs().Format()
-	}
-	return map[string]string{}
-}
-
 func (m *MetadataServer) getTrainingSets(nameVariants []metadata.NameVariant) (map[string][]metadata.TrainingSetVariantResource, error) {
 	trainingSetMap := make(map[string][]metadata.TrainingSetVariantResource)
 	trainingSetVariants, err := m.client.GetTrainingSetVariants(context.Background(), nameVariants)
@@ -335,7 +180,7 @@ func (m *MetadataServer) getTrainingSets(nameVariants []metadata.NameVariant) (m
 		if _, has := trainingSetMap[variant.Name()]; !has {
 			trainingSetMap[variant.Name()] = []metadata.TrainingSetVariantResource{}
 		}
-		trainingSetMap[variant.Name()] = append(trainingSetMap[variant.Name()], trainingSetShallowMap(variant))
+		trainingSetMap[variant.Name()] = append(trainingSetMap[variant.Name()], variant.ToShallowMap())
 	}
 	return trainingSetMap, nil
 }
@@ -350,7 +195,7 @@ func (m *MetadataServer) getFeatures(nameVariants []metadata.NameVariant) (map[s
 		if _, has := featureMap[variant.Name()]; !has {
 			featureMap[variant.Name()] = []metadata.FeatureVariantResource{}
 		}
-		featureMap[variant.Name()] = append(featureMap[variant.Name()], featureShallowMap(variant))
+		featureMap[variant.Name()] = append(featureMap[variant.Name()], variant.ToShallowMap())
 	}
 	return featureMap, nil
 }
@@ -365,7 +210,7 @@ func (m *MetadataServer) getLabels(nameVariants []metadata.NameVariant) (map[str
 		if _, has := labelMap[variant.Name()]; !has {
 			labelMap[variant.Name()] = []metadata.LabelVariantResource{}
 		}
-		labelMap[variant.Name()] = append(labelMap[variant.Name()], labelShallowMap(variant))
+		labelMap[variant.Name()] = append(labelMap[variant.Name()], variant.ToShallowMap())
 	}
 	return labelMap, nil
 }
@@ -380,7 +225,7 @@ func (m *MetadataServer) getSources(nameVariants []metadata.NameVariant) (map[st
 		if _, has := sourceMap[variant.Name()]; !has {
 			sourceMap[variant.Name()] = []metadata.SourceVariantResource{}
 		}
-		sourceMap[variant.Name()] = append(sourceMap[variant.Name()], sourceShallowMap(variant))
+		sourceMap[variant.Name()] = append(sourceMap[variant.Name()], variant.ToShallowMap())
 	}
 	return sourceMap, nil
 }
@@ -395,7 +240,7 @@ func (m *MetadataServer) readFromFeature(feature *metadata.Feature, deepCopy boo
 	}
 	for _, variant := range variants {
 
-		featResource := featureShallowMap(variant)
+		featResource := variant.ToShallowMap()
 		if deepCopy {
 			ts, err := m.getTrainingSets(variant.TrainingSets())
 			if err != nil {
@@ -420,7 +265,7 @@ func (m *MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet, 
 	}
 	for _, variant := range variants {
 
-		trainingResource := trainingSetShallowMap(variant)
+		trainingResource := variant.ToShallowMap()
 		if deepCopy {
 			f, err := m.getFeatures(variant.Features())
 			if err != nil {
@@ -445,7 +290,7 @@ func (m *MetadataServer) readFromSource(source *metadata.Source, deepCopy bool) 
 	}
 	for _, variant := range variants {
 
-		sourceResource := sourceShallowMap(variant)
+		sourceResource := variant.ToShallowMap()
 		if deepCopy {
 			fetchGroup := new(errgroup.Group)
 			fetchGroup.Go(func() error {
@@ -494,7 +339,7 @@ func (m *MetadataServer) readFromLabel(label *metadata.Label, deepCopy bool) (ma
 		return nil, fetchError
 	}
 	for _, variant := range variants {
-		labelResource := labelShallowMap(variant)
+		labelResource := variant.ToShallowMap()
 		if deepCopy {
 			ts, err := m.getTrainingSets(variant.TrainingSets())
 			if err != nil {
@@ -998,7 +843,7 @@ func (m *MetadataServer) GetMetadataList(c *gin.Context) {
 
 	default:
 		m.logger.Errorw("Not a valid data type", "Error", c.Param("type"))
-		fetchError := &FetchError{StatusCode: 400, Type: c.Param("type")}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: c.Param("type")}
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1049,14 +894,14 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	var limit int64 = 150
 	response := SourceDataResponse{}
 	if name == "" || variant == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetSourceData - Could not find the name or variant query parameters"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetSourceData - Could not find the name or variant query parameters"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 	iter, err := m.getSourceDataIterator(name, variant, limit)
 	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData - getSourceDataIterator() threw an exception"}
+		fetchError := &FetchError{StatusCode: 500, Type: fmt.Sprintf("GetSourceData - %s", err.Error())}
 		m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1107,7 +952,7 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 	name := c.Query("name")
 	variant := c.Query("variant")
 	if name == "" || variant == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetFeatureFileStats - Could not find the name or variant query parameters"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetFeatureFileStats - Could not find the name or variant query parameters"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -1156,8 +1001,9 @@ func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
 	}
 
 	// Get list of files in the stats directory then return the third part file
+	// TODO: move this into provider_schema package
 	statsPath := fmt.Sprintf("featureform/Materialization/%s/%s/stats", name, variant)
-	statsDirectory, err := sparkOfflineStore.Store.CreateDirPath(statsPath)
+	statsDirectory, err := sparkOfflineStore.Store.CreateFilePath(statsPath, true)
 	if err != nil {
 		fetchError := &FetchError{StatusCode: 500, Type: "Could not create filepath to the stats directory"}
 		m.logger.Errorw(fetchError.Error(), "error", err.Error())
@@ -1277,20 +1123,20 @@ func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64
 	m.logger.Infow("Getting Source Variant Iterator", "name", name, "variant", variant)
 	sv, err := m.client.GetSourceVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get source variant")
+		return nil, err
 	}
 	providerEntry, err := sv.FetchProvider(m.client, ctx)
 	m.logger.Debugw("Fetched Source Variant Provider", "name", providerEntry.Name(), "type", providerEntry.Type())
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get fetch provider")
+		return nil, err
 	}
 	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get provider")
+		return nil, err
 	}
 	store, err := p.AsOfflineStore()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not open as offline store")
+		return nil, err
 	}
 	var primary provider.PrimaryTable
 	var providerErr error
@@ -1306,7 +1152,7 @@ func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64
 		primary, providerErr = store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary})
 	}
 	if providerErr != nil {
-		return nil, errors.Wrap(err, "could not get primary table")
+		return nil, providerErr
 	}
 	return primary.IterateSegment(limit)
 }
@@ -1331,7 +1177,7 @@ func GetTagResult(param VariantResult) TagResult {
 	}
 }
 
-func (m *MetadataServer) GetTagError(code int, err error, c *gin.Context, resourceType string) *FetchError {
+func (m *MetadataServer) GetRequestError(code int, err error, c *gin.Context, resourceType string) *FetchError {
 	fetchError := &FetchError{StatusCode: code, Type: resourceType}
 	m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 	return fetchError
@@ -1339,7 +1185,7 @@ func (m *MetadataServer) GetTagError(code int, err error, c *gin.Context, resour
 
 func (m *MetadataServer) SetFoundVariantJSON(foundVariant VariantResult, err error, c *gin.Context, resourceType string) {
 	if err != nil {
-		fetchError := m.GetTagError(500, err, c, resourceType)
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, resourceType)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 	}
 	c.JSON(http.StatusOK, GetTagResult(foundVariant))
@@ -1354,7 +1200,7 @@ func (m *MetadataServer) GetTags(c *gin.Context) {
 	resourceType := c.Param("type")
 	var requestBody TagGetBody
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "GetTags - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "GetTags - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1419,7 +1265,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	var requestBody TagPostBody
 	resourceTypeParam := c.Param("type")
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "PostTags - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "PostTags - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1432,10 +1278,10 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 		Variant: variant,
 		Type:    resourceType,
 	}
-	foundResource, err := m.lookup.Lookup(objID)
+	foundResource, err := m.lookup.Lookup(c, objID)
 
 	if err != nil {
-		fetchError := m.GetTagError(400, err, c, "PostTags - Error finding the resource with resourceID")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "PostTags - Error finding the resource with resourceID")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1523,6 +1369,418 @@ func replaceTags(resourceTypeParam string, currentResource metadata.Resource, ne
 	return nil
 }
 
+// todox: eventually remove
+func CreateDummyTaskRuns(count int) {
+	taskMetadataStaticList = []sc.TaskMetadata{
+		{ID: 0, Name: "Test_job", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
+			Name:    "transaction",
+			Variant: "default",
+		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
+		{ID: 1, Name: "Nicole_Puppers", TaskType: sc.Monitoring, Target: sc.NameVariant{
+			Name:    "avg_transactions",
+			Variant: "v1",
+		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
+		{ID: 2, Name: "Sandbox_Test", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
+			Name:    "transaction",
+			Variant: "default",
+		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
+		{ID: 3, Name: "Production_Data_Set", TaskType: sc.HealthCheck, Target: sc.NameVariant{
+			Name:    "speed_dating",
+			Variant: "left_overs",
+		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
+		{ID: 4, Name: "MySQL Task", TaskType: sc.ResourceCreation, Target: sc.NameVariant{
+			Name:    "testing_name",
+			Variant: "testing_variant",
+		}, TargetType: sc.NameVariantTarget, DateCreated: time.Now().Truncate(0).UTC()},
+	}
+	taskRunStaticList = []sc.TaskRunMetadata{}
+	dummyStates := []sc.Status{sc.Failed, sc.Pending, sc.Running, sc.Success}
+	for i := 1; i <= count; i++ {
+		status := dummyStates[rand.Intn(len(dummyStates))]
+		runTime := time.Now()
+		taskRunStaticList = append(taskRunStaticList, (createTaskRun(i, status, runTime)))
+	}
+}
+
+// todox: eventually remove
+func CreateDummyTestTrigger(id, name, schedule string, addResource bool) {
+	newTrigger := TriggerResponse{
+		ID:       id,
+		Name:     name,
+		Type:     "test",
+		Schedule: schedule,
+		Detail:   "test"}
+	if addResource {
+		newTrigger.Resources = []TriggerResource{{ID: uuid.New().String(), Resource: "test", Variant: "v1", LastRun: time.Now()}}
+	}
+	taskTriggerList = append(taskTriggerList, newTrigger)
+}
+
+func createTaskRun(id int, status sc.Status, timeParam time.Time) sc.TaskRunMetadata {
+
+	//todox: check against existing task metadata list
+	foundTaskMetadata := taskMetadataStaticList[rand.Intn(len(taskMetadataStaticList))]
+
+	return sc.TaskRunMetadata{
+		ID:          sc.TaskRunID(id),
+		TaskId:      foundTaskMetadata.ID,
+		Name:        foundTaskMetadata.Name,
+		Trigger:     sc.OneOffTrigger{TriggerName: "Apply"},
+		TriggerType: sc.OneOffTriggerType,
+		Status:      status,
+		StartTime:   timeParam.Add(-5 * time.Minute),
+		EndTime:     timeParam.Add(10 * time.Minute),
+		Logs:        []string{"log 1", "log 2"},
+		Error:       "No errors for now.",
+	}
+}
+
+func filter[T any](ss []T, test func(T) bool) (ret []T) {
+	for _, s := range ss {
+		if test(s) {
+			ret = append(ret, s)
+		}
+	}
+	return ret
+}
+
+func mockTaskRunFind(searchId int) sc.TaskRunMetadata {
+	result := sc.TaskRunMetadata{ID: sc.TaskRunID(-1)} //sentinel result
+	searchTaskId := sc.TaskRunID(searchId)
+	for _, n := range taskRunStaticList {
+		if n.ID == searchTaskId {
+			result = n
+			break
+		}
+	}
+	return result
+}
+
+func mockTaskFind(searchId int) sc.TaskMetadata {
+	result := sc.TaskMetadata{ID: sc.TaskID(-1)} //sentinel result
+	searchTaskId := sc.TaskID(searchId)
+	for _, n := range taskMetadataStaticList {
+		if n.ID == searchTaskId {
+			result = n
+			break
+		}
+	}
+	return result
+}
+
+type TaskRunResponse struct {
+	Task    sc.TaskMetadata    `json:"task"`
+	TaskRun sc.TaskRunMetadata `json:"taskRun"`
+}
+
+type TaskRunsPostBody struct {
+	Status     string `json:"status"`
+	SearchText string `json:"searchtext"`
+	SortBy     string `json:"sortBy"`
+}
+
+func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
+	var requestBody TaskRunsPostBody
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "GetTaskRuns - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	// todox: swap for api call
+	taskListCopy := make([]sc.TaskRunMetadata, len(taskRunStaticList))
+	_ = copy(taskListCopy, taskRunStaticList)
+
+	// status filter, break out
+	taskListCopy = filter(taskListCopy, func(t sc.TaskRunMetadata) bool {
+		result := false
+		if requestBody.Status == "ALL" {
+			result = true
+		} else if requestBody.Status == "ACTIVE" {
+			activeStates := []sc.Status{sc.Pending, sc.Running}
+			result = slices.Contains(activeStates, t.Status)
+		} else if requestBody.Status == "COMPLETE" {
+			completeStates := []sc.Status{sc.Failed, sc.Success}
+			result = slices.Contains(completeStates, t.Status)
+		}
+		return result
+	})
+
+	// name filter
+	taskListCopy = filter(taskListCopy, func(t sc.TaskRunMetadata) bool {
+		result := false
+		if requestBody.SearchText == "" {
+			result = true
+		} else if strings.Contains(strings.ToLower(t.Name), strings.ToLower(requestBody.SearchText)) {
+			result = true
+		}
+		return result
+	})
+
+	// date sort
+	if requestBody.SortBy == "STATUS_DATE" {
+		sort.Slice(taskListCopy, func(i, j int) bool {
+			return taskListCopy[i].StartTime.UnixMilli() > taskListCopy[j].StartTime.UnixMilli()
+		})
+	}
+
+	// status sort
+	if requestBody.SortBy == "STATUS" {
+		sort.Slice(taskListCopy, func(i, j int) bool {
+			l1, l2 := len(taskListCopy[i].Status), len(taskListCopy[j].Status)
+			if l1 != l2 {
+				return l1 < l2
+			}
+			return taskListCopy[i].Status < taskListCopy[j].Status
+		})
+	}
+
+	taskRunResponse := []TaskRunResponse{}
+	for _, loopRunItem := range taskListCopy {
+		taskRunResult := mockTaskFind(int(loopRunItem.TaskId))
+		taskRunResponse = append(taskRunResponse, TaskRunResponse{Task: taskRunResult, TaskRun: loopRunItem})
+	}
+
+	c.JSON(http.StatusOK, taskRunResponse)
+}
+
+type TaskRunDetailResponse struct {
+	TaskRun   sc.TaskRunMetadata   `json:"taskRun"`
+	OtherRuns []sc.TaskRunMetadata `json:"otherRuns"`
+}
+
+func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
+	taskRunId := c.Param("taskRunId")
+
+	if taskRunId == "" {
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	searchId, err := strconv.Atoi(taskRunId)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetTaskRunDetails - taskRunId is not a number!"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	noResultTaskId := sc.TaskRunID(-1)
+
+	//todox: replace mock find with lib call
+	taskRunResult := mockTaskRunFind(searchId)
+
+	//todox: create mock collect
+	otherRuns := []sc.TaskRunMetadata{}
+	if taskRunResult.ID != noResultTaskId {
+		for _, loopRunItem := range taskRunStaticList {
+			if loopRunItem.TaskId == taskRunResult.TaskId && loopRunItem.ID != taskRunResult.ID {
+				otherRuns = append(otherRuns, loopRunItem)
+			}
+		}
+	}
+
+	resp := TaskRunDetailResponse{
+		TaskRun:   taskRunResult,
+		OtherRuns: otherRuns,
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+type TriggerResponse struct {
+	ID        string            `json:"id"`
+	Name      string            `json:"name"`
+	Type      string            `json:"type"`
+	Schedule  string            `json:"schedule"`
+	Detail    string            `json:"detail"`
+	Resources []TriggerResource `json:"resources"`
+}
+
+type TriggerGetPostBody struct {
+	SearchText string `json:"searchtext"`
+}
+
+func (m *MetadataServer) GetTriggers(c *gin.Context) {
+	var requestBody TriggerGetPostBody
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "GetTriggers - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	triggerListCopy := make([]TriggerResponse, len(taskTriggerList))
+	_ = copy(triggerListCopy, taskTriggerList)
+
+	triggerListCopy = filter(triggerListCopy, func(t TriggerResponse) bool {
+		result := false
+		if requestBody.SearchText == "" {
+			result = true
+		} else if strings.Contains(strings.ToLower(t.Name), strings.ToLower(requestBody.SearchText)) {
+			result = true
+		}
+		return result
+	})
+
+	c.JSON(http.StatusOK, triggerListCopy)
+}
+
+type TriggerPostBody struct {
+	TriggerName string `json:"triggerName"`
+	Schedule    string `json:"schedule"`
+}
+
+func (m *MetadataServer) PostTrigger(c *gin.Context) {
+	var requestBody TriggerPostBody
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "PostTrigger - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	taskTriggerList = append(taskTriggerList,
+		TriggerResponse{
+			ID:       uuid.New().String(),
+			Name:     requestBody.TriggerName,
+			Type:     "Schedule Trigger",
+			Schedule: requestBody.Schedule,
+			Detail:   "Some Details", Resources: []TriggerResource{{ID: uuid.New().String(), Resource: "avg", Variant: "v1", LastRun: time.Now()}, {ID: uuid.New().String(), Resource: "avg", Variant: "v2", LastRun: time.Now()}}})
+
+	c.JSON(http.StatusCreated, true)
+}
+
+type TriggerDetailResponse struct {
+	Trigger   TriggerResponse   `json:"trigger"`
+	Owner     string            `json:"owner"`
+	Resources []TriggerResource `json:"resources"`
+}
+
+type TriggerResource struct {
+	ID       string    `json:"resourceId"`
+	Resource string    `json:"resource"`
+	Variant  string    `json:"variant"`
+	LastRun  time.Time `json:"lastRun"`
+}
+
+func (m *MetadataServer) GetTriggerDetails(c *gin.Context) {
+	triggerId := c.Param("triggerId")
+
+	if triggerId == "" {
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetTriggerDetails - Could not find the triggerId parameter"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	result := TriggerDetailResponse{}
+
+	for _, loopItem := range taskTriggerList {
+		if loopItem.ID == triggerId {
+			result.Owner = "Current User"
+			result.Trigger = loopItem
+			result.Resources = loopItem.Resources
+		}
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+func (m *MetadataServer) DeleteTrigger(c *gin.Context) {
+	deleteId := c.Param("triggerId")
+
+	if deleteId == "" {
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "DeleteTrigger - Could not find the triggerId parameter"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	result := []TriggerResponse{}
+
+	for _, loopItem := range taskTriggerList {
+		if loopItem.ID == deleteId {
+			if len(loopItem.Resources) >= 1 {
+				fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "DeleteTrigger - Cannot delete trigger with resource items"}
+				m.logger.Errorw(fetchError.Error(), "Metadata error")
+				c.JSON(fetchError.StatusCode, fetchError.Error())
+				return
+			}
+			continue
+		}
+		result = append(result, loopItem)
+	}
+
+	taskTriggerList = result //reset the list
+	c.JSON(http.StatusOK, true)
+}
+
+type TriggerResourceDelete struct {
+	TriggerId  string `json:"triggerId"`
+	ResourceId string `json:"resourceID"`
+}
+
+func (m *MetadataServer) DeleteTriggerResource(c *gin.Context) {
+	var requestBody TriggerResourceDelete
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "DeleteTriggerResource - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	//find the trigger and delete the resource, this eventually gets replaced with a live api calls
+	for outerIndex, triggerItem := range taskTriggerList {
+		if triggerItem.ID == requestBody.TriggerId {
+			newList := []TriggerResource{}
+			for _, resourceItem := range triggerItem.Resources {
+				if resourceItem.ID == requestBody.ResourceId {
+					continue
+				}
+				newList = append(newList, resourceItem)
+			}
+			//updated item
+			triggerItem.Resources = newList
+			taskTriggerList[outerIndex] = triggerItem
+			break
+		}
+	}
+	c.JSON(http.StatusOK, true)
+}
+
+type TriggerResourceAdd struct {
+	TriggerId string `json:"triggerId"`
+	Name      string `json:"name"`
+	Variant   string `json:"variant"`
+}
+
+func (m *MetadataServer) AddTriggerResource(c *gin.Context) {
+	var requestBody TriggerResourceAdd
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "AddTriggerResource - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	//find the trigger and add the resource, will eventually remove
+	for outerIndex, triggerItem := range taskTriggerList {
+		if triggerItem.ID == requestBody.TriggerId {
+			//create the new trigger resource
+			newResource := TriggerResource{
+				ID:       uuid.New().String(),
+				Resource: requestBody.Name,
+				Variant:  requestBody.Variant,
+				LastRun:  time.Now(),
+			}
+			//add the new item
+			triggerItem.Resources = append(triggerItem.Resources, newResource)
+			taskTriggerList[outerIndex] = triggerItem
+			break
+		}
+	}
+	c.JSON(http.StatusOK, true)
+}
+
 func (m *MetadataServer) Start(port string) {
 	router := gin.Default()
 	router.Use(cors.Default())
@@ -1534,6 +1792,15 @@ func (m *MetadataServer) Start(port string) {
 	router.GET("/data/filestatdata", m.GetFeatureFileStats)
 	router.POST("/data/:type/:resource/gettags", m.GetTags)
 	router.POST("/data/:type/:resource/tags", m.PostTags)
+	router.POST("/data/taskruns", m.GetTaskRuns)
+	router.GET("/data/taskruns/taskrundetail/:taskRunId", m.GetTaskRunDetails)
+
+	router.POST("/data/triggers", m.GetTriggers)
+	router.POST("/data/posttrigger", m.PostTrigger)
+	router.GET("/data/triggerdetail/:triggerId", m.GetTriggerDetails)
+	router.DELETE("/data/triggerdelete/:triggerId", m.DeleteTrigger)
+	router.POST("/data/triggerdeleteresource", m.DeleteTriggerResource)
+	router.POST("/data/triggeraddresource", m.AddTriggerResource)
 	router.Run(port)
 }
 
@@ -1554,11 +1821,19 @@ func main() {
 	if err != nil {
 		logger.Panicw("Failed to create new meil search", err)
 	}
+	CreateDummyTaskRuns(360)
+	taskTriggerList = append(taskTriggerList,
+		TriggerResponse{
+			ID:       uuid.New().String(),
+			Name:     "Monday at Noon",
+			Type:     "Schedule Trigger",
+			Schedule: "0 12**MON",
+			Detail:   "Some details"})
 
 	SearchClient = sc
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	logger.Infof("Looking for metadata at: %s\n", metadataAddress)
-	client, err := metadata.NewClient(metadataAddress, logger)
+	client, err := metadata.NewClient(metadataAddress, logging.WrapZapLogger(logger))
 	if err != nil {
 		logger.Panicw("Failed to connect", "error", err)
 	}

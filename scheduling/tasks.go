@@ -6,8 +6,7 @@ import (
 	"time"
 )
 
-type TaskId int32 // need to determine how we want to create IDs
-type RunId int32  // need to determine how we want to create IDs
+type TaskID int32 // need to determine how we want to create IDs
 type TaskType string
 
 const (
@@ -24,21 +23,20 @@ const (
 )
 
 type Provider struct {
-	Name       string     `json:"name"`
-	TargetType TargetType `json:"targetType"`
+	Name string `json:"name"`
 }
 
 type NameVariant struct {
-	Name       string     `json:"name"`
-	TargetType TargetType `json:"targetType"`
+	Name    string `json:"name"`
+	Variant string `json:"variant"`
 }
 
 func (p Provider) Type() TargetType {
-	return p.TargetType
+	return ProviderTarget
 }
 
 func (nv NameVariant) Type() TargetType {
-	return nv.TargetType
+	return NameVariantTarget
 }
 
 type TaskTarget interface {
@@ -46,10 +44,11 @@ type TaskTarget interface {
 }
 
 type TaskMetadata struct {
-	ID          TaskId     `json:"id"`
+	ID          TaskID     `json:"id"`
 	Name        string     `json:"name"`
 	TaskType    TaskType   `json:"type"`
 	Target      TaskTarget `json:"target"`
+	TargetType  TargetType `json:"targetType"`
 	DateCreated time.Time  `json:"dateCreated"`
 }
 
@@ -60,10 +59,11 @@ func (t *TaskMetadata) Marshal() ([]byte, error) {
 func (t *TaskMetadata) Unmarshal(data []byte) error {
 
 	type tempConfig struct {
-		ID          TaskId          `json:"id"`
+		ID          TaskID          `json:"id"`
 		Name        string          `json:"name"`
 		TaskType    TaskType        `json:"type"`
 		Target      json.RawMessage `json:"target"`
+		TargetType  TargetType      `json:"targetType"`
 		DateCreated time.Time       `json:"dateCreated"`
 	}
 
@@ -91,31 +91,28 @@ func (t *TaskMetadata) Unmarshal(data []byte) error {
 	}
 	t.DateCreated = temp.DateCreated
 
+	t.TargetType = temp.TargetType
+
 	targetMap := make(map[string]interface{})
 	if err := json.Unmarshal(temp.Target, &targetMap); err != nil {
 		return fmt.Errorf("failed to deserialize target data: %w", err)
 	}
 
-	if _, ok := targetMap["targetType"]; !ok {
-		return fmt.Errorf("target type is missing")
-	}
-
-	switch targetMap["targetType"] {
-	case string(ProviderTarget):
+	switch temp.TargetType {
+	case ProviderTarget:
 		var provider Provider
 		if err := json.Unmarshal(temp.Target, &provider); err != nil {
 			return fmt.Errorf("failed to deserialize Provider data: %w", err)
 		}
 		t.Target = provider
-	case string(NameVariantTarget):
-		var namevariant NameVariant
-		if err := json.Unmarshal(temp.Target, &namevariant); err != nil {
+	case NameVariantTarget:
+		var nameVariant NameVariant
+		if err := json.Unmarshal(temp.Target, &nameVariant); err != nil {
 			return fmt.Errorf("failed to deserialize NameVariant data: %w", err)
 		}
-		t.Target = namevariant
+		t.Target = nameVariant
 	default:
-		return fmt.Errorf("unknown target type: %s", targetMap["targetType"])
+		return fmt.Errorf("unknown target type: %s", temp.TargetType)
 	}
 	return nil
-
 }

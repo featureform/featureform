@@ -1,41 +1,45 @@
 import { makeStyles } from '@mui/styles';
 
 const useStyles = makeStyles(() => ({
-  intputRow: {
-    paddingBottom: 30,
+  inputRow: {
+    paddingBottom: 10,
     '& button': {
-      height: 56,
+      height: 40,
     },
   },
   activeButton: {
-    color: 'white',
-    backgroundColor: '#FC195C',
-    '&:hover': {
-      backgroundColor: '#FC195C',
-    },
+    color: '#000000',
+    fontWeight: 'bold',
   },
   activeChip: {
-    color: 'black',
-    background: 'white',
+    color: '#FFFFFF',
+    background: '#7A14E5',
+    height: 20,
+    width: 45,
+    fontSize: 11,
   },
   inactiveChip: {
-    color: 'white',
-    background: '#FC195C',
+    color: '#FFFFFF',
+    background: '#BFBFBF',
+    height: 20,
+    width: 45,
+    fontSize: 11,
   },
   inactiveButton: {
-    color: 'black',
-    background: 'white',
+    color: '#000000',
+    background: '#FFFFFF',
   },
   buttonText: {
     textTransform: 'none',
     paddingRight: 10,
   },
   filterInput: {
-    minWidth: 250,
+    minWidth: 225,
+    height: 40,
   },
   taskCardBox: {
-    height: 650,
-    width: 650,
+    height: 750,
+    width: 700,
   },
 }));
 

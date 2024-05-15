@@ -2,12 +2,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import base64
 import json
 import os
 import re
 import sys
-import time
 from abc import ABC
 from typing import Any, Dict
 from typing import List, Tuple, Union, Optional
@@ -16,8 +14,10 @@ import dill
 import grpc
 from dataclasses import field
 from google.protobuf.duration_pb2 import Duration
+from google.rpc import error_details_pb2
 
 from . import feature_flag
+from .types import VectorType, type_from_proto
 from .enums import *
 from .exceptions import *
 from .version import check_up_to_date
@@ -799,6 +799,45 @@ class Properties:
             self.serialized.property[key].string_value = val
 
 
+@dataclass
+class ErrorInfo:
+    code: int
+    message: str
+    reason: str
+    metadata: Dict[str, str]
+
+
+@dataclass
+class ServerStatus:
+    status: ResourceStatus
+    error_info: Optional[ErrorInfo]
+
+    @staticmethod
+    def from_proto(resource_status_proto: pb.ResourceStatus):
+        error_info = None
+        if resource_status_proto.HasField("error_status"):
+            code = resource_status_proto.error_status.code
+            message = resource_status_proto.error_status.message
+
+            error = resource_status_proto.error_status.details[0]
+            error_info = error_details_pb2.ErrorInfo()
+            if error.Is(error_details_pb2.ErrorInfo.DESCRIPTOR):
+                error.Unpack(error_info)
+                error_info = ErrorInfo(
+                    code=code,
+                    message=message,
+                    reason=error_info.reason,
+                    metadata=error_info.metadata,
+                )
+            else:
+                print("The Any field does not contain an ErrorInfo")
+
+        return ServerStatus(
+            status=ResourceStatus.from_proto(resource_status_proto),
+            error_info=error_info,
+        )
+
+
 @typechecked
 @dataclass
 class Provider:
@@ -812,6 +851,7 @@ class Provider:
     properties: dict = field(default_factory=dict)
     error: Optional[str] = None
     has_health_check: bool = False
+    server_status: Optional["ServerStatus"] = None
 
     def __post_init__(self):
         self.software = self.config.software() if self.config is not None else None
@@ -821,6 +861,7 @@ class Provider:
             "POSTGRES_OFFLINE",
             "SPARK_OFFLINE",
             "REDSHIFT_OFFLINE",
+            "CLICKHOUSE_OFFLINE",
         ]:
             self.has_health_check = True
 
@@ -833,7 +874,7 @@ class Provider:
         return "provider"
 
     def get(self, stub) -> "Provider":
-        name = pb.Name(name=self.name)
+        name = pb.NameRequest(name=pb.Name(name=self.name))
         provider = next(stub.GetProviders(iter([name])))
 
         return Provider(
@@ -848,18 +889,22 @@ class Provider:
                 provider.status.status
             ].name,
             error=provider.status.error_message,
+            server_status=ServerStatus.from_proto(provider.status),
         )
 
     def _create(self, stub) -> None:
-        serialized = pb.Provider(
-            name=self.name,
-            description=self.description,
-            type=self.config.type(),
-            software=self.config.software(),
-            team=self.team,
-            serialized_config=self.config.serialize(),
-            tags=pb.Tags(tag=self.tags),
-            properties=Properties(self.properties).serialized,
+        serialized = pb.ProviderRequest(
+            provider=pb.Provider(
+                name=self.name,
+                description=self.description,
+                type=self.config.type(),
+                software=self.config.software(),
+                team=self.team,
+                serialized_config=self.config.serialize(),
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+            ),
+            request_id="",
         )
         stub.CreateProvider(serialized)
 
@@ -893,11 +938,15 @@ class User:
         return "user"
 
     def _create(self, stub) -> None:
-        serialized = pb.User(
-            name=self.name,
-            tags=pb.Tags(tag=self.tags),
-            properties=Properties(self.properties).serialized,
+        serialized = pb.UserRequest(
+            user=pb.User(
+                name=self.name,
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+            ),
+            request_id="",
         )
+
         stub.CreateUser(serialized)
 
     def to_dictionary(self):
@@ -927,6 +976,7 @@ Location = Union[SQLTable, Directory]
 class ResourceVariant(ABC):
     name: str
     variant: str
+    server_status: ServerStatus
 
     @staticmethod
     def type():
@@ -1103,6 +1153,7 @@ class SourceVariant(ResourceVariant):
     transformation: str = ""
     inputs: list = ([],)
     error: Optional[str] = None
+    server_status: Optional[ServerStatus] = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1122,7 +1173,9 @@ class SourceVariant(ResourceVariant):
         return "source"
 
     def get(self, stub):
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(
+            name_variant=pb.NameVariant(name=self.name, variant=self.variant)
+        )
         source = next(stub.GetSourceVariants(iter([name_variant])))
         definition = self._get_source_definition(source)
 
@@ -1138,6 +1191,7 @@ class SourceVariant(ResourceVariant):
             properties={k: v for k, v in source.properties.property.items()},
             status=source.status.Status._enum_type.values[source.status.status].name,
             error=source.status.error_message,
+            server_status=ServerStatus.from_proto(source.status),
         )
 
     def _get_source_definition(self, source):
@@ -1164,22 +1218,26 @@ class SourceVariant(ResourceVariant):
     def _create(self, stub) -> Optional[str]:
         defArgs = self.definition.kwargs()
 
-        serialized = pb.SourceVariant(
-            created=None,
-            name=self.name,
-            variant=self.variant,
-            owner=self.owner,
-            description=self.description,
-            schedule=self.schedule,
-            provider=self.provider,
-            tags=pb.Tags(tag=self.tags),
-            properties=Properties(self.properties).serialized,
-            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
-            **defArgs,
+        serialized = pb.SourceVariantRequest(
+            source_variant=pb.SourceVariant(
+                created=None,
+                name=self.name,
+                variant=self.variant,
+                owner=self.owner,
+                description=self.description,
+                schedule=self.schedule,
+                provider=self.provider,
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+                status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+                **defArgs,
+            ),
+            request_id="",
         )
+
         _get_and_set_equivalent_variant(serialized, "source_variant", stub)
         stub.CreateSourceVariant(serialized)
-        return serialized.variant
+        return serialized.source_variant.variant
 
     def get_status(self):
         return ResourceStatus(self.status)
@@ -1209,12 +1267,16 @@ class Entity:
         return "entity"
 
     def _create(self, stub) -> None:
-        serialized = pb.Entity(
-            name=self.name,
-            description=self.description,
-            tags=pb.Tags(tag=self.tags),
-            properties=Properties(self.properties).serialized,
+        serialized = pb.EntityRequest(
+            entity=pb.Entity(
+                name=self.name,
+                description=self.description,
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+            ),
+            request_id="",
         )
+
         stub.CreateEntity(serialized)
 
     def to_dictionary(self):
@@ -1244,6 +1306,7 @@ class ResourceColumnMapping:
 
 ResourceLocation = ResourceColumnMapping
 
+
 @typechecked
 @dataclass
 class TriggerResource:
@@ -1262,10 +1325,10 @@ class TriggerResource:
     def _create(self, stub) -> None:
         serialized = pb.Trigger(
             name=self.name,
-            schedule_trigger=pb.ScheduleTrigger(schedule = self.trigger_type),
-                job_ids=self.job_ids,
-                task_ids=self.task_ids
-            )
+            schedule_trigger=pb.ScheduleTrigger(schedule=self.trigger_type),
+            job_ids=self.job_ids,
+            task_ids=self.task_ids,
+        )
         stub.CreateTrigger(serialized)
 
     def to_dictionary(self):
@@ -1275,6 +1338,7 @@ class TriggerResource:
             "job_ids": self.job_ids,
             "task_ids": self.task_ids,
         }
+
 
 @typechecked
 @dataclass
@@ -1319,7 +1383,7 @@ Additional_Parameters = Union[
 class FeatureVariant(ResourceVariant):
     name: str
     source: Any
-    value_type: str
+    value_type: Union[VectorType, ScalarType, str]
     entity: str
     owner: str
     location: ResourceLocation
@@ -1327,8 +1391,6 @@ class FeatureVariant(ResourceVariant):
     variant: str
     provider: Optional[str] = None
     created: str = None
-    is_embedding: bool = False
-    dims: int = 0
     tags: list = None
     properties: dict = None
     schedule: str = ""
@@ -1337,13 +1399,11 @@ class FeatureVariant(ResourceVariant):
     error: Optional[str] = None
     additional_parameters: Optional[Additional_Parameters] = None
     trigger: TriggerResource = None
+    server_status: Optional[ServerStatus] = None
 
     def __post_init__(self):
-        col_types = [member.value for member in ScalarType]
-        if self.value_type not in col_types:
-            raise ValueError(
-                f"Invalid feature type ({self.value_type}) must be one of: {col_types}"
-            )
+        if isinstance(self.value_type, str):
+            self.value_type = ScalarType(self.value_type)
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1363,16 +1423,16 @@ class FeatureVariant(ResourceVariant):
         return "feature"
 
     def get(self, stub) -> "FeatureVariant":
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(
+            name_variant=pb.NameVariant(name=self.name, variant=self.variant)
+        )
         feature = next(stub.GetFeatureVariants(iter([name_variant])))
         return FeatureVariant(
             created=None,
             name=feature.name,
             variant=feature.variant,
             source=(feature.source.name, feature.source.variant),
-            value_type=feature.type,
-            is_embedding=feature.is_embedding,
-            dims=feature.dimension,
+            value_type=type_from_proto(feature.type),
             entity=feature.entity,
             owner=feature.owner,
             provider=feature.provider,
@@ -1382,8 +1442,15 @@ class FeatureVariant(ResourceVariant):
             properties={k: v for k, v in feature.properties.property.items()},
             status=feature.status.Status._enum_type.values[feature.status.status].name,
             error=feature.status.error_message,
+            server_status=ServerStatus.from_proto(feature.status),
             additional_parameters=None,
-            trigger=TriggerResource(name=feature.trigger.name,trigger_type=str(feature.trigger.schedule_trigger),job_ids=list(feature.trigger.job_ids),task_ids=list(feature.trigger.task_ids)))
+            trigger=TriggerResource(
+                name=feature.trigger.name,
+                trigger_type=str(feature.trigger.schedule_trigger),
+                job_ids=list(feature.trigger.job_ids),
+                task_ids=list(feature.trigger.task_ids),
+            ),
+        )
 
     def _create(self, stub) -> Optional[str]:
         if hasattr(self.source, "name_variant"):
@@ -1394,18 +1461,21 @@ class FeatureVariant(ResourceVariant):
         else:
             schedule_trigger = pb.ScheduleTrigger()
             schedule_trigger.schedule = self.trigger.trigger_type
-            trig = pb.Trigger(name=self.trigger.name, schedule_trigger=schedule_trigger, job_ids=self.trigger.job_ids, task_ids=self.trigger.task_ids)
+            trig = pb.Trigger(
+                name=self.trigger.name,
+                schedule_trigger=schedule_trigger,
+                job_ids=self.trigger.job_ids,
+                task_ids=self.trigger.task_ids,
+            )
 
-        serialized = pb.FeatureVariant(
+        feature_variant_message = pb.FeatureVariant(
             name=self.name,
             variant=self.variant,
             source=pb.NameVariant(
                 name=self.source[0],
                 variant=self.source[1],
             ),
-            type=self.value_type,
-            is_embedding=self.is_embedding,
-            dimension=self.dims,
+            type=self.value_type.to_proto(),
             entity=self.entity,
             owner=self.owner,
             description=self.description,
@@ -1417,11 +1487,18 @@ class FeatureVariant(ResourceVariant):
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
             additional_parameters=None,
-            trigger=trig
+            trigger=trig,
         )
+
+        # Initialize the FeatureVariantRequest message with the FeatureVariant message
+        serialized = pb.FeatureVariantRequest(
+            feature_variant=feature_variant_message,
+            request_id="",
+        )
+
         _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
-        return serialized.variant
+        return serialized.feature_variant.variant
 
     def get_status(self):
         return ResourceStatus(self.status)
@@ -1442,6 +1519,7 @@ class OnDemandFeatureVariant(ResourceVariant):
     status: str = "READY"
     error: Optional[str] = None
     additional_parameters: Optional[Additional_Parameters] = None
+    server_status: Optional[ServerStatus] = None
 
     def __call__(self, fn):
         if self.description == "" and fn.__doc__ is not None:
@@ -1468,24 +1546,30 @@ class OnDemandFeatureVariant(ResourceVariant):
         return "ondemand_feature"
 
     def _create(self, stub) -> Optional[str]:
-        serialized = pb.FeatureVariant(
-            name=self.name,
-            variant=self.variant,
-            owner=self.owner,
-            description=self.description,
-            function=pb.PythonFunction(query=self.query),
-            mode=ComputationMode.CLIENT_COMPUTED.proto(),
-            tags=pb.Tags(tag=self.tags),
-            properties=Properties(self.properties).serialized,
-            status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
-            additional_parameters=self.additional_parameters.proto(),
+        serialized = pb.FeatureVariantRequest(
+            feature_variant=pb.FeatureVariant(
+                name=self.name,
+                variant=self.variant,
+                owner=self.owner,
+                description=self.description,
+                function=pb.PythonFunction(query=self.query),
+                mode=ComputationMode.CLIENT_COMPUTED.proto(),
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+                status=pb.ResourceStatus(status=pb.ResourceStatus.READY),
+                additional_parameters=self.additional_parameters.proto(),
+            ),
+            request_id="",
         )
+
         _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
         stub.CreateFeatureVariant(serialized)
-        return serialized.variant
+        return serialized.feature_variant.variant
 
     def get(self, stub) -> "OnDemandFeatureVariant":
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(
+            name_variant=pb.NameVariant(name=self.name, variant=self.variant)
+        )
         ondemand_feature = next(stub.GetFeatureVariants(iter([name_variant])))
         additional_Parameters = self._get_additional_parameters(ondemand_feature)
 
@@ -1513,7 +1597,6 @@ class OnDemandFeatureVariant(ResourceVariant):
         return self.status == ResourceStatus.READY.value
 
 
-
 @typechecked
 @dataclass
 class Label:
@@ -1534,7 +1617,7 @@ class Label:
 class LabelVariant(ResourceVariant):
     name: str
     source: Any
-    value_type: str
+    value_type: Union[VectorType, ScalarType, str]
     entity: str
     owner: str
     description: str
@@ -1546,13 +1629,11 @@ class LabelVariant(ResourceVariant):
     created: str = None
     status: str = "NO_STATUS"
     error: Optional[str] = None
+    server_status: Optional[ServerStatus] = None
 
     def __post_init__(self):
-        col_types = [member.value for member in ScalarType]
-        if self.value_type not in col_types:
-            raise ValueError(
-                f"Invalid label type ({self.value_type}) must be one of: {col_types}"
-            )
+        if isinstance(self.value_type, str):
+            self.value_type = ScalarType(self.value_type)
 
     @staticmethod
     def operation_type() -> OperationType:
@@ -1563,14 +1644,16 @@ class LabelVariant(ResourceVariant):
         return "label"
 
     def get(self, stub) -> "LabelVariant":
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(
+            name_variant=pb.NameVariant(name=self.name, variant=self.variant)
+        )
         label = next(stub.GetLabelVariants(iter([name_variant])))
 
         return LabelVariant(
             name=label.name,
             variant=label.variant,
             source=(label.source.name, label.source.variant),
-            value_type=label.type,
+            value_type=type_from_proto(label.type),
             entity=label.entity,
             owner=label.owner,
             provider=label.provider,
@@ -1579,31 +1662,36 @@ class LabelVariant(ResourceVariant):
             tags=list(label.tags.tag),
             properties={k: v for k, v in label.properties.property.items()},
             status=label.status.Status._enum_type.values[label.status.status].name,
+            server_status=ServerStatus.from_proto(label.status),
             error=label.status.error_message,
         )
 
     def _create(self, stub) -> Optional[str]:
         if hasattr(self.source, "name_variant"):
             self.source = self.source.name_variant()
-        serialized = pb.LabelVariant(
-            name=self.name,
-            variant=self.variant,
-            source=pb.NameVariant(
-                name=self.source[0],
-                variant=self.source[1],
+        serialized = pb.LabelVariantRequest(
+            label_variant=pb.LabelVariant(
+                name=self.name,
+                variant=self.variant,
+                source=pb.NameVariant(
+                    name=self.source[0],
+                    variant=self.source[1],
+                ),
+                type=self.value_type.to_proto(),
+                entity=self.entity,
+                owner=self.owner,
+                description=self.description,
+                columns=self.location.proto(),
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+                status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
             ),
-            type=self.value_type,
-            entity=self.entity,
-            owner=self.owner,
-            description=self.description,
-            columns=self.location.proto(),
-            tags=pb.Tags(tag=self.tags),
-            properties=Properties(self.properties).serialized,
-            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+            request_id="",
         )
+
         _get_and_set_equivalent_variant(serialized, "label_variant", stub)
         stub.CreateLabelVariant(serialized)
-        return serialized.variant
+        return serialized.label_variant.variant
 
     def get_status(self):
         return ResourceStatus(self.status)
@@ -1627,7 +1715,9 @@ class EntityReference:
         return "entity"
 
     def _get(self, stub):
-        entityList = stub.GetEntities(iter([pb.Name(name=self.name)]))
+        entityList = stub.GetEntities(
+            iter([pb.NameRequest(name=pb.Name(name=self.name))])
+        )
         try:
             for entity in entityList:
                 self.obj = entity
@@ -1651,7 +1741,9 @@ class ProviderReference:
         return "provider"
 
     def _get(self, stub):
-        providerList = stub.GetProviders(iter([pb.Name(name=self.name)]))
+        providerList = stub.GetProviders(
+            iter([pb.NameRequest(name=pb.Name(name=self.name))])
+        )
         try:
             for provider in providerList:
                 self.obj = provider
@@ -1678,7 +1770,15 @@ class SourceReference:
 
     def _get(self, stub):
         sourceList = stub.GetSourceVariants(
-            iter([pb.NameVariant(name=self.name, variant=self.variant)])
+            iter(
+                [
+                    pb.NameVariantRequest(
+                        name_variant=pb.NameVariant(
+                            name=self.name, variant=self.variant
+                        )
+                    )
+                ]
+            )
         )
         try:
             for source in sourceList:
@@ -1721,6 +1821,7 @@ class TrainingSetVariant(ResourceVariant):
     status: str = "NO_STATUS"
     error: Optional[str] = None
     trigger: TriggerResource = None
+    server_status: Optional[ServerStatus] = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1755,7 +1856,9 @@ class TrainingSetVariant(ResourceVariant):
         return "training-set"
 
     def get(self, stub):
-        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        name_variant = pb.NameVariantRequest(
+            name_variant=pb.NameVariant(name=self.name, variant=self.variant)
+        )
         ts = next(stub.GetTrainingSetVariants(iter([name_variant])))
 
         return TrainingSetVariant(
@@ -1772,7 +1875,14 @@ class TrainingSetVariant(ResourceVariant):
             tags=list(ts.tags.tag),
             properties={k: v for k, v in ts.properties.property.items()},
             error=ts.status.error_message,
-            trigger=TriggerResource(name=ts.trigger.name,trigger_type=str(ts.trigger.schedule_trigger),job_ids=list(ts.trigger.job_ids),task_ids=list(ts.trigger.task_ids)))
+            trigger=TriggerResource(
+                name=ts.trigger.name,
+                trigger_type=str(ts.trigger.schedule_trigger),
+                job_ids=list(ts.trigger.job_ids),
+                task_ids=list(ts.trigger.task_ids),
+            ),
+            server_status=ServerStatus.from_proto(ts.status),
+        )
 
     def _create(self, stub) -> Optional[str]:
         feature_lags = []
@@ -1799,26 +1909,36 @@ class TrainingSetVariant(ResourceVariant):
         else:
             schedule_trigger = pb.ScheduleTrigger()
             schedule_trigger.schedule = self.trigger.trigger_type
-            trig = pb.Trigger(name=self.trigger.name, schedule_trigger=schedule_trigger, job_ids=self.trigger.job_ids, task_ids=self.trigger.task_ids)
+            trig = pb.Trigger(
+                name=self.trigger.name,
+                schedule_trigger=schedule_trigger,
+                job_ids=self.trigger.job_ids,
+                task_ids=self.trigger.task_ids,
+            )
 
-        serialized = pb.TrainingSetVariant(
-            created=None,
-            name=self.name,
-            variant=self.variant,
-            description=self.description,
-            schedule=self.schedule,
-            owner=self.owner,
-            features=[pb.NameVariant(name=v[0], variant=v[1]) for v in self.features],
-            label=pb.NameVariant(name=self.label[0], variant=self.label[1]),
-            feature_lags=feature_lags,
-            tags=pb.Tags(tag=self.tags),
-            properties=Properties(self.properties).serialized,
-            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
-            trigger=trig
+        serialized = pb.TrainingSetVariantRequest(
+            training_set_variant=pb.TrainingSetVariant(
+                created=None,
+                name=self.name,
+                variant=self.variant,
+                description=self.description,
+                schedule=self.schedule,
+                owner=self.owner,
+                features=[
+                    pb.NameVariant(name=v[0], variant=v[1]) for v in self.features
+                ],
+                label=pb.NameVariant(name=self.label[0], variant=self.label[1]),
+                feature_lags=feature_lags,
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+                status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+                trigger=trig,
+            ),
+            request_id="",
         )
         _get_and_set_equivalent_variant(serialized, "training_set_variant", stub)
         stub.CreateTrainingSetVariant(serialized)
-        return serialized.variant
+        return serialized.training_set_variant.variant
 
     def get_status(self):
         return ResourceStatus(self.status)
@@ -1844,11 +1964,15 @@ class Model:
 
     def _create(self, stub) -> None:
         properties = pb.Properties(property=self.properties)
-        serialized = pb.Model(
-            name=self.name,
-            tags=pb.Tags(tag=self.tags),
-            properties=Properties(self.properties).serialized,
+        serialized = pb.ModelRequest(
+            model=pb.Model(
+                name=self.name,
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+            ),
+            request_id="",
         )
+
         stub.CreateModel(serialized)
 
     def to_dictionary(self):
@@ -1985,6 +2109,7 @@ class ResourceState:
                     continue
 
                 raise e
+
 
 ## Executor Providers
 @typechecked
@@ -2261,10 +2386,16 @@ def _get_and_set_equivalent_variant(
     resource_variant_proto, variant_field, stub
 ) -> Optional[str]:
     if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
-        # Get equivalent from stub
-        equivalent = stub.GetEquivalent(
-            pb.ResourceVariant(**{variant_field: resource_variant_proto})
+        res_pb = pb.ResourceVariant(
+            **{variant_field: getattr(resource_variant_proto, variant_field)}
         )
+        equivalent = stub.GetEquivalent(
+            pb.ResourceVariantRequest(
+                resource_variant=res_pb,
+                request_id=resource_variant_proto.request_id,
+            )
+        )
+        rv_proto = getattr(resource_variant_proto, variant_field)
 
         # grpc call returns the default ResourceVariant proto when equivalent doesn't exist which explains the below check
         if equivalent != pb.ResourceVariant():
@@ -2274,7 +2405,7 @@ def _get_and_set_equivalent_variant(
                 variant_value,
             )
             # TODO add confirmation from user before using equivalent variant
-            resource_variant_proto.variant = variant_value
+            rv_proto.variant = variant_value
             return variant_value
     return None
 

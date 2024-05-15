@@ -39,8 +39,11 @@ func (m MockOfflineCreateTransformationFail) CreateTrainingSet(provider.Training
 func (m MockOfflineCreateTransformationFail) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
 	return nil, nil
 }
-func (m MockOfflineCreateTransformationFail) GetTrainingSetTestSplit(id provider.ResourceID, testSize float32, shuffle bool, randomState int) (provider.TrainingSetIterator, provider.TrainingSetIterator, func() error, error) {
-	return nil, nil, nil, nil
+func (m MockOfflineCreateTransformationFail) CreateTrainTestSplit(provider.TrainTestSplitDef) (func() error, error) {
+	return nil, nil
+}
+func (m MockOfflineCreateTransformationFail) GetTrainTestSplit(provider.TrainTestSplitDef) (provider.TrainingSetIterator, provider.TrainingSetIterator, error) {
+	return nil, nil, nil
 }
 
 func (m MockOfflineCreateTransformationFail) GetBatchFeatures(tables []provider.ResourceID) (provider.BatchFeatureIterator, error) {
@@ -135,7 +138,6 @@ type ErrorTransformationFactoryConfigs struct {
 }
 
 func TestCreateTransformationRunnerFactoryErrorCoverage(t *testing.T) {
-	ResetFactoryMap()
 	transformationSerialize := func(ts CreateTransformationConfig) Config {
 		config, err := ts.Serialize()
 		if err != nil {
@@ -175,7 +177,6 @@ func TestCreateTransformationRunnerFactoryErrorCoverage(t *testing.T) {
 }
 
 func TestTransformationFactory(t *testing.T) {
-	ResetFactoryMap()
 	transformationSerialize := func(ts CreateTransformationConfig) Config {
 		config, err := ts.Serialize()
 		if err != nil {

@@ -9,6 +9,7 @@ dist
 **/.idea/
 **.env
 .terraform**
+grpc_debug.log
 terrafo
 rm.**
 **/*pb*
@@ -32,7 +33,7 @@ client/src/featureform/proto/
 iris.csv
 provider/scripts/spark/tests/test_files/output
 
-# End to End Tests ouput
+# End to End Tests output
 tests/end_to_end/feature.txt 
 tests/end_to_end/version.txt
 tests/end_to_end/behave_report/*
@@ -50,8 +51,8 @@ backup/*.json.attrs
 snapshot.json
 
 # Offline Tests
-provider/generic_records_*.parquet
-provider/part-000*.parquet
+provider/test_files/output/generic_records_*.parquet
+provider/test_files/output/part-000*.parquet
 
 # Test Requirements:
 tls.crt
@@ -62,3 +63,4 @@ featureform_quickstart
 quickstart
 .coverage*
 *.out
+docker_logs.txt

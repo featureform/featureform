@@ -3,11 +3,7 @@ package provider
 import (
 	"crypto/tls"
 	"database/sql"
-	"errors"
 	"fmt"
-	"github.com/ClickHouse/clickhouse-go/v2"
-	pc "github.com/featureform/provider/provider_config"
-	pt "github.com/featureform/provider/provider_type"
 	"math"
 	"math/rand"
 	"reflect"
@@ -15,6 +11,12 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/featureform/fferr"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 )
 
 const (
@@ -41,11 +43,11 @@ func sanitizeCH(ident string) string {
 	return "`" + s + "`"
 }
 
-type ClickHouseOfflineStore struct {
+type clickHouseOfflineStore struct {
 	sqlOfflineStore
 }
 
-func (store *ClickHouseOfflineStore) getResourceTableName(id ResourceID) (string, error) {
+func (store *clickHouseOfflineStore) getResourceTableName(id ResourceID) (string, error) {
 	if err := checkName(id); err != nil {
 		return "", err
 	}
@@ -58,14 +60,14 @@ func (store *ClickHouseOfflineStore) getResourceTableName(id ResourceID) (string
 	return fmt.Sprintf("featureform_resource_%s__%s__%s", idType, id.Name, id.Variant), nil
 }
 
-func (store *ClickHouseOfflineStore) getTrainingSetName(id ResourceID) (string, error) {
+func (store *clickHouseOfflineStore) getTrainingSetName(id ResourceID) (string, error) {
 	if err := checkName(id); err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("featureform_trainingset__%s__%s", id.Name, id.Variant), nil
 }
 
-func (store *ClickHouseOfflineStore) tableExists(id ResourceID) (bool, error) {
+func (store *clickHouseOfflineStore) tableExists(id ResourceID) (bool, error) {
 	n := -1
 	var tableName string
 	var err error
@@ -77,43 +79,43 @@ func (store *ClickHouseOfflineStore) tableExists(id ResourceID) (bool, error) {
 		tableName, err = GetPrimaryTableName(id)
 	}
 	if err != nil {
-		return false, fmt.Errorf("type check: %v: %v", id, err)
+		return false, err
 	}
 	query := store.query.tableExists()
 	err = store.db.QueryRow(query, tableName).Scan(&n)
 	if n > 0 && err == nil {
 		return true, nil
 	} else if err != nil {
-		return false, fmt.Errorf("table exists check: %v", err)
+		return false, fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	query = store.query.viewExists()
 	err = store.db.QueryRow(query, tableName).Scan(&n)
 	if n > 0 && err == nil {
 		return true, nil
 	} else if err != nil {
-		return false, fmt.Errorf("view exists check: %v", err)
+		return false, fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	return false, nil
 }
 
-func (store *ClickHouseOfflineStore) createTransformationName(id ResourceID) (string, error) {
+func (store *clickHouseOfflineStore) createTransformationName(id ResourceID) (string, error) {
 	switch id.Type {
 	case Transformation:
 		return GetPrimaryTableName(id)
 	case Label:
-		return "", TransformationTypeError{"Invalid Transformation Type: Label"}
+		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Label"))
 	case Feature:
-		return "", TransformationTypeError{"Invalid Transformation Type: Feature"}
+		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Feature"))
 	case TrainingSet:
-		return "", TransformationTypeError{"Invalid Transformation Type: Training Set"}
+		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Training Set"))
 	case Primary:
-		return "", TransformationTypeError{"Invalid Transformation Type: Primary"}
+		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Primary"))
 	default:
-		return "", TransformationTypeError{"Invalid Transformation Type"}
+		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type"))
 	}
 }
 
-func (store *ClickHouseOfflineStore) createsqlPrimaryTableQuery(name string, schema TableSchema) (string, error) {
+func (store *clickHouseOfflineStore) createsqlPrimaryTableQuery(name string, schema TableSchema) (string, error) {
 	columns := make([]string, 0)
 	for _, column := range schema.Columns {
 		columnType, err := store.query.determineColumnType(column.ValueType)
@@ -127,14 +129,16 @@ func (store *ClickHouseOfflineStore) createsqlPrimaryTableQuery(name string, sch
 	return store.query.primaryTableCreate(name, columnString), nil
 }
 
-func (store *ClickHouseOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema TableSchema) (*clickhousePrimaryTable, error) {
+func (store *clickHouseOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema TableSchema) (*clickhousePrimaryTable, error) {
 	query, err := store.createsqlPrimaryTableQuery(name, schema)
 	if err != nil {
 		return nil, err
 	}
 	_, err = db.Exec(query)
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", name)
+		return nil, wrapped
 	}
 	return &clickhousePrimaryTable{
 		db:     db,
@@ -144,7 +148,7 @@ func (store *ClickHouseOfflineStore) newsqlPrimaryTable(db *sql.DB, name string,
 	}, nil
 }
 
-func (store *ClickHouseOfflineStore) getValueIndex(columns []TableColumn) int {
+func (store *clickHouseOfflineStore) getValueIndex(columns []TableColumn) int {
 	for i, column := range columns {
 		if column.Name == "value" {
 			return i
@@ -153,15 +157,17 @@ func (store *ClickHouseOfflineStore) getValueIndex(columns []TableColumn) int {
 	return -1
 }
 
-func (store *ClickHouseOfflineStore) newsqlOfflineTable(db *sql.DB, name string, valueType ValueType) (*clickhouseOfflineTable, error) {
+func (store *clickHouseOfflineStore) newsqlOfflineTable(db *sql.DB, name string, valueType types.ValueType) (*clickhouseOfflineTable, error) {
 	columnType, err := determineColumnType(valueType)
 	if err != nil {
-		return nil, fmt.Errorf("could not determine column type: %v", err)
+		return nil, err
 	}
 	tableCreateQry := store.query.newSQLOfflineTable(name, columnType)
 	_, err = db.Exec(tableCreateQry)
 	if err != nil {
-		return nil, fmt.Errorf("could not create table query: %v", err)
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", name)
+		return nil, wrapped
 	}
 	return &clickhouseOfflineTable{
 		db:    db,
@@ -170,11 +176,11 @@ func (store *ClickHouseOfflineStore) newsqlOfflineTable(db *sql.DB, name string,
 	}, nil
 }
 
-func (store *ClickHouseOfflineStore) getsqlResourceTable(id ResourceID) (*clickhouseOfflineTable, error) {
+func (store *clickHouseOfflineStore) getsqlResourceTable(id ResourceID) (*clickhouseOfflineTable, error) {
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if !exists {
-		return nil, &TableNotFound{id.Name, id.Variant}
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	table, err := store.getResourceTableName(id)
 	if err != nil {
@@ -187,13 +193,15 @@ func (store *ClickHouseOfflineStore) getsqlResourceTable(id ResourceID) (*clickh
 	}, nil
 }
 
-func (store *ClickHouseOfflineStore) materializationExists(id MaterializationID) (bool, error) {
+func (store *clickHouseOfflineStore) materializationExists(id MaterializationID) (bool, error) {
 	tableName := store.getMaterializationTableName(id)
 	getMatQry := store.query.materializationExists()
 	n := -1
 	err := store.db.QueryRow(getMatQry, tableName).Scan(&n)
 	if err != nil {
-		return false, err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return false, wrapped
 	}
 	if n == 0 {
 		return false, nil
@@ -201,7 +209,7 @@ func (store *ClickHouseOfflineStore) materializationExists(id MaterializationID)
 	return true, nil
 }
 
-func (store *ClickHouseOfflineStore) getMaterializationTableName(id MaterializationID) string {
+func (store *clickHouseOfflineStore) getMaterializationTableName(id MaterializationID) string {
 	return fmt.Sprintf("featureform_materialization_%s", id)
 }
 
@@ -213,10 +221,10 @@ func clickhouseOfflineStoreFactory(config pc.SerializedConfig) (Provider, error)
 	return store, nil
 }
 
-func NewClickHouseOfflineStore(config pc.SerializedConfig) (*ClickHouseOfflineStore, error) {
+func NewClickHouseOfflineStore(config pc.SerializedConfig) (*clickHouseOfflineStore, error) {
 	cc := pc.ClickHouseConfig{}
 	if err := cc.Deserialize(config); err != nil {
-		return nil, NewProviderError(Runtime, pt.ClickHouseOffline, ConfigDeserialize, err.Error())
+		return nil, err
 	}
 	var t *tls.Config
 	if cc.SSL {
@@ -244,7 +252,7 @@ func NewClickHouseOfflineStore(config pc.SerializedConfig) (*ClickHouseOfflineSt
 		QueryImpl:    &queries,
 	}
 	//we bypass NewSQLOfflineStore as we want to estalish our connection using non dsn syntax
-	return &ClickHouseOfflineStore{sqlOfflineStore{
+	return &clickHouseOfflineStore{sqlOfflineStore{
 		db:     db,
 		parent: sgConfig,
 		query:  &queries,
@@ -268,8 +276,12 @@ func (table *clickhouseOfflineTable) Write(rec ResourceRecord) error {
 		return err
 	}
 	insertQuery := table.query.writeInserts(tb)
-	_, err := table.db.Exec(insertQuery, rec.Entity, rec.Value, rec.TS)
-	return err
+	if _, err := table.db.Exec(insertQuery, rec.Entity, rec.Value, rec.TS); err != nil {
+		wrapped := fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), rec.Entity, "", fferr.ENTITY, err)
+		wrapped.AddDetail("table_name", table.name)
+		return wrapped
+	}
+	return nil
 }
 
 const batchSize = 10000
@@ -278,38 +290,55 @@ func (table *clickhouseOfflineTable) WriteBatch(recs []ResourceRecord) error {
 	tb := sanitizeCH(table.name)
 	scope, err := table.db.Begin()
 	if err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", table.name)
+		return wrapped
 	}
 	batch, err := scope.Prepare(fmt.Sprintf("INSERT INTO %s (entity, value, ts)", tb))
 	if err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", table.name)
+		return wrapped
 	}
 	b := 0
 	for i, _ := range recs {
 		if recs[i].Entity == "" && recs[i].Value == nil && recs[i].TS.IsZero() {
-			return fmt.Errorf("invalid record at offset %d", i)
+			wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("invalid record at offset %d", i))
+			wrapped.AddDetail("table_name", table.name)
+			return wrapped
 		}
 		ts := recs[i].TS
 		// insert empty time.Time{} as 1970
 		ts = checkZeroTime(recs[i].TS)
 		_, err := batch.Exec(recs[i].Entity, recs[i].Value, ts)
 		if err != nil {
-			return err
+			wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+			wrapped.AddDetail("table_name", table.name)
+			return wrapped
 		}
 		b += 1
 		if b == batchSize {
 			err = scope.Commit()
 			if err != nil {
-				return err
+				wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+				wrapped.AddDetail("table_name", table.name)
+				return wrapped
 			}
 			batch, err = scope.Prepare(fmt.Sprintf("INSERT INTO %s (entity, value, ts)", tb))
 			if err != nil {
-				return err
+				wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+				wrapped.AddDetail("table_name", table.name)
+				return wrapped
 			}
 			b = 0
 		}
 	}
-	return scope.Commit()
+	if err := scope.Commit(); err != nil {
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", table.name)
+		return wrapped
+	}
+	return nil
 }
 
 type clickhousePrimaryTable struct {
@@ -327,7 +356,9 @@ func (table *clickhousePrimaryTable) Write(rec GenericRecord) error {
 		"INSERT INTO %s ( %s ) "+
 		"VALUES ( %s ) ", tb, columns, placeholder)
 	if _, err := table.db.Exec(upsertQuery, rec...); err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", table.name)
+		return wrapped
 	}
 	return nil
 }
@@ -337,27 +368,37 @@ func (table *clickhousePrimaryTable) WriteBatch(recs []GenericRecord) error {
 	columns := table.getColumnNameString()
 	scope, err := table.db.Begin()
 	if err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", table.name)
+		return wrapped
 	}
 	batch, err := scope.Prepare(fmt.Sprintf("INSERT INTO %s (%s)", tb, columns))
 	if err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", table.name)
+		return wrapped
 	}
 	b := 0
 	for i, _ := range recs {
 		_, err := batch.Exec(recs[i]...)
 		if err != nil {
-			return err
+			wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+			wrapped.AddDetail("table_name", table.name)
+			return wrapped
 		}
 		b += 1
 		if b == batchSize {
 			err = scope.Commit()
 			if err != nil {
-				return err
+				wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+				wrapped.AddDetail("table_name", table.name)
+				return wrapped
 			}
 			batch, err = scope.Prepare(fmt.Sprintf("INSERT INTO %s (%s)", tb, columns))
 			if err != nil {
-				return err
+				wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+				wrapped.AddDetail("table_name", table.name)
+				return wrapped
 			}
 			b = 0
 		}
@@ -397,7 +438,9 @@ func (table *clickhousePrimaryTable) IterateSegment(n int64) (GenericTableIterat
 	}
 	rows, err := table.db.Query(query)
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", table.name)
+		return nil, wrapped
 	}
 	colTypes, err := table.getValueColumnTypes(table.name)
 	if err != nil {
@@ -410,14 +453,18 @@ func (table *clickhousePrimaryTable) getValueColumnTypes(tb string) ([]interface
 	query := table.query.getValueColumnTypes(tb)
 	rows, err := table.db.Query(query)
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", table.name)
+		return nil, wrapped
 	}
 	defer rows.Close()
 	colTypes := make([]interface{}, 0)
 	if rows.Next() {
 		rawType, err := rows.ColumnTypes()
 		if err != nil {
-			return nil, err
+			wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+			wrapped.AddDetail("table_name", tb)
+			return nil, wrapped
 		}
 		for _, t := range rawType {
 			colTypes = append(colTypes, table.query.getValueColumnType(t))
@@ -433,7 +480,9 @@ func (table clickhousePrimaryTable) NumRows() (int64, error) {
 
 	err := rows.Scan(&n)
 	if err != nil {
-		return 0, err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", table.name)
+		return 0, wrapped
 	}
 	return n, nil
 }
@@ -466,7 +515,7 @@ func (it *clickHouseTableIterator) Next() bool {
 	}
 	columnTypes, err := it.rows.ColumnTypes()
 	if err != nil {
-		it.err = err
+		it.err = fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
 		it.rows.Close()
 		return false
 	}
@@ -477,8 +526,8 @@ func (it *clickHouseTableIterator) Next() bool {
 		pointers[i] = reflect.New(elementType).Interface()
 	}
 	if err := it.rows.Scan(pointers...); err != nil {
+		it.err = fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
 		it.rows.Close()
-		it.err = err
 		return false
 	}
 	rowValues := make(GenericRecord, len(columnTypes))
@@ -502,32 +551,35 @@ func (it *clickHouseTableIterator) Err() error {
 }
 
 func (it *clickHouseTableIterator) Close() error {
-	return it.rows.Close()
+	if err := it.rows.Close(); err != nil {
+		return fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+	}
+	return nil
 }
 
-func (store *ClickHouseOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
+func (store *clickHouseOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
-		return nil, fmt.Errorf("type check: %w", err)
+		return nil, err
 	}
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, fmt.Errorf("exists error: %w", err)
+		return nil, err
 	} else if exists {
-		return nil, &TableAlreadyExists{id.Name, id.Variant}
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	if schema.Entity == "" || schema.Value == "" {
-		return nil, fmt.Errorf("non-empty entity and value columns required")
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("non-empty entity and value columns required"))
 	}
 	tableName, err := store.getResourceTableName(id)
 	if err != nil {
-		return nil, fmt.Errorf("get name: %w", err)
+		return nil, err
 	}
 	if schema.TS == "" {
 		if err := store.query.registerResources(store.db, tableName, schema, false); err != nil {
-			return nil, fmt.Errorf("register no ts: %w", err)
+			return nil, err
 		}
 	} else {
 		if err := store.query.registerResources(store.db, tableName, schema, true); err != nil {
-			return nil, fmt.Errorf("register ts: %w", err)
+			return nil, err
 		}
 	}
 
@@ -538,37 +590,45 @@ func (store *ClickHouseOfflineStore) RegisterResourceFromSourceTable(id Resource
 	}, nil
 }
 
-func (store *ClickHouseOfflineStore) AsOfflineStore() (OfflineStore, error) {
+func (store *clickHouseOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
-func (store *ClickHouseOfflineStore) CheckHealth() (bool, error) {
+func (store *clickHouseOfflineStore) CheckHealth() (bool, error) {
 	err := store.db.Ping()
 	if err != nil {
-		return false, NewProviderError(Connection, store.Type(), Ping, err.Error())
+		wrapped := fferr.NewConnectionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("action", "ping")
+		return false, wrapped
 	}
 	return true, nil
 }
 
-func (store *ClickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
 	if err := id.check(Primary); err != nil {
-		return nil, fmt.Errorf("check fail: %w", err)
+		return nil, err
 	}
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, fmt.Errorf("table exist: %w", err)
+		return nil, err
 	} else if exists {
-		return nil, &TableAlreadyExists{id.Name, id.Variant}
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	tableName, err := GetPrimaryTableName(id)
 	if err != nil {
-		return nil, fmt.Errorf("get name: %w", err)
+		return nil, err
 	}
 	query := store.query.primaryTableRegister(tableName, sourceName)
 	if _, err := store.db.Exec(query); err != nil {
-		return nil, fmt.Errorf("register table: %w", err)
+		wrapped := fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("source_name", sourceName)
+		return nil, wrapped
 	}
 
 	columnNames, err := store.query.getColumns(store.db, tableName)
+	if err != nil {
+		return nil, err
+	}
 
 	return &clickhousePrimaryTable{
 		db:     store.db,
@@ -578,7 +638,7 @@ func (store *ClickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceI
 	}, nil
 }
 
-func (store *ClickHouseOfflineStore) CreateTransformation(config TransformationConfig) error {
+func (store *clickHouseOfflineStore) CreateTransformation(config TransformationConfig) error {
 	name, err := store.createTransformationName(config.TargetTableID)
 	if err != nil {
 		return err
@@ -586,13 +646,15 @@ func (store *ClickHouseOfflineStore) CreateTransformation(config TransformationC
 	queries := store.query.transformationCreate(name, config.Query)
 	for _, query := range queries {
 		if _, err := store.db.Exec(query); err != nil {
-			return err
+			wrapped := fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), config.TargetTableID.Name, config.TargetTableID.Variant, fferr.ResourceType(config.TargetTableID.Type.String()), err)
+			wrapped.AddDetail("table_name", name)
+			return wrapped
 		}
 	}
 	return nil
 }
 
-func (store *ClickHouseOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+func (store *clickHouseOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	n := -1
 	name, err := GetPrimaryTableName(id)
 	if err != nil {
@@ -601,13 +663,15 @@ func (store *ClickHouseOfflineStore) GetTransformationTable(id ResourceID) (Tran
 	existsQuery := store.query.tableExists()
 	err = store.db.QueryRow(existsQuery, name).Scan(&n)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	if n == 0 {
-		return nil, fmt.Errorf("transformation not found: %v", name)
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	columnNames, err := store.query.getColumns(store.db, name)
-
+	if err != nil {
+		return nil, err
+	}
 	return &clickhousePrimaryTable{
 		db:     store.db,
 		name:   name,
@@ -616,7 +680,7 @@ func (store *ClickHouseOfflineStore) GetTransformationTable(id ResourceID) (Tran
 	}, nil
 }
 
-func (store *ClickHouseOfflineStore) UpdateTransformation(config TransformationConfig) error {
+func (store *clickHouseOfflineStore) UpdateTransformation(config TransformationConfig) error {
 	name, err := store.createTransformationName(config.TargetTableID)
 	if err != nil {
 		return err
@@ -628,17 +692,17 @@ func (store *ClickHouseOfflineStore) UpdateTransformation(config TransformationC
 	return nil
 }
 
-func (store *ClickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+func (store *clickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if exists {
-		return nil, &TableAlreadyExists{id.Name, id.Variant}
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	if len(schema.Columns) == 0 {
-		return nil, fmt.Errorf("cannot create primary table without columns")
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("cannot create primary table without columns"))
 	}
 	tableName, err := GetPrimaryTableName(id)
 	if err != nil {
@@ -651,7 +715,7 @@ func (store *ClickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema Ta
 	return table, nil
 }
 
-func (store *ClickHouseOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
+func (store *clickHouseOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
 	name, err := GetPrimaryTableName(id)
 	if err != nil {
 		return nil, err
@@ -659,11 +723,13 @@ func (store *ClickHouseOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTabl
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if !exists {
-		return nil, &TableNotFound{id.Name, id.Variant}
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	columnNames, err := store.query.getColumns(store.db, name)
-
-	return &sqlPrimaryTable{
+	if err != nil {
+		return nil, err
+	}
+	return &clickhousePrimaryTable{
 		db:     store.db,
 		name:   name,
 		schema: TableSchema{Columns: columnNames},
@@ -671,43 +737,43 @@ func (store *ClickHouseOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTabl
 	}, nil
 }
 
-func (store *ClickHouseOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
+func (store *clickHouseOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
 	if err := id.check(Feature, Label); err != nil {
-		return nil, fmt.Errorf("ID check failed: %v", err)
+		return nil, err
 	}
 
 	if exists, err := store.tableExists(id); err != nil {
-		return nil, fmt.Errorf("could not check if table exists: %v", err)
+		return nil, err
 	} else if exists {
-		return nil, &TableAlreadyExists{id.Name, id.Variant}
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	tableName, err := store.getResourceTableName(id)
 	if err != nil {
-		return nil, fmt.Errorf("could not get resource table name: %v", err)
+		return nil, err
 	}
-	var valueType ValueType
+	var valueType types.ValueType
 	if valueIndex := store.getValueIndex(schema.Columns); valueIndex > 0 {
 		valueType = schema.Columns[valueIndex].ValueType
 	} else {
-		valueType = NilType
+		valueType = types.NilType
 
 	}
 	table, err := store.newsqlOfflineTable(store.db, tableName, valueType)
 	if err != nil {
-		return nil, fmt.Errorf("could not return SQL offline table: %v", err)
+		return nil, err
 	}
 	return table, nil
 }
 
-func (store *ClickHouseOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
+func (store *clickHouseOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
 	return store.getsqlResourceTable(id)
 }
 
-func (store *ClickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIterator, error) {
+func (store *clickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIterator, error) {
 
 	// if tables is empty, return an empty iterator
 	if len(ids) == 0 {
-		return newsqlBatchFeatureIterator(nil, nil, nil, store.query), fmt.Errorf("no features provided")
+		return newsqlBatchFeatureIterator(nil, nil, nil, store.query, store.Type()), fferr.NewInvalidArgumentError(fmt.Errorf("no features provided"))
 	}
 
 	asEntity := ""
@@ -752,10 +818,10 @@ func (store *ClickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFe
 	select_query := fmt.Sprintf("SELECT * FROM `no_ts_%s`", joinedTableName)
 	resultRows, err := store.db.Query(select_query)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
 	}
 	if resultRows == nil {
-		return newsqlBatchFeatureIterator(nil, nil, nil, store.query), nil
+		return newsqlBatchFeatureIterator(nil, nil, nil, store.query, store.Type()), nil
 	}
 	columnTypes, err := store.getValueColumnTypes(fmt.Sprintf("no_ts_%s", joinedTableName))
 	if err != nil {
@@ -771,12 +837,12 @@ func (store *ClickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFe
 	for _, col := range columns {
 		columnNames = append(columnNames, sanitizeCH(col.Name))
 	}
-	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query), nil
+	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query, store.Type()), nil
 }
 
-func (store *ClickHouseOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
+func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
-		return nil, errors.New("only features can be materialized")
+		return nil, fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("only features can be materialized"))
 	}
 	resTable, err := store.getsqlResourceTable(id)
 	if err != nil {
@@ -789,7 +855,10 @@ func (store *ClickHouseOfflineStore) CreateMaterialization(id ResourceID, option
 	for _, materializeQry := range materializeQueries {
 		_, err = store.db.Exec(materializeQry)
 		if err != nil {
-			return nil, err
+			wrapped := fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+			wrapped.AddDetail("resource_table_name", resTable.name)
+			wrapped.AddDetail("materialization_table_name", matTableName)
+			return nil, wrapped
 		}
 	}
 	return &clickHouseMaterialization{
@@ -800,7 +869,7 @@ func (store *ClickHouseOfflineStore) CreateMaterialization(id ResourceID, option
 	}, nil
 }
 
-func (store *ClickHouseOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
 
 	tableName := store.getMaterializationTableName(id)
 
@@ -808,10 +877,12 @@ func (store *ClickHouseOfflineStore) GetMaterialization(id MaterializationID) (M
 	n := -1
 	err := store.db.QueryRow(getMatQry, tableName).Scan(&n)
 	if err != nil {
-		return nil, fmt.Errorf("could not get materialization: %w", err)
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 	if n == 0 {
-		return nil, &MaterializationNotFound{id}
+		return nil, fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
 	return &clickHouseMaterialization{
 		id:        id,
@@ -821,7 +892,7 @@ func (store *ClickHouseOfflineStore) GetMaterialization(id MaterializationID) (M
 	}, err
 }
 
-func (store *ClickHouseOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
+func (store *clickHouseOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
 	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
 	tableName := store.getMaterializationTableName(matID)
 	getMatQry := store.query.materializationExists()
@@ -832,11 +903,11 @@ func (store *ClickHouseOfflineStore) UpdateMaterialization(id ResourceID) (Mater
 
 	rows, err := store.db.Query(getMatQry, tableName)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	defer rows.Close()
 	if !rows.Next() {
-		return nil, &MaterializationNotFound{matID}
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("table %s is empty", tableName))
 	}
 	err = store.query.materializationUpdate(store.db, tableName, resTable.name)
 	if err != nil {
@@ -850,21 +921,23 @@ func (store *ClickHouseOfflineStore) UpdateMaterialization(id ResourceID) (Mater
 	}, err
 }
 
-func (store *ClickHouseOfflineStore) DeleteMaterialization(id MaterializationID) error {
+func (store *clickHouseOfflineStore) DeleteMaterialization(id MaterializationID) error {
 	tableName := store.getMaterializationTableName(id)
 	if exists, err := store.materializationExists(id); err != nil {
 		return err
 	} else if !exists {
-		return &MaterializationNotFound{id}
+		return fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
 	query := store.query.materializationDrop(tableName)
 	if _, err := store.db.Exec(query); err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	return nil
 }
 
-func (store *ClickHouseOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
+func (store *clickHouseOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	if err := def.check(); err != nil {
 		return err
 	}
@@ -883,57 +956,7 @@ func (store *ClickHouseOfflineStore) CreateTrainingSet(def TrainingSetDef) error
 	return nil
 }
 
-func (store *ClickHouseOfflineStore) CreateTrainingTestSplit(
-	trainingSetTable string,
-	testSize float32,
-	shuffle bool,
-	randomState int,
-) (string, error) {
-	// Generate unique suffix for the view names
-	tableNameSuffix := fmt.Sprintf("%s_%d_%t_%d", trainingSetTable, int(testSize*100), shuffle, randomState)
-	trainingSetSplitViewName := fmt.Sprintf("%s_split", tableNameSuffix)
-
-	// Generate ORDER BY clause for shuffling if needed
-	orderByClause := ""
-	if shuffle {
-		if randomState == 0 {
-			randomState = rand.Int() // Ensure a random state if 0 is provided
-		}
-		// Use ClickHouse's cityHash64 for deterministic shuffling, rowNumberInAllBlocks is a unique identifier for each row
-		orderByClause = fmt.Sprintf("ORDER BY cityHash64(concat(toString(rowNumberInAllBlocks()), toString(%d)))", randomState)
-	}
-
-	// Calculate the number of test rows based on the testSize parameter
-	var totalRows int
-	err := store.db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitizeCH(trainingSetTable))).Scan(&totalRows)
-	if err != nil {
-		return "", fmt.Errorf("failed to get table size: %v", err)
-	}
-	testRows := int(float32(totalRows) * testSize)
-	fmt.Println("Number of test rows: ", testRows)
-
-	// Create the final view with an 'is_test' column
-	createViewQuery := fmt.Sprintf(`
-			CREATE VIEW IF NOT EXISTS %s AS
-			SELECT *, IF(row_number() OVER (%s) <= %d, 1, 0) AS is_test
-			FROM %s
-    	`,
-		sanitizeCH(trainingSetSplitViewName),
-		orderByClause,
-		testRows,
-		sanitizeCH(trainingSetTable),
-	)
-
-	fmt.Println("This is the create view query:", createViewQuery)
-
-	if _, err := store.db.Exec(createViewQuery); err != nil {
-		return "", fmt.Errorf("failed to create final view: %v", err)
-	}
-
-	return trainingSetSplitViewName, nil
-}
-
-func (store *ClickHouseOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
+func (store *clickHouseOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 	if err := def.check(); err != nil {
 		return err
 	}
@@ -957,14 +980,14 @@ type TrainingSetPreparation struct {
 	Columns         string
 }
 
-func (store *ClickHouseOfflineStore) prepareTrainingSetQuery(id ResourceID) (*TrainingSetPreparation, error) {
+func (store *clickHouseOfflineStore) prepareTrainingSetQuery(id ResourceID) (*TrainingSetPreparation, error) {
 	if err := id.check(TrainingSet); err != nil {
 		return nil, err
 	}
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if !exists {
-		return nil, &TrainingSetNotFound{id}
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	trainingSetName, err := store.getTrainingSetName(id)
 	if err != nil {
@@ -986,7 +1009,7 @@ func (store *ClickHouseOfflineStore) prepareTrainingSetQuery(id ResourceID) (*Tr
 	}, nil
 }
 
-func (store *ClickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+func (store *clickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
 	fmt.Printf("Getting Training Set: %v\n", id)
 	prep, err := store.prepareTrainingSetQuery(id)
 	if err != nil {
@@ -996,7 +1019,7 @@ func (store *ClickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetI
 	fmt.Printf("Training Set Query: %s\n", trainingSetQry)
 	rows, err := store.db.Query(trainingSetQry)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	colTypes, err := store.getValueColumnTypes(prep.TrainingSetName)
 	if err != nil {
@@ -1005,49 +1028,51 @@ func (store *ClickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetI
 	return store.newsqlTrainingSetIterator(rows, colTypes), nil
 }
 
-func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
-	id ResourceID,
-	testSize float32,
-	shuffle bool,
-	randomState int,
-) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
-	prep, err := store.prepareTrainingSetQuery(id)
+func (store *clickHouseOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
+	prep, err := store.prepareTrainingSetQuery(ResourceID{Name: def.TrainingSetName, Variant: def.TrainingSetVariant})
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
-	trainingTestSplitName, err := store.CreateTrainingTestSplit(
-		prep.TrainingSetName,
-		testSize,
-		shuffle,
-		randomState,
+	trainTestSplitTableName := store.getTrainTestSplitTableName(prep.TrainingSetName, def)
+
+	// Generate ORDER BY clause for shuffling if needed
+	orderByClause := ""
+	randomState := def.RandomState
+	if def.Shuffle {
+		if def.RandomState == 0 {
+			randomState = rand.Int() // Ensure a random state if 0 is provided
+		}
+		// Use ClickHouse's cityHash64 for deterministic shuffling, rowNumberInAllBlocks is a unique identifier for each row
+		orderByClause = fmt.Sprintf("ORDER BY cityHash64(concat(toString(_row), toString(%d)))", randomState)
+	}
+
+	// Calculate the number of test rows based on the testSize parameter
+	var totalRows int
+	err = store.db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitizeCH(prep.TrainingSetName))).Scan(&totalRows)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get table size: %v", err)
+	}
+	testRows := int(float32(totalRows) * def.TestSize)
+
+	// Create the final view with an 'is_test' column
+	createViewQuery := fmt.Sprintf(`
+			CREATE VIEW IF NOT EXISTS %s AS
+			SELECT *, IF(row_number() OVER (%s) <= %d, 1, 0) AS is_test
+			FROM %s
+    	`,
+		sanitizeCH(trainTestSplitTableName),
+		orderByClause,
+		testRows,
+		sanitizeCH(prep.TrainingSetName),
 	)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	train, test := store.query.trainingRowSplitSelect(prep.Columns, sanitizeCH(trainingTestSplitName))
-	fmt.Printf("Training Set Query: %s\n", train)
-	fmt.Printf("Test Set Query: %s\n", test)
-	testRows, err := store.db.Query(test)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("could not query test set: %v", err)
 
-	}
-	trainRows, err := store.db.Query(train)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("could not query train set: %v", err)
-
-	}
-
-	colTypes, err := store.getValueColumnTypes(trainingTestSplitName)
-	fmt.Printf("these are the column types: %v\n", colTypes)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("could not get column types: %v", err)
+	if _, err := store.db.Exec(createViewQuery); err != nil {
+		return nil, fmt.Errorf("failed to create final view: %v", err)
 	}
 
 	// return callback to drop view
 	dropFunc := func() error {
-		// two queries to drop split and row number table
-		dropQuery := fmt.Sprintf("DROP VIEW if exists %s", sanitizeCH(trainingTestSplitName))
+		dropQuery := fmt.Sprintf("DROP VIEW if exists %s", sanitizeCH(trainTestSplitTableName))
 		_, err := store.db.Exec(dropQuery)
 		if err != nil {
 			return fmt.Errorf("could not drop test split: %v", err)
@@ -1056,11 +1081,47 @@ func (store *ClickHouseOfflineStore) GetTrainingSetTestSplit(
 		return nil
 	}
 
-	return store.newsqlTrainingSetIterator(trainRows, colTypes), store.newsqlTrainingSetIterator(testRows, colTypes), dropFunc, nil
+	return dropFunc, nil
+}
+
+func (store *clickHouseOfflineStore) getTrainTestSplitTableName(trainingSetTable string, def TrainTestSplitDef) string {
+	// Generate unique suffix for the view names
+	tableNameSuffix := fmt.Sprintf("%s_%d_%t_%d", trainingSetTable, int(def.TestSize*100), def.Shuffle, def.RandomState)
+	trainTestSplitViewName := fmt.Sprintf("%s_split", tableNameSuffix)
+	return trainTestSplitViewName
+}
+
+func (store *clickHouseOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+	prep, err := store.prepareTrainingSetQuery(ResourceID{Name: def.TrainingSetName, Variant: def.TrainingSetVariant})
+	if err != nil {
+		return nil, nil, err
+	}
+	trainTestSplitTableName := store.getTrainTestSplitTableName(prep.TrainingSetName, def)
+	train, test := store.query.trainingRowSplitSelect(prep.Columns, sanitizeCH(trainTestSplitTableName))
+
+	fmt.Printf("Training Set Query: %s\n", train)
+	fmt.Printf("Test Set Query: %s\n", test)
+
+	testRows, err := store.db.Query(test)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not query test set: %v", err)
+	}
+	trainRows, err := store.db.Query(train)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not query train set: %v", err)
+
+	}
+
+	colTypes, err := store.getValueColumnTypes(trainTestSplitTableName)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not get column types: %v", err)
+	}
+
+	return store.newsqlTrainingSetIterator(trainRows, colTypes), store.newsqlTrainingSetIterator(testRows, colTypes), nil
 
 }
 
-func (store *ClickHouseOfflineStore) Close() error {
+func (store *clickHouseOfflineStore) Close() error {
 	return store.db.Close()
 }
 
@@ -1092,8 +1153,6 @@ func (q clickhouseSQLQueries) trainingRowSplitSelect(columns string, trainingSet
 	return trainSplitQuery, testSplitQuery
 }
 
-// ensures random order - table is ordered by _row which is inserted at insert time
-
 func (q clickhouseSQLQueries) registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error {
 	var query string
 	if timestamp {
@@ -1105,7 +1164,9 @@ func (q clickhouseSQLQueries) registerResources(db *sql.DB, tableName string, sc
 	}
 	fmt.Printf("Resource creation query: %s\n", query)
 	if _, err := db.Exec(query); err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	return nil
 }
@@ -1119,7 +1180,6 @@ func (q clickhouseSQLQueries) materializationCreate(tableName string, sourceName
 		fmt.Sprintf("ALTER TABLE %s ADD COLUMN row_number UInt64;", sanitizeCH(tableName)),
 		fmt.Sprintf("INSERT INTO %s SELECT entity, value, tis AS ts, row_number() OVER () AS row_number FROM (SELECT entity, max(ts) AS tis, argMax(value, ts) AS value FROM %s GROUP BY entity ORDER BY entity ASC, value ASC);", sanitizeCH(tableName), sanitizeCH(sourceName)),
 	}
-	return nil
 }
 
 func (q clickhouseSQLQueries) materializationUpdate(db *sql.DB, tableName string, sourceName string) error {
@@ -1127,16 +1187,28 @@ func (q clickhouseSQLQueries) materializationUpdate(db *sql.DB, tableName string
 	currentTime := time.Now()
 	epochMilliseconds := currentTime.UnixNano() / int64(time.Millisecond)
 	if _, err := db.Exec(fmt.Sprintf("CREATE TABLE %s AS %s", sanitizeCH(fmt.Sprintf("%s_%d", tableName, epochMilliseconds)), sanitizeCH(tableName))); err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("source_name", sourceName)
+		return wrapped
 	}
 	if _, err := db.Exec(fmt.Sprintf("INSERT INTO %s SELECT entity, value, tis AS ts, row_number() OVER () AS row_number FROM (SELECT entity, max(ts) AS tis, argMax(value, ts) AS value FROM %s GROUP BY entity ORDER BY entity ASC, value ASC);", sanitizeCH(fmt.Sprintf("%s_%d", tableName, epochMilliseconds)), sanitizeCH(sourceName))); err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("source_name", sourceName)
+		return wrapped
 	}
 	if _, err := db.Exec(fmt.Sprintf("EXCHANGE TABLES %s AND %s", sanitizeCH(fmt.Sprintf("%s_%d", tableName, epochMilliseconds)), sanitizeCH(tableName))); err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("source_name", sourceName)
+		return wrapped
 	}
 	if _, err := db.Exec(fmt.Sprintf("DROP TABLE %s", sanitizeCH(fmt.Sprintf("%s_%d", tableName, epochMilliseconds)))); err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("source_name", sourceName)
+		return wrapped
 	}
 	return nil
 }
@@ -1145,41 +1217,41 @@ func (q clickhouseSQLQueries) materializationExists() string {
 	return q.tableExists()
 }
 
-func (q clickhouseSQLQueries) determineColumnType(valueType ValueType) (string, error) {
+func (q clickhouseSQLQueries) determineColumnType(valueType types.ValueType) (string, error) {
 	switch valueType {
-	case Int:
+	case types.Int:
 		return chInt, nil
-	case Int8:
+	case types.Int8:
 		return chInt8, nil
-	case Int16:
+	case types.Int16:
 		return chInt16, nil
-	case Int64:
+	case types.Int64:
 		return chInt64, nil
-	case Int32:
+	case types.Int32:
 		return chInt32, nil
-	case UInt8:
+	case types.UInt8:
 		return chUInt8, nil
-	case UInt16:
+	case types.UInt16:
 		return chUInt16, nil
-	case UInt32:
+	case types.UInt32:
 		return chUInt32, nil
-	case UInt64:
+	case types.UInt64:
 		return chUInt64, nil
-	case Float32:
+	case types.Float32:
 		return chFloat32, nil
-	case Float64:
+	case types.Float64:
 		return chFloat64, nil
-	case String:
+	case types.String:
 		return chString, nil
-	case Bool:
+	case types.Bool:
 		return chBool, nil
-	case Timestamp:
+	case types.Timestamp:
 		//TODO: determine precision
 		return chDateTime, nil
-	case NilType:
+	case types.NilType:
 		return "Null", nil
 	default:
-		return "", fmt.Errorf("cannot find column type for value type: %s", valueType)
+		return "", fferr.NewDataTypeNotFoundErrorf(valueType, "could not determine column type")
 	}
 }
 
@@ -1214,33 +1286,6 @@ func (q clickhouseSQLQueries) trainingSetUpdate(store *sqlOfflineStore, def Trai
 	return q.trainingSetQuery(store, def, tableName, labelName, true)
 }
 
-func (q clickhouseSQLQueries) trainingSetSplitCreate(store *sqlOfflineStore, trainingSetTable string, testSize float64) (string, error) {
-
-	// create split table
-	splitTableName := sanitizeCH(fmt.Sprintf("%s_split", trainingSetTable))
-	trainingSetSplitTable := sanitizeCH(splitTableName)
-
-	// Step 1: Create the split table based on the structure of the original table.
-	createTableQuery := fmt.Sprintf("CREATE TABLE %s AS %s ENGINE = MergeTree() ORDER BY _row", trainingSetSplitTable, trainingSetTable)
-	if _, err := store.db.Exec(createTableQuery); err != nil {
-		return "", fmt.Errorf("failed to create table: %v", err)
-	}
-
-	// Step 2: Alter the table to add the is_test column.
-	alterTableQuery := fmt.Sprintf("ALTER TABLE %s ADD COLUMN is_test UInt8", trainingSetSplitTable)
-	if _, err := store.db.Exec(alterTableQuery); err != nil {
-		return "", fmt.Errorf("failed to alter table to add is_test column: %v", err)
-	}
-
-	// Step 3: Insert data into the new table with is_test calculated.
-	insertDataQuery := fmt.Sprintf("INSERT INTO %s SELECT *, multiIf(rand() %% 100 < %f, 1, 0) AS is_test FROM %s", trainingSetSplitTable, testSize*100, trainingSetTable)
-	if _, err := store.db.Exec(insertDataQuery); err != nil {
-		return "", fmt.Errorf("failed to insert data: %v", err)
-	}
-
-	return trainingSetSplitTable, nil
-}
-
 func buildTrainingSelect(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) (string, error) {
 	columns := make([]string, 0)
 	query := ""
@@ -1270,30 +1315,45 @@ func (q clickhouseSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Train
 		// use a 2-step EMPTY create so ClickHouse Cloud compatible
 		createQuery := fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY _row EMPTY AS (%s)", sanitizeCH(tableName), query)
 		if _, err := store.db.Exec(createQuery); err != nil {
-			return err
+			wrapped := fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), def.ID.Name, def.ID.Variant, fferr.TRAINING_SET_VARIANT, err)
+			wrapped.AddDetail("table_name", tableName)
+			wrapped.AddDetail("label_name", labelName)
+			return wrapped
 		}
 		insertQuery := fmt.Sprintf("INSERT INTO %s %s", sanitizeCH(tableName), query)
 		if _, err := store.db.Exec(insertQuery); err != nil {
-			return err
+			wrapped := fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), def.ID.Name, def.ID.Variant, fferr.TRAINING_SET_VARIANT, err)
+			wrapped.AddDetail("table_name", tableName)
+			wrapped.AddDetail("label_name", labelName)
+			return wrapped
 		}
 	} else {
 		tempName := sanitizeCH(fmt.Sprintf("tmp_%s", tableName))
 		createQuery := fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY _row EMPTY AS (%s)", tempName, query)
 		if _, err := store.db.Exec(createQuery); err != nil {
-			return err
+			wrapped := fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), def.ID.Name, def.ID.Variant, fferr.TRAINING_SET_VARIANT, err)
+			wrapped.AddDetail("table_name", tableName)
+			wrapped.AddDetail("label_name", labelName)
+			return wrapped
 		}
 		insertQuery := fmt.Sprintf("INSERT INTO %s %s", tempName, query)
 		if _, err := store.db.Exec(insertQuery); err != nil {
-			return err
+			wrapped := fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), def.ID.Name, def.ID.Variant, fferr.TRAINING_SET_VARIANT, err)
+			wrapped.AddDetail("table_name", tableName)
+			wrapped.AddDetail("label_name", labelName)
+			return wrapped
 		}
 		if _, err := store.db.Exec(fmt.Sprintf("EXCHANGE TABLES %s AND %s", sanitizeCH(tableName), tempName)); err != nil {
-			return err
+			wrapped := fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), def.ID.Name, def.ID.Variant, fferr.TRAINING_SET_VARIANT, err)
+			wrapped.AddDetail("table_name", tableName)
+			wrapped.AddDetail("label_name", labelName)
+			return wrapped
 		}
 		if _, err := store.db.Exec(fmt.Sprintf("DROP TABLE %s", tempName)); err != nil {
-			return err
-		}
-		if err != nil {
-			return err
+			wrapped := fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), def.ID.Name, def.ID.Variant, fferr.TRAINING_SET_VARIANT, err)
+			wrapped.AddDetail("table_name", tableName)
+			wrapped.AddDetail("label_name", labelName)
+			return wrapped
 		}
 	}
 	return nil
@@ -1391,19 +1451,27 @@ func (q clickhouseSQLQueries) transformationUpdate(db *sql.DB, tableName string,
 	tempName := sanitizeCH(fmt.Sprintf("tmp_%s", tableName))
 	createQuery := fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY tuple() EMPTY AS %s", tempName, query)
 	if _, err := db.Exec(createQuery); err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	insertQuery := fmt.Sprintf("INSERT INTO %s %s", tempName, query)
 	if _, err := db.Exec(insertQuery); err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	exchangeTableQuery := fmt.Sprintf("EXCHANGE TABLES %s AND %s", tempName, sanitizeCH(tableName))
 	if _, err := db.Exec(exchangeTableQuery); err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	dropTableQuery := fmt.Sprintf("DROP TABLE %s", tempName)
 	if _, err := db.Exec(dropTableQuery); err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	return nil
 }
@@ -1416,14 +1484,18 @@ func (q clickhouseSQLQueries) getColumns(db *sql.DB, tableName string) ([]TableC
 	qry := "SELECT name FROM system.columns WHERE table = ?"
 	rows, err := db.Query(qry, tableName)
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 	defer rows.Close()
 	columnNames := make([]TableColumn, 0)
 	for rows.Next() {
 		var column string
 		if err := rows.Scan(&column); err != nil {
-			return nil, err
+			wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+			wrapped.AddDetail("table_name", tableName)
+			return nil, wrapped
 		}
 		columnNames = append(columnNames, TableColumn{Name: column})
 	}
@@ -1456,7 +1528,9 @@ func (mat *clickHouseMaterialization) NumRows() (int64, error) {
 	rows := mat.db.QueryRow(query)
 	err := rows.Scan(&n)
 	if err != nil {
-		return 0, err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", mat.tableName)
+		return 0, wrapped
 	}
 	if n == nil {
 		return 0, nil
@@ -1472,17 +1546,29 @@ func (mat *clickHouseMaterialization) IterateSegment(start, end int64) (FeatureI
 	query := mat.query.materializationIterateSegment(mat.tableName)
 	rows, err := mat.db.Query(query, start, end)
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", mat.tableName)
+		return nil, wrapped
 	}
 	types, err := rows.ColumnTypes()
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", mat.tableName)
+		return nil, wrapped
 	}
 	colType := mat.query.getValueColumnType(types[1])
 	if err != nil {
 		return nil, err
 	}
 	return newClickHouseFeatureIterator(rows, colType, mat.query), nil
+}
+
+func (mat *clickHouseMaterialization) NumChunks() (int, error) {
+	return genericNumChunks(mat, defaultRowsPerChunk)
+}
+
+func (mat *clickHouseMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
+	return genericIterateChunk(mat, defaultRowsPerChunk, idx)
 }
 
 func newClickHouseFeatureIterator(rows *sql.Rows, columnType interface{}, query OfflineTableQueries) FeatureIterator {
@@ -1513,8 +1599,8 @@ func (iter *clickHouseFeatureIterator) Next() bool {
 	var value interface{}
 	var ts time.Time
 	if err := iter.rows.Scan(&entity, &value, &ts); err != nil {
+		iter.err = fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
 		iter.rows.Close()
-		iter.err = err
 		return false
 	}
 	if err := rec.SetEntity(entity); err != nil {
@@ -1536,5 +1622,8 @@ func (iter *clickHouseFeatureIterator) Err() error {
 }
 
 func (iter *clickHouseFeatureIterator) Close() error {
-	return iter.rows.Close()
+	if err := iter.rows.Close(); err != nil {
+		return fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+	}
+	return nil
 }

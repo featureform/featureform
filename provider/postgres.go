@@ -6,8 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 	_ "github.com/lib/pq"
 )
 
@@ -25,7 +27,7 @@ const (
 func postgresOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.PostgresConfig{}
 	if err := sc.Deserialize(config); err != nil {
-		return nil, NewProviderError(Runtime, pt.PostgresOffline, ConfigDeserialize, err.Error())
+		return nil, err
 	}
 
 	// We are doing this to support older versions of
@@ -76,7 +78,9 @@ func (q postgresSQLQueries) registerResources(db *sql.DB, tableName string, sche
 	}
 	fmt.Printf("Resource creation query: %s", query)
 	if _, err := db.Exec(query); err != nil {
-		return err
+		wrapped := fferr.NewExecutionError(pt.PostgresOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
 	}
 	return nil
 }
@@ -96,30 +100,35 @@ func (q postgresSQLQueries) materializationCreate(tableName string, sourceName s
 }
 
 func (q postgresSQLQueries) materializationUpdate(db *sql.DB, tableName string, sourceName string) error {
-	_, err := db.Exec(fmt.Sprintf("REFRESH MATERIALIZED VIEW CONCURRENTLY %s", sanitize(tableName)))
-	return err
+	if _, err := db.Exec(fmt.Sprintf("REFRESH MATERIALIZED VIEW CONCURRENTLY %s", sanitize(tableName))); err != nil {
+		wrapped := fferr.NewExecutionError(pt.PostgresOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("source_name", sourceName)
+		return wrapped
+	}
+	return nil
 }
 
 func (q postgresSQLQueries) materializationExists() string {
 	return "SELECT * FROM pg_matviews WHERE matviewname = $1"
 }
 
-func (q postgresSQLQueries) determineColumnType(valueType ValueType) (string, error) {
+func (q postgresSQLQueries) determineColumnType(valueType types.ValueType) (string, error) {
 	switch valueType {
-	case Int, Int32, Int64:
+	case types.Int, types.Int32, types.Int64:
 		return "INT", nil
-	case Float32, Float64:
+	case types.Float32, types.Float64:
 		return "FLOAT8", nil
-	case String:
+	case types.String:
 		return "VARCHAR", nil
-	case Bool:
+	case types.Bool:
 		return "BOOLEAN", nil
-	case Timestamp:
+	case types.Timestamp:
 		return "TIMESTAMPTZ", nil
-	case NilType:
+	case types.NilType:
 		return "VARCHAR", nil
 	default:
-		return "", fmt.Errorf("cannot find column type for value type: %s", valueType)
+		return "", fferr.NewDataTypeNotFoundErrorf(valueType, "could not determine column type")
 	}
 }
 
@@ -165,14 +174,20 @@ func (q postgresSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Trainin
 	if !isUpdate {
 		fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", sanitize(tableName), columnStr, query)
 		if _, err := store.db.Exec(fullQuery); err != nil {
-			return err
+			wrapped := fferr.NewResourceExecutionError(pt.PostgresOffline.String(), def.ID.Name, def.ID.Variant, fferr.ResourceType(def.ID.Type.String()), err)
+			wrapped.AddDetail("table_name", tableName)
+			wrapped.AddDetail("label_name", labelName)
+			return wrapped
 		}
 	} else {
 		tempName := sanitize(fmt.Sprintf("tmp_%s", tableName))
 		fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", tempName, columnStr, query)
 		err := q.atomicUpdate(store.db, tableName, tempName, fullQuery)
 		if err != nil {
-			return err
+			wrapped := fferr.NewResourceExecutionError(pt.PostgresOffline.String(), def.ID.Name, def.ID.Variant, fferr.ResourceType(def.ID.Type.String()), err)
+			wrapped.AddDetail("table_name", tableName)
+			wrapped.AddDetail("label_name", labelName)
+			return wrapped
 		}
 	}
 	return nil
@@ -242,14 +257,18 @@ func (q postgresSQLQueries) getColumns(db *sql.DB, tableName string) ([]TableCol
 	qry := fmt.Sprintf("SELECT attname AS column_name FROM   pg_attribute WHERE  attrelid = 'public.%s'::regclass AND    attnum > 0 ORDER  BY attnum", tableName)
 	rows, err := db.Query(qry)
 	if err != nil {
-		return nil, err
+		wrapped := fferr.NewExecutionError(pt.PostgresOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
 	}
 	defer rows.Close()
 	columnNames := make([]TableColumn, 0)
 	for rows.Next() {
 		var column string
 		if err := rows.Scan(&column); err != nil {
-			return nil, err
+			wrapped := fferr.NewExecutionError(pt.PostgresOffline.String(), err)
+			wrapped.AddDetail("table_name", tableName)
+			return nil, wrapped
 		}
 		columnNames = append(columnNames, TableColumn{Name: column})
 	}

@@ -17,14 +17,20 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 
+	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	"github.com/featureform/metadata"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
+	"github.com/parquet-go/parquet-go"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
+
+// defaultRowsPerChunk is the number of rows in a chunk when using materializations.
+const defaultRowsPerChunk int64 = 100_000
 
 type OfflineResourceType int
 
@@ -70,6 +76,7 @@ type ResourceID struct {
 	Type          OfflineResourceType
 }
 
+// TODO: deprecate
 func (id *ResourceID) ToFilestorePath() string {
 	return fmt.Sprintf("featureform/%s/%s/%s", id.Type, id.Name, id.Variant)
 }
@@ -79,11 +86,11 @@ func (id *ResourceID) FromFilestorePath(path string) error {
 	featureformRootPathPart := "featureform/"
 	idx := strings.Index(path, featureformRootPathPart)
 	if idx == -1 {
-		return fmt.Errorf("expected \"featureform\" root path part in path %s", path)
+		return fferr.NewInternalError(fmt.Errorf("expected \"featureform\" root path part in path %s", path))
 	}
 	resourceParts := strings.Split(path[idx+len(featureformRootPathPart):], "/")
 	if len(resourceParts) < 3 {
-		return fmt.Errorf("expected path %s to contain OfflineResourceType/Name/Variant", strings.Join(resourceParts, "/"))
+		return fferr.NewInternalError(fmt.Errorf("expected path %s to contain OfflineResourceType/Name/Variant", strings.Join(resourceParts, "/")))
 	}
 	switch resourceParts[0] {
 	case "Label":
@@ -99,7 +106,7 @@ func (id *ResourceID) FromFilestorePath(path string) error {
 	case "Materialization":
 		id.Type = OfflineResourceType(6)
 	default:
-		return fmt.Errorf("unrecognized OfflineResourceType: %s", resourceParts[0])
+		return fferr.NewInternalError(fmt.Errorf("unrecognized OfflineResourceType: %s", resourceParts[0]))
 	}
 	id.Name = resourceParts[1]
 	id.Variant = resourceParts[2]
@@ -108,7 +115,7 @@ func (id *ResourceID) FromFilestorePath(path string) error {
 
 func (id *ResourceID) check(expectedType OfflineResourceType, otherTypes ...OfflineResourceType) error {
 	if id.Name == "" {
-		return errors.New("ResourceID must have Name set")
+		return fferr.NewInvalidArgumentError(errors.New("ResourceID must have Name set"))
 	}
 	// If there is one expected type, we will default to it.
 	if id.Type == NoType && len(otherTypes) == 0 {
@@ -121,7 +128,7 @@ func (id *ResourceID) check(expectedType OfflineResourceType, otherTypes ...Offl
 			return nil
 		}
 	}
-	return fmt.Errorf("unexpected ResourceID Type: %v", id.Type)
+	return fferr.NewInvalidArgumentError(fmt.Errorf("unexpected ResourceID Type: %v", id.Type))
 }
 
 func GetOfflineStore(t pt.Type, c pc.SerializedConfig) (OfflineStore, error) {
@@ -158,7 +165,7 @@ func (def *TrainingSetDef) check() error {
 		return err
 	}
 	if len(def.Features) == 0 {
-		return errors.New("training set must have atleast one feature")
+		return fferr.NewInvalidArgumentError(errors.New("training set must have at least one feature"))
 	}
 	for i := range def.Features {
 		// We use features[i] to make sure that the Type value is updated to
@@ -207,7 +214,7 @@ func (m *TransformationConfig) MarshalJSON() ([]byte, error) {
 	c := config(*m)
 	marshal, err := json.Marshal(&c)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	return marshal, nil
 }
@@ -226,7 +233,7 @@ func (m *TransformationConfig) UnmarshalJSON(data []byte) error {
 	var temp tempConfig
 	err := json.Unmarshal(data, &temp)
 	if err != nil {
-		return fmt.Errorf("unmarshal: %w", err)
+		return fferr.NewInternalError(err)
 	}
 
 	m.Type = temp.Type
@@ -237,14 +244,13 @@ func (m *TransformationConfig) UnmarshalJSON(data []byte) error {
 
 	err = m.decodeArgs(temp.ArgType, temp.Args)
 	if err != nil {
-		return fmt.Errorf("decode: %w", err)
+		return err
 	}
 
 	return nil
 }
 
 func (m *TransformationConfig) decodeArgs(t metadata.TransformationArgType, argMap map[string]interface{}) error {
-
 	var args metadata.TransformationArgs
 	switch t {
 	case metadata.K8sArgs:
@@ -253,14 +259,22 @@ func (m *TransformationConfig) decodeArgs(t metadata.TransformationArgType, argM
 		m.Args = nil
 		return nil
 	default:
-		return fmt.Errorf("invalid transformation arg type")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("invalid transformation arg type: %v", t))
 	}
 	err := mapstructure.Decode(argMap, &args)
 	if err != nil {
-		return fmt.Errorf("could not decode map: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	m.Args = args
 	return nil
+}
+
+type TrainTestSplitDef struct {
+	TrainingSetName    string
+	TrainingSetVariant string
+	TestSize           float32
+	Shuffle            bool
+	RandomState        int
 }
 
 type MaterializationOptions interface {
@@ -287,7 +301,8 @@ type OfflineStore interface {
 	CreateTrainingSet(TrainingSetDef) error
 	UpdateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
-	GetTrainingSetTestSplit(id ResourceID, testSize float32, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, func() error, error)
+	CreateTrainTestSplit(TrainTestSplitDef) (func() error, error)
+	GetTrainTestSplit(TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error)
 	Close() error
 	ResourceLocation(id ResourceID) (string, error)
 	Provider
@@ -314,6 +329,13 @@ type Materialization interface {
 	ID() MaterializationID
 	NumRows() (int64, error)
 	IterateSegment(begin, end int64) (FeatureIterator, error)
+	NumChunks() (int, error)
+	IterateChunk(idx int) (FeatureIterator, error)
+}
+
+type Chunks interface {
+	Size() int
+	ChunkIterator(idx int) (FeatureIterator, error)
 }
 
 type FeatureIterator interface {
@@ -371,12 +393,9 @@ type GenericResourceRecord[T any] struct {
 
 type GenericRecord []interface{}
 
-// Will try using GenericRecord first, if it doesnt work, will move onto BatchRecord
-// type BatchRecord []interface{}
-
 func (rec ResourceRecord) check() error {
 	if rec.Entity == "" {
-		return errors.New("ResourceRecord must have Entity set")
+		return fferr.NewInvalidArgumentError(fmt.Errorf("ResourceRecord must have Entity set"))
 	}
 	return nil
 }
@@ -386,7 +405,7 @@ func (rec *ResourceRecord) SetEntity(entity interface{}) error {
 	case string:
 		rec.Entity = typedEntity
 	default:
-		return fmt.Errorf("entity must be a string; received %T", entity)
+		return fferr.NewInvalidArgumentError(fmt.Errorf("entity must be a string; received %T", entity))
 
 	}
 	return nil
@@ -429,7 +448,7 @@ type ResourceSchema struct {
 func (schema *ResourceSchema) Serialize() ([]byte, error) {
 	config, err := json.Marshal(schema)
 	if err != nil {
-		return nil, fmt.Errorf("failed to serialize resource schema due to: %w", err)
+		return nil, fferr.NewInternalError(err)
 	}
 	return config, nil
 }
@@ -437,7 +456,7 @@ func (schema *ResourceSchema) Serialize() ([]byte, error) {
 func (schema *ResourceSchema) Deserialize(config []byte) error {
 	err := json.Unmarshal(config, schema)
 	if err != nil {
-		return fmt.Errorf("failed to deserialize resource schema due to: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -457,15 +476,19 @@ type TableSchemaJSONWrapper struct {
 // serialized by parquet-go. This is necessary because GenericRecord, which
 // is of type []interface{}, does not hold the necessary metadata information
 // to create a valid parquet-go schema.
-func (schema *TableSchema) Interface() interface{} {
-	return schema.Value().Interface()
+func (schema *TableSchema) AsParquetSchema() *parquet.Schema {
+	return parquet.SchemaOf(schema.AsReflectedStruct().Interface())
 }
 
-func (schema *TableSchema) Value() reflect.Value {
+// This method converts the list of columns into a struct type that can be
+// serialized by parquet-go. This is necessary because GenericRecord, which
+// is of type []interface{}, does not hold the necessary metadata information
+// to create a valid parquet-go schema.
+func (schema *TableSchema) AsReflectedStruct() reflect.Value {
 	fields := make([]reflect.StructField, len(schema.Columns))
 	for i, col := range schema.Columns {
 		caser := cases.Title(language.English)
-		colType := col.Scalar().Type()
+		colType := col.Type()
 
 		f := reflect.StructField{
 			// We need to title case the column name to ensure the fields are public
@@ -479,7 +502,10 @@ func (schema *TableSchema) Value() reflect.Value {
 			Tag: reflect.StructTag(fmt.Sprintf(`parquet:"%s,optional"`, col.Name)),
 		}
 
-		// TODO: use a better way of determining if a column is a timestamp
+		if col.IsVector() {
+			f.Tag = reflect.StructTag(fmt.Sprintf(`parquet:"%s,optional,list"`, col.Name))
+		}
+		// This checks if the column type via reflection is Time, such as with time.Time.
 		if colType.Name() == "Time" {
 			f.Tag = reflect.StructTag(fmt.Sprintf(`parquet:"%s,optional,timestamp"`, col.Name))
 		}
@@ -498,12 +524,12 @@ func (schema *TableSchema) Serialize() ([]byte, error) {
 	for i, col := range schema.Columns {
 		wrapper.Columns[i] = TableColumnJSONWrapper{
 			Name:      col.Name,
-			ValueType: ValueTypeJSONWrapper{col.ValueType},
+			ValueType: types.ValueTypeJSONWrapper{col.ValueType},
 		}
 	}
 	config, err := json.Marshal(wrapper)
 	if err != nil {
-		return nil, fmt.Errorf("failed to serialize table schema due to: %w", err)
+		return nil, fferr.NewInternalError(err)
 	}
 	return config, nil
 }
@@ -512,7 +538,7 @@ func (schema *TableSchema) Deserialize(config []byte) error {
 	wrapper := &TableSchemaJSONWrapper{}
 	err := json.Unmarshal(config, wrapper)
 	if err != nil {
-		return fmt.Errorf("failed to deserialize table schema due to: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	schema.Columns = make([]TableColumn, len(wrapper.Columns))
 	for i, col := range wrapper.Columns {
@@ -525,13 +551,14 @@ func (schema *TableSchema) Deserialize(config []byte) error {
 	return nil
 }
 
-// *NOTE:* pointer types are used for all the scalar types to ensure they
-// can be nullable in the parquet file.
-func (schema *TableSchema) ToParquetRecords(records []GenericRecord) []any {
+// ToParquetRecords turn a list of GenericRecords into a list of structs built via
+// reflection. We use structs so that we can add struct tags like optional, timestamp,
+// etc.
+func (schema *TableSchema) ToParquetRecords(records []GenericRecord) ([]any, error) {
 	parquetRecords := make([]any, len(records))
 	caser := cases.Title(language.English)
 	for i, record := range records {
-		parquetRecord := schema.Value()
+		parquetRecord := schema.AsReflectedStruct()
 		for j, value := range record {
 			// if a value is nil, we skip it so that the zero value for the pointer
 			// type is used instead, which will preserve the null value when the parquet
@@ -542,38 +569,41 @@ func (schema *TableSchema) ToParquetRecords(records []GenericRecord) []any {
 			// To ensure the struct fields are public and accessible to other methods,
 			// we need to title case them when setting them.
 			colName := caser.String(schema.Columns[j].Name)
+			parquetField := parquetRecord.Elem().FieldByName(colName)
+			var reflectValue reflect.Value
 			switch v := value.(type) {
-			case int:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case int32:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case int64:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case float32:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case float64:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case string:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case bool:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
+			case int, int32, int64, float32, float64, string, bool:
+				// Pointer types are used for all the scalar types to ensure they
+				// can be nullable in the parquet file.
+				ogVal := reflect.ValueOf(v)
+				if ogVal.CanAddr() {
+					reflectValue = ogVal.Addr()
+				} else {
+					reflectValue = reflect.New(reflect.TypeOf(v))
+					reflectValue.Elem().Set(ogVal)
+				}
+			// Lists and timestamps
 			default:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(value))
+				reflectValue = reflect.ValueOf(v)
 			}
+			if !reflectValue.Type().AssignableTo(parquetField.Type()) {
+				return nil, fferr.NewInternalErrorf("writing invalid type to parquet record.\nFound %s\nexpected %s\n", reflectValue.Type().String(), parquetField.Type().String())
+			}
+			parquetField.Set(reflectValue)
 		}
 		parquetRecords[i] = parquetRecord.Interface()
 	}
-	return parquetRecords
+	return parquetRecords, nil
 }
 
 type TableColumnJSONWrapper struct {
 	Name      string
-	ValueType ValueTypeJSONWrapper
+	ValueType types.ValueTypeJSONWrapper
 }
 
 type TableColumn struct {
 	Name string
-	ValueType
+	types.ValueType
 }
 
 type memoryOfflineStore struct {
@@ -604,31 +634,31 @@ func (store *memoryOfflineStore) AsOfflineStore() (OfflineStore, error) {
 }
 
 func (store *memoryOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
-	return nil, fmt.Errorf("Snowflake RegisterResourceFromSourceTable not implemented")
+	return nil, fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (store *memoryOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
-	return nil, fmt.Errorf("Snowflake RegisterPrimaryFromSourceTable not implemented")
+	return nil, fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
 func (store *memoryOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
-	return nil, errors.New("primary table unsupported for this provider")
+	return nil, fferr.NewInternalError(fmt.Errorf("primary table unsupported for this provider"))
 }
 
 func (store *memoryOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
-	return nil, errors.New("primary table unsupported for this provider")
+	return nil, fferr.NewInternalError(fmt.Errorf("primary table unsupported for this provider"))
 }
 
 func (store *memoryOfflineStore) CreateTransformation(config TransformationConfig) error {
-	return errors.New("CreateTransformation unsupported for this provider")
+	return fferr.NewInternalError(fmt.Errorf("CreateTransformation unsupported for this provider"))
 }
 
 func (store *memoryOfflineStore) UpdateTransformation(config TransformationConfig) error {
-	return errors.New("UpdateTransformation unsupported for this provider")
+	return fferr.NewInternalError(fmt.Errorf("UpdateTransformation unsupported for this provider"))
 }
 
 func (store *memoryOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	return nil, errors.New("GetTransformationTable unsupported for this provider")
+	return nil, fferr.NewInternalError(fmt.Errorf("GetTransformationTable unsupported for this provider"))
 }
 
 func (store *memoryOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
@@ -636,7 +666,7 @@ func (store *memoryOfflineStore) CreateResourceTable(id ResourceID, schema Table
 		return nil, err
 	}
 	if _, has := store.tables.Load(id); has {
-		return nil, &TableAlreadyExists{id.Name, id.Variant}
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	table := newMemoryOfflineTable()
 	store.tables.Store(id, table)
@@ -650,7 +680,7 @@ func (store *memoryOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, 
 func (store *memoryOfflineStore) getMemoryResourceTable(id ResourceID) (*memoryOfflineTable, error) {
 	table, has := store.tables.Load(id)
 	if !has {
-		return nil, &TableNotFound{id.Name, id.Variant}
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	return table.(*memoryOfflineTable), nil
 }
@@ -677,9 +707,10 @@ func (recs materializedRecords) Swap(i, j int) {
 func (store *memoryOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error) {
 	return nil, nil
 }
+
 func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
-		return nil, errors.New("only features can be materialized")
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("only features can be materialized"))
 	}
 	table, err := store.getMemoryResourceTable(id)
 	if err != nil {
@@ -695,26 +726,19 @@ func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, options ..
 	sort.Sort(matData)
 	// Might be used for testing
 	matId := MaterializationID(uuid.NewString())
-	mat := &memoryMaterialization{
-		id:   matId,
-		data: matData,
+	mat := &MemoryMaterialization{
+		Id:           matId,
+		Data:         matData,
+		RowsPerChunk: defaultRowsPerChunk,
 	}
 	store.materializations.Store(matId, mat)
 	return mat, nil
 }
 
-type MaterializationNotFound struct {
-	id MaterializationID
-}
-
-func (err *MaterializationNotFound) Error() string {
-	return fmt.Sprintf("Materialization %s not found", err.id)
-}
-
 func (store *memoryOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
 	mat, has := store.materializations.Load(id)
 	if !has {
-		return nil, &MaterializationNotFound{id}
+		return nil, fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
 	return mat.(Materialization), nil
 }
@@ -725,7 +749,7 @@ func (store *memoryOfflineStore) UpdateMaterialization(id ResourceID) (Materiali
 
 func (store *memoryOfflineStore) DeleteMaterialization(id MaterializationID) error {
 	if _, has := store.materializations.Load(id); !has {
-		return &MaterializationNotFound{id}
+		return fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
 	store.materializations.Delete(id)
 	return nil
@@ -784,13 +808,31 @@ func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetItera
 	}
 	data, has := store.trainingSets.Load(id)
 	if !has {
-		return nil, &TrainingSetNotFound{id}
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	return data.(trainingRows).Iterator(), nil
 }
 
-func (store *memoryOfflineStore) GetTrainingSetTestSplit(id ResourceID, testSize float32, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
-	return nil, nil, nil, nil
+func (store *memoryOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
+	// TODO properly implement this
+	dropFunc := func() error {
+		return nil
+	}
+	return dropFunc, nil
+}
+
+func (store *memoryOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+	// TODO properly implement this
+	trainingSetResourceId := ResourceID{
+		Name:    def.TrainingSetName,
+		Variant: def.TrainingSetVariant,
+	}
+	trainingSet, err := store.GetTrainingSet(trainingSetResourceId)
+	if err != nil {
+		return nil, nil, err
+	}
+	return trainingSet, trainingSet, nil
+
 }
 
 func (store *memoryOfflineStore) Close() error {
@@ -798,15 +840,7 @@ func (store *memoryOfflineStore) Close() error {
 }
 
 func (store *memoryOfflineStore) CheckHealth() (bool, error) {
-	return false, fmt.Errorf("provider health check not implemented")
-}
-
-type TrainingSetNotFound struct {
-	ID ResourceID
-}
-
-func (err *TrainingSetNotFound) Error() string {
-	return fmt.Sprintf("TrainingSet with ID %v not found", err.ID)
+	return false, fferr.NewInternalError(fmt.Errorf("provider health check not implemented"))
 }
 
 type trainingRows []trainingRow
@@ -932,22 +966,41 @@ func (table *memoryOfflineTable) WriteBatch(recs []ResourceRecord) error {
 	return nil
 }
 
-type memoryMaterialization struct {
-	id   MaterializationID
-	data []ResourceRecord
+// Used in runner/copy_test.go
+type MemoryMaterialization struct {
+	Id           MaterializationID
+	Data         []ResourceRecord
+	RowsPerChunk int64
 }
 
-func (mat *memoryMaterialization) ID() MaterializationID {
-	return mat.id
+func (mat *MemoryMaterialization) ID() MaterializationID {
+	return mat.Id
 }
 
-func (mat *memoryMaterialization) NumRows() (int64, error) {
-	return int64(len(mat.data)), nil
+func (mat *MemoryMaterialization) NumRows() (int64, error) {
+	return int64(len(mat.Data)), nil
 }
 
-func (mat *memoryMaterialization) IterateSegment(start, end int64) (FeatureIterator, error) {
-	segment := mat.data[start:end]
+func (mat *MemoryMaterialization) IterateSegment(start, end int64) (FeatureIterator, error) {
+	if end > int64(len(mat.Data)) {
+		return nil, fmt.Errorf("Index out of bounds\nStart: %d\nEnd: %d\nLen: %d\n", start, end, len(mat.Data))
+	}
+	segment := mat.Data[start:end]
 	return newMemoryFeatureIterator(segment), nil
+}
+
+func (mat *MemoryMaterialization) NumChunks() (int, error) {
+	if mat.RowsPerChunk == 0 {
+		mat.RowsPerChunk = defaultRowsPerChunk
+	}
+	return genericNumChunks(mat, mat.RowsPerChunk)
+}
+
+func (mat *MemoryMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
+	if mat.RowsPerChunk == 0 {
+		mat.RowsPerChunk = defaultRowsPerChunk
+	}
+	return genericIterateChunk(mat, mat.RowsPerChunk, idx)
 }
 
 type memoryFeatureIterator struct {
@@ -1007,8 +1060,46 @@ func replaceSourceName(query string, mapping []SourceMapping, sanitize sanitizat
 	replacedQuery := replacer.Replace(query)
 
 	if strings.Contains(replacedQuery, "{{") {
-		return "", fmt.Errorf("could not replace all the templates with the current mapping. Mapping: %v; Replaced Query: %s", mapping, replacedQuery)
+		err := fferr.NewInternalError(fmt.Errorf("template replacement error"))
+		err.AddDetail("query", replacedQuery)
+		return "", err
 	}
 
 	return replacedQuery, nil
+}
+
+func genericNumChunks(mat Materialization, rowsPerChunk int64) (int, error) {
+	_, numChunks, err := getNumRowsAndChunks(mat, rowsPerChunk)
+	return int(numChunks), err
+}
+
+func getNumRowsAndChunks(mat Materialization, rowsPerChunk int64) (int64, int, error) {
+	rows, err := mat.NumRows()
+	if err != nil {
+		return -1, -1, err
+	}
+	numChunks := rows / rowsPerChunk
+	if rows%rowsPerChunk != 0 {
+		numChunks++
+	}
+	return rows, int(numChunks), nil
+}
+
+func genericIterateChunk(mat Materialization, rowsPerChunk int64, idx int) (FeatureIterator, error) {
+	rows, chunks, err := getNumRowsAndChunks(mat, rowsPerChunk)
+	if err != nil {
+		return nil, err
+	}
+	if idx > chunks {
+		return nil, fferr.NewInternalErrorf("Chunk out of range\nIdx: %d\nTotal: %d", idx, chunks)
+	}
+	start := int64(idx) * rowsPerChunk
+	end := (int64(idx) + 1) * rowsPerChunk
+	if start >= rows {
+		start = rows
+	}
+	if end > rows {
+		end = rows
+	}
+	return mat.IterateSegment(start, end)
 }

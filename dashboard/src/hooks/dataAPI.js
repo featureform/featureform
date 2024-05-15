@@ -55,8 +55,8 @@ export function useDataAPI() {
     return result;
   };
 
-  const getTasks = async (searchParams = {}) => {
-    const result = await fetch(`${API_URL}/data/tasks`, {
+  const getTaskRuns = async (searchParams = {}) => {
+    const result = await fetch(`${API_URL}/data/taskruns`, {
       cache: 'no-store',
       method: 'POST',
       headers: {
@@ -74,9 +74,163 @@ export function useDataAPI() {
     return result;
   };
 
+  const getTaskRunDetails = async (taskRunId = '') => {
+    const result = await fetch(
+      `${API_URL}/data/taskruns/taskrundetail/${taskRunId}`,
+      {
+        cache: 'no-store',
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error fetching tasks from server: ', error);
+
+        return [];
+      });
+
+    return result;
+  };
+
+  const getTriggers = async (searchText = '') => {
+    const result = await fetch(`${API_URL}/data/triggers`, {
+      cache: 'no-store',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ searchText }),
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error fetching triggers from server: ', error);
+        return [];
+      });
+
+    return result;
+  };
+
+  const postTrigger = async (triggerParams = {}) => {
+    const address = `${API_URL}/data/posttrigger`;
+    const result = await fetch(address, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(triggerParams),
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error(error);
+        return false;
+      });
+    return result;
+  };
+
+  const getTriggerDetails = async (triggerId = '') => {
+    const result = await fetch(`${API_URL}/data/triggerdetail/${triggerId}`, {
+      cache: 'no-store',
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error fetching trigger details from server: ', error);
+        return [];
+      });
+
+    return result;
+  };
+
+  const deleteTrigger = async (triggerId = '') => {
+    const result = await fetch(`${API_URL}/data/triggerdelete/${triggerId}`, {
+      cache: 'no-store',
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error deleting trigger from server: ', error);
+        return [];
+      });
+
+    return result;
+  };
+
+  const deleteTriggerResource = async (triggerId = '', resourceId = '') => {
+    const result = await fetch(`${API_URL}/data/triggerdeleteresource`, {
+      cache: 'no-store',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ triggerId, resourceId }),
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error deleting trigger resource in server: ', error);
+        return [];
+      });
+
+    return result;
+  };
+
+  const addTriggerResource = async (
+    triggerId = '',
+    name = '',
+    variant = ''
+  ) => {
+    const result = await fetch(`${API_URL}/data/triggeraddresource`, {
+      cache: 'no-store',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ triggerId, name, variant }),
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error adding trigger resource in server: ', error);
+        return [];
+      });
+
+    return result;
+  };
+
+  const searchResources = async () => {
+    const result = await fetch(`${API_URL}/data/search?q=""`, {
+      cache: 'no-store',
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error searching variants in server: ', error);
+        return [];
+      });
+    return result;
+  };
+
   return {
     getTags,
     postTags,
-    getTasks,
+    getTaskRuns,
+    getTaskRunDetails,
+    getTriggers,
+    postTrigger,
+    getTriggerDetails,
+    deleteTrigger,
+    deleteTriggerResource,
+    addTriggerResource,
+    searchResources,
   };
 }

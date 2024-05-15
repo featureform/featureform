@@ -15,6 +15,7 @@ from featureform.register import (
     DFTransformationDecorator,
     SnowflakeConfig,
     Model,
+    get_name_variant,
 )
 
 
@@ -333,39 +334,98 @@ def run_before_and_after_tests(tmpdir):
 
 
 @pytest.mark.parametrize(
-    "sql_query, expected_valid_sql_query",
+    "sql_query, expected_error",
     [
-        ("SELECT * FROM X", False),
-        ("SELECT * FROM", False),
-        ("SELECT * FROM     \n {{ name }}", True),
-        ("SELECT * FROM     \n {{name}}", True),
-        ("SELECT * FROM {{ name.variant }}", True),
-        ("SELECT * FROM {{name.variant }}", True),
-        ("SELECT * FROM     \n {{ name.variant }}", True),
-        ("SELECT * FROM     \n {{name.variant}}", True),
-        ("SELECT * FROM     \n {{name . variant}}", False),
+        ("SELECT * FROM X", InvalidSQLQuery("SELECT * FROM X", "No source specified.")),
+        ("SELECT * FROM", InvalidSQLQuery("SELECT * FROM", "No source specified.")),
+        ("SELECT * FROM     \n {{ name }}", None),
+        ("SELECT * FROM     \n {{name}}", None),
+        ("SELECT * FROM {{ name.variant }}", None),
+        ("SELECT * FROM {{name.variant }}", None),
+        ("SELECT * FROM     \n {{ name.variant }}", None),
+        ("SELECT * FROM     \n {{name.variant}}", None),
+        (
+            "SELECT * FROM     \n {{name . variant}}",
+            InvalidSQLQuery(
+                "SELECT * FROM     \n {{name . variant}}",
+                "Source name cannot start or end with a space.",
+            ),
+        ),
         (
             """
                                             SELECT *
                                             FROM {{ name.variant2 }}
                                             WHERE x >= 5.
                                             """,
-            True,
+            None,
         ),
         (
             "SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id",
-            True,
+            None,
         ),
         (
             (
                 "SELECT CustomerID as user_id, avg(TransactionAmount) "
                 "as avg_transaction_amt from {{transactions.kaggle}} GROUP BY user_id"
             ),
-            True,
+            None,
+        ),
+        (
+            "SELECT * FROM {{ transactions.2024-04-18t16-13-22 }}",
+            None,
+        ),
+        (
+            "SELECT * FROM {{ _transactions.2024-04-18t16-13-22 }}",
+            InvalidSQLQuery(
+                "SELECT * FROM {{ _transactions.2024-04-18t16-13-22 }}",
+                "Source name cannot start or end with an underscore.",
+            ),
+        ),
+        (
+            "SELECT * FROM {{ transactions_.2024-04-18t16-13-22 }}",
+            InvalidSQLQuery(
+                "SELECT * FROM {{ transactions_.2024-04-18t16-13-22 }}",
+                "Source name cannot start or end with an underscore.",
+            ),
+        ),
+        (
+            "SELECT * FROM {{ transactions._2024-04-18t16-13-22 }}",
+            InvalidSQLQuery(
+                "SELECT * FROM {{ transactions._2024-04-18t16-13-22 }}",
+                "Source variant cannot start or end with an underscore.",
+            ),
+        ),
+        (
+            "SELECT * FROM {{ transactions.2024-04-18t16-13-22_ }}",
+            InvalidSQLQuery(
+                "SELECT * FROM {{ transactions.2024-04-18t16-13-22_ }}",
+                "Source variant cannot start or end with an underscore.",
+            ),
+        ),
+        (
+            "SELECT * FROM {{ trans__actions.2024-04-18t16-13-22 }}",
+            InvalidSQLQuery(
+                "SELECT * FROM {{ trans__actions.2024-04-18t16-13-22 }}",
+                "Source name and variant cannot contain consecutive underscores.",
+            ),
+        ),
+        (
+            "SELECT * FROM {{ transactions.var__iant }}",
+            InvalidSQLQuery(
+                "SELECT * FROM {{ transactions.var__iant }}",
+                "Source name and variant cannot contain consecutive underscores.",
+            ),
+        ),
+        (
+            "SELECT * FROM {{ trans.actions.variant}}",
+            InvalidSQLQuery(
+                "SELECT * FROM {{ trans.actions.variant}}",
+                "Source name and variant cannot contain more than one period.",
+            ),
         ),
     ],
 )
-def test_assert_query_contains_at_least_one_source(sql_query, expected_valid_sql_query):
+def test_assert_query_contains_at_least_one_source(sql_query, expected_error):
     dec = SQLTransformationDecorator(
         registrar=registrar,
         owner="",
@@ -375,15 +435,43 @@ def test_assert_query_contains_at_least_one_source(sql_query, expected_valid_sql
         properties={},
     )
 
-    if not expected_valid_sql_query:
+    if expected_error:
         with pytest.raises(InvalidSQLQuery) as ex_info:
             dec._assert_query_contains_at_least_one_source(sql_query)
-        assert (
-            str(ex_info.value)
-            == f"Invalid SQL query. Query: ' {sql_query} ' No source specified."
-        )
+        assert str(ex_info.value) == str(expected_error)
     else:
         dec._assert_query_contains_at_least_one_source(sql_query)
+
+
+@pytest.mark.parametrize(
+    "sql_query, source_str, expected_name, expected_variant, expected_error",
+    [
+        ("SELECT * FROM {{ name.variant }}", "name.variant", "name", "variant", None),
+        ("SELECT * FROM {{ name }}", "name", "name", "", None),
+        (
+            "SELECT * FROM {{ name.vari.ant }}",
+            "name.vari.ant",
+            "name",
+            "variant",
+            InvalidSQLQuery(
+                "SELECT * FROM {{ name.vari.ant }}",
+                "Source name and variant cannot contain more than one period.",
+            ),
+        ),
+    ],
+)
+def test_get_name_variant(
+    sql_query, source_str, expected_name, expected_variant, expected_error
+):
+    if expected_error:
+        with pytest.raises(InvalidSQLQuery) as ex_info:
+            name, variant = get_name_variant(sql_query, source_str)
+        assert str(ex_info.value) == str(expected_error)
+    else:
+        name, variant = get_name_variant(sql_query, source_str)
+
+        assert name == expected_name
+        assert variant == expected_variant
 
 
 @pytest.mark.parametrize(

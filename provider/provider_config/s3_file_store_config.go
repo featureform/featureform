@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"github.com/featureform/fferr"
 
 	ss "github.com/featureform/helpers/string_set"
 )
@@ -9,14 +10,18 @@ import (
 type S3FileStoreConfig struct {
 	Credentials  AWSCredentials
 	BucketRegion string
-	BucketPath   string
-	Path         string
+	// BucketPath is the bucket name, no s3://
+	BucketPath string
+	// Path is the subpath in the bucket to work in
+	Path string
+	// Endpoint is used when using a S3 compatible service outside of AWS like localstack
+	Endpoint string
 }
 
 func (s *S3FileStoreConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, s)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -24,7 +29,7 @@ func (s *S3FileStoreConfig) Deserialize(config SerializedConfig) error {
 func (s *S3FileStoreConfig) Serialize() ([]byte, error) {
 	conf, err := json.Marshal(s)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	return conf, nil
 }
@@ -53,7 +58,7 @@ type HDFSFileStoreConfig struct {
 func (s *HDFSFileStoreConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, s)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }
@@ -61,7 +66,7 @@ func (s *HDFSFileStoreConfig) Deserialize(config SerializedConfig) error {
 func (s *HDFSFileStoreConfig) Serialize() ([]byte, error) {
 	conf, err := json.Marshal(s)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	return conf, nil
 }

@@ -1,74 +1,73 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
-import os
 import ast
 import inspect
+import os
 import warnings
 from abc import ABC
+from collections.abc import Iterable
 from datetime import timedelta
-from pathlib import Path
-from typing import Dict, Tuple, Callable, List, Union, Optional
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import dill
 import pandas as pd
 from dataclasses import dataclass, field
 from typeguard import typechecked
-import numpy
 
 from . import feature_flag
-from .enums import FileFormat
 from .exceptions import InvalidSQLQuery
-from .file_utils import absolute_file_paths
 from .get import *
+from .grpc_client import GrpcClient
 from .list import *
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
 from .resources import (
-    PineconeConfig,
-    ScalarType,
+    AWSCredentials,
+    AzureFileStoreConfig,
+    BigQueryConfig,
+    CassandraConfig,
+    ClickHouseConfig,
+    DFTransformation,
+    DynamodbConfig,
+    Entity,
+    ExecutorCredentials,
+    FeatureVariant,
+    FilePrefix,
+    FirestoreConfig,
+    GCPCredentials,
+    GCSFileStoreConfig,
+    HDFSConfig,
+    K8sArgs,
+    K8sConfig,
+    K8sResourceSpecs,
+    LabelVariant,
+    Location,
     Model,
-    ResourceState,
+    MongoDBConfig,
+    OnDemandFeatureVariant,
+    OndemandFeatureParameters,
+    OnlineBlobConfig,
+    PineconeConfig,
+    PostgresConfig,
+    PrimaryData,
     Provider,
     RedisConfig,
-    FirestoreConfig,
-    CassandraConfig,
-    DynamodbConfig,
-    MongoDBConfig,
-    PostgresConfig,
-    SnowflakeConfig,
     RedshiftConfig,
-    BigQueryConfig,
-    ClickHouseConfig,
-    SparkConfig,
-    AzureFileStoreConfig,
-    OnlineBlobConfig,
-    K8sConfig,
+    ResourceColumnMapping,
+    ResourceRedefinedError,
+    ResourceState,
+    ResourceStatus,
+    ResourceVariant,
     S3StoreConfig,
-    GCSFileStoreConfig,
-    User,
-    Location,
-    SourceVariant,
-    PrimaryData,
     SQLTable,
     SQLTransformation,
-    DFTransformation,
-    Entity,
-    FeatureVariant,
-    LabelVariant,
-    ResourceColumnMapping,
+    ScalarType,
+    SnowflakeConfig,
+    SourceVariant,
+    SparkConfig,
     TrainingSetVariant,
-    ExecutorCredentials,
-    ResourceRedefinedError,
-    ResourceStatus,
-    K8sArgs,
-    AWSCredentials,
-    OndemandFeatureParameters,
-    GCPCredentials,
-    HDFSConfig,
-    K8sResourceSpecs,
-    FilePrefix,
-    OnDemandFeatureVariant,
+    User,
     WeaviateConfig,
     ResourceVariant,
     TriggerResource,
@@ -76,7 +75,7 @@ from .resources import (
 from .search import search
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
-from .types import pd_to_ff_datatype
+from .types import pd_to_ff_datatype, VectorType
 from .variant_names_generator import get_current_timestamp_variant
 from .variant_names_generator import get_random_name
 
@@ -807,10 +806,59 @@ class SQLTransformationDecorator:
     @staticmethod
     def _assert_query_contains_at_least_one_source(query):
         # Checks to verify that the query contains a FROM {{ name.variant }}
-        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_:.]+(\.[a-zA-Z0-9_:.]+)?\s*\}\}"
-        match = re.search(pattern, query, re.IGNORECASE)
-        if match is None:
+
+        # the pattern pulls the string within the double curly braces
+        pattern = r"\{\{\s*(.*?)\s*\}\}"
+        matches = re.findall(pattern, query)
+        if len(matches) == 0:
             raise InvalidSQLQuery(query, "No source specified.")
+
+        for m in matches:
+            name, variant = get_name_variant(query, m)
+            if name == "":
+                raise InvalidSQLQuery(query, "Source name is empty.")
+
+            # Check for invalid characters in the source name and variant
+            if name.startswith(" ") or name.endswith(" "):
+                raise InvalidSQLQuery(
+                    query, "Source name cannot start or end with a space."
+                )
+            if variant.startswith(" ") or variant.endswith(" "):
+                raise InvalidSQLQuery(
+                    query, "Source variant cannot start or end with a space."
+                )
+
+            if name.startswith("_") or name.endswith("_"):
+                raise InvalidSQLQuery(
+                    query, "Source name cannot start or end with an underscore."
+                )
+            if variant.startswith("_") or variant.endswith("_"):
+                raise InvalidSQLQuery(
+                    query, "Source variant cannot start or end with an underscore."
+                )
+
+            if "__" in name or "__" in variant:
+                raise InvalidSQLQuery(
+                    query,
+                    "Source name and variant cannot contain consecutive underscores.",
+                )
+
+
+def get_name_variant(query, source_str):
+    # Based on the source string, split the name and variant
+    name_variant = source_str.split(".")
+    if len(name_variant) > 2:
+        raise InvalidSQLQuery(
+            query, "Source name and variant cannot contain more than one period."
+        )
+    elif len(name_variant) == 2:
+        name = name_variant[0]
+        variant = name_variant[1]
+    else:
+        name = name_variant[0]
+        variant = ""
+
+    return name, variant
 
 
 @dataclass
@@ -1232,7 +1280,10 @@ class FeatureColumnResource(ColumnResource):
         )
 
 
-class MultiFeatureColumnResource(ColumnResource):
+class MultiFeatureColumnResource(Iterable):
+    def __iter__(self):
+        return iter(self.features)
+
     def __init__(
         self,
         dataset: SourceVariant,
@@ -1288,7 +1339,7 @@ class MultiFeatureColumnResource(ColumnResource):
         self.owner = owner
         self.description = description
         self.schedule = schedule
-        self._resources = []
+        self.features = []
 
         include_columns = include_columns or []
         exclude_columns = exclude_columns or []
@@ -1318,27 +1369,23 @@ class MultiFeatureColumnResource(ColumnResource):
     ):
         df_has_quotes = self._check_df_column_format(df)
         for column_name in register_columns:
-            if timestamp_column != "":
-                feature = FeatureColumnResource(
-                    dataset[[entity_column, column_name, timestamp_column]],
-                    variant=variant,
-                    type=pd_to_ff_datatype[
-                        df[self._modify_column_name(column_name, df_has_quotes)].dtype
-                    ],
-                    inference_store=inference_store,
-                )
-
-            else:
-                feature = FeatureColumnResource(
-                    dataset[[entity_column, column_name]],
-                    variant=variant,
-                    type=pd_to_ff_datatype[
-                        df[self._modify_column_name(column_name, df_has_quotes)].dtype
-                    ],
-                    inference_store=inference_store,
-                )
+            transformation_args = (
+                dataset[[entity_column, column_name, timestamp_column]]
+                if timestamp_column != ""
+                else dataset[[entity_column, column_name]]
+            )
+            feature = FeatureColumnResource(
+                transformation_args=transformation_args,
+                variant=variant,
+                type=pd_to_ff_datatype[
+                    df[self._modify_column_name(column_name, df_has_quotes)].dtype
+                ],
+                inference_store=inference_store,
+            )
             feature.name = column_name
-            self._resources.append(feature)
+            self.features.append(feature)
+
+        return self.features
 
     def _get_feature_columns(
         self, df, include_columns, exclude_columns, entity_column, timestamp_column
@@ -1358,7 +1405,7 @@ class MultiFeatureColumnResource(ColumnResource):
 
         if not exclude_columns_set.issubset(all_columns_set):
             raise ValueError(
-                f"{all_columns_set - exclude_columns_set} columns are not in the dataframe"
+                f"Exclude columns: {exclude_columns_set - all_columns_set} columns are not in the dataframe"
             )
 
         if not include_columns_set.isdisjoint(exclude_columns_set):
@@ -1371,7 +1418,8 @@ class MultiFeatureColumnResource(ColumnResource):
         else:
             return list(all_columns_set - exclude_columns_set)
 
-    def _check_df_column_format(self, df):
+    @staticmethod
+    def _check_df_column_format(df):
         df_has_quotes = False
         for column_name in df.columns:
             if '"' in column_name:
@@ -1379,7 +1427,8 @@ class MultiFeatureColumnResource(ColumnResource):
             return df_has_quotes
 
     # TODO: Verify if you can have empty strings as column names (Add unit test for it)
-    def _clean_name(self, string_name):
+    @staticmethod
+    def _clean_name(string_name):
         return string_name.replace('"', "")
 
     def _modify_column_name(self, string_name, df_has_quotes):
@@ -3668,7 +3717,6 @@ class Registrar:
             return decorator
         else:
             return decorator(fn)
-        
 
     def register_trigger(self, trigger_name, trigger_type):
         """Register a trigger.
@@ -3687,7 +3735,6 @@ class Registrar:
         trigger = TriggerResource(trigger_name, trigger_type)
         self.__resources.append(trigger)
         return trigger
-
 
     def state(self):
         for resource in self.__resources:
@@ -3867,14 +3914,17 @@ class Registrar:
             feature_tags = feature.get("tags", [])
             feature_properties = feature.get("properties", {})
             additional_Parameters = self._get_additional_parameters(ondemand_feature)
+            is_embedding = feature.get("is_embedding", False)
+            dims = feature.get("dims", 0)
+            value_type = ScalarType(feature["type"])
+            if dims > 0:
+                value_type = VectorType(value_type, dims, is_embedding)
             resource = FeatureVariant(
                 created=None,
                 name=feature["name"],
                 variant=variant,
                 source=source,
-                value_type=feature["type"],
-                is_embedding=feature.get("is_embedding", False),
-                dims=feature.get("dims", 0),
+                value_type=value_type,
                 entity=entity,
                 owner=owner,
                 provider=inference_store,
@@ -3990,7 +4040,9 @@ class Registrar:
         self,
         name: str,
         variant: str = "",
-        features: Union[list, List[FeatureColumnResource]] = [],
+        features: Union[
+            list, List[FeatureColumnResource], MultiFeatureColumnResource
+        ] = [],
         label: Union[NameVariant, LabelColumnResource] = ("", ""),
         resources: list = [],
         owner: Union[str, UserRegistrar] = "",
@@ -4034,7 +4086,7 @@ class Registrar:
         if variant == "":
             variant = self.__run
 
-        if not isinstance(features, (list)):
+        if not isinstance(features, (list, MultiFeatureColumnResource)):
             raise ValueError(
                 f"Invalid features type: {type(features)} "
                 "Features must be entered as a list of name-variant tuples (e.g. [('feature1', 'quickstart'), ('feature2', 'quickstart')]) or a list of FeatureColumnResource instances."
@@ -4160,7 +4212,7 @@ class ResourceClient:
             channel = insecure_channel(host)
         else:
             channel = secure_channel(host, cert_path)
-        self._stub = ff_grpc.ApiStub(channel)
+        self._stub = GrpcClient(ff_grpc.ApiStub(channel))
         self._host = host
 
     def apply(self, asynchronous=False, verbose=False):
@@ -4772,7 +4824,7 @@ class ResourceClient:
 
         definition = self._get_source_definition(source)
 
-        return SourceVariant(
+        source_variant = SourceVariant(
             created=None,
             name=source.name,
             definition=definition,
@@ -4787,6 +4839,7 @@ class ResourceClient:
                 definition.source_text if type(definition) == DFTransformation else ""
             ),
         )
+        return ColumnSourceRegistrar(self, source_variant)
 
     def _get_source_definition(self, source):
         if source.primaryData.table.name:
@@ -5486,7 +5539,7 @@ def entity(cls):
                 resource.entity = entity
                 resource.register()
         elif isinstance(cls.__dict__[attr_name], MultiFeatureColumnResource):
-            multi_feature_resources = cls.__dict__[attr_name]._resources
+            multi_feature_resources = cls.__dict__[attr_name].features
             for resource in multi_feature_resources:
                 setattr(entity, resource.name, resource)
                 resource.entity = entity

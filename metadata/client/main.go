@@ -8,13 +8,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
+	"github.com/featureform/provider/types"
 	"go.uber.org/zap"
 )
 
 func main() {
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient("localhost:8888", logger)
+	client, err := metadata.NewClient("localhost:8888", logging.WrapZapLogger(logger))
 	if err != nil {
 		logger.Panicw("Failed to connect", "Err", err)
 	}
@@ -83,7 +85,7 @@ func main() {
 			Name:        "is_fraud",
 			Variant:     "default",
 			Description: "if a transaction is fraud",
-			Type:        "boolean",
+			Type:        types.Bool,
 			Source:      metadata.NameVariant{"Transactions", "default"},
 			Entity:      "user",
 			Owner:       "Simba Khadder",
@@ -98,7 +100,7 @@ func main() {
 			Name:        "number_of_fraud",
 			Variant:     "90d",
 			Source:      metadata.NameVariant{"Transactions", "default"},
-			Type:        "int",
+			Type:        types.Int,
 			Entity:      "user",
 			Owner:       "Simba Khadder",
 			Description: "Number of fraud transactions in the last 90 days.",
@@ -113,7 +115,7 @@ func main() {
 			Name:        "user_2fa",
 			Variant:     "default",
 			Source:      metadata.NameVariant{"Transactions", "default"},
-			Type:        "boolean",
+			Type:        types.Bool,
 			Entity:      "user",
 			Owner:       "Simba Khadder",
 			Description: "If user has 2fa",
@@ -128,7 +130,7 @@ func main() {
 			Name:        "user_account_age",
 			Variant:     "default",
 			Source:      metadata.NameVariant{"Transactions", "default"},
-			Type:        "int",
+			Type:        types.Int,
 			Entity:      "user",
 			Owner:       "Simba Khadder",
 			Description: "Seconds since the user's account was created.",
@@ -143,7 +145,7 @@ func main() {
 			Name:        "user_credit_score",
 			Variant:     "default",
 			Source:      metadata.NameVariant{"Transactions", "default"},
-			Type:        "int",
+			Type:        types.Int,
 			Entity:      "user",
 			Owner:       "Simba Khadder",
 			Description: "User's credit score",
@@ -158,7 +160,7 @@ func main() {
 			Name:        "user_transaction_count",
 			Variant:     "30d",
 			Source:      metadata.NameVariant{"Transactions", "default"},
-			Type:        "int",
+			Type:        types.Int,
 			Entity:      "user",
 			Owner:       "Simba Khadder",
 			Description: "Number of transcations the user performed in the last 30 days.",
@@ -173,7 +175,7 @@ func main() {
 			Name:        "avg_transaction_amt",
 			Variant:     "default",
 			Source:      metadata.NameVariant{"Transactions", "default"},
-			Type:        "int",
+			Type:        types.Int,
 			Entity:      "user",
 			Owner:       "Simba Khadder",
 			Description: "Average transaction amount",
@@ -188,7 +190,7 @@ func main() {
 			Name:        "amt_spent",
 			Variant:     "30d",
 			Source:      metadata.NameVariant{"Transactions", "default"},
-			Type:        "int",
+			Type:        types.Int,
 			Entity:      "user",
 			Owner:       "Simba Khadder",
 			Description: "Total amount spent in the last 30 days.",
@@ -203,7 +205,7 @@ func main() {
 			Name:        "user_transaction_count",
 			Variant:     "7d",
 			Source:      metadata.NameVariant{"Transactions", "default"},
-			Type:        "int",
+			Type:        types.Int,
 			Entity:      "user",
 			Owner:       "Simba Khadder",
 			Description: "Number of transcations the user performed in the last 7 days.",

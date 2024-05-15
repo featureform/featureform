@@ -1,10 +1,10 @@
-import NotInterestedIcon from '@mui/icons-material/NotInterested';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
 import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   FormControl,
   IconButton,
   InputAdornment,
@@ -12,118 +12,178 @@ import {
   MenuItem,
   Select,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useDataAPI } from '../../hooks/dataAPI';
 import { useStyles } from './styles';
-import TasksTable from './tasksTable';
+import TaskRunDataGrid from './taskRunDataGrid';
 
 export default function TableDataWrapper() {
   const classes = useStyles();
   const dataAPI = useDataAPI();
-  const STATUS_ALL = 'ALL';
-  const STATUS_ACTIVE = 'ACTIVE';
-  const STATUS_COMPLETE = 'COMPLETE';
+  const FILTER_STATUS_ALL = 'ALL';
+  const FILTER_STATUS_ACTIVE = 'ACTIVE';
+  const FILTER_STATUS_COMPLETE = 'COMPLETE';
+  const JOB_STATUS_RUNNING = 'RUNNING';
+  const JOB_STATUS_PENDING = 'PENDING';
+  const JOB_STATUS_SUCCESS = 'SUCCESS';
+  const JOB_STATUS_FAILED = 'FAILED';
   const SORT_STATUS = 'STATUS';
   const SORT_DATE = 'STATUS_DATE';
   const ENTER_KEY = 'Enter';
   const [searchParams, setSearchParams] = useState({
-    status: STATUS_ALL,
+    status: FILTER_STATUS_ALL,
     sortBy: '',
     searchText: '',
   });
   const [searchQuery, setSearchQuery] = useState('');
-  const [taskList, setTaskList] = useState([]);
+  const [taskRunList, setTaskRunList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [allCount, setAllCount] = useState(0);
+  const [activeCount, setActiveCount] = useState(0);
+  const [completeCount, setCompleteCount] = useState(0);
 
-  const handleStatusBtnSelect = (statusType = STATUS_ALL) => {
+  useEffect(async () => {
+    if (loading) {
+      let data = await dataAPI.getTaskRuns(searchParams);
+      //if the search are in all state. run the counts again
+      if (
+        !searchParams.searchText &&
+        !searchParams.sortBy &&
+        searchParams.status == FILTER_STATUS_ALL
+      ) {
+        if (data?.length) {
+          setAllCount(data.length);
+          setActiveCount(
+            data.filter((q) =>
+              [JOB_STATUS_PENDING, JOB_STATUS_RUNNING].includes(
+                q?.taskRun?.status
+              )
+            )?.length ?? 0
+          );
+          setCompleteCount(
+            data.filter((q) =>
+              [JOB_STATUS_FAILED, JOB_STATUS_SUCCESS].includes(
+                q?.taskRun?.status
+              )
+            )?.length ?? 0
+          );
+        } else {
+          setAllCount(0);
+          setActiveCount(0);
+          setCompleteCount(0);
+        }
+      }
+      setTaskRunList(data);
+      const timeout = setTimeout(() => {
+        setLoading(false);
+      }, 750);
+      return () => {
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+      };
+    }
+  }, [searchParams, loading]);
+
+  const handleStatusBtnSelect = (statusType = FILTER_STATUS_ALL) => {
     setSearchParams({ ...searchParams, status: statusType });
+    setLoading(true);
   };
 
   const handleSortBy = (event) => {
     let value = event?.target?.value ?? '';
     setSearchParams({ ...searchParams, sortBy: value });
+    setLoading(true);
   };
 
   const handleSearch = (searchArg = '') => {
     setSearchParams({ ...searchParams, searchText: searchArg });
+    setLoading(true);
+  };
+
+  const handleReloadRequest = () => {
+    if (!loading) {
+      setLoading(true);
+    }
   };
 
   const clearInputs = () => {
     setSearchParams({
-      status: STATUS_ALL,
+      status: FILTER_STATUS_ALL,
       sortBy: '',
       searchText: '',
     });
     setSearchQuery('');
+    setLoading(true);
   };
-
-  useEffect(async () => {
-    let data = await dataAPI.getTasks(searchParams);
-    setTaskList(data);
-  }, [searchParams]);
 
   return (
     <>
-      <Box className={classes.intputRow}>
+      <Box className={classes.inputRow}>
         <Button
-          variant='outlined'
+          variant='text'
           className={
-            searchParams.status === STATUS_ALL
+            searchParams.status === FILTER_STATUS_ALL
               ? classes.activeButton
               : classes.inactiveButton
           }
-          onClick={() => handleStatusBtnSelect(STATUS_ALL)}
+          onClick={() => handleStatusBtnSelect(FILTER_STATUS_ALL)}
         >
           <Typography variant='button' className={classes.buttonText}>
             All
           </Typography>
           <Chip
-            label={56}
+            label={allCount}
+            data-testid='allId'
             className={
-              searchParams.status === STATUS_ALL
+              searchParams.status === FILTER_STATUS_ALL
                 ? classes.activeChip
                 : classes.inactiveChip
             }
           />
         </Button>
         <Button
-          variant='outlined'
+          variant='text'
           className={
-            searchParams.status === STATUS_ACTIVE
+            searchParams.status === FILTER_STATUS_ACTIVE
               ? classes.activeButton
               : classes.inactiveButton
           }
-          onClick={() => handleStatusBtnSelect(STATUS_ACTIVE)}
+          onClick={() => handleStatusBtnSelect(FILTER_STATUS_ACTIVE)}
         >
           <Typography variant='button' className={classes.buttonText}>
             Active
           </Typography>
           <Chip
-            label={32}
+            label={activeCount}
+            data-testid='activeId'
             className={
-              searchParams.status === STATUS_ACTIVE
+              searchParams.status === FILTER_STATUS_ACTIVE
                 ? classes.activeChip
                 : classes.inactiveChip
             }
           />
         </Button>
         <Button
-          variant='outlined'
+          variant='text'
           className={
-            searchParams.status === STATUS_COMPLETE
+            searchParams.status === FILTER_STATUS_COMPLETE
               ? classes.activeButton
               : classes.inactiveButton
           }
-          onClick={() => handleStatusBtnSelect(STATUS_COMPLETE)}
+          onClick={() => handleStatusBtnSelect(FILTER_STATUS_COMPLETE)}
         >
           <Typography variant='button' className={classes.buttonText}>
             Complete
           </Typography>
           <Chip
-            label={24}
+            label={completeCount}
+            data-testid='completeId'
             className={
-              searchParams.status === STATUS_COMPLETE
+              searchParams.status === FILTER_STATUS_COMPLETE
                 ? classes.activeChip
                 : classes.inactiveChip
             }
@@ -131,15 +191,16 @@ export default function TableDataWrapper() {
         </Button>
 
         <Box style={{ float: 'right' }}>
-          <FormControl
-            className={classes.filterInput}
-            style={{ paddingRight: '15px' }}
-          >
-            <InputLabel id='sortId'>Sort By</InputLabel>
+          <FormControl style={{ paddingRight: '15px' }}>
+            <InputLabel shrink={true} id='sortId'>
+              Sort By
+            </InputLabel>
             <Select
               value={searchParams.sortBy}
+              InputLabelProps={{ shrink: true }}
               onChange={handleSortBy}
               label='Sort By'
+              notched={true}
               className={classes.filterInput}
             >
               <MenuItem value={SORT_STATUS}>Status</MenuItem>
@@ -148,7 +209,9 @@ export default function TableDataWrapper() {
           </FormControl>
           <FormControl>
             <TextField
-              placeholder='Search Tasks...'
+              size='small'
+              InputLabelProps={{ shrink: true }}
+              label='Search'
               onChange={(event) => {
                 const rawText = event.target.value;
                 if (rawText === '') {
@@ -181,22 +244,36 @@ export default function TableDataWrapper() {
                   </InputAdornment>
                 ),
               }}
-              className={classes.filterInput}
               inputProps={{
                 'aria-label': 'search',
-                'data-testid': 'searchInputId',
+                'data-testid': 'searcInputId',
               }}
             />
           </FormControl>
-          <IconButton size='large'>
-            <RefreshIcon />
-          </IconButton>
-          <IconButton size='large' onClick={clearInputs}>
-            <NotInterestedIcon />
-          </IconButton>
+          <Tooltip title='Refresh table' placement='top'>
+            <IconButton size='large' onClick={handleReloadRequest}>
+              {loading ? (
+                <CircularProgress
+                  size={'.85em'}
+                  data-testid='circularProgressId'
+                />
+              ) : (
+                <RefreshIcon data-testid='refreshIcon' />
+              )}
+            </IconButton>
+          </Tooltip>
+          <Tooltip title='Clear filter inputs' placement='top'>
+            <IconButton size='large' onClick={clearInputs}>
+              <img
+                alt={'CLEAR'}
+                data-testid='clearIcon'
+                src={'/static/clearIcon.svg'}
+              />
+            </IconButton>
+          </Tooltip>
         </Box>
       </Box>
-      <TasksTable taskList={taskList} />
+      <TaskRunDataGrid taskRunList={taskRunList} />
     </>
   );
 }

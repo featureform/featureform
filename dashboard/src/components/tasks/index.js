@@ -1,10 +1,10 @@
 import React from 'react';
 import TableDataWrapper from './tableDataWrapper';
 
-export default function TaskPage() {
+export default function TaskRunsPage() {
   return (
     <>
-      <h1>Task Runs</h1>
+      <h3>Task Runs</h3>
       <TableDataWrapper />
     </>
   );

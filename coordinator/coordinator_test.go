@@ -16,14 +16,16 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 
+	"github.com/featureform/fferr"
 	help "github.com/featureform/helpers"
+	"github.com/featureform/logging"
 	"github.com/google/uuid"
 
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
-	"github.com/featureform/runner"
+	"github.com/featureform/provider/types"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/joho/godotenv"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -96,9 +98,8 @@ func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 		},
 	}
 	config := &metadata.Config{
-		Logger:          logger,
-		StorageProvider: storageProvider,
-	}
+		Logger:          logging.WrapZapLogger(logger),
+		StorageProvider: storageProvider}
 	serv, err := metadata.NewMetadataServer(config)
 	if err != nil {
 		panic(err)
@@ -118,7 +119,7 @@ func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 
 func createNewCoordinator(addr string) (*Coordinator, error) {
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logger)
+	client, err := metadata.NewClient(addr, logging.WrapZapLogger(logger))
 	if err != nil {
 		return nil, err
 	}
@@ -281,7 +282,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 			Name:        featureName,
 			Variant:     "",
 			Source:      metadata.NameVariant{sourceName, ""},
-			Type:        string(provider.Int),
+			Type:        types.Int,
 			Entity:      entityName,
 			Owner:       userName,
 			Description: "",
@@ -342,7 +343,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 			Name:        featureName,
 			Variant:     "",
 			Source:      metadata.NameVariant{sourceName, ""},
-			Type:        string(provider.Int),
+			Type:        types.Int,
 			Entity:      entityName,
 			Owner:       userName,
 			Description: "",
@@ -412,7 +413,7 @@ func TestFeatureMaterializeJobError(t *testing.T) {
 			Name:        featureName,
 			Variant:     "",
 			Source:      metadata.NameVariant{sourceName, ""},
-			Type:        string(provider.Int),
+			Type:        types.Int,
 			Entity:      entityName,
 			Owner:       userName,
 			Description: "",
@@ -491,7 +492,7 @@ func TestTrainingSetJobError(t *testing.T) {
 			Name:        labelName,
 			Variant:     "",
 			Description: "",
-			Type:        string(provider.Int),
+			Type:        types.Int,
 			Source:      metadata.NameVariant{sourceName, ""},
 			Entity:      entityName,
 			Owner:       userName,
@@ -506,7 +507,7 @@ func TestTrainingSetJobError(t *testing.T) {
 			Name:        featureName,
 			Variant:     "",
 			Source:      metadata.NameVariant{sourceName, ""},
-			Type:        string(provider.Int),
+			Type:        types.Int,
 			Entity:      entityName,
 			Owner:       userName,
 			Description: "",
@@ -580,7 +581,7 @@ func TestTrainingSetJobError(t *testing.T) {
 			Name:        labelName,
 			Variant:     "",
 			Description: "",
-			Type:        string(provider.Int),
+			Type:        types.Int,
 			Source:      metadata.NameVariant{sourceName, ""},
 			Entity:      entityName,
 			Owner:       userName,
@@ -595,7 +596,7 @@ func TestTrainingSetJobError(t *testing.T) {
 			Name:        featureName,
 			Variant:     "",
 			Source:      metadata.NameVariant{sourceName, ""},
-			Type:        string(provider.Int),
+			Type:        types.Int,
 			Entity:      entityName,
 			Owner:       userName,
 			Description: "",
@@ -997,7 +998,7 @@ func TestCoordinatorCalls(t *testing.T) {
 	serv, addr := startServ(t)
 	defer serv.Stop()
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logger)
+	client, err := metadata.NewClient(addr, logging.WrapZapLogger(logger))
 	if err != nil {
 		t.Fatalf("could not set up metadata client: %v", err)
 	}
@@ -1071,7 +1072,7 @@ func materializeFeatureWithProvider(client *metadata.Client, offlineConfig pc.Se
 			Name:        featureName,
 			Variant:     "",
 			Source:      metadata.NameVariant{sourceName, ""},
-			Type:        string(provider.Int),
+			Type:        types.Int,
 			Entity:      entityName,
 			Owner:       userName,
 			Description: "",
@@ -1205,7 +1206,7 @@ func createTrainingSetWithProvider(client *metadata.Client, offlineConfig pc.Ser
 			Name:        labelName,
 			Variant:     "",
 			Description: "",
-			Type:        string(provider.Int),
+			Type:        types.Int,
 			Source:      metadata.NameVariant{sourceName, ""},
 			Entity:      entityName,
 			Owner:       userName,
@@ -1220,7 +1221,7 @@ func createTrainingSetWithProvider(client *metadata.Client, offlineConfig pc.Ser
 			Name:        featureName,
 			Variant:     "",
 			Source:      metadata.NameVariant{sourceName, ""},
-			Type:        string(provider.Int),
+			Type:        types.Int,
 			Entity:      entityName,
 			Owner:       userName,
 			Description: "",
@@ -1249,20 +1250,8 @@ func createTrainingSetWithProvider(client *metadata.Client, offlineConfig pc.Ser
 }
 
 func testCoordinatorTrainingSet(addr string) error {
-	if err := runner.RegisterFactory(runner.COPY_TO_ONLINE, runner.MaterializedChunkRunnerFactory); err != nil {
-		return fmt.Errorf("Failed to register training set runner factory: %v", err)
-	}
-	defer runner.UnregisterFactory(runner.COPY_TO_ONLINE)
-	if err := runner.RegisterFactory(runner.MATERIALIZE, runner.MaterializeRunnerFactory); err != nil {
-		return fmt.Errorf("Failed to register training set runner factory: %v", err)
-	}
-	defer runner.UnregisterFactory(runner.MATERIALIZE)
-	if err := runner.RegisterFactory(runner.CREATE_TRAINING_SET, runner.TrainingSetRunnerFactory); err != nil {
-		return fmt.Errorf("Failed to register training set runner factory: %v", err)
-	}
-	defer runner.UnregisterFactory(runner.CREATE_TRAINING_SET)
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logger)
+	client, err := metadata.NewClient(addr, logging.WrapZapLogger(logger))
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
@@ -1349,17 +1338,25 @@ func testCoordinatorTrainingSet(addr string) error {
 	}
 	startWaitDelete := time.Now()
 	elapsed := time.Since(startWaitDelete)
-	for has, _ := coord.hasJob(tsID); has && elapsed < time.Duration(10)*time.Second; has, _ = coord.hasJob(tsID) {
+	has := true
+	waitTime := time.Second * 10
+	for elapsed < waitTime {
+		has, err = coord.hasJob(tsID)
+		if err != nil {
+			return err
+		} else if !has {
+			// Job finished
+			break
+		}
 		time.Sleep(1 * time.Second)
 		elapsed = time.Since(startWaitDelete)
-		fmt.Printf("waiting for job %v to be deleted\n", tsID)
 	}
-	if elapsed >= time.Duration(10)*time.Second {
+	if elapsed >= waitTime {
 		return fmt.Errorf("timed out waiting for job to delete")
 	}
 	ts_complete, err := client.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: tsName, Variant: ""})
 	if err != nil {
-		return fmt.Errorf("could not get training set variant")
+		return fmt.Errorf("could not get training set variant: %v", err)
 	}
 	if metadata.READY != ts_complete.Status() {
 		return fmt.Errorf("Training set not set to ready once job completes")
@@ -1388,16 +1385,8 @@ func testCoordinatorTrainingSet(addr string) error {
 }
 
 func testCoordinatorMaterializeFeature(addr string) error {
-	if err := runner.RegisterFactory(runner.COPY_TO_ONLINE, runner.MaterializedChunkRunnerFactory); err != nil {
-		return fmt.Errorf("Failed to register training set runner factory: %v", err)
-	}
-	defer runner.UnregisterFactory(runner.COPY_TO_ONLINE)
-	if err := runner.RegisterFactory(runner.MATERIALIZE, runner.MaterializeRunnerFactory); err != nil {
-		return fmt.Errorf("Failed to register training set runner factory: %v", err)
-	}
-	defer runner.UnregisterFactory(runner.MATERIALIZE)
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logger)
+	client, err := metadata.NewClient(addr, logging.WrapZapLogger(logger))
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
@@ -1509,7 +1498,7 @@ func CreateOriginalPostgresTable(tableName string) error {
 
 func testRegisterPrimaryTableFromSource(addr string) error {
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logger)
+	client, err := metadata.NewClient(addr, logging.WrapZapLogger(logger))
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
@@ -1613,12 +1602,8 @@ func testRegisterPrimaryTableFromSource(addr string) error {
 }
 
 func testRegisterTransformationFromSource(addr string) error {
-	if err := runner.RegisterFactory(runner.CREATE_TRANSFORMATION, runner.CreateTransformationRunnerFactory); err != nil {
-		return fmt.Errorf("Failed to register training set runner factory: %v", err)
-	}
-	defer runner.UnregisterFactory(runner.CREATE_TRANSFORMATION)
 	logger := zap.NewExample().Sugar()
-	client, err := metadata.NewClient(addr, logger)
+	client, err := metadata.NewClient(addr, logging.WrapZapLogger(logger))
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
@@ -1977,7 +1962,7 @@ func TestCoordinator_checkError(t *testing.T) {
 				Timeout:    0,
 			},
 			args: args{
-				err:     JobDoesNotExistError{},
+				err:     fferr.NewJobDoesNotExistError("", fmt.Errorf("Coordinator Job No Longer Exists")),
 				jobName: "CompletedJob",
 			},
 			expectedLevel: zapcore.InfoLevel,
@@ -1994,7 +1979,7 @@ func TestCoordinator_checkError(t *testing.T) {
 				Timeout:    0,
 			},
 			args: args{
-				err:     ResourceAlreadyFailedError{},
+				err:     fferr.NewResourceAlreadyFailedError("", "", "", fmt.Errorf("resource has failed previously. Ignoring....")),
 				jobName: "CompletedJob",
 			},
 			expectedLevel: zapcore.InfoLevel,
@@ -2011,7 +1996,7 @@ func TestCoordinator_checkError(t *testing.T) {
 				Timeout:    0,
 			},
 			args: args{
-				err:     ResourceAlreadyCompleteError{},
+				err:     fferr.NewResourceAlreadyCompleteError("", "", "", fmt.Errorf("resource has already completed. Ignoring....")),
 				jobName: "CompletedJob",
 			},
 			expectedLevel: zapcore.InfoLevel,

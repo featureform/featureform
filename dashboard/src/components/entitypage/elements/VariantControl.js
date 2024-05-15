@@ -1,27 +1,24 @@
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import {
   Alert,
+  Box,
   Button,
+  InputLabel,
   Slide,
   Snackbar,
   Tooltip,
   Typography,
 } from '@mui/material';
 import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import { makeStyles } from '@mui/styles';
 import React from 'react';
 import { connect } from 'react-redux';
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
   formControl: {
-    margin: theme.spacing(1),
     minWidth: 250,
-  },
-  selectEmpty: {
-    marginTop: theme.spacing(2),
   },
 }));
 
@@ -96,39 +93,41 @@ const VariantControl = ({
         </Alert>
       </Snackbar>
 
-      <FormControl className={classes.formControl}>
-        <InputLabel shrink id='demo-simple-select-placeholder-label-label'>
-          Variant
-        </InputLabel>
-        <Select
-          labelId='demo-simple-select-placeholder-label-label'
-          id='demo-simple-select-placeholder-label'
-          data-testid={'variantControlSelectId'}
-          value={variant}
-          onChange={handleChange}
-          displayEmpty
-          className={classes.selectEmpty}
-        >
-          {variantList.map((vr, index) => (
-            <MenuItem
-              data-testid={`${index}_${vr?.variantName}`}
-              key={vr?.variantName}
-              value={vr?.variantName}
-            >
-              {vr?.variantName}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-      <Tooltip title='Copy to Clipboard'>
-        <Button
-          role='none'
-          onClick={() => copyToClipBoard(variant)}
-          fontSize={11.5}
-        >
-          <ContentCopyIcon />
-        </Button>
-      </Tooltip>
+      <Box style={{ minWidth: 325 }}>
+        <FormControl className={classes.formControl}>
+          <InputLabel shrink id='variantControlId'>
+            Variant
+          </InputLabel>
+          <Select
+            value={variant}
+            labelId='variantControlId'
+            label='Variant'
+            data-testid={'variantControlSelectId'}
+            onChange={handleChange}
+            notched
+            displayEmpty
+          >
+            {variantList.map((vr, index) => (
+              <MenuItem
+                data-testid={`${index}_${vr?.variantName}`}
+                key={vr?.variantName}
+                value={vr?.variantName}
+              >
+                {vr?.variantName}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <Tooltip title='Copy to Clipboard'>
+          <Button
+            role='none'
+            onClick={() => copyToClipBoard(variant)}
+            style={{ marginTop: 10 }}
+          >
+            <ContentCopyIcon fontSize='medium' />
+          </Button>
+        </Tooltip>
+      </Box>
     </>
   );
 };

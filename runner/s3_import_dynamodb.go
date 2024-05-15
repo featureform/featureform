@@ -9,11 +9,13 @@ import (
 
 	"time"
 
+	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
+	vt "github.com/featureform/provider/types"
 	"github.com/featureform/types"
 	"go.uber.org/zap"
 )
@@ -40,7 +42,7 @@ type S3ImportDynamoDBRunner struct {
 	Offline     provider.OfflineStore
 	OfflineType pt.Type
 	ID          provider.ResourceID
-	VType       provider.ValueType
+	VType       vt.ValueType
 	IsUpdate    bool // Not currently useable
 	Logger      *zap.SugaredLogger
 }
@@ -60,10 +62,6 @@ func (r S3ImportDynamoDBRunner) IsUpdateJob() bool {
 func (r S3ImportDynamoDBRunner) Run() (types.CompletionWatcher, error) {
 	r.Logger.Infow("Staring S3 import to DynamoDB materialization runner", "name", r.ID.Name, "variant", r.ID.Variant)
 
-	if r.IsUpdate {
-		return nil, fmt.Errorf("materialization updates are not implemented for S3 import to DynamoDB")
-	}
-
 	option := S3ImportMaterializationOption{
 		storeType:  pt.SparkOffline,
 		outputType: filestore.CSV,
@@ -78,14 +76,14 @@ func (r S3ImportDynamoDBRunner) Run() (types.CompletionWatcher, error) {
 	sparkOffline, ok := r.Offline.(*provider.SparkOfflineStore)
 	if !ok {
 		r.Logger.Errorf("offline store is not a SparkOfflineStore")
-		return nil, fmt.Errorf("offline store is not a SparkOfflineStore")
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("offline store is not a SparkOfflineStore"))
 	}
 
 	// **NOTE:** Unlike ResourceID, which has methods to convert the name, variant and type of resource to and from a path,
 	//  MaterializationID is a string that is already in the form of `/Materialization/<name>/<variant>`. We currently need
 	// to append `featureform/` to the materialization ID to get the source dir path, but this is not ideal. We should
 	// probably change the type of MaterializationID to be ResourceID.
-	sourceDirPath, err := sparkOffline.Store.CreateDirPath(fmt.Sprintf("featureform/%s", mat.ID()))
+	sourceDirPath, err := sparkOffline.Store.CreateFilePath(fmt.Sprintf("featureform/%s", mat.ID()), true)
 	if err != nil {
 		r.Logger.Errorf("failed to create source dir path for resource %s: %v", r.ID.ToFilestorePath(), err)
 		return nil, err
@@ -99,7 +97,9 @@ func (r S3ImportDynamoDBRunner) Run() (types.CompletionWatcher, error) {
 
 	if len(files) == 0 {
 		r.Logger.Errorf("no files found in source dir path %s", sourceDirPath)
-		return nil, fmt.Errorf("no files found in source dir path %s", sourceDirPath)
+		wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("failed to find files in specified directory"))
+		wrapped.AddDetail("source_dir_path", sourceDirPath.ToURI())
+		return nil, wrapped
 	}
 
 	// A successful materialization should result in at least one file; given we need _a_ file to get the full key prefix
@@ -120,7 +120,7 @@ func (r S3ImportDynamoDBRunner) Run() (types.CompletionWatcher, error) {
 		status:    "PENDING",
 		store:     r.Online,
 		importArn: importArn,
-		logger:    logging.NewLogger("s3importWatcher"),
+		logger:    logging.NewLogger("s3importWatcher").SugaredLogger,
 	}
 
 	watcher.Poll()
@@ -152,7 +152,7 @@ func (w *S3ImportCompletionWatcher) Poll() {
 			if s3Import.Status() == "FAILED" {
 				w.logger.Infow("Import failed", "importID", w.importArn, "error", s3Import.ErrorMessage())
 				w.status = "FAILED"
-				w.err = fmt.Errorf("import %s failed: %s", w.importArn, s3Import.ErrorMessage())
+				w.err = fferr.NewExecutionError(pt.DynamoDBOnline.String(), fmt.Errorf("import %s failed: %s", w.importArn, s3Import.ErrorMessage()))
 			}
 			time.Sleep(90 * time.Second)
 		}
@@ -189,37 +189,61 @@ func (w *S3ImportCompletionWatcher) Complete() bool {
 func S3ImportDynamoDBRunnerFactory(config Config) (types.Runner, error) {
 	runnerConfig := &MaterializedRunnerConfig{}
 	if err := runnerConfig.Deserialize(config); err != nil {
-		return nil, fmt.Errorf("failed to deserialize materialize runner config: %v", err)
+		return nil, err
+	}
+	// S3 import to DynamoDB creates new tables only, so updates would require some sort of swap
+	// strategy, which has not yet been implemented.
+	if runnerConfig.IsUpdate {
+		return nil, fferr.NewInternalError(fmt.Errorf("materialization updates are not implemented for S3 import to DynamoDB"))
 	}
 	onlineProvider, err := provider.Get(runnerConfig.OnlineType, runnerConfig.OnlineConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure %s provider: %v", runnerConfig.OnlineType, err)
+		return nil, err
 	}
 	offlineProvider, err := provider.Get(runnerConfig.OfflineType, runnerConfig.OfflineConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to configure %s provider: %v", runnerConfig.OfflineType, err)
+		return nil, err
 	}
 	onlineStore, err := onlineProvider.AsOnlineStore()
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert provider to online store: %v", err)
+		return nil, err
 	}
 	importableOfflineStore, ok := onlineStore.(provider.ImportableOnlineStore)
 	if !ok {
-		return nil, fmt.Errorf("online store is not importable")
+		wrapped := fferr.NewInternalError(fmt.Errorf("online store is not importable"))
+		wrapped.AddDetail("online_store_type", runnerConfig.OnlineType.String())
+		wrapped.AddDetail("resource_name", runnerConfig.ResourceID.Name)
+		wrapped.AddDetail("resource_variant", runnerConfig.ResourceID.Variant)
+		wrapped.AddDetail("resource_type", runnerConfig.ResourceID.Type.String())
+		return nil, wrapped
 	}
 	offlineStore, err := offlineProvider.AsOfflineStore()
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert provider to offline store: %v", err)
+		return nil, err
 	}
 	if offlineStore.Type() != pt.SparkOffline {
-		return nil, fmt.Errorf("expected offline store to be Spark")
+		wrapped := fferr.NewInternalError(fmt.Errorf("expected offline store to be SparkOfflineStore"))
+		wrapped.AddDetail("online_store_type", runnerConfig.OfflineType.String())
+		wrapped.AddDetail("resource_name", runnerConfig.ResourceID.Name)
+		wrapped.AddDetail("resource_variant", runnerConfig.ResourceID.Variant)
+		wrapped.AddDetail("resource_type", runnerConfig.ResourceID.Type.String())
+		return nil, wrapped
 	}
 	sparkOfflineStore, isSparkOfflineStore := offlineStore.(*provider.SparkOfflineStore)
 	if !isSparkOfflineStore {
-		return nil, fmt.Errorf("expected offline store to be Spark")
+		wrapped := fferr.NewInternalError(fmt.Errorf("expected offline store to be SparkOfflineStore"))
+		wrapped.AddDetail("online_store_type", runnerConfig.OfflineType.String())
+		wrapped.AddDetail("resource_name", runnerConfig.ResourceID.Name)
+		wrapped.AddDetail("resource_variant", runnerConfig.ResourceID.Variant)
+		wrapped.AddDetail("resource_type", runnerConfig.ResourceID.Type.String())
+		return nil, wrapped
 	}
 	if sparkOfflineStore.Store.FilestoreType() != filestore.S3 {
-		return nil, fmt.Errorf("unsupported file store type: %s", sparkOfflineStore.Store.FilestoreType())
+		wrapped := fferr.NewInternalError(fmt.Errorf("unsupported file store type: %s", sparkOfflineStore.Store.FilestoreType()))
+		wrapped.AddDetail("resource_name", runnerConfig.ResourceID.Name)
+		wrapped.AddDetail("resource_variant", runnerConfig.ResourceID.Variant)
+		wrapped.AddDetail("resource_type", runnerConfig.ResourceID.Type.String())
+		return nil, wrapped
 	}
 	return &S3ImportDynamoDBRunner{
 		Online:   importableOfflineStore,
@@ -227,6 +251,6 @@ func S3ImportDynamoDBRunnerFactory(config Config) (types.Runner, error) {
 		ID:       runnerConfig.ResourceID,
 		VType:    runnerConfig.VType.ValueType,
 		IsUpdate: runnerConfig.IsUpdate,
-		Logger:   logging.NewLogger("s3importer"),
+		Logger:   logging.NewLogger("s3importer").SugaredLogger,
 	}, nil
 }

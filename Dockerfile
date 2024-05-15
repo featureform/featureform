@@ -47,6 +47,7 @@ COPY go.sum ./
 RUN go mod download
 COPY ./filestore/ ./filestore/
 COPY ./health/ ./health/
+COPY fferr/ fferr/
 COPY api/ api/
 COPY helpers/ helpers/
 COPY lib/ lib/
@@ -61,6 +62,7 @@ COPY types/ types/
 COPY kubernetes/ kubernetes/
 COPY config/ config/
 COPY logging/ logging/
+COPY scheduling/ scheduling/
 
 
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./proto/serving.proto

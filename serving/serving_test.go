@@ -8,26 +8,29 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"google.golang.org/protobuf/proto"
 	"io"
 	"math/rand"
 	"net"
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"google.golang.org/protobuf/proto"
+
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 	grpcmeta "google.golang.org/grpc/metadata"
 
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 )
 
 const PythonFunc = `def average_user_transaction(transactions):
@@ -385,6 +388,7 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Entity:   "mockEntity",
 			Source:   metadata.NameVariant{"mockSource", "var"},
 			Owner:    "Featureform",
+			Type:     types.String,
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
 				Value:  "col2",
@@ -494,7 +498,7 @@ func createMockOnlineStoreFactory(recsMap map[provider.ResourceID][]provider.Res
 			if id.Type != provider.Feature {
 				continue
 			}
-			table, err := store.CreateTable(id.Name, id.Variant, provider.String)
+			table, err := store.CreateTable(id.Name, id.Variant, types.String)
 			if err != nil {
 				panic(err)
 			}
@@ -542,7 +546,7 @@ func startMetadata() (*metadata.MetadataServer, string) {
 		panic(err)
 	}
 	config := &metadata.Config{
-		Logger:          logger.Sugar(),
+		Logger:          logging.WrapZapLogger(logger.Sugar()),
 		StorageProvider: metadata.LocalStorageProvider{},
 	}
 	serv, err := metadata.NewMetadataServer(config)
@@ -564,7 +568,7 @@ func startMetadata() (*metadata.MetadataServer, string) {
 
 func metadataClient(t *testing.T, addr string) *metadata.Client {
 	logger := zaptest.NewLogger(t).Sugar()
-	client, err := metadata.NewClient(addr, logger)
+	client, err := metadata.NewClient(addr, logging.WrapZapLogger(logger))
 	if err != nil {
 		t.Fatalf("Failed to create client: %s", err)
 	}

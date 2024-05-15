@@ -10,10 +10,12 @@ import (
 
 	"github.com/featureform/coordinator"
 	"github.com/featureform/kubernetes"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 
 	"github.com/google/uuid"
 	db "github.com/jackc/pgx/v4"
@@ -119,7 +121,7 @@ func main() {
 func initializeTestingEnvironment() error {
 	logger = zap.NewExample().Sugar()
 	var err error
-	metadataClient, err = metadata.NewClient(metadataAddress, logger)
+	metadataClient, err = metadata.NewClient(metadataAddress, logging.WrapZapLogger(logger))
 	if err != nil {
 		return fmt.Errorf("could not set up metadata client: %v", err)
 	}
@@ -625,7 +627,7 @@ func createTrainingSetWithProvider(sourceName string, featureName string, labelN
 			Name:        labelName,
 			Variant:     "",
 			Description: "",
-			Type:        string(provider.Int),
+			Type:        types.Int,
 			Source:      metadata.NameVariant{sourceName, ""},
 			Entity:      entityName,
 			Owner:       userName,
@@ -640,7 +642,7 @@ func createTrainingSetWithProvider(sourceName string, featureName string, labelN
 			Name:        featureName,
 			Variant:     "",
 			Source:      metadata.NameVariant{sourceName, ""},
-			Type:        string(provider.Int),
+			Type:        types.Int,
 			Entity:      entityName,
 			Owner:       userName,
 			Description: "",
@@ -714,7 +716,7 @@ func materializeFeatureWithProvider(featureName string, sourceName string, origi
 			Name:        featureName,
 			Variant:     "",
 			Source:      metadata.NameVariant{sourceName, ""},
-			Type:        string(provider.Int),
+			Type:        types.Int,
 			Entity:      entityName,
 			Owner:       userName,
 			Description: "",

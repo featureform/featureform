@@ -35,6 +35,7 @@ const (
 	INVALID_RESOURCE_NAME_VARIANT = "Invalid Resource Name Variant"
 	INVALID_FILE_TYPE             = "Invalid File Type"
 	RESOURCE_CHANGED              = "Resource Changed"
+	TYPE_ERROR                    = "Type Error"
 
 	// MISCELLANEOUS:
 	INTERNAL_ERROR   = "Internal Error"

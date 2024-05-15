@@ -74,7 +74,7 @@ func main() {
 	backupExecutor := backup.BackupManager{
 		ETCDClient: client,
 		Provider:   backupProvider,
-		Logger:     logger,
+		Logger:     logger.SugaredLogger,
 	}
 
 	if snapshotName == "" {

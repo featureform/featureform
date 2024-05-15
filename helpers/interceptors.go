@@ -5,12 +5,11 @@ import (
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
-	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
-var logger *zap.SugaredLogger
+var logger logging.Logger
 
 func init() {
 	if shouldUseStackTraceLogger := GetEnvBool("FEATUREFORM_DEBUG", false); shouldUseStackTraceLogger {

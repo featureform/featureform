@@ -84,7 +84,6 @@ class ServingClient:
         self,
         name,
         variant="",
-        include_label_timestamp=False,
         model: Union[str, Model] = None,
     ) -> "Dataset":
         """Return an iterator that iterates through the specified training set.
@@ -108,7 +107,7 @@ class ServingClient:
         if isinstance(name, TrainingSetVariant):
             variant = name.variant
             name = name.name
-        return self.impl.training_set(name, variant, include_label_timestamp, model)
+        return self.impl.training_set(name, variant, model)
 
     def features(
         self, features, entities, model: Union[str, Model] = None, params: list = None
@@ -177,9 +176,7 @@ class HostedClientImpl:
         else:
             return secure_channel(host, cert_path)
 
-    def training_set(
-        self, name, variation, include_label_timestamp, model: Union[str, Model] = None
-    ):
+    def training_set(self, name, variation, model: Union[str, Model] = None):
         training_set_stream = TrainingSetStream(self._stub, name, variation, model)
         return Dataset(training_set_stream)
 

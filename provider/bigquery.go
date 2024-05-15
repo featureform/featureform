@@ -12,6 +12,7 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 	p_type "github.com/featureform/provider/provider_type"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 	_ "github.com/lib/pq"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -40,7 +41,7 @@ type BQOfflineStoreConfig struct {
 type BQOfflineTableQueries interface {
 	tableExists(tableName string) string
 	viewExists(viewName string) string
-	determineColumnType(valueType ValueType) (string, error)
+	determineColumnType(valueType types.ValueType) (string, error)
 	primaryTableCreate(name string, columnString string) string
 	upsertQuery(tb string, columns string, placeholder string) string
 	createValuePlaceholderString(columns []TableColumn) string
@@ -284,24 +285,24 @@ func (q defaultBQQueries) viewExists(viewName string) string {
 	return fmt.Sprintf("SELECT COUNT(*) AS total FROM `%s.INFORMATION_SCHEMA.TABLES` WHERE table_type='VIEW' AND table_name='%s'", q.getTablePrefix(), viewName)
 }
 
-func (q defaultBQQueries) determineColumnType(valueType ValueType) (string, error) {
+func (q defaultBQQueries) determineColumnType(valueType types.ValueType) (string, error) {
 	switch valueType {
-	case Int:
+	case types.Int:
 		return "INTEGER", nil
-	case Int32, Int64:
+	case types.Int32, types.Int64:
 		return "BIGINT", nil
-	case Float32, Float64:
+	case types.Float32, types.Float64:
 		return "FLOAT64", nil
-	case String:
+	case types.String:
 		return "STRING", nil
-	case Bool:
+	case types.Bool:
 		return "BOOLEAN", nil
-	case Timestamp:
+	case types.Timestamp:
 		return "TIMESTAMP", nil
-	case NilType:
+	case types.NilType:
 		return "STRING", nil
 	default:
-		return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", valueType), fmt.Errorf("cannot find column type for value type: %s", valueType))
+		return "", fferr.NewDataTypeNotFoundErrorf(valueType, "cannot find column type for value type")
 	}
 }
 
@@ -627,6 +628,14 @@ func (mat *bqMaterialization) IterateSegment(start, end int64) (FeatureIterator,
 		return nil, fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 	}
 	return newbqFeatureIterator(it, mat.query), nil
+}
+
+func (mat *bqMaterialization) NumChunks() (int, error) {
+	return genericNumChunks(mat, defaultRowsPerChunk)
+}
+
+func (mat *bqMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
+	return genericIterateChunk(mat, defaultRowsPerChunk, idx)
 }
 
 type bqFeatureIterator struct {
@@ -1021,11 +1030,11 @@ func (store *bqOfflineStore) CreateResourceTable(id ResourceID, schema TableSche
 	if err != nil {
 		return nil, err
 	}
-	var valueType ValueType
+	var valueType types.ValueType
 	if valueIndex := store.getValueIndex(schema.Columns); valueIndex > 0 {
 		valueType = schema.Columns[valueIndex].ValueType
 	} else {
-		valueType = NilType
+		valueType = types.NilType
 	}
 	table, err := store.newbqOfflineTable(store.client, tableName, valueType)
 	if err != nil {
@@ -1044,7 +1053,7 @@ func (store *bqOfflineStore) getValueIndex(columns []TableColumn) int {
 	return -1
 }
 
-func (store *bqOfflineStore) newbqOfflineTable(client *bigquery.Client, name string, valueType ValueType) (*bqOfflineTable, error) {
+func (store *bqOfflineStore) newbqOfflineTable(client *bigquery.Client, name string, valueType types.ValueType) (*bqOfflineTable, error) {
 	columnType, err := store.query.determineColumnType(valueType)
 	if err != nil {
 		return nil, err

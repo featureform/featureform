@@ -73,7 +73,7 @@ from .resources import (
 from .search import search
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
-from .types import pd_to_ff_datatype
+from .types import pd_to_ff_datatype, VectorType
 from .variant_names_generator import get_current_timestamp_variant
 from .variant_names_generator import get_random_name
 
@@ -804,10 +804,59 @@ class SQLTransformationDecorator:
     @staticmethod
     def _assert_query_contains_at_least_one_source(query):
         # Checks to verify that the query contains a FROM {{ name.variant }}
-        pattern = r"from\s*\{\{\s*[a-zA-Z0-9_:.]+(\.[a-zA-Z0-9_:.]+)?\s*\}\}"
-        match = re.search(pattern, query, re.IGNORECASE)
-        if match is None:
+
+        # the pattern pulls the string within the double curly braces
+        pattern = r"\{\{\s*(.*?)\s*\}\}"
+        matches = re.findall(pattern, query)
+        if len(matches) == 0:
             raise InvalidSQLQuery(query, "No source specified.")
+
+        for m in matches:
+            name, variant = get_name_variant(query, m)
+            if name == "":
+                raise InvalidSQLQuery(query, "Source name is empty.")
+
+            # Check for invalid characters in the source name and variant
+            if name.startswith(" ") or name.endswith(" "):
+                raise InvalidSQLQuery(
+                    query, "Source name cannot start or end with a space."
+                )
+            if variant.startswith(" ") or variant.endswith(" "):
+                raise InvalidSQLQuery(
+                    query, "Source variant cannot start or end with a space."
+                )
+
+            if name.startswith("_") or name.endswith("_"):
+                raise InvalidSQLQuery(
+                    query, "Source name cannot start or end with an underscore."
+                )
+            if variant.startswith("_") or variant.endswith("_"):
+                raise InvalidSQLQuery(
+                    query, "Source variant cannot start or end with an underscore."
+                )
+
+            if "__" in name or "__" in variant:
+                raise InvalidSQLQuery(
+                    query,
+                    "Source name and variant cannot contain consecutive underscores.",
+                )
+
+
+def get_name_variant(query, source_str):
+    # Based on the source string, split the name and variant
+    name_variant = source_str.split(".")
+    if len(name_variant) > 2:
+        raise InvalidSQLQuery(
+            query, "Source name and variant cannot contain more than one period."
+        )
+    elif len(name_variant) == 2:
+        name = name_variant[0]
+        variant = name_variant[1]
+    else:
+        name = name_variant[0]
+        variant = ""
+
+    return name, variant
 
 
 @dataclass
@@ -3840,14 +3889,17 @@ class Registrar:
             feature_tags = feature.get("tags", [])
             feature_properties = feature.get("properties", {})
             additional_Parameters = self._get_additional_parameters(ondemand_feature)
+            is_embedding = feature.get("is_embedding", False)
+            dims = feature.get("dims", 0)
+            value_type = ScalarType(feature["type"])
+            if dims > 0:
+                value_type = VectorType(value_type, dims, is_embedding)
             resource = FeatureVariant(
                 created=None,
                 name=feature["name"],
                 variant=variant,
                 source=source,
-                value_type=feature["type"],
-                is_embedding=feature.get("is_embedding", False),
-                dims=feature.get("dims", 0),
+                value_type=value_type,
                 entity=entity,
                 owner=owner,
                 provider=inference_store,
@@ -4743,7 +4795,7 @@ class ResourceClient:
 
         definition = self._get_source_definition(source)
 
-        return SourceVariant(
+        source_variant = SourceVariant(
             created=None,
             name=source.name,
             definition=definition,
@@ -4758,6 +4810,7 @@ class ResourceClient:
                 definition.source_text if type(definition) == DFTransformation else ""
             ),
         )
+        return ColumnSourceRegistrar(self, source_variant)
 
     def _get_source_definition(self, source):
         if source.primaryData.table.name:

@@ -78,6 +78,8 @@ func Test_EtcdResourceLookup_Set(t *testing.T) {
 	}{
 		{"Successful Set", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args1, false},
 	}
+
+	ctx := context.TODO()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client, err := tt.fields.Etcd.InitClient()
@@ -90,7 +92,7 @@ func Test_EtcdResourceLookup_Set(t *testing.T) {
 			lookup := EtcdResourceLookup{
 				Connection: store,
 			}
-			if err := lookup.Set(tt.args.id, tt.args.res); (err != nil) != tt.wantErr {
+			if err := lookup.Set(ctx, tt.args.id, tt.args.res); (err != nil) != tt.wantErr {
 				t.Fatalf("Set() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
@@ -248,6 +250,7 @@ func Test_EtcdResourceLookup_Has(t *testing.T) {
 		{"Does not have", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args1, false, false},
 		{"Successful Has", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args2, true, false},
 	}
+	ctx := context.TODO()
 	for _, tt := range tests {
 		if tt.want {
 			newclient, err := clientv3.New(clientv3.Config{
@@ -286,7 +289,7 @@ func Test_EtcdResourceLookup_Has(t *testing.T) {
 			lookup := EtcdResourceLookup{
 				Connection: store,
 			}
-			got, err := lookup.Has(tt.args.id)
+			got, err := lookup.Has(ctx, tt.args.id)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Has() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -343,6 +346,7 @@ func Test_EtcdResourceLookup_ListForType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not create new client: %v", err)
 	}
+	ctx := context.TODO()
 	for _, res := range featureResources {
 		p, _ := proto.Marshal(res.Proto())
 		msg := EtcdRow{
@@ -374,7 +378,7 @@ func Test_EtcdResourceLookup_ListForType(t *testing.T) {
 			lookup := EtcdResourceLookup{
 				Connection: store,
 			}
-			got, err := lookup.ListForType(tt.args.t)
+			got, err := lookup.ListForType(ctx, tt.args.t)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("ListForType() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -429,6 +433,7 @@ func Test_EtcdResourceLookup_List(t *testing.T) {
 	}{
 		{"Successful List", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, featureResources, false},
 	}
+	ctx := context.TODO()
 	for _, res := range featureResources {
 		p, _ := proto.Marshal(res.Proto())
 		msg := EtcdRow{
@@ -460,7 +465,7 @@ func Test_EtcdResourceLookup_List(t *testing.T) {
 			lookup := EtcdResourceLookup{
 				Connection: store,
 			}
-			got, err := lookup.List()
+			got, err := lookup.List(ctx)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("List() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -530,6 +535,7 @@ func Test_EtcdResourceLookup_Submap(t *testing.T) {
 	}{
 		{"Successful Submap", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args{ids: ids}, resources, false},
 	}
+	ctx := context.TODO()
 	for _, res := range featureResources {
 		p, _ := proto.Marshal(res.Proto())
 		msg := EtcdRow{
@@ -563,13 +569,13 @@ func Test_EtcdResourceLookup_Submap(t *testing.T) {
 				Connection: store,
 			}
 
-			got, err := lookup.Submap(tt.args.ids)
+			got, err := lookup.Submap(ctx, tt.args.ids)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Submap() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			elem, err := got.List()
+			elem, err := got.List(ctx)
 			if err != nil {
 				t.Fatalf("Could not get list from submap: %v", err)
 			}

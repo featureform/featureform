@@ -42,13 +42,14 @@ func NewFeatureServer(meta *metadata.Client, promMetrics metrics.MetricsHandler,
 }
 
 func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.Feature_TrainingDataServer) error {
+	ctx := context.TODO()
 	id := req.GetId()
 	name, variant := id.GetName(), id.GetVersion()
 	featureObserver := serv.Metrics.BeginObservingTrainingServe(name, variant)
 	defer featureObserver.Finish()
 	logger := serv.Logger.With("Name", name, "Variant", variant)
 	logger.Info("Serving training data")
-	iter, err := serv.getTrainingSetIterator(name, variant)
+	iter, err := serv.getTrainingSetIterator(ctx, name, variant)
 	if err != nil {
 		logger.Errorw("Failed to get training set iterator", "Error", err)
 		featureObserver.SetError()
@@ -152,6 +153,7 @@ func (serv *FeatureServer) TrainTestSplit(stream pb.Feature_TrainTestSplitServer
 }
 
 func (serv *FeatureServer) handleSplitInitializeRequest(splitContext *splitContext) error {
+	ctx := context.TODO()
 	splitContext.logger.Infow("Initializing dataset", "id", splitContext.req.Id, "shuffle", splitContext.req.Shuffle, "testSize", splitContext.req.TestSize)
 
 	trainTestSplitDef := provider.TrainTestSplitDef{
@@ -162,12 +164,12 @@ func (serv *FeatureServer) handleSplitInitializeRequest(splitContext *splitConte
 		RandomState:        int(splitContext.req.RandomState),
 	}
 
-	cleanupFunc, err := serv.createTrainTestSplit(trainTestSplitDef)
+	cleanupFunc, err := serv.createTrainTestSplit(ctx, trainTestSplitDef)
 	defer cleanupFunc()
 	if err != nil {
 		return fferr.NewInternalError(err)
 	}
-	train, test, err := serv.getTrainTestSplitIterators(trainTestSplitDef)
+	train, test, err := serv.getTrainTestSplitIterators(ctx, trainTestSplitDef)
 	if err != nil {
 		splitContext.logger.Errorw("Failed to get training set iterator", "Error", err)
 		return err
@@ -281,12 +283,13 @@ func (serv *FeatureServer) TrainingDataColumns(ctx context.Context, req *pb.Trai
 }
 
 func (serv *FeatureServer) SourceData(req *pb.SourceDataRequest, stream pb.Feature_SourceDataServer) error {
+	ctx := context.TODO()
 	id := req.GetId()
 	name, variant := id.GetName(), id.GetVersion()
 	limit := req.GetLimit()
 	logger := serv.Logger.With("Name", name, "Variant", variant)
 	logger.Info("Serving source data")
-	iter, err := serv.getSourceDataIterator(name, variant, limit)
+	iter, err := serv.getSourceDataIterator(ctx, name, variant, limit)
 	if err != nil {
 		logger.Errorw("Failed to get source data iterator", "Error", err)
 		return err
@@ -308,8 +311,7 @@ func (serv *FeatureServer) SourceData(req *pb.SourceDataRequest, stream pb.Featu
 	return nil
 }
 
-func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provider.TrainingSetIterator, error) {
-	ctx := context.TODO()
+func (serv *FeatureServer) getTrainingSetIterator(ctx context.Context, name, variant string) (provider.TrainingSetIterator, error) {
 	serv.Logger.Infow("Getting Training Set Iterator", "name", name, "variant", variant)
 	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 	if err != nil {
@@ -333,8 +335,7 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
 }
 
-func (serv *FeatureServer) createTrainTestSplit(def provider.TrainTestSplitDef) (func() error, error) {
-	ctx := context.TODO()
+func (serv *FeatureServer) createTrainTestSplit(ctx context.Context, def provider.TrainTestSplitDef) (func() error, error) {
 	serv.Logger.Infow("Creating Train Test Split", "TrainTestSplitDef", fmt.Sprintf("%+v", def))
 	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: def.TrainingSetName, Variant: def.TrainingSetVariant})
 	if err != nil {
@@ -356,8 +357,7 @@ func (serv *FeatureServer) createTrainTestSplit(def provider.TrainTestSplitDef) 
 	return store.CreateTrainTestSplit(def)
 }
 
-func (serv *FeatureServer) getTrainTestSplitIterators(def provider.TrainTestSplitDef) (provider.TrainingSetIterator, provider.TrainingSetIterator, error) {
-	ctx := context.TODO()
+func (serv *FeatureServer) getTrainTestSplitIterators(ctx context.Context, def provider.TrainTestSplitDef) (provider.TrainingSetIterator, provider.TrainingSetIterator, error) {
 	serv.Logger.Infow("Getting Training Set Iterator", "name", def.TrainingSetName, "variant", def.TrainingSetVariant)
 	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{def.TrainingSetName, def.TrainingSetVariant})
 	if err != nil {
@@ -380,9 +380,8 @@ func (serv *FeatureServer) getTrainTestSplitIterators(def provider.TrainTestSpli
 	return store.GetTrainTestSplit(def)
 }
 
-func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (provider.BatchFeatureIterator, error) {
-	ctx := context.TODO()
-	_, err := serv.checkEntityOfFeature(ids)
+func (serv *FeatureServer) getBatchFeatureIterator(ctx context.Context, ids []provider.ResourceID) (provider.BatchFeatureIterator, error) {
+	_, err := serv.checkEntityOfFeature(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -443,8 +442,7 @@ func (serv *FeatureServer) checkFeatureSources(firstProvider string, ids []provi
 }
 
 // Takes in a list of feature names and returns true if they all have the same entity name
-func (serv *FeatureServer) checkEntityOfFeature(ids []provider.ResourceID) (bool, error) {
-	ctx := context.TODO()
+func (serv *FeatureServer) checkEntityOfFeature(ctx context.Context, ids []provider.ResourceID) (bool, error) {
 	entityName := ""
 	for _, resourceID := range ids {
 		serv.Logger.Infow("Getting Feature Variant Iterator", "name", resourceID.Name, "variant", resourceID.Variant)
@@ -462,8 +460,7 @@ func (serv *FeatureServer) checkEntityOfFeature(ids []provider.ResourceID) (bool
 	return true, nil
 }
 
-func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int64) (provider.GenericTableIterator, error) {
-	ctx := context.TODO()
+func (serv *FeatureServer) getSourceDataIterator(ctx context.Context, name, variant string, limit int64) (provider.GenericTableIterator, error) {
 	serv.Logger.Infow("Getting Source Variant Iterator", "name", name, "variant", variant)
 	sv, err := serv.Metadata.GetSourceVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 	if err != nil {
@@ -563,6 +560,7 @@ func (serv *FeatureServer) getNVCacheKey(name, variant string) string {
 }
 
 func (serv *FeatureServer) BatchFeatureServe(req *pb.BatchFeatureServeRequest, stream pb.Feature_BatchFeatureServeServer) error {
+	ctx := context.TODO()
 	features := req.GetFeatures()
 	resourceIDList := make([]provider.ResourceID, len(features))
 	for i, feature := range features {
@@ -570,7 +568,7 @@ func (serv *FeatureServer) BatchFeatureServe(req *pb.BatchFeatureServeRequest, s
 		serv.Logger.Infow("Serving feature", "Name", name, "Variant", variant)
 		resourceIDList[i] = provider.ResourceID{Name: name, Variant: variant, Type: provider.Feature}
 	}
-	iter, err := serv.getBatchFeatureIterator(resourceIDList)
+	iter, err := serv.getBatchFeatureIterator(ctx, resourceIDList)
 	if err != nil {
 		return err
 	}
@@ -593,7 +591,7 @@ func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceColu
 	id := req.GetId()
 	name, variant := id.GetName(), id.GetVersion()
 	serv.Logger.Infow("Getting source columns", "Name", name, "Variant", variant)
-	it, err := serv.getSourceDataIterator(name, variant, 0) // Set limit to zero to fetch columns only
+	it, err := serv.getSourceDataIterator(ctx, name, variant, 0) // Set limit to zero to fetch columns only
 	if err != nil {
 		return nil, err
 	}

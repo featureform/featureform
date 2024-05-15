@@ -101,7 +101,7 @@ func TestPostTags(t *testing.T) {
 
 	localStorageProvider := LocalStorageProvider{}
 	lookup, _ := localStorageProvider.GetResourceLookup()
-	lookup.Set(res, resource)
+	lookup.Set(ctx, res, resource)
 
 	logger := zap.NewExample().Sugar()
 	client := &metadata.Client{}

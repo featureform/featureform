@@ -222,10 +222,10 @@ type ResourceVariant interface {
 }
 
 type Resource interface {
-	Notify(ResourceLookup, operation, Resource) error
+	Notify(context.Context, ResourceLookup, operation, Resource) error
 	ID() ResourceID
 	Schedule() string
-	Dependencies(ResourceLookup) (ResourceLookup, error)
+	Dependencies(context.Context, ResourceLookup) (ResourceLookup, error)
 	Proto() proto.Message
 	GetStatus() *pb.ResourceStatus
 	UpdateStatus(pb.ResourceStatus) error
@@ -233,26 +233,26 @@ type Resource interface {
 	Update(ResourceLookup, Resource) error
 }
 
-func isDirectDependency(lookup ResourceLookup, dependency, parent Resource) (bool, error) {
+func isDirectDependency(ctx context.Context, lookup ResourceLookup, dependency, parent Resource) (bool, error) {
 	depId := dependency.ID()
-	deps, depsErr := parent.Dependencies(lookup)
+	deps, depsErr := parent.Dependencies(ctx, lookup)
 	if depsErr != nil {
 		return false, depsErr
 	}
-	return deps.Has(depId)
+	return deps.Has(ctx, depId)
 }
 
 type ResourceLookup interface {
 	Lookup(context.Context, ResourceID) (Resource, error)
-	Has(ResourceID) (bool, error)
-	Set(ResourceID, Resource) error
-	Submap([]ResourceID) (ResourceLookup, error)
-	ListForType(ResourceType) ([]Resource, error)
-	List() ([]Resource, error)
-	HasJob(ResourceID) (bool, error)
-	SetJob(ResourceID, string) error
+	Has(context.Context, ResourceID) (bool, error)
+	Set(context.Context, ResourceID, Resource) error
+	Submap(context.Context, []ResourceID) (ResourceLookup, error)
+	ListForType(context.Context, ResourceType) ([]Resource, error)
+	List(context.Context) ([]Resource, error)
+	HasJob(context.Context, ResourceID) (bool, error)
+	SetJob(context.Context, ResourceID, string) error
 	SetStatus(context.Context, ResourceID, pb.ResourceStatus) error
-	SetSchedule(ResourceID, string) error
+	SetSchedule(context.Context, ResourceID, string) error
 }
 
 type SearchWrapper struct {
@@ -260,8 +260,8 @@ type SearchWrapper struct {
 	ResourceLookup
 }
 
-func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
-	if err := wrapper.ResourceLookup.Set(id, res); err != nil {
+func (wrapper SearchWrapper) Set(ctx context.Context, id ResourceID, res Resource) error {
+	if err := wrapper.ResourceLookup.Set(ctx, id, res); err != nil {
 		return err
 	}
 
@@ -303,17 +303,17 @@ func (lookup LocalResourceLookup) Lookup(ctx context.Context, id ResourceID) (Re
 	return res, nil
 }
 
-func (lookup LocalResourceLookup) Has(id ResourceID) (bool, error) {
+func (lookup LocalResourceLookup) Has(ctx context.Context, id ResourceID) (bool, error) {
 	_, has := lookup[id]
 	return has, nil
 }
 
-func (lookup LocalResourceLookup) Set(id ResourceID, res Resource) error {
+func (lookup LocalResourceLookup) Set(ctx context.Context, id ResourceID, res Resource) error {
 	lookup[id] = res
 	return nil
 }
 
-func (lookup LocalResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error) {
+func (lookup LocalResourceLookup) Submap(ctx context.Context, ids []ResourceID) (ResourceLookup, error) {
 	resources := make(LocalResourceLookup, len(ids))
 	for _, id := range ids {
 		resource, has := lookup[id]
@@ -327,7 +327,7 @@ func (lookup LocalResourceLookup) Submap(ids []ResourceID) (ResourceLookup, erro
 	return resources, nil
 }
 
-func (lookup LocalResourceLookup) ListForType(t ResourceType) ([]Resource, error) {
+func (lookup LocalResourceLookup) ListForType(ctx context.Context, t ResourceType) ([]Resource, error) {
 	resources := make([]Resource, 0)
 	for id, res := range lookup {
 		if id.Type == t {
@@ -337,7 +337,7 @@ func (lookup LocalResourceLookup) ListForType(t ResourceType) ([]Resource, error
 	return resources, nil
 }
 
-func (lookup LocalResourceLookup) List() ([]Resource, error) {
+func (lookup LocalResourceLookup) List(ctx context.Context) ([]Resource, error) {
 	resources := make([]Resource, 0, len(lookup))
 	for _, res := range lookup {
 		resources = append(resources, res)
@@ -359,11 +359,11 @@ func (lookup LocalResourceLookup) SetStatus(ctx context.Context, id ResourceID, 
 	return nil
 }
 
-func (lookup LocalResourceLookup) SetJob(id ResourceID, schedule string) error {
+func (lookup LocalResourceLookup) SetJob(ctx context.Context, id ResourceID, schedule string) error {
 	return nil
 }
 
-func (lookup LocalResourceLookup) SetSchedule(id ResourceID, schedule string) error {
+func (lookup LocalResourceLookup) SetSchedule(ctx context.Context, id ResourceID, schedule string) error {
 	res, has := lookup[id]
 	if !has {
 		wrapped := fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("resource not found"))
@@ -377,7 +377,7 @@ func (lookup LocalResourceLookup) SetSchedule(id ResourceID, schedule string) er
 	return nil
 }
 
-func (lookup LocalResourceLookup) HasJob(id ResourceID) (bool, error) {
+func (lookup LocalResourceLookup) HasJob(ctx context.Context, id ResourceID) (bool, error) {
 	return false, nil
 }
 
@@ -396,7 +396,7 @@ func (resource *SourceResource) Schedule() string {
 	return ""
 }
 
-func (resource *SourceResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *SourceResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	return make(LocalResourceLookup), nil
 }
 
@@ -404,7 +404,8 @@ func (resource *SourceResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *SourceResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *SourceResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
+
 	otherId := that.ID()
 	isVariant := otherId.Type == SOURCE_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -453,7 +454,7 @@ func (resource *sourceVariantResource) Schedule() string {
 	return resource.serialized.Schedule
 }
 
-func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *sourceVariantResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
@@ -469,7 +470,7 @@ func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) (Reso
 			Type: SOURCE,
 		},
 	}
-	deps, err := lookup.Submap(depIds)
+	deps, err := lookup.Submap(ctx, depIds)
 	if err != nil {
 		return nil, err
 	}
@@ -480,7 +481,8 @@ func (resource *sourceVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (sourceVariantResource *sourceVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (sourceVariantResource *sourceVariantResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
+
 	id := that.ID()
 	t := id.Type
 	key := id.Proto()
@@ -607,7 +609,7 @@ func (resource *featureResource) Schedule() string {
 	return ""
 }
 
-func (resource *featureResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *featureResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	return make(LocalResourceLookup), nil
 }
 
@@ -615,7 +617,7 @@ func (resource *featureResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *featureResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	otherId := that.ID()
 	isVariant := otherId.Type == FEATURE_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -664,7 +666,7 @@ func (resource *featureVariantResource) Schedule() string {
 	return resource.serialized.Schedule
 }
 
-func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *featureVariantResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
@@ -695,7 +697,7 @@ func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (Res
 			})
 		}
 	}
-	deps, err := lookup.Submap(depIds)
+	deps, err := lookup.Submap(ctx, depIds)
 	if err != nil {
 		return nil, err
 	}
@@ -706,7 +708,7 @@ func (resource *featureVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *featureVariantResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	if !PRECOMPUTED.Equals(this.serialized.Mode) {
 		return nil
 	}
@@ -817,7 +819,7 @@ func (resource *labelResource) Schedule() string {
 	return ""
 }
 
-func (resource *labelResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *labelResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	return make(LocalResourceLookup), nil
 }
 
@@ -825,7 +827,7 @@ func (resource *labelResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *labelResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	otherId := that.ID()
 	isVariant := otherId.Type == LABEL_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -874,7 +876,7 @@ func (resource *labelVariantResource) Schedule() string {
 	return ""
 }
 
-func (resource *labelVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *labelVariantResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
@@ -899,7 +901,7 @@ func (resource *labelVariantResource) Dependencies(lookup ResourceLookup) (Resou
 			Type: LABEL,
 		},
 	}
-	deps, err := lookup.Submap(depIds)
+	deps, err := lookup.Submap(ctx, depIds)
 	if err != nil {
 		return nil, err
 	}
@@ -910,7 +912,7 @@ func (resource *labelVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *labelVariantResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	id := that.ID()
 	releventOp := op == create_op && id.Type == TRAINING_SET_VARIANT
 	if !releventOp {
@@ -995,7 +997,7 @@ func (resource *trainingSetResource) Schedule() string {
 	return ""
 }
 
-func (resource *trainingSetResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *trainingSetResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	return make(LocalResourceLookup), nil
 }
 
@@ -1003,7 +1005,7 @@ func (resource *trainingSetResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *trainingSetResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	otherId := that.ID()
 	isVariant := otherId.Type == TRAINING_SET_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -1052,7 +1054,7 @@ func (resource *trainingSetVariantResource) Schedule() string {
 	return resource.serialized.Schedule
 }
 
-func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *trainingSetVariantResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
@@ -1080,7 +1082,7 @@ func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) 
 			Type:    FEATURE_VARIANT,
 		})
 	}
-	deps, err := lookup.Submap(depIds)
+	deps, err := lookup.Submap(ctx, depIds)
 	if err != nil {
 		return nil, err
 	}
@@ -1091,7 +1093,7 @@ func (resource *trainingSetVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *trainingSetVariantResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	return nil
 }
 
@@ -1172,7 +1174,7 @@ func (resource *modelResource) Schedule() string {
 	return ""
 }
 
-func (resource *modelResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *modelResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := make([]ResourceID, 0)
 	for _, feature := range serialized.Features {
@@ -1196,7 +1198,7 @@ func (resource *modelResource) Dependencies(lookup ResourceLookup) (ResourceLook
 			Type:    TRAINING_SET_VARIANT,
 		})
 	}
-	deps, err := lookup.Submap(depIds)
+	deps, err := lookup.Submap(ctx, depIds)
 	if err != nil {
 		return nil, err
 	}
@@ -1207,7 +1209,7 @@ func (resource *modelResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *modelResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *modelResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	return nil
 }
 
@@ -1251,7 +1253,7 @@ func (resource *userResource) Schedule() string {
 	return ""
 }
 
-func (resource *userResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *userResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	return make(LocalResourceLookup), nil
 }
 
@@ -1259,8 +1261,8 @@ func (resource *userResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	if isDep, err := isDirectDependency(lookup, this, that); err != nil {
+func (this *userResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
+	if isDep, err := isDirectDependency(ctx, lookup, this, that); err != nil {
 		return err
 	} else if !isDep {
 		return nil
@@ -1321,7 +1323,7 @@ func (resource *providerResource) Schedule() string {
 	return ""
 }
 
-func (resource *providerResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *providerResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	return make(LocalResourceLookup), nil
 }
 
@@ -1329,8 +1331,8 @@ func (resource *providerResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *providerResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	if isDep, err := isDirectDependency(lookup, this, that); err != nil {
+func (this *providerResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
+	if isDep, err := isDirectDependency(ctx, lookup, this, that); err != nil {
 		return err
 	} else if !isDep {
 		return nil
@@ -1439,7 +1441,7 @@ func (resource *entityResource) Schedule() string {
 	return ""
 }
 
-func (resource *entityResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *entityResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	return make(LocalResourceLookup), nil
 }
 
@@ -1447,7 +1449,7 @@ func (resource *entityResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *entityResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	id := that.ID()
 	key := id.Proto()
 	t := id.Type
@@ -1601,7 +1603,7 @@ type Config struct {
 
 func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.ScheduleChangeRequest) (*pb.Empty, error) {
 	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
-	err := serv.lookup.SetSchedule(resID, req.Schedule)
+	err := serv.lookup.SetSchedule(ctx, resID, req.Schedule)
 	return &pb.Empty{}, err
 }
 
@@ -1903,7 +1905,7 @@ func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.ResourceV
 		logger.Errorw("Error extracting resource variant", "resource variant", req, "error", err)
 		return nil, err
 	}
-	resourcesForType, err := serv.lookup.ListForType(resourceType)
+	resourcesForType, err := serv.lookup.ListForType(ctx, resourceType)
 	if err != nil {
 		logger.Errorw("Unable to list resources", "error", err)
 		return nil, err
@@ -2008,20 +2010,21 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		}
 		res = existing
 	}
-	if err := serv.lookup.Set(id, res); err != nil {
+
+	if err := serv.lookup.Set(ctx, id, res); err != nil {
 		logger.Errorw("Error setting resource to lookup", "error", err)
 		return nil, err
 	}
 	if serv.needsJob(res) && existing == nil {
 		logger.Info("Creating Job")
-		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
+		if err := serv.lookup.SetJob(ctx, id, res.Schedule()); err != nil {
 			return nil, err
 		}
 		logger.Info("Successfully Created Job")
 	}
 	parentId, hasParent := id.Parent()
 	if hasParent {
-		parentExists, err := serv.lookup.Has(parentId)
+		parentExists, err := serv.lookup.Has(ctx, parentId)
 		if err != nil {
 			logger.Errorw("Parent does not exist", "parent-id", parentId, "error", err)
 			return nil, err
@@ -2030,7 +2033,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		if !parentExists {
 			logger.Debug("Parent does not exist, creating new parent")
 			parent := init(id.Name, id.Variant)
-			err = serv.lookup.Set(parentId, parent)
+			err = serv.lookup.Set(ctx, parentId, parent)
 			if err != nil {
 				logger.Errorw("Unable to create new parent", "parent-id", parentId, "error", err)
 				return nil, err
@@ -2042,7 +2045,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 			}
 		}
 	}
-	if err := serv.propagateChange(res); err != nil {
+	if err := serv.propagateChange(ctx, res); err != nil {
 		logger.Error(err)
 		return nil, err
 	}
@@ -2071,7 +2074,7 @@ func (serv *MetadataServer) setDefaultVariant(ctx context.Context, id ResourceID
 		resource.serialized.DefaultVariant = defaultVariant
 		parentResource = resource
 	}
-	err = serv.lookup.Set(id, parentResource)
+	err = serv.lookup.Set(ctx, id, parentResource)
 	if err != nil {
 		return err
 	}
@@ -2115,38 +2118,44 @@ func (serv *MetadataServer) isEquivalent(newRes Resource, existing Resource) (bo
 	return isEquivalent, nil
 }
 
-func (serv *MetadataServer) propagateChange(newRes Resource) error {
+func (serv *MetadataServer) propagateChange(ctx context.Context, newRes Resource) error {
 	visited := make(map[ResourceID]struct{})
 	// We have to make it a var so that the anonymous function can call itself.
-	var propagateChange func(parent Resource) error
-	propagateChange = func(parent Resource) error {
-		deps, err := parent.Dependencies(serv.lookup)
+	logger := logging.GetLoggerFromContext(ctx)
+	var propagateChange func(ctx context.Context, parent Resource) error
+	propagateChange = func(ctx context.Context, parent Resource) error {
+		deps, err := parent.Dependencies(ctx, serv.lookup)
 		if err != nil {
+			logger.Errorw("Error getting parent dependencies", "parent resource", parent, "Error", err)
 			return err
 		}
-		depList, err := deps.List()
+		depList, err := deps.List(ctx)
 		if err != nil {
+			logger.Errorw("Error getting parent dependency list", "parent resource", parent, "Error", err)
 			return err
 		}
 		for _, res := range depList {
 			id := res.ID()
+			logger.Debugw("Propagating change through dependencies", "resource-id", id)
 			if _, has := visited[id]; has {
 				continue
 			}
 			visited[id] = struct{}{}
-			if err := res.Notify(serv.lookup, create_op, newRes); err != nil {
+			if err := res.Notify(ctx, serv.lookup, create_op, newRes); err != nil {
 				return err
 			}
-			if err := serv.lookup.Set(res.ID(), res); err != nil {
+			if err := serv.lookup.Set(ctx, res.ID(), res); err != nil {
+				logger.Errorw("Unable to set resource to LookupResource", "resource-id", id, "Error", err)
 				return err
 			}
-			if err := propagateChange(res); err != nil {
+			if err := propagateChange(ctx, res); err != nil {
+				logger.Errorw("Error propagating change", "resource-id", id, "Error", err)
 				return err
 			}
 		}
 		return nil
 	}
-	return propagateChange(newRes)
+	return propagateChange(ctx, newRes)
 }
 
 func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, t ResourceType, send sendFn) error {
@@ -2214,7 +2223,7 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 func (serv *MetadataServer) genericList(ctx context.Context, t ResourceType, send sendFn) error {
 	logger := logging.GetLoggerFromContext(ctx)
 	logger.Infow("Listing Resources", "type", t)
-	resources, err := serv.lookup.ListForType(t)
+	resources, err := serv.lookup.ListForType(ctx, t)
 	if err != nil {
 		logger.Error("Unable to lookup list for type %v: %v", t, err)
 		return err

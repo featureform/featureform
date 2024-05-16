@@ -2,7 +2,7 @@ Feature: Model Registration
   @use_autovariants
   Scenario Outline: Registering a model with both non-existing and existing feature and training set
     Given Featureform is installed
-    And I create a "hosted" "insecure" client for "localhost:7878"
+    When I create a "hosted" "insecure" client for "localhost:7878"
     And I register an offline provider of type "<offline_provider_type>"
     And I register an online provider of type "<online_provider_type>"
     And I register a dataset located at "<dataset_path>"

@@ -2008,10 +2008,6 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		}
 		res = existing
 	}
-	if err := serv.lookup.Set(id, res); err != nil {
-		logger.Errorw("Error setting resource to lookup", "error", err)
-		return nil, err
-	}
 	if serv.needsJob(res) && existing == nil {
 		logger.Info("Creating Job")
 		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
@@ -2019,6 +2015,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		}
 		logger.Info("Successfully Created Job")
 	}
+	// Create the parent first. Better to have a hanging parent than a hanging dependency.
 	parentId, hasParent := id.Parent()
 	if hasParent {
 		parentExists, err := serv.lookup.Has(parentId)
@@ -2041,6 +2038,10 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 				return nil, err
 			}
 		}
+	}
+	if err := serv.lookup.Set(id, res); err != nil {
+		logger.Errorw("Error setting resource to lookup", "error", err)
+		return nil, err
 	}
 	if err := serv.propagateChange(res); err != nil {
 		logger.Error(err)

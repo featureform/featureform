@@ -13,7 +13,7 @@ def before_scenario(context, scenario):
         os.environ["FF_GET_EQUIVALENT_VARIANTS"] = "true"
 
     prefix = uuid.uuid4()
-    context.unique_prefix = str(prefix)[5]
+    context.unique_prefix = str(prefix)[:5]
 
     ff.set_variant_prefix(context.unique_prefix)
 

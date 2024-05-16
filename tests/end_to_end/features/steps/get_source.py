@@ -3,9 +3,14 @@ from behave import when, then
 
 @when("I get the source for the dataset")
 def step_impl(context):
-    dataset_name, dataset_variant = context.dataset.id()
+    dataset = context.dataset.id()
 
-    context.source = context.client.get_source(dataset_name, dataset_variant)
+    if len(dataset) != 2:
+        raise ValueError(
+            f"Expected dataset to be a tuple of (name, variant); Got: {dataset}"
+        )
+
+    context.source = context.client.get_source(dataset[0], dataset[1])
 
 
 @then("I can register a transformation based on the source")

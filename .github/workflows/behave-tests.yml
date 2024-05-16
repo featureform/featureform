@@ -112,11 +112,12 @@ jobs:
       
       - name: Save Docker logs for featureform container to artifact
         if: always()
-        run: docker logs featureform 2> featureform.log
+        working-directory: ./tests/end_to_end/
+        run: docker logs featureform && docker logs featureform 2> featureform.log
         
       - name: Upload featureform logs
         if: always()
         uses: actions/upload-artifact@v3
         with:
           name: featureform-logs
-          path: ./featureform.log
+          path: ./tests/end_to_end/featureform.log

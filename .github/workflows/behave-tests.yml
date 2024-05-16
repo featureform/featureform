@@ -113,6 +113,9 @@ jobs:
       - name: Save Docker logs for featureform container to artifact
         if: always()
         run: docker logs featureform 2> featureform.log
+        
+      - name: Upload featureform logs
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: featureform-logs

@@ -2668,6 +2668,24 @@ func TestIsSqlEqual(t *testing.T) {
 			otherSql: "SELECT * FROM table",
 			want:     true,
 		},
+		{
+			name:     "SQL with tabs and newlines",
+			thisSql:  "SELECT\t*\nFROM table",
+			otherSql: "SELECT * FROM table",
+			want:     true,
+		},
+		{
+			name:     "SQL with mixed whitespace types",
+			thisSql:  "SELECT\t  *\n  FROM  \ttable",
+			otherSql: "SELECT * FROM table",
+			want:     true,
+		},
+		{
+			name:     "SQL with leading and trailing mixed whitespace",
+			thisSql:  "\t  SELECT * FROM table  \n",
+			otherSql: "SELECT * FROM table",
+			want:     true,
+		},
 	}
 
 	for _, tt := range tests {

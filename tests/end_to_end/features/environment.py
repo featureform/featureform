@@ -12,10 +12,10 @@ def before_scenario(context, scenario):
         # Set the environment variable for the duration of the scenario
         os.environ["FF_GET_EQUIVALENT_VARIANTS"] = "true"
 
-    prefix = uuid.uuid4()
-    context.unique_prefix = str(prefix)[:5]
+    # prefix = uuid.uuid4()
+    # context.unique_prefix = str(prefix)[:5]
 
-    ff.set_variant_prefix(context.unique_prefix)
+    # ff.set_variant_prefix(context.unique_prefix)
 
 
 def after_scenario(context, scenario):

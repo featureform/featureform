@@ -2043,9 +2043,11 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		logger.Errorw("Error setting resource to lookup", "error", err)
 		return nil, err
 	}
-	if err := serv.propagateChange(res); err != nil {
-		logger.Error(err)
-		return nil, err
+	if existing == nil {
+		if err := serv.propagateChange(res); err != nil {
+			logger.Error(err)
+			return nil, err
+		}
 	}
 	return &pb.Empty{}, nil
 }

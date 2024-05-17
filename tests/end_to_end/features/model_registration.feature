@@ -1,4 +1,5 @@
 Feature: Model Registration
+
   Scenario Outline: Registering a model with both non-existing and existing feature and training set
     Given Featureform is installed
     When I turn on autovariants
@@ -13,7 +14,7 @@ Feature: Model Registration
     And I cannot serve the non-existing training set with the model
     And I can serve the registered training set with the model
     And I turn off autovariants
-    
+
     Examples:
-      | online_provider_type | offline_provider_type |                     dataset_path                      |  feature_column   | feature_type | entity_column | timestamp_column | label_column |   user   | expected_value |
-      |        redis         |        postgres       |                     transactions                      | transactionamount |    float64   |   customerid  |       empty      |   isfraud    | C5841053 |      25.0      |
+      | online_provider_type | offline_provider_type | dataset_path | feature_column    | feature_type | entity_column | timestamp_column | label_column | user     | expected_value |
+      | redis                | postgres              | transactions | transactionamount | float64      | customerid    | empty            | isfraud      | C5841053 | 25.0           |

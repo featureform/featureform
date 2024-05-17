@@ -2042,9 +2042,11 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 			}
 		}
 	}
-	if err := serv.propagateChange(res); err != nil {
-		logger.Error(err)
-		return nil, err
+	if existing == nil {
+		if err := serv.propagateChange(res); err != nil {
+			logger.Error(err)
+			return nil, err
+		}
 	}
 	return &pb.Empty{}, nil
 }

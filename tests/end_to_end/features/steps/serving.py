@@ -217,14 +217,20 @@ def step_impl(context, provider):
         if provider == "snowflake":
             if i >= len(context.expected):
                 break
-            assert entity == context.expected[i][0]
-            assert Counter(features) == Counter(context.expected[i][1])
+            assert (
+                entity == context.expected[i][0]
+            ), f"Expected {context.expected[i][0]}, got {entity}"
+            assert Counter(features) == Counter(
+                context.expected[i][1]
+            ), f"Expected {context.expected[i][1]}, got {features}"
             i += 1
         elif provider == "spark":
             if i >= len(context.expected):
                 break
-            assert entity in context.expected
-            assert Counter(context.expected[entity]) == Counter(features)
+            assert entity in context.expected, f"Entity {entity} not found in expected"
+            assert Counter(context.expected[entity]) == Counter(
+                features
+            ), f"Expected {context.expected[entity]}, got {features}"
         else:
             raise Exception("Provider not recognized", provider)
 
@@ -236,7 +242,9 @@ def step_impl(context):
         if i >= context.expected:
             break
         print(entity, features)
-        assert len(features) == context.expected
+        assert (
+            len(features) == context.expected
+        ), f"Expected {context.expected} features, got {len(features)}"
         i += 1
 
 

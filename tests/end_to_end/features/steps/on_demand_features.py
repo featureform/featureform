@@ -21,5 +21,5 @@ def step_impl(context):
     values = context.client.features(
         [("test_feature", ff.get_run()), context.ondemand_feature], {}
     )
-    assert values[0] == [1]
-    assert values[1] == [1]
+    assert values[0] == [1], f"Expected 1, but got {values[0]}"
+    assert values[1] == [1], f"Expected 1, but got {values[1]}"

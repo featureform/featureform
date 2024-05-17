@@ -40,10 +40,13 @@ func TestFileStorePrimaryTable(t *testing.T) {
 
 		for testName, testFunc := range testFuncMap {
 			t.Logf("Running test: %s", testName)
-			err := testFunc(t, filestore)
-			if err != nil {
-				t.Fatalf("Error in test: %s", err)
-			}
+
+			t.Run(testName, func(t *testing.T) {
+				err := testFunc(t, filestore)
+				if err != nil {
+					t.Fatalf("Error in test: %s", err)
+				}
+			})
 		}
 
 	}

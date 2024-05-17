@@ -1,6 +1,5 @@
 Feature: Get Source
 
-  @use_autovariants
   Scenario Outline: Registering a source and getting the source for next step
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"

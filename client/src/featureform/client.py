@@ -12,7 +12,7 @@ from .register import (
     TrainingSetVariant,
 )
 from .serving import ServingClient
-from .enums import ResourceType
+from .enums import ResourceType, OfflineResourceType
 from featureform.proto import metadata_pb2
 
 
@@ -143,7 +143,7 @@ class Client(ResourceClient, ServingClient):
         self,
         source: Union[SourceRegistrar, SubscriptableTransformation, str],
         variant: Optional[str] = None,
-        resource_type: Optional[ResourceType] = None,
+        resource_type: Optional[OfflineResourceType] = None,
     ):
         """
         Returns the location of a registered resource. For SQL resources, it will return the table name
@@ -161,11 +161,11 @@ class Client(ResourceClient, ServingClient):
         """
         if isinstance(source, (SourceRegistrar, SubscriptableTransformation)):
             name, variant = source.name_variant()
-            resource_type = ResourceType.SOURCE
+            resource_type = OfflineResourceType.SOURCE
         elif isinstance(source, featureform.resources.TrainingSetVariant):
             name = source.name
             variant = source.variant
-            resource_type = ResourceType.TRAINING_SET
+            resource_type = OfflineResourceType.TRAINING_SET
         elif isinstance(source, str):
             name = source
             if variant is None:
@@ -193,13 +193,47 @@ class Client(ResourceClient, ServingClient):
         """
         self.impl.close()
 
+    def _create_resource_request(
+        self, resource: Union[tuple, FeatureColumnResource, TrainingSetVariant]
+    ):
+        resource_req = metadata_pb2.ResourceID()
+        if isinstance(resource, tuple) and len(resource) != 3:
+            raise ValueError(
+                f"Invalid resource type: expected tuple of (name, variant, resource_type), received {resource}"
+            )
+        elif (
+            isinstance(resource, tuple)
+            and len(resource) == 3
+            and not ResourceType.has_value(resource[2])
+        ):
+            raise ValueError(
+                f"Invalid resource type: expected one of {ResourceType.values()}, received {resource[2]}"
+            )
+        elif (
+            isinstance(resource, tuple)
+            and len(resource) == 3
+            and ResourceType.has_value(resource[2])
+        ):
+            resource_req.resource.name = resource[0]
+            resource_req.resource.variant = resource[1]
+            resource_req.resource_type = resource[2].to_proto()
+        elif isinstance(resource, Union[FeatureColumnResource, TrainingSetVariant]):
+            resource_req.resource.name = resource.name
+            resource_req.resource.variant = resource.variant
+            resource_req.resource_type = resource.resource_type.to_proto()
+        else:
+            raise ValueError(
+                f"Invalid resource type: expected FeatureColumnResource or TrainingSetVariant, received {type(resource)}"
+            )
+        return resource_req
+
     def add_trigger(self, trigger, resource):
         """
         Add a trigger to a resource
 
         **Example:**
         ```py title="definitions.py"
-        client.add_trigger("trigger_name", ("resource_name", "resource_variant, resource_type"))
+        client.add_trigger("trigger_name", ("resource_name", "resource_variant, resource_type))
         ```
 
         Args:
@@ -217,18 +251,7 @@ class Client(ResourceClient, ServingClient):
             raise ValueError("Invalid trigger type")
         req.trigger.CopyFrom(trigger_req)
 
-        resource_req = metadata_pb2.ResourceID()
-        if isinstance(resource, tuple):
-            resource_req.resource.name = resource[0]
-            resource_req.resource.variant = resource[1]
-            # TODO: Need to convert this to a real resource type
-            resource_req.resource_type = resource[2]
-        elif isinstance(resource, Union[FeatureColumnResource, TrainingSetVariant]):
-            resource_req.resource.name = resource.name
-            resource_req.resource.variant = resource.variant
-            resource_req.resource_type = resource.resource_type
-        else:
-            raise ValueError("Invalid resource type")
+        resource_req = self._create_resource_request(resource)
         req.resource.CopyFrom(resource_req)
 
         self._stub.AddTrigger(req)
@@ -257,18 +280,7 @@ class Client(ResourceClient, ServingClient):
             raise ValueError("Invalid trigger type")
         req.trigger.CopyFrom(trigger_req)
 
-        resource_req = metadata_pb2.ResourceID()
-        if isinstance(resource, tuple):
-            resource_req.resource.name = resource[0]
-            resource_req.resource.variant = resource[1]
-            # TODO: Need to convert this to a real resource type
-            resource_req.resource_type = resource[2]
-        elif isinstance(resource, Union[FeatureColumnResource, TrainingSetVariant]):
-            resource_req.resource.name = resource.name
-            resource_req.resource.variant = resource.variant
-            resource_req.resource_type = resource.resource_type
-        else:
-            raise ValueError("Invalid resource type")
+        resource_req = resource_req = self._create_resource_request(resource)
         req.resource.CopyFrom(resource_req)
 
         self._stub.RemoveTrigger(req)

@@ -44,6 +44,7 @@ const (
 	Model              ResourceType = "model"
 	Label              ResourceType = "label"
 	LabelVariant       ResourceType = "label-variant"
+	Trigger            ResourceType = "trigger"
 )
 
 var GlobalLogger Logger

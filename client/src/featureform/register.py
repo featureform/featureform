@@ -22,62 +22,14 @@ from .grpc_client import GrpcClient
 from .list import *
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
-from .resources import (
-    AWSCredentials,
-    AzureFileStoreConfig,
-    BigQueryConfig,
-    CassandraConfig,
-    ClickHouseConfig,
-    DFTransformation,
-    DynamodbConfig,
-    Entity,
-    ExecutorCredentials,
-    FeatureVariant,
-    FilePrefix,
-    FirestoreConfig,
-    GCPCredentials,
-    GCSFileStoreConfig,
-    HDFSConfig,
-    K8sArgs,
-    K8sConfig,
-    K8sResourceSpecs,
-    LabelVariant,
-    Location,
-    Model,
-    MongoDBConfig,
-    OnDemandFeatureVariant,
-    OndemandFeatureParameters,
-    OnlineBlobConfig,
-    PineconeConfig,
-    PostgresConfig,
-    PrimaryData,
-    Provider,
-    RedisConfig,
-    RedshiftConfig,
-    ResourceColumnMapping,
-    ResourceRedefinedError,
-    ResourceState,
-    ResourceStatus,
-    ResourceVariant,
-    S3StoreConfig,
-    SQLTable,
-    SQLTransformation,
-    ScalarType,
-    SnowflakeConfig,
-    SourceVariant,
-    SparkConfig,
-    TrainingSetVariant,
-    User,
-    WeaviateConfig,
-    ResourceVariant,
-    TriggerResource,
-)
+from .resources import *
 from .search import search
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
 from .types import pd_to_ff_datatype, VectorType
 from .variant_names_generator import get_current_timestamp_variant
 from .variant_names_generator import get_random_name
+from .enums import ResourceType, TriggerType
 
 NameVariant = Tuple[str, str]
 
@@ -1122,7 +1074,7 @@ class ColumnResource(ABC):
         self,
         transformation_args: tuple,
         type: Union[ScalarType, str],
-        resource_type: str,
+        resource_type: ResourceType,
         entity: Union[Entity, str],
         owner: Union[str, UserRegistrar],
         timestamp_column: str,
@@ -1132,7 +1084,6 @@ class ColumnResource(ABC):
         properties: Dict[str, str],
         inference_store: Union[str, OnlineProvider, FileStoreProvider] = "",
         variant: str = "",
-        trigger: TriggerResource = None,
     ):
         registrar, source_name_variant, columns = transformation_args
         self.type = type if isinstance(type, str) else type.value
@@ -1157,7 +1108,6 @@ class ColumnResource(ABC):
         self.tags = tags
         self.properties = properties
         self.variant = variant
-        self.trigger = trigger
 
     def register(self):
         features, labels = self.features_and_labels()
@@ -1187,11 +1137,10 @@ class ColumnResource(ABC):
                 "properties": self.properties,
             }
         ]
-        if self.resource_type == "feature":
-            resources[0]["trigger"] = self.trigger
+        if self.resource_type == ResourceType.FEATURE_VARIANT:
             features = resources
             labels = []
-        elif self.resource_type == "label":
+        elif self.resource_type == ResourceType.LABEL_VARIANT:
             features = []
             labels = resources
         else:
@@ -1239,7 +1188,6 @@ class FeatureColumnResource(ColumnResource):
         schedule: str = "",
         tags: Optional[List[str]] = None,
         properties: Optional[Dict[str, str]] = None,
-        trigger: TriggerResource = None,
     ):
         """
         Feature registration object.
@@ -1266,7 +1214,7 @@ class FeatureColumnResource(ColumnResource):
         super().__init__(
             transformation_args=transformation_args,
             type=type,
-            resource_type="feature",
+            resource_type=ResourceType.FEATURE_VARIANT,
             entity=entity,
             variant=variant,
             owner=owner,
@@ -1276,7 +1224,6 @@ class FeatureColumnResource(ColumnResource):
             schedule=schedule,
             tags=tags,
             properties=properties,
-            trigger=trigger,
         )
 
 
@@ -1474,7 +1421,7 @@ class LabelColumnResource(ColumnResource):
         super().__init__(
             transformation_args=transformation_args,
             type=type,
-            resource_type="label",
+            resource_type=ResourceType.LABEL_VARIANT,
             entity=entity,
             variant=variant,
             owner=owner,
@@ -3718,7 +3665,9 @@ class Registrar:
         else:
             return decorator(fn)
 
-    def register_trigger(self, trigger_name, trigger_type):
+    def register_trigger(
+        self, trigger_name: str, trigger_type: TriggerType, schedule: str = ""
+    ):
         """Register a trigger.
 
         Args:
@@ -3732,7 +3681,11 @@ class Registrar:
             raise ValueError("Trigger name must be a string")
         if trigger_name == "":
             raise ValueError("Trigger name cannot be empty")
-        trigger = TriggerResource(trigger_name, trigger_type)
+        if not TriggerType.has_value(trigger_type):
+            raise ValueError(f"Invalid trigger type: {trigger_type}")
+        if TriggerType(trigger_type) == TriggerType.SCHEDULED and schedule == "":
+            raise ValueError("Scheduled trigger must have a schedule")
+        trigger = TriggerResource(trigger_name, trigger_type, schedule)
         self.__resources.append(trigger)
         return trigger
 
@@ -3938,7 +3891,6 @@ class Registrar:
                 tags=feature_tags,
                 properties=feature_properties,
                 additional_parameters=additional_Parameters,
-                trigger=feature.get("trigger", None),
             )
             self.__resources.append(resource)
             self.map_client_object_to_resource(client_object, resource)
@@ -4050,7 +4002,6 @@ class Registrar:
         schedule: str = "",
         tags: List[str] = [],
         properties: dict = {},
-        trigger: TriggerResource = None,
     ):
         """Register a training set.
 
@@ -4074,7 +4025,6 @@ class Registrar:
             schedule (str): Kubernetes CronJob schedule string ("* * * * *")
             tags (List[str]): Optional grouping mechanism for resources
             properties (dict): Optional grouping mechanism for resources
-            trigger (TriggerResource): Trigger
 
         Returns:
             resource (ResourceRegistrar): resource
@@ -4134,7 +4084,6 @@ class Registrar:
             feature_lags=feature_lags,
             tags=tags,
             properties=properties,
-            trigger=trigger,
         )
         self.__resources.append(resource)
         return resource
@@ -5360,7 +5309,7 @@ class ColumnResource:
         self,
         transformation_args: tuple,
         type: Union[ScalarType, str],
-        resource_type: str,
+        resource_type: ResourceType,
         entity: Union[Entity, str],
         variant: str,
         owner: Union[str, UserRegistrar],
@@ -5409,7 +5358,7 @@ class ColumnResource:
         )
 
     def get_resources_by_type(
-        self, resource_type: str
+        self, resource_type: ResourceType
     ) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
         resources = [
             {
@@ -5423,10 +5372,10 @@ class ColumnResource:
             }
         ]
 
-        if resource_type == "feature":
+        if resource_type == ResourceType.FEATURE_VARIANT:
             features = resources
             labels = []
-        elif resource_type == "label":
+        elif resource_type == ResourceType.LABEL_VARIANT:
             features = []
             labels = resources
         else:
@@ -5479,7 +5428,7 @@ class EmbeddingColumnResource(ColumnResource):
         super().__init__(
             transformation_args=transformation_args,
             type=ScalarType.FLOAT32,
-            resource_type="feature",
+            resource_type=ResourceType.FEATURE_VARIANT,
             entity=entity,
             variant=variant,
             owner=owner,
@@ -5495,7 +5444,7 @@ class EmbeddingColumnResource(ColumnResource):
         self.dims = dims
 
     def get_resources_by_type(
-        self, resource_type: str
+        self, resource_type: ResourceType
     ) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
         features, labels = super().get_resources_by_type(resource_type)
         features[0]["dims"] = self.dims
@@ -5598,7 +5547,11 @@ get_s3 = global_registrar.get_s3
 get_gcs = global_registrar.get_gcs
 ondemand_feature = global_registrar.ondemand_feature
 ResourceStatus = ResourceStatus
-ScheduleTrigger = global_registrar.register_trigger
+ScheduledTrigger: Callable[[str, str], TriggerResource] = (
+    lambda name, schedule: global_registrar.register_trigger(
+        name, TriggerType.SCHEDULED, schedule
+    )
+)
 
 Nil = ScalarType.NIL
 String = ScalarType.STRING

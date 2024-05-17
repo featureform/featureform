@@ -161,8 +161,8 @@ func (client *Client) Create(ctx context.Context, def ResourceDef) error {
 		return client.CreateEntity(ctx, casted)
 	case ModelDef:
 		return client.CreateModel(ctx, casted)
-	case TriggerDef:
-		return client.CreateTrigger(ctx, casted)
+	// case TriggerDef:
+	// 	return client.CreateTrigger(ctx, casted)
 	default:
 		return fferr.NewInvalidArgumentError(fmt.Errorf("%T not implemented in Create", casted))
 	}
@@ -1304,18 +1304,28 @@ func (def TriggerDef) ResourceType() ResourceType {
 	return TRIGGER
 }
 
-func (client *Client) CreateTrigger(ctx context.Context, def TriggerDef) error {
-	serialized := &pb.Trigger{
-		Name: def.Name,
-		TriggerType: &pb.Trigger_ScheduleTrigger{
-			ScheduleTrigger: &pb.ScheduleTrigger{
-				Schedule: def.ScheduleTrigger,
-			},
-		},
-		JobIds:  def.JobIDs,
-		TaskIds: def.TaskIDs,
-	}
-	_, err := client.GrpcConn.CreateTrigger(ctx, serialized)
+// func (client *Client) CreateTrigger(ctx context.Context, def TriggerDef) error {
+// 	requestID := logging.GetRequestIDFromContext(ctx)
+// 	serialized := &pb.TriggerRequest{
+// 		Trigger: &pb.Trigger{
+// 			Name: def.Name,
+// 			TriggerType: &pb.Trigger_ScheduleTrigger{
+// 				ScheduleTrigger: &pb.ScheduleTrigger{
+// 					Schedule: def.ScheduleTrigger,
+// 				},
+// 			},
+// 			JobIds:  def.JobIDs,
+// 			TaskIds: def.TaskIDs,
+// 		},
+// 		Resource:  &pb.ResourceID{},
+// 		RequestId: requestID,
+// 	}
+// 	_, err := client.GrpcConn.CreateTrigger(ctx, serialized)
+// 	return err
+// }
+
+func (client *Client) CreateTrigger(ctx context.Context, tr *pb.TriggerRequest) error {
+	_, err := client.GrpcConn.CreateTrigger(ctx, tr)
 	return err
 }
 
@@ -1324,74 +1334,20 @@ func (client *Client) AddTrigger(ctx context.Context, tr *pb.TriggerRequest) err
 	return err
 }
 
-// func (client *Client) RemoveTrigger(ctx context.Context, def TriggerDef, resourceDef ResourceDef) error {
-// resourceID, err := client.getResourceIDFromDef(resourceDef)
-// if err != nil {
-// 	return err
-// }
-
-// serialized := &pb.TriggerRequest{
-// 	Trigger: &pb.Trigger{
-// 		Name: def.Name,
-// 		TriggerType: &pb.Trigger_ScheduleTrigger{
-// 			ScheduleTrigger: &pb.ScheduleTrigger{
-// 				Schedule: def.ScheduleTrigger,
-// 			},
-// 		},
-// 		JobIds:  def.JobIDs,
-// 		TaskIds: def.TaskIDs,
-// 	},
-// 	Resource: &pb.ResourceID{
-// 		Resource: &pb.NameVariant{
-// 			Name:    resourceID.Name,
-// 			Variant: resourceID.Variant,
-// 		},
-// 		ResourceType: resourceID.Type.Serialized(),
-// 	},
-// }
-
-// _, err = client.GrpcConn.RemoveTrigger(ctx, serialized)
-// return err
-
-// }
-
 func (client *Client) RemoveTrigger(ctx context.Context, tr *pb.TriggerRequest) error {
 	_, err := client.GrpcConn.RemoveTrigger(ctx, tr)
 	return err
 }
 
-func (client *Client) UpdateTrigger(ctx context.Context, t *pb.Trigger) error {
-	_, err := client.GrpcConn.UpdateTrigger(ctx, t)
+func (client *Client) UpdateTrigger(ctx context.Context, tr *pb.TriggerRequest) error {
+	_, err := client.GrpcConn.UpdateTrigger(ctx, tr)
 	return err
 }
 
-func (client *Client) DeleteTrigger(ctx context.Context, t *pb.Trigger) error {
-	_, err := client.GrpcConn.DeleteTrigger(ctx, t)
+func (client *Client) DeleteTrigger(ctx context.Context, tr *pb.TriggerRequest) error {
+	_, err := client.GrpcConn.DeleteTrigger(ctx, tr)
 	return err
 }
-
-// func (client *Client) getResourceIDFromDef(def ResourceDef) (ResourceID, error) {
-// 	var resourceID ResourceID
-// 	switch def.ResourceType() {
-// 	case FEATURE_VARIANT:
-// 		fv := def.(FeatureDef)
-// 		resourceID = ResourceID{
-// 			Name:    fv.Name,
-// 			Variant: fv.Variant,
-// 			Type:    fv.ResourceType(),
-// 		}
-// 	case TRAINING_SET_VARIANT:
-// 		ts := def.(TrainingSetDef)
-// 		resourceID = ResourceID{
-// 			Name:    ts.Name,
-// 			Variant: ts.Variant,
-// 			Type:    ts.ResourceType(),
-// 		}
-// 	default:
-// 		return ResourceID{}, fmt.Errorf("unsupported resource type %s", def.ResourceType())
-// 	}
-// 	return resourceID, nil
-// }
 
 type triggerStream interface {
 	Recv() (*pb.User, error)

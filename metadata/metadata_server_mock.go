@@ -211,12 +211,12 @@ func (MetadataServerMock) AddTrigger(ctx context.Context, req *pb.TriggerRequest
 func (MetadataServerMock) RemoveTrigger(ctx context.Context, req *pb.TriggerRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	return nil, nil
 }
-func (MetadataServerMock) UpdateTrigger(ctx context.Context, trig *pb.Trigger, opts ...grpc.CallOption) (*pb.Empty, error) {
+func (MetadataServerMock) UpdateTrigger(ctx context.Context, req *pb.TriggerRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	return nil, nil
 }
-func (MetadataServerMock) DeleteTrigger(ctx context.Context, trig *pb.Trigger, opts ...grpc.CallOption) (*pb.Empty, error) {
+func (MetadataServerMock) DeleteTrigger(ctx context.Context, req *pb.TriggerRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	return nil, nil
 }
-func (MetadataServerMock) CreateTrigger(ctx context.Context, trig *pb.Trigger, opts ...grpc.CallOption) (*pb.Empty, error) {
+func (MetadataServerMock) CreateTrigger(ctx context.Context, req *pb.TriggerRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	return nil, nil
 }

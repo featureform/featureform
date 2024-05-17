@@ -197,7 +197,7 @@ class FileFormat(str, Enum):
 
 @typechecked
 @dataclass
-class ResourceType(Enum):
+class OfflineResourceType(Enum):
     # ResourceType is an enumeration representing the possible types of
     # resources that may be registered with Featureform. Each value is based
     # on OfflineResourceType in providers/offline.go
@@ -209,3 +209,97 @@ class ResourceType(Enum):
     PRIMARY = 4
     TRANSFORMATION = 5
     FEATURE_MATERIALIZATION = 6
+
+
+class ResourceType(Enum):
+    """
+    ResourceType is an enumeration representing the possible types of
+    resources that may be registered with Featureform. Each value corresponds
+    to a variant in ResourceType in metadata/proto/metadata.proto.
+
+    Attributes:
+        FEATURE (int): A feature.
+        LABEL (int): A label.
+        TRAINING_SET (int): A training set.
+        SOURCE (int): A source.
+        FEATURE_VARIANT (int): A feature variant.
+        LABEL_VARIANT (int): A label variant.
+        TRAINING_SET_VARIANT (int): A training set variant.
+        SOURCE_VARIANT (int): A source variant.
+        PROVIDER (int): A provider.
+        ENTITY (int): The type of a resource representing an entity.
+        MODEL (int): A model.
+        USER (int): A user.
+        TRIGGER (int): A trigger.
+    """
+
+    FEATURE = 0
+    LABEL = 1
+    TRAINING_SET = 2
+    SOURCE = 3
+    FEATURE_VARIANT = 4
+    LABEL_VARIANT = 5
+    TRAINING_SET_VARIANT = 6
+    SOURCE_VARIANT = 7
+    PROVIDER = 8
+    ENTITY = 9
+    MODEL = 10
+    USER = 11
+    TRIGGER = 12
+
+    @classmethod
+    def has_value(cls, value):
+        try:
+            cls(value)
+            return True
+        except ValueError:
+            return False
+
+    @classmethod
+    def from_proto(cls, proto_val):
+        mapping = {
+            pb.ResourceType.FEATURE: ResourceType.FEATURE,
+            pb.ResourceType.LABEL: ResourceType.LABEL,
+            pb.ResourceType.TRAINING_SET: ResourceType.TRAINING_SET,
+            pb.ResourceType.SOURCE: ResourceType.SOURCE,
+            pb.ResourceType.FEATURE_VARIANT: ResourceType.FEATURE_VARIANT,
+            pb.ResourceType.LABEL_VARIANT: ResourceType.LABEL_VARIANT,
+            pb.ResourceType.TRAINING_SET_VARIANT: ResourceType.TRAINING_SET_VARIANT,
+            pb.ResourceType.SOURCE_VARIANT: ResourceType.SOURCE_VARIANT,
+            pb.ResourceType.PROVIDER: ResourceType.PROVIDER,
+            pb.ResourceType.ENTITY: ResourceType.ENTITY,
+            pb.ResourceType.MODEL: ResourceType.MODEL,
+            pb.ResourceType.USER: ResourceType.USER,
+            pb.ResourceType.TRIGGER: ResourceType.TRIGGER,
+        }
+        return mapping[proto_val]
+
+    def to_proto(self):
+        mapping = {
+            ResourceType.FEATURE: pb.ResourceType.FEATURE,
+            ResourceType.LABEL: pb.ResourceType.LABEL,
+            ResourceType.TRAINING_SET: pb.ResourceType.TRAINING_SET,
+            ResourceType.SOURCE: pb.ResourceType.SOURCE,
+            ResourceType.FEATURE_VARIANT: pb.ResourceType.FEATURE_VARIANT,
+            ResourceType.LABEL_VARIANT: pb.ResourceType.LABEL_VARIANT,
+            ResourceType.TRAINING_SET_VARIANT: pb.ResourceType.TRAINING_SET_VARIANT,
+            ResourceType.SOURCE_VARIANT: pb.ResourceType.SOURCE_VARIANT,
+            ResourceType.PROVIDER: pb.ResourceType.PROVIDER,
+            ResourceType.ENTITY: pb.ResourceType.ENTITY,
+            ResourceType.MODEL: pb.ResourceType.MODEL,
+            ResourceType.USER: pb.ResourceType.USER,
+            ResourceType.TRIGGER: pb.ResourceType.TRIGGER,
+        }
+        return mapping[self]
+
+
+class TriggerType(Enum):
+    SCHEDULED = 0
+
+    @classmethod
+    def has_value(cls, value):
+        try:
+            cls(value)
+            return True
+        except ValueError:
+            return False

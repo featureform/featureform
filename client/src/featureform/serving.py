@@ -16,7 +16,7 @@ import pandas as pd
 
 from featureform.proto import serving_pb2, serving_pb2_grpc
 from . import GrpcClient, Model, TrainingSetVariant
-from .enums import FileFormat, ResourceType
+from .enums import FileFormat, OfflineResourceType
 from .register import FeatureColumnResource
 from .tls import insecure_channel, secure_channel
 from .train_test_split import TrainTestSplit
@@ -275,7 +275,9 @@ class HostedClientImpl:
         resp = self._stub.Nearest(req)
         return resp.entities
 
-    def location(self, name: str, variant: str, resource_type: ResourceType) -> str:
+    def location(
+        self, name: str, variant: str, resource_type: OfflineResourceType
+    ) -> str:
         req = serving_pb2.ResourceIdRequest()
         req.name = name
         req.variant = variant
@@ -579,7 +581,7 @@ class Dataset:
             req = serving_pb2.ResourceIdRequest()
             req.name = self._stream.name
             req.variant = self._stream.version
-            req.type = ResourceType.TRAINING_DATA.value
+            req.type = OfflineResourceType.TRAINING_DATA.value
             resp = self._stream._stub.ResourceLocation(req)
 
             file_format = FileFormat.get_format(resp.location, default="parquet")

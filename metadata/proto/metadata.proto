@@ -21,7 +21,7 @@ service Metadata {
     rpc CreateLabelVariant(LabelVariantRequest) returns (Empty);
     rpc CreateTrainingSetVariant(TrainingSetVariantRequest) returns (Empty);
     rpc CreateModel(ModelRequest) returns (Empty);
-    rpc CreateTrigger(Trigger) returns (Empty); // TODO: Convert to TriggerRequest
+    rpc CreateTrigger(TriggerRequest) returns (Empty);
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
 
     rpc GetUsers(stream NameRequest) returns (stream User);
@@ -56,8 +56,8 @@ service Metadata {
 
     rpc AddTrigger(TriggerRequest) returns (Empty);
     rpc RemoveTrigger(TriggerRequest) returns (Empty);
-    rpc UpdateTrigger(Trigger) returns (Empty);
-    rpc DeleteTrigger(Trigger) returns (Empty);
+    rpc UpdateTrigger(TriggerRequest) returns (Empty);
+    rpc DeleteTrigger(TriggerRequest) returns (Empty);
 }
 
 service Api {
@@ -69,7 +69,7 @@ service Api {
     rpc CreateLabelVariant(LabelVariantRequest) returns (Empty);
     rpc CreateTrainingSetVariant(TrainingSetVariantRequest) returns (Empty);
     rpc CreateModel(ModelRequest) returns (Empty);
-    rpc CreateTrigger(Trigger) returns (Empty); // TODO: Convert to TriggerRequest
+    rpc CreateTrigger(TriggerRequest) returns (Empty);
     rpc RequestScheduleChange(ScheduleChangeRequest) returns (Empty);
 
     rpc GetUsers(stream NameRequest) returns (stream User);
@@ -98,11 +98,10 @@ service Api {
     rpc ListProviders(ListRequest) returns (stream Provider);
     rpc ListEntities(ListRequest) returns (stream Entity);
     rpc ListModels(ListRequest) returns (stream Model);
-    // TODO: check on difference b/w TriggerRequest and Trigger
     rpc AddTrigger(TriggerRequest) returns (Empty);
     rpc RemoveTrigger(TriggerRequest) returns (Empty);
-    rpc UpdateTrigger(Trigger) returns (Empty);
-    rpc DeleteTrigger(Trigger) returns (Empty);
+    rpc UpdateTrigger(TriggerRequest) returns (Empty);
+    rpc DeleteTrigger(TriggerRequest) returns (Empty);
 }
 
 message Name {
@@ -247,13 +246,13 @@ message FeatureVariant {
     ComputationMode mode = 18;
     FeatureParameters additional_parameters = 21;
     ValueType type = 22;
-    Trigger trigger = 23;
+    repeated NameVariant triggers = 23;
 }
 
 message FeatureVariantRequest {
     FeatureVariant feature_variant = 1;
     string request_id = 2;
-    }
+}
 	
 
 message ValueType {
@@ -376,7 +375,7 @@ message TrainingSetVariant {
     repeated FeatureLag feature_lags = 15;
     Tags tags = 16;
     Properties properties = 17;
-    Trigger trigger = 18;
+    repeated NameVariant triggers = 18;
 }
 
 message TrainingSetVariantRequest {
@@ -458,6 +457,7 @@ message SourceVariant {
     string schedule = 16;
     Tags tags = 17;
     Properties properties = 18;
+    repeated NameVariant triggers = 19;
 }
 
 message SourceVariantRequest {
@@ -537,5 +537,8 @@ message ScheduleTrigger {
 
 message TriggerRequest {
 	Trigger trigger = 1;
+    // NOTE: resource will be empty for create and delete trigger operations
+    // given that the trigger is not associated with a specific resources
 	ResourceID resource = 2;
+    string request_id = 3;
 }

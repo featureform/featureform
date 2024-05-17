@@ -1115,142 +1115,6 @@ SourceDefinition = Union[PrimaryData, Transformation, str]
 
 @typechecked
 @dataclass
-class Source:
-    name: str
-    default_variant: str
-    variants: List[str]
-
-    def to_dictionary(self):
-        return {
-            "name": self.name,
-            "default_variant": self.default_variant,
-            "variants": self.variants,
-        }
-
-
-@typechecked
-@dataclass
-class SourceVariant(ResourceVariant):
-    name: str
-    definition: SourceDefinition
-    owner: str
-    provider: str
-    description: str
-    tags: list
-    properties: dict
-    variant: str
-    created: str = None
-    status: str = (
-        "ready"  # there is no associated status by default but it always stores ready
-    )
-    schedule: str = ""
-    schedule_obj: Schedule = None
-    is_transformation = (
-        SourceType.PRIMARY_SOURCE.value
-    )  # TODO this is the same as source_type below; pick one
-    source_text: str = ""
-    source_type: str = ""
-    transformation: str = ""
-    inputs: list = ([],)
-    error: Optional[str] = None
-    server_status: Optional[ServerStatus] = None
-
-    def update_schedule(self, schedule) -> None:
-        self.schedule_obj = Schedule(
-            name=self.name,
-            variant=self.variant,
-            resource_type=7,
-            schedule_string=schedule,
-        )
-        self.schedule = schedule
-
-    @staticmethod
-    def operation_type() -> OperationType:
-        return OperationType.CREATE
-
-    @staticmethod
-    def type() -> str:
-        return "source"
-
-    def get(self, stub):
-        name_variant = pb.NameVariantRequest(
-            name_variant=pb.NameVariant(name=self.name, variant=self.variant)
-        )
-        source = next(stub.GetSourceVariants(iter([name_variant])))
-        definition = self._get_source_definition(source)
-
-        return SourceVariant(
-            created=None,
-            name=source.name,
-            definition=definition,
-            owner=source.owner,
-            provider=source.provider,
-            description=source.description,
-            variant=source.variant,
-            tags=list(source.tags.tag),
-            properties={k: v for k, v in source.properties.property.items()},
-            status=source.status.Status._enum_type.values[source.status.status].name,
-            error=source.status.error_message,
-            server_status=ServerStatus.from_proto(source.status),
-        )
-
-    def _get_source_definition(self, source):
-        if source.primaryData.table.name:
-            return PrimaryData(SQLTable(source.primaryData.table.name))
-        elif source.transformation:
-            return self._get_transformation_definition(source)
-        else:
-            raise Exception(f"Invalid source type {source}")
-
-    def _get_transformation_definition(self, source):
-        if source.transformation.DFTransformation.query != bytes():
-            transformation = source.transformation.DFTransformation
-            return DFTransformation(
-                query=transformation.query,
-                inputs=[(input.name, input.variant) for input in transformation.inputs],
-                source_text=transformation.source_text,
-            )
-        elif source.transformation.SQLTransformation.query != "":
-            return SQLTransformation(source.transformation.SQLTransformation.query)
-        else:
-            raise Exception(f"Invalid transformation type {source}")
-
-    def _create(self, stub) -> Optional[str]:
-        defArgs = self.definition.kwargs()
-
-        serialized = pb.SourceVariantRequest(
-            source_variant=pb.SourceVariant(
-                created=None,
-                name=self.name,
-                variant=self.variant,
-                owner=self.owner,
-                description=self.description,
-                schedule=self.schedule,
-                provider=self.provider,
-                tags=pb.Tags(tag=self.tags),
-                properties=Properties(self.properties).serialized,
-                status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
-                **defArgs,
-            ),
-            request_id="",
-        )
-
-        _get_and_set_equivalent_variant(serialized, "source_variant", stub)
-        stub.CreateSourceVariant(serialized)
-        return serialized.source_variant.variant
-
-    def get_status(self):
-        return ResourceStatus(self.status)
-
-    def is_transformation_type(self):
-        return isinstance(self.definition, Transformation)
-
-    def is_ready(self):
-        return self.status == ResourceStatus.READY.value
-
-
-@typechecked
-@dataclass
 class Entity:
     name: str
     description: str
@@ -1311,7 +1175,8 @@ ResourceLocation = ResourceColumnMapping
 @dataclass
 class TriggerResource:
     name: str
-    trigger_type: str
+    trigger_type: TriggerType
+    schedule: str
     job_ids: list = field(default_factory=list)
     task_ids: list = field(default_factory=list)
 
@@ -1323,11 +1188,18 @@ class TriggerResource:
         return "trigger"
 
     def _create(self, stub) -> None:
-        serialized = pb.Trigger(
-            name=self.name,
-            schedule_trigger=pb.ScheduleTrigger(schedule=self.trigger_type),
-            job_ids=self.job_ids,
-            task_ids=self.task_ids,
+        if self.trigger_type == TriggerType.SCHEDULED:
+            trigger_type = pb.ScheduleTrigger(schedule=self.schedule)
+        else:
+            trigger_type = None
+        serialized = pb.TriggerRequest(
+            trigger=pb.Trigger(
+                name=self.name,
+                schedule_trigger=trigger_type,
+                job_ids=self.job_ids,
+                task_ids=self.task_ids,
+            ),
+            request_id="",
         )
         stub.CreateTrigger(serialized)
 
@@ -1338,6 +1210,144 @@ class TriggerResource:
             "job_ids": self.job_ids,
             "task_ids": self.task_ids,
         }
+
+
+@typechecked
+@dataclass
+class Source:
+    name: str
+    default_variant: str
+    variants: List[str]
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "default_variant": self.default_variant,
+            "variants": self.variants,
+        }
+
+
+@typechecked
+@dataclass
+class SourceVariant(ResourceVariant):
+    name: str
+    definition: SourceDefinition
+    owner: str
+    provider: str
+    description: str
+    tags: list
+    properties: dict
+    variant: str
+    created: str = None
+    status: str = (
+        "ready"  # there is no associated status by default but it always stores ready
+    )
+    schedule: str = ""
+    schedule_obj: Schedule = None
+    is_transformation = (
+        SourceType.PRIMARY_SOURCE.value
+    )  # TODO this is the same as source_type below; pick one
+    source_text: str = ""
+    source_type: str = ""
+    transformation: str = ""
+    inputs: list = ([],)
+    error: Optional[str] = None
+    server_status: Optional[ServerStatus] = None
+    triggers: List[TriggerResource] = field(default_factory=list)
+
+    def update_schedule(self, schedule) -> None:
+        self.schedule_obj = Schedule(
+            name=self.name,
+            variant=self.variant,
+            resource_type=7,
+            schedule_string=schedule,
+        )
+        self.schedule = schedule
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    @staticmethod
+    def type() -> str:
+        return "source"
+
+    def get(self, stub):
+        name_variant = pb.NameVariantRequest(
+            name_variant=pb.NameVariant(name=self.name, variant=self.variant)
+        )
+        source = next(stub.GetSourceVariants(iter([name_variant])))
+        definition = self._get_source_definition(source)
+
+        return SourceVariant(
+            created=None,
+            name=source.name,
+            definition=definition,
+            owner=source.owner,
+            provider=source.provider,
+            description=source.description,
+            variant=source.variant,
+            tags=list(source.tags.tag),
+            properties={k: v for k, v in source.properties.property.items()},
+            status=source.status.Status._enum_type.values[source.status.status].name,
+            error=source.status.error_message,
+            server_status=ServerStatus.from_proto(source.status),
+            # TODO: (Erik) add list of triggers
+        )
+
+    def _get_source_definition(self, source):
+        if source.primaryData.table.name:
+            return PrimaryData(SQLTable(source.primaryData.table.name))
+        elif source.transformation:
+            return self._get_transformation_definition(source)
+        else:
+            raise Exception(f"Invalid source type {source}")
+
+    def _get_transformation_definition(self, source):
+        if source.transformation.DFTransformation.query != bytes():
+            transformation = source.transformation.DFTransformation
+            return DFTransformation(
+                query=transformation.query,
+                inputs=[(input.name, input.variant) for input in transformation.inputs],
+                source_text=transformation.source_text,
+            )
+        elif source.transformation.SQLTransformation.query != "":
+            return SQLTransformation(source.transformation.SQLTransformation.query)
+        else:
+            raise Exception(f"Invalid transformation type {source}")
+
+    def _create(self, stub) -> Optional[str]:
+        defArgs = self.definition.kwargs()
+
+        serialized = pb.SourceVariantRequest(
+            source_variant=pb.SourceVariant(
+                created=None,
+                name=self.name,
+                variant=self.variant,
+                owner=self.owner,
+                description=self.description,
+                schedule=self.schedule,
+                provider=self.provider,
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+                status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+                **defArgs,
+            ),
+            request_id="",
+        )
+
+        _get_and_set_equivalent_variant(serialized, "source_variant", stub)
+        stub.CreateSourceVariant(serialized)
+        return serialized.source_variant.variant
+
+    def get_status(self):
+        return ResourceStatus(self.status)
+
+    def is_transformation_type(self):
+        return isinstance(self.definition, Transformation)
+
+    def is_ready(self):
+        return self.status == ResourceStatus.READY.value
 
 
 @typechecked
@@ -1398,7 +1408,7 @@ class FeatureVariant(ResourceVariant):
     status: str = "NO_STATUS"
     error: Optional[str] = None
     additional_parameters: Optional[Additional_Parameters] = None
-    trigger: TriggerResource = None
+    triggers: List[TriggerResource] = field(default_factory=list)
     server_status: Optional[ServerStatus] = None
 
     def __post_init__(self):
@@ -1444,29 +1454,12 @@ class FeatureVariant(ResourceVariant):
             error=feature.status.error_message,
             server_status=ServerStatus.from_proto(feature.status),
             additional_parameters=None,
-            trigger=TriggerResource(
-                name=feature.trigger.name,
-                trigger_type=str(feature.trigger.schedule_trigger),
-                job_ids=list(feature.trigger.job_ids),
-                task_ids=list(feature.trigger.task_ids),
-            ),
+            # TODO: (Erik) Add list of triggers
         )
 
     def _create(self, stub) -> Optional[str]:
         if hasattr(self.source, "name_variant"):
             self.source = self.source.name_variant()
-
-        if self.trigger is None:
-            trig = None
-        else:
-            schedule_trigger = pb.ScheduleTrigger()
-            schedule_trigger.schedule = self.trigger.trigger_type
-            trig = pb.Trigger(
-                name=self.trigger.name,
-                schedule_trigger=schedule_trigger,
-                job_ids=self.trigger.job_ids,
-                task_ids=self.trigger.task_ids,
-            )
 
         feature_variant_message = pb.FeatureVariant(
             name=self.name,
@@ -1487,7 +1480,6 @@ class FeatureVariant(ResourceVariant):
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
             additional_parameters=None,
-            trigger=trig,
         )
 
         # Initialize the FeatureVariantRequest message with the FeatureVariant message
@@ -1820,8 +1812,9 @@ class TrainingSetVariant(ResourceVariant):
     provider: str = ""
     status: str = "NO_STATUS"
     error: Optional[str] = None
-    trigger: TriggerResource = None
+    triggers: List[TriggerResource] = field(default_factory=list)
     server_status: Optional[ServerStatus] = None
+    resource_type: ResourceType = ResourceType.TRAINING_SET_VARIANT
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1875,12 +1868,7 @@ class TrainingSetVariant(ResourceVariant):
             tags=list(ts.tags.tag),
             properties={k: v for k, v in ts.properties.property.items()},
             error=ts.status.error_message,
-            trigger=TriggerResource(
-                name=ts.trigger.name,
-                trigger_type=str(ts.trigger.schedule_trigger),
-                job_ids=list(ts.trigger.job_ids),
-                task_ids=list(ts.trigger.task_ids),
-            ),
+            # TODO: (Erik) Add list of triggers
             server_status=ServerStatus.from_proto(ts.status),
         )
 
@@ -1904,18 +1892,6 @@ class TrainingSetVariant(ResourceVariant):
         if hasattr(self.label, "name_variant"):
             self.label = self.label.name_variant()
 
-        if self.trigger is None:
-            trig = None
-        else:
-            schedule_trigger = pb.ScheduleTrigger()
-            schedule_trigger.schedule = self.trigger.trigger_type
-            trig = pb.Trigger(
-                name=self.trigger.name,
-                schedule_trigger=schedule_trigger,
-                job_ids=self.trigger.job_ids,
-                task_ids=self.trigger.task_ids,
-            )
-
         serialized = pb.TrainingSetVariantRequest(
             training_set_variant=pb.TrainingSetVariant(
                 created=None,
@@ -1932,7 +1908,6 @@ class TrainingSetVariant(ResourceVariant):
                 tags=pb.Tags(tag=self.tags),
                 properties=Properties(self.properties).serialized,
                 status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
-                trigger=trig,
             ),
             request_id="",
         )

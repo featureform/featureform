@@ -1017,29 +1017,29 @@ func (serv *MetadataServer) CreateModel(ctx context.Context, modelRequest *pb.Mo
 	return serv.meta.CreateModel(ctx, modelRequest)
 }
 
-func (serv *MetadataServer) CreateTrigger(ctx context.Context, feature *pb.Trigger) (*pb.Empty, error) {
-	serv.Logger.Infow("Creating Trigger", "trigger", feature.String())
-	return serv.meta.CreateTrigger(ctx, feature)
+func (serv *MetadataServer) CreateTrigger(ctx context.Context, tr *pb.TriggerRequest) (*pb.Empty, error) {
+	serv.Logger.Infow("Creating Trigger", "trigger", tr.String())
+	return serv.meta.CreateTrigger(ctx, tr)
 }
 
-func (serv *MetadataServer) AddTrigger(ctx context.Context, trigger *pb.TriggerRequest) (*pb.Empty, error) {
-	serv.Logger.Infow("Adding Trigger", "trigger", trigger.String())
-	return serv.meta.AddTrigger(ctx, trigger)
+func (serv *MetadataServer) AddTrigger(ctx context.Context, tr *pb.TriggerRequest) (*pb.Empty, error) {
+	serv.Logger.Infow("Adding Trigger", "trigger", tr.String())
+	return serv.meta.AddTrigger(ctx, tr)
 }
 
-func (serv *MetadataServer) RemoveTrigger(ctx context.Context, trigger *pb.TriggerRequest) (*pb.Empty, error) {
-	serv.Logger.Infow("Removing Trigger", "trigger", trigger.String())
-	return serv.meta.RemoveTrigger(ctx, trigger)
+func (serv *MetadataServer) RemoveTrigger(ctx context.Context, tr *pb.TriggerRequest) (*pb.Empty, error) {
+	serv.Logger.Infow("Removing Trigger", "trigger", tr.String())
+	return serv.meta.RemoveTrigger(ctx, tr)
 }
 
-func (serv *MetadataServer) UpdateTrigger(ctx context.Context, trigger *pb.Trigger) (*pb.Empty, error) {
-	serv.Logger.Infow("Updating Trigger", "trigger", trigger.String())
-	return serv.meta.UpdateTrigger(ctx, trigger)
+func (serv *MetadataServer) UpdateTrigger(ctx context.Context, tr *pb.TriggerRequest) (*pb.Empty, error) {
+	serv.Logger.Infow("Updating Trigger", "trigger", tr.String())
+	return serv.meta.UpdateTrigger(ctx, tr)
 }
 
-func (serv *MetadataServer) DeleteTrigger(ctx context.Context, trigger *pb.Trigger) (*pb.Empty, error) {
-	serv.Logger.Infow("Deleting Trigger", "trigger", trigger.String())
-	return serv.meta.DeleteTrigger(ctx, trigger)
+func (serv *MetadataServer) DeleteTrigger(ctx context.Context, tr *pb.TriggerRequest) (*pb.Empty, error) {
+	serv.Logger.Infow("Deleting Trigger", "trigger", tr.String())
+	return serv.meta.DeleteTrigger(ctx, tr)
 }
 
 func (serv *OnlineServer) FeatureServe(ctx context.Context, req *srv.FeatureServeRequest) (*srv.FeatureRow, error) {

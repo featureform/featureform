@@ -26,7 +26,7 @@ from .resources import (
     SparkCredentials,
 )
 from .client import Client
-from .enums import ResourceType
+from .enums import OfflineResourceType
 
 ServingClient = ServingClient
 ResourceClient = ResourceClient
@@ -49,10 +49,9 @@ Variants = Variants
 Embedding = EmbeddingColumnResource
 MultiFeature = MultiFeatureColumnResource
 
-
 register_user("default_user").make_default_owner()
 set_run = set_run
 get_run = get_run
 
 # Enums
-ResourceType = ResourceType
+OfflineResourceType = OfflineResourceType

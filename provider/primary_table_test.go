@@ -27,22 +27,40 @@ func TestFileStorePrimaryTable(t *testing.T) {
 		t.Fatalf("Error getting filestores: %s", err)
 	}
 
-	testFuncMap := map[string]func(*testing.T, *FileStorePrimaryTable) error{
-		"Write":          testWrite,
-		"WriteBatch":     testWriteBatch,
-		"Append":         testAppend,
-		"IterateSegment": testIterateSegment,
-		"GetSource":      testGetSource,
+	testFuncs := []struct {
+		name     string
+		testFunc func(*testing.T, *FileStorePrimaryTable) error
+	}{
+		{
+			name:     "Write",
+			testFunc: testWrite,
+		},
+		{
+			name:     "WriteBatch",
+			testFunc: testWriteBatch,
+		},
+		{
+			name:     "Append",
+			testFunc: testAppend,
+		},
+		{
+			name:     "IterateSegment",
+			testFunc: testIterateSegment,
+		},
+		{
+			name:     "GetSource",
+			testFunc: testGetSource,
+		},
 	}
 
 	for _, filestore := range filestores {
 		t.Logf("Testing filestore: %s", filestore.store.FilestoreType())
 
-		for testName, testFunc := range testFuncMap {
-			t.Logf("Running test: %s", testName)
+		for _, test := range testFuncs {
+			t.Logf("Running test: %s", test.name)
 
-			t.Run(testName, func(t *testing.T) {
-				err := testFunc(t, filestore)
+			t.Run(test.name, func(t *testing.T) {
+				err := test.testFunc(t, filestore)
 				if err != nil {
 					t.Fatalf("Error in test: %s", err)
 				}

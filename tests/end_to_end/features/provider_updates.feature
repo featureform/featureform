@@ -13,27 +13,27 @@ Feature: Provider Updates
     And An exception that "matches" "<exception>" should be raised
 
     Examples: Base Case
-      | name  | bucket_name | bucket_region | path    | access_key   | secret_key   | repl_name  | repl_bucket_path | repl_path   | repl_region  | repl_access_key   | repl_secret_key   | exp_bucket_name | exp_bucket_region | exp_path  | exp_access_key   |  exp_secret_key  |
-      | s3_1    |     bucket  |    us-east-1  | my/path |  access_key  |  secret_key  |   test   |   bucket         |   my/path   |   us-east-1  |    access_key     |    secret_key     |    bucket       |     us-east-1     |  my/path  |    access_key    |    secret_key    |
+      | name | bucket_name | bucket_region | path    | access_key | secret_key | repl_name | repl_bucket_path | repl_path | repl_region | repl_access_key | repl_secret_key | exp_bucket_name | exp_bucket_region | exp_path | exp_access_key | exp_secret_key |
+      | s3_1 | bucket      | us-east-1     | my/path | access_key | secret_key | test      | bucket           | my/path   | us-east-1   | access_key      | secret_key      | bucket          | us-east-1         | my/path  | access_key     | secret_key     |
 
     Examples: Rotate Credentials
-      | name  | bucket_name | bucket_region | path    | access_key   | secret_key   | repl_name |repl_bucket_path | repl_path   | repl_region  | repl_access_key   | repl_secret_key   | exp_bucket_name | exp_bucket_region | exp_path  | exp_access_key   |  exp_secret_key   |
-      | s3_2    |     bucket  |    us-east-1  | my/path |  access_key  |  secret_key  |   test  |     bucket      |    my/path   |   us-east-1  |    access_key     |    secret_key     |    bucket       |     us-east-1     |  my/path  |    access_key    |    secret_key    |
-      | s3_2    |     bucket  |    us-east-1  | my/path |  access_key  |  secret_key  |   test  |     bucket      |    my/path   |   us-east-1  |    access_key2    |    secret_key     |    bucket       |     us-east-1     |  my/path  |    access_key2   |    secret_key    |
-      | s3_2    |     bucket  |    us-east-1  | my/path |  access_key  |  secret_key  |   test  |     bucket      |    my/path   |   us-east-1  |    access_key     |    secret_key2    |    bucket       |     us-east-1     |  my/path  |    access_key    |    secret_key2   |
-      | s3_2    |     bucket  |    us-east-1  | my/path |  access_key  |  secret_key  |   test  |     bucket      |    my/path   |   us-east-1  |    access_key2    |    secret_key2    |    bucket       |     us-east-1     |  my/path  |    access_key2   |    secret_key2   |
+      | name | bucket_name | bucket_region | path    | access_key | secret_key | repl_name | repl_bucket_path | repl_path | repl_region | repl_access_key | repl_secret_key | exp_bucket_name | exp_bucket_region | exp_path | exp_access_key | exp_secret_key |
+      | s3_2 | bucket      | us-east-1     | my/path | access_key | secret_key | test      | bucket           | my/path   | us-east-1   | access_key      | secret_key      | bucket          | us-east-1         | my/path  | access_key     | secret_key     |
+      | s3_2 | bucket      | us-east-1     | my/path | access_key | secret_key | test      | bucket           | my/path   | us-east-1   | access_key2     | secret_key      | bucket          | us-east-1         | my/path  | access_key2    | secret_key     |
+      | s3_2 | bucket      | us-east-1     | my/path | access_key | secret_key | test      | bucket           | my/path   | us-east-1   | access_key      | secret_key2     | bucket          | us-east-1         | my/path  | access_key     | secret_key2    |
+      | s3_2 | bucket      | us-east-1     | my/path | access_key | secret_key | test      | bucket           | my/path   | us-east-1   | access_key2     | secret_key2     | bucket          | us-east-1         | my/path  | access_key2    | secret_key2    |
 
     Examples: Change Path
-      | name    | bucket_name | bucket_region |  path    | access_key   | secret_key   | repl_name| repl_bucket_path  |        repl_path       | repl_region  | repl_access_key   | repl_secret_key   | exp_bucket_name | exp_bucket_region | exp_path  | exp_access_key   |  exp_secret_key  |
-      | s3_3    |    bucket  |    us-east-1  | my/path  |  access_key   |  secret_key  |   test   |        bucket     |  my/different/path   |   us-east-1  |    access_key     |    secret_key     |    bucket       |     us-east-1     |  my/path  |    access_key    |    secret_key    |
+      | name | bucket_name | bucket_region | path    | access_key | secret_key | repl_name | repl_bucket_path | repl_path         | repl_region | repl_access_key | repl_secret_key | exp_bucket_name | exp_bucket_region | exp_path | exp_access_key | exp_secret_key |
+      | s3_3 | bucket      | us-east-1     | my/path | access_key | secret_key | test      | bucket           | my/different/path | us-east-1   | access_key      | secret_key      | bucket          | us-east-1         | my/path  | access_key     | secret_key     |
 
     Examples: Change Bucket
-      | name    | bucket_name | bucket_region |  path    | access_key   | secret_key   | repl_name | repl_bucket_path  |        repl_path       | repl_region  | repl_access_key   | repl_secret_key   | exp_bucket_name | exp_bucket_region | exp_path  | exp_access_key   |  exp_secret_key  |
-      | s3_3    |    bucket   |    us-east-1  | my/path  |  access_key  |  secret_key  |   test    |     bucket        |   my/different/path    |   us-east-1  |    access_key     |    secret_key     |    bucket       |     us-east-1     |  my/path  |    access_key    |    secret_key    |
+      | name | bucket_name | bucket_region | path    | access_key | secret_key | repl_name | repl_bucket_path | repl_path         | repl_region | repl_access_key | repl_secret_key | exp_bucket_name | exp_bucket_region | exp_path | exp_access_key | exp_secret_key |
+      | s3_3 | bucket      | us-east-1     | my/path | access_key | secret_key | test      | bucket           | my/different/path | us-east-1   | access_key      | secret_key      | bucket          | us-east-1         | my/path  | access_key     | secret_key     |
 
     Examples: Change Region
-      | name    | bucket_name | bucket_region | path    | access_key   | secret_key   | repl_name  | repl_bucket_path | repl_path   | repl_region  | repl_access_key   | repl_secret_key   | exp_bucket_name | exp_bucket_region | exp_path  | exp_access_key   |  exp_secret_key  |
-      | s3_1    |     bucket  |    us-east-1  | my/path |  access_key  |  secret_key  |   test     |   bucket         |   my/path   |   us-east-2  |    access_key     |    secret_key     |    bucket       |     us-east-1     |  my/path  |    access_key    |    secret_key    |
+      | name | bucket_name | bucket_region | path    | access_key | secret_key | repl_name | repl_bucket_path | repl_path | repl_region | repl_access_key | repl_secret_key | exp_bucket_name | exp_bucket_region | exp_path | exp_access_key | exp_secret_key |
+      | s3_1 | bucket      | us-east-1     | my/path | access_key | secret_key | test      | bucket           | my/path   | us-east-2   | access_key      | secret_key      | bucket          | us-east-1         | my/path  | access_key     | secret_key     |
 
 
   @wip
@@ -47,23 +47,23 @@ Feature: Provider Updates
     And An exception that "matches" "<exception>" should be raised
     Examples: Base Case
       | name | account_name | account_key | container_name | path | repl_account_name | repl_account_key | repl_container_name | repl_path | exp_account_name | exp_account_key | exp_container_name | exp_path | exception |
-      | blob | account_name | account_key | container_name | path |  account_name     |  account_key     |  container_name     | path      | account_name     | account_key     | container_name     | path     | None      |
+      | blob | account_name | account_key | container_name | path | account_name      | account_key      | container_name      | path      | account_name     | account_key     | container_name     | path     | None      |
 
     Examples: Change Account Name
       | name  | account_name | account_key | container_name | path | repl_account_name | repl_account_key | repl_container_name | repl_path | exp_account_name | exp_account_key | exp_container_name | exp_path | exception |
-      | blob2 | account_name | account_key | container_name | path |  account_name2     |  account_key     |  container_name     | path      | account_name     | account_key     | container_name     | path     | None      |
+      | blob2 | account_name | account_key | container_name | path | account_name2     | account_key      | container_name      | path      | account_name     | account_key     | container_name     | path     | None      |
 
     Examples: Change Account Key
       | name  | account_name | account_key | container_name | path | repl_account_name | repl_account_key | repl_container_name | repl_path | exp_account_name | exp_account_key | exp_container_name | exp_path | exception |
-      | blob2 | account_name | account_key | container_name | path |  account_name     |  account_key2     |  container_name     | path      | account_name     | account_key2     | container_name     | path     | None      |
+      | blob2 | account_name | account_key | container_name | path | account_name      | account_key2     | container_name      | path      | account_name     | account_key2    | container_name     | path     | None      |
 
     Examples: Change Container Name
       | name  | account_name | account_key | container_name | path | repl_account_name | repl_account_key | repl_container_name | repl_path | exp_account_name | exp_account_key | exp_container_name | exp_path | exception |
-      | blob2 | account_name | account_key | container_name | path |  account_name     |  account_key     |  container_name2     | path      | account_name     | account_key     | container_name    | path     | None      |
+      | blob2 | account_name | account_key | container_name | path | account_name      | account_key      | container_name2     | path      | account_name     | account_key     | container_name     | path     | None      |
 
     Examples: Change Container Path
       | name  | account_name | account_key | container_name | path | repl_account_name | repl_account_key | repl_container_name | repl_path | exp_account_name | exp_account_key | exp_container_name | exp_path | exception |
-      | blob2 | account_name | account_key | container_name | path |  account_name     |  account_key     |  container_name     | path2      | account_name     | account_key     | container_name    | path     | None      |
+      | blob2 | account_name | account_key | container_name | path | account_name      | account_key      | container_name      | path2     | account_name     | account_key     | container_name     | path     | None      |
 
   @wip
   Scenario Outline: Rotate GCS Credentials
@@ -77,23 +77,23 @@ Feature: Provider Updates
     Then the GCS provider should have project id "<exp_project_id>" bucket_name "<exp_bucket_name>", path "<exp_path>", credentials from path "<exp_credentials_path>"
 
     Examples: Base Case
-      | name | project_id  |       credentials_path          | bucket_name    |  path  | repl_project_id    |         repl_credentials_path                |  repl_bucket_name  | repl_path | exp_project_id |  exp_bucket_name  | exp_path | exp_credentials_path |
-      | gcs1 |  project    |   test_files/dummy_creds.json   |     bucket     |   /    |      project       |         test_files/dummy_creds.json          |       bucket       |     /     |       project  |   bucket       |    /     | test_files/dummy_creds.json |
+      | name | project_id | credentials_path            | bucket_name | path | repl_project_id | repl_credentials_path       | repl_bucket_name | repl_path | exp_project_id | exp_bucket_name | exp_path | exp_credentials_path        |
+      | gcs1 | project    | test_files/dummy_creds.json | bucket      | /    | project         | test_files/dummy_creds.json | bucket           | /         | project        | bucket          | /        | test_files/dummy_creds.json |
 
     Examples: Change Project ID
-      | name | project_id  |       credentials_path          | bucket_name    |  path  | repl_project_id    |         repl_credentials_path                |  repl_bucket_name  | repl_path | exp_project_id |  exp_bucket_name  | exp_path | exp_credentials_path |
-      | gcs2 |  project    |   test_files/dummy_creds.json   |     bucket     |   /    |      project2       |         test_files/dummy_creds.json          |       bucket       |     /     |  project      |   bucket       |    /     |test_files/dummy_creds.json |
+      | name | project_id | credentials_path            | bucket_name | path | repl_project_id | repl_credentials_path       | repl_bucket_name | repl_path | exp_project_id | exp_bucket_name | exp_path | exp_credentials_path        |
+      | gcs2 | project    | test_files/dummy_creds.json | bucket      | /    | project2        | test_files/dummy_creds.json | bucket           | /         | project        | bucket          | /        | test_files/dummy_creds.json |
 
     Examples: Change Bucket Name
-      | name | project_id  |       credentials_path          | bucket_name    |  path  | repl_project_id    |         repl_credentials_path                |  repl_bucket_name  | repl_path | exp_project_id |  exp_bucket_name  | exp_path |exp_credentials_path |
-      | gcs3 |  project    |   test_files/dummy_creds.json   |     bucket     |   /    |      project       |         test_files/dummy_creds.json          |       bucket2       |     /     |  project      |   bucket       |    /     | test_files/dummy_creds.json     |
+      | name | project_id | credentials_path            | bucket_name | path | repl_project_id | repl_credentials_path       | repl_bucket_name | repl_path | exp_project_id | exp_bucket_name | exp_path | exp_credentials_path        |
+      | gcs3 | project    | test_files/dummy_creds.json | bucket      | /    | project         | test_files/dummy_creds.json | bucket2          | /         | project        | bucket          | /        | test_files/dummy_creds.json |
 
     Examples: Change Path
-      | name | project_id  |       credentials_path          | bucket_name    |  path  | repl_project_id    |         repl_credentials_path                |  repl_bucket_name  | repl_path | exp_project_id |  exp_bucket_name  | exp_path | exp_credentials_path |
-      | gcs1 |  project    |   test_files/dummy_creds.json   |     bucket     |   /    |      project       |         test_files/dummy_creds.json          |       bucket       |     /diff/path     |       project  |   bucket       |    /     |test_files/dummy_creds.json |
+      | name | project_id | credentials_path            | bucket_name | path | repl_project_id | repl_credentials_path       | repl_bucket_name | repl_path  | exp_project_id | exp_bucket_name | exp_path | exp_credentials_path        |
+      | gcs1 | project    | test_files/dummy_creds.json | bucket      | /    | project         | test_files/dummy_creds.json | bucket           | /diff/path | project        | bucket          | /        | test_files/dummy_creds.json |
 
     Examples: Change Credentials
-      | name | project_id  |       credentials_path          | bucket_name    |  path  | repl_project_id    |         repl_credentials_path                |  repl_bucket_name  | repl_path | exp_project_id |  exp_bucket_name  | exp_path | exp_credentials_path |
-      | gcs1 |  project    |   test_files/dummy_creds.json   |     bucket     |   /    |      project       |         test_files/dummy_creds.json          |       bucket       |     /     |       project  |   bucket       |    /     | test_files/dummy_creds.json |
+      | name | project_id | credentials_path            | bucket_name | path | repl_project_id | repl_credentials_path       | repl_bucket_name | repl_path | exp_project_id | exp_bucket_name | exp_path | exp_credentials_path        |
+      | gcs1 | project    | test_files/dummy_creds.json | bucket      | /    | project         | test_files/dummy_creds.json | bucket           | /         | project        | bucket          | /        | test_files/dummy_creds.json |
 
 

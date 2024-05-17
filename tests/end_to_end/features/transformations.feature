@@ -13,15 +13,15 @@ Feature: Transformations
     Then I should be able to pull the transformation as a dataframe
 
     Examples:
-      | transformation_type | storage_provider   |         bucket            |    root_path               |
-      | DF                 | azure               |         test              |      behave                |
-      | DF                 | azure               |         test              |       empty                |
-      | DF                 | azure               |         test              |     featureform            |
-      | DF                 | azure               |         test              | featureform/featureform    |
-      | DF                 | s3                  | featureform-spark-testing |      behave                |
-      | DF                 | s3                  | featureform-spark-testing |       empty                |
-      | DF                 | s3                  | featureform-spark-testing |     featureform            |
-      | DF                 | s3                  | featureform-spark-testing | featureform/featureform    |
+      | transformation_type | storage_provider | bucket                    | root_path               |
+      | DF                  | azure            | test                      | behave                  |
+      | DF                  | azure            | test                      | empty                   |
+      | DF                  | azure            | test                      | featureform             |
+      | DF                  | azure            | test                      | featureform/featureform |
+      | DF                  | s3               | featureform-spark-testing | behave                  |
+      | DF                  | s3               | featureform-spark-testing | empty                   |
+      | DF                  | s3               | featureform-spark-testing | featureform             |
+      | DF                  | s3               | featureform-spark-testing | featureform/featureform |
 #      | DF                 | gcs                 |    featureform-test       |          behave            | TODO: Enable Later
 
   Scenario Outline: Single Spark Transformations
@@ -36,7 +36,7 @@ Feature: Transformations
     Then I should be able to pull the transformation as a dataframe
 
     Examples:
-    | transformation_type | storage_provider | bucket |
-    | SQL                 | azure               | test |
-    | SQL                 | s3               | featureform-spark-testing |
+      | transformation_type | storage_provider | bucket                    |
+      | SQL                 | azure            | test                      |
+      | SQL                 | s3               | featureform-spark-testing |
 #    | SQL                 | gcs               | test |

@@ -12,7 +12,7 @@ from featureform.enums import ScalarType
 def step_impl(context, offline_provider_type):
     version = random_word(5)
 
-    load_dotenv("../../.env")
+    load_dotenv("../../../.env")
 
     if offline_provider_type.lower() == "postgres":
         context.offline_provider = ff.register_postgres(
@@ -106,12 +106,14 @@ def step_impl(
         ]
         label_dataset = context.dataset[[entity_column, label_column, timestamp_column]]
 
+    feature_type = "" if feature_type == "null" else feature_type.lower()
+
     @ff.entity
     class User:
         user_feature = ff.Feature(
             feature_dataset,
             type=ScalarType(
-                feature_type.lower()
+                feature_type
             ),  # converts the string into Featureform type
             inference_store=context.online_provider,
         )

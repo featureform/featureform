@@ -14,12 +14,12 @@ def step_impl(context):
     context.training_set = training_set
 
 
-@then("I can serve the training set")
-def step_impl(context):
+@then('I can serve the training set with "{expected_row_count}"')
+def step_impl(context, expected_row_count):
     training_set = context.client.training_set(context.training_set)
     df = training_set.dataframe()
 
-    assert len(df) == 989, f"Expected 1000 rows but got {len(df)}"
+    assert len(df) == expected_row_count, f"Expected {expected_row_count} rows but got {len(df)}"
 
     # assert column exists in dataframe
     feature_column_name = (

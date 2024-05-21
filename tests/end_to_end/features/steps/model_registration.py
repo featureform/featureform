@@ -112,9 +112,7 @@ def step_impl(
     class User:
         user_feature = ff.Feature(
             feature_dataset,
-            type=ScalarType(
-                feature_type
-            ),  # converts the string into Featureform type
+            type=ScalarType(feature_type),  # converts the string into Featureform type
             inference_store=context.online_provider,
         )
         user_label = ff.Label(

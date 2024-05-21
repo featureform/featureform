@@ -7,8 +7,10 @@ package metadata
 import (
 	"context"
 	"fmt"
+	mapset "github.com/deckarep/golang-set/v2"
 	"io"
 	"net"
+	"regexp"
 	"strings"
 	"time"
 
@@ -580,12 +582,21 @@ func isSourceProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transforma
 		}
 	case *pb.Transformation_SQLTransformation:
 		if _, ok := otherDef.Transformation.Type.(*pb.Transformation_SQLTransformation); ok {
-			isDefinitionEqual = thisDef.Transformation.GetSQLTransformation().Query == otherDef.Transformation.GetSQLTransformation().Query
+			isDefinitionEqual = isSqlEqual(thisDef.Transformation.GetSQLTransformation().Query, otherDef.Transformation.GetSQLTransformation().Query)
 		}
 	}
 
 	kubernetesArgsEqual := proto.Equal(thisDef.Transformation.GetKubernetesArgs(), otherDef.Transformation.GetKubernetesArgs())
 	return isDefinitionEqual && kubernetesArgsEqual, nil
+}
+
+// isSqlEqual checks if two SQL strings are equal after normalizing whitespace.
+func isSqlEqual(thisSql, otherSql string) bool {
+	re := regexp.MustCompile(`\s+`)
+
+	thisSql = re.ReplaceAllString(thisSql, " ")
+	otherSql = re.ReplaceAllString(otherSql, " ")
+	return strings.TrimSpace(thisSql) == strings.TrimSpace(otherSql)
 }
 
 func (resource *sourceVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
@@ -1895,7 +1906,7 @@ func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceV
 This method is used to get the equivalent resource variant for a given resource variant. readyStatus is used to determine
 if we should only return the equivalent resource variant if it is ready.
 */
-func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.ResourceVariant, filterReadyStatus bool) (*pb.ResourceVariant, error) {
+func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.ResourceVariant, filterStatus bool) (*pb.ResourceVariant, error) {
 	noEquivalentResponse := &pb.ResourceVariant{}
 	logger := logging.GetLoggerFromContext(ctx)
 	currentResource, resourceType, err := serv.extractResourceVariant(req)
@@ -1909,7 +1920,7 @@ func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.ResourceV
 		return nil, err
 	}
 
-	equivalentResourceVariant, err := findEquivalent(resourcesForType, currentResource, filterReadyStatus)
+	equivalentResourceVariant, err := findEquivalent(resourcesForType, currentResource, filterStatus)
 	if err != nil {
 		logger.Errorw("Unable to find equivalent resource", "error", err)
 		return nil, err
@@ -1923,10 +1934,10 @@ func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.ResourceV
 }
 
 // findEquivalent searches through a slice of Resources to find an equivalent ResourceVariant.
-func findEquivalent(resources []Resource, resource ResourceVariant, filterReadyStatus bool) (ResourceVariant, error) {
+func findEquivalent(resources []Resource, resource ResourceVariant, filterStatus bool) (ResourceVariant, error) {
 	for _, res := range resources {
 		// If we are filtering by ready status, we only want to return the equivalent resource variant if it is ready.
-		if filterReadyStatus && !isResourceReady(res) {
+		if filterStatus && !isValidStatusForEquivalent(res) {
 			continue
 		}
 
@@ -1962,10 +1973,16 @@ func (serv *MetadataServer) extractResourceVariant(req *pb.ResourceVariant) (Res
 	}
 }
 
-// isResourceReady checks if a Resource's status is 'ready'.
-func isResourceReady(res Resource) bool {
+func isValidStatusForEquivalent(res Resource) bool {
 	resourceStatus := res.GetStatus()
-	return resourceStatus != nil && resourceStatus.Status == pb.ResourceStatus_READY
+	equivalentStatuses := mapset.NewSet(
+		pb.ResourceStatus_READY,
+		pb.ResourceStatus_PENDING,
+		pb.ResourceStatus_RUNNING,
+		pb.ResourceStatus_CREATED,
+	)
+
+	return resourceStatus != nil && equivalentStatuses.Contains(resourceStatus.Status)
 }
 
 type nameStream interface {
@@ -2008,10 +2025,6 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		}
 		res = existing
 	}
-	if err := serv.lookup.Set(id, res); err != nil {
-		logger.Errorw("Error setting resource to lookup", "error", err)
-		return nil, err
-	}
 	if serv.needsJob(res) && existing == nil {
 		logger.Info("Creating Job")
 		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
@@ -2019,6 +2032,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		}
 		logger.Info("Successfully Created Job")
 	}
+	// Create the parent first. Better to have a hanging parent than a hanging dependency.
 	parentId, hasParent := id.Parent()
 	if hasParent {
 		parentExists, err := serv.lookup.Has(parentId)
@@ -2042,9 +2056,15 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 			}
 		}
 	}
-	if err := serv.propagateChange(res); err != nil {
-		logger.Error(err)
+	if err := serv.lookup.Set(id, res); err != nil {
+		logger.Errorw("Error setting resource to lookup", "error", err)
 		return nil, err
+	}
+	if existing == nil {
+		if err := serv.propagateChange(res); err != nil {
+			logger.Error(err)
+			return nil, err
+		}
 	}
 	return &pb.Empty{}, nil
 }

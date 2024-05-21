@@ -12,11 +12,13 @@ from featureform.enums import ScalarType
 def step_impl(context, offline_provider_type):
     version = random_word(5)
 
+    provider_name = f"{offline_provider_type}_{version}"
+
     load_dotenv("../../.env")
 
     if offline_provider_type.lower() == "postgres":
         context.offline_provider = ff.register_postgres(
-            name=f"postgres_{version}",
+            name=provider_name,
             host=os.getenv("POSTGRES_HOST", "host.docker.internal"),
             port=os.getenv("POSTGRES_PORT", "5432"),
             user=os.getenv("POSTGRES_USER", "postgres"),
@@ -47,11 +49,12 @@ def step_impl(context, offline_provider_type):
             """
         )
         context.offline_provider = context.spark
-
+        provider_name = context.spark_name
     else:
         raise ValueError(f"Unknown offline provider {offline_provider_type}")
 
     context.client.apply(asynchronous=False, verbose=True)
+    context.offline_provider_name = provider_name
 
 
 @when('I register an online provider of type "{online_provider_type}"')
@@ -59,9 +62,11 @@ def step_impl(context, online_provider_type):
     version = random_word(5)
     load_dotenv("../../.env")
 
+    provider_name = f"{online_provider_type}_{version}"
+
     if online_provider_type.lower() == "redis":
         context.online_provider = ff.register_redis(
-            name=f"redis_{version}",
+            name=provider_name,
             host=os.getenv("REDIS_HOST", "host.docker.internal"),
             port=int(os.getenv("REDIS_PORT", "6379")),
         )
@@ -69,10 +74,12 @@ def step_impl(context, online_provider_type):
         raise ValueError(f"Unknown offline provider {online_provider_type}")
 
     context.client.apply(asynchronous=False, verbose=True)
+    context.online_provider_name = provider_name
 
 
 @when('I register a dataset located at "{dataset_path}"')
 def step_impl(context, dataset_path):
+    print("---->", type(context.offline_provider))
     if (
         context.offline_provider._OfflineProvider__provider.config.type()
         == "SPARK_OFFLINE"

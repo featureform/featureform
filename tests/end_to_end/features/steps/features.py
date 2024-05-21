@@ -30,7 +30,7 @@ def step_impl(context, entity, expected_value, expected_type):
         ), f"Expected {expected_value} but got {feature[0]}"
     elif expected_type == "null":
         if expected_value == "empty":
-            expected_value = ""
+            expected_value = None
         assert feature[0] == expected_value, f"Expected '' but got {feature[0]}"
     else:
         raise ValueError(f"Unexpected type: {expected_type}")

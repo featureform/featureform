@@ -19,8 +19,8 @@ def step_impl(context, expected_row_count):
     training_set = context.client.training_set(context.training_set)
     df = training_set.dataframe()
 
-    assert (
-        len(df) == int(expected_row_count)
+    assert len(df) == int(
+        expected_row_count
     ), f"Expected {expected_row_count} rows but got {len(df)}"
 
     # assert column exists in dataframe

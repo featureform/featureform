@@ -13,7 +13,9 @@ def step_impl(context):
     assert (
         df["int32_col"].dtype == "int64"
     ), f"Expected int64 but got {df['int32_col'].dtype}"
-    # assert df["int64_col"].dtype == "int64", f"Expected int64 but got {df['int64_col'].dtype}"
+    assert (
+        df["int64_col"].dtype == "int64"
+    ), f"Expected int64 but got {df['int64_col'].dtype}"
     assert (
         df["float32_col"].dtype == "float64"
     ), f"Expected float64 but got {df['float32_col'].dtype}"
@@ -29,4 +31,6 @@ def step_impl(context):
     assert (
         df["datetime_col"].dtype == "object"
     ), f"Expected object but got {df['datetime_col'].dtype}"
-    # assert df["nil_col"].dtype == "object", f"Expected object but got {df['nil_col'].dtype}"
+    assert (
+        df["nil_col"].dtype == "object"
+    ), f"Expected object but got {df['nil_col'].dtype}"

@@ -20,7 +20,7 @@ func TestWithResource(t *testing.T) {
 		t.Fatalf("SugaredLogger doesnt exist.")
 	}
 	fmt.Println(logger.GetValue("resource-type"))
-	if logger.GetValue("resource-type") != Entity {
+	if logger.("resource-type") != Entity {
 		t.Fatalf("Incorrect values for logger, expected %s, got %s", Entity, logger.GetValue("resource-type"))
 	}
 	if logger.GetValue("resource-name") != "test-name" {

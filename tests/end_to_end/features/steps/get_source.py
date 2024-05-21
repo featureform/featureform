@@ -30,4 +30,4 @@ def step_impl(context):
     transformation = context.transformation
 
     df = context.client.dataframe(transformation)
-    assert df is not None
+    assert df is not None, "Expected a dataframe, but got None"

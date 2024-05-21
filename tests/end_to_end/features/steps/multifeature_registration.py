@@ -94,8 +94,8 @@ def step_impl(context):
     ]
     count = 0
     for entity, features in batch_features:
-        assert len(features) == 3
-        assert entity != "" and entity != None
+        assert len(features) == 3, f"Expected 3 features, got {len(features)}"
+        assert entity != "" and entity != None, "Expected a non-empty entity"
         assert [
             entity,
             features,

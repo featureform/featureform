@@ -36,13 +36,15 @@ def step_impl(context, provider):
         ]
     else:
         raise ValueError(f"Unknown provider {provider}")
-    assert context.cols == expected_source_cols
+    assert (
+        context.cols == expected_source_cols
+    ), f"Expected {expected_source_cols}, got {context.cols}"
 
 
 @then("I should be able to get spark provider")
 def step_impl(context):
     context.spark_provider = ff.get_spark(context.spark_name)
-    assert context.spark_provider is not None
+    assert context.spark_provider is not None, "could not get spark provider"
 
 
 @then("I should be able to register transactions_short.csv")
@@ -58,11 +60,13 @@ def step_impl(context):
 @then("I should be able to get the data of the resource")
 def step_impl(context):
     df = context.client.dataframe(context.txn_short)
-    assert len(df) > 0
+    assert len(df) > 0, "Expected a dataframe with more than 0 rows"
 
 
 @then("I should be able to get the resource")
 def step_impl(context):
     src_name, src_variant = context.transactions.name_variant()
     context.txn_short = ff.get_source(src_name, src_variant)
-    assert context.txn_short is not None
+    assert (
+        context.txn_short is not None
+    ), "could not get the resource; get_source returned None"

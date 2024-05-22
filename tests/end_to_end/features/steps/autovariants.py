@@ -13,7 +13,7 @@ def step_impl(context):
     # Set the a unique variant prefix because we were running
     # into an issue with behave tests running in parallel. This would
     # cause the same variant to be generated for different tests.
-    context.unique_prefix = str(uuid.uuid4())[:5]
+    context.unique_prefix = str(uuid.uuid4())[:8].replace("-", "")
     ff.set_variant_prefix(context.unique_prefix)
 
 

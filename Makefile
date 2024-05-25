@@ -151,6 +151,24 @@ test_filestore
 	Description:
 		Runs golang unit tests
 
+get_secrets
+	Requirements:
+		- python 3.7-3.10
+		- AWS Credentials with access to Secrets Manager
+		- boto3 > 1.34 (needs `SecretsManager.Client.batch_get_secret_value`)
+	
+	Description:
+		Gets secrets from AWS Secrets Manager and writes them to .env file in root of repository
+
+update_secrets
+	Requirements:
+		- python 3.7-3.10
+		- AWS Credentials with access to Secrets Manager
+		- boto3 > 1.34 (needs `SecretsManager.Client.batch_get_secret_value`)
+	
+	Description:
+		Updates secrets from AWS Secrets Manager and writes them to .env file in root of repository
+
 endef
 export HELP_BODY
 
@@ -398,3 +416,11 @@ reset_e2e:  			 			## Resets Cluster. Requires install_etcd
 	while ! echo exit | nc localhost 2379; do sleep 10; done
 	etcdctl --user=root:secretpassword del "" --prefix
 	-helm uninstall quickstart
+
+
+##############################################  SECRETS ################################################################
+get_secrets:
+	python scripts/secret_manager.py
+
+update_secrets:
+	python scripts/secret_manager.py --update

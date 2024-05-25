@@ -90,7 +90,7 @@ func NewLocalFileStore(config Config) (FileStore, error) {
 	return &LocalFileStore{
 		DirPath: fileStoreConfig.DirPath[len("file:///"):],
 		genericFileStore: genericFileStore{
-			bucket:    bucket,
+			bucket:    Bucket{fileStoreConfig.DirPath, bucket},
 			path:      filepath,
 			storeType: filestore.FileSystem,
 		},
@@ -225,7 +225,7 @@ func NewAzureFileStore(config Config) (FileStore, error) {
 		ContainerName:    azureStoreConfig.ContainerName,
 		Path:             azureStoreConfig.Path,
 		genericFileStore: genericFileStore{
-			bucket:    bucket,
+			bucket:    Bucket{azureStoreConfig.ContainerName, bucket},
 			storeType: filestore.Azure,
 		},
 	}, nil
@@ -304,7 +304,7 @@ func NewS3FileStore(config Config) (FileStore, error) {
 		Credentials:  s3StoreConfig.Credentials,
 		Path:         s3StoreConfig.Path,
 		genericFileStore: genericFileStore{
-			bucket:    bucket,
+			bucket:    Bucket{trimmedBucket, bucket},
 			storeType: filestore.S3,
 		},
 	}, nil
@@ -351,7 +351,7 @@ func (s3 *S3FileStore) AddEnvVars(envVars map[string]string) map[string]string {
 }
 
 func (s3 *S3FileStore) Read(path filestore.Filepath) ([]byte, error) {
-	data, err := s3.bucket.ReadAll(context.TODO(), path.Key())
+	data, err := s3.bucket.Bucket.ReadAll(context.TODO(), path.Key())
 	if err != nil {
 		wrapped := fferr.NewExecutionError(string(filestore.S3), err)
 		wrapped.AddDetail("uri", path.ToURI())
@@ -474,7 +474,7 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 		Path:        GCSConfig.BucketPath,
 		Credentials: GCSConfig.Credentials,
 		genericFileStore: genericFileStore{
-			bucket:    bucket,
+			bucket:    Bucket{GCSConfig.BucketName, bucket},
 			storeType: filestore.GCS,
 		},
 	}, nil
@@ -815,8 +815,13 @@ func (fs *HDFSFileStore) CreateFilePath(key string, isDirectory bool) (filestore
 	return &fp, nil
 }
 
+type Bucket struct {
+	Name   string
+	Bucket *blob.Bucket
+}
+
 type genericFileStore struct {
-	bucket    *blob.Bucket
+	bucket    Bucket
 	path      filestore.Filepath
 	storeType filestore.FileStoreType
 }
@@ -826,7 +831,7 @@ func (store *genericFileStore) NewestFileOfType(searchPath filestore.Filepath, f
 	opts := blob.ListOptions{
 		Prefix: searchPath.Key(),
 	}
-	listIterator := store.bucket.List(&opts)
+	listIterator := store.bucket.Bucket.List(&opts)
 	mostRecentTime := time.UnixMilli(0)
 	mostRecentKey := ""
 	for {
@@ -880,7 +885,7 @@ func (store *genericFileStore) List(searchPath filestore.Filepath, fileType file
 		Prefix: searchPath.Key(),
 	}
 	files := make([]filestore.Filepath, 0)
-	iter := store.bucket.List(&opts)
+	iter := store.bucket.Bucket.List(&opts)
 	var iterError error
 	for {
 		if obj, err := iter.Next(context.TODO()); err == nil {
@@ -933,10 +938,10 @@ func (store *genericFileStore) DeleteAll(path filestore.Filepath) error {
 	opts := blob.ListOptions{
 		Prefix: path.Key(),
 	}
-	listIterator := store.bucket.List(&opts)
+	listIterator := store.bucket.Bucket.List(&opts)
 	for listObj, err := listIterator.Next(context.TODO()); err == nil; listObj, err = listIterator.Next(context.TODO()) {
 		if !listObj.IsDir {
-			if err := store.bucket.Delete(context.TODO(), listObj.Key); err != nil {
+			if err := store.bucket.Bucket.Delete(context.TODO(), listObj.Key); err != nil {
 				wrapped := fferr.NewExecutionError(string(store.FilestoreType()), fmt.Errorf("failed to delete object in directory: %v", err))
 				wrapped.AddDetail("object", listObj.Key)
 				wrapped.AddDetail("directory", path.Key())
@@ -949,7 +954,7 @@ func (store *genericFileStore) DeleteAll(path filestore.Filepath) error {
 
 func (store *genericFileStore) Write(path filestore.Filepath, data []byte) error {
 	ctx := context.TODO()
-	err := store.bucket.WriteAll(ctx, path.Key(), data, nil)
+	err := store.bucket.Bucket.WriteAll(ctx, path.Key(), data, nil)
 	if err != nil {
 		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
 		wrapped.AddDetail("uri", path.ToURI())
@@ -957,7 +962,7 @@ func (store *genericFileStore) Write(path filestore.Filepath, data []byte) error
 	}
 	err = re.Do(
 		func() error {
-			blob, errRetr := store.bucket.ReadAll(ctx, path.Key())
+			blob, errRetr := store.bucket.Bucket.ReadAll(ctx, path.Key())
 			if errRetr != nil {
 				return errRetr
 			} else if !bytes.Equal(blob, data) {
@@ -980,7 +985,7 @@ func (store *genericFileStore) Write(path filestore.Filepath, data []byte) error
 }
 
 func (store *genericFileStore) Read(path filestore.Filepath) ([]byte, error) {
-	data, err := store.bucket.ReadAll(context.TODO(), path.Key())
+	data, err := store.bucket.Bucket.ReadAll(context.TODO(), path.Key())
 	if err != nil {
 		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
 		wrapped.AddDetail("uri", path.ToURI())
@@ -1061,13 +1066,21 @@ func (store *genericFileStore) AddEnvVars(envVars map[string]string) map[string]
 // * If the iterator returns a non-`EOF` error, the "key" may or may not exist; however, we have to address the error
 // * If neither the `EOF` nor non-`EOF` error is returned, the "key" exists and we break from the loop to avoid unnecessary iteration
 func (store *genericFileStore) Exists(path filestore.Filepath) (bool, error) {
-	iter := store.bucket.List(&blob.ListOptions{Prefix: path.Key()})
+	if path.Bucket() != store.bucket.Name {
+		err := fferr.NewInvalidArgumentErrorf("bucket name on path (%s) does not match bucket name on provider (%s)", path.Bucket(), store.bucket.Name)
+		err.AddDetail("uri", path.ToURI())
+		err.AddFixSuggestion("change bucket in path to match provider's bucket or use the correct provider")
+		return false, err
+
+	}
+	iter := store.bucket.Bucket.List(&blob.ListOptions{Prefix: path.Key()})
 	_, err := iter.Next(context.Background())
 	if err == io.EOF {
 		return false, nil
 	} else if err != nil {
 		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
 		wrapped.AddDetail("uri", path.ToURI())
+		wrapped.AddFixSuggestion("check that the file exists and is in the same bucket as the provider.")
 		return false, wrapped
 	} else {
 		return true, nil
@@ -1075,7 +1088,7 @@ func (store *genericFileStore) Exists(path filestore.Filepath) (bool, error) {
 }
 
 func (store *genericFileStore) Delete(path filestore.Filepath) error {
-	if err := store.bucket.Delete(context.TODO(), path.Key()); err != nil {
+	if err := store.bucket.Bucket.Delete(context.TODO(), path.Key()); err != nil {
 		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
 		wrapped.AddDetail("uri", path.ToURI())
 		return wrapped
@@ -1084,14 +1097,14 @@ func (store *genericFileStore) Delete(path filestore.Filepath) error {
 }
 
 func (store *genericFileStore) Close() error {
-	if err := store.bucket.Close(); err != nil {
+	if err := store.bucket.Bucket.Close(); err != nil {
 		return fferr.NewExecutionError(string(store.FilestoreType()), err)
 	}
 	return nil
 }
 
 func (store *genericFileStore) ServeFile(path filestore.Filepath) (Iterator, error) {
-	b, err := store.bucket.ReadAll(context.TODO(), path.Key())
+	b, err := store.bucket.Bucket.ReadAll(context.TODO(), path.Key())
 	if err != nil {
 		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
 		wrapped.AddDetail("uri", path.ToURI())
@@ -1116,7 +1129,7 @@ func (store *genericFileStore) Serve(files []filestore.Filepath) (Iterator, erro
 }
 
 func (store *genericFileStore) NumRows(path filestore.Filepath) (int64, error) {
-	b, err := store.bucket.ReadAll(context.TODO(), path.Key())
+	b, err := store.bucket.Bucket.ReadAll(context.TODO(), path.Key())
 	if err != nil {
 		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
 		wrapped.AddDetail("uri", path.ToURI())

@@ -162,6 +162,10 @@ func (e *baseError) AddDetails(keysAndValues ...interface{}) {
 	e.GenericError.AddDetails(keysAndValues...)
 }
 
+func (e *baseError) AddFixSuggestion(suggestion string) {
+	e.GenericError.AddDetail("fix_suggestion", suggestion)
+}
+
 func (e *baseError) Error() string {
 	msg := fmt.Sprintf("%s: %s\n", e.errorType, e.msg)
 	if len(e.details) == 0 {

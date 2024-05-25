@@ -36,6 +36,10 @@ func NewInvalidArgumentError(err error) *InvalidArgumentError {
 	}
 }
 
+func NewInvalidArgumentErrorf(format string, args ...any) *InvalidArgumentError {
+	return NewInvalidArgumentError(fmt.Errorf(format, args...))
+}
+
 type InvalidArgumentError struct {
 	baseError
 }

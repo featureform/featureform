@@ -1,12 +1,13 @@
-import pkg_resources
-import requests
 import threading
+
+import importlib_metadata
+import requests
 
 version_check_url = "https://version.featureform.com"
 
 
 def get_package_version():
-    return pkg_resources.get_distribution("featureform").version
+    return importlib_metadata.distribution("featureform").version
 
 
 def check_up_to_date(local, client):

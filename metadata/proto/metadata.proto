@@ -51,6 +51,7 @@ service Metadata {
     rpc ListProviders(ListRequest) returns (stream Provider);
     rpc ListEntities(ListRequest) returns (stream Entity);
     rpc ListModels(ListRequest) returns (stream Model);
+    rpc ListTriggers(ListRequest) returns (stream Trigger);
 
     rpc SetResourceStatus(SetStatusRequest) returns (Empty);
 
@@ -98,6 +99,8 @@ service Api {
     rpc ListProviders(ListRequest) returns (stream Provider);
     rpc ListEntities(ListRequest) returns (stream Entity);
     rpc ListModels(ListRequest) returns (stream Model);
+    rpc ListTriggers(ListRequest) returns (stream Trigger);
+    
     rpc AddTrigger(TriggerRequest) returns (Empty);
     rpc RemoveTrigger(TriggerRequest) returns (Empty);
     rpc UpdateTrigger(TriggerRequest) returns (Empty);

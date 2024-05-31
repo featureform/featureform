@@ -37,7 +37,7 @@ type operation int
 
 const (
 	create_op operation = iota
-	add_op    operation = iota
+	remove_op operation = iota
 )
 
 type ResourceType int32
@@ -508,7 +508,10 @@ func (sourceVariantResource *sourceVariantResource) Notify(lookup ResourceLookup
 	case LABEL_VARIANT:
 		serialized.Labels = append(serialized.Labels, key)
 	case TRIGGER:
-		// TODO: (Erik) add check for primary data
+		primaryData := serialized.GetPrimaryData()
+		if primaryData != nil {
+			return fferr.NewInvalidArgumentError(fmt.Errorf("cannot add triggers to primary data source variants"))
+		}
 		serialized.Triggers = append(serialized.Triggers, key)
 	}
 	return nil
@@ -729,13 +732,12 @@ func (resource *featureVariantResource) Notify(lookup ResourceLookup, op operati
 		return nil
 	}
 	id := dep.ID()
-	switch op {
-	case create_op:
-		if id.Type == TRAINING_SET_VARIANT {
-			key := id.Proto()
-			resource.serialized.Trainingsets = append(resource.serialized.Trainingsets, key)
-		}
-	case add_op:
+	t := id.Type
+	switch t {
+	case TRAINING_SET_VARIANT:
+		key := id.Proto()
+		resource.serialized.Trainingsets = append(resource.serialized.Trainingsets, key)
+	case TRIGGER:
 		if id.Type == TRIGGER {
 			key := id.Proto()
 			resource.serialized.Triggers = append(resource.serialized.Triggers, key)
@@ -1977,7 +1979,7 @@ func (serv *MetadataServer) AddTrigger(ctx context.Context, tr *pb.TriggerReques
 	}
 
 	// TODO: (Erik) verify that Notify methods can handle this logic
-	if err := resource.Notify(serv.lookup, add_op, &triggerResource{trigger}); err != nil {
+	if err := resource.Notify(serv.lookup, create_op, &triggerResource{trigger}); err != nil {
 		return nil, err
 	}
 
@@ -1989,40 +1991,18 @@ func (serv *MetadataServer) AddTrigger(ctx context.Context, tr *pb.TriggerReques
 }
 
 func (serv *MetadataServer) RemoveTrigger(ctx context.Context, tr *pb.TriggerRequest) (*pb.Empty, error) {
-	// fmt.Println("Removing Trigger", tr.Trigger)
-
-	// resourceID := ResourceID{Name: tr.Resource.Resource.Name, Variant: tr.Resource.Resource.Variant, Type: ResourceType(tr.Resource.ResourceType)}
-	// resourceRecord, err := serv.lookup.Lookup(ctx, resourceID)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// fmt.Println("Found Resource", resourceRecord)
-
-	// switch r := resourceRecord.(type) {
-	// case *featureVariantResource:
-	// 	r.serialized.Trigger = nil
-	// default:
-	// 	return nil, fmt.Errorf("could not assert resource")
-	// }
-
-	// err = serv.lookup.Set(resourceID, resourceRecord)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// asserted_test_resource, ok := resourceRecord.(*featureVariantResource)
-	// if !ok {
-	// 	return nil, fmt.Errorf("could not assert trigger resource")
-	// }
-	// fmt.Println("Checking if trigger got removed", asserted_test_resource.serialized.Trigger)
-
-	return &pb.Empty{}, nil
+	return &pb.Empty{}, fferr.NewInternalErrorf("not implemented")
 }
 
 func (serv *MetadataServer) UpdateTrigger(ctx context.Context, tr *pb.TriggerRequest) (*pb.Empty, error) {
-	fmt.Println("Updating Trigger", tr.Trigger)
-	triggerResID := ResourceID{Name: tr.Trigger.Name, Type: TRIGGER}
-	triggerRes, err := serv.lookup.Lookup(ctx, triggerResID)
+	trigger := tr.Trigger
+	reqId := tr.RequestId
+	ctx = logging.AttachRequestID(reqId, ctx, serv.Logger)
+	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.Trigger, trigger.Name, logging.NoVariant)
+	logger.Infow("Updating Trigger", "trigger_name", tr.Trigger.Name)
+
+	resourceId := ResourceID{Name: trigger.Name, Type: TRIGGER}
+	triggerRes, err := serv.lookup.Lookup(ctx, resourceId)
 	if err != nil {
 		return nil, err
 	}
@@ -2036,12 +2016,7 @@ func (serv *MetadataServer) UpdateTrigger(ctx context.Context, tr *pb.TriggerReq
 }
 
 func (serv *MetadataServer) DeleteTrigger(ctx context.Context, tr *pb.TriggerRequest) (*pb.Empty, error) {
-	// triggerResID := ResourceID{Name: trigger.Name, Type: TRIGGER}
-	// err := serv.lookup.Delete(triggerResID)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	return &pb.Empty{}, nil
+	return &pb.Empty{}, fferr.NewInternalErrorf("not implemented")
 }
 
 func (serv *MetadataServer) ListModels(request *pb.ListRequest, stream pb.Metadata_ListModelsServer) error {
@@ -2049,6 +2024,14 @@ func (serv *MetadataServer) ListModels(request *pb.ListRequest, stream pb.Metada
 	logging.GetLoggerFromContext(ctx).Info("Opened List Models stream")
 	return serv.genericList(ctx, MODEL, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Model))
+	})
+}
+
+func (serv *MetadataServer) ListTriggers(request *pb.ListRequest, stream pb.Metadata_ListTriggersServer) error {
+	ctx := logging.AttachRequestID(request.RequestId, stream.Context(), serv.Logger)
+	logging.GetLoggerFromContext(ctx).Info("Opened List Triggers stream")
+	return serv.genericList(ctx, TRIGGER, func(msg proto.Message) error {
+		return stream.Send(msg.(*pb.Trigger))
 	})
 }
 

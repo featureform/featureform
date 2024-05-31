@@ -1245,6 +1245,16 @@ func (client *Client) GetModels(ctx context.Context, models []string) ([]*Model,
 	return client.parseModelStream(stream)
 }
 
+func (client *Client) ListTriggers(ctx context.Context) ([]*Trigger, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	stream, err := client.GrpcConn.ListTriggers(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
+	if err != nil {
+		logger.Errorw("Failed to list triggers", "error", err)
+		return nil, err
+	}
+	return client.parseTriggerStream(stream)
+}
+
 type ModelDef struct {
 	Name         string
 	Description  string
@@ -1350,11 +1360,11 @@ func (client *Client) DeleteTrigger(ctx context.Context, tr *pb.TriggerRequest) 
 }
 
 type triggerStream interface {
-	Recv() (*pb.User, error)
+	Recv() (*pb.Trigger, error)
 }
 
-func (client *Client) parseTriggerStream(stream userStream) ([]*User, error) {
-	users := make([]*User, 0)
+func (client *Client) parseTriggerStream(stream triggerStream) ([]*Trigger, error) {
+	triggers := make([]*Trigger, 0)
 	for {
 		serial, err := stream.Recv()
 		if err == io.EOF {
@@ -1362,9 +1372,9 @@ func (client *Client) parseTriggerStream(stream userStream) ([]*User, error) {
 		} else if err != nil {
 			return nil, err
 		}
-		users = append(users, wrapProtoUser(serial))
+		triggers = append(triggers, wrapProtoTrigger(serial))
 	}
-	return users, nil
+	return triggers, nil
 }
 
 type protoStringer struct {
@@ -2556,6 +2566,19 @@ func (entity *Entity) Tags() Tags {
 
 func (entity *Entity) Properties() Properties {
 	return entity.fetchPropertiesFn.Properties()
+}
+
+type Trigger struct {
+	serialized *pb.Trigger
+	protoStringer
+	// TODO: (Erik) add fetch jobs and tasks functions
+}
+
+func wrapProtoTrigger(serialized *pb.Trigger) *Trigger {
+	return &Trigger{
+		serialized:    serialized,
+		protoStringer: protoStringer{serialized},
+	}
 }
 
 func NewClient(host string, logger logging.Logger) (*Client, error) {

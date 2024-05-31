@@ -193,7 +193,7 @@ class Client(ResourceClient, ServingClient):
         """
         self.impl.close()
 
-    def _create_resource_request(
+    def _init_trigger_resource_request(
         self, resource: Union[tuple, FeatureColumnResource, TrainingSetVariant]
     ):
         resource_req = metadata_pb2.ResourceID()
@@ -217,13 +217,24 @@ class Client(ResourceClient, ServingClient):
             resource_req.resource.name = resource[0]
             resource_req.resource.variant = resource[1]
             resource_req.resource_type = resource[2].to_proto()
-        elif isinstance(resource, Union[FeatureColumnResource, TrainingSetVariant]):
-            resource_req.resource.name = resource.name
-            resource_req.resource.variant = resource.variant
-            resource_req.resource_type = resource.resource_type.to_proto()
+        elif isinstance(
+            resource,
+            Union[
+                FeatureColumnResource, TrainingSetVariant, SubscriptableTransformation
+            ],
+        ):
+            if isinstance(resource, SubscriptableTransformation):
+                name, variant = resource.name_variant()
+                resource_req.resource.name = name
+                resource_req.resource.variant = variant
+                resource_req.resource_type = ResourceType.SOURCE_VARIANT.to_proto()
+            else:
+                resource_req.resource.name = resource.name
+                resource_req.resource.variant = resource.variant
+                resource_req.resource_type = resource.resource_type.to_proto()
         else:
             raise ValueError(
-                f"Invalid resource type: expected FeatureColumnResource or TrainingSetVariant, received {type(resource)}"
+                f"Invalid resource type: expected {Union[FeatureColumnResource, TrainingSetVariant, SubscriptableTransformation]}, received {type(resource)}"
             )
         return resource_req
 
@@ -251,7 +262,7 @@ class Client(ResourceClient, ServingClient):
             raise ValueError("Invalid trigger type")
         req.trigger.CopyFrom(trigger_req)
 
-        resource_req = self._create_resource_request(resource)
+        resource_req = self._init_trigger_resource_request(resource)
         req.resource.CopyFrom(resource_req)
 
         self._stub.AddTrigger(req)
@@ -280,7 +291,7 @@ class Client(ResourceClient, ServingClient):
             raise ValueError("Invalid trigger type")
         req.trigger.CopyFrom(trigger_req)
 
-        resource_req = resource_req = self._create_resource_request(resource)
+        resource_req = resource_req = self._init_trigger_resource_request(resource)
         req.resource.CopyFrom(resource_req)
 
         self._stub.RemoveTrigger(req)

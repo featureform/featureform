@@ -793,6 +793,34 @@ func (serv *MetadataServer) ListProviders(listRequest *pb.ListRequest, stream pb
 	}
 }
 
+func (serv *MetadataServer) ListTriggers(listRequest *pb.ListRequest, stream pb.Api_ListTriggersServer) error {
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Infow("Listing Triggers")
+	proxyStream, err := serv.meta.ListTriggers(ctx, listRequest)
+	if err != nil {
+		logger.Errorw("Failed to list triggers", "error", err)
+		return err
+	}
+	for {
+		res, err := proxyStream.Recv()
+		if err == io.EOF {
+			logger.Debugw("End of stream reached. Stream request completed")
+			return nil
+		}
+		if err != nil {
+			logger.Errorw("Failed to receive trigger from server", "error", err)
+			return err
+		}
+		loggerWithResource := logger.WithResource(logging.Trigger, res.Name, logging.NoVariant)
+		loggerWithResource.Infow("Sending resource on stream")
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			loggerWithResource.Errorw("Failed to send trigger to client", "error", sendErr)
+			return sendErr
+		}
+	}
+}
+
 func (serv *MetadataServer) CreateProvider(ctx context.Context, providerRequest *pb.ProviderRequest) (*pb.Empty, error) {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(ctx)
 	logger = logger.WithResource("provider", providerRequest.Provider.Name, logging.NoVariant).WithProvider(providerRequest.Provider.Type, providerRequest.Provider.Name)

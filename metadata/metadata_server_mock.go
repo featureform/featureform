@@ -192,6 +192,11 @@ func (MetadataServerMock) GetEntities(ctx context.Context, opts ...grpc.CallOpti
 func (MetadataServerMock) ListModels(ctx context.Context, in *pb.ListRequest, opts ...grpc.CallOption) (pb.Metadata_ListModelsClient, error) {
 	return nil, nil
 }
+
+func (MetadataServerMock) ListTriggers(ctx context.Context, in *pb.ListRequest, opts ...grpc.CallOption) (pb.Metadata_ListTriggersClient, error) {
+	return nil, nil
+}
+
 func (MetadataServerMock) CreateModel(ctx context.Context, in *pb.ModelRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	return nil, nil
 }

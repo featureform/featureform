@@ -5274,6 +5274,18 @@ class ResourceClient:
         """
         return list_name_status_desc(self._stub, "provider")
 
+    # TODO: (Erik) determine if this method aligns w/ product expectations
+    # created originally for debugging/troubleshooting purposes
+    def list_triggers(self):
+        """
+        List all triggers. Prints a list of all triggers.
+        """
+        triggers = [res for res in self._stub.ListTriggers(metadata_pb2.Empty())]
+        format_rows("NAME", "SCHEDULE")
+        for trigger in triggers:
+            format_rows(trigger.name, trigger.schedule_trigger.schedule)
+        return triggers
+
     def search(self, raw_query, local=False):
         """Search for registered resources. Prints a list of results.
 

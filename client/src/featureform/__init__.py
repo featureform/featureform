@@ -26,7 +26,7 @@ from .resources import (
     SparkCredentials,
 )
 from .client import Client
-from .enums import OfflineResourceType
+from .enums import OfflineResourceType, ResourceType
 
 ServingClient = ServingClient
 ResourceClient = ResourceClient
@@ -55,3 +55,4 @@ get_run = get_run
 
 # Enums
 OfflineResourceType = OfflineResourceType
+ResourceType = ResourceType

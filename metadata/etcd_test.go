@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
+
 	"github.com/featureform/fferr"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/provider/types"
@@ -709,12 +711,12 @@ func TestEtcdConfig_Get(t *testing.T) {
 	config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
 	c, err := config.InitClient()
 	if err != nil {
-		t.Errorf("InitClient() could not initialize client: %v", err)
+		t.Fatalf("InitClient() could not initialize client: %v", err)
 	}
 	client := EtcdStorage{c}
 
 	if err = client.Put("key", "value"); err != nil {
-		t.Errorf("Put() could not put key: %v", err)
+		t.Fatalf("Put() could not put key: %v", err)
 	}
 
 	tests := []struct {
@@ -878,6 +880,159 @@ func TestEtcdConfig_ParseResource(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEtcdConfig_Delete(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
+	client, err := config.InitClient()
+	if err != nil {
+		t.Fatalf("Delete() could not initialize client: %s", err)
+	}
+
+	store := EtcdStorage{
+		Client: client,
+	}
+
+	if err = store.Put("key", "value"); err != nil {
+		t.Errorf("Put() could not put key: %v", err)
+	}
+
+	tests := []struct {
+		name  string
+		key   string
+		error error
+	}{
+		{"Test Delete Empty Key", "", rpctypes.EtcdError{}},
+		{"Test Delete Non Existent Key", "non_existent", fferr.NewKeyNotFoundError("non_existent", nil)},
+		{"Test Delete Valid Key", "key", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := store.Delete(tt.key)
+			if err != nil && tt.error == nil {
+				t.Errorf("Delete() should not have failed with error: %v", err)
+			} else if err != nil && tt.error != nil {
+				expectedErrorType := reflect.TypeOf(tt.error)
+				if reflect.TypeOf(err) != expectedErrorType {
+					t.Errorf("Expected error of type %v but got type %v", expectedErrorType, reflect.TypeOf(err))
+				}
+			}
+			if tt.error == nil {
+				_, err := store.Get(tt.key)
+				if err == nil {
+					t.Errorf("Delete() should have deleted key: %v", tt.key)
+				}
+			}
+		})
+	}
+}
+
+func Test_EtcdResourceLookup_Delete(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	type fields struct {
+		Etcd EtcdConfig
+	}
+	type args struct {
+		id ResourceID
+	}
+	resourceVal := &triggerResource{&pb.Trigger{
+		Name: "resource1",
+	}}
+	resourceKey := createKey(ResourceID{
+		Name: "resource1",
+		Type: TRIGGER,
+	})
+
+	args1 := args{
+		ResourceID{
+			Name: "resource1",
+			Type: TRIGGER,
+		},
+	}
+	args2 := args{
+		ResourceID{
+			Name: "resource2",
+			Type: TRIGGER,
+		},
+	}
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{"Successful Delete", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args1, false},
+		{"Key not present", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args2, true},
+	}
+	for _, tt := range tests {
+		newclient, err := clientv3.New(clientv3.Config{
+			Endpoints:   []string{"localhost:2379"},
+			DialTimeout: time.Second * 1,
+		})
+		if err != nil {
+			t.Fatalf("Could not connect to client: %v", err)
+		}
+		p, _ := proto.Marshal(resourceVal.Proto())
+		msg := EtcdRow{
+			ResourceType: tt.args.id.Type,
+			Message:      p,
+			StorageType:  RESOURCE,
+		}
+
+		strmsg, err := json.Marshal(msg)
+		if err != nil {
+			t.Fatalf("Could not marshal string message: %v", err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+		_, err = newclient.Put(ctx, resourceKey, string(strmsg))
+		if err != nil {
+			t.Fatalf("Could not put key: %v", err)
+		}
+		cancel()
+
+		t.Run(tt.name, func(t *testing.T) {
+			client, err := tt.fields.Etcd.InitClient()
+			store := EtcdStorage{
+				Client: client,
+			}
+			if err != nil {
+				t.Fatalf("Delete() could not initialize client: %s", err)
+			}
+			lookup := EtcdResourceLookup{
+				Connection: store,
+			}
+			ok, err := lookup.Has(ResourceID{
+				Name: "resource1",
+				Type: TRIGGER,
+			})
+			if err != nil {
+				t.Fatalf("Put() could not put key: %v", err)
+			}
+			if !ok {
+				t.Fatalf("key not present")
+			}
+			err = lookup.Delete(tt.args.id)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Delete() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				_, err := store.Get(createKey(tt.args.id))
+				if err == nil {
+					t.Fatalf("Delete() did not delete key")
+				}
+			}
+		})
+	}
+	connect := Etcd{}
+	connect.init()
+	t.Cleanup(connect.clearDatabase)
 }
 
 func TestCoordinatorScheduleJobSerialize(t *testing.T) {

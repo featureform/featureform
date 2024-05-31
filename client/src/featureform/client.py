@@ -8,27 +8,32 @@ from .register import (
     ResourceClient,
     SourceRegistrar,
     SubscriptableTransformation,
+    TriggerResource,
+    TrainingSetVariant,
 )
 from .serving import ServingClient
+from .enums import ResourceType, OfflineResourceType
+from featureform.proto import metadata_pb2
 
 
 class Client(ResourceClient, ServingClient):
     """
-    Client for interacting with Featureform APIs (resources and serving)
+        Client for interacting with Featureform APIs (resources and serving)
 
-    **Using the Client:**
-    ```py title="definitions.py"
-    import featureform as ff
-    from featureform import Client
+        **Using the Client:**
+        ```py title="definitions.py"
+        import featureform as ff
+        from featureform import Client
+    from featureform.client.src.featureform import metadata_pb2
 
-    client = Client()
+        client = Client()
 
-    # Example 1: Get a registered provider
-    redis = client.get_provider("redis-quickstart")
+        # Example 1: Get a registered provider
+        redis = client.get_provider("redis-quickstart")
 
-    # Example 2: Compute a dataframe from a registered source
-    transactions_df = client.dataframe("transactions", "quickstart")
-    ```
+        # Example 2: Compute a dataframe from a registered source
+        transactions_df = client.dataframe("transactions", "quickstart")
+        ```
     """
 
     def __init__(
@@ -138,7 +143,7 @@ class Client(ResourceClient, ServingClient):
         self,
         source: Union[SourceRegistrar, SubscriptableTransformation, str],
         variant: Optional[str] = None,
-        resource_type: Optional[ResourceType] = None,
+        resource_type: Optional[OfflineResourceType] = None,
     ):
         """
         Returns the location of a registered resource. For SQL resources, it will return the table name
@@ -156,11 +161,11 @@ class Client(ResourceClient, ServingClient):
         """
         if isinstance(source, (SourceRegistrar, SubscriptableTransformation)):
             name, variant = source.name_variant()
-            resource_type = ResourceType.SOURCE
+            resource_type = OfflineResourceType.SOURCE
         elif isinstance(source, featureform.resources.TrainingSetVariant):
             name = source.name
             variant = source.variant
-            resource_type = ResourceType.TRAINING_SET
+            resource_type = OfflineResourceType.TRAINING_SET
         elif isinstance(source, str):
             name = source
             if variant is None:
@@ -187,6 +192,157 @@ class Client(ResourceClient, ServingClient):
         Closes the client, closes channel for hosted mode
         """
         self.impl.close()
+
+    def _init_trigger_resource_request(
+        self, resource: Union[tuple, FeatureColumnResource, TrainingSetVariant]
+    ):
+        resource_req = metadata_pb2.ResourceID()
+        if isinstance(resource, tuple) and len(resource) != 3:
+            raise ValueError(
+                f"Invalid resource type: expected tuple of (name, variant, resource_type), received {resource}"
+            )
+        elif (
+            isinstance(resource, tuple)
+            and len(resource) == 3
+            and not ResourceType.has_value(resource[2])
+        ):
+            raise ValueError(
+                f"Invalid resource type: expected one of {ResourceType.values()}, received {resource[2]}"
+            )
+        elif (
+            isinstance(resource, tuple)
+            and len(resource) == 3
+            and ResourceType.has_value(resource[2])
+        ):
+            resource_req.resource.name = resource[0]
+            resource_req.resource.variant = resource[1]
+            resource_req.resource_type = resource[2].to_proto()
+        elif isinstance(
+            resource,
+            Union[
+                FeatureColumnResource, TrainingSetVariant, SubscriptableTransformation
+            ],
+        ):
+            if isinstance(resource, SubscriptableTransformation):
+                name, variant = resource.name_variant()
+                resource_req.resource.name = name
+                resource_req.resource.variant = variant
+                resource_req.resource_type = ResourceType.SOURCE_VARIANT.to_proto()
+            else:
+                resource_req.resource.name = resource.name
+                resource_req.resource.variant = resource.variant
+                resource_req.resource_type = resource.resource_type.to_proto()
+        else:
+            raise ValueError(
+                f"Invalid resource type: expected {Union[FeatureColumnResource, TrainingSetVariant, SubscriptableTransformation]}, received {type(resource)}"
+            )
+        return resource_req
+
+    def add_trigger(self, trigger, resource):
+        """
+        Add a trigger to a resource
+
+        **Example:**
+        ```py title="definitions.py"
+        client.add_trigger("trigger_name", ("resource_name", "resource_variant, resource_type))
+        ```
+
+        Args:
+            trigger(Union[str, TriggerResource]): The name of the trigger
+            resource(Union[tuple, FeatureColumnResource, TrainingSetVariant]): The name, variant and type of the resource
+        """
+        req = metadata_pb2.TriggerRequest()
+
+        trigger_req = metadata_pb2.Trigger()
+        if isinstance(trigger, str):
+            trigger_req.name = trigger
+        elif isinstance(trigger, TriggerResource):
+            trigger_req.name = trigger.name
+        else:
+            raise ValueError("Invalid trigger type")
+        req.trigger.CopyFrom(trigger_req)
+
+        resource_req = self._init_trigger_resource_request(resource)
+        req.resource.CopyFrom(resource_req)
+
+        self._stub.AddTrigger(req)
+
+    def remove_trigger(self, trigger, resource):
+        """
+        Remove a trigger from a resource
+
+        **Example:**
+        ```py title="definitions.py"
+        client.remove_trigger("trigger_name", ("resource_name", "resource_variant, resource_type"))
+        ```
+
+        Args:
+            trigger(Union[str, TriggerResource]): The name of the trigger
+            resource(Union[tuple, FeatureColumnResource, TrainingSetVariant]): The name, variant and type of the resource
+        """
+        req = metadata_pb2.TriggerRequest()
+
+        trigger_req = metadata_pb2.Trigger()
+        if isinstance(trigger, str):
+            trigger_req.name = trigger
+        elif isinstance(trigger, TriggerResource):
+            trigger_req.name = trigger.name
+        else:
+            raise ValueError("Invalid trigger type")
+        req.trigger.CopyFrom(trigger_req)
+
+        resource_req = resource_req = self._init_trigger_resource_request(resource)
+        req.resource.CopyFrom(resource_req)
+
+        self._stub.RemoveTrigger(req)
+
+    def update_trigger(self, trigger, schedule):
+        """
+        Update the schedule of the trigger
+
+        **Example:**
+        ```py title="definitions.py"
+        client.update_trigger("trigger_name", schedule)
+        ```
+
+        Args:
+            trigger_name (Union[str, TriggerResource]): The name of the trigger
+            TODO: schedule (str): The new schedule for the trigger
+        """
+        req = metadata_pb2.Trigger()
+        if isinstance(trigger, str):
+            req.name = trigger
+        elif isinstance(trigger, TriggerResource):
+            req.name = trigger.name
+        else:
+            raise ValueError("Invalid trigger type")
+        schedule_req = metadata_pb2.ScheduleTrigger()
+        schedule_req.schedule = schedule
+        req.schedule_trigger.CopyFrom(schedule_req)
+
+        self._stub.UpdateTrigger(req)
+
+    def delete_trigger(self, trigger):
+        """
+        Delete a trigger from the storage provider
+
+        **Example:**
+        ```py title="definitions.py"
+        client.delete_trigger("trigger_name")
+        ```
+
+        Args:
+            trigger_name (Union[str, TriggerResource]): The name of the trigger
+        """
+        req = metadata_pb2.Trigger()
+        if isinstance(trigger, str):
+            req.name = trigger
+        elif isinstance(trigger, TriggerResource):
+            req.name = trigger.name
+        else:
+            raise ValueError("Invalid trigger type")
+        # TODO: Make sure that if there is a resource which uses this trigger, you call delete trigger first
+        self._stub.DeleteTrigger(req)
 
     def columns(
         self,

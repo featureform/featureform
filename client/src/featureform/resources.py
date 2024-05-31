@@ -1115,6 +1115,105 @@ SourceDefinition = Union[PrimaryData, Transformation, str]
 
 @typechecked
 @dataclass
+class Entity:
+    name: str
+    description: str
+    status: str = "NO_STATUS"
+    tags: list = field(default_factory=list)
+    properties: dict = field(default_factory=dict)
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    @staticmethod
+    def type() -> str:
+        return "entity"
+
+    def _create(self, stub) -> None:
+        serialized = pb.EntityRequest(
+            entity=pb.Entity(
+                name=self.name,
+                description=self.description,
+                tags=pb.Tags(tag=self.tags),
+                properties=Properties(self.properties).serialized,
+            ),
+            request_id="",
+        )
+
+        stub.CreateEntity(serialized)
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "description": self.description,
+            "status": self.status,
+            "tags": self.tags,
+            "properties": self.properties,
+        }
+
+
+@typechecked
+@dataclass
+class ResourceColumnMapping:
+    entity: str
+    value: str
+    timestamp: str
+
+    def proto(self) -> pb.Columns:
+        return pb.Columns(
+            entity=self.entity,
+            value=self.value,
+            ts=self.timestamp,
+        )
+
+
+ResourceLocation = ResourceColumnMapping
+
+
+@typechecked
+@dataclass
+class TriggerResource:
+    name: str
+    trigger_type: TriggerType
+    schedule: str
+    job_ids: list = field(default_factory=list)
+    task_ids: list = field(default_factory=list)
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    def type(self) -> str:
+        return "trigger"
+
+    def _create(self, stub) -> None:
+        if self.trigger_type == TriggerType.SCHEDULED:
+            trigger_type = pb.ScheduleTrigger(schedule=self.schedule)
+        else:
+            trigger_type = None
+        serialized = pb.TriggerRequest(
+            trigger=pb.Trigger(
+                name=self.name,
+                schedule_trigger=trigger_type,
+                job_ids=self.job_ids,
+                task_ids=self.task_ids,
+            ),
+            request_id="",
+        )
+        stub.CreateTrigger(serialized)
+
+    def to_dictionary(self):
+        return {
+            "name": self.name,
+            "trigger": self.trigger_type,
+            "job_ids": self.job_ids,
+            "task_ids": self.task_ids,
+        }
+
+
+@typechecked
+@dataclass
 class Source:
     name: str
     default_variant: str
@@ -1154,6 +1253,7 @@ class SourceVariant(ResourceVariant):
     inputs: list = ([],)
     error: Optional[str] = None
     server_status: Optional[ServerStatus] = None
+    triggers: List[TriggerResource] = field(default_factory=list)
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1192,6 +1292,7 @@ class SourceVariant(ResourceVariant):
             status=source.status.Status._enum_type.values[source.status.status].name,
             error=source.status.error_message,
             server_status=ServerStatus.from_proto(source.status),
+            # TODO: (Erik) add list of triggers
         )
 
     def _get_source_definition(self, source):
@@ -1247,64 +1348,6 @@ class SourceVariant(ResourceVariant):
 
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
-
-
-@typechecked
-@dataclass
-class Entity:
-    name: str
-    description: str
-    status: str = "NO_STATUS"
-    tags: list = field(default_factory=list)
-    properties: dict = field(default_factory=dict)
-
-    @staticmethod
-    def operation_type() -> OperationType:
-        return OperationType.CREATE
-
-    @staticmethod
-    def type() -> str:
-        return "entity"
-
-    def _create(self, stub) -> None:
-        serialized = pb.EntityRequest(
-            entity=pb.Entity(
-                name=self.name,
-                description=self.description,
-                tags=pb.Tags(tag=self.tags),
-                properties=Properties(self.properties).serialized,
-            ),
-            request_id="",
-        )
-
-        stub.CreateEntity(serialized)
-
-    def to_dictionary(self):
-        return {
-            "name": self.name,
-            "description": self.description,
-            "status": self.status,
-            "tags": self.tags,
-            "properties": self.properties,
-        }
-
-
-@typechecked
-@dataclass
-class ResourceColumnMapping:
-    entity: str
-    value: str
-    timestamp: str
-
-    def proto(self) -> pb.Columns:
-        return pb.Columns(
-            entity=self.entity,
-            value=self.value,
-            ts=self.timestamp,
-        )
-
-
-ResourceLocation = ResourceColumnMapping
 
 
 @typechecked
@@ -1365,6 +1408,7 @@ class FeatureVariant(ResourceVariant):
     status: str = "NO_STATUS"
     error: Optional[str] = None
     additional_parameters: Optional[Additional_Parameters] = None
+    triggers: List[TriggerResource] = field(default_factory=list)
     server_status: Optional[ServerStatus] = None
 
     def __post_init__(self):
@@ -1393,7 +1437,6 @@ class FeatureVariant(ResourceVariant):
             name_variant=pb.NameVariant(name=self.name, variant=self.variant)
         )
         feature = next(stub.GetFeatureVariants(iter([name_variant])))
-
         return FeatureVariant(
             created=None,
             name=feature.name,
@@ -1411,6 +1454,7 @@ class FeatureVariant(ResourceVariant):
             error=feature.status.error_message,
             server_status=ServerStatus.from_proto(feature.status),
             additional_parameters=None,
+            # TODO: (Erik) Add list of triggers
         )
 
     def _create(self, stub) -> Optional[str]:
@@ -1768,7 +1812,9 @@ class TrainingSetVariant(ResourceVariant):
     provider: str = ""
     status: str = "NO_STATUS"
     error: Optional[str] = None
+    triggers: List[TriggerResource] = field(default_factory=list)
     server_status: Optional[ServerStatus] = None
+    resource_type: ResourceType = ResourceType.TRAINING_SET_VARIANT
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1822,6 +1868,7 @@ class TrainingSetVariant(ResourceVariant):
             tags=list(ts.tags.tag),
             properties={k: v for k, v in ts.properties.property.items()},
             error=ts.status.error_message,
+            # TODO: (Erik) Add list of triggers
             server_status=ServerStatus.from_proto(ts.status),
         )
 
@@ -1927,6 +1974,7 @@ Resource = Union[
     EntityReference,
     Model,
     OnDemandFeatureVariant,
+    TriggerResource,
 ]
 
 
@@ -1986,6 +2034,7 @@ class ResourceState:
             "training-set": 7,
             "schedule": 8,
             "model": 9,
+            "trigger": 10,
         }
 
         def to_sort_key(res):

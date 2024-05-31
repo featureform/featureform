@@ -161,6 +161,8 @@ func (client *Client) Create(ctx context.Context, def ResourceDef) error {
 		return client.CreateEntity(ctx, casted)
 	case ModelDef:
 		return client.CreateModel(ctx, casted)
+	// case TriggerDef:
+	// 	return client.CreateTrigger(ctx, casted)
 	default:
 		return fferr.NewInvalidArgumentError(fmt.Errorf("%T not implemented in Create", casted))
 	}
@@ -1243,6 +1245,16 @@ func (client *Client) GetModels(ctx context.Context, models []string) ([]*Model,
 	return client.parseModelStream(stream)
 }
 
+func (client *Client) ListTriggers(ctx context.Context) ([]*Trigger, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	stream, err := client.GrpcConn.ListTriggers(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
+	if err != nil {
+		logger.Errorw("Failed to list triggers", "error", err)
+		return nil, err
+	}
+	return client.parseTriggerStream(stream)
+}
+
 type ModelDef struct {
 	Name         string
 	Description  string
@@ -1289,6 +1301,80 @@ func (client *Client) parseModelStream(stream modelStream) ([]*Model, error) {
 		models = append(models, wrapProtoModel(serial))
 	}
 	return models, nil
+}
+
+type TriggerDef struct {
+	Name            string
+	ScheduleTrigger string
+	JobIDs          []string
+	TaskIDs         []string
+}
+
+func (def TriggerDef) ResourceType() ResourceType {
+	return TRIGGER
+}
+
+// func (client *Client) CreateTrigger(ctx context.Context, def TriggerDef) error {
+// 	requestID := logging.GetRequestIDFromContext(ctx)
+// 	serialized := &pb.TriggerRequest{
+// 		Trigger: &pb.Trigger{
+// 			Name: def.Name,
+// 			TriggerType: &pb.Trigger_ScheduleTrigger{
+// 				ScheduleTrigger: &pb.ScheduleTrigger{
+// 					Schedule: def.ScheduleTrigger,
+// 				},
+// 			},
+// 			JobIds:  def.JobIDs,
+// 			TaskIds: def.TaskIDs,
+// 		},
+// 		Resource:  &pb.ResourceID{},
+// 		RequestId: requestID,
+// 	}
+// 	_, err := client.GrpcConn.CreateTrigger(ctx, serialized)
+// 	return err
+// }
+
+func (client *Client) CreateTrigger(ctx context.Context, tr *pb.TriggerRequest) error {
+	_, err := client.GrpcConn.CreateTrigger(ctx, tr)
+	return err
+}
+
+func (client *Client) AddTrigger(ctx context.Context, tr *pb.TriggerRequest) error {
+	_, err := client.GrpcConn.AddTrigger(ctx, tr)
+	return err
+}
+
+func (client *Client) RemoveTrigger(ctx context.Context, tr *pb.TriggerRequest) error {
+	_, err := client.GrpcConn.RemoveTrigger(ctx, tr)
+	return err
+}
+
+func (client *Client) UpdateTrigger(ctx context.Context, tr *pb.TriggerRequest) error {
+	_, err := client.GrpcConn.UpdateTrigger(ctx, tr)
+	return err
+}
+
+func (client *Client) DeleteTrigger(ctx context.Context, tr *pb.TriggerRequest) error {
+	_, err := client.GrpcConn.DeleteTrigger(ctx, tr)
+	return err
+}
+
+type triggerStream interface {
+	Recv() (*pb.Trigger, error)
+}
+
+func (client *Client) parseTriggerStream(stream triggerStream) ([]*Trigger, error) {
+	triggers := make([]*Trigger, 0)
+	for {
+		serial, err := stream.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		triggers = append(triggers, wrapProtoTrigger(serial))
+	}
+	return triggers, nil
 }
 
 type protoStringer struct {
@@ -2480,6 +2566,19 @@ func (entity *Entity) Tags() Tags {
 
 func (entity *Entity) Properties() Properties {
 	return entity.fetchPropertiesFn.Properties()
+}
+
+type Trigger struct {
+	serialized *pb.Trigger
+	protoStringer
+	// TODO: (Erik) add fetch jobs and tasks functions
+}
+
+func wrapProtoTrigger(serialized *pb.Trigger) *Trigger {
+	return &Trigger{
+		serialized:    serialized,
+		protoStringer: protoStringer{serialized},
+	}
 }
 
 func NewClient(host string, logger logging.Logger) (*Client, error) {

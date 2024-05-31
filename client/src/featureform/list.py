@@ -61,7 +61,10 @@ def list_name_variant_status(stub, resource_type):
         "label": [stub.ListLabels, stub.GetLabelVariants],
     }
 
-    format_rows("NAME", "VARIANT", "STATUS")
+    if resource_type == "feature":
+        format_rows("NAME", "VARIANT", "STATUS", "TRIGGERS")
+    else:
+        format_rows("NAME", "VARIANT", "STATUS")
     res = sorted(
         [
             received
@@ -72,18 +75,27 @@ def list_name_variant_status(stub, resource_type):
     for f in res:
         for v in f.variants:
             searchNameVariant = metadata_pb2.NameVariant(name=f.name, variant=v)
-            for x in stub_list_functions[resource_type][1](iter([searchNameVariant])):
+            nameVariantRequest = metadata_pb2.NameVariantRequest(
+                name_variant=searchNameVariant
+            )
+            for x in stub_list_functions[resource_type][1](iter([nameVariantRequest])):
+                if resource_type == "feature":
+                    triggers = ", ".join([t.name for t in x.triggers])
+                else:
+                    triggers = ""
                 if x.variant == f.default_variant:
                     format_rows(
                         f.name,
                         f"{f.default_variant} (default)",
                         x.status.Status._enum_type.values[x.status.status].name,
+                        triggers,
                     )
                 else:
                     format_rows(
                         x.name,
                         x.variant,
                         x.status.Status._enum_type.values[x.status.status].name,
+                        triggers,
                     )
     return res
 
@@ -95,7 +107,7 @@ def list_name_variant_status_desc(stub, resource_type):
         "trainingset": [stub.ListTrainingSets, stub.GetTrainingSetVariants],
     }
 
-    format_rows("NAME", "VARIANT", "STATUS", "DESCRIPTION")
+    format_rows("NAME", "VARIANT", "STATUS", "DESCRIPTION", "TRIGGERS")
     res = sorted(
         [
             received
@@ -106,13 +118,18 @@ def list_name_variant_status_desc(stub, resource_type):
     for f in res:
         for v in f.variants:
             searchNameVariant = metadata_pb2.NameVariant(name=f.name, variant=v)
-            for x in stub_list_functions[resource_type][1](iter([searchNameVariant])):
+            nameVariantRequest = metadata_pb2.NameVariantRequest(
+                name_variant=searchNameVariant
+            )
+            for x in stub_list_functions[resource_type][1](iter([nameVariantRequest])):
+                triggers = ", ".join([t.name for t in x.triggers])
                 if x.variant == f.default_variant:
                     format_rows(
                         f.name,
                         f"{f.default_variant} (default)",
                         x.status.Status._enum_type.values[x.status.status].name,
                         x.description,
+                        triggers,
                     )
                 else:
                     format_rows(
@@ -120,5 +137,6 @@ def list_name_variant_status_desc(stub, resource_type):
                         x.variant,
                         x.status.Status._enum_type.values[x.status.status].name,
                         x.description,
+                        triggers,
                     )
     return res

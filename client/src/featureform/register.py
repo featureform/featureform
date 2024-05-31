@@ -22,60 +22,14 @@ from .grpc_client import GrpcClient
 from .list import *
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
-from .resources import (
-    AWSCredentials,
-    AzureFileStoreConfig,
-    BigQueryConfig,
-    CassandraConfig,
-    ClickHouseConfig,
-    DFTransformation,
-    DynamodbConfig,
-    Entity,
-    ExecutorCredentials,
-    FeatureVariant,
-    FilePrefix,
-    FirestoreConfig,
-    GCPCredentials,
-    GCSFileStoreConfig,
-    HDFSConfig,
-    K8sArgs,
-    K8sConfig,
-    K8sResourceSpecs,
-    LabelVariant,
-    Location,
-    Model,
-    MongoDBConfig,
-    OnDemandFeatureVariant,
-    OndemandFeatureParameters,
-    OnlineBlobConfig,
-    PineconeConfig,
-    PostgresConfig,
-    PrimaryData,
-    Provider,
-    RedisConfig,
-    RedshiftConfig,
-    ResourceColumnMapping,
-    ResourceRedefinedError,
-    ResourceState,
-    ResourceStatus,
-    ResourceVariant,
-    S3StoreConfig,
-    SQLTable,
-    SQLTransformation,
-    ScalarType,
-    SnowflakeConfig,
-    SourceVariant,
-    SparkConfig,
-    TrainingSetVariant,
-    User,
-    WeaviateConfig,
-)
+from .resources import *
 from .search import search
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
 from .types import pd_to_ff_datatype, VectorType
 from .variant_names_generator import get_current_timestamp_variant
 from .variant_names_generator import get_random_name
+from .enums import ResourceType, TriggerType
 
 NameVariant = Tuple[str, str]
 
@@ -1120,7 +1074,7 @@ class ColumnResource(ABC):
         self,
         transformation_args: tuple,
         type: Union[ScalarType, str],
-        resource_type: str,
+        resource_type: ResourceType,
         entity: Union[Entity, str],
         owner: Union[str, UserRegistrar],
         timestamp_column: str,
@@ -1183,10 +1137,10 @@ class ColumnResource(ABC):
                 "properties": self.properties,
             }
         ]
-        if self.resource_type == "feature":
+        if self.resource_type == ResourceType.FEATURE_VARIANT:
             features = resources
             labels = []
-        elif self.resource_type == "label":
+        elif self.resource_type == ResourceType.LABEL_VARIANT:
             features = []
             labels = resources
         else:
@@ -1260,7 +1214,7 @@ class FeatureColumnResource(ColumnResource):
         super().__init__(
             transformation_args=transformation_args,
             type=type,
-            resource_type="feature",
+            resource_type=ResourceType.FEATURE_VARIANT,
             entity=entity,
             variant=variant,
             owner=owner,
@@ -1467,7 +1421,7 @@ class LabelColumnResource(ColumnResource):
         super().__init__(
             transformation_args=transformation_args,
             type=type,
-            resource_type="label",
+            resource_type=ResourceType.LABEL_VARIANT,
             entity=entity,
             variant=variant,
             owner=owner,
@@ -3711,6 +3665,30 @@ class Registrar:
         else:
             return decorator(fn)
 
+    def register_trigger(
+        self, trigger_name: str, trigger_type: TriggerType, schedule: str = ""
+    ):
+        """Register a trigger.
+
+        Args:
+            trigger_name (str): Name of trigger
+            trigger_type (str): Type of trigger
+
+        Returns:
+            trigger (TriggerResource): Trigger
+        """
+        if not isinstance(trigger_name, str):
+            raise ValueError("Trigger name must be a string")
+        if trigger_name == "":
+            raise ValueError("Trigger name cannot be empty")
+        if not TriggerType.has_value(trigger_type):
+            raise ValueError(f"Invalid trigger type: {trigger_type}")
+        if TriggerType(trigger_type) == TriggerType.SCHEDULED and schedule == "":
+            raise ValueError("Scheduled trigger must have a schedule")
+        trigger = TriggerResource(trigger_name, trigger_type, schedule)
+        self.__resources.append(trigger)
+        return trigger
+
     def state(self):
         for resource in self.__resources:
             try:
@@ -5296,6 +5274,18 @@ class ResourceClient:
         """
         return list_name_status_desc(self._stub, "provider")
 
+    # TODO: (Erik) determine if this method aligns w/ product expectations
+    # created originally for debugging/troubleshooting purposes
+    def list_triggers(self):
+        """
+        List all triggers. Prints a list of all triggers.
+        """
+        triggers = [res for res in self._stub.ListTriggers(metadata_pb2.Empty())]
+        format_rows("NAME", "SCHEDULE")
+        for trigger in triggers:
+            format_rows(trigger.name, trigger.schedule_trigger.schedule)
+        return triggers
+
     def search(self, raw_query, local=False):
         """Search for registered resources. Prints a list of results.
 
@@ -5331,7 +5321,7 @@ class ColumnResource:
         self,
         transformation_args: tuple,
         type: Union[ScalarType, str],
-        resource_type: str,
+        resource_type: ResourceType,
         entity: Union[Entity, str],
         variant: str,
         owner: Union[str, UserRegistrar],
@@ -5380,7 +5370,7 @@ class ColumnResource:
         )
 
     def get_resources_by_type(
-        self, resource_type: str
+        self, resource_type: ResourceType
     ) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
         resources = [
             {
@@ -5394,10 +5384,10 @@ class ColumnResource:
             }
         ]
 
-        if resource_type == "feature":
+        if resource_type == ResourceType.FEATURE_VARIANT:
             features = resources
             labels = []
-        elif resource_type == "label":
+        elif resource_type == ResourceType.LABEL_VARIANT:
             features = []
             labels = resources
         else:
@@ -5450,7 +5440,7 @@ class EmbeddingColumnResource(ColumnResource):
         super().__init__(
             transformation_args=transformation_args,
             type=ScalarType.FLOAT32,
-            resource_type="feature",
+            resource_type=ResourceType.FEATURE_VARIANT,
             entity=entity,
             variant=variant,
             owner=owner,
@@ -5466,7 +5456,7 @@ class EmbeddingColumnResource(ColumnResource):
         self.dims = dims
 
     def get_resources_by_type(
-        self, resource_type: str
+        self, resource_type: ResourceType
     ) -> Tuple[List[ColumnMapping], List[ColumnMapping]]:
         features, labels = super().get_resources_by_type(resource_type)
         features[0]["dims"] = self.dims
@@ -5569,6 +5559,11 @@ get_s3 = global_registrar.get_s3
 get_gcs = global_registrar.get_gcs
 ondemand_feature = global_registrar.ondemand_feature
 ResourceStatus = ResourceStatus
+ScheduledTrigger: Callable[[str, str], TriggerResource] = (
+    lambda name, schedule: global_registrar.register_trigger(
+        name, TriggerType.SCHEDULED, schedule
+    )
+)
 
 Nil = ScalarType.NIL
 String = ScalarType.STRING

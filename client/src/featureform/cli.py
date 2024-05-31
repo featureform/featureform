@@ -26,6 +26,7 @@ resource_types = [
     "provider",
     "model",
     "user",
+    "trigger",
 ]
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
@@ -131,6 +132,7 @@ def list(host, cert, insecure, resource_type):
         "models": client.list_models,
         "entities": client.list_entities,
         "providers": client.list_providers,
+        "triggers": client.list_triggers,
     }
 
     if resource_type in resource_list_functions:

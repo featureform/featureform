@@ -156,6 +156,21 @@ func createKey(id ResourceID) string {
 	return fmt.Sprintf("%s__%s__%s", id.Type, id.Name, id.Variant)
 }
 
+// Deletes a key from ETCD
+func (s EtcdStorage) Delete(key string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
+	defer cancel()
+	numDeleted, err := s.Client.Delete(ctx, key)
+	if err != nil {
+		return err
+	}
+	if numDeleted.Deleted == 0 {
+		return fferr.NewKeyNotFoundError(key, fmt.Errorf("key not found in etcd"))
+	}
+
+	return nil
+}
+
 // Puts K/V into ETCD
 func (s EtcdStorage) Put(key string, value string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
@@ -256,40 +271,30 @@ func (lookup EtcdResourceLookup) createEmptyResource(t ResourceType) (Resource, 
 	switch t {
 	case FEATURE:
 		resource = &featureResource{&pb.Feature{}}
-		break
 	case FEATURE_VARIANT:
 		resource = &featureVariantResource{&pb.FeatureVariant{}}
-		break
 	case LABEL:
 		resource = &labelResource{&pb.Label{}}
-		break
 	case LABEL_VARIANT:
 		resource = &labelVariantResource{&pb.LabelVariant{}}
-		break
 	case USER:
 		resource = &userResource{&pb.User{}}
-		break
 	case ENTITY:
 		resource = &entityResource{&pb.Entity{}}
-		break
 	case PROVIDER:
 		resource = &providerResource{&pb.Provider{}}
-		break
 	case SOURCE:
 		resource = &SourceResource{&pb.Source{}}
-		break
 	case SOURCE_VARIANT:
 		resource = &sourceVariantResource{&pb.SourceVariant{}}
-		break
 	case TRAINING_SET:
 		resource = &trainingSetResource{&pb.TrainingSet{}}
-		break
 	case TRAINING_SET_VARIANT:
 		resource = &trainingSetVariantResource{&pb.TrainingSetVariant{}}
-		break
 	case MODEL:
 		resource = &modelResource{&pb.Model{}}
-		break
+	case TRIGGER:
+		resource = &triggerResource{&pb.Trigger{}}
 	default:
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("invalid resource type: %s", t))
 	}
@@ -520,6 +525,15 @@ func (lookup EtcdResourceLookup) SetStatus(ctx context.Context, id ResourceID, s
 	}
 	if err := lookup.Set(id, res); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (lookup EtcdResourceLookup) Delete(id ResourceID) error {
+	key := createKey(id)
+	err := lookup.Connection.Delete(key)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("could not delete ID: %v", id))
 	}
 	return nil
 }

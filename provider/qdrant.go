@@ -50,7 +50,7 @@ func NewQdrantOnlineStore(options *pc.QdrantConfig) (*qdrantOnlineStore, error) 
 		tlsCredential = insecure.NewCredentials()
 	}
 
-	conn, err := grpc.Dial(options.GrpcHost, grpc.WithTransportCredentials(tlsCredential))
+	conn, err := grpc.NewClient(options.GrpcHost, grpc.WithTransportCredentials(tlsCredential), withApiKeyInterceptor(options.ApiKey))
 	if err != nil {
 		return nil, fferr.NewConnectionError(pt.QdrantOnline.String(), err)
 	}
@@ -86,9 +86,7 @@ func (store *qdrantOnlineStore) CreateTable(feature, variant string, valueType t
 
 func (store *qdrantOnlineStore) DeleteTable(feature, variant string) error {
 
-	ctx := store.appendApiKeyToContext(context.TODO())
-
-	_, err := store.collections_client.Delete(ctx, &pb.DeleteCollection{
+	_, err := store.collections_client.Delete(context.TODO(), &pb.DeleteCollection{
 		CollectionName: store.getCollectionName(feature, variant),
 	})
 
@@ -97,9 +95,7 @@ func (store *qdrantOnlineStore) DeleteTable(feature, variant string) error {
 
 func (store *qdrantOnlineStore) CheckHealth() (bool, error) {
 
-	ctx := store.appendApiKeyToContext(context.TODO())
-
-	response, err := store.service_client.HealthCheck(ctx, &pb.HealthCheckRequest{})
+	response, err := store.service_client.HealthCheck(context.TODO(), &pb.HealthCheckRequest{})
 
 	if err != nil {
 		return false, err
@@ -110,9 +106,7 @@ func (store *qdrantOnlineStore) CheckHealth() (bool, error) {
 func (store *qdrantOnlineStore) CreateIndex(feature, variant string, vectorType types.VectorType) (VectorStoreTable, error) {
 	collectionName := store.getCollectionName(feature, variant)
 
-	ctx := store.appendApiKeyToContext(context.TODO())
-
-	_, err := store.collections_client.Create(ctx, &pb.CreateCollection{
+	_, err := store.collections_client.Create(context.TODO(), &pb.CreateCollection{
 		CollectionName: collectionName,
 		VectorsConfig: &pb.VectorsConfig{
 			Config: &pb.VectorsConfig_Params{
@@ -142,9 +136,7 @@ func (store *qdrantOnlineStore) CreateIndex(feature, variant string, vectorType 
 func (store *qdrantOnlineStore) DeleteIndex(feature, variant string) error {
 	collectionName := store.getCollectionName(feature, variant)
 
-	ctx := store.appendApiKeyToContext(context.TODO())
-
-	_, err := store.collections_client.Delete(ctx, &pb.DeleteCollection{
+	_, err := store.collections_client.Delete(context.TODO(), &pb.DeleteCollection{
 		CollectionName: collectionName,
 	})
 
@@ -154,9 +146,7 @@ func (store *qdrantOnlineStore) DeleteIndex(feature, variant string) error {
 func (store *qdrantOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
 	collectionName := store.getCollectionName(feature, variant)
 
-	ctx := store.appendApiKeyToContext(context.TODO())
-
-	collection_info, err := store.collections_client.Get(ctx, &pb.GetCollectionInfoRequest{
+	collection_info, err := store.collections_client.Get(context.TODO(), &pb.GetCollectionInfoRequest{
 		CollectionName: collectionName,
 	})
 
@@ -182,10 +172,6 @@ func (store *qdrantOnlineStore) getCollectionName(feature, variant string) strin
 	return fmt.Sprintf("ff-%s", uuid.String())
 }
 
-func (store *qdrantOnlineStore) appendApiKeyToContext(ctx context.Context) context.Context {
-	return metadata.AppendToOutgoingContext(ctx, "api-key", store.apiKey)
-}
-
 type qdrantOnlineTable struct {
 	store          *qdrantOnlineStore
 	collectionName string
@@ -202,9 +188,7 @@ func (table qdrantOnlineTable) Set(entity string, value interface{}) error {
 		return wrapped
 	}
 
-	ctx := table.store.appendApiKeyToContext(context.TODO())
-
-	_, err := table.store.points_client.Upsert(ctx, &pb.UpsertPoints{
+	_, err := table.store.points_client.Upsert(context.TODO(), &pb.UpsertPoints{
 		CollectionName: table.collectionName,
 		Points: []*pb.PointStruct{
 			{
@@ -233,9 +217,7 @@ func (table qdrantOnlineTable) Set(entity string, value interface{}) error {
 func (table qdrantOnlineTable) Get(entity string) (interface{}, error) {
 	pointId := generatePointId(entity)
 
-	ctx := table.store.appendApiKeyToContext(context.TODO())
-
-	points, err := table.store.points_client.Get(ctx, &pb.GetPoints{
+	points, err := table.store.points_client.Get(context.TODO(), &pb.GetPoints{
 		CollectionName: table.collectionName,
 		Ids:            []*pb.PointId{{PointIdOptions: &pb.PointId_Uuid{Uuid: pointId}}},
 		WithVectors: &pb.WithVectorsSelector{
@@ -260,9 +242,7 @@ func (table qdrantOnlineTable) Get(entity string) (interface{}, error) {
 
 func (table qdrantOnlineTable) Nearest(feature, variant string, vector []float32, k int32) ([]string, error) {
 
-	ctx := table.store.appendApiKeyToContext(context.TODO())
-
-	response, err := table.store.points_client.Search(ctx, &pb.SearchPoints{
+	response, err := table.store.points_client.Search(context.TODO(), &pb.SearchPoints{
 		CollectionName: table.collectionName,
 		Vector:         vector,
 		Limit:          uint64(k),
@@ -290,4 +270,12 @@ func (table qdrantOnlineTable) Nearest(feature, variant string, vector []float32
 func generatePointId(id string) string {
 	uuid := uuid.NewSHA1(uuid.NameSpaceDNS, []byte(id))
 	return uuid.String()
+}
+
+// Appends "api-key" to the metadata for authentication
+func withApiKeyInterceptor(apiKey string) grpc.DialOption {
+	return grpc.WithUnaryInterceptor(func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		newCtx := metadata.AppendToOutgoingContext(ctx, "api-key", apiKey)
+		return invoker(newCtx, method, req, reply, cc, opts...)
+	})
 }

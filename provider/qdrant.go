@@ -23,7 +23,6 @@ type qdrantOnlineStore struct {
 	points_client      pb.PointsClient
 	service_client     pb.QdrantClient
 	connection         *grpc.ClientConn
-	apiKey             string
 	BaseProvider
 }
 
@@ -60,7 +59,6 @@ func NewQdrantOnlineStore(options *pc.QdrantConfig) (*qdrantOnlineStore, error) 
 		points_client:      pb.NewPointsClient(conn),
 		service_client:     pb.NewQdrantClient(conn),
 		connection:         conn,
-		apiKey:             options.ApiKey,
 		BaseProvider: BaseProvider{
 			ProviderType:   pt.QdrantOnline,
 			ProviderConfig: options.Serialize(),

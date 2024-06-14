@@ -28,6 +28,7 @@ import (
 	"github.com/databricks/databricks-sdk-go/retries"
 	"github.com/databricks/databricks-sdk-go/service/compute"
 	"github.com/databricks/databricks-sdk-go/service/jobs"
+	"github.com/databricks/databricks-sdk-go/useragent"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
@@ -43,6 +44,10 @@ import (
 	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 )
+
+func init() {
+	useragent.WithProduct("featureform", "0.0.0") // TODO: pick version of featureform
+}
 
 type JobType string
 

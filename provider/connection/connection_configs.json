@@ -13,6 +13,11 @@
     "URL": "url",
     "ApiKey": "api_key"
   },
+  "QdrantConfig": {
+    "GrpcHost": "xyz-example.eu-central.aws.cloud.qdrant.io:6334",
+    "ApiKey": "api_key",
+    "UseTls": false
+  },
   "GCSFileStoreConfig": {
     "BucketName": "bucket_name",
     "BucketPath": "bucket_path",

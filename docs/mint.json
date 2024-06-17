@@ -163,7 +163,8 @@
                   "providers/vector-db",
                   "providers/redis",
                   "providers/pinecone",
-                  "providers/weaviate"
+                  "providers/weaviate",
+                  "providers/qdrant"
                 ]
               },
               "providers/custom-providers"

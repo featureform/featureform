@@ -42,6 +42,7 @@
 [//]: # (|                    [Spark]&#40;#spark&#41;                    |    x    |        |    x    |         |        |                        |)
 
 [//]: # (|                 [Weaviate]&#40;#weaviate&#41;                 |         |   x    |         |    x    |   x    | x                      |)
+[//]: # (|                 [Qdrant]&#40;#qdrant&#41;                 |         |   x    |         |    x    |   x    | x                      |)
 
 ## Credentials
 Credentials are objects that can be reused in the same definitions file when registering providers in the same cloud.
@@ -175,6 +176,14 @@ This page provides reference and examples for how to register the various provid
 
 ### Postgres
 ::: featureform.register.Registrar.register_postgres
+    handler: python
+    options:
+        show_root_heading: false
+        show_source: false
+        show_root_toc_entry: false
+
+### Qdrant
+::: featureform.register.Registrar.register_qdrant
     handler: python
     options:
         show_root_heading: false

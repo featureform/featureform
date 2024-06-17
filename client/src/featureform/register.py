@@ -69,6 +69,7 @@ from .resources import (
     TrainingSetVariant,
     User,
     WeaviateConfig,
+    QdrantConfig,
 )
 from .search import search
 from .status_display import display_statuses
@@ -2315,6 +2316,56 @@ class Registrar:
             weaviate (OnlineProvider): Provider
         """
         config = WeaviateConfig(url=url, api_key=api_key)
+        provider = Provider(
+            name=name,
+            function="ONLINE",
+            description=description,
+            team=team,
+            config=config,
+            tags=tags,
+            properties=properties,
+        )
+        self.__resources.append(provider)
+        return OnlineProvider(self, provider)
+
+    def register_qdrant(
+        self,
+        name: str,
+        grpc_host: str,
+        api_key: str = "",
+        use_tls: bool = False,
+        description: str = "",
+        team: str = "",
+        tags: List[str] = [],
+        properties: dict = {},
+    ):
+        """Register a Qdrant provider.
+
+        **Examples**:
+        ```
+        qdrant = ff.register_qdrant(
+            name="qdrant-quickstart",
+            grpc_host="xyz-example.eu-central.aws.cloud.qdrant.io:6334",
+            api_key="<API KEY>",
+            use_tls=True,
+            description="A Qdrant project for using embeddings in Featureform"
+        )
+        ```
+
+        Args:
+            name (str): (Immutable) Name of Qdrant provider to be registered
+            url (str): (Immutable) gRPC host of the Qdrant cluster, either in the cloud or via local deployment.
+            api_key (str): (Mutable) Qdrant API key.
+            use_tls (bool): (Immutable) Whether to use TLS for the connection.
+            description (str): (Mutable) Description of Qdrant provider to be registered
+            team (str): (Mutable) Name of team
+            tags (List[str]): (Mutable) Optional grouping mechanism for resources
+            properties (dict): (Mutable) Optional grouping mechanism for resources
+
+        Returns:
+            qdrant (OnlineProvider): Provider
+        """
+        config = QdrantConfig(grpc_host=grpc_host, api_key=api_key, use_tls=use_tls)
         provider = Provider(
             name=name,
             function="ONLINE",
@@ -5531,6 +5582,7 @@ register_user = global_registrar.register_user
 register_redis = global_registrar.register_redis
 register_pinecone = global_registrar.register_pinecone
 register_weaviate = global_registrar.register_weaviate
+register_qdrant = global_registrar.register_qdrant
 register_blob_store = global_registrar.register_blob_store
 register_bigquery = global_registrar.register_bigquery
 register_clickhouse = global_registrar.register_clickhouse

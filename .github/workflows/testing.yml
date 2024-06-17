@@ -37,6 +37,7 @@ env:
   PINECONE_PROJECT_ID: ${{ secrets.PINECONE_PROJECT_ID }}
   PINECONE_ENVIRONMENT: ${{ secrets.PINECONE_ENVIRONMENT }}
   PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+  QDRANT_GRPC_HOST: "localhost:6334"
 
 
 jobs:
@@ -86,6 +87,11 @@ jobs:
           CLICKHOUSE_USER: ${{ env.CLICKHOUSE_USER }}
           CLICKHOUSE_DB: ${{ env.CLICKHOUSE_DB }}
           CLICKHOUSE_PASSWORD: ${{ env.CLICKHOUSE_PASSWORD }}
+
+      qdrant:
+        image: qdrant/qdrant:v1.9.2
+        ports:
+          - 6334:6334
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v5

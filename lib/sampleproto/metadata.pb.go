@@ -859,16 +859,16 @@ type FeatureVariant struct {
 	unknownFields protoimpl.UnknownFields
 
 	Name         string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Variant      string          `protobuf:"bytes,2,opt,name=variant,proto3" json:"variant,omitempty"`
-	Source       *NameVariant    `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"`
-	Type         string          `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"`
+	Variant      string                 `protobuf:"bytes,2,opt,name=variant,proto3" json:"variant,omitempty"`
+	Source       *NameVariant           `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"`
+	Type         string                 `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"`
 	Entity       string                 `protobuf:"bytes,5,opt,name=entity,proto3" json:"entity,omitempty"`
 	Created      *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created,proto3" json:"created,omitempty"`
 	Owner        string                 `protobuf:"bytes,7,opt,name=owner,proto3" json:"owner,omitempty"`
 	Description  string                 `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
-	Provider     string          `protobuf:"bytes,9,opt,name=provider,proto3" json:"provider,omitempty"`
-	Status       *ResourceStatus `protobuf:"bytes,10,opt,name=status,proto3" json:"status,omitempty"`
-	Trainingsets []*NameVariant  `protobuf:"bytes,11,rep,name=trainingsets,proto3" json:"trainingsets,omitempty"`
+	Provider     string                 `protobuf:"bytes,9,opt,name=provider,proto3" json:"provider,omitempty"`
+	Status       *ResourceStatus        `protobuf:"bytes,10,opt,name=status,proto3" json:"status,omitempty"`
+	Trainingsets []*NameVariant         `protobuf:"bytes,11,rep,name=trainingsets,proto3" json:"trainingsets,omitempty"`
 	// Types that are assignable to Location:
 	//
 	//	*FeatureVariant_Columns
@@ -1228,14 +1228,14 @@ type LabelVariant struct {
 	Name         string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Variant      string                 `protobuf:"bytes,2,opt,name=variant,proto3" json:"variant,omitempty"`
 	Description  string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Type         string          `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"`
-	Source       *NameVariant    `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
-	Entity       string          `protobuf:"bytes,6,opt,name=entity,proto3" json:"entity,omitempty"`
+	Type         string                 `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"`
+	Source       *NameVariant           `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	Entity       string                 `protobuf:"bytes,6,opt,name=entity,proto3" json:"entity,omitempty"`
 	Created      *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created,proto3" json:"created,omitempty"`
 	Owner        string                 `protobuf:"bytes,8,opt,name=owner,proto3" json:"owner,omitempty"`
-	Provider     string          `protobuf:"bytes,9,opt,name=provider,proto3" json:"provider,omitempty"`
-	Status       *ResourceStatus `protobuf:"bytes,10,opt,name=status,proto3" json:"status,omitempty"`
-	Trainingsets []*NameVariant  `protobuf:"bytes,11,rep,name=trainingsets,proto3" json:"trainingsets,omitempty"`
+	Provider     string                 `protobuf:"bytes,9,opt,name=provider,proto3" json:"provider,omitempty"`
+	Status       *ResourceStatus        `protobuf:"bytes,10,opt,name=status,proto3" json:"status,omitempty"`
+	Trainingsets []*NameVariant         `protobuf:"bytes,11,rep,name=trainingsets,proto3" json:"trainingsets,omitempty"`
 	// Types that are assignable to Location:
 	//
 	//	*LabelVariant_Columns

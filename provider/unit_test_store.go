@@ -5,6 +5,7 @@ import (
 
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 )
 
 type UnitTestProvider struct {
@@ -34,7 +35,7 @@ func (u UnitTestProvider) CheckHealth() (bool, error) {
 
 type UnitTestStore interface {
 	GetTable(feature, variant string) (UnitTestTable, error)
-	CreateTable(feature, variant string, valueType ValueType) (UnitTestTable, error)
+	CreateTable(feature, variant string, valueType types.ValueType) (UnitTestTable, error)
 	DeleteTable(feature, variant string) error
 	Close() error
 	Provider
@@ -77,7 +78,7 @@ func (m MockUnitTestStore) GetTable(feature, variant string) (OnlineStoreTable, 
 	return &MockUnitTestTable{}, nil
 }
 
-func (m MockUnitTestStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+func (m MockUnitTestStore) CreateTable(feature, variant string, valueType types.ValueType) (OnlineStoreTable, error) {
 	return &MockUnitTestTable{}, nil
 }
 
@@ -253,6 +254,14 @@ func (m MockUnitTestOfflineStore) CreateMaterialization(id ResourceID, options .
 	return MockMaterialization{}, nil
 }
 
+func (m MockMaterialization) NumChunks() (int, error) {
+	return 0, nil
+}
+
+func (m MockMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
+	return MockIterator{}, nil
+}
+
 type MockOfflineTable struct{}
 
 func (m MockOfflineTable) Write(ResourceRecord) error {
@@ -287,6 +296,10 @@ func (m MockUnitTestOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIter
 	return nil, nil
 }
 
-func (m MockUnitTestOfflineStore) GetTrainingSetTestSplit(id ResourceID, testSize float32, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
-	return nil, nil, nil, nil
+func (m MockUnitTestOfflineStore) CreateTrainTestSplit(TrainTestSplitDef) (func() error, error) {
+	return nil, nil
+}
+
+func (m MockUnitTestOfflineStore) GetTrainTestSplit(TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+	return nil, nil, nil
 }

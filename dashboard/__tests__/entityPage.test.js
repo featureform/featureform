@@ -220,9 +220,9 @@ describe('Entity Page Tests', () => {
   test('The sql formatter function correctly formats a valid metadata SQL string', async () => {
     //given: a metadata definition sql string
     let sql =
-      'SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{ transactions.tender_shannon }} GROUP BY user_id';
+      'SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{ transactions.2024-03-27t14-53-01 }} GROUP BY user_id';
     let expectedSQL =
-      'SELECT\n  CustomerID as user_id,\n  avg(TransactionAmount) as avg_transaction_amt\nfrom\n  transactions.tender_shannon\nGROUP BY\n  user_id';
+      'SELECT\n  CustomerID as user_id,\n  avg(TransactionAmount) as avg_transaction_amt\nfrom\n  "transactions.2024-03-27t14-53-01"\nGROUP BY\n  user_id';
 
     //when: the function is invoked
     let formattedSql = getFormattedSQL(sql);

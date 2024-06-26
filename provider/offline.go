@@ -22,10 +22,15 @@ import (
 	"github.com/featureform/metadata"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
+	"github.com/parquet-go/parquet-go"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
+
+// defaultRowsPerChunk is the number of rows in a chunk when using materializations.
+const defaultRowsPerChunk int64 = 100_000
 
 type OfflineResourceType int
 
@@ -71,6 +76,7 @@ type ResourceID struct {
 	Type          OfflineResourceType
 }
 
+// TODO: deprecate
 func (id *ResourceID) ToFilestorePath() string {
 	return fmt.Sprintf("featureform/%s/%s/%s", id.Type, id.Name, id.Variant)
 }
@@ -263,6 +269,14 @@ func (m *TransformationConfig) decodeArgs(t metadata.TransformationArgType, argM
 	return nil
 }
 
+type TrainTestSplitDef struct {
+	TrainingSetName    string
+	TrainingSetVariant string
+	TestSize           float32
+	Shuffle            bool
+	RandomState        int
+}
+
 type MaterializationOptions interface {
 	Output() filestore.FileType
 	ShouldIncludeHeaders() bool
@@ -287,7 +301,8 @@ type OfflineStore interface {
 	CreateTrainingSet(TrainingSetDef) error
 	UpdateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
-	GetTrainingSetTestSplit(id ResourceID, testSize float32, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, func() error, error)
+	CreateTrainTestSplit(TrainTestSplitDef) (func() error, error)
+	GetTrainTestSplit(TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error)
 	Close() error
 	ResourceLocation(id ResourceID) (string, error)
 	Provider
@@ -314,6 +329,13 @@ type Materialization interface {
 	ID() MaterializationID
 	NumRows() (int64, error)
 	IterateSegment(begin, end int64) (FeatureIterator, error)
+	NumChunks() (int, error)
+	IterateChunk(idx int) (FeatureIterator, error)
+}
+
+type Chunks interface {
+	Size() int
+	ChunkIterator(idx int) (FeatureIterator, error)
 }
 
 type FeatureIterator interface {
@@ -370,9 +392,6 @@ type GenericResourceRecord[T any] struct {
 }
 
 type GenericRecord []interface{}
-
-// Will try using GenericRecord first, if it doesnt work, will move onto BatchRecord
-// type BatchRecord []interface{}
 
 func (rec ResourceRecord) check() error {
 	if rec.Entity == "" {
@@ -457,15 +476,19 @@ type TableSchemaJSONWrapper struct {
 // serialized by parquet-go. This is necessary because GenericRecord, which
 // is of type []interface{}, does not hold the necessary metadata information
 // to create a valid parquet-go schema.
-func (schema *TableSchema) Interface() interface{} {
-	return schema.Value().Interface()
+func (schema *TableSchema) AsParquetSchema() *parquet.Schema {
+	return parquet.SchemaOf(schema.AsReflectedStruct().Interface())
 }
 
-func (schema *TableSchema) Value() reflect.Value {
+// This method converts the list of columns into a struct type that can be
+// serialized by parquet-go. This is necessary because GenericRecord, which
+// is of type []interface{}, does not hold the necessary metadata information
+// to create a valid parquet-go schema.
+func (schema *TableSchema) AsReflectedStruct() reflect.Value {
 	fields := make([]reflect.StructField, len(schema.Columns))
 	for i, col := range schema.Columns {
 		caser := cases.Title(language.English)
-		colType := col.Scalar().Type()
+		colType := col.Type()
 
 		f := reflect.StructField{
 			// We need to title case the column name to ensure the fields are public
@@ -479,7 +502,10 @@ func (schema *TableSchema) Value() reflect.Value {
 			Tag: reflect.StructTag(fmt.Sprintf(`parquet:"%s,optional"`, col.Name)),
 		}
 
-		// TODO: use a better way of determining if a column is a timestamp
+		if col.IsVector() {
+			f.Tag = reflect.StructTag(fmt.Sprintf(`parquet:"%s,optional,list"`, col.Name))
+		}
+		// This checks if the column type via reflection is Time, such as with time.Time.
 		if colType.Name() == "Time" {
 			f.Tag = reflect.StructTag(fmt.Sprintf(`parquet:"%s,optional,timestamp"`, col.Name))
 		}
@@ -498,7 +524,7 @@ func (schema *TableSchema) Serialize() ([]byte, error) {
 	for i, col := range schema.Columns {
 		wrapper.Columns[i] = TableColumnJSONWrapper{
 			Name:      col.Name,
-			ValueType: ValueTypeJSONWrapper{col.ValueType},
+			ValueType: types.ValueTypeJSONWrapper{col.ValueType},
 		}
 	}
 	config, err := json.Marshal(wrapper)
@@ -525,13 +551,14 @@ func (schema *TableSchema) Deserialize(config []byte) error {
 	return nil
 }
 
-// *NOTE:* pointer types are used for all the scalar types to ensure they
-// can be nullable in the parquet file.
-func (schema *TableSchema) ToParquetRecords(records []GenericRecord) []any {
+// ToParquetRecords turn a list of GenericRecords into a list of structs built via
+// reflection. We use structs so that we can add struct tags like optional, timestamp,
+// etc.
+func (schema *TableSchema) ToParquetRecords(records []GenericRecord) ([]any, error) {
 	parquetRecords := make([]any, len(records))
 	caser := cases.Title(language.English)
 	for i, record := range records {
-		parquetRecord := schema.Value()
+		parquetRecord := schema.AsReflectedStruct()
 		for j, value := range record {
 			// if a value is nil, we skip it so that the zero value for the pointer
 			// type is used instead, which will preserve the null value when the parquet
@@ -542,38 +569,41 @@ func (schema *TableSchema) ToParquetRecords(records []GenericRecord) []any {
 			// To ensure the struct fields are public and accessible to other methods,
 			// we need to title case them when setting them.
 			colName := caser.String(schema.Columns[j].Name)
+			parquetField := parquetRecord.Elem().FieldByName(colName)
+			var reflectValue reflect.Value
 			switch v := value.(type) {
-			case int:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case int32:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case int64:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case float32:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case float64:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case string:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
-			case bool:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(&v))
+			case int, int32, int64, float32, float64, string, bool:
+				// Pointer types are used for all the scalar types to ensure they
+				// can be nullable in the parquet file.
+				ogVal := reflect.ValueOf(v)
+				if ogVal.CanAddr() {
+					reflectValue = ogVal.Addr()
+				} else {
+					reflectValue = reflect.New(reflect.TypeOf(v))
+					reflectValue.Elem().Set(ogVal)
+				}
+			// Lists and timestamps
 			default:
-				parquetRecord.Elem().FieldByName(colName).Set(reflect.ValueOf(value))
+				reflectValue = reflect.ValueOf(v)
 			}
+			if !reflectValue.Type().AssignableTo(parquetField.Type()) {
+				return nil, fferr.NewInternalErrorf("writing invalid type to parquet record.\nFound %s\nexpected %s\n", reflectValue.Type().String(), parquetField.Type().String())
+			}
+			parquetField.Set(reflectValue)
 		}
 		parquetRecords[i] = parquetRecord.Interface()
 	}
-	return parquetRecords
+	return parquetRecords, nil
 }
 
 type TableColumnJSONWrapper struct {
 	Name      string
-	ValueType ValueTypeJSONWrapper
+	ValueType types.ValueTypeJSONWrapper
 }
 
 type TableColumn struct {
 	Name string
-	ValueType
+	types.ValueType
 }
 
 type memoryOfflineStore struct {
@@ -696,9 +726,10 @@ func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, options ..
 	sort.Sort(matData)
 	// Might be used for testing
 	matId := MaterializationID(uuid.NewString())
-	mat := &memoryMaterialization{
-		id:   matId,
-		data: matData,
+	mat := &MemoryMaterialization{
+		Id:           matId,
+		Data:         matData,
+		RowsPerChunk: defaultRowsPerChunk,
 	}
 	store.materializations.Store(matId, mat)
 	return mat, nil
@@ -782,8 +813,26 @@ func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetItera
 	return data.(trainingRows).Iterator(), nil
 }
 
-func (store *memoryOfflineStore) GetTrainingSetTestSplit(id ResourceID, testSize float32, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
-	return nil, nil, nil, nil
+func (store *memoryOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
+	// TODO properly implement this
+	dropFunc := func() error {
+		return nil
+	}
+	return dropFunc, nil
+}
+
+func (store *memoryOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+	// TODO properly implement this
+	trainingSetResourceId := ResourceID{
+		Name:    def.TrainingSetName,
+		Variant: def.TrainingSetVariant,
+	}
+	trainingSet, err := store.GetTrainingSet(trainingSetResourceId)
+	if err != nil {
+		return nil, nil, err
+	}
+	return trainingSet, trainingSet, nil
+
 }
 
 func (store *memoryOfflineStore) Close() error {
@@ -917,22 +966,41 @@ func (table *memoryOfflineTable) WriteBatch(recs []ResourceRecord) error {
 	return nil
 }
 
-type memoryMaterialization struct {
-	id   MaterializationID
-	data []ResourceRecord
+// Used in runner/copy_test.go
+type MemoryMaterialization struct {
+	Id           MaterializationID
+	Data         []ResourceRecord
+	RowsPerChunk int64
 }
 
-func (mat *memoryMaterialization) ID() MaterializationID {
-	return mat.id
+func (mat *MemoryMaterialization) ID() MaterializationID {
+	return mat.Id
 }
 
-func (mat *memoryMaterialization) NumRows() (int64, error) {
-	return int64(len(mat.data)), nil
+func (mat *MemoryMaterialization) NumRows() (int64, error) {
+	return int64(len(mat.Data)), nil
 }
 
-func (mat *memoryMaterialization) IterateSegment(start, end int64) (FeatureIterator, error) {
-	segment := mat.data[start:end]
+func (mat *MemoryMaterialization) IterateSegment(start, end int64) (FeatureIterator, error) {
+	if end > int64(len(mat.Data)) {
+		return nil, fmt.Errorf("Index out of bounds\nStart: %d\nEnd: %d\nLen: %d\n", start, end, len(mat.Data))
+	}
+	segment := mat.Data[start:end]
 	return newMemoryFeatureIterator(segment), nil
+}
+
+func (mat *MemoryMaterialization) NumChunks() (int, error) {
+	if mat.RowsPerChunk == 0 {
+		mat.RowsPerChunk = defaultRowsPerChunk
+	}
+	return genericNumChunks(mat, mat.RowsPerChunk)
+}
+
+func (mat *MemoryMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
+	if mat.RowsPerChunk == 0 {
+		mat.RowsPerChunk = defaultRowsPerChunk
+	}
+	return genericIterateChunk(mat, mat.RowsPerChunk, idx)
 }
 
 type memoryFeatureIterator struct {
@@ -998,4 +1066,40 @@ func replaceSourceName(query string, mapping []SourceMapping, sanitize sanitizat
 	}
 
 	return replacedQuery, nil
+}
+
+func genericNumChunks(mat Materialization, rowsPerChunk int64) (int, error) {
+	_, numChunks, err := getNumRowsAndChunks(mat, rowsPerChunk)
+	return int(numChunks), err
+}
+
+func getNumRowsAndChunks(mat Materialization, rowsPerChunk int64) (int64, int, error) {
+	rows, err := mat.NumRows()
+	if err != nil {
+		return -1, -1, err
+	}
+	numChunks := rows / rowsPerChunk
+	if rows%rowsPerChunk != 0 {
+		numChunks++
+	}
+	return rows, int(numChunks), nil
+}
+
+func genericIterateChunk(mat Materialization, rowsPerChunk int64, idx int) (FeatureIterator, error) {
+	rows, chunks, err := getNumRowsAndChunks(mat, rowsPerChunk)
+	if err != nil {
+		return nil, err
+	}
+	if idx > chunks {
+		return nil, fferr.NewInternalErrorf("Chunk out of range\nIdx: %d\nTotal: %d", idx, chunks)
+	}
+	start := int64(idx) * rowsPerChunk
+	end := (int64(idx) + 1) * rowsPerChunk
+	if start >= rows {
+		start = rows
+	}
+	if end > rows {
+		end = rows
+	}
+	return mat.IterateSegment(start, end)
 }

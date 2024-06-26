@@ -16,6 +16,7 @@ import (
 	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 	db "github.com/jackc/pgx/v4"
 	sf "github.com/snowflakedb/gosnowflake"
@@ -43,7 +44,7 @@ type OfflineTableQueries interface {
 	primaryTableCreate(name string, columnString string) string
 	getColumns(db *sql.DB, tableName string) ([]TableColumn, error)
 	getValueColumnTypes(tableName string) string
-	determineColumnType(valueType ValueType) (string, error)
+	determineColumnType(valueType types.ValueType) (string, error)
 	materializationCreate(tableName string, sourceName string) []string
 	materializationUpdate(db *sql.DB, tableName string, sourceName string) error
 	materializationExists() string
@@ -393,11 +394,11 @@ func (store *sqlOfflineStore) CreateResourceTable(id ResourceID, schema TableSch
 	if err != nil {
 		return nil, err
 	}
-	var valueType ValueType
+	var valueType types.ValueType
 	if valueIndex := store.getValueIndex(schema.Columns); valueIndex > 0 {
 		valueType = schema.Columns[valueIndex].ValueType
 	} else {
-		valueType = NilType
+		valueType = types.NilType
 
 	}
 	table, err := store.newsqlOfflineTable(store.db, tableName, valueType)
@@ -497,6 +498,14 @@ func (mat *sqlMaterialization) IterateSegment(start, end int64) (FeatureIterator
 		return nil, err
 	}
 	return newsqlFeatureIterator(rows, colType, mat.query, mat.providerType), nil
+}
+
+func (mat *sqlMaterialization) NumChunks() (int, error) {
+	return genericNumChunks(mat, defaultRowsPerChunk)
+}
+
+func (mat *sqlMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
+	return genericIterateChunk(mat, defaultRowsPerChunk, idx)
 }
 
 type sqlFeatureIterator struct {
@@ -905,8 +914,12 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 	return store.newsqlTrainingSetIterator(rows, colTypes), nil
 }
 
-func (store *sqlOfflineStore) GetTrainingSetTestSplit(id ResourceID, testSize float32, shuffle bool, randomState int) (TrainingSetIterator, TrainingSetIterator, func() error, error) {
-	return nil, nil, nil, nil
+func (store *sqlOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
+	return nil, fmt.Errorf("not Implemented")
+}
+
+func (store *sqlOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+	return nil, nil, fmt.Errorf("not Implemented")
 }
 
 // getValueColumnTypes returns a list of column types. Columns consist of feature and label values
@@ -1151,26 +1164,26 @@ func (pt *sqlPrimaryTable) NumRows() (int64, error) {
 	return n, nil
 }
 
-func determineColumnType(valueType ValueType) (string, error) {
+func determineColumnType(valueType types.ValueType) (string, error) {
 	switch valueType {
-	case Int, Int32, Int64:
+	case types.Int, types.Int32, types.Int64:
 		return "INT", nil
-	case Float32, Float64:
+	case types.Float32, types.Float64:
 		return "FLOAT8", nil
-	case String:
+	case types.String:
 		return "VARCHAR", nil
-	case Bool:
+	case types.Bool:
 		return "BOOLEAN", nil
-	case Timestamp:
+	case types.Timestamp:
 		return "TIMESTAMPTZ", nil
-	case NilType:
+	case types.NilType:
 		return "VARCHAR", nil
 	default:
-		return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", valueType), fmt.Errorf("could not determine column type"))
+		return "", fferr.NewDataTypeNotFoundErrorf(valueType, "could not determine column type")
 	}
 }
 
-func (store *sqlOfflineStore) newsqlOfflineTable(db *sql.DB, name string, valueType ValueType) (*sqlOfflineTable, error) {
+func (store *sqlOfflineStore) newsqlOfflineTable(db *sql.DB, name string, valueType types.ValueType) (*sqlOfflineTable, error) {
 	columnType, err := determineColumnType(valueType)
 	if err != nil {
 		return nil, err
@@ -1527,22 +1540,22 @@ func (q defaultOfflineSQLQueries) getValueColumnTypes(tableName string) string {
 	return fmt.Sprintf("SELECT * FROM %s", sanitize(tableName))
 }
 
-func (q defaultOfflineSQLQueries) determineColumnType(valueType ValueType) (string, error) {
+func (q defaultOfflineSQLQueries) determineColumnType(valueType types.ValueType) (string, error) {
 	switch valueType {
-	case Int, Int32, Int64:
+	case types.Int, types.Int32, types.Int64:
 		return "INT", nil
-	case Float32, Float64:
+	case types.Float32, types.Float64:
 		return "FLOAT8", nil
-	case String:
+	case types.String:
 		return "VARCHAR", nil
-	case Bool:
+	case types.Bool:
 		return "BOOLEAN", nil
-	case Timestamp:
+	case types.Timestamp:
 		return "TIMESTAMP_NTZ", nil
-	case NilType:
+	case types.NilType:
 		return "VARCHAR", nil
 	default:
-		return "", fferr.NewDataTypeNotFoundError(fmt.Sprintf("%v", valueType), fmt.Errorf("could not determine column type"))
+		return "", fferr.NewDataTypeNotFoundErrorf(valueType, "could not determine column type")
 	}
 }
 
@@ -1677,6 +1690,9 @@ func (q defaultOfflineSQLQueries) castTableItemType(v interface{}, t interface{}
 			return intVar
 		}
 	case sfFloat:
+		if casted, ok := v.(float64); ok {
+			return casted
+		}
 		if s, err := strconv.ParseFloat(v.(string), 64); err != nil {
 			return v
 		} else {

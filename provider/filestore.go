@@ -12,6 +12,8 @@ import (
 	re "github.com/avast/retry-go/v4"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/ratelimit"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	awsv2cfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
@@ -31,6 +33,11 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
+const (
+	// Default timeout on S3 calls
+	defaultS3Timeout = 30 * time.Second
+)
+
 type FileStore interface {
 	Write(key filestore.Filepath, data []byte) error
 	Read(key filestore.Filepath) ([]byte, error)
@@ -47,8 +54,7 @@ type FileStore interface {
 	FilestoreType() filestore.FileStoreType
 	AddEnvVars(envVars map[string]string) map[string]string
 	// CreateFilePath creates a new filepath object with the bucket and scheme from a Key
-	CreateFilePath(key string) (filestore.Filepath, error)
-	CreateDirPath(key string) (filestore.Filepath, error)
+	CreateFilePath(key string, isDirectory bool) (filestore.Filepath, error)
 }
 
 type Iterator interface {
@@ -95,7 +101,7 @@ func (fs *LocalFileStore) FilestoreType() filestore.FileStoreType {
 	return filestore.FileSystem
 }
 
-func (fs *LocalFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
+func (fs *LocalFileStore) CreateFilePath(key string, isDirectory bool) (filestore.Filepath, error) {
 	fp := filestore.LocalFilepath{}
 	if fs.FilestoreType() != filestore.FileSystem {
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("filestore type: %v; use store-specific implementation instead", fs.FilestoreType()))
@@ -116,15 +122,6 @@ func (fs *LocalFileStore) CreateFilePath(key string) (filestore.Filepath, error)
 	return &fp, nil
 }
 
-func (fs *LocalFileStore) CreateDirPath(key string) (filestore.Filepath, error) {
-	fp, err := fs.CreateFilePath(key)
-	if err != nil {
-		return nil, err
-	}
-	fp.SetIsDir(true)
-	return fp, nil
-}
-
 type AzureFileStore struct {
 	AccountName      string
 	AccountKey       string
@@ -134,7 +131,7 @@ type AzureFileStore struct {
 	genericFileStore
 }
 
-func (store *AzureFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
+func (store *AzureFileStore) CreateFilePath(key string, isDirectory bool) (filestore.Filepath, error) {
 	fp := filestore.AzureFilepath{
 		StorageAccount: store.AccountName,
 	}
@@ -151,20 +148,11 @@ func (store *AzureFileStore) CreateFilePath(key string) (filestore.Filepath, err
 	if err != nil {
 		return nil, err
 	}
-	fp.SetIsDir(false)
+	fp.SetIsDir(isDirectory)
 	if err := fp.Validate(); err != nil {
 		return nil, err
 	}
 	return &fp, nil
-}
-
-func (store *AzureFileStore) CreateDirPath(key string) (filestore.Filepath, error) {
-	fp, err := store.CreateFilePath(key)
-	if err != nil {
-		return nil, err
-	}
-	fp.SetIsDir(true)
-	return fp, nil
 }
 
 func (store *AzureFileStore) configString() string {
@@ -217,13 +205,13 @@ func NewAzureFileStore(config Config) (FileStore, error) {
 	}
 
 	serviceURL := azureblob.ServiceURL(fmt.Sprintf("https://%s.blob.core.windows.net", azureStoreConfig.AccountName))
-	client, err := azureblob.NewDefaultServiceClient(serviceURL)
+	client, err := azureblob.NewDefaultClient(serviceURL, azureblob.ContainerName(azureStoreConfig.ContainerName))
 	if err != nil {
 		wrapped := fferr.NewExecutionError(string(filestore.Azure), err)
 		wrapped.AddDetail("service_url", string(serviceURL))
 		return nil, wrapped
 	}
-	bucket, err := azureblob.OpenBucket(context.TODO(), client, azureStoreConfig.ContainerName, nil)
+	bucket, err := azureblob.OpenBucket(context.TODO(), client, nil)
 	if err != nil {
 		wrapped := fferr.NewExecutionError(string(filestore.Azure), err)
 		wrapped.AddDetail("container_name", azureStoreConfig.ContainerName)
@@ -270,6 +258,27 @@ func NewS3FileStore(config Config) (FileStore, error) {
 		return nil, wrapped
 	}
 
+	args := []func(*awsv2cfg.LoadOptions) error{
+		awsv2cfg.WithRegion(s3StoreConfig.BucketRegion),
+		awsv2cfg.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s3StoreConfig.Credentials.AWSAccessKeyId, s3StoreConfig.Credentials.AWSSecretKey, "")),
+		awsv2cfg.WithRetryer(func() aws.Retryer {
+			return retry.AddWithMaxBackoffDelay(retry.NewStandard(func(o *retry.StandardOptions) {
+				o.RateLimiter = ratelimit.None
+			}), defaultS3Timeout)
+		}),
+	}
+	// If we are using a custom endpoint, such as when running localstack, we should point at it. We'd never set this when
+	// directly accessing DynamoDB on AWS.
+	if s3StoreConfig.Endpoint != "" {
+		args = append(args,
+			awsv2cfg.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(func(service, region string, opts ...interface{}) (aws.Endpoint, error) {
+				return aws.Endpoint{
+					URL:           s3StoreConfig.Endpoint,
+					SigningRegion: s3StoreConfig.BucketRegion,
+				}, nil
+			})))
+	}
+
 	cfg, err := awsv2cfg.LoadDefaultConfig(context.TODO(),
 		awsv2cfg.WithCredentialsProvider(credentials.StaticCredentialsProvider{
 			Value: aws.Credentials{
@@ -301,7 +310,7 @@ func NewS3FileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
-func (s3 *S3FileStore) CreateFilePath(key string) (filestore.Filepath, error) {
+func (s3 *S3FileStore) CreateFilePath(key string, isDirectory bool) (filestore.Filepath, error) {
 	fp := filestore.S3Filepath{}
 	// **NOTE:** It's possible we'll need to change this default based on whether the
 	// user employs EMR as their Spark executor
@@ -321,20 +330,11 @@ func (s3 *S3FileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 	if err != nil {
 		return nil, err
 	}
-	fp.SetIsDir(false)
+	fp.SetIsDir(isDirectory)
 	if err := fp.Validate(); err != nil {
 		return nil, err
 	}
 	return &fp, nil
-}
-
-func (s3 *S3FileStore) CreateDirPath(key string) (filestore.Filepath, error) {
-	fp, err := s3.CreateFilePath(key)
-	if err != nil {
-		return nil, err
-	}
-	fp.SetIsDir(true)
-	return fp, nil
 }
 
 func (s3 *S3FileStore) FilestoreType() filestore.FileStoreType {
@@ -367,7 +367,7 @@ type GCSFileStore struct {
 	genericFileStore
 }
 
-func (gs *GCSFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
+func (gs *GCSFileStore) CreateFilePath(key string, isDirectory bool) (filestore.Filepath, error) {
 	fp := filestore.GCSFilepath{}
 	if err := fp.SetScheme(filestore.GSPrefix); err != nil {
 		return nil, err
@@ -384,20 +384,11 @@ func (gs *GCSFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
 	if err != nil {
 		return nil, err
 	}
-	fp.SetIsDir(false)
+	fp.SetIsDir(isDirectory)
 	if err := fp.Validate(); err != nil {
 		return nil, err
 	}
 	return &fp, nil
-}
-
-func (gs *GCSFileStore) CreateDirPath(key string) (filestore.Filepath, error) {
-	fp, err := gs.CreateFilePath(key)
-	if err != nil {
-		return nil, err
-	}
-	fp.SetIsDir(true)
-	return fp, nil
 }
 
 func (g *GCSFileStore) FilestoreType() filestore.FileStoreType {
@@ -689,7 +680,7 @@ func (fs *HDFSFileStore) DeleteAll(dir filestore.Filepath) error {
 		return wrapped
 	}
 	for _, file := range files {
-		filePath, err := fs.CreateFilePath(fmt.Sprintf("%s/%s", dir.Key(), file.Name()))
+		filePath, err := fs.CreateFilePath(fmt.Sprintf("%s/%s", dir.Key(), file.Name()), false)
 		if err != nil {
 			return err
 		}
@@ -740,7 +731,7 @@ func (hdfs *HDFSFileStore) NewestFileOfType(rootpath filestore.Filepath, fileTyp
 		return nil, fferr.NewDatasetNotFoundError("", "", fmt.Errorf("no files of type %s found in %s", string(fileType), rootpath.Key()))
 	}
 
-	filepath, err := hdfs.CreateFilePath(lastModName)
+	filepath, err := hdfs.CreateFilePath(lastModName, false)
 	if err != nil {
 		return nil, err
 	}
@@ -803,16 +794,7 @@ func (fs *HDFSFileStore) AddEnvVars(envVars map[string]string) map[string]string
 	panic("HDFS Filestore is not supported for K8s at the moment.")
 }
 
-func (fs *HDFSFileStore) CreateDirPath(key string) (filestore.Filepath, error) {
-	fp, err := fs.CreateFilePath(key)
-	if err != nil {
-		return nil, err
-	}
-	fp.SetIsDir(true)
-	return fp, nil
-}
-
-func (fs *HDFSFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
+func (fs *HDFSFileStore) CreateFilePath(key string, isDirectory bool) (filestore.Filepath, error) {
 	fp := filestore.HDFSFilepath{}
 	if err := fp.SetScheme(filestore.HDFSPrefix); err != nil {
 		return nil, err
@@ -825,7 +807,7 @@ func (fs *HDFSFileStore) CreateFilePath(key string) (filestore.Filepath, error) 
 	if err := fp.SetKey(fullKey); err != nil {
 		return nil, err
 	}
-	fp.SetIsDir(false)
+	fp.SetIsDir(isDirectory)
 	err := fp.Validate()
 	if err != nil {
 		return nil, err
@@ -976,12 +958,12 @@ func (store *genericFileStore) Write(path filestore.Filepath, data []byte) error
 	err = re.Do(
 		func() error {
 			blob, errRetr := store.bucket.ReadAll(ctx, path.Key())
-			fmt.Printf("Read (%d) bytes from bucket (%s) after write\n", len(data), path.Key())
 			if errRetr != nil {
-				return re.Unrecoverable(errRetr)
+				return errRetr
 			} else if !bytes.Equal(blob, data) {
 				return fmt.Errorf("blob read from bucket does not match blob written to bucket")
 			}
+			fmt.Printf("Read (%d) bytes from bucket (%s) after write\n", len(blob), path.Key())
 			return nil
 		},
 		re.DelayType(func(n uint, err error, config *re.Config) time.Duration {
@@ -1080,19 +1062,15 @@ func (store *genericFileStore) AddEnvVars(envVars map[string]string) map[string]
 // * If neither the `EOF` nor non-`EOF` error is returned, the "key" exists and we break from the loop to avoid unnecessary iteration
 func (store *genericFileStore) Exists(path filestore.Filepath) (bool, error) {
 	iter := store.bucket.List(&blob.ListOptions{Prefix: path.Key()})
-	i := 0
-	for {
-		_, err := iter.Next(context.Background())
-		if err == io.EOF && i == 0 {
-			return false, nil
-		} else if err != nil {
-			wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
-			wrapped.AddDetail("uri", path.ToURI())
-			return false, wrapped
-		} else {
-			i++
-			return true, nil
-		}
+	_, err := iter.Next(context.Background())
+	if err == io.EOF {
+		return false, nil
+	} else if err != nil {
+		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
+		wrapped.AddDetail("uri", path.ToURI())
+		return false, wrapped
+	} else {
+		return true, nil
 	}
 }
 
@@ -1155,16 +1133,7 @@ func (store *genericFileStore) NumRows(path filestore.Filepath) (int64, error) {
 	}
 }
 
-func (store *genericFileStore) CreateDirPath(key string) (filestore.Filepath, error) {
-	fp, err := store.CreateFilePath(key)
-	if err != nil {
-		return nil, err
-	}
-	fp.SetIsDir(true)
-	return fp, nil
-}
-
-func (store *genericFileStore) CreateFilePath(key string) (filestore.Filepath, error) {
+func (store *genericFileStore) CreateFilePath(key string, isDirectory bool) (filestore.Filepath, error) {
 	fp := filestore.FilePath{}
 	if store.FilestoreType() != filestore.FileSystem {
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("filestore type: %v; use store-specific implementation instead", store.FilestoreType()))
@@ -1178,9 +1147,9 @@ func (store *genericFileStore) CreateFilePath(key string) (filestore.Filepath, e
 	if err := fp.SetKey(key); err != nil {
 		return nil, err
 	}
+	fp.SetIsDir(isDirectory)
 	if err := fp.Validate(); err != nil {
 		return nil, err
 	}
-	fp.SetIsDir(false)
 	return &fp, nil
 }

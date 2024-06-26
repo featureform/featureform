@@ -22,6 +22,7 @@ import (
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	vt "github.com/featureform/provider/types"
 	"github.com/featureform/runner"
 	"github.com/featureform/types"
 )
@@ -393,19 +394,23 @@ func sanitize(ident string) string {
 }
 
 func (c *Coordinator) verifyCompletionOfSources(sources []metadata.NameVariant) error {
+	c.Logger.Debugw("Verifying completion of sources", "sources", sources)
 	allReady := false
 	for !allReady {
 		sourceVariants, err := c.Metadata.GetSourceVariants(context.Background(), sources)
 		if err != nil {
+			c.Logger.Errorw("Error getting source variants", "error", err)
 			return err
 		}
 		total := len(sourceVariants)
 		totalReady := 0
 		for _, sourceVariant := range sourceVariants {
+			c.Logger.Infow("Verifying source variant", "sourceVariant", sourceVariant)
 			if sourceVariant.Status() == metadata.READY {
 				totalReady += 1
 			}
 			if sourceVariant.Status() == metadata.FAILED {
+				c.Logger.Errorw("Source variant failed", "sourceVariant", sourceVariant)
 				wrapped := fferr.NewResourceFailedError(sourceVariant.Name(), sourceVariant.Variant(), fferr.SOURCE_VARIANT, fmt.Errorf("required dataset is in a failed state"))
 				wrapped.AddDetail("resource_status", sourceVariant.Status().String())
 				return wrapped
@@ -534,9 +539,11 @@ func (c *Coordinator) runDFTransformationJob(transformSource *metadata.SourceVar
 	c.Logger.Info("Running DF transformation job on resource: ", resID)
 	code := transformSource.DFTransformationQuery()
 	sources := transformSource.DFTransformationSources()
+	c.Logger.Debugw("DF Transformation Sources", "sources", sources)
 
 	err := c.verifyCompletionOfSources(sources)
 	if err != nil {
+		c.Logger.Errorw("Error verifying completion of sources", "sources", sources, "error", err)
 		return err
 	}
 
@@ -758,15 +765,9 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		}
 	}
 
-	var vType provider.ValueType
-	if feature.IsEmbedding() {
-		vType = provider.VectorType{
-			ScalarType:  provider.ScalarType(feature.Type()),
-			Dimension:   feature.Dimension(),
-			IsEmbedding: true,
-		}
-	} else {
-		vType = provider.ScalarType(feature.Type())
+	vType, err := feature.Type()
+	if err != nil {
+		return err
 	}
 
 	var sourceTableName string
@@ -809,7 +810,7 @@ func (c *Coordinator) runFeatureMaterializeJob(resID metadata.ResourceID, schedu
 		OfflineType:   pt.Type(sourceProvider.Type()),
 		OfflineConfig: sourceProvider.SerializedConfig(),
 		ResourceID:    provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Feature},
-		VType:         provider.ValueTypeJSONWrapper{ValueType: vType},
+		VType:         vt.ValueTypeJSONWrapper{ValueType: vType},
 		Cloud:         runner.LocalMaterializeRunner,
 		IsUpdate:      false,
 	}

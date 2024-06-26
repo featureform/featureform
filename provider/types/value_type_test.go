@@ -1,9 +1,37 @@
-package provider
+package types
 
 import (
 	"encoding/json"
 	"testing"
 )
+
+func TestSerializeDeserialize(t *testing.T) {
+	numScalars := len(ScalarTypes)
+	types := make([]ValueType, 0, numScalars*3)
+	for scalar, _ := range ScalarTypes {
+		types = append(types, scalar)
+	}
+	for i := 0; i < numScalars; i++ {
+		tf := []bool{true, false}
+		for _, isEmb := range tf {
+			types = append(types, VectorType{
+				ScalarType:  types[i].(ScalarType),
+				Dimension:   128,
+				IsEmbedding: isEmb,
+			})
+		}
+	}
+	for _, typ := range types {
+		str := SerializeType(typ)
+		desT, err := DeserializeType(str)
+		if err != nil {
+			t.Fatalf("Failed to serialize/deserialize %v\nSerialized: %s\n%s", typ, str, err.Error())
+		}
+		if typ != desT {
+			t.Fatalf("Types not equal.\nFound: %v\nExpected: %v\n", desT, typ)
+		}
+	}
+}
 
 func TestVectorTypeUnmarshaling(t *testing.T) {
 	type testCase struct {

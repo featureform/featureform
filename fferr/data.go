@@ -52,16 +52,19 @@ type DatasetAlreadyExistsError struct {
 	baseError
 }
 
-func NewDataTypeNotFoundError(valueType string, err error) *DataTypeNotFoundError {
+func NewDataTypeNotFoundError(value any, err error) *DataTypeNotFoundError {
 	if err == nil {
 		err = fmt.Errorf("datatype not found")
 	}
 	baseError := newBaseError(err, DATATYPE_NOT_FOUND, codes.NotFound)
-	baseError.AddDetail("value_type", valueType)
-
+	baseError.AddDetail("value_and_type", fmt.Sprintf("%#v %T", value, value))
 	return &DataTypeNotFoundError{
 		baseError,
 	}
+}
+
+func NewDataTypeNotFoundErrorf(value any, format string, args ...any) *DataTypeNotFoundError {
+	return NewDataTypeNotFoundError(value, fmt.Errorf(format, args...))
 }
 
 type DataTypeNotFoundError struct {
@@ -129,6 +132,28 @@ func NewTrainingSetNotFoundError(resourceName, resourceVariant string, err error
 	return &TrainingSetNotFoundError{
 		baseError,
 	}
+}
+
+type TypeError struct {
+	baseError
+}
+
+func NewTypeError(valueType string, value any, err error) *TypeError {
+	if err == nil {
+		err = fmt.Errorf("type error")
+	}
+	baseError := newBaseError(err, TYPE_ERROR, codes.InvalidArgument)
+	baseError.AddDetail("expected type", valueType)
+	baseError.AddDetail("found type", fmt.Sprintf("%T", value))
+	baseError.AddDetail("found value", fmt.Sprintf("%v", value))
+	return &TypeError{
+		baseError,
+	}
+}
+
+func NewTypeErrorf(valueType string, value any, tmp string, args ...any) *TypeError {
+	err := fmt.Errorf(tmp, args...)
+	return NewTypeError(valueType, value, err)
 }
 
 type TrainingSetNotFoundError struct {

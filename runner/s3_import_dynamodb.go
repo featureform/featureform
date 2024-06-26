@@ -15,6 +15,7 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
+	vt "github.com/featureform/provider/types"
 	"github.com/featureform/types"
 	"go.uber.org/zap"
 )
@@ -41,7 +42,7 @@ type S3ImportDynamoDBRunner struct {
 	Offline     provider.OfflineStore
 	OfflineType pt.Type
 	ID          provider.ResourceID
-	VType       provider.ValueType
+	VType       vt.ValueType
 	IsUpdate    bool // Not currently useable
 	Logger      *zap.SugaredLogger
 }
@@ -82,7 +83,7 @@ func (r S3ImportDynamoDBRunner) Run() (types.CompletionWatcher, error) {
 	//  MaterializationID is a string that is already in the form of `/Materialization/<name>/<variant>`. We currently need
 	// to append `featureform/` to the materialization ID to get the source dir path, but this is not ideal. We should
 	// probably change the type of MaterializationID to be ResourceID.
-	sourceDirPath, err := sparkOffline.Store.CreateDirPath(fmt.Sprintf("featureform/%s", mat.ID()))
+	sourceDirPath, err := sparkOffline.Store.CreateFilePath(fmt.Sprintf("featureform/%s", mat.ID()), true)
 	if err != nil {
 		r.Logger.Errorf("failed to create source dir path for resource %s: %v", r.ID.ToFilestorePath(), err)
 		return nil, err
@@ -119,7 +120,7 @@ func (r S3ImportDynamoDBRunner) Run() (types.CompletionWatcher, error) {
 		status:    "PENDING",
 		store:     r.Online,
 		importArn: importArn,
-		logger:    logging.NewLogger("s3importWatcher"),
+		logger:    logging.NewLogger("s3importWatcher").SugaredLogger,
 	}
 
 	watcher.Poll()
@@ -250,6 +251,6 @@ func S3ImportDynamoDBRunnerFactory(config Config) (types.Runner, error) {
 		ID:       runnerConfig.ResourceID,
 		VType:    runnerConfig.VType.ValueType,
 		IsUpdate: runnerConfig.IsUpdate,
-		Logger:   logging.NewLogger("s3importer"),
+		Logger:   logging.NewLogger("s3importer").SugaredLogger,
 	}, nil
 }

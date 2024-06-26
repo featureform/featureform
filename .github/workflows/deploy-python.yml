@@ -30,7 +30,7 @@ jobs:
         working-directory: ./dashboard
 
       - name: Install grpc_tools
-        run: pip install grpcio-tools
+        run: pip install grpcio-tools==1.62.2
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic

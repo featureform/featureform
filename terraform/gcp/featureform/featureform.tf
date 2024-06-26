@@ -26,22 +26,22 @@ resource "helm_release" "featureform" {
   chart = "featureform"
   
   set {
-    name  = "global.hostname"
+    name  = "hostname"
     value = var.featureform_hostname
   }
   
   set {
-    name  = "global.publicCert"
+    name  = "publicCert"
     value = var.featureform_public_cert
   }
 
   set {
-    name = "global.publicCert"
+    name = "publicCert"
     value = "false"
   }
 
   set {
-    name = "global.localCert"
+    name = "selfSignedCert"
     value = "true"
   }
 

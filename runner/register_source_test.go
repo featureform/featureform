@@ -41,8 +41,12 @@ func (m MockOfflineRegisterSourceFail) GetTrainingSet(id provider.ResourceID) (p
 	return nil, nil
 }
 
-func (m MockOfflineRegisterSourceFail) GetTrainingSetTestSplit(id provider.ResourceID, testSize float32, shuffle bool, randomState int) (provider.TrainingSetIterator, provider.TrainingSetIterator, func() error, error) {
-	return nil, nil, nil, nil
+func (m MockOfflineRegisterSourceFail) CreateTrainTestSplit(provider.TrainTestSplitDef) (func() error, error) {
+	return nil, nil
+}
+
+func (m MockOfflineRegisterSourceFail) GetTrainTestSplit(provider.TrainTestSplitDef) (provider.TrainingSetIterator, provider.TrainingSetIterator, error) {
+	return nil, nil, nil
 }
 
 func (m MockOfflineRegisterSourceFail) CreatePrimaryTable(id provider.ResourceID, schema provider.TableSchema) (provider.PrimaryTable, error) {
@@ -172,7 +176,6 @@ func TestRegisterSourceRunnerFactoryErrorCoverage(t *testing.T) {
 }
 
 func TestRegisterSourceFactory(t *testing.T) {
-	ResetFactoryMap()
 	registerSourceSerialize := func(ts RegisterSourceConfig) Config {
 		config, err := ts.Serialize()
 		if err != nil {
@@ -195,4 +198,5 @@ func TestRegisterSourceFactory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not create create register source runner")
 	}
+	delete(factoryMap, "TEST_REGISTER_SOURCE")
 }

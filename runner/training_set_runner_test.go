@@ -41,8 +41,12 @@ func (m MockOfflineCreateTrainingSetFail) GetTrainingSet(id provider.ResourceID)
 	return nil, nil
 }
 
-func (m MockOfflineCreateTrainingSetFail) GetTrainingSetTestSplit(id provider.ResourceID, testSize float32, shuffle bool, randomState int) (provider.TrainingSetIterator, provider.TrainingSetIterator, func() error, error) {
-	return nil, nil, nil, nil
+func (m MockOfflineCreateTrainingSetFail) CreateTrainTestSplit(provider.TrainTestSplitDef) (func() error, error) {
+	return nil, nil
+}
+
+func (m MockOfflineCreateTrainingSetFail) GetTrainTestSplit(def provider.TrainTestSplitDef) (provider.TrainingSetIterator, provider.TrainingSetIterator, error) {
+	return nil, nil, nil
 }
 
 func (m MockOfflineCreateTrainingSetFail) GetBatchFeatures(ids []provider.ResourceID) (provider.BatchFeatureIterator, error) {

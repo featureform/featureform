@@ -8,6 +8,7 @@ import (
 	"time"
 
 	pb "github.com/featureform/metadata/proto"
+	"github.com/featureform/provider/types"
 )
 
 func TestSourceVariant_IsTransformation(t *testing.T) {
@@ -249,6 +250,11 @@ func TestEmptyKubernetesArgsSpecs(t *testing.T) {
 }
 
 func TestVectorValueType(t *testing.T) {
+	valType := types.VectorType{
+		ScalarType:  types.Float32,
+		IsEmbedding: true,
+		Dimension:   384,
+	}
 	fv := &pb.FeatureVariant{
 		Name:    "vector",
 		Variant: "vector_variant",
@@ -256,7 +262,7 @@ func TestVectorValueType(t *testing.T) {
 			Name:    "vector_source",
 			Variant: "vector_source_variant",
 		},
-		Type:     "float32",
+		Type:     valType.ToProto(),
 		Entity:   "vector_entity",
 		Owner:    "vector_owner",
 		Provider: "vector_provider",
@@ -266,8 +272,6 @@ func TestVectorValueType(t *testing.T) {
 				Value:  "vector_value",
 			},
 		},
-		IsEmbedding: true,
-		Dimension:   384,
 	}
 
 	wfc := wrapProtoFeatureVariant(fv)
@@ -281,6 +285,10 @@ func TestVectorValueType(t *testing.T) {
 }
 
 func TestFeatureVariant_ToShallowMap(t *testing.T) {
+	valType := types.VectorType{
+		ScalarType: types.Float32,
+		Dimension:  64,
+	}
 	tests := []struct {
 		name       string
 		serialized *pb.FeatureVariant
@@ -293,7 +301,7 @@ func TestFeatureVariant_ToShallowMap(t *testing.T) {
 				Name:    "source name",
 				Variant: "source variant",
 			},
-			Type:    "datatype",
+			Type:    valType.ToProto(),
 			Entity:  "entity",
 			Created: &timestamppb.Timestamp{},
 			Owner:   "owner",
@@ -317,8 +325,6 @@ func TestFeatureVariant_ToShallowMap(t *testing.T) {
 			Tags:                 &pb.Tags{},
 			Properties:           &pb.Properties{},
 			Mode:                 pb.ComputationMode_PRECOMPUTED,
-			IsEmbedding:          false,
-			Dimension:            64,
 			AdditionalParameters: &pb.FeatureParameters{},
 		}, FeatureVariantResource{
 			Created:     time.UnixMilli(0).UTC(),
@@ -328,7 +334,7 @@ func TestFeatureVariant_ToShallowMap(t *testing.T) {
 			Variant:     "variant",
 			Owner:       "owner",
 			Provider:    "provider",
-			DataType:    "datatype",
+			DataType:    "float32[64](embedding=false)",
 			Status:      "NO_STATUS",
 			Error:       "error",
 			Location: map[string]string{
@@ -351,7 +357,7 @@ func TestFeatureVariant_ToShallowMap(t *testing.T) {
 		{"ClientComputed", &pb.FeatureVariant{
 			Name:    "name",
 			Variant: "variant",
-			Type:    "datatype",
+			Type:    valType.ToProto(),
 			Entity:  "entity",
 			Created: &timestamppb.Timestamp{},
 			Owner:   "owner",
@@ -373,8 +379,6 @@ func TestFeatureVariant_ToShallowMap(t *testing.T) {
 			Tags:                 &pb.Tags{},
 			Properties:           &pb.Properties{},
 			Mode:                 pb.ComputationMode_CLIENT_COMPUTED,
-			IsEmbedding:          false,
-			Dimension:            64,
 			AdditionalParameters: &pb.FeatureParameters{},
 		}, FeatureVariantResource{
 			Created:     time.UnixMilli(0).UTC(),
@@ -411,8 +415,6 @@ func TestFeatureVariant_ToShallowMap(t *testing.T) {
 				protoStringer:        protoStringer{tt.serialized},
 				fetchTagsFn:          fetchTagsFn{tt.serialized},
 				fetchPropertiesFn:    fetchPropertiesFn{tt.serialized},
-				fetchIsEmbeddingFn:   fetchIsEmbeddingFn{tt.serialized},
-				fetchDimensionFn:     fetchDimensionFn{tt.serialized},
 			}
 			if got := variant.ToShallowMap(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ToShallowMap() = \n%#v, \nwant \n%#v", got, tt.want)
@@ -436,7 +438,7 @@ func TestLabelVariant_ToShallowMap(t *testing.T) {
 					Name:    "source name",
 					Variant: "source variant",
 				},
-				Type:    "datatype",
+				Type:    types.Float32.ToProto(),
 				Entity:  "entity",
 				Created: &timestamppb.Timestamp{},
 				Owner:   "owner",
@@ -466,7 +468,7 @@ func TestLabelVariant_ToShallowMap(t *testing.T) {
 				Variant:     "variant",
 				Owner:       "owner",
 				Provider:    "provider",
-				DataType:    "datatype",
+				DataType:    "float32",
 				Status:      "NO_STATUS",
 				Error:       "error",
 				Location: map[string]string{

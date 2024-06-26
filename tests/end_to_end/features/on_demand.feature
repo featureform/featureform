@@ -1,4 +1,5 @@
 Feature: On Demand Features
+
   Scenario: Basic On Demand Feature
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"

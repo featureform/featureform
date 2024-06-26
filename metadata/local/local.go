@@ -6,13 +6,16 @@ package main
 
 import (
 	"fmt"
+
 	help "github.com/featureform/helpers"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"go.uber.org/zap"
 )
 
 func main() {
-	logger := zap.NewExample().Sugar()
+	sugaredLogger := zap.NewExample().Sugar()
+	logger := logging.WrapZapLogger(sugaredLogger)
 	addr := help.GetEnv("METADATA_PORT", "8080")
 	config := &metadata.Config{
 		Logger:          logger,

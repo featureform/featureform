@@ -11,6 +11,7 @@ import (
 	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 
 	"github.com/redis/rueidis"
 )
@@ -100,14 +101,14 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 	// This maintains backwards compatibility with the previous implementation,
 	// which wrote the scalar type string as the value to the field under the
 	// tables hash.
-	if _, isScalarString := ScalarTypes[ScalarType(vType)]; isScalarString {
+	if _, isScalarString := types.ScalarTypes[types.ScalarType(vType)]; isScalarString {
 		return &redisOnlineTable{
 			client:    store.client,
 			key:       key,
-			valueType: ScalarType(vType),
+			valueType: types.ScalarType(vType),
 		}, nil
 	}
-	valueTypeJSON := &ValueTypeJSONWrapper{}
+	valueTypeJSON := &types.ValueTypeJSONWrapper{}
 	err = json.Unmarshal([]byte(vType), valueTypeJSON)
 	if err != nil {
 		wrapped := fferr.NewInternalError(err)
@@ -115,7 +116,7 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 		return nil, wrapped
 	}
 	switch valueTypeJSON.ValueType.(type) {
-	case VectorType:
+	case types.VectorType:
 		table = &redisOnlineIndex{
 			client: store.client,
 			key: redisIndexKey{
@@ -125,7 +126,7 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 			},
 			valueType: valueTypeJSON.ValueType,
 		}
-	case ScalarType:
+	case types.ScalarType:
 		table = &redisOnlineTable{
 			client:    store.client,
 			key:       key,
@@ -137,7 +138,7 @@ func (store *redisOnlineStore) GetTable(feature, variant string) (OnlineStoreTab
 	return table, nil
 }
 
-func (store *redisOnlineStore) CreateTable(feature, variant string, valueType ValueType) (OnlineStoreTable, error) {
+func (store *redisOnlineStore) CreateTable(feature, variant string, valueType types.ValueType) (OnlineStoreTable, error) {
 	key := redisTableKey{store.prefix, feature, variant}
 	cmd := store.client.B().
 		Hexists().
@@ -151,7 +152,7 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 	if exists {
 		return nil, fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
 	}
-	serialized, err := json.Marshal(ValueTypeJSONWrapper{valueType})
+	serialized, err := json.Marshal(types.ValueTypeJSONWrapper{valueType})
 	if err != nil {
 		wrapped := fferr.NewInternalError(err)
 		wrapped.AddDetail("value_type", fmt.Sprintf("%v", valueType))
@@ -168,7 +169,7 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 	}
 	var table OnlineStoreTable
 	switch valueType.(type) {
-	case VectorType:
+	case types.VectorType:
 		table = &redisOnlineIndex{
 			client: store.client,
 			key: redisIndexKey{
@@ -178,7 +179,7 @@ func (store *redisOnlineStore) CreateTable(feature, variant string, valueType Va
 			},
 			valueType: valueType,
 		}
-	case ScalarType:
+	case types.ScalarType:
 		table = &redisOnlineTable{
 			client:    store.client,
 			key:       key,
@@ -211,7 +212,7 @@ func (store *redisOnlineStore) CheckHealth() (bool, error) {
 	return true, nil
 }
 
-func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType VectorType) (VectorStoreTable, error) {
+func (store *redisOnlineStore) CreateIndex(feature, variant string, vectorType types.VectorType) (VectorStoreTable, error) {
 	key := redisIndexKey{Prefix: store.prefix, Feature: feature, Variant: variant}
 	cmd, err := store.createIndexCmd(key, vectorType)
 	if err != nil {
@@ -230,7 +231,7 @@ func (store *redisOnlineStore) DeleteIndex(feature, variant string) error {
 	return nil
 }
 
-func (store *redisOnlineStore) createIndexCmd(key redisIndexKey, vectorType VectorType) (rueidis.Completed, error) {
+func (store *redisOnlineStore) createIndexCmd(key redisIndexKey, vectorType types.VectorType) (rueidis.Completed, error) {
 	serializedKey, err := key.serialize("")
 	if err != nil {
 		return rueidis.Completed{}, err
@@ -252,7 +253,7 @@ func (store *redisOnlineStore) createIndexCmd(key redisIndexKey, vectorType Vect
 type redisOnlineTable struct {
 	client    rueidis.Client
 	key       redisTableKey
-	valueType ValueType
+	valueType types.ValueType
 }
 
 func (table redisOnlineTable) Set(entity string, value interface{}) error {
@@ -285,7 +286,7 @@ func (table redisOnlineTable) Set(entity string, value interface{}) error {
 	case []float32:
 		value = rueidis.VectorString32(v)
 	default:
-		return fferr.NewDataTypeNotFoundError(fmt.Sprintf("%T", value), fmt.Errorf("unsupported data type"))
+		return fferr.NewDataTypeNotFoundErrorf(value, "unsupported data type")
 	}
 	cmd := table.client.B().
 		Hset().
@@ -322,25 +323,25 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 		return rueidis.ToVector32(val), nil
 	}
 	switch table.valueType {
-	case NilType, String:
+	case types.NilType, types.String:
 		result, err = val, nil
-	case Int:
+	case types.Int:
 		result, err = strconv.Atoi(val)
-	case Int32:
+	case types.Int32:
 		if result, err = strconv.ParseInt(val, 10, 32); err == nil {
 			result = int32(result.(int64))
 		}
-	case Int64:
+	case types.Int64:
 		result, err = strconv.ParseInt(val, 10, 64)
-	case Float32:
+	case types.Float32:
 		if result, err = strconv.ParseFloat(val, 32); err == nil {
 			result, err = float32(result.(float64)), nil
 		}
-	case Float64:
+	case types.Float64:
 		result, err = strconv.ParseFloat(val, 64)
-	case Bool:
+	case types.Bool:
 		result, err = strconv.ParseBool(val)
-	case Timestamp, Datetime: // Including `Datetime` here maintains compatibility with previously create timestamp tables
+	case types.Timestamp, types.Datetime: // Including `Datetime` here maintains compatibility with previously create timestamp tables
 		// Maintains compatibility with go-redis implementation:
 		// https://github.com/redis/go-redis/blob/v8.11.5/command.go#L939
 		result, err = time.Parse(time.RFC3339Nano, val)
@@ -358,7 +359,7 @@ func (table redisOnlineTable) Get(entity string) (interface{}, error) {
 type redisOnlineIndex struct {
 	client    rueidis.Client
 	key       redisIndexKey
-	valueType ValueType
+	valueType types.ValueType
 }
 
 type redisIndexKey struct {
@@ -395,7 +396,7 @@ func (k redisIndexKey) getVectorField() string {
 func (table redisOnlineIndex) Set(entity string, value interface{}) error {
 	vector, ok := value.([]float32)
 	if !ok {
-		wrapped := fferr.NewDataTypeNotFoundError(fmt.Sprintf("%T", value), fmt.Errorf("value %v is not a vector", value))
+		wrapped := fferr.NewDataTypeNotFoundErrorf(value, "value is not a vector")
 		wrapped.AddDetail("entity", entity)
 		return wrapped
 	}

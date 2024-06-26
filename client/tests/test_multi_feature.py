@@ -1,5 +1,8 @@
 import pytest
 
+from featureform import FeatureColumnResource
+
+
 # conftest.py
 # 1. data_dictionary() (fixture) -> {columns: [""], data: [[],[]]}
 # 2. features_dataframe(data_dictionary) (fixture) -> pandas dataframe from dictionary
@@ -96,10 +99,15 @@ def test_get_feature_columns_errors(
     include_cols, exclude_cols, multi_feature, features_dataframe
 ):
     with pytest.raises(ValueError):
-        result = multi_feature._get_feature_columns(
+        multi_feature._get_feature_columns(
             df=features_dataframe,
             include_columns=include_cols,
             exclude_columns=exclude_cols,
             entity_column="entity",
             timestamp_column="ts",
         )
+
+
+def test_multi_feature_is_iterable(multi_feature):
+    for feature in multi_feature:
+        assert isinstance(feature, FeatureColumnResource)

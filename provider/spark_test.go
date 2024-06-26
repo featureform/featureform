@@ -14,6 +14,7 @@ import (
 	"regexp"
 
 	"github.com/featureform/config"
+	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	fs "github.com/featureform/filestore"
 	"go.uber.org/zap/zaptest"
@@ -34,6 +35,8 @@ import (
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
+	ps "github.com/featureform/provider/provider_schema"
+	"github.com/featureform/provider/types"
 )
 
 // will replace all the upload parquet table functions
@@ -63,7 +66,7 @@ func uploadCSVTable(store FileStore, path string, tables interface{}) error {
 	if err := w.Error(); err != nil {
 		return fmt.Errorf("error writing csv: %v", err)
 	}
-	destination, err := store.CreateFilePath(path)
+	destination, err := store.CreateFilePath(path, false)
 	if err != nil {
 		return fmt.Errorf("could not create file path: %v", err)
 	}
@@ -402,10 +405,7 @@ func TestParquetUpload(t *testing.T) {
 	// if err != nil {
 	// 	t.Fatalf("could not get SparkOfflineStore: %s", err)
 	// }
-	databricksSparkOfflineStore, err := getDatabricksOfflineStore(t)
-	if err != nil {
-		t.Fatalf("could not get databricks offline store: %s", err)
-	}
+	databricksSparkOfflineStore := GetTestingBlobDatabricks(t)
 	sparkStores := map[string]*SparkOfflineStore{
 		// "EMR_SPARK_STORE":        emrSparkOfflineStore,
 		"DATABRICKS_SPARK_STORE": databricksSparkOfflineStore,
@@ -494,7 +494,7 @@ func sparkTestCreateDuplicatePrimaryTable(t *testing.T, store *SparkOfflineStore
 	}
 	primaryID := sparkSafeRandomID(Primary)
 
-	filePath, err := store.Store.CreateFilePath(randomSourceTablePath)
+	filePath, err := store.Store.CreateFilePath(randomSourceTablePath, false)
 	if err != nil {
 		t.Fatalf("could not create file path: %v", err)
 	}
@@ -523,7 +523,7 @@ func sparkTestCreatePrimaryFromSource(t *testing.T, store *SparkOfflineStore) {
 		t.Fatalf("could not upload source table")
 	}
 	primaryID := sparkSafeRandomID(Primary)
-	filePath, err := store.Store.CreateFilePath(randomSourceTablePath)
+	filePath, err := store.Store.CreateFilePath(randomSourceTablePath, false)
 	if err != nil {
 		t.Fatalf("could not create file path: %v", err)
 	}
@@ -549,7 +549,7 @@ func sparkTestGetUnknownTrainingSet(t *testing.T, store *SparkOfflineStore) {
 	id := sparkSafeRandomID(NoType)
 	if _, err := store.GetTrainingSet(id); err == nil {
 		t.Fatalf("Succeeded in getting unknown training set ResourceID")
-	} else if _, valid := err.(*TrainingSetNotFound); !valid {
+	} else if _, valid := err.(*fferr.TrainingSetNotFoundError); !valid {
 		t.Fatalf("Wrong error for training set not found: %T", err)
 	} else if err.Error() == "" {
 		t.Fatalf("Training set not found error msg not set")
@@ -665,7 +665,7 @@ func sparkTestOfflineTableNotFound(t *testing.T, store *SparkOfflineStore) {
 	id := sparkSafeRandomID(Feature, Label)
 	if _, err := store.GetResourceTable(id); err == nil {
 		t.Fatalf("Succeeded in getting non-existant table")
-	} else if casted, valid := err.(*TableNotFound); !valid {
+	} else if casted, valid := err.(*fferr.DatasetNotFoundError); !valid {
 		t.Fatalf("Wrong error for table not found: %v, %T", err, err)
 	} else if casted.Error() == "" {
 		t.Fatalf("TableNotFound has empty error message")
@@ -746,7 +746,7 @@ func sparkTestOfflineTableAlreadyExists(t *testing.T, store *SparkOfflineStore) 
 	}
 	if err := registerRandomResource(id, store); err == nil {
 		t.Fatalf("Succeeded in creating table twice")
-	} else if casted, valid := err.(*TableAlreadyExists); !valid {
+	} else if casted, valid := err.(*fferr.DatasetAlreadyExistsError); !valid {
 		t.Fatalf("Wrong error for table already exists: %T", err)
 	} else if casted.Error() == "" {
 		t.Fatalf("TableAlreadyExists has empty error message")
@@ -783,9 +783,9 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 
 	schemaInt := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Int},
-			{Name: "ts", ValueType: Timestamp},
+			{Name: "entity", ValueType: types.String},
+			{Name: "value", ValueType: types.Int},
+			{Name: "ts", ValueType: types.Timestamp},
 		},
 	}
 	tests := map[string]TestCase{
@@ -965,7 +965,7 @@ func sparkTestMaterializationNotFound(t *testing.T, store *SparkOfflineStore) {
 	if err == nil {
 		t.Fatalf("Succeeded in deleting uninitialized materialization")
 	}
-	var notFoundErr *MaterializationNotFound
+	var notFoundErr *fferr.DatasetNotFoundError
 	if validCast := errors.As(err, &notFoundErr); !validCast {
 		t.Fatalf("Wrong Error type for materialization not found: %T", err)
 	}
@@ -1070,8 +1070,7 @@ func testSparkSQLTransformation(t *testing.T, store *SparkOfflineStore) {
 			}
 
 			// test transformation result rows are correct
-
-			sourcePath := fileStoreResourcePath(ttConst.config.TargetTableID)
+			sourcePath := ps.ResourceToDirectoryPath(ttConst.config.TargetTableID.Type.String(), ttConst.config.TargetTableID.Name, ttConst.config.TargetTableID.Variant)
 
 			updateConfig := TransformationConfig{
 				Type: SQLTransformation,
@@ -1380,7 +1379,7 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 	for _, tt := range cases {
 		ttConst := tt
 		t.Run(ttConst.name, func(t *testing.T) {
-			output, err := store.Store.CreateFilePath(ttConst.outputURI)
+			output, err := store.Store.CreateFilePath(ttConst.outputURI, false)
 			if err != nil {
 				t.Fatalf("could not create output path %s", err)
 			}
@@ -1516,7 +1515,7 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 // 		StoreConfig:    s3Conf,
 // 	}
 // 	sparkSerializedConfig := SparkOfflineConfig.Serialize()
-// 	sparkProvider, err := Get("SPARK_OFFLINE", sparkSerializedConfig)
+// 	sparkProvider, err := Get(pt.SparkOffline, sparkSerializedConfig)
 // 	if err != nil {
 // 		t.Fatalf("Could not create spark provider: %s", err)
 // 	}
@@ -1528,49 +1527,6 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 
 // 	return sparkOfflineStore, nil
 // }
-
-func getDatabricksOfflineStore(t *testing.T) (*SparkOfflineStore, error) {
-	err := godotenv.Load("../.env")
-	if err != nil {
-		fmt.Println(err)
-	}
-	databricksConfig := pc.DatabricksConfig{
-		Username: helpers.GetEnv("DATABRICKS_USERNAME", ""),
-		Password: helpers.GetEnv("DATABRICKS_PASSWORD", ""),
-		Host:     helpers.GetEnv("DATABRICKS_HOST", ""),
-		Token:    helpers.GetEnv("DATABRICKS_TOKEN", ""),
-		Cluster:  helpers.GetEnv("DATABRICKS_CLUSTER", ""),
-	}
-	azureConfig := pc.AzureFileStoreConfig{
-		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
-		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
-		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
-		Path:          helpers.GetEnv("AZURE_CONTAINER_PATH", ""),
-	}
-	SparkOfflineConfig := pc.SparkConfig{
-		ExecutorType:   pc.Databricks,
-		ExecutorConfig: &databricksConfig,
-		StoreType:      fs.Azure,
-		StoreConfig:    &azureConfig,
-	}
-
-	sparkSerializedConfig, err := SparkOfflineConfig.Serialize()
-	if err != nil {
-		t.Fatalf("could not serialize the SparkOfflineConfig")
-	}
-
-	sparkProvider, err := Get("SPARK_OFFLINE", sparkSerializedConfig)
-	if err != nil {
-		t.Fatalf("Could not create spark provider: %s", err)
-	}
-	sparkStore, err := sparkProvider.AsOfflineStore()
-	if err != nil {
-		t.Fatalf("Could not convert spark provider to offline store: %s", err)
-	}
-	sparkOfflineStore := sparkStore.(*SparkOfflineStore)
-
-	return sparkOfflineStore, nil
-}
 
 // Unit tests
 
@@ -1965,9 +1921,9 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 
 	schemaInt := TableSchema{
 		Columns: []TableColumn{
-			{Name: "entity", ValueType: String},
-			{Name: "value", ValueType: Int},
-			{Name: "ts", ValueType: Timestamp},
+			{Name: "entity", ValueType: types.String},
+			{Name: "value", ValueType: types.Int},
+			{Name: "ts", ValueType: types.Timestamp},
 		},
 	}
 	tests := map[string]TestCase{
@@ -2775,7 +2731,7 @@ func TestEMRErrorMessages(t *testing.T) {
 	if err := localScriptPath.SetKey("scripts/spark/tests/test_files/scripts/test_emr_error.py"); err != nil {
 		t.Fatalf("could not set local script path: %v", err)
 	}
-	remoteScriptPath, err := s3.CreateFilePath("unit_tests/scripts/tests/test_emr_error.py")
+	remoteScriptPath, err := s3.CreateFilePath("unit_tests/scripts/tests/test_emr_error.py", false)
 	if err != nil {
 		t.Fatalf("could not create remote script path: %v", err)
 	}
@@ -2823,7 +2779,7 @@ func TestEMRErrorMessages(t *testing.T) {
 		}
 		errorMessage := strings.Trim(scriptError[1], " ")
 
-		if errorMessage != test.ExpectedErrorMessage {
+		if !strings.Contains(errorMessage, test.ExpectedErrorMessage) {
 			t.Fatalf("did not get the expected error message: expected '%s' but got '%s'", test.ExpectedErrorMessage, errorMessage)
 		}
 	}
@@ -2868,7 +2824,7 @@ func createEMRAndS3(bucketName string) (SparkExecutor, SparkFileStore, error) {
 	}
 
 	logger := logging.NewLogger("spark-unit-tests")
-	emr, err := NewEMRExecutor(emrConfig, logger)
+	emr, err := NewEMRExecutor(emrConfig, logger.SugaredLogger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not create new EMR executor: %v", err)
 	}
@@ -3185,9 +3141,9 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 			if !reflect.DeepEqual(pythonURI, tt.ExpectedPythonFileURI) {
 				t.Errorf("SparkExecutor.PythonFileURI() = %#v, want %#v", pythonURI, tt.ExpectedPythonFileURI)
 			}
-			destination, err := store.CreateDirPath(tt.SubmitArgs.DestPath)
+			destination, err := store.CreateFilePath(tt.SubmitArgs.DestPath, true)
 			if err != nil {
-				t.Errorf("SparkExecutor.CreateDirPath() = %#v, want %#v", err, nil)
+				t.Errorf("SparkExecutor.CreateFilePath() = %#v, want %#v", err, nil)
 			}
 			submitArgs, err := tt.executor.SparkSubmitArgs(destination, tt.SubmitArgs.Query, tt.SubmitArgs.SourceList, tt.SubmitArgs.JobType, store)
 			if err != nil {
@@ -3196,9 +3152,9 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 			if !reflect.DeepEqual(submitArgs, tt.ExpectedSubmitArgs) {
 				t.Errorf("SparkExecutor.SubmitArgs() = %#v, want %#v", submitArgs, tt.ExpectedSubmitArgs)
 			}
-			output, err := store.CreateDirPath(tt.DFArgs.OutputURI)
+			output, err := store.CreateFilePath(tt.DFArgs.OutputURI, true)
 			if err != nil {
-				t.Errorf("SparkExecutor.CreateDirPath() = %#v, want %#v", err, nil)
+				t.Errorf("SparkExecutor.CreateFilePath() = %#v, want %#v", err, nil)
 			}
 			dfArgs, err := tt.executor.GetDFArgs(output, tt.DFArgs.Code, tt.DFArgs.Sources, store)
 			if err != nil {
@@ -3375,6 +3331,95 @@ func TestDatabricksSubmitParams(t *testing.T) {
 				t.Fatalf("Expected %v, got %v", tt.shouldExceedAPILimit, actual)
 			}
 		})
+	}
+}
+
+func TestNewSparkFileStores(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping NewSparkFileStores tests")
+	}
+
+	err := godotenv.Load("../.env")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	mydir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("could not get working directory")
+	}
+
+	directoryPath := fmt.Sprintf("%s/scripts/k8s/tests/test_files/output/go_tests", mydir)
+	_ = os.MkdirAll(directoryPath, os.ModePerm)
+
+	localStoreConfig := pc.LocalFileStoreConfig{DirPath: fmt.Sprintf(`file:///%s`, directoryPath)}
+	localStoreConfigSerialized, err := localStoreConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Could not serialize local store config: %v", err)
+	}
+	_, err = NewSparkLocalFileStore(localStoreConfigSerialized)
+	if err != nil {
+		t.Fatalf("Could not create local store: %v", err)
+	}
+
+	s3StoreConfig := pc.S3FileStoreConfig{
+		Credentials: pc.AWSCredentials{
+			AWSSecretKey:   "",
+			AWSAccessKeyId: "",
+		},
+		BucketRegion: "abc",
+		BucketPath:   "abc",
+		Path:         "abc",
+	}
+	s3StoreConfigSerialized, err := s3StoreConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Could not serialize s3 store config: %v", err)
+	}
+	_, err = NewSparkS3FileStore(s3StoreConfigSerialized)
+	if err != nil {
+		t.Fatalf("Could not create s3 store: %v", err)
+	}
+
+	credsFile := os.Getenv("GCP_CREDENTIALS_FILE")
+	content, err := os.ReadFile(credsFile)
+	if err != nil {
+		t.Errorf("Error when opening file: %v", err)
+	}
+	var creds map[string]interface{}
+	err = json.Unmarshal(content, &creds)
+	if err != nil {
+		t.Errorf("Error during Unmarshal() creds: %v", err)
+	}
+
+	gcsStoreConfig := pc.GCSFileStoreConfig{
+		BucketName: os.Getenv("GCS_BUCKET_NAME"),
+		BucketPath: "",
+		Credentials: pc.GCPCredentials{
+			ProjectId: os.Getenv("GCP_PROJECT_ID"),
+			JSON:      creds,
+		},
+	}
+	gcsStoreConfigSerialized, err := gcsStoreConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Could not serialize gcs store config: %v", err)
+	}
+	_, err = NewSparkGCSFileStore(gcsStoreConfigSerialized)
+	if err != nil {
+		t.Fatalf("Could not create gcs store: %v", err)
+	}
+
+	hdfsStoreConfig := pc.HDFSFileStoreConfig{
+		Host:     "localhost",
+		Port:     "9000",
+		Username: "hduser",
+	}
+	hdfsStoreConfigSerialized, err := hdfsStoreConfig.Serialize()
+	if err != nil {
+		t.Fatalf("Could not serialize hdfs store config: %v", err)
+	}
+	_, err = NewSparkHDFSFileStore(hdfsStoreConfigSerialized)
+	if err != nil {
+		t.Fatalf("Could not create hdfs store: %v", err)
 	}
 }
 

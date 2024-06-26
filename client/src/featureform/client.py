@@ -1,14 +1,15 @@
-from typing import Union, Optional
+from typing import Optional, Union
 
+import featureform.resources
 from .constants import NO_RECORD_LIMIT
+from .enums import ResourceType
 from .register import (
+    FeatureColumnResource,
     ResourceClient,
     SourceRegistrar,
     SubscriptableTransformation,
-    FeatureColumnResource,
 )
 from .serving import ServingClient
-from .enums import ResourceType
 
 
 class Client(ResourceClient, ServingClient):
@@ -151,11 +152,15 @@ class Client(ResourceClient, ServingClient):
         Args:
             source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
             variant (str): The source variant; can't be None if source is a string
-            type (ResourceType): The type of resource; can be one of ff.SOURCE, ff.FEATURE, ff.LABEL, or ff.TRAINING_SET
+            resource_type (ResourceType): The type of resource; can be one of ff.SOURCE, ff.FEATURE, ff.LABEL, or ff.TRAINING_SET
         """
         if isinstance(source, (SourceRegistrar, SubscriptableTransformation)):
             name, variant = source.name_variant()
             resource_type = ResourceType.SOURCE
+        elif isinstance(source, featureform.resources.TrainingSetVariant):
+            name = source.name
+            variant = source.variant
+            resource_type = ResourceType.TRAINING_SET
         elif isinstance(source, str):
             name = source
             if variant is None:
@@ -182,6 +187,41 @@ class Client(ResourceClient, ServingClient):
         Closes the client, closes channel for hosted mode
         """
         self.impl.close()
+
+    def columns(
+        self,
+        source: Union[SourceRegistrar, SubscriptableTransformation, str],
+        variant: Optional[str] = None,
+    ):
+        """
+        Returns the columns of a registered source or transformation
+
+        **Example:**
+        ```py title="definitions.py"
+        columns = client.columns("transactions", "quickstart")
+        ```
+
+        Args:
+            source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to get the columns from
+            variant (str): The source variant; can't be None if source is a string
+
+        Returns:
+            columns (List[str]): The columns of the source or transformation
+        """
+        if isinstance(source, (SourceRegistrar, SubscriptableTransformation)):
+            name, variant = source.name_variant()
+        elif isinstance(source, str):
+            name = source
+            if variant is None:
+                raise ValueError("variant must be specified if source is a string")
+            if variant == "":
+                raise ValueError("variant cannot be an empty string")
+        else:
+            raise ValueError(
+                f"source must be of type SourceRegistrar, SubscriptableTransformation or str, not {type(source)}\n"
+                "use client.columns(name, variant) or client.columns(source) or client.columns(transformation)"
+            )
+        return self.impl._get_source_columns(name, variant)
 
     @staticmethod
     def _validate_host(host):

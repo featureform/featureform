@@ -2,6 +2,7 @@ package provider_config
 
 import (
 	"encoding/json"
+	"github.com/featureform/fferr"
 
 	ss "github.com/featureform/helpers/string_set"
 )
@@ -15,7 +16,7 @@ type BigQueryConfig struct {
 func (bq *BigQueryConfig) Deserialize(config SerializedConfig) error {
 	err := json.Unmarshal(config, bq)
 	if err != nil {
-		return err
+		return fferr.NewInternalError(err)
 	}
 	return nil
 }

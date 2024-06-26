@@ -44,6 +44,39 @@ class ScalarType(Enum):
     def get_values(cls):
         return [e.value for e in cls]
 
+    def to_proto(self):
+        proto_enum = self.to_proto_enum()
+        return pb.ValueType(scalar=proto_enum)
+
+    def to_proto_enum(self):
+        mapping = {
+            ScalarType.NIL: pb.ScalarType.NULL,
+            ScalarType.INT: pb.ScalarType.INT,
+            ScalarType.INT32: pb.ScalarType.INT32,
+            ScalarType.INT64: pb.ScalarType.INT64,
+            ScalarType.FLOAT32: pb.ScalarType.FLOAT32,
+            ScalarType.FLOAT64: pb.ScalarType.FLOAT64,
+            ScalarType.STRING: pb.ScalarType.STRING,
+            ScalarType.BOOL: pb.ScalarType.BOOL,
+            ScalarType.DATETIME: pb.ScalarType.DATETIME,
+        }
+        return mapping[self]
+
+    @classmethod
+    def from_proto(cls, proto_val):
+        mapping = {
+            pb.ScalarType.NULL: ScalarType.NIL,
+            pb.ScalarType.INT: ScalarType.INT,
+            pb.ScalarType.INT32: ScalarType.INT32,
+            pb.ScalarType.INT64: ScalarType.INT64,
+            pb.ScalarType.FLOAT32: ScalarType.FLOAT32,
+            pb.ScalarType.FLOAT64: ScalarType.FLOAT64,
+            pb.ScalarType.STRING: ScalarType.STRING,
+            pb.ScalarType.BOOL: ScalarType.BOOL,
+            pb.ScalarType.DATETIME: ScalarType.DATETIME,
+        }
+        return mapping[proto_val]
+
 
 class ResourceStatus(str, Enum):
     """
@@ -66,6 +99,10 @@ class ResourceStatus(str, Enum):
     PENDING = "PENDING"
     READY = "READY"
     FAILED = "FAILED"
+
+    @staticmethod
+    def from_proto(proto):
+        return proto.Status._enum_type.values[proto.status].name
 
 
 class ComputationMode(Enum):

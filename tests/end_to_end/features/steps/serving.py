@@ -118,25 +118,37 @@ def step_impl(context):
     context.client.apply()
 
 
-@when("I register the files from the database")
-def step_impl(context):
+@when('I register the "{data_source_size}" files from the database')
+def step_impl(context, data_source_size):
+    if data_source_size == "short":
+        source_0 = "s3a://featureform-spark-testing/data/avg_trans_short"
+        source_1 = "s3a://featureform-spark-testing/data/balance_short"
+        source_2 = "s3a://featureform-spark-testing/data/perc_short"
+    elif data_source_size == "long":
+        source_0 = "s3a://featureform-spark-testing/data/avg_trans.snappy.parquet"
+        source_1 = "s3a://featureform-spark-testing/data/balance.snappy.parquet"
+        source_2 = "s3a://featureform-spark-testing/data/perc.snappy.parquet"
+    else:
+        raise Exception("Data source size not recognized", data_source_size)
+
     context.transactions = context.spark.register_file(
         name="transactions",
         description="A dataset of average transactions",
-        file_path="s3://featureform-spark-testing/data/avg_trans.snappy.parquet",
+        file_path=source_0,
     )
 
     context.balance = context.spark.register_file(
         name="balances",
         description="A dataset of balances",
-        file_path="s3://featureform-spark-testing/data/balance.snappy.parquet",
+        file_path=source_1,
     )
 
     context.perc = context.spark.register_file(
         name="perc",
         description="A dataset of perc",
-        file_path="s3://featureform-spark-testing/data/perc.snappy.parquet",
+        file_path=source_2,
     )
+
     context.client.apply()
 
 
@@ -152,28 +164,32 @@ def step_impl(context):
     ]
     context.iter = context.client.batch_features(
         [
-            ("boolean_feature", ff.get_run()),
-            ("numerical_feature", ff.get_run()),
-            ("string_feature", ff.get_run()),
+            ("boolean_feature", context.variant),
+            ("numerical_feature", context.variant),
+            ("string_feature", context.variant),
         ]
     )
 
 
 @then("I serve batch features for spark")
 def step_impl(context):
-    context.expected = [
-        ("C1010012", [1499.0, "24204.49", 0.06193065832000591]),
-        ("C1010024", [5000.0, "87058.65", 0.05743254690946851]),
-        ("C1010039", [915.0, "11027.18", 0.08297679007688276]),
-        ("C1010068", [546.0, "46741.73", 0.011681210772472478]),
-        ("C1010081", [1661.3333333333333, "1584.18", 0.2708025603151157]),
-        ("C1010085", [225.0, "319080.2", 0.0007051518709089439]),
-    ]
+    context.expected = {
+        "C1010011": [2553.0, "120180.54", 0.002962210021689036],
+        "C1010012": [1499.0, "24204.49", 0.06193065832000591],
+        "C1010014": [727.5, "38377.14", 0.03139890049128205],
+        "C1010018": [30.0, "496.18", 0.06046192913861905],
+        "C1010024": [5000.0, "87058.65", 0.05743254690946851],
+        "C1010028": [557.0, "296828.37", 0.0018765052680106017],
+        "C1010031": [932.0, "1754.1", 0.23031754175930677],
+        "C1010035": [375.0, "378013.09", 0.001851787725128778],
+        "C1010036": [208.0, "355430.17", 0.0005852063711980331],
+        "C1010037": [19680.0, "95859.17", 0.20530117254301283],
+    }
     context.iter = context.client.batch_features(
         [
-            ("transaction_feature", ff.get_run()),
-            ("balance_feature", ff.get_run()),
-            ("perc_feature", ff.get_run()),
+            ("transaction_feature", context.variant),
+            ("balance_feature", context.variant),
+            ("perc_feature", context.variant),
         ]
     )
 
@@ -192,16 +208,25 @@ def step_impl(context):
     )
 
 
-@then("I can get a list containing the entity name and a tuple with all the features")
-def step_impl(context):
+@then(
+    'I can get a list containing the entity name and a tuple with all the features from "{provider}"'
+)
+def step_impl(context, provider):
     i = 0
     for entity, features in context.iter:
-        if i >= len(context.expected):
-            break
-        print(entity, features)
-        assert entity == context.expected[i][0]
-        assert Counter(features) == Counter(context.expected[i][1])
-        i += 1
+        if provider == "snowflake":
+            if i >= len(context.expected):
+                break
+            assert entity == context.expected[i][0]
+            assert Counter(features) == Counter(context.expected[i][1])
+            i += 1
+        elif provider == "spark":
+            if i >= len(context.expected):
+                break
+            assert entity in context.expected
+            assert Counter(context.expected[entity]) == Counter(features)
+        else:
+            raise Exception("Provider not recognized", provider)
 
 
 @then("I can get a list containing the correct number of features")

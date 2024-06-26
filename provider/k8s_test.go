@@ -17,6 +17,7 @@ import (
 	"github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	pc "github.com/featureform/provider/provider_config"
+	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/mitchellh/mapstructure"
@@ -183,17 +184,11 @@ func TestBlobInterfaces(t *testing.T) {
 		"HDFS":  hdfsFileStore,
 	}
 	for testName, fileTest := range fileStoreTests {
-		fileTest = fileTest
-		testName = testName
 		for blobName, blobProvider := range blobProviders {
 			if testing.Short() && blobName == "Azure" {
 				t.Skip()
 			}
-			if blobName != "HDFS" {
-				continue
-			}
-			blobName = blobName
-			blobProvider = blobProvider
+
 			t.Run(fmt.Sprintf("%s: %s", testName, blobName), func(t *testing.T) {
 				fileTest(t, blobProvider)
 			})
@@ -234,7 +229,7 @@ func testFileUploadAndDownload(t *testing.T, store FileStore) {
 		t.Fatalf("could not set source path because %v", err)
 	}
 
-	destinationPath, err := store.CreateFilePath(destFile)
+	destinationPath, err := store.CreateFilePath(destFile, false)
 	if err != nil {
 		t.Fatalf("could not create destination file path because %v", err)
 	}
@@ -274,7 +269,7 @@ func testFileUploadAndDownload(t *testing.T, store FileStore) {
 func testFilestoreReadAndWrite(t *testing.T, store FileStore) {
 	testWrite := []byte("example data")
 	testKey := uuidWithoutDashes()
-	testFilePath, err := store.CreateFilePath(testKey)
+	testFilePath, err := store.CreateFilePath(testKey, false)
 	if err != nil {
 		t.Fatalf("Could not create test filepath: %v", err)
 	}
@@ -407,7 +402,7 @@ func Test_parquetIteratorFromReader(t *testing.T) {
 }
 
 func testExists(t *testing.T, store FileStore) {
-	randomFilePath, err := store.CreateFilePath(uuid.New().String())
+	randomFilePath, err := store.CreateFilePath(uuid.New().String(), false)
 	if err != nil {
 		t.Fatalf("Could not create random file path: %v", err)
 	}
@@ -429,7 +424,7 @@ func testExists(t *testing.T, store FileStore) {
 }
 
 func testNotExists(t *testing.T, store FileStore) {
-	randomFilePath, err := store.CreateFilePath(uuid.New().String())
+	randomFilePath, err := store.CreateFilePath(uuid.New().String(), false)
 	if err != nil {
 		t.Fatalf("Could not create random file path: %v", err)
 	}
@@ -445,12 +440,12 @@ func testNotExists(t *testing.T, store FileStore) {
 func getMockSchemaAndRecords(length int) (TableSchema, []GenericRecord) {
 	schema := TableSchema{
 		Columns: []TableColumn{
-			{Name: "ID", ValueType: Int},
-			{Name: "Name", ValueType: String},
-			{Name: "Points", ValueType: Float32},
-			{Name: "Score", ValueType: Float64},
-			{Name: "Registered", ValueType: Bool},
-			{Name: "Created", ValueType: Timestamp},
+			{Name: "ID", ValueType: types.Int},
+			{Name: "Name", ValueType: types.String},
+			{Name: "Points", ValueType: types.Float32},
+			{Name: "Score", ValueType: types.Float64},
+			{Name: "Registered", ValueType: types.Bool},
+			{Name: "Created", ValueType: types.Timestamp},
 		},
 	}
 
@@ -486,8 +481,9 @@ func testServe(t *testing.T, store FileStore) {
 	if err != nil {
 		t.Fatalf("could not convert struct list to parquet bytes: %v", err)
 	}
-	randomParquetKey := fmt.Sprintf("%s.parquet", uuid.New().String())
-	randomParqetFilePath, err := store.CreateFilePath(randomParquetKey)
+	// TODO: check that this outputs files to test_files
+	randomParquetKey := fmt.Sprintf("/test_files/%s.parquet", uuid.New().String())
+	randomParqetFilePath, err := store.CreateFilePath(randomParquetKey, false)
 	if err != nil {
 		t.Fatalf("Could not create random file path: %v", err)
 	}
@@ -529,7 +525,7 @@ func testServeDirectory(t *testing.T, store FileStore) {
 	parquetNumRows := 5
 	parquetNumFiles := 5
 	randomDirKey := uuid.New().String()
-	randomDirectory, err := store.CreateDirPath(randomDirKey)
+	randomDirectory, err := store.CreateFilePath(fmt.Sprintf("test_files/%s", randomDirKey), true)
 	if err != nil {
 		t.Fatalf("Could not create random directory: %v", err)
 	}
@@ -543,8 +539,8 @@ func testServeDirectory(t *testing.T, store FileStore) {
 			t.Fatalf("could not convert struct list to parquet bytes: %v", err)
 		}
 		randomKey := fmt.Sprintf("part000%d%s.parquet", i, uuid.New().String())
-		randomPath := fmt.Sprintf("%s/%s", randomDirKey, randomKey)
-		randomFilePath, err := store.CreateFilePath(randomPath)
+		randomPath := fmt.Sprintf("test_files/%s/%s", randomDirKey, randomKey)
+		randomFilePath, err := store.CreateFilePath(randomPath, false)
 		if err != nil {
 			t.Fatalf("Could not create random file path: %v", err)
 		}
@@ -591,7 +587,7 @@ func testServeDirectory(t *testing.T, store FileStore) {
 }
 
 func testDelete(t *testing.T, store FileStore) {
-	randomFilePath, err := store.CreateFilePath(uuid.New().String())
+	randomFilePath, err := store.CreateFilePath(uuid.New().String(), false)
 	if err != nil {
 		t.Fatalf("Could not create random file path: %v", err)
 	}
@@ -622,7 +618,7 @@ func testDelete(t *testing.T, store FileStore) {
 func testDeleteAll(t *testing.T, store FileStore) {
 	randomListLength := 5
 	randomDirKey := uuid.New().String()
-	randomDirectory, err := store.CreateDirPath(randomDirKey)
+	randomDirectory, err := store.CreateFilePath(randomDirKey, true)
 	if err != nil {
 		t.Fatalf("Could not create random directory: %v", err)
 	}
@@ -631,17 +627,18 @@ func testDeleteAll(t *testing.T, store FileStore) {
 		randomKeyList[i] = uuid.New().String()
 		randomData := []byte(uuid.New().String())
 		randomPath := fmt.Sprintf("%s/%s", randomDirKey, randomKeyList[i])
-		randomFilePath, err := store.CreateFilePath(randomPath)
+		randomFilePath, err := store.CreateFilePath(randomPath, false)
 		if err != nil {
 			t.Fatalf("Could not create random file path: %v", err)
 		}
+		fmt.Println("-----", randomFilePath.ToURI())
 		if err := store.Write(randomFilePath, randomData); err != nil {
 			t.Fatalf("Could not write key to filestore: %v", err)
 		}
 	}
 	for i := 0; i < randomListLength; i++ {
 		randomPath := fmt.Sprintf("%s/%s", randomDirKey, randomKeyList[i])
-		randomFilePath, err := store.CreateFilePath(randomPath)
+		randomFilePath, err := store.CreateFilePath(randomPath, false)
 		if err != nil {
 			t.Fatalf("Could not create random file path: %v", err)
 		}
@@ -658,7 +655,7 @@ func testDeleteAll(t *testing.T, store FileStore) {
 	}
 	for i := 0; i < randomListLength; i++ {
 		randomPath := fmt.Sprintf("%s/%s", randomDirectory, randomKeyList[i])
-		randomFilePath, err := store.CreateFilePath(randomPath)
+		randomFilePath, err := store.CreateFilePath(randomPath, false)
 		if err != nil {
 			t.Fatalf("Could not create random file path: %v", err)
 		}
@@ -677,7 +674,7 @@ func testNewestFile(t *testing.T, store FileStore) {
 	// write a bunch of blobs with different timestamps
 	randomListLength := 5
 	randomDirKey := uuid.New().String()
-	randomDirectory, err := store.CreateDirPath(randomDirKey)
+	randomDirectory, err := store.CreateFilePath(randomDirKey, true)
 	if err != nil {
 		t.Fatalf("Could not create random directory: %v", err)
 	}
@@ -686,7 +683,7 @@ func testNewestFile(t *testing.T, store FileStore) {
 		randomKeyList[i] = uuid.New().String()
 		randomData := []byte(uuid.New().String())
 		randomPath := fmt.Sprintf("%s/%s.parquet", randomDirKey, randomKeyList[i])
-		randomFilePath, err := store.CreateFilePath(randomPath)
+		randomFilePath, err := store.CreateFilePath(randomPath, false)
 		if err != nil {
 			t.Fatalf("Could not create random file path: %v", err)
 		}
@@ -716,7 +713,7 @@ func testNumRows(t *testing.T, store FileStore) {
 	if err != nil {
 		t.Fatalf("could not convert struct list to parquet bytes: %v", err)
 	}
-	randomParquetPath, err := store.CreateFilePath(fmt.Sprintf("%s.parquet", uuid.New().String()))
+	randomParquetPath, err := store.CreateFilePath(fmt.Sprintf("%s.parquet", uuid.New().String()), false)
 	if err != nil {
 		t.Fatalf("Could not create random file path: %v", err)
 	}
@@ -1017,32 +1014,8 @@ func TestParquetIterator_vector32(t *testing.T) {
 		if value == nil {
 			break
 		}
-		mapValue, ok := value.(map[string]interface{})
-		if !ok {
-			t.Fatalf("could not cast type: %T to map[string]interface{}", value)
-		}
-		list, ok := mapValue["list"]
-		if !ok {
-			t.Fatalf("could not find list in value: %v", value)
-		}
-		elementsSlice, ok := list.([]interface{})
-		if !ok {
-			t.Fatalf("could not cast type: %T to []interface{}", list)
-		}
-		vector32 := make([]float32, len(elementsSlice))
-		for i, e := range elementsSlice {
-			m, ok := e.(map[string]interface{})
-			if !ok {
-				t.Fatalf("could not cast type: %T to map[string]interface{}", e)
-			}
-			switch element := m["element"].(type) {
-			case float32:
-				vector32[i] = element
-			case float64:
-				vector32[i] = float32(element)
-			default:
-				t.Fatalf("could not cast element type: %T to float32", element)
-			}
+		if _, ok := value.([]float64); !ok {
+			t.Fatalf("could not cast type: %T to []float64", value)
 		}
 	}
 }
@@ -1051,21 +1024,24 @@ func convertToParquetBytes(schema TableSchema, list []GenericRecord) ([]byte, er
 	if len(list) == 0 {
 		return nil, fmt.Errorf("list is empty")
 	}
-	parquetRecords := schema.ToParquetRecords(list)
-	parquetSchema := parquet.SchemaOf(schema.Interface())
+	parquetRecords, err := schema.ToParquetRecords(list)
+	if err != nil {
+		return nil, err
+	}
+	parquetSchema := schema.AsParquetSchema()
 	buf := new(bytes.Buffer)
-	err := parquet.Write[any](
+	writeErr := parquet.Write(
 		buf,
 		parquetRecords,
 		parquetSchema,
 	)
-	if err != nil {
+	if writeErr != nil {
 		return nil, fmt.Errorf("could not write parquet file to bytes: %v", err)
 	}
 	return buf.Bytes(), nil
 }
 func Test_castTimestamp(t *testing.T) {
-	timeNow := time.Now()
+	timeNow := time.Now().UTC()
 	type args struct {
 		timestamp interface{}
 	}
@@ -1077,8 +1053,9 @@ func Test_castTimestamp(t *testing.T) {
 		errMsg  string
 	}{
 		{"With time.Time", args{timeNow}, timeNow, false, ""},
-		{"With string", args{"idk"}, timeNow, true, "expected timestamp to be of type time.Time, but got string"},
-		{"With int", args{0}, timeNow, true, "expected timestamp to be of type time.Time, but got int"},
+		{"With string", args{"idk"}, timeNow, true, "could not parse timestamp as string"},
+		{"With string timestamp", args{timeNow.String()}, timeNow, false, ""},
+		{"With int", args{0}, timeNow, true, "expected timestamp to be of type time.Time"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1090,7 +1067,7 @@ func Test_castTimestamp(t *testing.T) {
 			}
 			// If we expect error, checks that it is the correct error
 			if (err != nil) && tt.wantErr {
-				if err.Error() != tt.errMsg {
+				if !strings.Contains(err.Error(), tt.errMsg) {
 					t.Errorf("castTimestamp() error = %v, wantMsg %v", err, tt.errMsg)
 				}
 				return

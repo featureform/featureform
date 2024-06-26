@@ -1,29 +1,25 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
-import base64
 import inspect
-import json
-import math
 import os
 import random
 import types
 import warnings
-from typing import List, Union, Dict
+from collections.abc import Iterator
+from typing import List, Optional, Union
 
 import dill
+import math
 import numpy as np
 import pandas as pd
-from featureform.proto import serving_pb2
-from featureform.proto import serving_pb2_grpc
 
-from .register import FeatureColumnResource
-
+from featureform.proto import serving_pb2, serving_pb2_grpc
+from . import GrpcClient, Model, TrainingSetVariant
 from .enums import FileFormat, ResourceType
-
-from .resources import Model, SourceType, ComputationMode
+from .register import FeatureColumnResource
 from .tls import insecure_channel, secure_channel
+from .train_test_split import TrainTestSplit
 from .version import check_up_to_date
 
 
@@ -88,9 +84,8 @@ class ServingClient:
         self,
         name,
         variant="",
-        include_label_timestamp=False,
         model: Union[str, Model] = None,
-    ):
+    ) -> "Dataset":
         """Return an iterator that iterates through the specified training set.
 
         **Examples**:
@@ -109,7 +104,10 @@ class ServingClient:
         Returns:
             training_set (Dataset): A training set iterator
         """
-        return self.impl.training_set(name, variant, include_label_timestamp, model)
+        if isinstance(name, TrainingSetVariant):
+            variant = name.variant
+            name = name.name
+        return self.impl.training_set(name, variant, model)
 
     def features(
         self, features, entities, model: Union[str, Model] = None, params: list = None
@@ -169,18 +167,18 @@ class HostedClientImpl:
             )
         check_up_to_date(False, "serving")
         self._channel = self._create_channel(host, insecure, cert_path)
-        self._stub = serving_pb2_grpc.FeatureStub(self._channel)
+        self._stub = GrpcClient(serving_pb2_grpc.FeatureStub(self._channel))
 
-    def _create_channel(self, host, insecure, cert_path):
+    @staticmethod
+    def _create_channel(host, insecure, cert_path):
         if insecure:
             return insecure_channel(host)
         else:
             return secure_channel(host, cert_path)
 
-    def training_set(
-        self, name, variation, include_label_timestamp, model: Union[str, Model] = None
-    ):
-        return Dataset(self._stub).from_stub(name, variation, model)
+    def training_set(self, name, variation, model: Union[str, Model] = None):
+        training_set_stream = TrainingSetStream(self._stub, name, variation, model)
+        return Dataset(training_set_stream)
 
     def features(
         self, features, entities, model: Union[str, Model] = None, params: list = None
@@ -291,7 +289,7 @@ class HostedClientImpl:
         self._channel.close()
 
 
-class Stream:
+class TrainingSetStream(Iterator):
     def __init__(self, stub, name, version, model: Union[str, Model] = None):
         req = serving_pb2.TrainingDataRequest()
         req.id.name = name
@@ -424,9 +422,132 @@ class Dataset:
         self._stream = stream
         self._dataframe = dataframe
 
-    def from_stub(self, name, version, model: Union[str, Model] = None):
-        stream = Stream(self._stream, name, version, model)
-        return Dataset(stream)
+    def train_test_split(
+        self,
+        test_size: float = 0,
+        train_size: float = 0,
+        shuffle: bool = True,
+        random_state: Optional[int] = None,
+        batch_size: int = 1,
+    ):
+        """
+        (This functionality is currently only available for Clickhouse).
+
+        Splits an existing training set into training and testing iterators. The split is processed on the underlying
+        provider and calculated at serving time.
+
+        **Examples**:
+
+        ``` py
+        import featureform as ff
+        client = ff.Client()
+        train, test = client
+            .training_set("fraud_training", "v1")
+            .train_test_split(
+                test_size=0.7,
+                train_size=0.3,
+                shuffle=True,
+                random_state=None,
+                batch_size=5
+            )
+
+        for features, label in train:
+            print(features)
+            print(label)
+            clf.partial_fit(features, label)
+
+        for features, label in test:
+            print(features)
+            print(label)
+            clf.score(features, label)
+
+
+        # TRAIN OUTPUT
+        # np.array([
+        #   [1, 1, 3],
+        #   [5, 1, 2],
+        #   [7, 6, 5],
+        #   [8, 3, 3],
+        #   [5, 2, 2],
+        # ])
+        # np.array([2, 4, 2, 3, 4])
+        # np.array([
+        #   [3, 1, 2],
+        #   [5, 4, 5],
+        # ])
+        # np.array([6, 7])
+
+        # TEST OUTPUT
+        # np.array([
+        #   [5, 1, 3],
+        #   [4, 3, 1],
+        #   [6, 6, 7],
+        # ])
+        # np.array([4, 6, 7])
+
+        ```
+
+        Args:
+            test_size (float): The ratio of test set size to train set size. Must be a value between 0 and 1. If excluded
+                it will be the complement to the train_size. One of test_size or train_size must be specified.
+            train_size (float): The ratio of train set size to train set size. Must be a value between 0 and 1. If excluded
+                it will be the complement to the test_size. One of test_size or train_size must be specified.
+            shuffle (bool): Whether to shuffle the dataset before splitting.
+            random_state (Optional[int]): A random state to shuffle the dataset. If None, the dataset will be shuffled
+                randomly on every call. If >0, the value will be used a seed to create random shuffle that can be repeated
+                if subsequent calls use the same seed.
+            batch_size (int): The size of the batch to return from the iterator. Must be greater than 0.
+
+        Returns:
+            train (Iterator): An iterator for training values.
+            test (Iterator): An iterator for testing values.
+        """
+        if batch_size < 1:
+            raise ValueError("batch_size must be 1 or greater")
+
+        if random_state is not None and random_state < 0:
+            raise ValueError("random_state must be 0 or greater")
+
+        test_size, train_size = self.validate_test_size(test_size, train_size)
+
+        name = self._stream.name
+        variant = self._stream.version
+        stub = self._stream._stub
+        model = self._stream.model if hasattr(self._stream, "model") else None
+
+        train, test = TrainTestSplit(
+            stub=stub,
+            name=name,
+            version=variant,
+            model=model,
+            test_size=test_size,
+            train_size=train_size,
+            shuffle=shuffle,
+            random_state=(0 if random_state is None else random_state),
+            batch_size=batch_size,
+        ).split()
+
+        return train, test
+
+    @staticmethod
+    def validate_test_size(test_size, train_size):
+        # Validate ranges
+        if not 0 <= test_size <= 1:
+            raise ValueError("test_size must be between 0 and 1")
+        if not 0 <= train_size <= 1:
+            raise ValueError("train_size must be between 0 and 1")
+
+        # If both are specified but don't sum to 1, it's an error
+        if test_size != 0 and train_size != 0 and test_size + train_size != 1:
+            raise ValueError("test_size + train_size must equal 1 if both are non-zero")
+
+        # Auto-adjust if one is 0
+        if test_size == 0 and train_size > 0:
+            test_size = 1 - train_size
+        elif train_size == 0 and test_size > 0:
+            train_size = 1 - test_size
+
+        return test_size, train_size
 
     def dataframe(self, spark_session=None):
         """Returns the training set as a Pandas DataFrame or Spark DataFrame.
@@ -631,17 +752,19 @@ class Dataset:
 
 class Row:
     def __init__(self, proto_row):
+        self._types = [proto_type_to_np_type(feature) for feature in proto_row.features]
         self._features = np.array(
-            [parse_proto_value(feature) for feature in proto_row.features]
+            [parse_proto_value(feature) for feature in proto_row.features],
+            dtype=get_numpy_array_type(self._types),
         )
         self._label = parse_proto_value(proto_row.label)
         self._row = np.append(self._features, self._label)
 
     def features(self):
-        return [self._row[:-1]]
+        return np.array([self._row[:-1]])
 
     def label(self):
-        return [self._label]
+        return np.array([self._label])
 
     def to_numpy(self):
         return self._row
@@ -712,6 +835,26 @@ def parse_proto_value(value):
     return getattr(value, value.WhichOneof("value"))
 
 
+def proto_type_to_np_type(value):
+    type_mapping = {
+        "str_value": str,
+        "int_value": np.int32,
+        "int32_value": np.int32,
+        "int64_value": np.int64,
+        "float_value": np.float32,
+        "double_value": np.float64,
+        "bool_value": bool,
+    }
+    return type_mapping[value.WhichOneof("value")]
+
+
+def get_numpy_array_type(types):
+    if all(i == types[0] for i in types):
+        return types[0]
+    else:
+        return "O"
+
+
 class FeatureSetIterator:
     def __init__(self, stub, features):
         req = serving_pb2.BatchFeatureServeRequest()
@@ -758,7 +901,3 @@ class FeatureSetRow:
 
     def __repr__(self):
         return "Features: {} , Entity: {}".format(self.features(), self.entity())
-
-
-# Create a featureset row class
-# modify restart

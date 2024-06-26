@@ -75,3 +75,14 @@ func TestCreateRunnerError(t *testing.T) {
 		t.Fatalf("Failed to record error creating runner")
 	}
 }
+
+func TestMultiRegister(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("Re-registering the same factory didn't panic")
+		}
+	}()
+	// Have to call twice
+	registerFactories()
+	registerFactories()
+}

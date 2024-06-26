@@ -7,8 +7,31 @@ package runner
 import (
 	"fmt"
 
+	"github.com/featureform/fferr"
 	"github.com/featureform/types"
 )
+
+func init() {
+	registerFactories()
+}
+
+func registerFactories() {
+	if err := RegisterFactory(COPY_TO_ONLINE, MaterializedChunkRunnerFactory); err != nil {
+		panic(fmt.Errorf("failed to register 'Copy to Online' factory: %w", err))
+	}
+	if err := RegisterFactory(MATERIALIZE, MaterializeRunnerFactory); err != nil {
+		panic(fmt.Errorf("failed to register 'Materialize' factory: %w", err))
+	}
+	if err := RegisterFactory(CREATE_TRANSFORMATION, CreateTransformationRunnerFactory); err != nil {
+		panic(fmt.Errorf("failed to register 'Create Transformation' factory: %w", err))
+	}
+	if err := RegisterFactory(CREATE_TRAINING_SET, TrainingSetRunnerFactory); err != nil {
+		panic(fmt.Errorf("failed to register 'Create Training Set' factory: %w", err))
+	}
+	if err := RegisterFactory(S3_IMPORT_DYNAMODB, S3ImportDynamoDBRunnerFactory); err != nil {
+		panic(fmt.Errorf("failed to register S3 import to DynamoDB factory: %v", err))
+	}
+}
 
 type RunnerName string
 
@@ -36,21 +59,23 @@ type RunnerFactory func(config Config) (types.Runner, error)
 
 var factoryMap = make(map[RunnerName]RunnerFactory)
 
+// Don't use this in testing, it affects global state and can break other tests or cause race conditions.
 func ResetFactoryMap() {
 	factoryMap = make(map[RunnerName]RunnerFactory)
 }
 
 func RegisterFactory(name RunnerName, runnerFactory RunnerFactory) error {
 	if _, exists := factoryMap[name]; exists {
-		return fmt.Errorf("factory already registered: %s", name)
+		return fferr.NewInternalError(fmt.Errorf("factory already registered: %s", name))
 	}
 	factoryMap[name] = runnerFactory
 	return nil
 }
 
+// Don't use this in testing, it affects global state and can break other tests or cause race conditions.
 func UnregisterFactory(name RunnerName) error {
 	if _, exists := factoryMap[name]; !exists {
-		return fmt.Errorf("factory %s not registered", name)
+		return fferr.NewInternalError(fmt.Errorf("factory %s not registered", name))
 	}
 	delete(factoryMap, name)
 	return nil
@@ -59,7 +84,7 @@ func UnregisterFactory(name RunnerName) error {
 func Create(name RunnerName, config Config) (types.Runner, error) {
 	factory, exists := factoryMap[name]
 	if !exists {
-		return nil, fmt.Errorf("factory does not exist: %s", name)
+		return nil, fferr.NewInternalError(fmt.Errorf("factory does not exist: %s", name))
 	}
 	runner, err := factory(config)
 	if err != nil {

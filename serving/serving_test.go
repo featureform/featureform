@@ -8,22 +8,29 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 	grpcmeta "google.golang.org/grpc/metadata"
 
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/provider"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 )
 
 const PythonFunc = `def average_user_transaction(transactions):
@@ -381,6 +388,7 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Entity:   "mockEntity",
 			Source:   metadata.NameVariant{"mockSource", "var"},
 			Owner:    "Featureform",
+			Type:     types.String,
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
 				Value:  "col2",
@@ -458,7 +466,7 @@ func (ctx *onlineTestContext) Create(t *testing.T) *FeatureServer {
 	if ctx.ResourceDefsFn != nil {
 		defs := ctx.ResourceDefsFn(providerType)
 		if err := meta.CreateAll(context.Background(), defs); err != nil {
-			t.Fatalf("Failed to create metdata entries: %s", err)
+			t.Fatalf("Failed to create metadata entries: %s", err)
 		}
 	}
 	logger := zaptest.NewLogger(t).Sugar()
@@ -490,7 +498,7 @@ func createMockOnlineStoreFactory(recsMap map[provider.ResourceID][]provider.Res
 			if id.Type != provider.Feature {
 				continue
 			}
-			table, err := store.CreateTable(id.Name, id.Variant, provider.String)
+			table, err := store.CreateTable(id.Name, id.Variant, types.String)
 			if err != nil {
 				panic(err)
 			}
@@ -538,7 +546,7 @@ func startMetadata() (*metadata.MetadataServer, string) {
 		panic(err)
 	}
 	config := &metadata.Config{
-		Logger:          logger.Sugar(),
+		Logger:          logging.WrapZapLogger(logger.Sugar()),
 		StorageProvider: metadata.LocalStorageProvider{},
 	}
 	serv, err := metadata.NewMetadataServer(config)
@@ -560,7 +568,7 @@ func startMetadata() (*metadata.MetadataServer, string) {
 
 func metadataClient(t *testing.T, addr string) *metadata.Client {
 	logger := zaptest.NewLogger(t).Sugar()
-	client, err := metadata.NewClient(addr, logger)
+	client, err := metadata.NewClient(addr, logging.WrapZapLogger(logger))
 	if err != nil {
 		t.Fatalf("Failed to create client: %s", err)
 	}
@@ -1453,4 +1461,110 @@ func TestTrainingDataColumns(t *testing.T) {
 	if !reflect.DeepEqual(expectedColumns, resp) {
 		t.Fatalf("Columns aren't equal: %v\n%v", expectedColumns, resp)
 	}
+}
+
+// Test Train Test Split
+
+type MockFeature_TrainTestSplitServer struct {
+	mock.Mock
+	pb.Feature_TrainTestSplitServer
+	Responses []*pb.BatchTrainTestSplitResponse
+}
+
+func (m *MockFeature_TrainTestSplitServer) Send(response *pb.BatchTrainTestSplitResponse) error {
+	args := m.Called(response)
+	m.Responses = append(m.Responses, response)
+	return args.Error(0)
+}
+
+func (m *MockFeature_TrainTestSplitServer) Recv() (*pb.TrainTestSplitRequest, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*pb.TrainTestSplitRequest), nil
+}
+
+func TestTrainTestSplit_Initialize(t *testing.T) {
+	ctx := onlineTestContext{
+		ResourceDefsFn: simpleResourceDefsFn,
+		FactoryFn:      createMockOfflineStoreFactory(simpleFeatureRecords(), simpleTrainingSetDefs()),
+	}
+	serv := ctx.Create(t)
+	defer ctx.Destroy()
+
+	initRequest := &pb.TrainTestSplitRequest{
+		Id:          &pb.TrainingDataID{Name: "training-set", Version: "variant"},
+		Model:       nil,
+		TestSize:    .5,
+		TrainSize:   .5,
+		Shuffle:     false,
+		RandomState: 0,
+		RequestType: pb.RequestType_INITIALIZE,
+		BatchSize:   1,
+	}
+
+	mockTrainTestSplitServer := new(MockFeature_TrainTestSplitServer)
+
+	mockTrainTestSplitServer.On("Recv").Return(initRequest, nil).Once()
+	mockTrainTestSplitServer.On("Recv").Return(nil, io.EOF).Once()
+	mockTrainTestSplitServer.On("Send", mock.Anything).Return(nil).Maybe()
+
+	done := make(chan bool)
+
+	go func() {
+		err := serv.TrainTestSplit(mockTrainTestSplitServer)
+		assert.NoError(t, err)
+		close(done)
+	}()
+
+	<-done
+
+	assert.NotEmpty(t, mockTrainTestSplitServer.Responses)
+	assert.Equal(t, pb.RequestType_INITIALIZE, mockTrainTestSplitServer.Responses[0].RequestType)
+}
+
+func TestTrainTestSplit_DataRequest(t *testing.T) {
+	ctx := onlineTestContext{
+		ResourceDefsFn: simpleResourceDefsFn,
+		FactoryFn:      createMockOfflineStoreFactory(simpleFeatureRecords(), simpleTrainingSetDefs()),
+	}
+	serv := ctx.Create(t)
+	defer ctx.Destroy()
+
+	initRequest := &pb.TrainTestSplitRequest{
+		Id:          &pb.TrainingDataID{Name: "training-set", Version: "variant"},
+		Model:       nil,
+		TestSize:    .5,
+		TrainSize:   .5,
+		Shuffle:     false,
+		RandomState: 0,
+		RequestType: pb.RequestType_INITIALIZE,
+		BatchSize:   1,
+	}
+
+	dataRequest := proto.Clone(initRequest).(*pb.TrainTestSplitRequest)
+	dataRequest.RequestType = pb.RequestType_TRAINING
+
+	mockTrainTestSplitServer := new(MockFeature_TrainTestSplitServer)
+
+	// Setup mock to return initRequest, then dataRequest, then simulate stream end with io.EOF
+	mockTrainTestSplitServer.On("Recv").Return(initRequest, nil).Once()
+	mockTrainTestSplitServer.On("Recv").Return(dataRequest, nil).Once()
+	mockTrainTestSplitServer.On("Recv").Return(nil, io.EOF) // This will be returned for all subsequent calls
+
+	mockTrainTestSplitServer.On("Send", mock.Anything).Return(nil)
+
+	done := make(chan bool)
+
+	go func() {
+		err := serv.TrainTestSplit(mockTrainTestSplitServer)
+		assert.NoError(t, err)
+		close(done)
+	}()
+
+	<-done
+
+	assert.NotEmpty(t, mockTrainTestSplitServer.Responses)
+	assert.Equal(t, pb.RequestType_INITIALIZE, mockTrainTestSplitServer.Responses[0].RequestType)
 }

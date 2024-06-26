@@ -173,10 +173,10 @@ gen_grpc:						## Generates GRPC Dependencies
 	cp proto/serving.proto client/src/featureform/proto/serving.proto
 
 	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./proto/serving.proto
-	python3 -m grpc_tools.protoc -I ./client/src --python_out=./client/src --grpc_python_out=./client/src/ ./client/src/featureform/proto/serving.proto
+	python3 -m grpc_tools.protoc -I ./client/src --python_out=./client/src  --mypy_out=./client/src --grpc_python_out=./client/src/ ./client/src/featureform/proto/serving.proto
 
 	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./metadata/proto/metadata.proto
-	python3 -m grpc_tools.protoc -I ./client/src --python_out=./client/src/ --grpc_python_out=./client/src/ ./client/src/featureform/proto/metadata.proto
+	python3 -m grpc_tools.protoc -I ./client/src --python_out=./client/src/ --mypy_out=./client/src --grpc_python_out=./client/src/ ./client/src/featureform/proto/metadata.proto
 
 update_python: gen_grpc 				## Updates the python package locally
 	pip3 install pytest
@@ -361,7 +361,7 @@ install_featureform: start_minikube containers		## Configures Featureform on Min
         --version v1.8.0 \
         --namespace cert-manager \
         --create-namespace
-	helm install featureform ./charts/featureform --set global.repo=local --set global.pullPolicy=Never --set global.version=stable
+	helm install featureform ./charts/featureform --set repository=local --set pullPolicy=Never --set versionOverride=stable
 	kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
 	export FEATUREFORM_HOST=localhost:443
     export FEATUREFORM_CERT=tls.crt

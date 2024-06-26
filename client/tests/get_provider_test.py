@@ -139,5 +139,5 @@ def test_registrar_get_gcs():
 @pytest.mark.local
 def test_registrar_get_entity():
     reg = Registrar()
-    result = reg.get_entity(name="unit-test", is_local=True)
+    result = reg.get_entity(name="unit-test")
     assert isinstance(result, EntityRegistrar)

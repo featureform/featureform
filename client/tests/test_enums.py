@@ -1,5 +1,6 @@
 import pytest
-from featureform import FilePrefix, FileFormat
+from featureform import FilePrefix
+from featureform.enums import FileFormat
 
 
 @pytest.mark.parametrize(

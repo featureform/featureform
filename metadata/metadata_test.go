@@ -3,18 +3,21 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"google.golang.org/protobuf/proto"
 	"net"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
-	"golang.org/x/exp/slices"
+	"github.com/stretchr/testify/assert"
+	grpc_status "google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 	"go.uber.org/zap/zaptest"
 )
@@ -136,7 +139,7 @@ func filledResourceDefs() []ResourceDef {
 			Variant:     "variant",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "float",
+			Type:        types.Float32,
 			Description: "Feature variant",
 			Source:      NameVariant{"mockSource", "var"},
 			Owner:       "Featureform",
@@ -155,7 +158,7 @@ func filledResourceDefs() []ResourceDef {
 			Variant:     "variant2",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "int",
+			Type:        types.Int,
 			Description: "Feature variant2",
 			Source:      NameVariant{"mockSource", "var2"},
 			Owner:       "Featureform",
@@ -174,7 +177,7 @@ func filledResourceDefs() []ResourceDef {
 			Variant:     "variant",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "string",
+			Type:        types.String,
 			Description: "Feature2 variant",
 			Source:      NameVariant{"mockSource", "var"},
 			Owner:       "Featureform",
@@ -204,7 +207,7 @@ func filledResourceDefs() []ResourceDef {
 		LabelDef{
 			Name:        "label",
 			Variant:     "variant",
-			Type:        "int64",
+			Type:        types.Int64,
 			Description: "label variant",
 			Provider:    "mockOffline",
 			Entity:      "user",
@@ -401,7 +404,7 @@ func (ctx *testContext) Destroy() {
 func startServ(t *testing.T) (*MetadataServer, string) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logger.Sugar(),
+		Logger:          logging.WrapZapLogger(logger.Sugar()),
 		StorageProvider: LocalStorageProvider{},
 	}
 	serv, err := NewMetadataServer(config)
@@ -424,7 +427,7 @@ func startServ(t *testing.T) (*MetadataServer, string) {
 func startServNoPanic(t *testing.T) (*MetadataServer, string) {
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:          logger.Sugar(),
+		Logger:          logging.WrapZapLogger(logger.Sugar()),
 		StorageProvider: LocalStorageProvider{},
 	}
 	serv, err := NewMetadataServer(config)
@@ -445,7 +448,7 @@ func startServNoPanic(t *testing.T) (*MetadataServer, string) {
 }
 
 func client(t *testing.T, addr string) *Client {
-	logger := zaptest.NewLogger(t).Sugar()
+	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
 	client, err := NewClient(addr, logger)
 	if err != nil {
 		t.Fatalf("Failed to create client: %s", err)
@@ -501,9 +504,9 @@ func TestClosedServer(t *testing.T) {
 }
 
 func TestServeGracefulStop(t *testing.T) {
-	logger := zaptest.NewLogger(t)
+	logger := zaptest.NewLogger(t).Sugar()
 	config := &Config{
-		Logger:          logger.Sugar(),
+		Logger:          logging.WrapZapLogger(logger),
 		StorageProvider: LocalStorageProvider{},
 		Address:         ":0",
 	}
@@ -1138,7 +1141,7 @@ type FeatureVariantTest struct {
 	Name         string
 	Variant      string
 	Description  string
-	Type         string
+	Type         types.ValueType
 	Owner        string
 	Entity       string
 	Provider     string
@@ -1162,7 +1165,11 @@ func (test FeatureVariantTest) Test(t *testing.T, client *Client, res interface{
 	assertEqual(t, feature.Description(), test.Description)
 	assertEqual(t, feature.Owner(), test.Owner)
 	if feature.Mode() == PRECOMPUTED {
-		assertEqual(t, feature.Type(), test.Type)
+		fType, err := feature.Type()
+		if err != nil {
+			t.Fatalf("Failed to parse type: %+v\n%s", feature, err)
+		}
+		assertEqual(t, fType, test.Type)
 		assertEqual(t, feature.Provider(), test.Provider)
 		assertEqual(t, feature.Source(), test.Source)
 		assertEqual(t, feature.Entity(), test.Entity)
@@ -1192,7 +1199,7 @@ func expectedFeatureVariants() ResourceTests {
 			Variant:     "variant",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "float",
+			Type:        types.Float32,
 			Description: "Feature variant",
 			Source:      NameVariant{"mockSource", "var"},
 			Owner:       "Featureform",
@@ -1211,7 +1218,7 @@ func expectedFeatureVariants() ResourceTests {
 			Variant:     "variant2",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "int",
+			Type:        types.Int,
 			Description: "Feature variant2",
 			Source:      NameVariant{"mockSource", "var2"},
 			Owner:       "Featureform",
@@ -1231,7 +1238,7 @@ func expectedFeatureVariants() ResourceTests {
 			Variant:     "variant",
 			Provider:    "mockOnline",
 			Entity:      "user",
-			Type:        "string",
+			Type:        types.String,
 			Description: "Feature2 variant",
 			Source:      NameVariant{"mockSource", "var"},
 			Owner:       "Featureform",
@@ -1302,7 +1309,7 @@ type LabelVariantTest struct {
 	Name         string
 	Variant      string
 	Description  string
-	Type         string
+	Type         types.ValueType
 	Owner        string
 	Entity       string
 	Provider     string
@@ -1319,10 +1326,14 @@ func (test LabelVariantTest) NameVariant() NameVariant {
 func (test LabelVariantTest) Test(t *testing.T, client *Client, res interface{}, shouldFetch bool) {
 	t.Logf("Testing label: %s %s", test.Name, test.Variant)
 	label := res.(*LabelVariant)
+	lType, err := label.Type()
+	if err != nil {
+		t.Fatalf("Failed to parse type: %+v\n%s", label, err)
+	}
 	assertEqual(t, label.Name(), test.Name)
 	assertEqual(t, label.Variant(), test.Variant)
 	assertEqual(t, label.Description(), test.Description)
-	assertEqual(t, label.Type(), test.Type)
+	assertEqual(t, lType, test.Type)
 	assertEqual(t, label.Owner(), test.Owner)
 	assertEqual(t, label.Provider(), test.Provider)
 	assertEqual(t, label.Source(), test.Source)
@@ -1342,7 +1353,7 @@ func expectedLabelVariants() ResourceTests {
 		LabelVariantTest{
 			Name:        "label",
 			Variant:     "variant",
-			Type:        "int64",
+			Type:        types.Int64,
 			Description: "label variant",
 			Provider:    "mockOffline",
 			Entity:      "user",
@@ -2015,25 +2026,155 @@ func getSourceVariant() *SourceVariant {
 	return sv
 }
 
+func Test_MetadataErrorInterceptors(t *testing.T) {
+	_, addr := startServNoPanic(t)
+	client := client(t, addr)
+	context := context.Background()
+
+	userDef := UserDef{
+		Name:       "Featureform",
+		Tags:       Tags{},
+		Properties: Properties{},
+	}
+
+	sourceDef := SourceDef{
+		Name:        "mockSource",
+		Variant:     "var",
+		Description: "A CSV source",
+		Definition: TransformationSource{
+			TransformationType: SQLTransformationType{
+				Query: "SELECT * FROM dummy",
+				Sources: []NameVariant{{
+					Name:    "mockName",
+					Variant: "mockVariant"},
+				},
+			},
+		},
+		Owner:      "Featureform",
+		Provider:   "mockOffline",
+		Tags:       Tags{},
+		Properties: Properties{},
+	}
+
+	resourceDefs := []ResourceDef{userDef, sourceDef}
+
+	err := client.CreateAll(context, resourceDefs)
+	grpcErr, ok := grpc_status.FromError(err)
+	if !ok {
+		t.Fatalf("Expected error to be a grpc error")
+	}
+	if grpcErr == nil {
+		t.Fatalf("Expected error to be non-nil")
+	}
+
+	// Test Streaming
+	_, err = client.GetTrainingSet(context, "DNE")
+	grpcErr, ok = grpc_status.FromError(err)
+	if !ok {
+		t.Fatalf("Expected error to be a grpc error")
+	}
+	if grpcErr == nil {
+		t.Fatalf("Expected error to be non-nil")
+	}
+
+}
+
 func TestSourceShallowMapOK(t *testing.T) {
-	sv := getSourceVariant()
+	//setup transform text, specs, and definition objects
+	sourceText := "transformation string"
+	specs := &pb.Transformation_KubernetesArgs{
+		KubernetesArgs: &pb.KubernetesArgs{
+			DockerImage: "someImage",
+			Specs: &pb.KubernetesResourceSpecs{
+				CpuLimit:      "12",
+				CpuRequest:    "1",
+				MemoryLimit:   "100M",
+				MemoryRequest: "500G",
+			},
+		},
+	}
+	primaryDef := &pb.SourceVariant_PrimaryData{
+		PrimaryData: &pb.PrimaryData{
+			Location: &pb.PrimaryData_Table{
+				Table: &pb.PrimarySQLTable{
+					Name: sourceText,
+				},
+			},
+		},
+	}
 
-	sourceVariantResource := SourceShallowMap(sv)
+	sqlDef := &pb.SourceVariant_Transformation{
+		Transformation: &pb.Transformation{
+			Type: &pb.Transformation_SQLTransformation{
+				SQLTransformation: &pb.SQLTransformation{
+					Query: sourceText,
+				},
+			},
+			Args: specs,
+		},
+	}
 
-	assertEqual(t, sv.serialized.Name, sourceVariantResource.Name)
-	assertEqual(t, sv.serialized.Variant, sourceVariantResource.Variant)
-	assertEqual(t, sv.Provider(), sourceVariantResource.Provider)
-	assertEqual(t, len(sv.Tags()), len(sourceVariantResource.Tags))
-	assertEqual(t, slices.Contains(sourceVariantResource.Tags, "test.active"), true)
-	assertEqual(t, slices.Contains(sourceVariantResource.Tags, "test.inactive"), true)
-	assertEqual(t, sv.Properties()["test.map.key"], sourceVariantResource.Properties["test.map.key"])
+	dataFrameDef := &pb.SourceVariant_Transformation{
+		Transformation: &pb.Transformation{
+			Type: &pb.Transformation_DFTransformation{
+				DFTransformation: &pb.DFTransformation{
+					Query:      []byte{},
+					Inputs:     []*pb.NameVariant{},
+					SourceText: sourceText,
+				},
+			},
+			Args: specs,
+		},
+	}
+	testCases := []struct {
+		name        string
+		svTransform pb.SourceVariant_Transformation
+		svPrimary   pb.SourceVariant_PrimaryData
+		sourceType  string
+	}{
+		{name: "Primary Data Definition", svPrimary: *primaryDef, sourceType: "Primary Table"},
+		{name: "SQL Definition", svTransform: *sqlDef, sourceType: "SQL Transformation"},
+		{name: "DF Definition", svTransform: *dataFrameDef, sourceType: "Dataframe Transformation"},
+	}
+
+	for _, currTest := range testCases {
+		t.Run(currTest.name, func(t *testing.T) {
+			sv := getSourceVariant()
+			if currTest.sourceType == "Primary Table" {
+				sv.serialized.Definition = &currTest.svPrimary
+			} else {
+				sv.serialized.Definition = &currTest.svTransform
+			}
+			svResource := SourceShallowMap(sv)
+
+			assert.Equal(t, sv.serialized.Name, svResource.Name)
+			assert.Equal(t, sv.serialized.Variant, svResource.Variant)
+			assert.Equal(t, sourceText, svResource.Definition)
+			assert.Equal(t, currTest.sourceType, svResource.SourceType)
+			assert.Equal(t, sv.Provider(), svResource.Provider)
+			assert.Len(t, svResource.Tags, len(sv.Tags()))
+			assert.Contains(t, svResource.Tags, "test.active")
+			assert.Contains(t, svResource.Tags, "test.inactive")
+			assert.Equal(t, sv.Properties()["test.map.key"], svResource.Properties["test.map.key"])
+
+			//check specs for svTransformations
+			if currTest.sourceType != "Primary Table" {
+				assert.Equal(t, specs.KubernetesArgs.DockerImage, svResource.Specifications["Docker Image"])
+				assert.Equal(t, specs.KubernetesArgs.Specs.CpuRequest, svResource.Specifications["CPU Request"])
+				assert.Equal(t, specs.KubernetesArgs.Specs.CpuLimit, svResource.Specifications["CPU Limit"])
+				assert.Equal(t, specs.KubernetesArgs.Specs.MemoryRequest, svResource.Specifications["Memory Request"])
+				assert.Equal(t, specs.KubernetesArgs.Specs.MemoryLimit, svResource.Specifications["Memory Limit"])
+			}
+		})
+	}
 }
 
 // TODO split these up into better tests
 func Test_GetEquivalent(t *testing.T) {
 	serv, addr := startServNoPanic(t)
 	client := client(t, addr)
-	context := context.Background()
+	requestID := logging.NewRequestID().String()
+	context := logging.AttachRequestID(requestID, context.Background(), logging.NewLogger("metadata-test"))
 
 	redisConfig := pc.RedisConfig{
 		Addr:     "0.0.0.0",
@@ -2132,7 +2273,7 @@ func Test_GetEquivalent(t *testing.T) {
 	labelDef := LabelDef{
 		Name:        "label",
 		Variant:     "variant",
-		Type:        "int64",
+		Type:        types.Int64,
 		Description: "label variant",
 		Provider:    "mockOffline",
 		Entity:      "user",
@@ -2174,12 +2315,12 @@ func Test_GetEquivalent(t *testing.T) {
 	// sourceDef
 	sourceDef.Description = "Some other description"
 	sourceDef.Variant = "var2"
-	svProto, err := sourceDef.Serialize()
+	svProto, err := sourceDef.Serialize(requestID)
 	if err != nil {
 		t.Fatalf("Failed to serialize source def: %s", err)
 	}
-	resourceVariant := &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto}}
-	equivalent, err := serv.getEquivalent(resourceVariant, false)
+	resourceVariant := &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto.SourceVariant}}
+	equivalent, err := serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2196,12 +2337,12 @@ func Test_GetEquivalent(t *testing.T) {
 			},
 		},
 	}
-	svProto2, err := sourceDef.Serialize()
+	svProto2, err := sourceDef.Serialize(requestID)
 	if err != nil {
 		t.Fatalf("Failed to serialize source def: %s", err)
 	}
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto2}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto2.SourceVariant}}
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2211,12 +2352,12 @@ func Test_GetEquivalent(t *testing.T) {
 
 	// labelDef
 	labelDef.Description = "Some other description"
-	lvProto, err := labelDef.Serialize()
+	lvProto, err := labelDef.Serialize(requestID)
 	if err != nil {
 		t.Fatalf("Failed to serialize label def: %s", err)
 	}
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_LabelVariant{lvProto}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_LabelVariant{lvProto.LabelVariant}}
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2227,12 +2368,12 @@ func Test_GetEquivalent(t *testing.T) {
 	// featureDef
 	// on demand
 	featureDef.Description = "Some other description"
-	fvProto, err := featureDef.Serialize()
+	fvProto, err := featureDef.Serialize(requestID)
 	if err != nil {
 		t.Fatalf("Failed to serialize feature def: %s", err)
 	}
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto.FeatureVariant}}
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2242,9 +2383,9 @@ func Test_GetEquivalent(t *testing.T) {
 	featureDef.Location = PythonFunction{
 		Query: []byte("SELECT * FROM dummy"),
 	}
-	fvProto, err = featureDef.Serialize()
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	fvProto, err = featureDef.Serialize(requestID)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto.FeatureVariant}}
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2252,16 +2393,16 @@ func Test_GetEquivalent(t *testing.T) {
 		t.Fatalf("there was no equivalent but we got one")
 	}
 
-	fvProto2, err := featureDef2.Serialize()
-	fvProto2.Location = &pb.FeatureVariant_Columns{
+	fvProto2, err := featureDef2.Serialize(requestID)
+	fvProto2.FeatureVariant.Location = &pb.FeatureVariant_Columns{
 		&pb.Columns{
 			Entity: "col10",
 			Value:  "col11",
 			Ts:     "col12",
 		},
 	}
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto2}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto2.FeatureVariant}}
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2271,9 +2412,9 @@ func Test_GetEquivalent(t *testing.T) {
 
 	// trainingSetDef
 	trainingSetDef.Description = "Some other description"
-	tsvProto := trainingSetDef.Serialize()
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	tsvProto := trainingSetDef.Serialize(requestID)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2286,9 +2427,9 @@ func Test_GetEquivalent(t *testing.T) {
 		{"feature2", "variant"},
 		{"feature3", "variant"},
 	}
-	tsvProto = trainingSetDef.Serialize()
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	tsvProto = trainingSetDef.Serialize(requestID)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2301,9 +2442,9 @@ func Test_GetEquivalent(t *testing.T) {
 		{"feature2", "variant"},
 	}
 	trainingSetDef.Label = NameVariant{"label_doesnt_exist", "variant"}
-	tsvProto = trainingSetDef.Serialize()
-	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto}}
-	equivalent, err = serv.getEquivalent(resourceVariant, false)
+	tsvProto = trainingSetDef.Serialize(requestID)
+	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
+	equivalent, err = serv.getEquivalent(context, resourceVariant, false)
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
 	}
@@ -2411,7 +2552,7 @@ func Test_CreateResourceVariantResourceChanged(t *testing.T) {
 	labelDef := LabelDef{
 		Name:        "label",
 		Variant:     "variant",
-		Type:        "int64",
+		Type:        types.Int64,
 		Description: "label variant",
 		Provider:    "mockOffline",
 		Entity:      "user",
@@ -2486,5 +2627,147 @@ func Test_CreateResourceVariantResourceChanged(t *testing.T) {
 	err = client.Create(context, trainingSetDef)
 	if err == nil {
 		t.Fatalf("Expected error but got none")
+	}
+}
+
+// TestIsSqlEqual tests the isSqlEqual function.
+func TestIsSqlEqual(t *testing.T) {
+	tests := []struct {
+		name     string
+		thisSql  string
+		otherSql string
+		want     bool
+	}{
+		{
+			name:     "equal SQL with single spaces",
+			thisSql:  "SELECT * FROM table",
+			otherSql: "SELECT * FROM table",
+			want:     true,
+		},
+		{
+			name:     "equal SQL with multiple spaces",
+			thisSql:  "SELECT  *  FROM  table",
+			otherSql: "SELECT * FROM table",
+			want:     true,
+		},
+		{
+			name:     "different SQL statements",
+			thisSql:  "SELECT * FROM table1",
+			otherSql: "SELECT * FROM table2",
+			want:     false,
+		},
+		{
+			name:     "equal SQL with different whitespace",
+			thisSql:  "SELECT   *    FROM table",
+			otherSql: "SELECT * FROM   table",
+			want:     true,
+		},
+		{
+			name:     "SQL with leading/trailing whitespace",
+			thisSql:  "  SELECT * FROM table  ",
+			otherSql: "SELECT * FROM table",
+			want:     true,
+		},
+		{
+			name:     "SQL with tabs and newlines",
+			thisSql:  "SELECT\t*\nFROM table",
+			otherSql: "SELECT * FROM table",
+			want:     true,
+		},
+		{
+			name:     "SQL with mixed whitespace types",
+			thisSql:  "SELECT\t  *\n  FROM  \ttable",
+			otherSql: "SELECT * FROM table",
+			want:     true,
+		},
+		{
+			name:     "SQL with leading and trailing mixed whitespace",
+			thisSql:  "\t  SELECT * FROM table  \n",
+			otherSql: "SELECT * FROM table",
+			want:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isSqlEqual(tt.thisSql, tt.otherSql); got != tt.want {
+				t.Errorf("isSqlEqual() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_findEquivalentStatus(t *testing.T) {
+	// Helper function to clone and set status
+	cloneAndSetStatus := func(sv *pb.SourceVariant, status pb.ResourceStatus_Status) *pb.SourceVariant {
+		cloned := proto.Clone(sv).(*pb.SourceVariant)
+		cloned.Status = &pb.ResourceStatus{Status: status}
+		return cloned
+	}
+
+	// Base SourceVariant
+	svBase := &pb.SourceVariant{
+		Name:    "test.name",
+		Variant: "test.variant",
+		Definition: &pb.SourceVariant_PrimaryData{
+			PrimaryData: &pb.PrimaryData{
+				Location: &pb.PrimaryData_Table{
+					Table: &pb.PrimarySQLTable{
+						Name: "test.name",
+					},
+				},
+			},
+		},
+	}
+
+	// Clones with different statuses
+	svReady := cloneAndSetStatus(svBase, pb.ResourceStatus_READY)
+	svPending := cloneAndSetStatus(svBase, pb.ResourceStatus_PENDING)
+	svFailed := cloneAndSetStatus(svBase, pb.ResourceStatus_FAILED)
+	svRunning := cloneAndSetStatus(svBase, pb.ResourceStatus_RUNNING)
+
+	tests := []struct {
+		name        string
+		resources   []Resource
+		target      *pb.SourceVariant
+		expectFound bool
+	}{
+		{
+			name:        "Find equivalent - READY status",
+			resources:   []Resource{&sourceVariantResource{serialized: svReady}},
+			target:      svBase,
+			expectFound: true,
+		},
+		{
+			name:        "Do not find equivalent - FAILED status",
+			resources:   []Resource{&sourceVariantResource{serialized: svFailed}},
+			target:      svBase,
+			expectFound: false,
+		},
+		{
+			name:        "Find equivalent - RUNNING status",
+			resources:   []Resource{&sourceVariantResource{serialized: svRunning}},
+			target:      svBase,
+			expectFound: true,
+		},
+		{
+			name:        "Find equivalent - PENDING status",
+			resources:   []Resource{&sourceVariantResource{serialized: svPending}},
+			target:      svBase,
+			expectFound: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			eq, err := findEquivalent(tt.resources, &sourceVariantResource{serialized: tt.target}, true)
+			if err != nil {
+				t.Fatalf("Failed to find equivalent: %s", err)
+			}
+			found := eq != nil
+			if found != tt.expectFound {
+				t.Fatalf("Expected to find equivalent: %v, but got: %v", !tt.expectFound, eq == nil)
+			}
+		})
 	}
 }

@@ -8,13 +8,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	"log"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/featureform/fferr"
 	pb "github.com/featureform/metadata/proto"
+	"github.com/featureform/provider/types"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/proto"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
@@ -65,7 +66,7 @@ func Test_EtcdResourceLookup_Set(t *testing.T) {
 		ResourceID{Name: "test", Variant: FEATURE_VARIANT.String(), Type: FEATURE},
 		&featureVariantResource{&pb.FeatureVariant{
 			Name:    "featureVariantResource",
-			Type:    FEATURE_VARIANT.String(),
+			Type:    types.Float32.ToProto(),
 			Created: tspb.Now(),
 		}},
 	}
@@ -135,7 +136,7 @@ func Test_EtcdResourceLookup_Lookup(t *testing.T) {
 	}
 	doWant := &featureVariantResource{&pb.FeatureVariant{
 		Name:    "featureVariant",
-		Type:    FEATURE_VARIANT.String(),
+		Type:    types.Float32.ToProto(),
 		Created: tspb.Now(),
 	}}
 
@@ -193,7 +194,7 @@ func Test_EtcdResourceLookup_Lookup(t *testing.T) {
 			lookup := EtcdResourceLookup{
 				Connection: store,
 			}
-			got, err := lookup.Lookup(tt.args.id)
+			got, err := lookup.Lookup(ctx, tt.args.id)
 
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Lookup() error = %v, wantErr %v", err, tt.wantErr)
@@ -221,7 +222,7 @@ func Test_EtcdResourceLookup_Has(t *testing.T) {
 	}
 	doWant := &featureVariantResource{&pb.FeatureVariant{
 		Name:    "resource1",
-		Type:    FEATURE_VARIANT.String(),
+		Type:    types.Float32.ToProto(),
 		Created: tspb.Now(),
 	}}
 	args1 := args{
@@ -721,8 +722,8 @@ func TestEtcdConfig_Get(t *testing.T) {
 		key   string
 		error error
 	}{
-		{"Test Get Empty Key", "", rpctypes.EtcdError{}},
-		{"Test Get Non Existent Key", "non_existent", KeyNotFoundError{}},
+		{"Test Get Empty Key", "", &fferr.InvalidArgumentError{}},
+		{"Test Get Non Existent Key", "non_existent", &fferr.KeyNotFoundError{}},
 		{"Test Get Valid Key", "key", nil},
 	}
 	for _, tt := range tests {

@@ -3,6 +3,7 @@ package provider_config
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/featureform/fferr"
 
 	filestore "github.com/featureform/filestore"
 	ss "github.com/featureform/helpers/string_set"
@@ -19,7 +20,7 @@ type K8sConfig struct {
 func (k8s *K8sConfig) Serialize() ([]byte, error) {
 	data, err := json.Marshal(k8s)
 	if err != nil {
-		return nil, err
+		return nil, fferr.NewInternalError(err)
 	}
 	return data, nil
 }
@@ -43,7 +44,7 @@ func (k8s *K8sConfig) UnmarshalJSON(data []byte) error {
 	var temp tempConfig
 	err := json.Unmarshal(data, &temp)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal configuration: %v", err)
+		return fferr.NewInternalError(err)
 	}
 
 	k8s.ExecutorType = temp.ExecutorType
@@ -54,13 +55,13 @@ func (k8s *K8sConfig) UnmarshalJSON(data []byte) error {
 	} else {
 		err = k8s.decodeExecutor(temp.ExecutorType, temp.ExecutorConfig)
 		if err != nil {
-			return fmt.Errorf("could not decode executor: %w", err)
+			return err
 		}
 	}
 
 	err = k8s.decodeFileStore(temp.StoreType, temp.StoreConfig)
 	if err != nil {
-		return fmt.Errorf("could not decode filestore: %w", err)
+		return err
 	}
 
 	return nil
@@ -69,12 +70,12 @@ func (k8s *K8sConfig) UnmarshalJSON(data []byte) error {
 func (k8s *K8sConfig) decodeExecutor(executorType ExecutorType, configMap interface{}) error {
 	serializedExecutor, err := json.Marshal(configMap)
 	if err != nil {
-		return fmt.Errorf("could not marshal executor config: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	excConfig := ExecutorConfig{}
 	err = excConfig.Deserialize(serializedExecutor)
 	if err != nil {
-		return fmt.Errorf("could not deserialize config into ExecutorConfig: %w", err)
+		return fferr.NewInternalError(err)
 	}
 
 	k8s.ExecutorConfig = excConfig
@@ -89,12 +90,12 @@ func (k8s *K8sConfig) decodeFileStore(fileStoreType filestore.FileStoreType, con
 	case filestore.S3:
 		fileStoreConfig = &S3FileStoreConfig{}
 	default:
-		return fmt.Errorf("the file store type '%s' is not supported for k8s", fileStoreType)
+		return fferr.NewProviderConfigError("Kubernetes", fmt.Errorf("the file store type '%s' is not supported for k8s", fileStoreType))
 	}
 
 	err := mapstructure.Decode(configMap, fileStoreConfig)
 	if err != nil {
-		return fmt.Errorf("could not decode file store map: %w", err)
+		return fferr.NewInternalError(err)
 	}
 	k8s.StoreConfig = fileStoreConfig
 	return nil
@@ -124,7 +125,7 @@ func (a K8sConfig) DifferingFields(b K8sConfig) (ss.StringSet, error) {
 	result := ss.StringSet{}
 
 	if a.StoreType != b.StoreType {
-		return result, fmt.Errorf("store config mismatch: a = %v; b = %v", a.StoreType, b.StoreType)
+		return result, fferr.NewInternalError(fmt.Errorf("store config mismatch: a = %v; b = %v", a.StoreType, b.StoreType))
 	}
 
 	executorFields, err := differingFields(a.ExecutorConfig, b.ExecutorConfig)
@@ -143,7 +144,7 @@ func (a K8sConfig) DifferingFields(b K8sConfig) (ss.StringSet, error) {
 	case filestore.S3:
 		storeFields, err = a.StoreConfig.(*S3FileStoreConfig).DifferingFields(*b.StoreConfig.(*S3FileStoreConfig))
 	default:
-		return nil, fmt.Errorf("unsupported store type: %v", a.StoreType)
+		return nil, fferr.NewProviderConfigError("Kubernetes", fmt.Errorf("unsupported store type: %v", a.StoreType))
 	}
 
 	if err != nil {

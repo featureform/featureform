@@ -6,6 +6,9 @@ package main
 
 import (
 	"fmt"
+	"net"
+	_ "net/http/pprof"
+
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -13,8 +16,6 @@ import (
 	pb "github.com/featureform/proto"
 	"github.com/featureform/serving"
 	"google.golang.org/grpc"
-	"net"
-	_ "net/http/pprof"
 )
 
 func main() {
@@ -40,11 +41,11 @@ func main() {
 		logger.Panicw("Failed to connect to metadata", "Err", err)
 	}
 
-	serv, err := serving.NewFeatureServer(meta, promMetrics, logger)
+	serv, err := serving.NewFeatureServer(meta, promMetrics, logger.SugaredLogger)
 	if err != nil {
 		logger.Panicw("Failed to create training server", "Err", err)
 	}
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(help.UnaryServerErrorInterceptor), grpc.StreamInterceptor(help.StreamServerErrorInterceptor))
 
 	pb.RegisterFeatureServer(grpcServer, serv)
 	logger.Infow("Serving metrics", "Port", metricsPort)

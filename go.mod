@@ -143,7 +143,7 @@ require (
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.13.13
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.31.1
-	github.com/docker/docker v25.0.4+incompatible
+	github.com/docker/docker v25.0.5+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/qdrant/go-client v1.9.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240515191416-fc5f0ca64291

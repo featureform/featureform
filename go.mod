@@ -44,7 +44,7 @@ require (
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
 	golang.org/x/sync v0.7.0
 	google.golang.org/api v0.170.0
-	google.golang.org/grpc v1.64.0
+	google.golang.org/grpc v1.64.1
 	google.golang.org/protobuf v1.34.1
 	k8s.io/api v0.24.2
 	k8s.io/apimachinery v0.24.2

@@ -21,7 +21,7 @@ pinecone-client==2.2.2
 protobuf==4.24.2
 pyarrow
 python-dotenv==1.0.0
-requests==2.31.0
+requests==2.32.2
 rich==13.5.2
 six==1.16.0
 SQLAlchemy

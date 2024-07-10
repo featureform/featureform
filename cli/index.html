@@ -1,0 +1,1407 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../client_apply/">
+      
+      
+        <link rel="next" href="../serve/">
+      
+      
+      <link rel="icon" href="../images/featureform.png">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.28">
+    
+    
+      
+        <title>CLI - API Reference</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.6543a935.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#cli" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="API Reference" class="md-header__button md-logo" aria-label="API Reference" data-md-component="logo">
+      
+  <img src="../images/featureform.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            API Reference
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              CLI
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/featureform/featureform" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    featureform/featureform
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="API Reference" class="md-nav__button md-logo" aria-label="API Reference" data-md-component="logo">
+      
+  <img src="../images/featureform.png" alt="logo">
+
+    </a>
+    API Reference
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/featureform/featureform" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    featureform/featureform
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Getting Started
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Getting Started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            Installation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Python
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://docs.featureform.com/deployment/kubernetes" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Helm
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Register
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Register
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../providers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Sources
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Sources
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../primary_sources/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Primary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transformations/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Transformations
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Features
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../training_sets/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Training Sets
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Apply
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Apply
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../client_apply/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Client
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    CLI
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    CLI
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#connecting-to-a-cluster" class="md-nav__link">
+    <span class="md-ellipsis">
+      Connecting to a cluster
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Connecting to a cluster">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#with-environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      With Environment Variables
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#with-flags" class="md-nav__link">
+    <span class="md-ellipsis">
+      With Flags
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#apply" class="md-nav__link">
+    <span class="md-ellipsis">
+      Apply
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get" class="md-nav__link">
+    <span class="md-ellipsis">
+      Get
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Get">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-getting-a-user" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Getting a User
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-getting-a-resource" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Getting a Resource
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-getting-a-resource-variant" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Getting a Resource Variant
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#list" class="md-nav__link">
+    <span class="md-ellipsis">
+      List
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="List">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-getting-the-list-of-users" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Getting the list of users
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-getting-the-list-of-resources-of-a-given-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Getting the list of resources of a given type
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serve/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Serve
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Get
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Get
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../provider_reuse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Reusing Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../source_reuse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Reusing Sources
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Additional Capabilities
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Additional Capabilities
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../autogenerated_variants/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Autogenerated Variants
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model_registration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Model Registration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on_demand_functions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    On Demand functions
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../properties_and_tags/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Properties and Tags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../provider_updating/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Provider Updating
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compatibility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Deployment Comparison
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#connecting-to-a-cluster" class="md-nav__link">
+    <span class="md-ellipsis">
+      Connecting to a cluster
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Connecting to a cluster">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#with-environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      With Environment Variables
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#with-flags" class="md-nav__link">
+    <span class="md-ellipsis">
+      With Flags
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#apply" class="md-nav__link">
+    <span class="md-ellipsis">
+      Apply
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get" class="md-nav__link">
+    <span class="md-ellipsis">
+      Get
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Get">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-getting-a-user" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Getting a User
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-getting-a-resource" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Getting a Resource
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-getting-a-resource-variant" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Getting a Resource Variant
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#list" class="md-nav__link">
+    <span class="md-ellipsis">
+      List
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="List">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-getting-the-list-of-users" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Getting the list of users
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-getting-the-list-of-resources-of-a-given-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Getting the list of resources of a given type
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+<h1 id="cli">CLI</h1>
+<p>The Featureform CLI allows you to describe, list, and monitor your resources.</p>
+<h2 id="connecting-to-a-cluster">Connecting to a cluster</h2>
+<p>To connect to a cluster through the CLI, you can either set environment variables or explicitly pass in the host and cert flags.
+The certificate is only required when using self-signed certificates.</p>
+<h3 id="with-environment-variables">With Environment Variables</h3>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">FEATUREFORM_HOST</span><span class="o">=</span>&lt;host&gt;
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">FEATUREFORM_CERT</span><span class="o">=</span>&lt;cert&gt;
+</code></pre></div>
+then run:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>featureform<span class="w"> </span>&lt;command&gt;
+</code></pre></div></p>
+<h3 id="with-flags">With Flags</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>featureform<span class="w"> </span>&lt;command&gt;<span class="w"> </span>--host<span class="w"> </span>&lt;host&gt;<span class="w"> </span>--cert<span class="w"> </span>&lt;cert&gt;
+</code></pre></div>
+<h2 id="apply">Apply</h2>
+<p>The <strong>apply</strong> command submits resource definitions to the Featureform instance.&#x20;</p>
+<p>The argument can either be a path to a local file or the url of a hosted file. Multiple files can be included at a time.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>featureform<span class="w"> </span>apply<span class="w"> </span>&lt;definitions.py&gt;
+</code></pre></div>
+<p>Upon success, all definitions in the <strong>definitions.py</strong> (or whatever you choose to call it) file will be sent to the Featureform instance, logged in the metadata, and materialized with the registered providers.</p>
+<p>After applying new resource definitions, you can use the <strong>GET</strong> command to see the status of the resources you applied. A resource with the status <strong>READY</strong> is available for serving.</p>
+<h2 id="get">Get</h2>
+<p>The <strong>GET</strong> command displays status, variants, and other metadata on a resource.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>featureform<span class="w"> </span>get<span class="w"> </span>RESOURCE_TYPE<span class="w"> </span>NAME<span class="w"> </span><span class="o">[</span>VARIANT<span class="o">]</span><span class="w"> </span>--host<span class="w"> </span><span class="nv">$FEATUREFORM_HOST</span><span class="w"> </span>--cert<span class="w"> </span><span class="nv">$FEATUREFORM_CERT</span>
+</code></pre></div>
+<p><strong>RESOURCE_TYPE</strong> (required) can be:</p>
+<ul>
+<li><strong>feature -</strong> machine learning features</li>
+<li><strong>label -</strong> machine learning labels</li>
+<li><strong>training-set -</strong> set of features and one label for training ML models</li>
+<li><strong>user -</strong> registered users in your instance</li>
+<li><strong>entity -</strong> identifier for a source of features or labels (akin to a primary key)</li>
+<li><strong>model -</strong> registered machine learning models which training sets and features are fed to</li>
+<li><strong>provider -</strong> registered 3rd party providers which store your data</li>
+<li><strong>source -</strong> files, tables, or transformations that features, labels and training sets source from</li>
+</ul>
+<p><strong>NAME</strong> is the name of the resource type to be queried.</p>
+<p><strong>VARIANT</strong> is optional, for when information on a specific variant is needed.</p>
+<h3 id="example-getting-a-user">Example: Getting a User</h3>
+<p>The commands are both valid ways to retrieve information on the user <strong>"featureformer".</strong></p>
+<p>The first is with certification. The second without; the <strong>--insecure</strong> flag disables the need for the <strong>--cert</strong> flag</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>featureform<span class="w"> </span>get<span class="w"> </span>user<span class="w"> </span>featureformer<span class="w"> </span>--host<span class="w"> </span><span class="nv">$FEATUREFORM_HOST</span><span class="w"> </span>--cert<span class="w"> </span><span class="nv">$FEATUREFORM_CERT</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>featureform<span class="w"> </span>get<span class="w"> </span>user<span class="w"> </span>featureformer<span class="w"> </span>--insecure<span class="w"> </span>--host<span class="w"> </span><span class="nv">$FEATUREFORM_HOST</span>
+</code></pre></div>
+<p>Either command returns the following output.&#x20;</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>USER<span class="w"> </span>NAME:<span class="w">  </span>featureformer
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>NAME<span class="w">                           </span>VARIANT<span class="w">                             </span>TYPE
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>avg_transactions<span class="w">               </span>quickstart<span class="w">                          </span>feature
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>fraudulent<span class="w">                     </span>quickstart<span class="w">                          </span>label
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>fraud_training<span class="w">                 </span>quickstart<span class="w">                          </span>training<span class="w"> </span><span class="nb">set</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>transactions<span class="w">                   </span>kaggle<span class="w">                              </span><span class="nb">source</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>average_user_transaction<span class="w">       </span>quickstart<span class="w">                          </span><span class="nb">source</span>
+</code></pre></div>
+<p>Listed below the user are all the resources registered to that user.</p>
+<h3 id="example-getting-a-resource">Example: Getting a Resource</h3>
+<p>The following command shows how to retrieve information on a specific resource, a <strong>feature</strong> named <strong>"avg_transactions"</strong>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>featureform<span class="w"> </span>get<span class="w"> </span>feature<span class="w"> </span>avg_transactions<span class="w"> </span>--host<span class="w"> </span><span class="nv">$FEATUREFORM_HOST</span><span class="w"> </span>--cert<span class="w"> </span><span class="nv">$FEATUREFORM_CERT</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>NAME:<span class="w">  </span>avg_transactions
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>STATUS:<span class="w">  </span>NO_STATUS
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>VARIANTS:
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>quickstart<span class="w">           </span>default
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>v1
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>v2
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>prodThis<span class="w"> </span>would<span class="w"> </span>be<span class="w"> </span>the<span class="w"> </span>output:
+</code></pre></div>
+<h3 id="example-getting-a-resource-variant">Example: Getting a Resource Variant</h3>
+<p>The command below retrieves information on the specific variant of the <strong>feature</strong> "<strong>avg_transactions", "quickstart"</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>featureform<span class="w"> </span>get<span class="w"> </span>feature<span class="w"> </span>avg_transactions<span class="w"> </span>quickstart<span class="w"> </span>--host<span class="w"> </span><span class="nv">$FEATUREFORM_HOST</span><span class="w"> </span>--cert<span class="w"> </span><span class="nv">$FEATUREFORM_CERT</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>NAME:<span class="w">                </span>avg_transactions
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>VARIANT:<span class="w">             </span>quickstart<span class="w">     </span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>TYPE:<span class="w">                </span>float32
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>ENTITY:<span class="w">              </span>user
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>OWNER:<span class="w">               </span>featureformer
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>DESCRIPTION:
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>PROVIDER:<span class="w">            </span>redis-quickstart
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>STATUS:<span class="w">              </span>READY
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>SOURCE:
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>NAME<span class="w">                           </span>VARIANT
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>average_user_transaction<span class="w">       </span>quickstart
+<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a>
+<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a>TRAINING<span class="w"> </span>SETS:
+<a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a>NAME<span class="w">                           </span>VARIANT
+<a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a>fraud_training<span class="w">                 </span>quickstart
+</code></pre></div>
+<p>Listed below are the metadata on that variant, as well as its source and the training sets it belongs to.</p>
+<h2 id="list">List</h2>
+<p>The <strong>LIST</strong> command displays the name, variant and status of all the resources of that resource type.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>featureform<span class="w"> </span>list<span class="w"> </span>RESOURCE_TYPE<span class="w"> </span>--host<span class="w"> </span><span class="nv">$FEATUREFORM_HOST</span><span class="w"> </span>–cert<span class="w"> </span><span class="nv">$FEATUREFORM_CERT</span>
+</code></pre></div>
+<p><strong>RESOURCE_TYPE</strong> (required) can be:</p>
+<ul>
+<li><strong>features -</strong> machine learning features</li>
+<li><strong>labels -</strong> machine learning labels</li>
+<li><strong>training-sets -</strong> set of features and one label for training ML models</li>
+<li><strong>users -</strong> registered users in your instance</li>
+<li><strong>entities -</strong> identifier for a source of features or labels (akin to a primary key)</li>
+<li><strong>models -</strong> registered machine learning models which training sets and features are fed to</li>
+<li><strong>providers -</strong> registered 3rd party providers which store your data</li>
+<li><strong>sources -</strong> files, tables, or transformations that features, labels and training sets source from</li>
+</ul>
+<p>NOTE: The <strong>--cert $FEATUREFORM_CERT</strong> is only required for self-signed certs</p>
+<h3 id="example-getting-the-list-of-users">Example: Getting the list of users</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>featureform<span class="w"> </span>list<span class="w"> </span>users<span class="w"> </span>--host<span class="w"> </span><span class="nv">$FEATUREFORM_HOST</span><span class="w"> </span>--cert<span class="w"> </span><span class="nv">$FEATUREFORM_CERT</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>featureform<span class="w"> </span>list<span class="w"> </span>users<span class="w"> </span>--insecure<span class="w"> </span>--host<span class="w"> </span><span class="nv">$FEATUREFORM_HOST</span>
+</code></pre></div>
+<p>The commands are both valid ways to retrieve a list of users. The first is when the user uses a self-signed cert.</p>
+<p>The above commands return the following list of users which have been registered:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>NAME<span class="w">               </span>STATUS
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>default_user<span class="w">       </span>ready
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>featureformer<span class="w">      </span>ready
+</code></pre></div>
+<h3 id="example-getting-the-list-of-resources-of-a-given-type">Example: Getting the list of resources of a given type</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>featureform<span class="w"> </span>list<span class="w"> </span>features<span class="w"> </span>--host<span class="w"> </span><span class="nv">$FEATUREFORM_HOST</span><span class="w"> </span>--cert<span class="w"> </span><span class="nv">$FEATUREFORM_CERT</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>featureform<span class="w"> </span>list<span class="w"> </span>features<span class="w"> </span>--insecure<span class="w"> </span>--host<span class="w"> </span><span class="nv">$FEATUREFORM_HOST</span>
+</code></pre></div>
+<p>The given commands return the list of registered features and their variants</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>NAME<span class="w">               </span>VARIANT<span class="w">                </span>STATUS
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>avg_transactions<span class="w">   </span>quickstart<span class="o">(</span>default<span class="o">)</span><span class="w">    </span>ready
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.fe8b6f2b.min.js"></script>
+      
+    
+  </body>
+</html>

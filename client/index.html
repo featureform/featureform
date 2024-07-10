@@ -1,0 +1,2307 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+      
+      
+      <link rel="icon" href="../images/featureform.png">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.28">
+    
+    
+      
+        <title>Client - API Reference</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.6543a935.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#featureform.client" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="API Reference" class="md-header__button md-logo" aria-label="API Reference" data-md-component="logo">
+      
+  <img src="../images/featureform.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            API Reference
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Client
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/featureform/featureform" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    featureform/featureform
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="API Reference" class="md-nav__button md-logo" aria-label="API Reference" data-md-component="logo">
+      
+  <img src="../images/featureform.png" alt="logo">
+
+    </a>
+    API Reference
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/featureform/featureform" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    featureform/featureform
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Getting Started
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Getting Started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            Installation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Python
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://docs.featureform.com/deployment/kubernetes" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Helm
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Register
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Register
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../providers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Sources
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Sources
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../primary_sources/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Primary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transformations/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Transformations
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Features
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../training_sets/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Training Sets
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Apply
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Apply
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../client_apply/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Client
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CLI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serve/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Serve
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Get
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Get
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../provider_reuse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Reusing Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../source_reuse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Reusing Sources
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Additional Capabilities
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Additional Capabilities
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../autogenerated_variants/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Autogenerated Variants
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model_registration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Model Registration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../on_demand_functions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    On Demand functions
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../properties_and_tags/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Properties and Tags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../provider_updating/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Provider Updating
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compatibility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Deployment Comparison
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#featureform.client" class="md-nav__link">
+    <span class="md-ellipsis">
+      client
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#featureform.client.Client" class="md-nav__link">
+    <span class="md-ellipsis">
+      Client
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Client">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#featureform.client.Client.close" class="md-nav__link">
+    <span class="md-ellipsis">
+      close
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#featureform.client.Client.columns" class="md-nav__link">
+    <span class="md-ellipsis">
+      columns
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#featureform.client.Client.dataframe" class="md-nav__link">
+    <span class="md-ellipsis">
+      dataframe
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#featureform.client.Client.location" class="md-nav__link">
+    <span class="md-ellipsis">
+      location
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#featureform.client.Client.nearest" class="md-nav__link">
+    <span class="md-ellipsis">
+      nearest
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  <h1>Client</h1>
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="featureform.client"></a>
+    <div class="doc doc-contents first">
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="featureform.client.Client" class="doc doc-heading">
+            <code>Client</code>
+
+
+</h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="featureform.register.ResourceClient" href="../register/#featureform.register.ResourceClient">ResourceClient</a></code>, <code><span title="featureform.serving.ServingClient">ServingClient</span></code></p>
+
+
+      <p>Client for interacting with Featureform APIs (resources and serving)</p>
+<p><strong>Using the Client:</strong>
+<div class="highlight"><span class="filename">definitions.py</span><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span> <span class="nn">featureform</span> <span class="k">as</span> <span class="nn">ff</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span> <span class="nn">featureform</span> <span class="kn">import</span> <span class="n">Client</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">()</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># Example 1: Get a registered provider</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">redis</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">get_provider</span><span class="p">(</span><span class="s2">&quot;redis-quickstart&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># Example 2: Compute a dataframe from a registered source</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">transactions_df</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">dataframe</span><span class="p">(</span><span class="s2">&quot;transactions&quot;</span><span class="p">,</span> <span class="s2">&quot;quickstart&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+
+              <details class="quote">
+                <summary>Source code in <code>src/featureform/client.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-15"> 15</a></span>
+<span class="normal"><a href="#__codelineno-0-16"> 16</a></span>
+<span class="normal"><a href="#__codelineno-0-17"> 17</a></span>
+<span class="normal"><a href="#__codelineno-0-18"> 18</a></span>
+<span class="normal"><a href="#__codelineno-0-19"> 19</a></span>
+<span class="normal"><a href="#__codelineno-0-20"> 20</a></span>
+<span class="normal"><a href="#__codelineno-0-21"> 21</a></span>
+<span class="normal"><a href="#__codelineno-0-22"> 22</a></span>
+<span class="normal"><a href="#__codelineno-0-23"> 23</a></span>
+<span class="normal"><a href="#__codelineno-0-24"> 24</a></span>
+<span class="normal"><a href="#__codelineno-0-25"> 25</a></span>
+<span class="normal"><a href="#__codelineno-0-26"> 26</a></span>
+<span class="normal"><a href="#__codelineno-0-27"> 27</a></span>
+<span class="normal"><a href="#__codelineno-0-28"> 28</a></span>
+<span class="normal"><a href="#__codelineno-0-29"> 29</a></span>
+<span class="normal"><a href="#__codelineno-0-30"> 30</a></span>
+<span class="normal"><a href="#__codelineno-0-31"> 31</a></span>
+<span class="normal"><a href="#__codelineno-0-32"> 32</a></span>
+<span class="normal"><a href="#__codelineno-0-33"> 33</a></span>
+<span class="normal"><a href="#__codelineno-0-34"> 34</a></span>
+<span class="normal"><a href="#__codelineno-0-35"> 35</a></span>
+<span class="normal"><a href="#__codelineno-0-36"> 36</a></span>
+<span class="normal"><a href="#__codelineno-0-37"> 37</a></span>
+<span class="normal"><a href="#__codelineno-0-38"> 38</a></span>
+<span class="normal"><a href="#__codelineno-0-39"> 39</a></span>
+<span class="normal"><a href="#__codelineno-0-40"> 40</a></span>
+<span class="normal"><a href="#__codelineno-0-41"> 41</a></span>
+<span class="normal"><a href="#__codelineno-0-42"> 42</a></span>
+<span class="normal"><a href="#__codelineno-0-43"> 43</a></span>
+<span class="normal"><a href="#__codelineno-0-44"> 44</a></span>
+<span class="normal"><a href="#__codelineno-0-45"> 45</a></span>
+<span class="normal"><a href="#__codelineno-0-46"> 46</a></span>
+<span class="normal"><a href="#__codelineno-0-47"> 47</a></span>
+<span class="normal"><a href="#__codelineno-0-48"> 48</a></span>
+<span class="normal"><a href="#__codelineno-0-49"> 49</a></span>
+<span class="normal"><a href="#__codelineno-0-50"> 50</a></span>
+<span class="normal"><a href="#__codelineno-0-51"> 51</a></span>
+<span class="normal"><a href="#__codelineno-0-52"> 52</a></span>
+<span class="normal"><a href="#__codelineno-0-53"> 53</a></span>
+<span class="normal"><a href="#__codelineno-0-54"> 54</a></span>
+<span class="normal"><a href="#__codelineno-0-55"> 55</a></span>
+<span class="normal"><a href="#__codelineno-0-56"> 56</a></span>
+<span class="normal"><a href="#__codelineno-0-57"> 57</a></span>
+<span class="normal"><a href="#__codelineno-0-58"> 58</a></span>
+<span class="normal"><a href="#__codelineno-0-59"> 59</a></span>
+<span class="normal"><a href="#__codelineno-0-60"> 60</a></span>
+<span class="normal"><a href="#__codelineno-0-61"> 61</a></span>
+<span class="normal"><a href="#__codelineno-0-62"> 62</a></span>
+<span class="normal"><a href="#__codelineno-0-63"> 63</a></span>
+<span class="normal"><a href="#__codelineno-0-64"> 64</a></span>
+<span class="normal"><a href="#__codelineno-0-65"> 65</a></span>
+<span class="normal"><a href="#__codelineno-0-66"> 66</a></span>
+<span class="normal"><a href="#__codelineno-0-67"> 67</a></span>
+<span class="normal"><a href="#__codelineno-0-68"> 68</a></span>
+<span class="normal"><a href="#__codelineno-0-69"> 69</a></span>
+<span class="normal"><a href="#__codelineno-0-70"> 70</a></span>
+<span class="normal"><a href="#__codelineno-0-71"> 71</a></span>
+<span class="normal"><a href="#__codelineno-0-72"> 72</a></span>
+<span class="normal"><a href="#__codelineno-0-73"> 73</a></span>
+<span class="normal"><a href="#__codelineno-0-74"> 74</a></span>
+<span class="normal"><a href="#__codelineno-0-75"> 75</a></span>
+<span class="normal"><a href="#__codelineno-0-76"> 76</a></span>
+<span class="normal"><a href="#__codelineno-0-77"> 77</a></span>
+<span class="normal"><a href="#__codelineno-0-78"> 78</a></span>
+<span class="normal"><a href="#__codelineno-0-79"> 79</a></span>
+<span class="normal"><a href="#__codelineno-0-80"> 80</a></span>
+<span class="normal"><a href="#__codelineno-0-81"> 81</a></span>
+<span class="normal"><a href="#__codelineno-0-82"> 82</a></span>
+<span class="normal"><a href="#__codelineno-0-83"> 83</a></span>
+<span class="normal"><a href="#__codelineno-0-84"> 84</a></span>
+<span class="normal"><a href="#__codelineno-0-85"> 85</a></span>
+<span class="normal"><a href="#__codelineno-0-86"> 86</a></span>
+<span class="normal"><a href="#__codelineno-0-87"> 87</a></span>
+<span class="normal"><a href="#__codelineno-0-88"> 88</a></span>
+<span class="normal"><a href="#__codelineno-0-89"> 89</a></span>
+<span class="normal"><a href="#__codelineno-0-90"> 90</a></span>
+<span class="normal"><a href="#__codelineno-0-91"> 91</a></span>
+<span class="normal"><a href="#__codelineno-0-92"> 92</a></span>
+<span class="normal"><a href="#__codelineno-0-93"> 93</a></span>
+<span class="normal"><a href="#__codelineno-0-94"> 94</a></span>
+<span class="normal"><a href="#__codelineno-0-95"> 95</a></span>
+<span class="normal"><a href="#__codelineno-0-96"> 96</a></span>
+<span class="normal"><a href="#__codelineno-0-97"> 97</a></span>
+<span class="normal"><a href="#__codelineno-0-98"> 98</a></span>
+<span class="normal"><a href="#__codelineno-0-99"> 99</a></span>
+<span class="normal"><a href="#__codelineno-0-100">100</a></span>
+<span class="normal"><a href="#__codelineno-0-101">101</a></span>
+<span class="normal"><a href="#__codelineno-0-102">102</a></span>
+<span class="normal"><a href="#__codelineno-0-103">103</a></span>
+<span class="normal"><a href="#__codelineno-0-104">104</a></span>
+<span class="normal"><a href="#__codelineno-0-105">105</a></span>
+<span class="normal"><a href="#__codelineno-0-106">106</a></span>
+<span class="normal"><a href="#__codelineno-0-107">107</a></span>
+<span class="normal"><a href="#__codelineno-0-108">108</a></span>
+<span class="normal"><a href="#__codelineno-0-109">109</a></span>
+<span class="normal"><a href="#__codelineno-0-110">110</a></span>
+<span class="normal"><a href="#__codelineno-0-111">111</a></span>
+<span class="normal"><a href="#__codelineno-0-112">112</a></span>
+<span class="normal"><a href="#__codelineno-0-113">113</a></span>
+<span class="normal"><a href="#__codelineno-0-114">114</a></span>
+<span class="normal"><a href="#__codelineno-0-115">115</a></span>
+<span class="normal"><a href="#__codelineno-0-116">116</a></span>
+<span class="normal"><a href="#__codelineno-0-117">117</a></span>
+<span class="normal"><a href="#__codelineno-0-118">118</a></span>
+<span class="normal"><a href="#__codelineno-0-119">119</a></span>
+<span class="normal"><a href="#__codelineno-0-120">120</a></span>
+<span class="normal"><a href="#__codelineno-0-121">121</a></span>
+<span class="normal"><a href="#__codelineno-0-122">122</a></span>
+<span class="normal"><a href="#__codelineno-0-123">123</a></span>
+<span class="normal"><a href="#__codelineno-0-124">124</a></span>
+<span class="normal"><a href="#__codelineno-0-125">125</a></span>
+<span class="normal"><a href="#__codelineno-0-126">126</a></span>
+<span class="normal"><a href="#__codelineno-0-127">127</a></span>
+<span class="normal"><a href="#__codelineno-0-128">128</a></span>
+<span class="normal"><a href="#__codelineno-0-129">129</a></span>
+<span class="normal"><a href="#__codelineno-0-130">130</a></span>
+<span class="normal"><a href="#__codelineno-0-131">131</a></span>
+<span class="normal"><a href="#__codelineno-0-132">132</a></span>
+<span class="normal"><a href="#__codelineno-0-133">133</a></span>
+<span class="normal"><a href="#__codelineno-0-134">134</a></span>
+<span class="normal"><a href="#__codelineno-0-135">135</a></span>
+<span class="normal"><a href="#__codelineno-0-136">136</a></span>
+<span class="normal"><a href="#__codelineno-0-137">137</a></span>
+<span class="normal"><a href="#__codelineno-0-138">138</a></span>
+<span class="normal"><a href="#__codelineno-0-139">139</a></span>
+<span class="normal"><a href="#__codelineno-0-140">140</a></span>
+<span class="normal"><a href="#__codelineno-0-141">141</a></span>
+<span class="normal"><a href="#__codelineno-0-142">142</a></span>
+<span class="normal"><a href="#__codelineno-0-143">143</a></span>
+<span class="normal"><a href="#__codelineno-0-144">144</a></span>
+<span class="normal"><a href="#__codelineno-0-145">145</a></span>
+<span class="normal"><a href="#__codelineno-0-146">146</a></span>
+<span class="normal"><a href="#__codelineno-0-147">147</a></span>
+<span class="normal"><a href="#__codelineno-0-148">148</a></span>
+<span class="normal"><a href="#__codelineno-0-149">149</a></span>
+<span class="normal"><a href="#__codelineno-0-150">150</a></span>
+<span class="normal"><a href="#__codelineno-0-151">151</a></span>
+<span class="normal"><a href="#__codelineno-0-152">152</a></span>
+<span class="normal"><a href="#__codelineno-0-153">153</a></span>
+<span class="normal"><a href="#__codelineno-0-154">154</a></span>
+<span class="normal"><a href="#__codelineno-0-155">155</a></span>
+<span class="normal"><a href="#__codelineno-0-156">156</a></span>
+<span class="normal"><a href="#__codelineno-0-157">157</a></span>
+<span class="normal"><a href="#__codelineno-0-158">158</a></span>
+<span class="normal"><a href="#__codelineno-0-159">159</a></span>
+<span class="normal"><a href="#__codelineno-0-160">160</a></span>
+<span class="normal"><a href="#__codelineno-0-161">161</a></span>
+<span class="normal"><a href="#__codelineno-0-162">162</a></span>
+<span class="normal"><a href="#__codelineno-0-163">163</a></span>
+<span class="normal"><a href="#__codelineno-0-164">164</a></span>
+<span class="normal"><a href="#__codelineno-0-165">165</a></span>
+<span class="normal"><a href="#__codelineno-0-166">166</a></span>
+<span class="normal"><a href="#__codelineno-0-167">167</a></span>
+<span class="normal"><a href="#__codelineno-0-168">168</a></span>
+<span class="normal"><a href="#__codelineno-0-169">169</a></span>
+<span class="normal"><a href="#__codelineno-0-170">170</a></span>
+<span class="normal"><a href="#__codelineno-0-171">171</a></span>
+<span class="normal"><a href="#__codelineno-0-172">172</a></span>
+<span class="normal"><a href="#__codelineno-0-173">173</a></span>
+<span class="normal"><a href="#__codelineno-0-174">174</a></span>
+<span class="normal"><a href="#__codelineno-0-175">175</a></span>
+<span class="normal"><a href="#__codelineno-0-176">176</a></span>
+<span class="normal"><a href="#__codelineno-0-177">177</a></span>
+<span class="normal"><a href="#__codelineno-0-178">178</a></span>
+<span class="normal"><a href="#__codelineno-0-179">179</a></span>
+<span class="normal"><a href="#__codelineno-0-180">180</a></span>
+<span class="normal"><a href="#__codelineno-0-181">181</a></span>
+<span class="normal"><a href="#__codelineno-0-182">182</a></span>
+<span class="normal"><a href="#__codelineno-0-183">183</a></span>
+<span class="normal"><a href="#__codelineno-0-184">184</a></span>
+<span class="normal"><a href="#__codelineno-0-185">185</a></span>
+<span class="normal"><a href="#__codelineno-0-186">186</a></span>
+<span class="normal"><a href="#__codelineno-0-187">187</a></span>
+<span class="normal"><a href="#__codelineno-0-188">188</a></span>
+<span class="normal"><a href="#__codelineno-0-189">189</a></span>
+<span class="normal"><a href="#__codelineno-0-190">190</a></span>
+<span class="normal"><a href="#__codelineno-0-191">191</a></span>
+<span class="normal"><a href="#__codelineno-0-192">192</a></span>
+<span class="normal"><a href="#__codelineno-0-193">193</a></span>
+<span class="normal"><a href="#__codelineno-0-194">194</a></span>
+<span class="normal"><a href="#__codelineno-0-195">195</a></span>
+<span class="normal"><a href="#__codelineno-0-196">196</a></span>
+<span class="normal"><a href="#__codelineno-0-197">197</a></span>
+<span class="normal"><a href="#__codelineno-0-198">198</a></span>
+<span class="normal"><a href="#__codelineno-0-199">199</a></span>
+<span class="normal"><a href="#__codelineno-0-200">200</a></span>
+<span class="normal"><a href="#__codelineno-0-201">201</a></span>
+<span class="normal"><a href="#__codelineno-0-202">202</a></span>
+<span class="normal"><a href="#__codelineno-0-203">203</a></span>
+<span class="normal"><a href="#__codelineno-0-204">204</a></span>
+<span class="normal"><a href="#__codelineno-0-205">205</a></span>
+<span class="normal"><a href="#__codelineno-0-206">206</a></span>
+<span class="normal"><a href="#__codelineno-0-207">207</a></span>
+<span class="normal"><a href="#__codelineno-0-208">208</a></span>
+<span class="normal"><a href="#__codelineno-0-209">209</a></span>
+<span class="normal"><a href="#__codelineno-0-210">210</a></span>
+<span class="normal"><a href="#__codelineno-0-211">211</a></span>
+<span class="normal"><a href="#__codelineno-0-212">212</a></span>
+<span class="normal"><a href="#__codelineno-0-213">213</a></span>
+<span class="normal"><a href="#__codelineno-0-214">214</a></span>
+<span class="normal"><a href="#__codelineno-0-215">215</a></span>
+<span class="normal"><a href="#__codelineno-0-216">216</a></span>
+<span class="normal"><a href="#__codelineno-0-217">217</a></span>
+<span class="normal"><a href="#__codelineno-0-218">218</a></span>
+<span class="normal"><a href="#__codelineno-0-219">219</a></span>
+<span class="normal"><a href="#__codelineno-0-220">220</a></span>
+<span class="normal"><a href="#__codelineno-0-221">221</a></span>
+<span class="normal"><a href="#__codelineno-0-222">222</a></span>
+<span class="normal"><a href="#__codelineno-0-223">223</a></span>
+<span class="normal"><a href="#__codelineno-0-224">224</a></span>
+<span class="normal"><a href="#__codelineno-0-225">225</a></span>
+<span class="normal"><a href="#__codelineno-0-226">226</a></span>
+<span class="normal"><a href="#__codelineno-0-227">227</a></span>
+<span class="normal"><a href="#__codelineno-0-228">228</a></span>
+<span class="normal"><a href="#__codelineno-0-229">229</a></span>
+<span class="normal"><a href="#__codelineno-0-230">230</a></span>
+<span class="normal"><a href="#__codelineno-0-231">231</a></span>
+<span class="normal"><a href="#__codelineno-0-232">232</a></span>
+<span class="normal"><a href="#__codelineno-0-233">233</a></span>
+<span class="normal"><a href="#__codelineno-0-234">234</a></span>
+<span class="normal"><a href="#__codelineno-0-235">235</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-15" name="__codelineno-0-15"></a><span class="k">class</span> <span class="nc">Client</span><span class="p">(</span><span class="n">ResourceClient</span><span class="p">,</span> <span class="n">ServingClient</span><span class="p">):</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17"></a><span class="sd">    Client for interacting with Featureform APIs (resources and serving)</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18"></a>
+<a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="sd">    **Using the Client:**</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20"></a><span class="sd">    ```py title=&quot;definitions.py&quot;</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21"></a><span class="sd">    import featureform as ff</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22"></a><span class="sd">    from featureform import Client</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23"></a>
+<a id="__codelineno-0-24" name="__codelineno-0-24"></a><span class="sd">    client = Client()</span>
+<a id="__codelineno-0-25" name="__codelineno-0-25"></a>
+<a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="sd">    # Example 1: Get a registered provider</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="sd">    redis = client.get_provider(&quot;redis-quickstart&quot;)</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28"></a>
+<a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="sd">    # Example 2: Compute a dataframe from a registered source</span>
+<a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="sd">    transactions_df = client.dataframe(&quot;transactions&quot;, &quot;quickstart&quot;)</span>
+<a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="sd">    ```</span>
+<a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33"></a>
+<a id="__codelineno-0-34" name="__codelineno-0-34"></a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+<a id="__codelineno-0-35" name="__codelineno-0-35"></a>        <span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">insecure</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">cert_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dry_run</span><span class="o">=</span><span class="kc">False</span>
+<a id="__codelineno-0-36" name="__codelineno-0-36"></a>    <span class="p">):</span>
+<a id="__codelineno-0-37" name="__codelineno-0-37"></a>        <span class="k">if</span> <span class="n">local</span><span class="p">:</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38"></a>            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+<a id="__codelineno-0-39" name="__codelineno-0-39"></a>                <span class="s2">&quot;Local mode is not supported in this version. Use featureform &lt;= 1.12.0 for localmode&quot;</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40"></a>            <span class="p">)</span>
+<a id="__codelineno-0-41" name="__codelineno-0-41"></a>
+<a id="__codelineno-0-42" name="__codelineno-0-42"></a>        <span class="k">if</span> <span class="n">host</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-43" name="__codelineno-0-43"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_validate_host</span><span class="p">(</span><span class="n">host</span><span class="p">)</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44"></a>
+<a id="__codelineno-0-45" name="__codelineno-0-45"></a>        <span class="n">ResourceClient</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+<a id="__codelineno-0-46" name="__codelineno-0-46"></a>            <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-47" name="__codelineno-0-47"></a>            <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span>
+<a id="__codelineno-0-48" name="__codelineno-0-48"></a>            <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49"></a>            <span class="n">insecure</span><span class="o">=</span><span class="n">insecure</span><span class="p">,</span>
+<a id="__codelineno-0-50" name="__codelineno-0-50"></a>            <span class="n">cert_path</span><span class="o">=</span><span class="n">cert_path</span><span class="p">,</span>
+<a id="__codelineno-0-51" name="__codelineno-0-51"></a>            <span class="n">dry_run</span><span class="o">=</span><span class="n">dry_run</span><span class="p">,</span>
+<a id="__codelineno-0-52" name="__codelineno-0-52"></a>        <span class="p">)</span>
+<a id="__codelineno-0-53" name="__codelineno-0-53"></a>        <span class="c1"># Given both ResourceClient and ServingClient are instantiated together, if dry_run is True, then</span>
+<a id="__codelineno-0-54" name="__codelineno-0-54"></a>        <span class="c1"># the ServingClient cannot be instantiated due to a conflict the local and host arguments.</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">dry_run</span><span class="p">:</span>
+<a id="__codelineno-0-56" name="__codelineno-0-56"></a>            <span class="n">ServingClient</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+<a id="__codelineno-0-57" name="__codelineno-0-57"></a>                <span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span> <span class="n">insecure</span><span class="o">=</span><span class="n">insecure</span><span class="p">,</span> <span class="n">cert_path</span><span class="o">=</span><span class="n">cert_path</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a>            <span class="p">)</span>
+<a id="__codelineno-0-59" name="__codelineno-0-59"></a>
+<a id="__codelineno-0-60" name="__codelineno-0-60"></a>    <span class="k">def</span> <span class="nf">dataframe</span><span class="p">(</span>
+<a id="__codelineno-0-61" name="__codelineno-0-61"></a>        <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62"></a>        <span class="n">source</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">SourceRegistrar</span><span class="p">,</span> <span class="n">SubscriptableTransformation</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63"></a>        <span class="n">variant</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64"></a>        <span class="n">limit</span><span class="o">=</span><span class="n">NO_RECORD_LIMIT</span><span class="p">,</span>
+<a id="__codelineno-0-65" name="__codelineno-0-65"></a>        <span class="n">asynchronous</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-66" name="__codelineno-0-66"></a>        <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-67" name="__codelineno-0-67"></a>    <span class="p">):</span>
+<a id="__codelineno-0-68" name="__codelineno-0-68"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-69" name="__codelineno-0-69"></a><span class="sd">        Return a dataframe from a registered source or transformation</span>
+<a id="__codelineno-0-70" name="__codelineno-0-70"></a>
+<a id="__codelineno-0-71" name="__codelineno-0-71"></a><span class="sd">        **Example:**</span>
+<a id="__codelineno-0-72" name="__codelineno-0-72"></a><span class="sd">        ```py title=&quot;definitions.py&quot;</span>
+<a id="__codelineno-0-73" name="__codelineno-0-73"></a><span class="sd">        transactions_df = client.dataframe(&quot;transactions&quot;, &quot;quickstart&quot;)</span>
+<a id="__codelineno-0-74" name="__codelineno-0-74"></a>
+<a id="__codelineno-0-75" name="__codelineno-0-75"></a><span class="sd">        avg_user_transaction_df = transactions_df.groupby(&quot;CustomerID&quot;)[&quot;TransactionAmount&quot;].mean()</span>
+<a id="__codelineno-0-76" name="__codelineno-0-76"></a><span class="sd">        ```</span>
+<a id="__codelineno-0-77" name="__codelineno-0-77"></a>
+<a id="__codelineno-0-78" name="__codelineno-0-78"></a><span class="sd">        Args:</span>
+<a id="__codelineno-0-79" name="__codelineno-0-79"></a><span class="sd">            source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from</span>
+<a id="__codelineno-0-80" name="__codelineno-0-80"></a><span class="sd">            variant (str): The source variant; can&#39;t be None if source is a string</span>
+<a id="__codelineno-0-81" name="__codelineno-0-81"></a><span class="sd">            limit (int): The maximum number of records to return; defaults to NO_RECORD_LIMIT</span>
+<a id="__codelineno-0-82" name="__codelineno-0-82"></a><span class="sd">            asynchronous (bool): Flag to determine whether the client should wait for resources to be in either a READY or FAILED state before returning. Defaults to False to ensure that newly registered resources are in a READY state prior to serving them as dataframes.</span>
+<a id="__codelineno-0-83" name="__codelineno-0-83"></a>
+<a id="__codelineno-0-84" name="__codelineno-0-84"></a><span class="sd">        Returns:</span>
+<a id="__codelineno-0-85" name="__codelineno-0-85"></a><span class="sd">            df (pandas.DataFrame): The dataframe computed from the source or transformation</span>
+<a id="__codelineno-0-86" name="__codelineno-0-86"></a>
+<a id="__codelineno-0-87" name="__codelineno-0-87"></a><span class="sd">        &quot;&quot;&quot;</span>
+<a id="__codelineno-0-88" name="__codelineno-0-88"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">asynchronous</span><span class="o">=</span><span class="n">asynchronous</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span>
+<a id="__codelineno-0-89" name="__codelineno-0-89"></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="p">(</span><span class="n">SourceRegistrar</span><span class="p">,</span> <span class="n">SubscriptableTransformation</span><span class="p">)):</span>
+<a id="__codelineno-0-90" name="__codelineno-0-90"></a>            <span class="n">name</span><span class="p">,</span> <span class="n">variant</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">name_variant</span><span class="p">()</span>
+<a id="__codelineno-0-91" name="__codelineno-0-91"></a>        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+<a id="__codelineno-0-92" name="__codelineno-0-92"></a>            <span class="n">name</span> <span class="o">=</span> <span class="n">source</span>
+<a id="__codelineno-0-93" name="__codelineno-0-93"></a>            <span class="k">if</span> <span class="n">variant</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-94" name="__codelineno-0-94"></a>                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;variant must be specified if source is a string&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-95" name="__codelineno-0-95"></a>            <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+<a id="__codelineno-0-96" name="__codelineno-0-96"></a>                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;variant cannot be an empty string&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-97" name="__codelineno-0-97"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-98" name="__codelineno-0-98"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="__codelineno-0-99" name="__codelineno-0-99"></a>                <span class="sa">f</span><span class="s2">&quot;source must be of type SourceRegistrar, SubscriptableTransformation or str, not </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">source</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-100" name="__codelineno-0-100"></a>                <span class="s2">&quot;use client.dataframe(name, variant) or client.dataframe(source) or client.dataframe(transformation)&quot;</span>
+<a id="__codelineno-0-101" name="__codelineno-0-101"></a>            <span class="p">)</span>
+<a id="__codelineno-0-102" name="__codelineno-0-102"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">impl</span><span class="o">.</span><span class="n">_get_source_as_df</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">variant</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+<a id="__codelineno-0-103" name="__codelineno-0-103"></a>
+<a id="__codelineno-0-104" name="__codelineno-0-104"></a>    <span class="k">def</span> <span class="nf">nearest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">feature</span><span class="p">,</span> <span class="n">vector</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+<a id="__codelineno-0-105" name="__codelineno-0-105"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-106" name="__codelineno-0-106"></a><span class="sd">        Query the K nearest neighbors of a provider vector in the index of a registered feature variant</span>
+<a id="__codelineno-0-107" name="__codelineno-0-107"></a>
+<a id="__codelineno-0-108" name="__codelineno-0-108"></a><span class="sd">        **Example:**</span>
+<a id="__codelineno-0-109" name="__codelineno-0-109"></a>
+<a id="__codelineno-0-110" name="__codelineno-0-110"></a><span class="sd">        ```py title=&quot;definitions.py&quot;</span>
+<a id="__codelineno-0-111" name="__codelineno-0-111"></a><span class="sd">        # Get the 5 nearest neighbors of the vector [0.1, 0.2, 0.3] in the index of the feature &quot;my_feature&quot; with variant &quot;my_variant&quot;</span>
+<a id="__codelineno-0-112" name="__codelineno-0-112"></a><span class="sd">        nearest_neighbors = client.nearest(&quot;my_feature&quot;, &quot;my_variant&quot;, [0.1, 0.2, 0.3], 5)</span>
+<a id="__codelineno-0-113" name="__codelineno-0-113"></a><span class="sd">        print(nearest_neighbors) # prints a list of entities (e.g. [&quot;entity1&quot;, &quot;entity2&quot;, &quot;entity3&quot;, &quot;entity4&quot;, &quot;entity5&quot;])</span>
+<a id="__codelineno-0-114" name="__codelineno-0-114"></a><span class="sd">        ```</span>
+<a id="__codelineno-0-115" name="__codelineno-0-115"></a>
+<a id="__codelineno-0-116" name="__codelineno-0-116"></a><span class="sd">        Args:</span>
+<a id="__codelineno-0-117" name="__codelineno-0-117"></a><span class="sd">            feature (Union[FeatureColumnResource, tuple(str, str)]): Feature object or tuple of Feature name and variant</span>
+<a id="__codelineno-0-118" name="__codelineno-0-118"></a><span class="sd">            vector (List[float]): Query vector</span>
+<a id="__codelineno-0-119" name="__codelineno-0-119"></a><span class="sd">            k (int): Number of nearest neighbors to return</span>
+<a id="__codelineno-0-120" name="__codelineno-0-120"></a>
+<a id="__codelineno-0-121" name="__codelineno-0-121"></a><span class="sd">        &quot;&quot;&quot;</span>
+<a id="__codelineno-0-122" name="__codelineno-0-122"></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">feature</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+<a id="__codelineno-0-123" name="__codelineno-0-123"></a>            <span class="n">name</span><span class="p">,</span> <span class="n">variant</span> <span class="o">=</span> <span class="n">feature</span>
+<a id="__codelineno-0-124" name="__codelineno-0-124"></a>        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">feature</span><span class="p">,</span> <span class="n">FeatureColumnResource</span><span class="p">):</span>
+<a id="__codelineno-0-125" name="__codelineno-0-125"></a>            <span class="n">name</span> <span class="o">=</span> <span class="n">feature</span><span class="o">.</span><span class="n">name</span>
+<a id="__codelineno-0-126" name="__codelineno-0-126"></a>            <span class="n">variant</span> <span class="o">=</span> <span class="n">feature</span><span class="o">.</span><span class="n">variant</span>
+<a id="__codelineno-0-127" name="__codelineno-0-127"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-128" name="__codelineno-0-128"></a>            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+<a id="__codelineno-0-129" name="__codelineno-0-129"></a>                <span class="sa">f</span><span class="s2">&quot;the feature &#39;</span><span class="si">{</span><span class="n">feature</span><span class="si">}</span><span class="s2">&#39; of type &#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39; is not support.&quot;</span>
+<a id="__codelineno-0-130" name="__codelineno-0-130"></a>                <span class="s2">&quot;Feature must be a tuple of (name, variant) or a FeatureColumnResource&quot;</span>
+<a id="__codelineno-0-131" name="__codelineno-0-131"></a>            <span class="p">)</span>
+<a id="__codelineno-0-132" name="__codelineno-0-132"></a>
+<a id="__codelineno-0-133" name="__codelineno-0-133"></a>        <span class="k">if</span> <span class="n">k</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+<a id="__codelineno-0-134" name="__codelineno-0-134"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;k must be a positive integer&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-135" name="__codelineno-0-135"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">impl</span><span class="o">.</span><span class="n">nearest</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">variant</span><span class="p">,</span> <span class="n">vector</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+<a id="__codelineno-0-136" name="__codelineno-0-136"></a>
+<a id="__codelineno-0-137" name="__codelineno-0-137"></a>    <span class="k">def</span> <span class="nf">location</span><span class="p">(</span>
+<a id="__codelineno-0-138" name="__codelineno-0-138"></a>        <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-139" name="__codelineno-0-139"></a>        <span class="n">source</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">SourceRegistrar</span><span class="p">,</span> <span class="n">SubscriptableTransformation</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+<a id="__codelineno-0-140" name="__codelineno-0-140"></a>        <span class="n">variant</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-141" name="__codelineno-0-141"></a>        <span class="n">resource_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ResourceType</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-142" name="__codelineno-0-142"></a>    <span class="p">):</span>
+<a id="__codelineno-0-143" name="__codelineno-0-143"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-144" name="__codelineno-0-144"></a><span class="sd">        Returns the location of a registered resource. For SQL resources, it will return the table name</span>
+<a id="__codelineno-0-145" name="__codelineno-0-145"></a><span class="sd">        and for file resources, it will return the file path.</span>
+<a id="__codelineno-0-146" name="__codelineno-0-146"></a>
+<a id="__codelineno-0-147" name="__codelineno-0-147"></a><span class="sd">        **Example:**</span>
+<a id="__codelineno-0-148" name="__codelineno-0-148"></a><span class="sd">        ```py title=&quot;definitions.py&quot;</span>
+<a id="__codelineno-0-149" name="__codelineno-0-149"></a><span class="sd">        transaction_location = client.location(&quot;transactions&quot;, &quot;quickstart&quot;, ff.SOURCE)</span>
+<a id="__codelineno-0-150" name="__codelineno-0-150"></a><span class="sd">        ```</span>
+<a id="__codelineno-0-151" name="__codelineno-0-151"></a>
+<a id="__codelineno-0-152" name="__codelineno-0-152"></a><span class="sd">        Args:</span>
+<a id="__codelineno-0-153" name="__codelineno-0-153"></a><span class="sd">            source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from</span>
+<a id="__codelineno-0-154" name="__codelineno-0-154"></a><span class="sd">            variant (str): The source variant; can&#39;t be None if source is a string</span>
+<a id="__codelineno-0-155" name="__codelineno-0-155"></a><span class="sd">            resource_type (ResourceType): The type of resource; can be one of ff.SOURCE, ff.FEATURE, ff.LABEL, or ff.TRAINING_SET</span>
+<a id="__codelineno-0-156" name="__codelineno-0-156"></a><span class="sd">        &quot;&quot;&quot;</span>
+<a id="__codelineno-0-157" name="__codelineno-0-157"></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="p">(</span><span class="n">SourceRegistrar</span><span class="p">,</span> <span class="n">SubscriptableTransformation</span><span class="p">)):</span>
+<a id="__codelineno-0-158" name="__codelineno-0-158"></a>            <span class="n">name</span><span class="p">,</span> <span class="n">variant</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">name_variant</span><span class="p">()</span>
+<a id="__codelineno-0-159" name="__codelineno-0-159"></a>            <span class="n">resource_type</span> <span class="o">=</span> <span class="n">ResourceType</span><span class="o">.</span><span class="n">SOURCE</span>
+<a id="__codelineno-0-160" name="__codelineno-0-160"></a>        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">featureform</span><span class="o">.</span><span class="n">resources</span><span class="o">.</span><span class="n">TrainingSetVariant</span><span class="p">):</span>
+<a id="__codelineno-0-161" name="__codelineno-0-161"></a>            <span class="n">name</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">name</span>
+<a id="__codelineno-0-162" name="__codelineno-0-162"></a>            <span class="n">variant</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">variant</span>
+<a id="__codelineno-0-163" name="__codelineno-0-163"></a>            <span class="n">resource_type</span> <span class="o">=</span> <span class="n">ResourceType</span><span class="o">.</span><span class="n">TRAINING_SET</span>
+<a id="__codelineno-0-164" name="__codelineno-0-164"></a>        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+<a id="__codelineno-0-165" name="__codelineno-0-165"></a>            <span class="n">name</span> <span class="o">=</span> <span class="n">source</span>
+<a id="__codelineno-0-166" name="__codelineno-0-166"></a>            <span class="k">if</span> <span class="n">variant</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-167" name="__codelineno-0-167"></a>                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;variant must be specified if source is a string&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-168" name="__codelineno-0-168"></a>            <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+<a id="__codelineno-0-169" name="__codelineno-0-169"></a>                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;variant cannot be an empty string&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-170" name="__codelineno-0-170"></a>
+<a id="__codelineno-0-171" name="__codelineno-0-171"></a>            <span class="k">if</span> <span class="n">resource_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-172" name="__codelineno-0-172"></a>                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="__codelineno-0-173" name="__codelineno-0-173"></a>                    <span class="s2">&quot;resource_type must be specified if source is a string&quot;</span>
+<a id="__codelineno-0-174" name="__codelineno-0-174"></a>                <span class="p">)</span>
+<a id="__codelineno-0-175" name="__codelineno-0-175"></a>
+<a id="__codelineno-0-176" name="__codelineno-0-176"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-177" name="__codelineno-0-177"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="__codelineno-0-178" name="__codelineno-0-178"></a>                <span class="sa">f</span><span class="s2">&quot;source must be of type SourceRegistrar, SubscriptableTransformation or str, not </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">resource</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-179" name="__codelineno-0-179"></a>                <span class="s2">&quot;use client.dataframe(name, variant) or client.dataframe(source) or client.dataframe(transformation)&quot;</span>
+<a id="__codelineno-0-180" name="__codelineno-0-180"></a>            <span class="p">)</span>
+<a id="__codelineno-0-181" name="__codelineno-0-181"></a>
+<a id="__codelineno-0-182" name="__codelineno-0-182"></a>        <span class="n">location</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">impl</span><span class="o">.</span><span class="n">location</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">variant</span><span class="p">,</span> <span class="n">resource_type</span><span class="p">)</span>
+<a id="__codelineno-0-183" name="__codelineno-0-183"></a>        <span class="k">return</span> <span class="n">location</span>
+<a id="__codelineno-0-184" name="__codelineno-0-184"></a>
+<a id="__codelineno-0-185" name="__codelineno-0-185"></a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-0-186" name="__codelineno-0-186"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-187" name="__codelineno-0-187"></a><span class="sd">        Closes the client, closes channel for hosted mode</span>
+<a id="__codelineno-0-188" name="__codelineno-0-188"></a><span class="sd">        &quot;&quot;&quot;</span>
+<a id="__codelineno-0-189" name="__codelineno-0-189"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">impl</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+<a id="__codelineno-0-190" name="__codelineno-0-190"></a>
+<a id="__codelineno-0-191" name="__codelineno-0-191"></a>    <span class="k">def</span> <span class="nf">columns</span><span class="p">(</span>
+<a id="__codelineno-0-192" name="__codelineno-0-192"></a>        <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-193" name="__codelineno-0-193"></a>        <span class="n">source</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">SourceRegistrar</span><span class="p">,</span> <span class="n">SubscriptableTransformation</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+<a id="__codelineno-0-194" name="__codelineno-0-194"></a>        <span class="n">variant</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-195" name="__codelineno-0-195"></a>    <span class="p">):</span>
+<a id="__codelineno-0-196" name="__codelineno-0-196"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-197" name="__codelineno-0-197"></a><span class="sd">        Returns the columns of a registered source or transformation</span>
+<a id="__codelineno-0-198" name="__codelineno-0-198"></a>
+<a id="__codelineno-0-199" name="__codelineno-0-199"></a><span class="sd">        **Example:**</span>
+<a id="__codelineno-0-200" name="__codelineno-0-200"></a><span class="sd">        ```py title=&quot;definitions.py&quot;</span>
+<a id="__codelineno-0-201" name="__codelineno-0-201"></a><span class="sd">        columns = client.columns(&quot;transactions&quot;, &quot;quickstart&quot;)</span>
+<a id="__codelineno-0-202" name="__codelineno-0-202"></a><span class="sd">        ```</span>
+<a id="__codelineno-0-203" name="__codelineno-0-203"></a>
+<a id="__codelineno-0-204" name="__codelineno-0-204"></a><span class="sd">        Args:</span>
+<a id="__codelineno-0-205" name="__codelineno-0-205"></a><span class="sd">            source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to get the columns from</span>
+<a id="__codelineno-0-206" name="__codelineno-0-206"></a><span class="sd">            variant (str): The source variant; can&#39;t be None if source is a string</span>
+<a id="__codelineno-0-207" name="__codelineno-0-207"></a>
+<a id="__codelineno-0-208" name="__codelineno-0-208"></a><span class="sd">        Returns:</span>
+<a id="__codelineno-0-209" name="__codelineno-0-209"></a><span class="sd">            columns (List[str]): The columns of the source or transformation</span>
+<a id="__codelineno-0-210" name="__codelineno-0-210"></a><span class="sd">        &quot;&quot;&quot;</span>
+<a id="__codelineno-0-211" name="__codelineno-0-211"></a>        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="p">(</span><span class="n">SourceRegistrar</span><span class="p">,</span> <span class="n">SubscriptableTransformation</span><span class="p">)):</span>
+<a id="__codelineno-0-212" name="__codelineno-0-212"></a>            <span class="n">name</span><span class="p">,</span> <span class="n">variant</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">name_variant</span><span class="p">()</span>
+<a id="__codelineno-0-213" name="__codelineno-0-213"></a>        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+<a id="__codelineno-0-214" name="__codelineno-0-214"></a>            <span class="n">name</span> <span class="o">=</span> <span class="n">source</span>
+<a id="__codelineno-0-215" name="__codelineno-0-215"></a>            <span class="k">if</span> <span class="n">variant</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-216" name="__codelineno-0-216"></a>                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;variant must be specified if source is a string&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-217" name="__codelineno-0-217"></a>            <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+<a id="__codelineno-0-218" name="__codelineno-0-218"></a>                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;variant cannot be an empty string&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-219" name="__codelineno-0-219"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-220" name="__codelineno-0-220"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="__codelineno-0-221" name="__codelineno-0-221"></a>                <span class="sa">f</span><span class="s2">&quot;source must be of type SourceRegistrar, SubscriptableTransformation or str, not </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">source</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-222" name="__codelineno-0-222"></a>                <span class="s2">&quot;use client.columns(name, variant) or client.columns(source) or client.columns(transformation)&quot;</span>
+<a id="__codelineno-0-223" name="__codelineno-0-223"></a>            <span class="p">)</span>
+<a id="__codelineno-0-224" name="__codelineno-0-224"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">impl</span><span class="o">.</span><span class="n">_get_source_columns</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">variant</span><span class="p">)</span>
+<a id="__codelineno-0-225" name="__codelineno-0-225"></a>
+<a id="__codelineno-0-226" name="__codelineno-0-226"></a>    <span class="nd">@staticmethod</span>
+<a id="__codelineno-0-227" name="__codelineno-0-227"></a>    <span class="k">def</span> <span class="nf">_validate_host</span><span class="p">(</span><span class="n">host</span><span class="p">):</span>
+<a id="__codelineno-0-228" name="__codelineno-0-228"></a>        <span class="k">if</span> <span class="n">host</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;http://&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">host</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;https://&quot;</span><span class="p">):</span>
+<a id="__codelineno-0-229" name="__codelineno-0-229"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid Host: Host should not contain http or https.&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-230" name="__codelineno-0-230"></a>
+<a id="__codelineno-0-231" name="__codelineno-0-231"></a>    <span class="k">def</span> <span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-0-232" name="__codelineno-0-232"></a>        <span class="k">return</span> <span class="bp">self</span>
+<a id="__codelineno-0-233" name="__codelineno-0-233"></a>
+<a id="__codelineno-0-234" name="__codelineno-0-234"></a>    <span class="k">def</span> <span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+<a id="__codelineno-0-235" name="__codelineno-0-235"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="featureform.client.Client.close" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">close</span><span class="p">()</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+      <p>Closes the client, closes channel for hosted mode</p>
+
+            <details class="quote">
+              <summary>Source code in <code>src/featureform/client.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-185">185</a></span>
+<span class="normal"><a href="#__codelineno-0-186">186</a></span>
+<span class="normal"><a href="#__codelineno-0-187">187</a></span>
+<span class="normal"><a href="#__codelineno-0-188">188</a></span>
+<span class="normal"><a href="#__codelineno-0-189">189</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-185" name="__codelineno-0-185"></a><span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-0-186" name="__codelineno-0-186"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-187" name="__codelineno-0-187"></a><span class="sd">    Closes the client, closes channel for hosted mode</span>
+<a id="__codelineno-0-188" name="__codelineno-0-188"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-189" name="__codelineno-0-189"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">impl</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="featureform.client.Client.columns" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">columns</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">variant</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+      <p>Returns the columns of a registered source or transformation</p>
+<p><strong>Example:</strong>
+<div class="highlight"><span class="filename">definitions.py</span><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">columns</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">columns</span><span class="p">(</span><span class="s2">&quot;transactions&quot;</span><span class="p">,</span> <span class="s2">&quot;quickstart&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>source</code></td>
+            <td>
+                  <code><span title="typing.Union">Union</span>[<span title="featureform.register.SourceRegistrar">SourceRegistrar</span>, <span title="featureform.register.SubscriptableTransformation">SubscriptableTransformation</span>, str]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The source or transformation to get the columns from</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>variant</code></td>
+            <td>
+                  <code>str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The source variant; can't be None if source is a string</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>columns</code></td>            <td>
+                  <code><span title="featureform.register.List">List</span>[str]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The columns of the source or transformation</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+            <details class="quote">
+              <summary>Source code in <code>src/featureform/client.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-191">191</a></span>
+<span class="normal"><a href="#__codelineno-0-192">192</a></span>
+<span class="normal"><a href="#__codelineno-0-193">193</a></span>
+<span class="normal"><a href="#__codelineno-0-194">194</a></span>
+<span class="normal"><a href="#__codelineno-0-195">195</a></span>
+<span class="normal"><a href="#__codelineno-0-196">196</a></span>
+<span class="normal"><a href="#__codelineno-0-197">197</a></span>
+<span class="normal"><a href="#__codelineno-0-198">198</a></span>
+<span class="normal"><a href="#__codelineno-0-199">199</a></span>
+<span class="normal"><a href="#__codelineno-0-200">200</a></span>
+<span class="normal"><a href="#__codelineno-0-201">201</a></span>
+<span class="normal"><a href="#__codelineno-0-202">202</a></span>
+<span class="normal"><a href="#__codelineno-0-203">203</a></span>
+<span class="normal"><a href="#__codelineno-0-204">204</a></span>
+<span class="normal"><a href="#__codelineno-0-205">205</a></span>
+<span class="normal"><a href="#__codelineno-0-206">206</a></span>
+<span class="normal"><a href="#__codelineno-0-207">207</a></span>
+<span class="normal"><a href="#__codelineno-0-208">208</a></span>
+<span class="normal"><a href="#__codelineno-0-209">209</a></span>
+<span class="normal"><a href="#__codelineno-0-210">210</a></span>
+<span class="normal"><a href="#__codelineno-0-211">211</a></span>
+<span class="normal"><a href="#__codelineno-0-212">212</a></span>
+<span class="normal"><a href="#__codelineno-0-213">213</a></span>
+<span class="normal"><a href="#__codelineno-0-214">214</a></span>
+<span class="normal"><a href="#__codelineno-0-215">215</a></span>
+<span class="normal"><a href="#__codelineno-0-216">216</a></span>
+<span class="normal"><a href="#__codelineno-0-217">217</a></span>
+<span class="normal"><a href="#__codelineno-0-218">218</a></span>
+<span class="normal"><a href="#__codelineno-0-219">219</a></span>
+<span class="normal"><a href="#__codelineno-0-220">220</a></span>
+<span class="normal"><a href="#__codelineno-0-221">221</a></span>
+<span class="normal"><a href="#__codelineno-0-222">222</a></span>
+<span class="normal"><a href="#__codelineno-0-223">223</a></span>
+<span class="normal"><a href="#__codelineno-0-224">224</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-191" name="__codelineno-0-191"></a><span class="k">def</span> <span class="nf">columns</span><span class="p">(</span>
+<a id="__codelineno-0-192" name="__codelineno-0-192"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-193" name="__codelineno-0-193"></a>    <span class="n">source</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">SourceRegistrar</span><span class="p">,</span> <span class="n">SubscriptableTransformation</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+<a id="__codelineno-0-194" name="__codelineno-0-194"></a>    <span class="n">variant</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-195" name="__codelineno-0-195"></a><span class="p">):</span>
+<a id="__codelineno-0-196" name="__codelineno-0-196"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-197" name="__codelineno-0-197"></a><span class="sd">    Returns the columns of a registered source or transformation</span>
+<a id="__codelineno-0-198" name="__codelineno-0-198"></a>
+<a id="__codelineno-0-199" name="__codelineno-0-199"></a><span class="sd">    **Example:**</span>
+<a id="__codelineno-0-200" name="__codelineno-0-200"></a><span class="sd">    ```py title=&quot;definitions.py&quot;</span>
+<a id="__codelineno-0-201" name="__codelineno-0-201"></a><span class="sd">    columns = client.columns(&quot;transactions&quot;, &quot;quickstart&quot;)</span>
+<a id="__codelineno-0-202" name="__codelineno-0-202"></a><span class="sd">    ```</span>
+<a id="__codelineno-0-203" name="__codelineno-0-203"></a>
+<a id="__codelineno-0-204" name="__codelineno-0-204"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-205" name="__codelineno-0-205"></a><span class="sd">        source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to get the columns from</span>
+<a id="__codelineno-0-206" name="__codelineno-0-206"></a><span class="sd">        variant (str): The source variant; can&#39;t be None if source is a string</span>
+<a id="__codelineno-0-207" name="__codelineno-0-207"></a>
+<a id="__codelineno-0-208" name="__codelineno-0-208"></a><span class="sd">    Returns:</span>
+<a id="__codelineno-0-209" name="__codelineno-0-209"></a><span class="sd">        columns (List[str]): The columns of the source or transformation</span>
+<a id="__codelineno-0-210" name="__codelineno-0-210"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-211" name="__codelineno-0-211"></a>    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="p">(</span><span class="n">SourceRegistrar</span><span class="p">,</span> <span class="n">SubscriptableTransformation</span><span class="p">)):</span>
+<a id="__codelineno-0-212" name="__codelineno-0-212"></a>        <span class="n">name</span><span class="p">,</span> <span class="n">variant</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">name_variant</span><span class="p">()</span>
+<a id="__codelineno-0-213" name="__codelineno-0-213"></a>    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+<a id="__codelineno-0-214" name="__codelineno-0-214"></a>        <span class="n">name</span> <span class="o">=</span> <span class="n">source</span>
+<a id="__codelineno-0-215" name="__codelineno-0-215"></a>        <span class="k">if</span> <span class="n">variant</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-216" name="__codelineno-0-216"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;variant must be specified if source is a string&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-217" name="__codelineno-0-217"></a>        <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+<a id="__codelineno-0-218" name="__codelineno-0-218"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;variant cannot be an empty string&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-219" name="__codelineno-0-219"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-220" name="__codelineno-0-220"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="__codelineno-0-221" name="__codelineno-0-221"></a>            <span class="sa">f</span><span class="s2">&quot;source must be of type SourceRegistrar, SubscriptableTransformation or str, not </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">source</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-222" name="__codelineno-0-222"></a>            <span class="s2">&quot;use client.columns(name, variant) or client.columns(source) or client.columns(transformation)&quot;</span>
+<a id="__codelineno-0-223" name="__codelineno-0-223"></a>        <span class="p">)</span>
+<a id="__codelineno-0-224" name="__codelineno-0-224"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">impl</span><span class="o">.</span><span class="n">_get_source_columns</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">variant</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="featureform.client.Client.dataframe" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">dataframe</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">variant</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="n">NO_RECORD_LIMIT</span><span class="p">,</span> <span class="n">asynchronous</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+      <p>Return a dataframe from a registered source or transformation</p>
+<p><strong>Example:</strong>
+<div class="highlight"><span class="filename">definitions.py</span><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">transactions_df</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">dataframe</span><span class="p">(</span><span class="s2">&quot;transactions&quot;</span><span class="p">,</span> <span class="s2">&quot;quickstart&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">avg_user_transaction_df</span> <span class="o">=</span> <span class="n">transactions_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;CustomerID&quot;</span><span class="p">)[</span><span class="s2">&quot;TransactionAmount&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+</code></pre></div></p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>source</code></td>
+            <td>
+                  <code><span title="typing.Union">Union</span>[<span title="featureform.register.SourceRegistrar">SourceRegistrar</span>, <span title="featureform.register.SubscriptableTransformation">SubscriptableTransformation</span>, str]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The source or transformation to compute the dataframe from</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>variant</code></td>
+            <td>
+                  <code>str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The source variant; can't be None if source is a string</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>limit</code></td>
+            <td>
+                  <code>int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The maximum number of records to return; defaults to NO_RECORD_LIMIT</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="featureform.constants.NO_RECORD_LIMIT">NO_RECORD_LIMIT</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>asynchronous</code></td>
+            <td>
+                  <code>bool</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Flag to determine whether the client should wait for resources to be in either a READY or FAILED state before returning. Defaults to False to ensure that newly registered resources are in a READY state prior to serving them as dataframes.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>df</code></td>            <td>
+                  <code><span title="pandas.DataFrame">DataFrame</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The dataframe computed from the source or transformation</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+            <details class="quote">
+              <summary>Source code in <code>src/featureform/client.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-60"> 60</a></span>
+<span class="normal"><a href="#__codelineno-0-61"> 61</a></span>
+<span class="normal"><a href="#__codelineno-0-62"> 62</a></span>
+<span class="normal"><a href="#__codelineno-0-63"> 63</a></span>
+<span class="normal"><a href="#__codelineno-0-64"> 64</a></span>
+<span class="normal"><a href="#__codelineno-0-65"> 65</a></span>
+<span class="normal"><a href="#__codelineno-0-66"> 66</a></span>
+<span class="normal"><a href="#__codelineno-0-67"> 67</a></span>
+<span class="normal"><a href="#__codelineno-0-68"> 68</a></span>
+<span class="normal"><a href="#__codelineno-0-69"> 69</a></span>
+<span class="normal"><a href="#__codelineno-0-70"> 70</a></span>
+<span class="normal"><a href="#__codelineno-0-71"> 71</a></span>
+<span class="normal"><a href="#__codelineno-0-72"> 72</a></span>
+<span class="normal"><a href="#__codelineno-0-73"> 73</a></span>
+<span class="normal"><a href="#__codelineno-0-74"> 74</a></span>
+<span class="normal"><a href="#__codelineno-0-75"> 75</a></span>
+<span class="normal"><a href="#__codelineno-0-76"> 76</a></span>
+<span class="normal"><a href="#__codelineno-0-77"> 77</a></span>
+<span class="normal"><a href="#__codelineno-0-78"> 78</a></span>
+<span class="normal"><a href="#__codelineno-0-79"> 79</a></span>
+<span class="normal"><a href="#__codelineno-0-80"> 80</a></span>
+<span class="normal"><a href="#__codelineno-0-81"> 81</a></span>
+<span class="normal"><a href="#__codelineno-0-82"> 82</a></span>
+<span class="normal"><a href="#__codelineno-0-83"> 83</a></span>
+<span class="normal"><a href="#__codelineno-0-84"> 84</a></span>
+<span class="normal"><a href="#__codelineno-0-85"> 85</a></span>
+<span class="normal"><a href="#__codelineno-0-86"> 86</a></span>
+<span class="normal"><a href="#__codelineno-0-87"> 87</a></span>
+<span class="normal"><a href="#__codelineno-0-88"> 88</a></span>
+<span class="normal"><a href="#__codelineno-0-89"> 89</a></span>
+<span class="normal"><a href="#__codelineno-0-90"> 90</a></span>
+<span class="normal"><a href="#__codelineno-0-91"> 91</a></span>
+<span class="normal"><a href="#__codelineno-0-92"> 92</a></span>
+<span class="normal"><a href="#__codelineno-0-93"> 93</a></span>
+<span class="normal"><a href="#__codelineno-0-94"> 94</a></span>
+<span class="normal"><a href="#__codelineno-0-95"> 95</a></span>
+<span class="normal"><a href="#__codelineno-0-96"> 96</a></span>
+<span class="normal"><a href="#__codelineno-0-97"> 97</a></span>
+<span class="normal"><a href="#__codelineno-0-98"> 98</a></span>
+<span class="normal"><a href="#__codelineno-0-99"> 99</a></span>
+<span class="normal"><a href="#__codelineno-0-100">100</a></span>
+<span class="normal"><a href="#__codelineno-0-101">101</a></span>
+<span class="normal"><a href="#__codelineno-0-102">102</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-60" name="__codelineno-0-60"></a><span class="k">def</span> <span class="nf">dataframe</span><span class="p">(</span>
+<a id="__codelineno-0-61" name="__codelineno-0-61"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62"></a>    <span class="n">source</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">SourceRegistrar</span><span class="p">,</span> <span class="n">SubscriptableTransformation</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63"></a>    <span class="n">variant</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64"></a>    <span class="n">limit</span><span class="o">=</span><span class="n">NO_RECORD_LIMIT</span><span class="p">,</span>
+<a id="__codelineno-0-65" name="__codelineno-0-65"></a>    <span class="n">asynchronous</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-66" name="__codelineno-0-66"></a>    <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-67" name="__codelineno-0-67"></a><span class="p">):</span>
+<a id="__codelineno-0-68" name="__codelineno-0-68"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-69" name="__codelineno-0-69"></a><span class="sd">    Return a dataframe from a registered source or transformation</span>
+<a id="__codelineno-0-70" name="__codelineno-0-70"></a>
+<a id="__codelineno-0-71" name="__codelineno-0-71"></a><span class="sd">    **Example:**</span>
+<a id="__codelineno-0-72" name="__codelineno-0-72"></a><span class="sd">    ```py title=&quot;definitions.py&quot;</span>
+<a id="__codelineno-0-73" name="__codelineno-0-73"></a><span class="sd">    transactions_df = client.dataframe(&quot;transactions&quot;, &quot;quickstart&quot;)</span>
+<a id="__codelineno-0-74" name="__codelineno-0-74"></a>
+<a id="__codelineno-0-75" name="__codelineno-0-75"></a><span class="sd">    avg_user_transaction_df = transactions_df.groupby(&quot;CustomerID&quot;)[&quot;TransactionAmount&quot;].mean()</span>
+<a id="__codelineno-0-76" name="__codelineno-0-76"></a><span class="sd">    ```</span>
+<a id="__codelineno-0-77" name="__codelineno-0-77"></a>
+<a id="__codelineno-0-78" name="__codelineno-0-78"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-79" name="__codelineno-0-79"></a><span class="sd">        source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from</span>
+<a id="__codelineno-0-80" name="__codelineno-0-80"></a><span class="sd">        variant (str): The source variant; can&#39;t be None if source is a string</span>
+<a id="__codelineno-0-81" name="__codelineno-0-81"></a><span class="sd">        limit (int): The maximum number of records to return; defaults to NO_RECORD_LIMIT</span>
+<a id="__codelineno-0-82" name="__codelineno-0-82"></a><span class="sd">        asynchronous (bool): Flag to determine whether the client should wait for resources to be in either a READY or FAILED state before returning. Defaults to False to ensure that newly registered resources are in a READY state prior to serving them as dataframes.</span>
+<a id="__codelineno-0-83" name="__codelineno-0-83"></a>
+<a id="__codelineno-0-84" name="__codelineno-0-84"></a><span class="sd">    Returns:</span>
+<a id="__codelineno-0-85" name="__codelineno-0-85"></a><span class="sd">        df (pandas.DataFrame): The dataframe computed from the source or transformation</span>
+<a id="__codelineno-0-86" name="__codelineno-0-86"></a>
+<a id="__codelineno-0-87" name="__codelineno-0-87"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-88" name="__codelineno-0-88"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">asynchronous</span><span class="o">=</span><span class="n">asynchronous</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span>
+<a id="__codelineno-0-89" name="__codelineno-0-89"></a>    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="p">(</span><span class="n">SourceRegistrar</span><span class="p">,</span> <span class="n">SubscriptableTransformation</span><span class="p">)):</span>
+<a id="__codelineno-0-90" name="__codelineno-0-90"></a>        <span class="n">name</span><span class="p">,</span> <span class="n">variant</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">name_variant</span><span class="p">()</span>
+<a id="__codelineno-0-91" name="__codelineno-0-91"></a>    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+<a id="__codelineno-0-92" name="__codelineno-0-92"></a>        <span class="n">name</span> <span class="o">=</span> <span class="n">source</span>
+<a id="__codelineno-0-93" name="__codelineno-0-93"></a>        <span class="k">if</span> <span class="n">variant</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-94" name="__codelineno-0-94"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;variant must be specified if source is a string&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-95" name="__codelineno-0-95"></a>        <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+<a id="__codelineno-0-96" name="__codelineno-0-96"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;variant cannot be an empty string&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-97" name="__codelineno-0-97"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-98" name="__codelineno-0-98"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="__codelineno-0-99" name="__codelineno-0-99"></a>            <span class="sa">f</span><span class="s2">&quot;source must be of type SourceRegistrar, SubscriptableTransformation or str, not </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">source</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-100" name="__codelineno-0-100"></a>            <span class="s2">&quot;use client.dataframe(name, variant) or client.dataframe(source) or client.dataframe(transformation)&quot;</span>
+<a id="__codelineno-0-101" name="__codelineno-0-101"></a>        <span class="p">)</span>
+<a id="__codelineno-0-102" name="__codelineno-0-102"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">impl</span><span class="o">.</span><span class="n">_get_source_as_df</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">variant</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="featureform.client.Client.location" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">location</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">variant</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">resource_type</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+      <p>Returns the location of a registered resource. For SQL resources, it will return the table name
+and for file resources, it will return the file path.</p>
+<p><strong>Example:</strong>
+<div class="highlight"><span class="filename">definitions.py</span><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">transaction_location</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">location</span><span class="p">(</span><span class="s2">&quot;transactions&quot;</span><span class="p">,</span> <span class="s2">&quot;quickstart&quot;</span><span class="p">,</span> <span class="n">ff</span><span class="o">.</span><span class="n">SOURCE</span><span class="p">)</span>
+</code></pre></div></p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>source</code></td>
+            <td>
+                  <code><span title="typing.Union">Union</span>[<span title="featureform.register.SourceRegistrar">SourceRegistrar</span>, <span title="featureform.register.SubscriptableTransformation">SubscriptableTransformation</span>, str]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The source or transformation to compute the dataframe from</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>variant</code></td>
+            <td>
+                  <code>str</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The source variant; can't be None if source is a string</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>resource_type</code></td>
+            <td>
+                  <code><span title="featureform.enums.ResourceType">ResourceType</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The type of resource; can be one of ff.SOURCE, ff.FEATURE, ff.LABEL, or ff.TRAINING_SET</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+            <details class="quote">
+              <summary>Source code in <code>src/featureform/client.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-137">137</a></span>
+<span class="normal"><a href="#__codelineno-0-138">138</a></span>
+<span class="normal"><a href="#__codelineno-0-139">139</a></span>
+<span class="normal"><a href="#__codelineno-0-140">140</a></span>
+<span class="normal"><a href="#__codelineno-0-141">141</a></span>
+<span class="normal"><a href="#__codelineno-0-142">142</a></span>
+<span class="normal"><a href="#__codelineno-0-143">143</a></span>
+<span class="normal"><a href="#__codelineno-0-144">144</a></span>
+<span class="normal"><a href="#__codelineno-0-145">145</a></span>
+<span class="normal"><a href="#__codelineno-0-146">146</a></span>
+<span class="normal"><a href="#__codelineno-0-147">147</a></span>
+<span class="normal"><a href="#__codelineno-0-148">148</a></span>
+<span class="normal"><a href="#__codelineno-0-149">149</a></span>
+<span class="normal"><a href="#__codelineno-0-150">150</a></span>
+<span class="normal"><a href="#__codelineno-0-151">151</a></span>
+<span class="normal"><a href="#__codelineno-0-152">152</a></span>
+<span class="normal"><a href="#__codelineno-0-153">153</a></span>
+<span class="normal"><a href="#__codelineno-0-154">154</a></span>
+<span class="normal"><a href="#__codelineno-0-155">155</a></span>
+<span class="normal"><a href="#__codelineno-0-156">156</a></span>
+<span class="normal"><a href="#__codelineno-0-157">157</a></span>
+<span class="normal"><a href="#__codelineno-0-158">158</a></span>
+<span class="normal"><a href="#__codelineno-0-159">159</a></span>
+<span class="normal"><a href="#__codelineno-0-160">160</a></span>
+<span class="normal"><a href="#__codelineno-0-161">161</a></span>
+<span class="normal"><a href="#__codelineno-0-162">162</a></span>
+<span class="normal"><a href="#__codelineno-0-163">163</a></span>
+<span class="normal"><a href="#__codelineno-0-164">164</a></span>
+<span class="normal"><a href="#__codelineno-0-165">165</a></span>
+<span class="normal"><a href="#__codelineno-0-166">166</a></span>
+<span class="normal"><a href="#__codelineno-0-167">167</a></span>
+<span class="normal"><a href="#__codelineno-0-168">168</a></span>
+<span class="normal"><a href="#__codelineno-0-169">169</a></span>
+<span class="normal"><a href="#__codelineno-0-170">170</a></span>
+<span class="normal"><a href="#__codelineno-0-171">171</a></span>
+<span class="normal"><a href="#__codelineno-0-172">172</a></span>
+<span class="normal"><a href="#__codelineno-0-173">173</a></span>
+<span class="normal"><a href="#__codelineno-0-174">174</a></span>
+<span class="normal"><a href="#__codelineno-0-175">175</a></span>
+<span class="normal"><a href="#__codelineno-0-176">176</a></span>
+<span class="normal"><a href="#__codelineno-0-177">177</a></span>
+<span class="normal"><a href="#__codelineno-0-178">178</a></span>
+<span class="normal"><a href="#__codelineno-0-179">179</a></span>
+<span class="normal"><a href="#__codelineno-0-180">180</a></span>
+<span class="normal"><a href="#__codelineno-0-181">181</a></span>
+<span class="normal"><a href="#__codelineno-0-182">182</a></span>
+<span class="normal"><a href="#__codelineno-0-183">183</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-137" name="__codelineno-0-137"></a><span class="k">def</span> <span class="nf">location</span><span class="p">(</span>
+<a id="__codelineno-0-138" name="__codelineno-0-138"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-139" name="__codelineno-0-139"></a>    <span class="n">source</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">SourceRegistrar</span><span class="p">,</span> <span class="n">SubscriptableTransformation</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+<a id="__codelineno-0-140" name="__codelineno-0-140"></a>    <span class="n">variant</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-141" name="__codelineno-0-141"></a>    <span class="n">resource_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ResourceType</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-142" name="__codelineno-0-142"></a><span class="p">):</span>
+<a id="__codelineno-0-143" name="__codelineno-0-143"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-144" name="__codelineno-0-144"></a><span class="sd">    Returns the location of a registered resource. For SQL resources, it will return the table name</span>
+<a id="__codelineno-0-145" name="__codelineno-0-145"></a><span class="sd">    and for file resources, it will return the file path.</span>
+<a id="__codelineno-0-146" name="__codelineno-0-146"></a>
+<a id="__codelineno-0-147" name="__codelineno-0-147"></a><span class="sd">    **Example:**</span>
+<a id="__codelineno-0-148" name="__codelineno-0-148"></a><span class="sd">    ```py title=&quot;definitions.py&quot;</span>
+<a id="__codelineno-0-149" name="__codelineno-0-149"></a><span class="sd">    transaction_location = client.location(&quot;transactions&quot;, &quot;quickstart&quot;, ff.SOURCE)</span>
+<a id="__codelineno-0-150" name="__codelineno-0-150"></a><span class="sd">    ```</span>
+<a id="__codelineno-0-151" name="__codelineno-0-151"></a>
+<a id="__codelineno-0-152" name="__codelineno-0-152"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-153" name="__codelineno-0-153"></a><span class="sd">        source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from</span>
+<a id="__codelineno-0-154" name="__codelineno-0-154"></a><span class="sd">        variant (str): The source variant; can&#39;t be None if source is a string</span>
+<a id="__codelineno-0-155" name="__codelineno-0-155"></a><span class="sd">        resource_type (ResourceType): The type of resource; can be one of ff.SOURCE, ff.FEATURE, ff.LABEL, or ff.TRAINING_SET</span>
+<a id="__codelineno-0-156" name="__codelineno-0-156"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-157" name="__codelineno-0-157"></a>    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="p">(</span><span class="n">SourceRegistrar</span><span class="p">,</span> <span class="n">SubscriptableTransformation</span><span class="p">)):</span>
+<a id="__codelineno-0-158" name="__codelineno-0-158"></a>        <span class="n">name</span><span class="p">,</span> <span class="n">variant</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">name_variant</span><span class="p">()</span>
+<a id="__codelineno-0-159" name="__codelineno-0-159"></a>        <span class="n">resource_type</span> <span class="o">=</span> <span class="n">ResourceType</span><span class="o">.</span><span class="n">SOURCE</span>
+<a id="__codelineno-0-160" name="__codelineno-0-160"></a>    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">featureform</span><span class="o">.</span><span class="n">resources</span><span class="o">.</span><span class="n">TrainingSetVariant</span><span class="p">):</span>
+<a id="__codelineno-0-161" name="__codelineno-0-161"></a>        <span class="n">name</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">name</span>
+<a id="__codelineno-0-162" name="__codelineno-0-162"></a>        <span class="n">variant</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">variant</span>
+<a id="__codelineno-0-163" name="__codelineno-0-163"></a>        <span class="n">resource_type</span> <span class="o">=</span> <span class="n">ResourceType</span><span class="o">.</span><span class="n">TRAINING_SET</span>
+<a id="__codelineno-0-164" name="__codelineno-0-164"></a>    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+<a id="__codelineno-0-165" name="__codelineno-0-165"></a>        <span class="n">name</span> <span class="o">=</span> <span class="n">source</span>
+<a id="__codelineno-0-166" name="__codelineno-0-166"></a>        <span class="k">if</span> <span class="n">variant</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-167" name="__codelineno-0-167"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;variant must be specified if source is a string&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-168" name="__codelineno-0-168"></a>        <span class="k">if</span> <span class="n">variant</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+<a id="__codelineno-0-169" name="__codelineno-0-169"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;variant cannot be an empty string&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-170" name="__codelineno-0-170"></a>
+<a id="__codelineno-0-171" name="__codelineno-0-171"></a>        <span class="k">if</span> <span class="n">resource_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-172" name="__codelineno-0-172"></a>            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="__codelineno-0-173" name="__codelineno-0-173"></a>                <span class="s2">&quot;resource_type must be specified if source is a string&quot;</span>
+<a id="__codelineno-0-174" name="__codelineno-0-174"></a>            <span class="p">)</span>
+<a id="__codelineno-0-175" name="__codelineno-0-175"></a>
+<a id="__codelineno-0-176" name="__codelineno-0-176"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-177" name="__codelineno-0-177"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+<a id="__codelineno-0-178" name="__codelineno-0-178"></a>            <span class="sa">f</span><span class="s2">&quot;source must be of type SourceRegistrar, SubscriptableTransformation or str, not </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">resource</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-179" name="__codelineno-0-179"></a>            <span class="s2">&quot;use client.dataframe(name, variant) or client.dataframe(source) or client.dataframe(transformation)&quot;</span>
+<a id="__codelineno-0-180" name="__codelineno-0-180"></a>        <span class="p">)</span>
+<a id="__codelineno-0-181" name="__codelineno-0-181"></a>
+<a id="__codelineno-0-182" name="__codelineno-0-182"></a>    <span class="n">location</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">impl</span><span class="o">.</span><span class="n">location</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">variant</span><span class="p">,</span> <span class="n">resource_type</span><span class="p">)</span>
+<a id="__codelineno-0-183" name="__codelineno-0-183"></a>    <span class="k">return</span> <span class="n">location</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="featureform.client.Client.nearest" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">nearest</span><span class="p">(</span><span class="n">feature</span><span class="p">,</span> <span class="n">vector</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+      <p>Query the K nearest neighbors of a provider vector in the index of a registered feature variant</p>
+<p><strong>Example:</strong></p>
+<div class="highlight"><span class="filename">definitions.py</span><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Get the 5 nearest neighbors of the vector [0.1, 0.2, 0.3] in the index of the feature &quot;my_feature&quot; with variant &quot;my_variant&quot;</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">nearest_neighbors</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">nearest</span><span class="p">(</span><span class="s2">&quot;my_feature&quot;</span><span class="p">,</span> <span class="s2">&quot;my_variant&quot;</span><span class="p">,</span> <span class="p">[</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">],</span> <span class="mi">5</span><span class="p">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">nearest_neighbors</span><span class="p">)</span> <span class="c1"># prints a list of entities (e.g. [&quot;entity1&quot;, &quot;entity2&quot;, &quot;entity3&quot;, &quot;entity4&quot;, &quot;entity5&quot;])</span>
+</code></pre></div>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code>feature</code></td>
+            <td>
+                  <code><span title="typing.Union">Union</span>[<span title="featureform.register.FeatureColumnResource">FeatureColumnResource</span>, tuple(str, str)]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Feature object or tuple of Feature name and variant</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>vector</code></td>
+            <td>
+                  <code><span title="featureform.register.List">List</span>[float]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Query vector</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code>k</code></td>
+            <td>
+                  <code>int</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Number of nearest neighbors to return</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+            <details class="quote">
+              <summary>Source code in <code>src/featureform/client.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-104">104</a></span>
+<span class="normal"><a href="#__codelineno-0-105">105</a></span>
+<span class="normal"><a href="#__codelineno-0-106">106</a></span>
+<span class="normal"><a href="#__codelineno-0-107">107</a></span>
+<span class="normal"><a href="#__codelineno-0-108">108</a></span>
+<span class="normal"><a href="#__codelineno-0-109">109</a></span>
+<span class="normal"><a href="#__codelineno-0-110">110</a></span>
+<span class="normal"><a href="#__codelineno-0-111">111</a></span>
+<span class="normal"><a href="#__codelineno-0-112">112</a></span>
+<span class="normal"><a href="#__codelineno-0-113">113</a></span>
+<span class="normal"><a href="#__codelineno-0-114">114</a></span>
+<span class="normal"><a href="#__codelineno-0-115">115</a></span>
+<span class="normal"><a href="#__codelineno-0-116">116</a></span>
+<span class="normal"><a href="#__codelineno-0-117">117</a></span>
+<span class="normal"><a href="#__codelineno-0-118">118</a></span>
+<span class="normal"><a href="#__codelineno-0-119">119</a></span>
+<span class="normal"><a href="#__codelineno-0-120">120</a></span>
+<span class="normal"><a href="#__codelineno-0-121">121</a></span>
+<span class="normal"><a href="#__codelineno-0-122">122</a></span>
+<span class="normal"><a href="#__codelineno-0-123">123</a></span>
+<span class="normal"><a href="#__codelineno-0-124">124</a></span>
+<span class="normal"><a href="#__codelineno-0-125">125</a></span>
+<span class="normal"><a href="#__codelineno-0-126">126</a></span>
+<span class="normal"><a href="#__codelineno-0-127">127</a></span>
+<span class="normal"><a href="#__codelineno-0-128">128</a></span>
+<span class="normal"><a href="#__codelineno-0-129">129</a></span>
+<span class="normal"><a href="#__codelineno-0-130">130</a></span>
+<span class="normal"><a href="#__codelineno-0-131">131</a></span>
+<span class="normal"><a href="#__codelineno-0-132">132</a></span>
+<span class="normal"><a href="#__codelineno-0-133">133</a></span>
+<span class="normal"><a href="#__codelineno-0-134">134</a></span>
+<span class="normal"><a href="#__codelineno-0-135">135</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-104" name="__codelineno-0-104"></a><span class="k">def</span> <span class="nf">nearest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">feature</span><span class="p">,</span> <span class="n">vector</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+<a id="__codelineno-0-105" name="__codelineno-0-105"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-106" name="__codelineno-0-106"></a><span class="sd">    Query the K nearest neighbors of a provider vector in the index of a registered feature variant</span>
+<a id="__codelineno-0-107" name="__codelineno-0-107"></a>
+<a id="__codelineno-0-108" name="__codelineno-0-108"></a><span class="sd">    **Example:**</span>
+<a id="__codelineno-0-109" name="__codelineno-0-109"></a>
+<a id="__codelineno-0-110" name="__codelineno-0-110"></a><span class="sd">    ```py title=&quot;definitions.py&quot;</span>
+<a id="__codelineno-0-111" name="__codelineno-0-111"></a><span class="sd">    # Get the 5 nearest neighbors of the vector [0.1, 0.2, 0.3] in the index of the feature &quot;my_feature&quot; with variant &quot;my_variant&quot;</span>
+<a id="__codelineno-0-112" name="__codelineno-0-112"></a><span class="sd">    nearest_neighbors = client.nearest(&quot;my_feature&quot;, &quot;my_variant&quot;, [0.1, 0.2, 0.3], 5)</span>
+<a id="__codelineno-0-113" name="__codelineno-0-113"></a><span class="sd">    print(nearest_neighbors) # prints a list of entities (e.g. [&quot;entity1&quot;, &quot;entity2&quot;, &quot;entity3&quot;, &quot;entity4&quot;, &quot;entity5&quot;])</span>
+<a id="__codelineno-0-114" name="__codelineno-0-114"></a><span class="sd">    ```</span>
+<a id="__codelineno-0-115" name="__codelineno-0-115"></a>
+<a id="__codelineno-0-116" name="__codelineno-0-116"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-117" name="__codelineno-0-117"></a><span class="sd">        feature (Union[FeatureColumnResource, tuple(str, str)]): Feature object or tuple of Feature name and variant</span>
+<a id="__codelineno-0-118" name="__codelineno-0-118"></a><span class="sd">        vector (List[float]): Query vector</span>
+<a id="__codelineno-0-119" name="__codelineno-0-119"></a><span class="sd">        k (int): Number of nearest neighbors to return</span>
+<a id="__codelineno-0-120" name="__codelineno-0-120"></a>
+<a id="__codelineno-0-121" name="__codelineno-0-121"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-122" name="__codelineno-0-122"></a>    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">feature</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+<a id="__codelineno-0-123" name="__codelineno-0-123"></a>        <span class="n">name</span><span class="p">,</span> <span class="n">variant</span> <span class="o">=</span> <span class="n">feature</span>
+<a id="__codelineno-0-124" name="__codelineno-0-124"></a>    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">feature</span><span class="p">,</span> <span class="n">FeatureColumnResource</span><span class="p">):</span>
+<a id="__codelineno-0-125" name="__codelineno-0-125"></a>        <span class="n">name</span> <span class="o">=</span> <span class="n">feature</span><span class="o">.</span><span class="n">name</span>
+<a id="__codelineno-0-126" name="__codelineno-0-126"></a>        <span class="n">variant</span> <span class="o">=</span> <span class="n">feature</span><span class="o">.</span><span class="n">variant</span>
+<a id="__codelineno-0-127" name="__codelineno-0-127"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-128" name="__codelineno-0-128"></a>        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+<a id="__codelineno-0-129" name="__codelineno-0-129"></a>            <span class="sa">f</span><span class="s2">&quot;the feature &#39;</span><span class="si">{</span><span class="n">feature</span><span class="si">}</span><span class="s2">&#39; of type &#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">feature</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39; is not support.&quot;</span>
+<a id="__codelineno-0-130" name="__codelineno-0-130"></a>            <span class="s2">&quot;Feature must be a tuple of (name, variant) or a FeatureColumnResource&quot;</span>
+<a id="__codelineno-0-131" name="__codelineno-0-131"></a>        <span class="p">)</span>
+<a id="__codelineno-0-132" name="__codelineno-0-132"></a>
+<a id="__codelineno-0-133" name="__codelineno-0-133"></a>    <span class="k">if</span> <span class="n">k</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+<a id="__codelineno-0-134" name="__codelineno-0-134"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;k must be a positive integer&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-135" name="__codelineno-0-135"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">impl</span><span class="o">.</span><span class="n">nearest</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">variant</span><span class="p">,</span> <span class="n">vector</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.fe8b6f2b.min.js"></script>
+      
+    
+  </body>
+</html>

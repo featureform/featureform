@@ -28,10 +28,10 @@ env:
   CLICKHOUSE_PASSWORD: "password"
   CLICKHOUSE_DB: "default"
   CLICKHOUSE_PORT: "9001"
-  ETCD_HOST: "localhost"
-  ETCD_PORT: 2379
-  REDSHIFT_PORT: 5439
-  REDSHIFT_DATABASE: dev
+  # ETCD_HOST: "localhost"
+  # ETCD_PORT: 2379
+  # REDSHIFT_PORT: 5439
+  # REDSHIFT_DATABASE: dev
   SPARK_LOCAL_SCRIPT_PATH: scripts/spark/offline_store_spark_runner.py
   PYTHON_LOCAL_INIT_PATH: scripts/spark/python_packages.sh
   PINECONE_PROJECT_ID: ${{ secrets.PINECONE_PROJECT_ID }}
@@ -39,6 +39,10 @@ env:
   PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
   QDRANT_GRPC_HOST: "localhost:6334"
 
+# These permissions are needed to interact with GitHub’s OIDC Token endpoint.
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   go-tests:
@@ -99,9 +103,51 @@ jobs:
           python-version: '3.10'
           cache: 'pip' # caching pip dependencies
 
-      - name: Check directory
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          aws-region: us-east-1
+
+      - name: Get AWS Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            ,testing/databricks
+            ,testing/azure
+            ,testing/snowflake
+            ,testing/dynamodb
+            ,testing/firebase
+            ,testing/mongodb
+            ,testing/snowflake
+            ,testing/redshift
+            ,testing/mongodb
+            ,testing/snowflake
+            ,testing/emr
+            ,testing/s3
+            ,testing/bigquery
+            ,testing/gcs
+            ,testing/etcd
+          parse-json-secrets: true
+
+      - name: Echo Environment Variables
         run: |
-          ls -la
+          env
+
+      - name: Get Firestore Credentials
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            FIRESTORE_CREDENTIALS_FILE, ${{ secrets.FIRESTORE_SECRET }}
+          parse-json-secrets: false
+
+      - name: Get BigQuery Credentials
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            BIGQUERY_CREDENTIALS_FILE, ${{ secrets.BIGQUERY_JSON_SECRET }}
+          parse-json-secrets: false
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -146,14 +192,14 @@ jobs:
         uses: jsdaniell/create-json@1.1.2
         with:
           name: "./provider/firestore_credentials.json"
-          json: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
+          json: ${{ env.FIRESTORE_CREDENTIALS_FILE }}
 
       - name: create-json
         id: create-json-2
         uses: jsdaniell/create-json@1.1.2
         with:
           name: "./provider/bigquery_credentials.json"
-          json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
+          json: ${{ env.BIGQUERY_CREDENTIALS_FILE }}
 
       - name: Check credentials location
         run: |
@@ -181,50 +227,50 @@ jobs:
       - name: Integration Tests
         run: go test -v -timeout 30m -parallel 10 -coverpkg=./... -coverprofile=./cover.out.tmp ./...
         env:
-          DYNAMO_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          DYNAMO_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-          DYNAMODB_REGION: "us-east-1"
+          # DYNAMO_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          # DYNAMO_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          # DYNAMODB_REGION: "us-east-1"
           FIRESTORE_CRED: "firestore_credentials.json"
-          FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
-          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
-          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
-          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
-          AZURE_BACKUP_STORAGE_PATH: "backup"
-          MONGODB_HOST: ${{ secrets.MONGODB_HOST }}
-          MONGODB_PORT: ${{ secrets.MONGODB_PORT }}
-          MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
-          MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
-          MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
-          SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
-          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-          SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
-          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-          REDSHIFT_USERNAME: ${{ secrets.REDSHIFT_USERNAME }}
-          REDSHIFT_PASSWORD: ${{ secrets.REDSHIFT_PASSWORD }}
-          REDSHIFT_HOST: ${{ secrets.REDSHIFT_HOST }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-          AWS_EMR_CLUSTER_REGION: ${{ secrets.AWS_EMR_CLUSTER_REGION }}
-          AWS_EMR_CLUSTER_ID: ${{ secrets.AWS_EMR_CLUSTER_ID }}
-          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
-          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
-          BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
-          BIGQUERY_DATASET_ID: ${{ secrets.BIGQUERY_DATASET_ID }}
+          # FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
+          # AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          # AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
+          # AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          # AZURE_BACKUP_STORAGE_PATH: "backup"
+          # MONGODB_HOST: ${{ secrets.MONGODB_HOST }}
+          # MONGODB_PORT: ${{ secrets.MONGODB_PORT }}
+          # MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
+          # MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
+          # MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
+          # SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
+          # SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          # SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
+          # SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          # REDSHIFT_USERNAME: ${{ secrets.REDSHIFT_USERNAME }}
+          # REDSHIFT_PASSWORD: ${{ secrets.REDSHIFT_PASSWORD }}
+          # REDSHIFT_HOST: ${{ secrets.REDSHIFT_HOST }}
+          # AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          # AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          # AWS_EMR_CLUSTER_REGION: ${{ secrets.AWS_EMR_CLUSTER_REGION }}
+          # AWS_EMR_CLUSTER_ID: ${{ secrets.AWS_EMR_CLUSTER_ID }}
+          # S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
+          # S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
+          # BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
+          # BIGQUERY_DATASET_ID: ${{ secrets.BIGQUERY_DATASET_ID }}
           BIGQUERY_CREDENTIALS: "/home/runner/work/featureform/featureform/provider/bigquery_credentials.json"
           GCP_CREDENTIALS_FILE: "/home/runner/work/featureform/featureform/provider/bigquery_credentials.json"
-          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
-          MYSQL_USER: "root"
-          MYSQL_PASSWORD: "password"
-          MYSQL_DB: "mysql"
-          AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
-          AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
+          # GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+          # MYSQL_USER: "root"
+          # MYSQL_PASSWORD: "password"
+          # MYSQL_DB: "mysql"
+          # AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
+          # AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
+          # DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          # DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          # DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
           MATERIALIZE_NO_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_no_ts.sql
           MATERIALIZE_WITH_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_ts.sql
-          ETCD_HOST: ${{ env.ETCD_HOST }}
-          ETCD_PORT: ${{ env.ETCD_PORT }}
+          # ETCD_HOST: ${{ env.ETCD_HOST }}
+          # ETCD_PORT: ${{ env.ETCD_PORT }}
           SPARK_LOCAL_SCRIPT_PATH: /home/runner/work/featureform/featureform/provider/scripts/spark/offline_store_spark_runner.py
           PYTHON_LOCAL_INIT_PATH: /home/runner/work/featureform/featureform/provider/scripts/spark/python_packages.sh
 

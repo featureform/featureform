@@ -21,11 +21,13 @@ type RequestID string
 type contextKey string
 type ResourceType string
 
+// Constants when the provider type or variant is unknown
 const (
 	SkipProviderType string = ""
 	NoVariant        string = ""
 )
 
+// Constants for the context keys
 const (
 	RequestIDKey = contextKey("request-id")
 	LoggerKey    = contextKey("logger")
@@ -52,14 +54,17 @@ func init() {
 	GlobalLogger = NewLogger("global-logger")
 }
 
+// NewRequestID generates a random request ID
 func NewRequestID() RequestID {
 	return RequestID(uuid.New().String())
 }
 
+// String returns the string representation of the RequestID
 func (r RequestID) String() string {
 	return string(r)
 }
 
+// WithRequestID adds the request id to the logger
 func (logger Logger) withRequestID(id RequestID) Logger {
 	if id == "" {
 		logger.Warn("Request ID is empty")
@@ -75,6 +80,7 @@ func (logger Logger) withRequestID(id RequestID) Logger {
 		values: valuesWithRequestID}
 }
 
+// WithResource adds the resource type, resource name and variant to the logger and returns a new instance of the logger
 func (logger Logger) WithResource(resourceType ResourceType, name, variant string) Logger {
 	newValues := make(map[string]interface{})
 	if resourceType != "" {
@@ -107,6 +113,7 @@ func (logger Logger) WithResource(resourceType ResourceType, name, variant strin
 	}
 }
 
+// WithProvider adds the provider type and provider name to the logger and returns a new instance of the logger
 func (logger Logger) WithProvider(providerType, providerName string) Logger {
 	newValues := make(map[string]interface{})
 	if providerType != "" {
@@ -132,6 +139,7 @@ func (logger Logger) WithProvider(providerType, providerName string) Logger {
 	}
 }
 
+// Used for testing
 func (logger Logger) WithValues(values map[string]interface{}) Logger {
 	if values == nil {
 		logger.Warn("Values are empty")
@@ -144,6 +152,7 @@ func (logger Logger) WithValues(values map[string]interface{}) Logger {
 	}
 }
 
+// Used for testing
 func (logger Logger) GetValue(key string) interface{} {
 	value, ok := logger.values.Load(key)
 	if !ok {
@@ -165,6 +174,7 @@ func (logger Logger) appendValueMap(values map[string]interface{}) *sync.Map {
 	return combinedValues
 }
 
+// InitializeRequestID creates a new request ID and updates the logger and context
 func (logger Logger) InitializeRequestID(ctx context.Context) (string, context.Context, Logger) {
 	requestID := ctx.Value(RequestIDKey)
 	if requestID == nil {
@@ -181,6 +191,7 @@ func (logger Logger) InitializeRequestID(ctx context.Context) (string, context.C
 	return requestID.(RequestID).String(), ctx, ctxLogger.(Logger)
 }
 
+// GetRequestIDFromContext returns the request ID from the context
 func GetRequestIDFromContext(ctx context.Context) string {
 	requestID := ctx.Value(RequestIDKey)
 	if requestID == nil {
@@ -191,6 +202,7 @@ func GetRequestIDFromContext(ctx context.Context) string {
 	return requestID.(RequestID).String()
 }
 
+// GetLoggerFromContext returns the logger from the context
 func GetLoggerFromContext(ctx context.Context) Logger {
 	logger := ctx.Value(LoggerKey)
 	if logger == nil {
@@ -200,10 +212,12 @@ func GetLoggerFromContext(ctx context.Context) Logger {
 	return logger.(Logger)
 }
 
+// GetRequestID returns the request ID from the logger
 func (logger Logger) GetRequestID() RequestID {
 	return logger.id
 }
 
+// AttachRequestID updates the context and logger with an already existing request ID
 func AttachRequestID(id string, ctx context.Context, logger Logger) context.Context {
 	if ctx == nil {
 		logger.Warn("Context is nil")
@@ -219,6 +233,7 @@ func AttachRequestID(id string, ctx context.Context, logger Logger) context.Cont
 	return ctx
 }
 
+// AddLoggerToContext adds the logger to the context
 func AddLoggerToContext(ctx context.Context, logger Logger) context.Context {
 	contextLogger := ctx.Value(LoggerKey)
 	if contextLogger == nil {
@@ -227,6 +242,7 @@ func AddLoggerToContext(ctx context.Context, logger Logger) context.Context {
 	return ctx
 }
 
+// NewLogger creates a new logger with the service name
 func NewLogger(service string) Logger {
 	baseLogger, err := zap.NewDevelopment(
 		zap.AddStacktrace(zap.WarnLevel),
@@ -241,6 +257,7 @@ func NewLogger(service string) Logger {
 	}
 }
 
+// WrapZapLogger wraps an existing Sugared Logger with the logger interface
 func WrapZapLogger(sugaredLogger *zap.SugaredLogger) Logger {
 	return Logger{
 		SugaredLogger: sugaredLogger,

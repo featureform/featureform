@@ -50,7 +50,7 @@ def step_impl(context):
     assert (
         context.new_transformation.name_variant()
         == context.transformation.name_variant()
-    )
+    ), f"Expected the same variant for the same transformation, but got new transformation ({context.new_transformation.name_variant()}) and old transformation ({context.transformation.name_variant()})"
 
 
 @then("I should be able to register a new auto variant transformation")
@@ -68,13 +68,15 @@ def step_impl(context):
     assert (
         context.new_transformation.name_variant()
         != context.transformation.name_variant()
-    )
+    ), f"Expected a new variant for the new transformation, but got new transformation ({context.new_transformation.name_variant()}) and old transformation ({context.transformation.name_variant()})"
 
 
 @then("I can get the transformation as df")
 def step_impl(context):
     df = context.client.dataframe(context.new_transformation)
-    assert len(df) > 0
+    assert (
+        len(df) > 0
+    ), f"Expected a dataframe with more than 0 rows, but got {len(df)} rows"
 
 
 @when("I register a transformation with user-provided variant")
@@ -111,11 +113,11 @@ def step_impl(context):
     assert (
         context.new_transformation.name_variant()[0]
         == context.transformation.name_variant()[0]
-    )
+    ), f"Expected the same name for the new transformation, but got new ({context.new_transformation.name_variant()[0]}) and old ({context.transformation.name_variant()[0]})"
     assert (
         context.new_transformation.name_variant()[1]
         != context.transformation.name_variant()[1]
-    )
+    ), f"Expected a new variant for the new transformation, but got new ({context.new_transformation.name_variant()[1]}) and old ({context.transformation.name_variant()[1]})"
 
 
 @then("I should be able to register a source with user-defined variant")
@@ -132,4 +134,6 @@ def step_impl(context):
 @then("I can get the source as df")
 def step_impl(context):
     df = context.client.dataframe(context.new_source)
-    assert len(df) > 0
+    assert (
+        len(df) > 0
+    ), f"Expected a dataframe with more than 0 rows, but got {len(df)} rows"

@@ -5,6 +5,7 @@ import uuid
 import featureform as ff
 from behave import when, then
 
+# comment
 
 @when("I turn on autovariants")
 def step_impl(context):

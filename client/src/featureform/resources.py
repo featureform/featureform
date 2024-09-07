@@ -1970,7 +1970,8 @@ class ResourceRedefinedError(Exception):
         )
         resourceId = f"{resource.name}{variantStr}"
         super().__init__(
-            f"{resource.type()} resource {resourceId} defined in multiple places"
+            f"{resource.type()} resource {resourceId} defined in multiple places OR found different {resource.type()} with duplicate ID {resourceId} OR 
+            {resource.type()} {resourceId} with different values already defined."
         )
 
 
@@ -1994,7 +1995,7 @@ class ResourceState:
             key = (resource.operation_type().name, resource.type(), resource.name)
         if key in self.__state:
             if resource == self.__state[key]:
-                print(f"Resource {resource.type()} already registered.")
+                print(f"Resource {resource.type()} {resource.name} already staged for registration. Ignoring duplicate.")
                 return
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource

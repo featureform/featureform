@@ -1,8 +1,0 @@
-Dashboard is available at:
-{{ .Values.hostname }}
-
-Dashboard Backend Data is available at:
-{{ .Values.hostname }}/data/
-
-Definitions can be applied with:
-python3 -m featureform <file> --host {{ .Values.hostname }}

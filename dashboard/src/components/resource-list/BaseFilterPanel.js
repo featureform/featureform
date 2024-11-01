@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import { Box, styled } from '@mui/system';
 import React, { useState } from 'react';
-import { FEATUREFORM_DARK_GRAY } from 'styles/theme';
+import { FEATUREFORM_DARK_GRAY } from '../../styles/theme';
 
 const FILTER_PANEL_GREY = '#F9F9FA';
 

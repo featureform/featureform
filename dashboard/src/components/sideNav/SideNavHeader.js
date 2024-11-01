@@ -8,7 +8,7 @@
 import Typography from '@mui/material/Typography';
 import { styled } from '@mui/system';
 import React from 'react';
-import { FEATUREFORM_DARK_GRAY } from 'styles/theme';
+import { FEATUREFORM_DARK_GRAY } from '../../styles/theme';
 
 const ListHeader = styled(Typography)(() => ({
   marginTop: 15,

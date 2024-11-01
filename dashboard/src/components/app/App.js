@@ -9,9 +9,9 @@ import Container from '@mui/material/Container';
 import CssBaseline from '@mui/material/CssBaseline';
 import { styled, ThemeProvider } from '@mui/system';
 import React from 'react';
-import TopBar from '../../components/topbar/TopBar';
 import theme from '../../styles/theme';
 import BreadCrumbs from '../breadcrumbs/BreadCrumbs';
+import HeaderBar from '../headerBar/HeaderBar';
 
 const PageContainer = styled(Container)(({ theme }) => ({
   paddingLeft: theme.spacing(8),
@@ -21,7 +21,7 @@ const PageContainer = styled(Container)(({ theme }) => ({
 export const App = ({ Component, pageProps }) => {
   return (
     <ThemeWrapper>
-      <TopBar />
+      <HeaderBar />
       <PageContainer maxWidth='xl'>
         <BreadCrumbs />
         <Component {...pageProps} />

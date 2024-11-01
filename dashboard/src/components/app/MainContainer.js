@@ -9,8 +9,8 @@ import Container from '@mui/material/Container';
 import { styled } from '@mui/system';
 import React from 'react';
 import ResourcesAPI from '../../api/resources/Resources';
+import HeaderBar from '../headerBar/HeaderBar';
 import SideNav from '../sideNav/SideNav';
-import TopBar from '../topbar/TopBar';
 
 const apiHandle = new ResourcesAPI();
 
@@ -24,7 +24,7 @@ const MainContainerStyled = styled(Container)(() => ({
 export default function MainContainer({ Component, pageProps }) {
   return (
     <>
-      <TopBar api={apiHandle} />
+      <HeaderBar api={apiHandle} />
       <SideNav />
       <MainContainerStyled maxWidth='xl' disableGutters>
         <Component {...pageProps} api={apiHandle} />

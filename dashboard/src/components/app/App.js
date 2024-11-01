@@ -9,9 +9,9 @@ import Container from '@mui/material/Container';
 import CssBaseline from '@mui/material/CssBaseline';
 import { styled, ThemeProvider } from '@mui/system';
 import React from 'react';
+import TopBar from '../../components/topbar/TopBar';
 import theme from '../../styles/theme';
 import BreadCrumbs from '../breadcrumbs/BreadCrumbs';
-import TopBar from '../topbar/TopBar';
 
 const PageContainer = styled(Container)(({ theme }) => ({
   paddingLeft: theme.spacing(8),

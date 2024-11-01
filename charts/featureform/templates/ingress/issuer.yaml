@@ -1,0 +1,23 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
+{{ if .Values.publicCert }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: sterling@featureform.com
+    privateKeySecretRef:
+      name: account-key-prod
+    solvers:
+      - http01:
+          ingress:
+            class: nginx
+{{ end }}

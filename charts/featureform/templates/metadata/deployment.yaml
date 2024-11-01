@@ -1,0 +1,86 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    chart: featureform
+    run: featureform-metadata-server
+    app: featureform-metadata-server
+  name: featureform-metadata-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      chart: featureform
+      run: featureform-metadata-server
+      app: featureform-metadata-server
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        chart: featureform
+        run: featureform-metadata-server
+        app: featureform-metadata-server
+      {{ if .Values.restartOnUpdate }}
+      annotations:
+        timestamp: {{ now | quote }}
+      {{ end }}
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.k8sImagePullSecret }}
+      containers:
+        - image: "{{ .Values.repository }}/{{ .Values.metadata.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
+          name: featureform-metadata-server
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          ports:
+            - containerPort: 8080
+          resources: {}
+          env:
+            - name: MEILISEARCH_PORT
+              value: {{ .Values.meilisearch.port | quote }}
+            - name: MEILISEARCH_HOST
+              value: {{ .Values.meilisearch.host }}
+            - name: MEILISEARCH_APIKEY
+              value: {{ .Values.meilisearch.apikey | quote }}
+            - name: ETCD_HOST
+              value: {{ .Values.etcd.host  }}
+            - name: ETCD_PORT
+              value: {{ .Values.etcd.port | quote }}
+            - name: ETCD_USERNAME
+              value: {{ .Values.etcd.username }}
+            - name: ETCD_PASSWORD
+              value: {{ .Values.etcd.password }}
+            - name: FF_STATE_PROVIDER
+              value: {{ .Values.stateProvider | quote }}
+            - name: FEATUREFORM_HOST
+              value: {{ .Values.hostname | quote }}
+            - name: PSQL_HOST
+              value: {{ .Values.psql.host | quote }}
+            - name: PSQL_PORT
+              value: {{ .Values.psql.port | quote }}
+            - name: PSQL_DB
+              value: {{ .Values.psql.db | quote }}
+            - name: PSQL_SSLMODE
+              value: {{ .Values.psql.sslmode | quote }}
+            - name: SLACK_API_TOKEN
+              value: {{ .Values.slackApiToken | quote }}
+            - name: SLACK_CHANNEL_ID
+              value: {{ .Values.slackApiChannel | quote }}
+          {{ if eq .Values.stateProvider "psql" }}
+            - name: PSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: psql-secret-literal
+                  key: user
+            - name: PSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: psql-secret-literal
+                  key: password
+          {{ end }}

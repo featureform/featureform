@@ -1,0 +1,79 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: example
+spec:
+  template:
+    metadata:
+      labels:
+        app: example
+    spec:
+      containers:
+        - name: example-api
+          imagePullPolicy: Never
+          image: local/scheduletester:stable
+          env:
+            - name: POSTGRES_HOST
+              value: "test-quickstart-postgres"
+            - name: POSTGRES_DB
+              value: "postgres"
+            - name: POSTGRES_USERNAME
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              value: "password"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: REDIS_HOST
+              value: "test-quickstart-redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: ETCD_HOST
+              value: "featureform-etcd"
+            - name: ETCD_PORT
+              value: "2379"
+            - name: ETCD_USERNAME
+              value: "root"
+            - name: ETCD_PASSWORD
+              value: "secretpassword"
+            - name: WORKER_IMAGE
+              value: local/worker:stable
+            - name: METADATA_HOST
+              value: featureform-metadata-server
+            - name: METADATA_PORT
+              value: "8080"
+          resources:
+            limits:
+              cpu: 100m
+              memory: 100Mi
+            requests:
+              cpu: 40m
+              memory: 40Mi
+      restartPolicy: Never
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubernetes-test
+rules:
+  - apiGroups: ["", "extensions", "apps", "batch"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubernetes-test
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubernetes-test
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubernetes-test

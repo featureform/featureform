@@ -1,0 +1,14 @@
+github_checks: true
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+    patch:
+      default:
+        target: 75%
+codecov:
+  branch: main
+  require_ci_to_pass: true
+  notify:
+    wait_for_ci: true

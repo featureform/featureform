@@ -1,0 +1,24 @@
+---
+title: "HDFS"
+---
+
+## Configuration
+
+First we have to add a declarative HDFS configuration in Python.
+
+```python hdfs_config.py
+import featureform as ff
+
+hdfs = ff.register_hdfs(
+    name="hdfs-quickstart",
+    host="<host>",
+    port="<port>",
+    path="<path>",
+    username="<username>",
+    description="An hdfs store provider to store offline"
+)
+
+client.apply()
+```
+
+We can re-verify that the provider is created by checking the [Providers tab of the Feature Registry or via the CLI](../getting-started/search-monitor-discovery-feature-registry-ui-cli.md).

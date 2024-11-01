@@ -1,0 +1,22 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: featureform-prometheus-service
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+
+spec:
+  selector:
+    app: featureform-prometheus-server
+  type: ClusterIP
+  ports:
+    - port: { { .Values.prometheus.port } }
+      targetPort: 9090

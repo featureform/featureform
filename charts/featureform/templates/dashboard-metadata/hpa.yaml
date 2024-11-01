@@ -1,0 +1,31 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
+{{- if .Values.dashboardmetadata.autoscaling.enabled }}
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: "featureform-dashboard-metadata"
+  minReplicas: {{ .Values.metadata.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.metadata.autoscaling.maxReplicas }}
+  metrics:
+    {{- if .Values.metadata.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        targetAverageUtilization: {{ .Values.metadata.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.dashboardmetadata.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        targetAverageUtilization: {{ .Values.dashboardmetadata.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
+{{- end }}

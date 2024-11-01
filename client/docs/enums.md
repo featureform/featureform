@@ -1,0 +1,3 @@
+# Test enums
+
+::: featureform.enums

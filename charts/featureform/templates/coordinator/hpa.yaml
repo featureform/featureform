@@ -1,0 +1,37 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
+{{- if .Values.coordinator.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: featureform-coordinator
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: featureform-coordinator
+  minReplicas: {{ .Values.coordinator.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.coordinator.autoscaling.maxReplicas }}
+  metrics:
+    {{- if .Values.coordinator.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.coordinator.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.coordinator.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.coordinator.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
+{{- end }}

@@ -1,0 +1,4 @@
+,TransactionID,CustomerID,CustomerDOB,CustLocation,CustAccountBalance,TransactionAmount,Timestamp,IsFraud
+0,T1,C5841053,10/1/94,"Panama City, Panama",17819.05,25.0,2022-04-09 11:33:09,False
+1,T2,C2142763,4/4/57,"Panama City, Florida",2270.69,27999.0,2022-03-27 01:04:21,True
+3,T3,C5342380,14/9/73,"Houston",866503.21,2060.0,2022-04-14 07:56:59,True

@@ -1,0 +1,44 @@
+{
+  "columns": [
+    "transactionid",
+    "customerid",
+    "customerdob",
+    "custlocation",
+    "custaccountbalance",
+    "transactionamount",
+    "timestamp",
+    "isfraud"
+  ],
+  "rows": [
+    [
+      "T1",
+      "C5841053",
+      "10/1/94",
+      "JAMSHEDPUR",
+      "17819.05",
+      "25",
+      "2022-04-09T11",
+      "false"
+    ],
+    [
+      "T2",
+      "C2142763",
+      "4/4/57",
+      "JHAJJAR",
+      "2270.69",
+      "27999",
+      "2022-03-27T01",
+      "false"
+    ],
+    [
+      "T3",
+      "C4417068",
+      "26/11/96",
+      "MUMBAI",
+      "17874.44",
+      "459",
+      "2022-04-07T00",
+      "false"
+    ]
+  ]
+}

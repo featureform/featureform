@@ -1,0 +1,97 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: featureform-dashboard-metadata
+  labels:
+    chart: featureform
+spec:
+  {{- if not .Values.dashboardmetadata.autoscaling.enabled }}
+  replicas: {{ .Values.dashboardmetadata.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: featureform-dashboard-metadata
+  template:
+    metadata:
+      labels:
+        app: featureform-dashboard-metadata
+      {{ if .Values.restartOnUpdate }}
+      annotations:
+        timestamp: {{ now | quote }}
+      {{ end }}
+    spec:
+      serviceAccountName: {{ .Values.dashboardmetadata.serviceAccount }}
+      imagePullSecrets:
+        - name: {{ .Values.k8sImagePullSecret }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.repository | default .Values.repository }}/{{ .Values.dashboardmetadata.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          env:
+            - name: METADATA_HOST
+              value: {{ .Values.metadata.host }}
+            - name: METADATA_PORT
+              value: {{ .Values.metadata.port | quote }}
+            - name: METADATA_HTTP_PORT
+              value: {{ .Values.dashboardmetadata.port | quote }}
+            - name: MEILISEARCH_PORT
+              value: {{ .Values.meilisearch.port | quote }}
+            - name: MEILISEARCH_HOST
+              value: {{ .Values.meilisearch.host }}
+            - name: MEILISEARCH_APIKEY
+              value: {{ .Values.meilisearch.apikey | quote }}
+            - name: FEATUREFORM_VERSION
+              value: {{ .Values.versionOverride | default .Chart.AppVersion}}
+            - name: ETCD_HOST
+              value: {{ .Values.etcd.host }}
+            - name: ETCD_PORT
+              value: {{ .Values.etcd.port | quote }}
+            - name: ETCD_USERNAME
+              value: {{ .Values.etcd.username }}
+            - name: ETCD_PASSWORD
+              value: {{ .Values.etcd.password | quote }}
+            - name: FF_STATE_PROVIDER
+              value: {{ .Values.stateProvider | quote }}
+            - name: PSQL_HOST
+              value: {{ .Values.psql.host | quote }}
+            - name: PSQL_PORT
+              value: {{ .Values.psql.port | quote }}
+            - name: PSQL_DB
+              value: {{ .Values.psql.db | quote }}
+            - name: PSQL_SSLMODE
+              value: {{ .Values.psql.sslmode | quote }}
+            - name: DISABLE_CORS
+              value: {{ .Values.dashboardmetadata.disableCors | quote}}
+          {{ if eq .Values.stateProvider "psql" }}
+            - name: PSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: psql-secret-literal
+                  key: user
+            - name: PSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: psql-secret-literal
+                  key: password
+          {{ end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.dashboardmetadata.port }}
+              protocol: TCP
+#          livenessProbe:
+#            httpGet:
+#              path: /
+#              port: http
+#          readinessProbe:
+#            httpGet:
+#              path: /
+#              port: http
+          resources:
+            {{- toYaml .Values.dashboardmetadata.resources | nindent 12 }}

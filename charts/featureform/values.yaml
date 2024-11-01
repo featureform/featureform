@@ -1,0 +1,280 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
+# Default values for featureform.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Hostname used to connect to featureform
+hostname: "localhost"
+
+# Override chart version. This value correlates to the docker image tags
+versionOverride: "0.0.0"
+
+repository: "featureformenterprise"
+
+# Global pull policy
+pullPolicy: "Always"
+
+# If a public certificate should be generated automatically through lets encrypt and used
+publicCert: false
+
+# Will automatically create a self-signed cert that can be used if enabled
+selfSignedCert: true
+
+# Note: If post publicCert and selfSignedCert are disabled, an existing certificate will need to be supplied
+
+# Name of the certificate
+tlsSecretName: "featureform-ca-secret"
+
+# If enabled, will run jobs on individual pods instead of in a coordinator thread
+k8sRunnerEnable: false
+
+nginx:
+  # If enabled, will install and use the ingress-nginx chart. Suggest disabling if another ingress is already installed
+  # on the cluster
+  enabled: true
+
+grpcIngressPort: 7878
+httpIngressPort: 80
+
+slackApiToken: ""
+
+slackApiChannel: ""
+
+k8sImagePullSecret: "regcred"
+
+# Storage Provider for the backend state. One of [etcd, psql, memory]
+stateProvider: "psql"
+
+# base url for the dashboard (used for constructing callback url)
+dashboardUrl: ""
+
+# If true, restarts pods on update even if no changes have been made
+restartOnUpdate: false
+
+logging:
+  # When enabled, will use the loki stack for logging
+  enabled: true
+
+# When enabled, uses an http proxy rather than the nginx ingress. Can be used without a certificate
+embeddedIngress:
+  enabled: false
+
+debug: false
+
+# These values override the values in the 3rd party ETCD chart
+etcd:
+  enabled: true
+  fullnameOverride: featureform-etcd
+  auth:
+    rbac:
+      rootPassword: "secretpassword"
+    token:
+      ttl: 100h
+  replicaCount: 3
+  extraEnvVarsCM: etcd-upgrade-configmap
+  removeMemberOnContainerTermination: false
+
+  host: featureform-etcd
+  port: 2379
+  username: "root"
+  password: "secretpassword"
+
+psql:
+  user: "postgres"
+  password: "password"
+  host: "localhost"
+  port: 5432
+  db: "postgres"
+  sslmode: "disable"
+  # If true, automatically creates a secret stored in templates/secrets/postgres.yaml.
+  # If false, does not apply the template. The template can be created manually
+  createSecret: false
+
+# search loader job
+searchjob:
+  image:
+    name: "search-loader"
+
+# These values override the values in the 3rd party meilisearch chart
+meilisearch:
+  fullnameOverride: featureform-search
+  port: 7700
+  host: featureform-search
+  apikey: ""
+
+prometheus:
+  port: 9090
+  replicaCount: 1
+  image: prom/prometheus
+
+# Configuration for the API server
+api:
+  replicaCount: 1
+  image:
+    name: api-server
+
+  port: 7878
+  statusPort: 8443
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+
+  serviceAccount: "ff-api-sa"
+
+# Configuration for the coordinator server
+coordinator:
+  replicaCount: 1
+
+  host: "featureform-coordinator"
+  port: 80
+
+  image:
+    name: coordinator
+
+  resources:
+    limits:
+      cpu: 1.0
+    requests:
+      cpu: 1.0
+
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+
+  serviceAccount: "ff-coordinator-sa"
+
+  execution:
+    # The maximum amount of time FeatureForm will wait for a Spark job to complete
+    # before timing out and cancelling the job. This value should be valid duration
+    # string, e.g. "1h30m" See documentation for time.ParseDuration for more info:
+    # https://pkg.go.dev/time#ParseDuration
+    maxJobDuration: "48h"
+    taskPollInterval: "1m"
+    taskStatusSyncInterval: "1h"
+    taskDependencyPollInterval: "1m"
+
+# Configuration for the Dashboard frontend
+dashboard:
+  replicaCount: 1
+
+  image:
+    name: dashboard
+
+  port: 80
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+
+# Configuration for the Dashboard Backend
+dashboardmetadata:
+  disableCors: false
+
+  replicaCount: 1
+
+  image:
+    name: metadata-dashboard
+
+  port: 3001
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+
+  resources:
+    limits:
+      cpu: 1.0
+    requests:
+      cpu: 1.0
+
+  serviceAccount: "ff-dashboard-metadata-sa"
+
+# Configuration for the Feature Serving Server
+serving:
+  replicaCount: 1
+
+  host: "featureform-feature-server"
+  port: 8080
+
+  image:
+    name: serving
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+
+  serviceAccount: "ff-feature-serving-sa"
+
+# Configuration for the Metadata Server
+metadata:
+  replicaCount: 1
+
+  host: "featureform-metadata-server"
+  port: 8080
+
+  image:
+    name: metadata
+
+  nameOverride: metadata-server
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+
+# Configuration for the backup service
+backup:
+  enabled: false
+  schedule: "0 * * * *"
+
+# Logging:
+# For instructions to see the dashboard, check here:
+# https://artifacthub.io/packages/helm/grafana/loki-stack
+# To disable, do --set logging.enabled=false
+# To get the dashboard password, do: kubectl get secret  featureform-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+# To view dashboard, do: kubectl port-forward  service/featureform-grafana 3000:80
+# Go to localhost 3000. User is admin
+loki-stack:
+  fluent-bit:
+    enabled: true
+  promtail:
+    enabled: false
+  grafana:
+    enabled: true
+
+# Ensure AWS Load Balancer idle timeout doesn't default to 60 seconds,
+# which cannot support longer running operations
+ingress-nginx:
+  controller:
+    service:
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "4000"
+
+# Configuration for the Datadog agent
+datadog:
+  enabled: false
+  namespace: "featureform"

@@ -1,0 +1,109 @@
+---
+title: "Exploring the Feature Registry"
+description: "Once we have everything registered (e.g. features, training sets, providers), we can see information about them on the Feature Registry."
+---
+
+## Homepage
+
+<Frame caption="Homepage of the Feature Registry">
+  <img src="/images/getting-started/2.png" />
+</Frame>
+
+The homepage contains links to:
+
+* [**Sources**](/getting-started/overview#source): Both primary sources and transformed sources, from streams to files to tables.
+
+* [**Features**](/getting-started/overview#feature): Inputs to models, transformed from raw data. To be [served for inference](/getting-started/serving-for-inference-and-training#serving-for-inference).  
+   * e.g. Raw data about all user transactions can be transformed into features such as _**avg\_transaction\_amt**_ and _**user\_account\_age**_.
+
+* [**Entities**](/getting-started/overview#entity): Higher-level groupings of features, dependent on where a set of features originates from.  
+   * e.g. user\_account\_age and avg\_transaction\_amt are both features under the _**user entity**_.
+
+* [**Labels**](/getting-started/overview#label): Features that indicate the "correct answer" of a model prediction, or what the model aims to predict.  
+   * e.g. The **is\_fraud label** is true if the transaction is fraudulent, and false if the transaction is not fraudulent.
+
+* [**Training Sets**](/getting-started/overview#training-set): Sets of features matched with the respective labels. To be [served for training](/getting-started/serving-for-inference-and-training#serving-for-training).  
+   * e.g. The _**is\_fraud training set**_ contains a set of features \_\_ (amt\_spent, avg\_transaction\_amt, number\_of\_fraud, etc.) and labels.
+
+* [**Models**](/getting-started/overview#model): Programs that can make predictions on a previously unseen dataset, after being trained with training sets.  
+   * e.g. The **user\_fraud\_random\_forest model** is a classifier, predicting whether a user committed fraud.
+
+* [**Providers**](/getting-started/overview#provider): Data infrastructure used for storage or computation.
+
+* **Users:** Individual data scientists who create, share, or reuse features and models.
+
+## Resource Pages: Features, Sources, Labels, Training Sets
+
+Resources pages generally have the same format. They display a list of that resource type, along with descriptions.
+
+<Frame caption="Sources page of the Feature Registry">
+  <img src="/images/getting-started/3.png" />
+</Frame>
+
+The feature page has additional columns, namely "type" and "default variant".
+
+<Frame caption="Feature page of the Feature Registry">
+  <img src="/images/getting-started/feature-list.png" />
+</Frame>
+
+Click on the arrow next to a source name to see a list of variants of that resource.
+
+<Frame caption="Dropdown view of variants on the user transaction count, 30d and 7d">
+  <img src="/images/getting-started/4.png" />
+</Frame>
+
+Next, click on a variant (or the resource name for the default variant) to pull up more details, including the description, owner, provider, data type, status, source, entity, and columns. Some fields link to more information. Change the variant by using the small dropdown menu on the top-right.
+
+<Frame caption="Detailed view of the user transaction count feature">
+  <img src="/images/getting-started/5.png" />
+</Frame>
+
+Metrics, namely throughput, latency, and errors for that variant are displayed for features and training sets.
+
+<Frame caption="Metrics view of a feature variant">
+  <img src="/images/getting-started/6.png" />
+</Frame>
+
+## Entities
+
+The entities page is similar to other resource types, except that there are 3 tabs ("Features", "Labels", "Training Sets"). The features, labels, and training sets corresponding to that entity are shown under these tabs, with the ability to select variants and see detailed views.
+
+<Frame caption="Entities page of the Feature Registry">
+  <img src="/images/getting-started/7.png" />
+</Frame>
+
+## Providers
+
+The providers page shows all providers, with the corresponding name, description, type, and software.
+
+<Frame caption="Providers page of the Feature Registry">
+  <img src="/images/getting-started/image.png" />
+</Frame>
+
+Click on the providers to pull up the sources, features, labels, and training sets originating from that provider.
+
+<Frame caption="Detailed view of a single provider">
+  <img src="/images/getting-started/8.png" />
+</Frame>
+
+## Models
+
+The models page shows all model names, which the user can optionally provide at serving time (see [example](/getting-started/serving-for-inference-and-training#model-registration)). Featureform tracks which features and training sets are associated with which model names. However, **models are not stored.**
+
+<Frame caption="Models page of the Feature Registry">
+  <img src="/images/getting-started/9.png" />
+</Frame>
+
+## Users
+
+The users page show all users' names. Click on a user to view features, labels, training sets, and sources associated with that user.
+
+<Frame caption="User page of the Feature Registry">
+  <img src="/images/getting-started/2.png" />
+</Frame>
+
+<br />
+
+<Frame caption="Detailed view of a user">
+  <img src="/images/getting-started/10.png" />
+</Frame>

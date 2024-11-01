@@ -1,0 +1,41 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: featureform-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: featureform-dashboard
+  template:
+    metadata:
+      labels:
+        chart: featureform
+        app: featureform-dashboard
+      {{ if .Values.restartOnUpdate }}
+      annotations:
+        timestamp: {{ now | quote }}
+      {{ end }}
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.k8sImagePullSecret }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: featureform-dashboard
+          image: "{{ .Values.repository }}/{{ .Values.dashboard.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          ports:
+            - containerPort: 80
+          env:
+            - name: REACT_APP_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: REACT_APP_API_URL
+                  name: featureform-env

@@ -1,0 +1,6 @@
+coverage
+build
+node_modules
+public
+.next
+out

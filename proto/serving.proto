@@ -1,0 +1,193 @@
+/* 
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+Copyright 2024 FeatureForm Inc.
+ */
+
+syntax = "proto3";
+
+option go_package = "github.com/featureform/proto";
+
+package featureform.serving.proto;
+
+service Feature {
+  rpc TrainingData(TrainingDataRequest) returns (stream TrainingDataRows) {}
+  rpc TrainTestSplit(stream TrainTestSplitRequest) returns (stream BatchTrainTestSplitResponse) {}
+  rpc TrainingDataColumns(TrainingDataColumnsRequest) returns (TrainingColumns) {}
+  rpc FeatureServe(FeatureServeRequest) returns (FeatureRow) {}
+  rpc SourceData(SourceDataRequest) returns (stream SourceDataRows) {}
+  rpc SourceColumns(SourceColumnRequest) returns (SourceDataColumns) {}
+  rpc Nearest(NearestRequest) returns (NearestResponse) {}
+  rpc BatchFeatureServe(BatchFeatureServeRequest) returns (stream BatchFeatureRows) {}
+  rpc GetResourceLocation(ResourceIdRequest) returns (ResourceLocation) {}
+}
+
+message Model {
+  string name = 1;
+}
+
+message TrainingDataRequest {
+  TrainingDataID id = 1;
+  Model model = 2;
+}
+
+message TrainingDataID {
+  string name = 1;
+  string version = 2;
+}
+
+message TrainingDataRows {
+  repeated TrainingDataRow rows = 1;
+}
+
+message TrainingDataRow {
+  repeated Value features = 1;
+  Value label = 2;
+}
+
+message FeatureServeRequest {
+  repeated FeatureID features = 1;
+  repeated Entity entities = 2;
+  Model model = 3;
+}
+
+message FeatureRow {
+  // Deprecated: Use `value_lists` instead.
+  repeated Value values = 1 [deprecated = true];
+
+  repeated ValueList value_lists = 2;
+}
+
+message ValueList {
+  repeated Value values = 1;
+}
+
+message BatchFeatureServeRequest {
+  repeated FeatureID features = 1;
+}
+
+message BatchFeatureRows {
+  repeated BatchFeatureRow rows = 1;
+}
+
+message BatchFeatureRow {
+  Value entity = 1;
+  repeated Value features = 2;
+}
+
+message FeatureID {
+  string name = 1;
+  string version = 2;
+}
+
+message Entity {
+  string name = 1;
+
+  // Deprecated: Use `values` instead.
+  string value = 2 [deprecated = true];
+
+  repeated string values = 3;
+}
+
+message Value {
+  oneof value {
+    string str_value = 1;
+    int32 int_value = 2;
+    float float_value = 3;
+    double double_value = 4;
+    int64  int64_value = 5;
+    int32  int32_value = 6;
+    bool   bool_value = 7;
+    bytes on_demand_function = 8;
+    Vector32 vector32_value = 9;
+    uint32  uint32_value = 10;
+    uint64  uint64_value = 11;
+  }
+}
+
+message SourceID {
+  string name = 1;
+  string version = 2;
+}
+
+message SourceDataRequest {
+  SourceID id = 1;
+  int64 limit = 2;
+}
+
+message SourceColumnRequest {
+  SourceID id = 1;
+}
+
+message SourceDataRows {
+  repeated SourceDataRow rows = 1;
+}
+
+message SourceDataRow {
+  repeated Value rows = 1;
+}
+
+message SourceDataColumns {
+  repeated string columns = 1;
+}
+
+message TrainingDataColumnsRequest {
+  TrainingDataID id = 1;
+}
+
+message TrainingColumns {
+  repeated string features = 1;
+  string label = 2;
+}
+
+message Vector32 {
+  repeated float value = 1;
+}
+
+message NearestRequest {
+  FeatureID id = 1;
+  Vector32 vector = 2;
+  int32 k = 3;
+}
+
+message NearestResponse {
+  repeated string entities = 1;
+}
+
+message ResourceIdRequest {
+  string name = 1;
+  string variant = 2;
+  int32 type = 3;
+}
+
+message ResourceLocation {
+  string location = 1;
+}
+
+message TrainTestSplitRequest {
+  TrainingDataID id = 1;
+  Model model = 2;
+  float test_size = 3;
+  float train_size = 4;
+  bool shuffle = 5;
+  int32 random_state = 6;
+  RequestType request_type = 7;
+  int32 batch_size = 8;
+}
+
+enum RequestType {
+  INITIALIZE = 0;
+  TRAINING = 1;  // Client is requesting training data
+  TEST = 2;      // Client is requesting test data
+}
+
+message BatchTrainTestSplitResponse {
+  RequestType request_type = 1;
+  bool iterator_done = 2;
+  oneof result {
+    bool initialized = 3;
+    TrainingDataRows data = 4;
+  }
+}

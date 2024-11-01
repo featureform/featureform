@@ -1,0 +1,35 @@
+version: "3.9"
+volumes:
+  prometheus_data: {}
+
+services:
+  service:
+    build:
+      context: ./metrics
+      dockerfile: Dockerfile
+    ports:
+      - "2112:2112"
+    expose:
+      - 2112
+  dashboard:
+    build:
+      context: ../dashboard
+      dockerfile: ../dashboard/Dockerfile
+    ports:
+      - "8000:3000"
+    expose:
+        - 8000
+  prometheus:
+    build:
+      context: ./metrics
+    image: prom/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090" 
+    volumes:
+      - ./metrics/prometheus:/etc/prometheus/
+      - prometheus_data:/prometheus
+    expose:
+      - 9090

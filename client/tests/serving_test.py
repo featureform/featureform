@@ -150,7 +150,7 @@ def test_sanitize_location(location, expected_location):
 @pytest.mark.parametrize(
     "location,format",
     [
-        ("client/tests/test_files/input_files/transactions.csv", "csv"),
+        ("client/tests/test_files/input_files/input_transactions.csv", "csv"),
         ("client/tests/test_files/input_files/transactions.parquet", "parquet"),
     ],
 )

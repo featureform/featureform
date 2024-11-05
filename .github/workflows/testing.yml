@@ -301,7 +301,7 @@ jobs:
         run: pip install pytest-cov
 
       - name: Install featureform
-        run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
+        run: pip install client/dist/featureform_enterprise-0.0.0-py3-none-any.whl
 
       - name: Run Tests
         run: pytest -vvl -s --ignore ./tests/end_to_end/pytest --ignore provider/scripts/spark/integration_test_scripts
@@ -364,7 +364,7 @@ jobs:
         run: pip install pytest-cov
 
       - name: Install featureform
-        run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
+        run: pip install client/dist/featureform_enterprise-0.0.0-py3-none-any.whl
 
       - name: Run Tests
         run: pytest -vvl -s --ignore ./tests/end_to_end/pytest --ignore provider/scripts/spark/integration_test_scripts

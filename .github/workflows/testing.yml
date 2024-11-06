@@ -195,6 +195,7 @@ jobs:
         env:
           FIRESTORE_CRED: "firestore_credentials.json"
           BIGQUERY_CREDENTIALS: "/home/runner/work/featureform/featureform/provider/bigquery_credentials.json"
+          GCP_CREDENTIALS_FILE: "/home/runner/work/featureform/featureform/provider/bigquery_credentials.json"
           MATERIALIZE_NO_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_no_ts.sql
           MATERIALIZE_WITH_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_ts.sql
           SPARK_LOCAL_SCRIPT_PATH: /home/runner/work/featureform/featureform/provider/scripts/spark/offline_store_spark_runner.py

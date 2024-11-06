@@ -8,6 +8,7 @@
 from featureform.proto import metadata_pb2
 import grpc
 from .format import *
+from .types import type_from_proto
 
 
 def get_user_info(stub, name):
@@ -103,7 +104,7 @@ def get_feature_variant_info(stub, name, variant):
             rows = [
                 ("NAME: ", x.name),
                 ("VARIANT: ", x.variant),
-                ("TYPE:", x.type),
+                ("TYPE:", type_from_proto(x.type).name),
                 ("ENTITY:", x.entity),
                 ("OWNER:", x.owner),
                 ("DESCRIPTION:", x.description),
@@ -135,7 +136,7 @@ def get_label_variant_info(stub, name, variant):
             rows = [
                 ("NAME: ", x.name),
                 ("VARIANT: ", x.variant),
-                ("TYPE:", x.type),
+                ("TYPE:", type_from_proto(x.type).name),
                 ("ENTITY:", x.entity),
                 ("OWNER:", x.owner),
                 ("DESCRIPTION:", x.description),

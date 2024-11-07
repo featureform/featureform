@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -27,7 +34,7 @@ spec:
               service:
                 name: featureform-api-server
                 port:
-                  number: 7878
+                  number: {{ .Values.grpcIngressPort }}
 
           - path: /featureform.serving.proto.Feature/
             pathType: Prefix
@@ -35,7 +42,7 @@ spec:
               service:
                 name: featureform-api-server
                 port:
-                  number: 7878
+                  number: {{ .Values.grpcIngressPort }}
 
 
 

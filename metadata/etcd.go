@@ -1,11 +1,19 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 package metadata
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -16,7 +24,9 @@ import (
 	pb "github.com/featureform/metadata/proto"
 	"github.com/pkg/errors"
 	clientv3 "go.etcd.io/etcd/client/v3"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/encoding/protojson"
+	gpb "google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type StorageType string
@@ -132,15 +142,17 @@ type EtcdResourceLookup struct {
 type EtcdRow struct {
 	ResourceType ResourceType //Resource Type. For use when getting stored keys
 	//ResourceType string
-	StorageType StorageType //Type of storage. Resource or Job
-	Message     []byte      //Contents to be stored
+	StorageType       StorageType //Type of storage. Resource or Job
+	Message           string      //Contents to be stored
+	SerializedVersion int         //Checks if its serialized using JSON or proto
 }
 
 type EtcdRowTemp struct {
 	//ResourceType ResourceType //Resource Type. For use when getting stored keys
-	ResourceType ResourceType
-	StorageType  StorageType //Type of storage. Resource or Job
-	Message      []byte      //Contents to be stored
+	ResourceType      ResourceType
+	StorageType       StorageType //Type of storage. Resource or Job
+	Message           string      //Contents to be stored
+	SerializedVersion int         //Checks if its serialized using JSON or proto
 }
 
 func (config EtcdConfig) MakeAddresses() []string {
@@ -154,6 +166,11 @@ func (config EtcdConfig) MakeAddresses() []string {
 // Uses Storage Type as prefix so Resources and Jobs can be queried more easily
 func createKey(id ResourceID) string {
 	return fmt.Sprintf("%s__%s__%s", id.Type, id.Name, id.Variant)
+}
+
+// The prefix of createKey without the variant
+func variantLookupPrefix(t ResourceType, name string) string {
+	return fmt.Sprintf("%s__%s__", t, name)
 }
 
 // Puts K/V into ETCD
@@ -228,23 +245,47 @@ func (s EtcdStorage) GetCountWithPrefix(key string) (int64, error) {
 }
 
 // Takes a populated ETCD storage struct and a resource
-// Checks to make sure the given ETCD Storage Object contains a Resource, not job
+// Checks to make sure the given ETCD storage Object contains a Resource, not job
 // Deserializes Resource value into the provided Resource object
-func (s EtcdStorage) ParseResource(res EtcdRow, resType Resource) (Resource, error) {
+func ParseResource(res EtcdRow, resType Resource) (Resource, error) {
+	id := resType.ID()
 	if res.StorageType != RESOURCE {
-		return nil, fferr.NewInternalError(fmt.Errorf("payload is not resource type"))
+		logging.GlobalLogger.Errorw("Invalid storage type", "storage type", res.StorageType)
+		return nil, fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), nil)
 	}
 
 	if !resType.Proto().ProtoReflect().IsValid() {
-		return nil, fferr.NewInternalError(fmt.Errorf("cannot parse to invalid resource"))
+		logging.GlobalLogger.Errorw("Invalid resource proto", "proto", resType.Proto())
+		return nil, fferr.NewInvalidResourceTypeErrorf(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), "invalid proto")
 	}
 
-	if res.Message == nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("cannot parse invalid message"))
+	if res.Message == "" {
+		logging.GlobalLogger.Errorw("Message is empty", "message", res.Message)
+		return nil, fferr.NewInvalidResourceTypeErrorf(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), "invalid message")
 	}
 
-	if err := proto.Unmarshal(res.Message, resType.Proto()); err != nil {
-		return nil, fferr.NewInternalError(err)
+	switch res.SerializedVersion {
+	case 1:
+		logging.GlobalLogger.Debug("Serialized version 1")
+		if err := protojson.Unmarshal([]byte(res.Message), resType.Proto()); err != nil {
+			logging.GlobalLogger.Errorw("Failed to unmarshal", "serialized version", 1, "error", err, "resource", resType.Proto())
+			return nil, fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+		}
+	case 0:
+		// Default serialization version if it is not set, must decode the base64 encoded message first
+		logging.GlobalLogger.Debug("Serialized version 0")
+		decodedMessage, decodeErr := base64.StdEncoding.DecodeString(res.Message)
+		if decodeErr != nil {
+			logging.GlobalLogger.Errorw("Failed to decode proto message", "serialized version", 0, "error", decodeErr, "resource", resType.Proto())
+			return nil, fferr.NewParsingError(decodeErr)
+		}
+		if err := gpb.Unmarshal(decodedMessage, resType.Proto()); err != nil {
+			logging.GlobalLogger.Errorw("Failed to unmarshal", "serialized version", 0, "error", err, "resource", resType.Proto())
+			return nil, fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+		}
+	default:
+		logging.GlobalLogger.Errorw("Invalid serialized version", "version", res.SerializedVersion)
+		return nil, fferr.NewInternalError(fmt.Errorf("invalid serialized version"))
 	}
 
 	return resType, nil
@@ -256,56 +297,53 @@ func (lookup EtcdResourceLookup) createEmptyResource(t ResourceType) (Resource, 
 	switch t {
 	case FEATURE:
 		resource = &featureResource{&pb.Feature{}}
-		break
 	case FEATURE_VARIANT:
 		resource = &featureVariantResource{&pb.FeatureVariant{}}
-		break
 	case LABEL:
 		resource = &labelResource{&pb.Label{}}
-		break
 	case LABEL_VARIANT:
 		resource = &labelVariantResource{&pb.LabelVariant{}}
-		break
 	case USER:
 		resource = &userResource{&pb.User{}}
-		break
 	case ENTITY:
 		resource = &entityResource{&pb.Entity{}}
-		break
 	case PROVIDER:
 		resource = &providerResource{&pb.Provider{}}
-		break
 	case SOURCE:
-		resource = &SourceResource{&pb.Source{}}
-		break
+		resource = &sourceResource{&pb.Source{}}
 	case SOURCE_VARIANT:
 		resource = &sourceVariantResource{&pb.SourceVariant{}}
-		break
 	case TRAINING_SET:
 		resource = &trainingSetResource{&pb.TrainingSet{}}
-		break
 	case TRAINING_SET_VARIANT:
 		resource = &trainingSetVariantResource{&pb.TrainingSetVariant{}}
-		break
 	case MODEL:
 		resource = &modelResource{&pb.Model{}}
-		break
 	default:
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("invalid resource type: %s", t))
 	}
 	return resource, nil
 }
 
-// Serializes the entire ETCD Storage Object to be put into ETCD
-func (lookup EtcdResourceLookup) serializeResource(res Resource) ([]byte, error) {
-	p, err := proto.Marshal(res.Proto())
+func ToJsonString(pm protoreflect.ProtoMessage) (string, error) {
+	p, err := protojson.Marshal(pm)
 	if err != nil {
-		return nil, fferr.NewInternalError(err)
+		return "", fferr.NewInternalError(err)
+	}
+	return string(p), nil
+}
+
+// Serializes the entire ETCD storage Object to be put into ETCD
+func (lookup EtcdResourceLookup) serializeResource(res Resource) ([]byte, error) {
+	p, err := ToJsonString(res.Proto())
+	if err != nil {
+		return nil, err
 	}
 	msg := EtcdRowTemp{
-		ResourceType: res.ID().Type,
-		Message:      p,
-		StorageType:  RESOURCE,
+		ResourceType:      res.ID().Type,
+		Message:           p,
+		StorageType:       RESOURCE,
+		SerializedVersion: 1,
 	}
 	serialMsg, err := json.Marshal(msg)
 	if err != nil {
@@ -321,9 +359,10 @@ func (lookup EtcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 		return EtcdRow{}, fferr.NewInternalError(err)
 	}
 	msg := EtcdRow{
-		ResourceType: ResourceType(tmp.ResourceType),
-		StorageType:  tmp.StorageType,
-		Message:      tmp.Message,
+		ResourceType:      ResourceType(tmp.ResourceType),
+		StorageType:       tmp.StorageType,
+		Message:           tmp.Message,
+		SerializedVersion: tmp.SerializedVersion,
 	}
 	return msg, nil
 }
@@ -347,15 +386,16 @@ func (lookup EtcdResourceLookup) Lookup(ctx context.Context, id ResourceID) (Res
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to create empty resource: %s", id))
 	}
 	logger.Infow("Parse resource", "key", key)
-	resource, err := lookup.Connection.ParseResource(msg, resType)
+	resource, err := ParseResource(msg, resType)
 	if err != nil {
+		logger.Errorw("Failed to parse resource", "msg", msg, "error", err)
 		return nil, err
 	}
 	logger.Infow("Return", "key", key)
 	return resource, nil
 }
 
-func (lookup EtcdResourceLookup) Has(id ResourceID) (bool, error) {
+func (lookup EtcdResourceLookup) Has(ctx context.Context, id ResourceID) (bool, error) {
 	key := createKey(id)
 	count, err := lookup.Connection.GetCountWithPrefix(key)
 	if err != nil {
@@ -375,7 +415,7 @@ func GetScheduleJobKey(id ResourceID) string {
 	return fmt.Sprintf("SCHEDULEJOB__%s__%s__%s", id.Type, id.Name, id.Variant)
 }
 
-func (lookup EtcdResourceLookup) HasJob(id ResourceID) (bool, error) {
+func (lookup EtcdResourceLookup) HasJob(ctx context.Context, id ResourceID) (bool, error) {
 	job_key := GetJobKey(id)
 	count, err := lookup.Connection.GetCountWithPrefix(job_key)
 	if err != nil {
@@ -387,8 +427,8 @@ func (lookup EtcdResourceLookup) HasJob(id ResourceID) (bool, error) {
 	return true, nil
 }
 
-func (lookup EtcdResourceLookup) SetJob(id ResourceID, schedule string) error {
-	if jobAlreadySet, _ := lookup.HasJob(id); jobAlreadySet {
+func (lookup EtcdResourceLookup) SetJob(ctx context.Context, id ResourceID, schedule string) error {
+	if jobAlreadySet, _ := lookup.HasJob(ctx, id); jobAlreadySet {
 		return fferr.NewJobAlreadyExistsError(GetJobKey(id), nil)
 	}
 	coordinatorJob := CoordinatorJob{
@@ -407,7 +447,7 @@ func (lookup EtcdResourceLookup) SetJob(id ResourceID, schedule string) error {
 	return nil
 }
 
-func (lookup EtcdResourceLookup) SetSchedule(id ResourceID, schedule string) error {
+func (lookup EtcdResourceLookup) SetSchedule(ctx context.Context, id ResourceID, schedule string) error {
 	coordinatorScheduleJob := CoordinatorScheduleJob{
 		Attempts: 0,
 		Resource: id,
@@ -424,7 +464,7 @@ func (lookup EtcdResourceLookup) SetSchedule(id ResourceID, schedule string) err
 	return nil
 }
 
-func (lookup EtcdResourceLookup) Set(id ResourceID, res Resource) error {
+func (lookup EtcdResourceLookup) Set(ctx context.Context, id ResourceID, res Resource) error {
 
 	serRes, err := lookup.serializeResource(res)
 	if err != nil {
@@ -438,7 +478,7 @@ func (lookup EtcdResourceLookup) Set(id ResourceID, res Resource) error {
 	return nil
 }
 
-func (lookup EtcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error) {
+func (lookup EtcdResourceLookup) Submap(ctx context.Context, ids []ResourceID) (ResourceLookup, error) {
 	resources := make(LocalResourceLookup, len(ids))
 
 	for _, id := range ids {
@@ -457,7 +497,7 @@ func (lookup EtcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error
 			return nil, err
 		}
 
-		res, err := lookup.Connection.ParseResource(etcdStore, resource)
+		res, err := ParseResource(etcdStore, resource)
 		if err != nil {
 			return nil, err
 		}
@@ -466,7 +506,7 @@ func (lookup EtcdResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error
 	return resources, nil
 }
 
-func (lookup EtcdResourceLookup) ListForType(t ResourceType) ([]Resource, error) {
+func (lookup EtcdResourceLookup) ListForType(ctx context.Context, t ResourceType) ([]Resource, error) {
 	resources := make([]Resource, 0)
 	resp, err := lookup.Connection.GetWithPrefix(t.String())
 	if err != nil {
@@ -481,7 +521,10 @@ func (lookup EtcdResourceLookup) ListForType(t ResourceType) ([]Resource, error)
 		if err != nil {
 			return nil, err
 		}
-		resource, err = lookup.Connection.ParseResource(etcdStore, resource)
+		resource, err = ParseResource(etcdStore, resource)
+		if err != nil {
+			return nil, err
+		}
 		if resource.ID().Type == t {
 			resources = append(resources, resource)
 		}
@@ -489,7 +532,34 @@ func (lookup EtcdResourceLookup) ListForType(t ResourceType) ([]Resource, error)
 	return resources, nil
 }
 
-func (lookup EtcdResourceLookup) List() ([]Resource, error) {
+func (lookup EtcdResourceLookup) ListVariants(ctx context.Context, t ResourceType, name string) ([]Resource, error) {
+	resources := make([]Resource, 0)
+	resp, err := lookup.Connection.GetWithPrefix(variantLookupPrefix(t, name))
+	if err != nil {
+		return nil, err
+	}
+	for _, res := range resp {
+		etcdStore, err := lookup.deserialize(res)
+		if err != nil {
+			return nil, err
+		}
+		resource, err := lookup.createEmptyResource(etcdStore.ResourceType)
+		if err != nil {
+			return nil, err
+		}
+		resource, err = ParseResource(etcdStore, resource)
+		if err != nil {
+			return nil, err
+		}
+		id := resource.ID()
+		if id.Type == t && id.Name == name {
+			resources = append(resources, resource)
+		}
+	}
+	return resources, nil
+}
+
+func (lookup EtcdResourceLookup) List(ctx context.Context) ([]Resource, error) {
 	resources := make([]Resource, 0)
 	resp, err := lookup.Connection.GetWithPrefix("")
 	if err != nil {
@@ -504,13 +574,16 @@ func (lookup EtcdResourceLookup) List() ([]Resource, error) {
 		if err != nil {
 			return nil, err
 		}
-		resource, err = lookup.Connection.ParseResource(etcdStore, resource)
+		resource, err = ParseResource(etcdStore, resource)
+		if err != nil {
+			return nil, err
+		}
 		resources = append(resources, resource)
 	}
 	return resources, nil
 }
 
-func (lookup EtcdResourceLookup) SetStatus(ctx context.Context, id ResourceID, status pb.ResourceStatus) error {
+func (lookup EtcdResourceLookup) SetStatus(ctx context.Context, id ResourceID, status *pb.ResourceStatus) error {
 	res, err := lookup.Lookup(ctx, id)
 	if err != nil {
 		return err
@@ -518,7 +591,7 @@ func (lookup EtcdResourceLookup) SetStatus(ctx context.Context, id ResourceID, s
 	if err := res.UpdateStatus(status); err != nil {
 		return err
 	}
-	if err := lookup.Set(id, res); err != nil {
+	if err := lookup.Set(ctx, id, res); err != nil {
 		return err
 	}
 	return nil

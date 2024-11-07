@@ -1,26 +1,34 @@
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
 
 import json
+import logging
 import os
 import re
 import sys
-from abc import ABC
-from typing import Any, Dict
-from typing import List, Tuple, Union, Optional
+import uuid
+from abc import ABC, abstractmethod
+from dataclasses import field
+from datetime import timedelta
+from typing import List, Tuple, Union, Optional, Any, Dict
+from urllib.parse import urlencode, urlunparse
 
 import dill
 import grpc
-from dataclasses import field
 from google.protobuf.duration_pb2 import Duration
 from google.rpc import error_details_pb2
 
 from . import feature_flag
-from .types import VectorType, type_from_proto
 from .enums import *
 from .exceptions import *
+from .types import VectorType, type_from_proto
 from .version import check_up_to_date
+
+logger = logging.getLogger(__name__)
 
 NameVariant = Tuple[str, str]
 
@@ -46,10 +54,11 @@ class Schedule:
     def operation_type() -> OperationType:
         return OperationType.CREATE
 
-    def type(self) -> str:
-        return "schedule"
+    @staticmethod
+    def get_resource_type() -> ResourceType:
+        return ResourceType.SCHEDULE
 
-    def _create(self, stub) -> None:
+    def _create(self, req_id, stub) -> Tuple[None, None]:
         serialized = pb.SetScheduleChangeRequest(
             resource=pb.ResourceId(
                 pb.NameVariant(name=self.name, variant=self.variant),
@@ -58,6 +67,31 @@ class Schedule:
             schedule=self.schedule_string,
         )
         stub.RequestScheduleChange(serialized)
+        return None, None
+
+
+class HashPartition:
+    def __init__(self, column, num_buckets):
+        self.column = column
+        self.num_buckets = num_buckets
+
+    def proto_kwargs(self):
+        return {
+            "HashPartition": pb.HashPartition(
+                column=self.column, buckets=self.num_buckets
+            )
+        }
+
+
+class DailyPartition:
+    def __init__(self, column):
+        self.column = column
+
+    def proto_kwargs(self):
+        return {"DailyPartition": pb.DailyPartition(column=self.column)}
+
+
+PartitionType = Union[HashPartition, DailyPartition]
 
 
 @typechecked
@@ -81,6 +115,16 @@ class RedisConfig:
             "DB": self.db,
         }
         return bytes(json.dumps(config), "utf-8")
+
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, RedisConfig):
+            return False
+        return (
+            self.host == __value.host
+            and self.port == __value.port
+            and self.password == __value.password
+            and self.db == __value.db
+        )
 
 
 @typechecked
@@ -110,6 +154,15 @@ class PineconeConfig:
         self.environment = config["Environment"]
         self.api_key = config["ApiKey"]
         return self
+
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, PineconeConfig):
+            return False
+        return (
+            self.project_id == __value.project_id
+            and self.environment == __value.environment
+            and self.api_key == __value.api_key
+        )
 
 
 @typechecked
@@ -142,44 +195,75 @@ class WeaviateConfig:
 
 @typechecked
 @dataclass
-class AWSCredentials:
-    def __init__(
+class AWSStaticCredentials:
+    """
+
+    Static Credentials for an AWS services.
+
+    **Example**
+    ```
+    aws_credentials = ff.AWSStaticCredentials(
+        access_key="<AWS_ACCESS_KEY>",
+        secret_key="<AWS_SECRET_KEY>"
+    )
+    ```
+
+    Args:
+        access_key (str): AWS Access Key.
+        secret_key (str): AWS Secret Key.
+    """
+
+    access_key: str = field(default="")
+    secret_key: str = field(default="")
+    _type: str = field(default="AWS_STATIC_CREDENTIALS")
+
+    def __post_init__(
         self,
-        access_key: str,
-        secret_key: str,
     ):
-        """
+        if self.access_key == "":
+            raise Exception("'AWSStaticCredentials' access_key cannot be empty")
 
-        Credentials for an AWS.
+        if self.secret_key == "":
+            raise Exception("'AWSStaticCredentials' secret_key cannot be empty")
 
-        **Example**
-        ```
-        aws_credentials = ff.AWSCredentials(
-            access_key="<AWS_ACCESS_KEY>",
-            secret_key="<AWS_SECRET_KEY>"
-        )
-        ```
-
-        Args:
-            access_key (str): AWS Access Key.
-            secret_key (str): AWS Secret Key.
-        """
-        if access_key == "":
-            raise Exception("'AWSCredentials' access_key cannot be empty")
-
-        if secret_key == "":
-            raise Exception("'AWSCredentials' secret_key cannot be empty")
-
-        self.access_key = access_key
-        self.secret_key = secret_key
-
-    def type(self):
-        return "AWS_CREDENTIALS"
+    @staticmethod
+    def type() -> str:
+        return "AWS_STATIC_CREDENTIALS"
 
     def config(self):
         return {
-            "AWSAccessKeyId": self.access_key,
-            "AWSSecretKey": self.secret_key,
+            "AccessKeyId": self.access_key,
+            "SecretKey": self.secret_key,
+            "Type": self._type,
+        }
+
+
+@typechecked
+@dataclass
+class AWSAssumeRoleCredentials:
+    """
+
+    Assume Role Credentials for an AWS services.
+
+    If an IAM role for service account (IRSA) has been configured, the default credentials provider chain
+        will be used to get the credentials stored on the pod. See the following link for more information:
+        https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
+
+    **Example**
+    ```
+    aws_credentials = ff.AWSAssumeRoleCredentials()
+    ```
+    """
+
+    _type: str = field(default="AWS_ASSUME_ROLE_CREDENTIALS")
+
+    @staticmethod
+    def type() -> str:
+        return "AWS_ASSUME_ROLE_CREDENTIALS"
+
+    def config(self):
+        return {
+            "Type": self._type,
         }
 
 
@@ -187,9 +271,7 @@ class AWSCredentials:
 @dataclass
 class GCPCredentials:
     def __init__(
-        self,
-        project_id: str,
-        credentials_path: str,
+        self, project_id: str, credentials_path: str = "", credential_json: dict = None
     ):
         """
 
@@ -210,17 +292,26 @@ class GCPCredentials:
         if project_id == "":
             raise Exception("'GCPCredentials' project_id cannot be empty")
 
-        if credentials_path == "":
-            raise Exception("'GCPCredentials' credentials_path cannot be empty")
-
-        if not os.path.isfile(credentials_path):
-            raise Exception(
-                f"'GCPCredentials' credentials_path '{credentials_path}' file not found"
-            )
-
         self.project_id = project_id
-        with open(credentials_path) as f:
-            self.credentials = json.load(f)
+        self.credentials_path = credentials_path
+
+        if self.credentials_path == "" and credential_json is None:
+            raise ValueError(
+                "Either a path to credentials or json credentials must be provided"
+            )
+        elif self.credentials_path != "" and credential_json is not None:
+            raise ValueError(
+                "Only one of credentials_path or credentials_json can be provided"
+            )
+        elif self.credentials_path != "" and credential_json is None:
+            if not os.path.isfile(credentials_path):
+                raise Exception(
+                    f"'GCPCredentials' credentials_path '{credentials_path}' file not found"
+                )
+            with open(credentials_path) as f:
+                self.credentials = json.load(f)
+        else:
+            self.credentials = credential_json
 
     def type(self):
         return "GCPCredentials"
@@ -233,6 +324,97 @@ class GCPCredentials:
 
     def to_json(self):
         return self.credentials
+
+
+@typechecked
+@dataclass
+class BasicCredentials:
+    def __init__(
+        self,
+        username: str,
+        password: str = "",
+    ):
+        """
+
+        Credentials for an EMR cluster.
+
+        **Example**
+        ```
+        creds = ff.BasicCredentials(
+            username="<username>",
+            password="<password>",
+        )
+
+        hdfs = ff.register_hdfs(
+            name="hdfs",
+            credentials=creds,
+            ...
+        )
+        ```
+
+        Args:
+            username (str): the username of account.
+            password (str): the password of account (optional).
+        """
+        self.username = username
+        self.password = password
+
+    def type(self):
+        return "BasicCredential"
+
+    def config(self):
+        return {
+            "Username": self.username,
+            "Password": self.password,
+        }
+
+
+@typechecked
+@dataclass
+class KerberosCredentials:
+    def __init__(
+        self,
+        username: str,
+        password: str,
+        krb5s_file: str,
+    ):
+        """
+
+        Credentials for an EMR cluster.
+
+        **Example**
+        ```
+        kerberos = ff.KerberosCredentials(
+            username="<username>",
+            password="<password>",
+            krb5s_file="<path/to/krb5s_file>",
+        )
+
+        hdfs = ff.register_hdfs(
+            name="hdfs",
+            credentials=kerberos,
+            ...
+        )
+        ```
+
+        Args:
+            username (str): the username of account.
+            password (str): the password of account.
+            krb5s_file (str): the path to krb5s file.
+        """
+        self.username = username
+        self.password = password
+        self.krb5s_conf = read_file(krb5s_file)
+
+    def type(self):
+        return "KerberosCredential"
+
+    def config(self):
+        return {
+            "Username": self.username,
+            "Password": self.password,
+            "Krb5Conf": self.krb5s_conf,
+        }
 
 
 @typechecked
@@ -305,22 +487,15 @@ class AzureFileStoreConfig:
 @typechecked
 @dataclass
 class S3StoreConfig:
-    def __init__(
-        self,
-        bucket_path: str,
-        bucket_region: str,
-        credentials: AWSCredentials,
-        path: str = "",
-    ):
-        bucket_path_ends_with_slash = len(bucket_path) != 0 and bucket_path[-1] == "/"
+    bucket_path: str
+    bucket_region: str
+    credentials: Union[AWSStaticCredentials, AWSAssumeRoleCredentials]
+    path: str = ""
 
-        if bucket_path_ends_with_slash:
-            raise Exception("The 'bucket_path' cannot end with '/'.")
-
-        self.bucket_path = bucket_path
-        self.bucket_region = bucket_region
-        self.credentials = credentials
-        self.path = path
+    def __post_init__(self):
+        # Validate that the bucket_path does not end with a slash
+        if self.bucket_path.endswith("/"):
+            raise ValueError("The 'bucket_path' cannot end with '/'.")
 
     def software(self) -> str:
         return "S3"
@@ -347,7 +522,19 @@ class S3StoreConfig:
 @typechecked
 @dataclass
 class HDFSConfig:
-    def __init__(self, host: str, port: str, path: str, username: str):
+    def __init__(
+        self,
+        host: str,
+        port: str,
+        path: str,
+        hdfs_site_file: str = "",
+        core_site_file: str = "",
+        hdfs_site_contents: str = "",
+        core_site_contents: str = "",
+        credentials: Union[BasicCredentials, KerberosCredentials] = BasicCredentials(
+            ""
+        ),
+    ):
         bucket_path_ends_with_slash = len(path) != 0 and path[-1] == "/"
 
         if bucket_path_ends_with_slash:
@@ -356,7 +543,39 @@ class HDFSConfig:
         self.path = path
         self.host = host
         self.port = port
-        self.username = username
+        self.credentials = credentials
+
+        self.hdfs_site_conf = self.__get_hdfs_site_contents(
+            hdfs_site_file, hdfs_site_contents
+        )
+        self.core_site_conf = self.__get_core_site_contents(
+            core_site_file, core_site_contents
+        )
+
+    def __get_hdfs_site_contents(self, site_file, site_contents):
+        return self.__get_site_contents(site_file, site_contents, "hdfs")
+
+    def __get_core_site_contents(self, site_file, site_contents):
+        return self.__get_site_contents(site_file, site_contents, "core")
+
+    @staticmethod
+    def __get_site_contents(site_file, site_contents, config_type):
+        if site_file == "" and site_contents == "":
+            raise ValueError(
+                f"{config_type} site config must be provided. Either provide a path to the xml file "
+                f"({config_type}_site_file) or the contents of the file ({config_type}_site_contents)."
+            )
+
+        elif site_file != "" and site_contents != "":
+            raise ValueError(
+                f"Only one of {config_type}_site_file or {config_type}_site_contents should be provided."
+            )
+
+        elif site_file != "" and site_contents == "":
+            return read_file(site_file)
+
+        else:
+            return site_contents
 
     def software(self) -> str:
         return "HDFS"
@@ -365,12 +584,7 @@ class HDFSConfig:
         return "HDFS"
 
     def serialize(self) -> bytes:
-        config = {
-            "Host": self.host,
-            "Port": self.port,
-            "Path": self.path,
-            "Username": self.username,
-        }
+        config = self.config()
         return bytes(json.dumps(config), "utf-8")
 
     def config(self):
@@ -378,7 +592,10 @@ class HDFSConfig:
             "Host": self.host,
             "Port": self.port,
             "Path": self.path,
-            "Username": self.username,
+            "HDFSSiteConf": self.hdfs_site_conf,
+            "CoreSiteConf": self.core_site_conf,
+            "CredentialType": self.credentials.type(),
+            "CredentialConfig": self.credentials.config(),
         }
 
     def store_type(self):
@@ -407,6 +624,14 @@ class OnlineBlobConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, OnlineBlobConfig):
+            return False
+        return (
+            self.store_type == __value.store_type
+            and self.store_config == __value.store_config
+        )
+
 
 @typechecked
 @dataclass
@@ -428,6 +653,14 @@ class FirestoreConfig:
             "Credentials": self.credentials.to_json(),
         }
         return bytes(json.dumps(config), "utf-8")
+
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, FirestoreConfig):
+            return False
+        return (
+            self.collection == __value.collection
+            and self.project_id == __value.project_id
+        )
 
 
 @typechecked
@@ -458,13 +691,25 @@ class CassandraConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, CassandraConfig):
+            return False
+        return (
+            self.keyspace == __value.keyspace
+            and self.host == __value.host
+            and self.port == __value.port
+            and self.username == __value.username
+            and self.password == __value.password
+            and self.consistency == __value.consistency
+            and self.replication == __value.replication
+        )
+
 
 @typechecked
 @dataclass
 class DynamodbConfig:
     region: str
-    access_key: str
-    secret_key: str
+    credentials: Union[AWSStaticCredentials, AWSAssumeRoleCredentials]
     should_import_from_s3: bool
 
     def software(self) -> str:
@@ -476,11 +721,29 @@ class DynamodbConfig:
     def serialize(self) -> bytes:
         config = {
             "Region": self.region,
-            "AccessKey": self.access_key,
-            "SecretKey": self.secret_key,
+            "Credentials": self.credentials.config(),
             "ImportFromS3": self.should_import_from_s3,
         }
         return bytes(json.dumps(config), "utf-8")
+
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, DynamodbConfig):
+            return False
+
+        if type(self.credentials) != type(__value.credentials):
+            return False
+
+        if (
+            isinstance(self.credentials, AWSStaticCredentials)
+            and self.credentials.access_key != __value.credentials.access_key
+            and self.credentials.secret_key != __value.credentials.secret_key
+        ):
+            return False
+
+        return (
+            self.region == __value.region
+            and self.should_import_from_s3 == __value.should_import_from_s3
+        )
 
 
 @typechecked
@@ -510,6 +773,313 @@ class MongoDBConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, MongoDBConfig):
+            return False
+        return (
+            self.username == __value.username
+            and self.password == __value.password
+            and self.host == __value.host
+            and self.port == __value.port
+            and self.database == __value.database
+            and self.throughput == __value.throughput
+        )
+
+
+@typechecked
+@dataclass
+class PostgresConfig:
+    host: str
+    port: str
+    database: str
+    user: str
+    password: str
+    sslmode: str
+
+    def software(self) -> str:
+        return "postgres"
+
+    def type(self) -> str:
+        return "POSTGRES_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Host": self.host,
+            "Port": self.port,
+            "Username": self.user,
+            "Password": self.password,
+            "Database": self.database,
+            "SSLMode": self.sslmode,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, PostgresConfig):
+            return False
+        return (
+            self.host == __value.host
+            and self.port == __value.port
+            and self.database == __value.database
+            and self.user == __value.user
+            and self.password == __value.password
+            and self.sslmode == __value.sslmode
+        )
+
+
+@typechecked
+@dataclass
+class ClickHouseConfig:
+    host: str
+    port: int
+    database: str
+    user: str
+    password: str
+    ssl: bool
+
+    def software(self) -> str:
+        return "clickhouse"
+
+    def type(self) -> str:
+        return "CLICKHOUSE_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Host": self.host,
+            "Port": self.port,
+            "Username": self.user,
+            "Password": self.password,
+            "Database": self.database,
+            "SSL": self.ssl,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, ClickHouseConfig):
+            return False
+        return (
+            self.host == __value.host
+            and self.port == __value.port
+            and self.database == __value.database
+            and self.user == __value.user
+            and self.password == __value.password
+            and self.ssl == __value.ssl
+        )
+
+
+@typechecked
+@dataclass
+class RedshiftConfig:
+    host: str
+    port: str
+    database: str
+    user: str
+    password: str
+    sslmode: str
+
+    def software(self) -> str:
+        return "redshift"
+
+    def type(self) -> str:
+        return "REDSHIFT_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "Host": self.host,
+            "Port": self.port,
+            "Username": self.user,
+            "Password": self.password,
+            "Database": self.database,
+            "SSLMode": self.sslmode,
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, RedshiftConfig):
+            return False
+        return (
+            self.host == __value.host
+            and self.port == __value.port
+            and self.database == __value.database
+            and self.user == __value.user
+            and self.password == __value.password
+            and self.sslmode == __value.sslmode
+        )
+
+
+@typechecked
+@dataclass
+class BigQueryConfig:
+    project_id: str
+    dataset_id: str
+    credentials: GCPCredentials
+
+    def software(self) -> str:
+        return "bigquery"
+
+    def type(self) -> str:
+        return "BIGQUERY_OFFLINE"
+
+    def serialize(self) -> bytes:
+        config = {
+            "ProjectID": self.project_id,
+            "DatasetID": self.dataset_id,
+            "Credentials": self.credentials.to_json(),
+        }
+        return bytes(json.dumps(config), "utf-8")
+
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, BigQueryConfig):
+            return False
+        return (
+            self.project_id == __value.project_id
+            and self.dataset_id == __value.dataset_id
+        )
+
+
+class Catalog(ABC):
+    @abstractmethod
+    def config(self):
+        pass
+
+
+@typechecked
+@dataclass
+class GlueCatalog(Catalog):
+    region: str
+    database: str
+    warehouse: str = ""
+    assume_role_arn: str = ""
+    table_format: TableFormat = field(default_factory=lambda: TableFormat.ICEBERG)
+
+    def __post_init__(self):
+        self._validate_database_name()
+        self._validate_iceberg_configuration()
+
+    def config(self):
+        return {
+            "Database": self.database,
+            "Warehouse": self.warehouse,
+            "Region": self.region,
+            "AssumeRoleArn": self.assume_role_arn,
+            "TableFormat": self.table_format,
+        }
+
+    def _validate_database_name(self):
+        if self.database == "":
+            raise ValueError("Database name cannot be empty")
+        if not all(c.isalnum() or c == "_" for c in self.database):
+            raise ValueError("Database name must be alphanumeric and/or underscores")
+
+    def _validate_iceberg_configuration(self):
+        if self.table_format is TableFormat.ICEBERG:
+            errors = []
+            if self.warehouse == "":
+                errors.append("warehouse is required for Iceberg tables")
+            if self.region == "":
+                errors.append("region is required for Iceberg tables")
+
+            if len(errors) > 0:
+                raise ValueError(";".join(errors))
+
+
+@dataclass
+class SnowflakeDynamicTableConfig:
+    target_lag: Optional[str] = None
+    refresh_mode: Optional[RefreshMode] = None
+    initialize: Optional[Initialize] = None
+
+    def config(self) -> dict:
+        return {
+            "TargetLag": self.target_lag,
+            "RefreshMode": self.refresh_mode.to_string() if self.refresh_mode else None,
+            "Initialize": self.initialize.to_string() if self.initialize else None,
+        }
+
+    def to_proto(self):
+        return pb.SnowflakeDynamicTableConfig(
+            target_lag=self.target_lag,
+            refresh_mode=self.refresh_mode.to_proto() if self.refresh_mode else None,
+            initialize=self.initialize.to_proto() if self.initialize else None,
+        )
+
+
+@dataclass
+class ResourceSnowflakeConfig:
+    dynamic_table_config: Optional[SnowflakeDynamicTableConfig] = None
+    warehouse: Optional[str] = None
+
+    def config(self) -> dict:
+        return {
+            "DynamicTableConfig": (
+                self.dynamic_table_config.config()
+                if self.dynamic_table_config
+                else None
+            ),
+            "Warehouse": self.warehouse,
+        }
+
+    def to_proto(self):
+        return pb.ResourceSnowflakeConfig(
+            dynamic_table_config=(
+                self.dynamic_table_config.to_proto()
+                if self.dynamic_table_config
+                else None
+            ),
+            warehouse=self.warehouse,
+        )
+
+
+@typechecked
+@dataclass
+class SnowflakeCatalog(Catalog):
+    external_volume: str
+    base_location: str
+    table_config: Optional[SnowflakeDynamicTableConfig] = None
+
+    def __post_init__(self):
+        if self.table_config is None:
+            self.table_config = SnowflakeDynamicTableConfig(
+                target_lag="DOWNSTREAM",
+                refresh_mode=RefreshMode.AUTO,
+                initialize=Initialize.ON_CREATE,
+            )
+        if not self._validate_target_lag():
+            raise ValueError(
+                "target_lag must be in the format of '<num> { seconds | minutes | hours | days }' or 'DOWNSTREAM'; the minimum value is 1 minute"
+            )
+
+    def config(self) -> dict:
+        return {
+            "ExternalVolume": self.external_volume,
+            "BaseLocation": self.base_location,
+            "TableFormat": TableFormat.ICEBERG,
+            "TableConfig": self.table_config.config(),
+        }
+
+    def _validate_target_lag(self) -> bool:
+        if self.table_config is None or self.table_config.target_lag is None:
+            return True
+        # See https://docs.snowflake.com/en/sql-reference/sql/create-dynamic-table#create-dynamic-iceberg-table
+        # for more information on the target_lag parameter
+        pattern = r"^(\d+)\s+(seconds|minutes|hours|days)$|^(?i:DOWNSTREAM)$"
+        match = re.match(pattern, self.table_config.target_lag)
+
+        if not match:
+            return False
+
+        if self.table_config.target_lag.lower() == "downstream":
+            return True
+
+        value, unit = int(match.group(1)), match.group(2)
+
+        if unit == "seconds" and value < 60:
+            return False
+
+        if unit == "minutes" and value < 1:
+            return False
+
+        return True
+
 
 @typechecked
 @dataclass
@@ -523,6 +1093,7 @@ class SnowflakeConfig:
     account_locator: str = ""
     warehouse: str = ""
     role: str = ""
+    catalog: Optional[SnowflakeCatalog] = None
 
     def __post_init__(self):
         if self.__has_legacy_credentials() and self.__has_current_credentials():
@@ -563,114 +1134,89 @@ class SnowflakeConfig:
             "Database": self.database,
             "Warehouse": self.warehouse,
             "Role": self.role,
+            "Catalog": self.catalog.config() if self.catalog is not None else None,
         }
         return bytes(json.dumps(config), "utf-8")
 
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, SnowflakeConfig):
+            return False
+        is_catalog_equal = (self.catalog is None and self.catalog is None) or (
+            self.catalog is not None
+            and __value.catalog is not None
+            and self.catalog.external_volume == __value.catalog.external_volume
+            and self.catalog.base_location == __value.catalog.base_location
+            and self.catalog.table_config.target_lag
+            == __value.catalog.table_config.target_lag
+            and self.catalog.table_config.refresh_mode
+            == __value.catalog.table_config.refresh_mode
+            and self.catalog.table_config.initialize
+            == __value.catalog.table_config.initialize
+            and self.catalog.table_config.table_format
+            == __value.catalog.table_config.table_format
+        )
+        return (
+            self.username == __value.username
+            and self.password == __value.password
+            and self.schema == __value.schema
+            and self.account == __value.account
+            and self.organization == __value.organization
+            and self.database == __value.database
+            and self.account_locator == __value.account_locator
+            and self.warehouse == __value.warehouse
+            and self.role == __value.role
+            and is_catalog_equal
+        )
 
-@typechecked
+
 @dataclass
-class PostgresConfig:
-    host: str
-    port: str
-    database: str
-    user: str
-    password: str
-    sslmode: str
+class SparkFlags:
+    spark_params: Dict[str, str] = field(default_factory=dict)
+    write_options: Dict[str, str] = field(default_factory=dict)
+    table_properties: Dict[str, str] = field(default_factory=dict)
 
-    def software(self) -> str:
-        return "postgres"
-
-    def type(self) -> str:
-        return "POSTGRES_OFFLINE"
-
-    def serialize(self) -> bytes:
-        config = {
-            "Host": self.host,
-            "Port": self.port,
-            "Username": self.user,
-            "Password": self.password,
-            "Database": self.database,
-            "SSLMode": self.sslmode,
+    def serialize(self) -> dict:
+        return {
+            "SparkParams": self.spark_params,
+            "WriteOptions": self.write_options,
+            "TableProperties": self.table_properties,
         }
-        return bytes(json.dumps(config), "utf-8")
+
+    @classmethod
+    def deserialize(cls, config: dict) -> Optional["SparkFlags"]:
+        """
+        Deserialize a dictionary into a SparkFlags object.
+
+        Args:
+            config (dict): The dictionary containing SparkFlags configuration.
+
+        Returns:
+            Optional[SparkFlags]: The deserialized SparkFlags object, or None if the config is missing.
+        """
+        if not config:
+            return None
+        return cls(
+            spark_params=config.get("SparkParams", {}),
+            write_options=config.get("WriteOptions", {}),
+            table_properties=config.get("TableProperties", {}),
+        )
+
+    def to_proto(self) -> pb.SparkFlags:
+        return pb.SparkFlags(
+            spark_params=[
+                pb.SparkParam(key=k, value=v) for k, v in self.spark_params.items()
+            ],
+            write_options=[
+                pb.WriteOption(key=k, value=v) for k, v in self.write_options.items()
+            ],
+            table_properties=[
+                pb.TableProperty(key=k, value=v)
+                for k, v in self.table_properties.items()
+            ],
+        )
 
 
-@typechecked
-@dataclass
-class ClickHouseConfig:
-    host: str
-    port: int
-    database: str
-    user: str
-    password: str
-    ssl: bool
-
-    def software(self) -> str:
-        return "clickhouse"
-
-    def type(self) -> str:
-        return "CLICKHOUSE_OFFLINE"
-
-    def serialize(self) -> bytes:
-        config = {
-            "Host": self.host,
-            "Port": self.port,
-            "Username": self.user,
-            "Password": self.password,
-            "Database": self.database,
-            "SSL": self.ssl,
-        }
-        return bytes(json.dumps(config), "utf-8")
-
-
-@typechecked
-@dataclass
-class RedshiftConfig:
-    host: str
-    port: str
-    database: str
-    user: str
-    password: str
-    sslmode: str
-
-    def software(self) -> str:
-        return "redshift"
-
-    def type(self) -> str:
-        return "REDSHIFT_OFFLINE"
-
-    def serialize(self) -> bytes:
-        config = {
-            "Host": self.host,
-            "Port": self.port,
-            "Username": self.user,
-            "Password": self.password,
-            "Database": self.database,
-            "SSLMode": self.sslmode,
-        }
-        return bytes(json.dumps(config), "utf-8")
-
-
-@typechecked
-@dataclass
-class BigQueryConfig:
-    project_id: str
-    dataset_id: str
-    credentials: GCPCredentials
-
-    def software(self) -> str:
-        return "bigquery"
-
-    def type(self) -> str:
-        return "BIGQUERY_OFFLINE"
-
-    def serialize(self) -> bytes:
-        config = {
-            "ProjectID": self.project_id,
-            "DatasetID": self.dataset_id,
-            "Credentials": self.credentials.to_json(),
-        }
-        return bytes(json.dumps(config), "utf-8")
+EmptySparkFlags = SparkFlags()
 
 
 @typechecked
@@ -680,6 +1226,7 @@ class SparkConfig:
     executor_config: dict
     store_type: str
     store_config: dict
+    catalog: Optional[dict] = None
 
     def software(self) -> str:
         return "spark"
@@ -694,7 +1241,26 @@ class SparkConfig:
             "ExecutorConfig": self.executor_config,
             "StoreConfig": self.store_config,
         }
+
+        if self.catalog is not None:
+            config["GlueConfig"] = self.catalog  # change to catalog later
+
         return bytes(json.dumps(config), "utf-8")
+
+    @classmethod
+    def deserialize(cls, json_bytes: bytes) -> "SparkConfig":
+        deserialized_config = json.loads(json_bytes.decode("utf-8"))
+
+        try:
+            return cls(
+                executor_type=deserialized_config["ExecutorType"],
+                executor_config=deserialized_config["ExecutorConfig"],
+                store_type=deserialized_config["StoreType"],
+                store_config=deserialized_config["StoreConfig"],
+                catalog=deserialized_config.get("GlueConfig"),
+            )
+        except KeyError as e:
+            raise ValueError(f"Missing expected config key: {e}")
 
 
 @typechecked
@@ -709,6 +1275,7 @@ class K8sResourceSpecs:
 @typechecked
 @dataclass
 class K8sArgs:
+    # TODO Delete and Deprecate
     docker_image: str
     specs: Union[K8sResourceSpecs, None] = None
 
@@ -749,37 +1316,6 @@ class K8sConfig:
 
 @typechecked
 @dataclass
-class QdrantConfig:
-    grpc_host: str = ""
-    api_key: str = ""
-    use_tls: bool = False
-
-    def software(self) -> str:
-        return "qdrant"
-
-    def type(self) -> str:
-        return "QDRANT_ONLINE"
-
-    def serialize(self) -> bytes:
-        if self.grpc_host == "":
-            raise Exception("gRPC host cannot be empty")
-        config = {
-            "GrpcHost": self.grpc_host,
-            "ApiKey": self.api_key,
-            "UseTls": self.use_tls,
-        }
-        return bytes(json.dumps(config), "utf-8")
-
-    def deserialize(self, config):
-        config = json.loads(config)
-        self.grpc_host = config["GrpcHost"]
-        self.api_key = config["ApiKey"]
-        self.use_tls = config["UseTls"]
-        return self
-
-
-@typechecked
-@dataclass
 class EmptyConfig:
     def software(self) -> str:
         return ""
@@ -816,7 +1352,6 @@ Config = Union[
     WeaviateConfig,
     DynamodbConfig,
     CassandraConfig,
-    QdrantConfig,
 ]
 
 
@@ -875,9 +1410,9 @@ class ServerStatus:
 class Provider:
     name: str
     description: str
-    team: str
     config: Config
     function: str
+    team: str = ""
     status: str = "NO_STATUS"
     tags: list = field(default_factory=list)
     properties: dict = field(default_factory=dict)
@@ -902,8 +1437,8 @@ class Provider:
         return OperationType.CREATE
 
     @staticmethod
-    def type() -> str:
-        return "provider"
+    def get_resource_type() -> ResourceType:
+        return ResourceType.PROVIDER
 
     def get(self, stub) -> "Provider":
         name = pb.NameRequest(name=pb.Name(name=self.name))
@@ -924,7 +1459,7 @@ class Provider:
             server_status=ServerStatus.from_proto(provider.status),
         )
 
-    def _create(self, stub) -> None:
+    def _create(self, req_id, stub) -> Tuple[None, None]:
         serialized = pb.ProviderRequest(
             provider=pb.Provider(
                 name=self.name,
@@ -939,6 +1474,7 @@ class Provider:
             request_id="",
         )
         stub.CreateProvider(serialized)
+        return None, None
 
     def to_dictionary(self):
         return {
@@ -966,10 +1502,11 @@ class User:
     def operation_type() -> OperationType:
         return OperationType.CREATE
 
-    def type(self) -> str:
-        return "user"
+    @staticmethod
+    def get_resource_type() -> ResourceType:
+        return ResourceType.USER
 
-    def _create(self, stub) -> None:
+    def _create(self, req_id, stub) -> Tuple[None, None]:
         serialized = pb.UserRequest(
             user=pb.User(
                 name=self.name,
@@ -980,6 +1517,7 @@ class User:
         )
 
         stub.CreateUser(serialized)
+        return None, None
 
     def to_dictionary(self):
         return {
@@ -990,19 +1528,90 @@ class User:
         }
 
 
+class Location(ABC):
+    def resource_identifier(self):
+        """
+        Return the location of the resource.
+        :return:
+        """
+        raise NotImplementedError
+
+
 @typechecked
 @dataclass
-class SQLTable:
+class SQLTable(Location):
     name: str
+    schema: str = ""
+    database: str = ""
+
+    def resource_identifier(self):
+        return f"{self.database}.{self.schema}.{self.name}"
+
+    @staticmethod
+    def from_proto(source_table):
+        return SQLTable(
+            schema=source_table.schema,
+            database=source_table.database,
+            name=source_table.name,
+        )
 
 
 @typechecked
 @dataclass
-class Directory:
+class FileStore(Location):
+    """
+    Contains the location of a path in a cloud file store (S3, GCS, Azure)
+    """
+
+    path_uri: str
+
+    def resource_identifier(self):
+        return self.path_uri
+
+    @staticmethod
+    def from_proto(source_filestore):
+        return FileStore(path_uri=source_filestore.path)
+
+
+@typechecked
+@dataclass
+class KafkaTopic(Location):
+    topic: str
+
+    def resource_identifier(self):
+        return self.topic
+
+    @staticmethod
+    def from_proto(source_kafka_topic):
+        return KafkaTopic(topic=source_kafka_topic.topic)
+
+
+@typechecked
+@dataclass
+class GlueCatalogTable(Location):
+    database: str
+    table: str
+    table_format: TableFormat = field(default_factory=lambda: TableFormat.ICEBERG)
+
+    def resource_identifier(self):
+        return f"{self.database}.{self.table}"
+
+    @staticmethod
+    def from_proto(source_catalog_table):
+        return GlueCatalogTable(
+            database=source_catalog_table.database,
+            table=source_catalog_table.table,
+            table_format=TableFormat.get_format(source_catalog_table.table_format),
+        )
+
+
+@typechecked
+@dataclass
+class Directory(Location):
     path: str
 
-
-Location = Union[SQLTable, Directory]
+    def path(self):
+        return self.path
 
 
 class ResourceVariant(ABC):
@@ -1011,39 +1620,77 @@ class ResourceVariant(ABC):
     server_status: ServerStatus
 
     @staticmethod
-    def type():
+    def get_resource_type():
         raise NotImplementedError
 
     def name_variant(self):
         return self.name, self.variant
 
-    def to_key(self) -> Tuple[str, str, str]:
-        return self.type(), self.name, self.variant
+    def to_key(self) -> Tuple[ResourceType, str, str]:
+        return self.get_resource_type(), self.name, self.variant
 
 
 @typechecked
 @dataclass
 class PrimaryData:
     location: Location
+    timestamp_column: str = ""
 
-    def kwargs(self):
-        return {
-            "primaryData": pb.PrimaryData(
-                table=pb.PrimarySQLTable(
-                    name=self.location.name,
-                ),
-            ),
+    def kwargs(self) -> Dict[str, Any]:
+        primary_data_kwargs = {
+            "timestamp_column": self.timestamp_column,
         }
 
-    def name(self):
-        return self.location.name
+        if isinstance(self.location, SQLTable):
+            primary_data_kwargs["table"] = pb.SQLTable(
+                schema=self.location.schema,
+                database=self.location.database,
+                name=self.location.name,
+            )
+        elif isinstance(self.location, FileStore):
+            primary_data_kwargs["filestore"] = pb.FileStoreTable(
+                path=self.location.resource_identifier(),
+            )
+        elif isinstance(self.location, GlueCatalogTable):
+            primary_data_kwargs["catalog"] = pb.CatalogTable(
+                database=self.location.database,
+                table=self.location.table,
+                table_format=self.location.table_format,
+            )
+        elif isinstance(self.location, KafkaTopic):
+            primary_data_kwargs["kafka"] = pb.Kafka(topic=self.location.topic)
+        else:
+            raise ValueError(f"Unsupported location type: {type(self.location)}")
 
-    def path(self):
-        return self.location.path
+        return {"primaryData": pb.PrimaryData(**primary_data_kwargs)}
+
+    def path(self) -> str:
+        return self.location.resource_identifier()
+
+    @staticmethod
+    def from_proto(source_primary_data):
+        primary_type = source_primary_data.WhichOneof("location")
+        if primary_type == LocationType.TABLE:
+            location = SQLTable.from_proto(source_primary_data.table)
+        elif primary_type == LocationType.FILESTORE:
+            location = FileStore.from_proto(source_primary_data.filestore)
+        elif primary_type == LocationType.CATALOG:
+            location = GlueCatalogTable.from_proto(source_primary_data.catalog)
+        else:
+            raise Exception(f"Invalid primary data type {source_primary_data}")
+
+        return PrimaryData(location, source_primary_data.timestamp_column)
 
 
-class Transformation:
-    pass
+class Transformation(ABC):
+    @classmethod
+    def from_proto(cls, source_transformation: pb.Transformation):
+        if source_transformation.DFTransformation.query != bytes():
+            return DFTransformation.from_proto(source_transformation.DFTransformation)
+        elif source_transformation.SQLTransformation.query != "":
+            return SQLTransformation.from_proto(source_transformation.SQLTransformation)
+        else:
+            raise Exception(f"Invalid transformation type {source_transformation}")
 
 
 @typechecked
@@ -1052,6 +1699,9 @@ class SQLTransformation(Transformation):
     query: str
     args: Optional[K8sArgs] = None
     func_params_to_inputs: Dict[str, Any] = field(default_factory=dict)
+    partition_options: Optional[PartitionType] = None
+    spark_flags: SparkFlags = field(default_factory=lambda: EmptySparkFlags)
+    resource_snowflake_config: Optional[ResourceSnowflakeConfig] = None
 
     _sql_placeholder_regex: str = field(
         default=r"\{\{\s*\w+\s*\}\}", init=False, repr=False
@@ -1065,25 +1715,7 @@ class SQLTransformation(Transformation):
         return SourceType.SQL_TRANSFORMATION.value
 
     def kwargs(self) -> Dict[str, pb.Transformation]:
-        """Construct kwargs for the SQL transformation."""
-        input_to_name_variant = self._resolve_input_variants()
-
-        # Find and replace placeholders in the query with source name variants
-        final_query = self.query
-        for placeholder in self._get_placeholders():
-            clean_placeholder = placeholder.strip(" {}")
-            name_variant = input_to_name_variant[clean_placeholder]
-            replacement = "{{ " + f"{name_variant[0]}.{name_variant[1]}" + " }}"
-            final_query = final_query.replace(placeholder, replacement)
-
-        transformation = pb.Transformation(
-            SQLTransformation=pb.SQLTransformation(query=final_query)
-        )
-
-        if self.args is not None:
-            transformation = self.args.apply(transformation)
-
-        return {"transformation": transformation}
+        return {"transformation": self.to_proto()}
 
     def _validate_inputs_to_func_params(self, inputs: Dict[str, Any]) -> None:
         # Find and replace placeholders in the query with source name variants
@@ -1107,6 +1739,45 @@ class SQLTransformation(Transformation):
         """Get placeholders from the query."""
         return re.findall(self._sql_placeholder_regex, self.query)
 
+    def to_proto(self) -> pb.Transformation:
+        input_to_name_variant = self._resolve_input_variants()
+
+        # Find and replace placeholders in the query with source name variants
+        final_query = self.query
+        for placeholder in self._get_placeholders():
+            clean_placeholder = placeholder.strip(" {}")
+            name_variant = input_to_name_variant[clean_placeholder]
+            replacement = "{{ " + f"{name_variant[0]}.{name_variant[1]}" + " }}"
+            final_query = final_query.replace(placeholder, replacement)
+
+        partition_kwargs = {}
+        if self.partition_options is not None:
+            partition_kwargs = self.partition_options.proto_kwargs()
+
+        # Construct the SQLTransformation protobuf message
+        transformation = pb.Transformation(
+            SQLTransformation=pb.SQLTransformation(
+                query=final_query,
+                resource_snowflake_config=(
+                    self.resource_snowflake_config.to_proto()
+                    if self.resource_snowflake_config
+                    else None
+                ),
+            ),
+            spark_flags=self.spark_flags.to_proto() if self.spark_flags else None,
+            **partition_kwargs,
+        )
+
+        # Apply args transformations if any
+        if self.args is not None:
+            transformation = self.args.apply(transformation)
+
+        return transformation
+
+    @classmethod
+    def from_proto(cls, sql_transformation: pb.SQLTransformation):
+        return SQLTransformation(sql_transformation.query)
+
 
 @typechecked
 @dataclass
@@ -1115,31 +1786,56 @@ class DFTransformation(Transformation):
     inputs: list
     args: K8sArgs = None
     source_text: str = ""
+    canonical_func_text: str = ""
+    partition_options: Optional[PartitionType] = None
+    spark_flags: SparkFlags = field(default_factory=lambda: EmptySparkFlags)
 
     def type(self):
         return SourceType.DF_TRANSFORMATION.value
 
-    def kwargs(self):
-        for i, inp in enumerate(self.inputs):
-            if hasattr(inp, "name_variant"):  # TODO shouldn't have to have this check
-                self.inputs[i] = inp.name_variant()
-
+    def to_proto(self) -> pb.Transformation:
+        # Create a new list of name variants without modifying self.inputs
         name_variants = []
         for inp in self.inputs:
-            name_variants.append(pb.NameVariant(name=inp[0], variant=inp[1]))
+            if hasattr(inp, "name_variant"):
+                name_variants.append(inp.name_variant())
+            else:
+                name_variants.append(inp)
+
+        name_variant_protos = [
+            pb.NameVariant(name=inp[0], variant=inp[1]) for inp in name_variants
+        ]
+
+        partition_kwargs = {}
+        if self.partition_options is not None:
+            partition_kwargs = self.partition_options.proto_kwargs()
 
         transformation = pb.Transformation(
             DFTransformation=pb.DFTransformation(
                 query=self.query,
-                inputs=name_variants,
+                inputs=name_variant_protos,
                 source_text=self.source_text,
-            )
+                canonical_func_text=self.canonical_func_text,
+            ),
+            spark_flags=self.spark_flags.to_proto() if self.spark_flags else None,
+            **partition_kwargs,
         )
 
         if self.args is not None:
             transformation = self.args.apply(transformation)
 
-        return {"transformation": transformation}
+        return transformation
+
+    def kwargs(self):
+        return {"transformation": self.to_proto()}
+
+    @classmethod
+    def from_proto(cls, df_transformation: pb.DFTransformation):
+        return DFTransformation(
+            query=df_transformation.query,
+            inputs=[(input.name, input.variant) for input in df_transformation.inputs],
+            source_text=df_transformation.source_text,
+        )
 
 
 SourceDefinition = Union[PrimaryData, Transformation, str]
@@ -1186,6 +1882,7 @@ class SourceVariant(ResourceVariant):
     inputs: list = ([],)
     error: Optional[str] = None
     server_status: Optional[ServerStatus] = None
+    max_job_duration: timedelta = timedelta(hours=48)
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1201,15 +1898,22 @@ class SourceVariant(ResourceVariant):
         return OperationType.CREATE
 
     @staticmethod
-    def type() -> str:
-        return "source"
+    def get_resource_type() -> ResourceType:
+        return ResourceType.SOURCE_VARIANT
+
+    def name_variant(self) -> NameVariant:
+        return (self.name, self.variant)
 
     def get(self, stub):
+        return SourceVariant.get_by_name_variant(stub, self.name, self.variant)
+
+    @staticmethod
+    def get_by_name_variant(stub, name, variant):
         name_variant = pb.NameVariantRequest(
-            name_variant=pb.NameVariant(name=self.name, variant=self.variant)
+            name_variant=pb.NameVariant(name=name, variant=variant)
         )
         source = next(stub.GetSourceVariants(iter([name_variant])))
-        definition = self._get_source_definition(source)
+        definition = SourceVariant._get_source_definition(source)
 
         return SourceVariant(
             created=None,
@@ -1224,31 +1928,23 @@ class SourceVariant(ResourceVariant):
             status=source.status.Status._enum_type.values[source.status.status].name,
             error=source.status.error_message,
             server_status=ServerStatus.from_proto(source.status),
+            max_job_duration=source.max_job_duration.ToTimedelta(),
         )
 
-    def _get_source_definition(self, source):
-        if source.primaryData.table.name:
-            return PrimaryData(SQLTable(source.primaryData.table.name))
-        elif source.transformation:
-            return self._get_transformation_definition(source)
+    @staticmethod
+    def _get_source_definition(source):
+        definition_type = source.WhichOneof("definition")
+        if definition_type == "primaryData":
+            return PrimaryData.from_proto(source.primaryData)
+        elif definition_type == "transformation":
+            return Transformation.from_proto(source.transformation)
         else:
-            raise Exception(f"Invalid source type {source}")
+            raise Exception(f"Invalid source definition type {definition_type}")
 
-    def _get_transformation_definition(self, source):
-        if source.transformation.DFTransformation.query != bytes():
-            transformation = source.transformation.DFTransformation
-            return DFTransformation(
-                query=transformation.query,
-                inputs=[(input.name, input.variant) for input in transformation.inputs],
-                source_text=transformation.source_text,
-            )
-        elif source.transformation.SQLTransformation.query != "":
-            return SQLTransformation(source.transformation.SQLTransformation.query)
-        else:
-            raise Exception(f"Invalid transformation type {source}")
-
-    def _create(self, stub) -> Optional[str]:
+    def _get_and_set_equivalent_variant(self, req_id, stub):
         defArgs = self.definition.kwargs()
+        duration = Duration()
+        duration.FromTimedelta(self.max_job_duration)
 
         serialized = pb.SourceVariantRequest(
             source_variant=pb.SourceVariant(
@@ -1262,14 +1958,24 @@ class SourceVariant(ResourceVariant):
                 tags=pb.Tags(tag=self.tags),
                 properties=Properties(self.properties).serialized,
                 status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+                max_job_duration=duration,
                 **defArgs,
             ),
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized, "source_variant", stub)
-        stub.CreateSourceVariant(serialized)
-        return serialized.source_variant.variant
+        existing_variant = _get_and_set_equivalent_variant(
+            req_id, serialized, "source_variant", stub
+        )
+        return serialized, existing_variant, "source_variant"
+
+    def _create(self, req_id, stub) -> Tuple[Optional[str], Optional[str]]:
+        serialized, existing_variant, _ = self._get_and_set_equivalent_variant(
+            req_id, stub
+        )
+        if existing_variant is None:
+            stub.CreateSourceVariant(serialized)
+        return serialized.source_variant.variant, existing_variant
 
     def get_status(self):
         return ResourceStatus(self.status)
@@ -1295,10 +2001,10 @@ class Entity:
         return OperationType.CREATE
 
     @staticmethod
-    def type() -> str:
-        return "entity"
+    def get_resource_type() -> ResourceType:
+        return ResourceType.ENTITY
 
-    def _create(self, stub) -> None:
+    def _create(self, req_id, stub) -> Tuple[None, None]:
         serialized = pb.EntityRequest(
             entity=pb.Entity(
                 name=self.name,
@@ -1310,6 +2016,7 @@ class Entity:
         )
 
         stub.CreateEntity(serialized)
+        return None, None
 
     def to_dictionary(self):
         return {
@@ -1390,14 +2097,15 @@ class FeatureVariant(ResourceVariant):
     variant: str
     provider: Optional[str] = None
     created: str = None
-    tags: list = None
-    properties: dict = None
+    tags: Optional[list] = None
+    properties: Optional[dict] = None
     schedule: str = ""
     schedule_obj: Schedule = None
     status: str = "NO_STATUS"
     error: Optional[str] = None
     additional_parameters: Optional[Additional_Parameters] = None
     server_status: Optional[ServerStatus] = None
+    resource_snowflake_config: Optional[ResourceSnowflakeConfig] = None
 
     def __post_init__(self):
         if isinstance(self.value_type, str):
@@ -1417,12 +2125,19 @@ class FeatureVariant(ResourceVariant):
         return OperationType.CREATE
 
     @staticmethod
-    def type() -> str:
-        return "feature"
+    def get_resource_type() -> ResourceType:
+        return ResourceType.FEATURE_VARIANT
+
+    def name_variant(self) -> NameVariant:
+        return (self.name, self.variant)
 
     def get(self, stub) -> "FeatureVariant":
+        return FeatureVariant.get_by_name_variant(stub, self.name, self.variant)
+
+    @staticmethod
+    def get_by_name_variant(stub, name, variant):
         name_variant = pb.NameVariantRequest(
-            name_variant=pb.NameVariant(name=self.name, variant=self.variant)
+            name_variant=pb.NameVariant(name=name, variant=variant)
         )
         feature = next(stub.GetFeatureVariants(iter([name_variant])))
 
@@ -1445,7 +2160,7 @@ class FeatureVariant(ResourceVariant):
             additional_parameters=None,
         )
 
-    def _create(self, stub) -> Optional[str]:
+    def _get_and_set_equivalent_variant(self, req_id, stub):
         if hasattr(self.source, "name_variant"):
             self.source = self.source.name_variant()
 
@@ -1468,6 +2183,11 @@ class FeatureVariant(ResourceVariant):
             properties=Properties(self.properties).serialized,
             status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
             additional_parameters=None,
+            resource_snowflake_config=(
+                self.resource_snowflake_config.to_proto()
+                if self.resource_snowflake_config
+                else None
+            ),
         )
 
         # Initialize the FeatureVariantRequest message with the FeatureVariant message
@@ -1476,15 +2196,195 @@ class FeatureVariant(ResourceVariant):
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
-        stub.CreateFeatureVariant(serialized)
-        return serialized.feature_variant.variant
+        return (
+            serialized,
+            _get_and_set_equivalent_variant(
+                req_id, serialized, "feature_variant", stub
+            ),
+            "feature_variant",
+        )
+
+    def _create(self, req_id, stub) -> Tuple[Optional[str], Optional[str]]:
+        serialized, existing_variant, _ = self._get_and_set_equivalent_variant(
+            req_id, stub
+        )
+        if existing_variant is None:
+            stub.CreateFeatureVariant(serialized)
+        return serialized.feature_variant.variant, existing_variant
 
     def get_status(self):
         return ResourceStatus(self.status)
 
     def is_ready(self):
         return self.status == ResourceStatus.READY.value
+
+
+class BaseStream(ABC):
+    def __init__(
+        self,
+        name: str,
+        value_type: str,
+        entity: str,
+        owner: str,
+        offline_provider: str,
+        description: str,
+        variant: str,
+        tags: Union[list, None] = None,
+        properties: Union[dict, None] = None,
+        status: str = "NO_STATUS",
+        error: Optional[str] = None,
+    ):
+        self.name = name
+        self.value_type = value_type
+        self.entity = entity
+        self.owner = owner
+        self.offline_provider = offline_provider
+        self.description = description
+        self.variant = variant
+        self.tags = [] if tags is None else tags
+        self.properties = {} if properties is None else properties
+        self.status = status
+        self.error = error
+
+    def __post_init__(self):
+        col_types = [member.value for member in ScalarType]
+        if self.value_type not in col_types:
+            raise ValueError(
+                f"Invalid feature type ({self.value_type}) must be one of: {col_types}"
+            )
+
+    @staticmethod
+    @abstractmethod
+    def get_resource_type() -> ResourceType:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get(self, stub) -> "Stream":
+        raise NotImplementedError
+
+    @abstractmethod
+    def _create(self, req_id, stub) -> Tuple[None, None]:
+        raise NotImplementedError
+
+    @staticmethod
+    def operation_type() -> OperationType:
+        return OperationType.CREATE
+
+    def _create_local(self, db) -> None:
+        pass
+
+    def get_status(self):
+        return ResourceStatus(self.status)
+
+    def is_ready(self):
+        return self.status == ResourceStatus.READY.value
+
+    def __eq__(self, other):
+        for attribute in vars(self):
+            if getattr(self, attribute) != getattr(other, attribute):
+                return False
+        return True
+
+
+@typechecked
+class StreamFeature(BaseStream):
+    inference_store: str = ""
+
+    def __init__(self, inference_store: str, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.inference_store = inference_store
+
+    @staticmethod
+    def get_resource_type() -> ResourceType:
+        return ResourceType.FEATURE_VARIANT
+
+    def get(self, stub) -> "StreamFeature":
+        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        stream_feature = next(stub.GetFeatureVariants(iter([name_variant])))
+
+        return StreamFeature(
+            name=stream_feature.name,
+            variant=stream_feature.variant,
+            value_type=stream_feature.type,
+            entity=stream_feature.entity,
+            owner=stream_feature.owner,
+            inference_store=stream_feature.provider,
+            offline_provider=stream_feature.stream.offline_provider,
+            description=stream_feature.description,
+            tags=list(stream_feature.tags.tag),
+            properties={k: v for k, v in stream_feature.properties.property.items()},
+            status=stream_feature.status.Status._enum_type.values[
+                stream_feature.status.status
+            ].name,
+            error=stream_feature.status.error_message,
+        )
+
+    def _create(self, req_id, stub) -> Tuple[None, None]:
+        serialized = pb.FeatureVariant(
+            name=self.name,
+            variant=self.variant,
+            type=self.value_type,
+            entity=self.entity,
+            owner=self.owner,
+            description=self.description,
+            provider=self.inference_store,
+            stream=pb.Stream(
+                offline_provider=self.offline_provider,
+            ),
+            mode=ComputationMode.STREAMING.proto(),
+            tags=pb.Tags(tag=self.tags),
+            properties=Properties(self.properties).serialized,
+        )
+        stub.CreateFeatureVariant(serialized)
+        return None, None
+
+
+@typechecked
+class StreamLabel(BaseStream):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def get_resource_type() -> ResourceType:
+        return ResourceType.LABEL_VARIANT
+
+    def get(self, stub) -> "StreamLabel":
+        name_variant = pb.NameVariant(name=self.name, variant=self.variant)
+        stream_label = next(stub.GetLabelVariants(iter([name_variant])))
+
+        return StreamLabel(
+            name=stream_label.name,
+            variant=stream_label.variant,
+            value_type=stream_label.type,
+            entity=stream_label.entity,
+            owner=stream_label.owner,
+            offline_provider=stream_label.stream.offline_provider,
+            description=stream_label.description,
+            tags=list(stream_label.tags.tag),
+            properties={k: v for k, v in stream_label.properties.property.items()},
+            status=stream_label.status.Status._enum_type.values[
+                stream_label.status.status
+            ].name,
+            error=stream_label.status.error_message,
+        )
+
+    def _create(self, req_id, stub) -> Tuple[None, None]:
+        serialized = pb.LabelVariant(
+            name=self.name,
+            variant=self.variant,
+            type=self.value_type,
+            entity=self.entity,
+            owner=self.owner,
+            description=self.description,
+            provider=self.offline_provider,
+            stream=pb.Stream(
+                offline_provider=self.offline_provider,
+            ),
+            tags=pb.Tags(tag=self.tags),
+            properties=Properties(self.properties).serialized,
+        )
+        stub.CreateLabelVariant(serialized)
+        return None, None
 
 
 @typechecked
@@ -1522,10 +2422,10 @@ class OnDemandFeatureVariant(ResourceVariant):
         return OperationType.CREATE
 
     @staticmethod
-    def type() -> str:
-        return "ondemand_feature"
+    def get_resource_type() -> ResourceType:
+        return ResourceType.ONDEMAND_FEATURE
 
-    def _create(self, stub) -> Optional[str]:
+    def _get_and_set_equivalent_variant(self, req_id, stub):
         serialized = pb.FeatureVariantRequest(
             feature_variant=pb.FeatureVariant(
                 name=self.name,
@@ -1542,9 +2442,21 @@ class OnDemandFeatureVariant(ResourceVariant):
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized, "feature_variant", stub)
-        stub.CreateFeatureVariant(serialized)
-        return serialized.feature_variant.variant
+        return (
+            serialized,
+            _get_and_set_equivalent_variant(
+                req_id, serialized, "feature_variant", stub
+            ),
+            "feature_variant",
+        )
+
+    def _create(self, req_id, stub) -> Tuple[Optional[str], Optional[str]]:
+        serialized, existing_variant, _ = self._get_and_set_equivalent_variant(
+            req_id, stub
+        )
+        if existing_variant is None:
+            stub.CreateFeatureVariant(serialized)
+        return serialized.feature_variant.variant, existing_variant
 
     def get(self, stub) -> "OnDemandFeatureVariant":
         name_variant = pb.NameVariantRequest(
@@ -1601,15 +2513,16 @@ class LabelVariant(ResourceVariant):
     entity: str
     owner: str
     description: str
-    tags: list
-    properties: dict
     location: ResourceLocation
     variant: str
+    tags: Optional[list] = None
+    properties: Optional[dict] = None
     provider: Optional[str] = None
     created: str = None
     status: str = "NO_STATUS"
     error: Optional[str] = None
     server_status: Optional[ServerStatus] = None
+    resource_snowflake_config: Optional[ResourceSnowflakeConfig] = None
 
     def __post_init__(self):
         if isinstance(self.value_type, str):
@@ -1620,12 +2533,19 @@ class LabelVariant(ResourceVariant):
         return OperationType.CREATE
 
     @staticmethod
-    def type() -> str:
-        return "label"
+    def get_resource_type() -> ResourceType:
+        return ResourceType.LABEL_VARIANT
+
+    def name_variant(self) -> NameVariant:
+        return (self.name, self.variant)
 
     def get(self, stub) -> "LabelVariant":
+        return LabelVariant.get_by_name_variant(stub, self.name, self.variant)
+
+    @staticmethod
+    def get_by_name_variant(stub, name, variant):
         name_variant = pb.NameVariantRequest(
-            name_variant=pb.NameVariant(name=self.name, variant=self.variant)
+            name_variant=pb.NameVariant(name=name, variant=variant)
         )
         label = next(stub.GetLabelVariants(iter([name_variant])))
 
@@ -1646,7 +2566,7 @@ class LabelVariant(ResourceVariant):
             error=label.status.error_message,
         )
 
-    def _create(self, stub) -> Optional[str]:
+    def _get_and_set_equivalent_variant(self, req_id, stub):
         if hasattr(self.source, "name_variant"):
             self.source = self.source.name_variant()
         serialized = pb.LabelVariantRequest(
@@ -1657,6 +2577,7 @@ class LabelVariant(ResourceVariant):
                     name=self.source[0],
                     variant=self.source[1],
                 ),
+                provider=self.provider,
                 type=self.value_type.to_proto(),
                 entity=self.entity,
                 owner=self.owner,
@@ -1665,13 +2586,28 @@ class LabelVariant(ResourceVariant):
                 tags=pb.Tags(tag=self.tags),
                 properties=Properties(self.properties).serialized,
                 status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+                resource_snowflake_config=(
+                    self.resource_snowflake_config.to_proto()
+                    if self.resource_snowflake_config
+                    else None
+                ),
             ),
             request_id="",
         )
 
-        _get_and_set_equivalent_variant(serialized, "label_variant", stub)
-        stub.CreateLabelVariant(serialized)
-        return serialized.label_variant.variant
+        return (
+            serialized,
+            _get_and_set_equivalent_variant(req_id, serialized, "label_variant", stub),
+            "label_variant",
+        )
+
+    def _create(self, req_id, stub) -> Tuple[Optional[str], Optional[str]]:
+        serialized, existing_variant, _ = self._get_and_set_equivalent_variant(
+            req_id, stub
+        )
+        if existing_variant is None:
+            stub.CreateLabelVariant(serialized)
+        return serialized.label_variant.variant, existing_variant
 
     def get_status(self):
         return ResourceStatus(self.status)
@@ -1691,8 +2627,8 @@ class EntityReference:
         return OperationType.GET
 
     @staticmethod
-    def type() -> str:
-        return "entity"
+    def get_resource_type() -> ResourceType:
+        return ResourceType.ENTITY
 
     def _get(self, stub):
         entityList = stub.GetEntities(
@@ -1717,8 +2653,8 @@ class ProviderReference:
         return OperationType.GET
 
     @staticmethod
-    def type() -> str:
-        return "provider"
+    def get_resource_type() -> ResourceType:
+        return ResourceType.PROVIDER
 
     def _get(self, stub):
         providerList = stub.GetProviders(
@@ -1745,8 +2681,11 @@ class SourceReference:
         return OperationType.GET
 
     @staticmethod
-    def type() -> str:
-        return "source"
+    def get_resource_type() -> ResourceType:
+        return ResourceType.SOURCE_VARIANT
+
+    def name_variant(self) -> NameVariant:
+        return (self.name, self.variant)
 
     def _get(self, stub):
         sourceList = stub.GetSourceVariants(
@@ -1801,6 +2740,7 @@ class TrainingSetVariant(ResourceVariant):
     status: str = "NO_STATUS"
     error: Optional[str] = None
     server_status: Optional[ServerStatus] = None
+    resource_snowflake_config: Optional[ResourceSnowflakeConfig] = None
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -1819,7 +2759,7 @@ class TrainingSetVariant(ResourceVariant):
         ):
             raise ValueError("Label must be set")
         if len(self.features) == 0:
-            raise ValueError("A training-set must have atleast one feature")
+            raise ValueError("A training-set must have at least one feature")
         for feature in self.features:
             if not isinstance(
                 feature, FeatureColumnResource
@@ -1831,12 +2771,19 @@ class TrainingSetVariant(ResourceVariant):
         return OperationType.CREATE
 
     @staticmethod
-    def type() -> str:
-        return "training-set"
+    def get_resource_type() -> ResourceType:
+        return ResourceType.TRAININGSET_VARIANT
+
+    def name_variant(self) -> NameVariant:
+        return (self.name, self.variant)
 
     def get(self, stub):
+        return TrainingSetVariant.get_by_name_variant(stub, self.name, self.variant)
+
+    @staticmethod
+    def get_by_name_variant(stub, name, variant):
         name_variant = pb.NameVariantRequest(
-            name_variant=pb.NameVariant(name=self.name, variant=self.variant)
+            name_variant=pb.NameVariant(name=name, variant=variant)
         )
         ts = next(stub.GetTrainingSetVariants(iter([name_variant])))
 
@@ -1857,7 +2804,7 @@ class TrainingSetVariant(ResourceVariant):
             server_status=ServerStatus.from_proto(ts.status),
         )
 
-    def _create(self, stub) -> Optional[str]:
+    def _get_and_set_equivalent_variant(self, req_id, stub):
         feature_lags = []
         for lag in self.feature_lags:
             lag_duration = Duration()
@@ -1893,12 +2840,30 @@ class TrainingSetVariant(ResourceVariant):
                 tags=pb.Tags(tag=self.tags),
                 properties=Properties(self.properties).serialized,
                 status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+                provider=self.provider,
+                resource_snowflake_config=(
+                    self.resource_snowflake_config.to_proto()
+                    if self.resource_snowflake_config
+                    else None
+                ),
             ),
             request_id="",
         )
-        _get_and_set_equivalent_variant(serialized, "training_set_variant", stub)
-        stub.CreateTrainingSetVariant(serialized)
-        return serialized.training_set_variant.variant
+        return (
+            serialized,
+            _get_and_set_equivalent_variant(
+                req_id, serialized, "training_set_variant", stub
+            ),
+            "training_set_variant",
+        )
+
+    def _create(self, req_id, stub) -> Tuple[Optional[str], Optional[str]]:
+        serialized, existing_variant, _ = self._get_and_set_equivalent_variant(
+            req_id, stub
+        )
+        if existing_variant is None:
+            stub.CreateTrainingSetVariant(serialized)
+        return serialized.training_set_variant.variant, existing_variant
 
     def get_status(self):
         return ResourceStatus(self.status)
@@ -1919,10 +2884,11 @@ class Model:
     def operation_type() -> OperationType:
         return OperationType.CREATE
 
-    def type(self) -> str:
-        return "model"
+    @staticmethod
+    def get_resource_type() -> ResourceType:
+        return ResourceType.MODEL
 
-    def _create(self, stub) -> None:
+    def _create(self, req_id, stub) -> Tuple[None, None]:
         properties = pb.Properties(property=self.properties)
         serialized = pb.ModelRequest(
             model=pb.Model(
@@ -1934,6 +2900,7 @@ class Model:
         )
 
         stub.CreateModel(serialized)
+        return None, None
 
     def to_dictionary(self):
         return {
@@ -1959,6 +2926,8 @@ Resource = Union[
     EntityReference,
     Model,
     OnDemandFeatureVariant,
+    StreamFeature,
+    StreamLabel,
 ]
 
 
@@ -1970,7 +2939,7 @@ class ResourceRedefinedError(Exception):
         )
         resourceId = f"{resource.name}{variantStr}"
         super().__init__(
-            f"{resource.type()} resource {resourceId} defined in multiple places"
+            f"{resource.get_resource_type()} resource {resourceId} defined in multiple places"
         )
 
 
@@ -1986,21 +2955,27 @@ class ResourceState:
         if hasattr(resource, "variant"):
             key = (
                 resource.operation_type().name,
-                resource.type(),
+                resource.get_resource_type(),
                 resource.name,
                 resource.variant,
             )
         else:
-            key = (resource.operation_type().name, resource.type(), resource.name)
+            key = (
+                resource.operation_type().name,
+                resource.get_resource_type().to_string(),
+                resource.name,
+            )
         if key in self.__state:
             if resource == self.__state[key]:
-                print(f"Resource {resource.type()} already registered.")
+                print(
+                    f"Resource {resource.get_resource_type().to_string()} already registered."
+                )
                 return
             raise ResourceRedefinedError(resource)
         self.__state[key] = resource
         if hasattr(resource, "schedule_obj") and resource.schedule_obj != None:
             my_schedule = resource.schedule_obj
-            key = (my_schedule.type(), my_schedule.name)
+            key = (my_schedule.get_resource_type(), my_schedule.name)
             self.__state[key] = my_schedule
 
     def is_empty(self) -> bool:
@@ -2008,20 +2983,20 @@ class ResourceState:
 
     def sorted_list(self) -> List[Resource]:
         resource_order = {
-            "user": 0,
-            "provider": 1,
-            "source": 2,
-            "entity": 3,
-            "feature": 4,
-            "ondemand_feature": 5,
-            "label": 6,
-            "training-set": 7,
-            "schedule": 8,
-            "model": 9,
+            ResourceType.USER: 0,
+            ResourceType.PROVIDER: 1,
+            ResourceType.SOURCE_VARIANT: 2,
+            ResourceType.ENTITY: 3,
+            ResourceType.FEATURE_VARIANT: 4,
+            ResourceType.ONDEMAND_FEATURE: 5,
+            ResourceType.LABEL_VARIANT: 6,
+            ResourceType.TRAININGSET_VARIANT: 7,
+            ResourceType.SCHEDULE: 8,
+            ResourceType.MODEL: 9,
         }
 
         def to_sort_key(res):
-            resource_num = resource_order[res.type()]
+            resource_num = resource_order[res.get_resource_type()]
             return resource_num
 
         return sorted(self.__state.values(), key=to_sort_key)
@@ -2029,28 +3004,131 @@ class ResourceState:
     def create_all_dryrun(self) -> None:
         for resource in self.sorted_list():
             if resource.operation_type() is OperationType.GET:
-                print("Getting", resource.type(), resource.name)
+                print(
+                    "Getting", resource.get_resource_type().to_string(), resource.name
+                )
             if resource.operation_type() is OperationType.CREATE:
-                print("Creating", resource.type(), resource.name)
+                print(
+                    "Creating", resource.get_resource_type().to_string(), resource.name
+                )
 
-    def create_all(self, stub, client_objs_for_resource: dict = None) -> None:
-        check_up_to_date(False, "register")
+    def run_all(self, stub, client_objs_for_resource: dict = None) -> None:
+        if not feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
+            print("Runs are not supported when env:FF_GET_EQUIVALENT_VARIANTS is false")
+            return
+        req_id = uuid.uuid4()
+        resources = []
         for resource in self.sorted_list():
-            if resource.type() == "provider" and resource.name == "local-mode":
+            if (
+                resource.get_resource_type() == ResourceType.PROVIDER
+                and resource.name == "local-mode"
+            ):
                 continue
             try:
                 resource_variant = getattr(resource, "variant", "")
                 rv_for_print = f" {resource_variant}" if resource_variant else ""
+                if resource.operation_type() is OperationType.CREATE:
+                    if isinstance(resource, ResourceVariant):
+                        (
+                            serialized,
+                            equiv_variant,
+                            var_type,
+                        ) = resource._get_and_set_equivalent_variant(req_id, stub)
+                        if equiv_variant is None:
+                            print(
+                                f"{resource.name}{rv_for_print} has not been applied. Aborting the run."
+                            )
+                            return
+                        client_obj = client_objs_for_resource.get(
+                            resource.to_key(), None
+                        )
+                        resource.variant = equiv_variant
+                        if client_obj is not None:
+                            client_obj.variant = equiv_variant
+                        resources.append((resource, serialized, var_type))
+
+            except grpc.RpcError as e:
+                raise e
+        proto_resources = []
+        for resource, serialized, var_type in resources:
+            resource_variant = getattr(resource, "variant", "")
+            rv_for_print = f" {resource_variant}" if resource_variant else ""
+            print(
+                f"Running {resource.get_resource_type().to_string()} {resource.name}{rv_for_print}"
+            )
+            res_pb = pb.ResourceVariant(**{var_type: getattr(serialized, var_type)})
+            proto_resources.append(res_pb)
+        req = pb.RunRequest(
+            request_id=str(req_id),
+            variants=proto_resources,
+        )
+        stub.Run(req)
+
+    def build_dashboard_url(self, host, resource_type, name, variant=""):
+        scheme = "https"
+        if "localhost" in host:
+            scheme = "http"
+            host = "localhost"
+
+        resource_type_to_resource_url = {
+            ResourceType.FEATURE_VARIANT: "features",
+            ResourceType.SOURCE_VARIANT: "sources",
+            ResourceType.LABEL_VARIANT: "labels",
+            ResourceType.TRAININGSET_VARIANT: "training-sets",
+            ResourceType.PROVIDER: "providers",
+            ResourceType.ONDEMAND_FEATURE: "features",
+            ResourceType.TRANSFORMATION: "sources",
+            ResourceType.ENTITY: "entities",
+            ResourceType.MODEL: "models",
+            ResourceType.USER: "users",
+        }
+        resource_url = resource_type_to_resource_url[resource_type]
+        path = f"{resource_url}/{name}"
+        if variant:
+            query = urlencode({"variant": variant})
+            dashboard_url = urlunparse((scheme, host, path, "", query, ""))
+        else:
+            dashboard_url = urlunparse((scheme, host, path, "", "", ""))
+
+        return dashboard_url
+
+    def create_all(
+        self, stub, asynchronous, host, client_objs_for_resource: dict = None
+    ) -> None:
+        check_up_to_date(False, "register")
+        req_id = uuid.uuid4()
+        for resource in self.sorted_list():
+            if (
+                resource.get_resource_type() == ResourceType.PROVIDER
+                and resource.name == "local-mode"
+            ):
+                continue
+            try:
+                resource_variant = getattr(resource, "variant", "")
+                rv_for_print = f"{resource_variant}" if resource_variant else ""
                 if resource.operation_type() is OperationType.GET:
-                    print(f"Getting {resource.type()} {resource.name}{rv_for_print}")
+                    print(
+                        f"Getting {resource.get_resource_type().to_string()} {resource.name} {rv_for_print}"
+                    )
                     resource._get(stub)
                 if resource.operation_type() is OperationType.CREATE:
                     if resource.name != "default_user":
                         print(
-                            f"Creating {resource.type()} {resource.name}{rv_for_print}"
+                            f"Creating {resource.get_resource_type().to_string()} {resource.name} {rv_for_print}"
                         )
-
-                    created_variant = resource._create(stub)
+                    created_variant, existing_variant = resource._create(req_id, stub)
+                    if asynchronous:
+                        variant_used = (
+                            existing_variant if existing_variant else created_variant
+                        )
+                        url = self.build_dashboard_url(
+                            host,
+                            resource.get_resource_type(),
+                            resource.name,
+                            variant_used,
+                        )
+                        print(url)
+                        print("")
 
                     if isinstance(resource, ResourceVariant):
                         # look up the client object with the original resource
@@ -2063,7 +3141,7 @@ class ResourceState:
 
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.ALREADY_EXISTS:
-                    print(f"{resource.name}{rv_for_print} already exists.")
+                    print(f"{resource.name} {rv_for_print} already exists.")
                     continue
 
                 raise e
@@ -2170,7 +3248,10 @@ class DatabricksCredentials:
 @dataclass
 class EMRCredentials:
     def __init__(
-        self, emr_cluster_id: str, emr_cluster_region: str, credentials: AWSCredentials
+        self,
+        emr_cluster_id: str,
+        emr_cluster_region: str,
+        credentials: Union[AWSStaticCredentials, AWSAssumeRoleCredentials],
     ):
         """
 
@@ -2194,7 +3275,7 @@ class EMRCredentials:
         Args:
             emr_cluster_id (str): ID of an existing EMR cluster.
             emr_cluster_region (str): Region of an existing EMR cluster.
-            credentials (AWSCredentials): Credentials for an AWS account with access to the cluster
+            credentials (Union[AWSStaticCredentials, AWSAssumeRoleCredentials]): Credentials for an AWS account with access to the cluster
         """
         self.emr_cluster_id = emr_cluster_id
         self.emr_cluster_region = emr_cluster_region
@@ -2341,19 +3422,22 @@ class SparkCredentials:
 #
 # i.e. for a source variant, looks for a source variant with the same name and definition
 def _get_and_set_equivalent_variant(
-    resource_variant_proto, variant_field, stub
+    req_id, resource_variant_proto, variant_field, stub
 ) -> Optional[str]:
     if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
         res_pb = pb.ResourceVariant(
             **{variant_field: getattr(resource_variant_proto, variant_field)}
         )
+        logger.info("Starting to get equivalent")
+        # Get equivalent from stub
         equivalent = stub.GetEquivalent(
-            pb.ResourceVariantRequest(
-                resource_variant=res_pb,
+            pb.GetEquivalentRequest(
                 request_id=resource_variant_proto.request_id,
+                variant=res_pb,
             )
         )
         rv_proto = getattr(resource_variant_proto, variant_field)
+        logger.info("Finished get equivalent")
 
         # grpc call returns the default ResourceVariant proto when equivalent doesn't exist which explains the below check
         if equivalent != pb.ResourceVariant():
@@ -2386,3 +3470,18 @@ class TrainingSetFeatures:
 
 
 ExecutorCredentials = Union[EMRCredentials, DatabricksCredentials, SparkCredentials]
+
+
+def read_file(file_path: str) -> str:
+    file = ""
+    if file_path != "":
+        try:
+            with open(file_path, "r") as f:
+                file = f.read()
+        except Exception as e:
+            raise Exception(f"Error reading file {file_path}: {e}")
+
+    if file == "":
+        raise Exception(f"File {file_path} is empty. File cannot be empty")
+
+    return file

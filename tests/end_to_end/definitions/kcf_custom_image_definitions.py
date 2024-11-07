@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import os
 from datetime import timedelta
 
@@ -53,7 +60,9 @@ azure_blob = ff.register_blob_store(
 k8s = ff.register_k8s(
     name=f"k8s_{VERSION}",
     store=azure_blob,
-    docker_image=os.getenv("K8S_RUNNER_BASE_IMAGE", "featureformcom/k8s_runner:latest"),
+    docker_image=os.getenv(
+        "K8S_RUNNER_BASE_IMAGE", "featureformenterprise/k8s_runner:latest"
+    ),
 )
 
 ice_cream = k8s.register_file(
@@ -86,7 +95,7 @@ specs = ff.K8sResourceSpecs(
     variant=VERSION,
     inputs=[(f"ice_cream_entity_{VERSION}", VERSION)],
     docker_image=os.getenv(
-        "K8S_RUNNER_SCIKIT", "featureformcom/k8s_runner:latest-scikit"
+        "K8S_RUNNER_SCIKIT", "featureformenterprise/k8s_runner:latest-scikit"
     ),
     resource_specs=specs,
 )

@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package filestore
 
@@ -24,6 +27,7 @@ const (
 	Memory     FileStoreType = "MEMORY"
 	FileSystem FileStoreType = "LOCAL_FILESYSTEM"
 	Azure      FileStoreType = "AZURE"
+	Glue       FileStoreType = "GLUE"
 	S3         FileStoreType = "S3"
 	GCS        FileStoreType = "GCS"
 	HDFS       FileStoreType = "HDFS"
@@ -235,7 +239,7 @@ func (fp *FilePath) ParseFilePath(fullPath string) error {
 func (fp *FilePath) ParseDirPath(fullPath string) error {
 	err := fp.parsePath(fullPath)
 	if err != nil {
-		return fmt.Errorf("dir: %v", err)
+		return err
 	}
 	// To ensure consistency, we check to see if the last element has an extension, and if so,
 	// we remove it to ensure we're always dealing with a directory path.
@@ -463,6 +467,18 @@ type LocalFilepath struct {
 	FilePath
 }
 
+func (local *LocalFilepath) Scheme() string {
+	return local.scheme
+}
+
+func (local *LocalFilepath) SetScheme(scheme string) error {
+	if scheme != FileSystemPrefix && scheme != "" {
+		return fferr.NewInvalidArgumentError(fmt.Errorf("invalid scheme '%s', must be '%s'", scheme, FileSystemPrefix))
+	}
+	local.scheme = scheme
+	return nil
+}
+
 // Currently, the idea of a bucket has no place in the local instance of `FilePath`; however,
 // if this happens to change for whatever reason, take care to look at `backup_test.go`, `k8s_test.go`,
 // `spark_test.go`, as these will be the places that will be most sensitive to any changes.
@@ -499,7 +515,7 @@ type FilePathGroup struct {
 
 func (fg FilePathGroup) GetFirst() ([]Filepath, error) {
 	if len(fg.SortedKeys) == 0 {
-		return nil, fferr.NewInternalError(fmt.Errorf("no groups found"))
+		return nil, fferr.NewInternalErrorf("no groups found")
 	}
 	return fg.Groups[fg.SortedKeys[0]], nil
 }

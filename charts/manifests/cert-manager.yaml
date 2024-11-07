@@ -1,0 +1,27 @@
+apiVersion: kots.io/v1beta1
+kind: HelmChart
+metadata:
+  name: cert-manager
+spec:
+  # chart identifies a matching chart from a .tgz
+  chart:
+    name: cert-manager
+    chartVersion: v1.8.0
+
+  # helmVersion identifies the Helm Version used to render the Chart.
+  helmVersion: v2
+  weight: 0
+
+  # useHelmInstall identifies whether this Helm chart will use the
+  # Replicated Helm installation (false) or native Helm installation (true). Default is false.
+  # Native Helm installations are only available for Helm v3 charts.
+  useHelmInstall: false
+
+  # values are used in the customer environment, as a pre-render step
+  # these values will be supplied to helm template
+  values:
+    installCRDs: true
+
+  # builder values provide a way to render the chart with all images
+  # and manifests. this is used in replicated to create airgap packages
+  builder: {}

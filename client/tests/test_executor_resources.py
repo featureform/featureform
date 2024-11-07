@@ -1,6 +1,17 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import pytest
 
-from featureform.resources import DatabricksCredentials, EMRCredentials, AWSCredentials
+from featureform.resources import (
+    DatabricksCredentials,
+    EMRCredentials,
+    AWSStaticCredentials,
+)
 
 
 @pytest.mark.parametrize(
@@ -115,7 +126,7 @@ def test_emr_credentials(
     emr = EMRCredentials(
         emr_cluster_id=emr_cluster_id,
         emr_cluster_region=emr_cluster_region,
-        credentials=AWSCredentials(
+        credentials=AWSStaticCredentials(
             access_key=aws_access_key_id, secret_key=aws_secret_access_key
         ),
     )
@@ -123,7 +134,11 @@ def test_emr_credentials(
     expected_config = {
         "ClusterName": emr_cluster_id,
         "ClusterRegion": emr_cluster_region,
-        "Credentials": {"AWSAccessKeyId": "a", "AWSSecretKey": "b"},
+        "Credentials": {
+            "AccessKeyId": "a",
+            "SecretKey": "b",
+            "Type": "AWS_STATIC_CREDENTIALS",
+        },
     }
 
     assert emr.type() == "EMR"

@@ -14,7 +14,7 @@ First we have to add a declarative DynamoDB configuration in Python. In the foll
 ```py dynamodb\_config.py
 import featureform as ff
 
-aws_creds = ff.AWSCredentials(
+aws_creds = ff.AWSStaticCredentials(
     access_key="<AWS_ACCESS_KEY>",
     secret_key="<AWS_SECRET_KEY>"
 )
@@ -43,7 +43,7 @@ DynamoDB supports creating new tables directly from S3 via an import job (see [d
 ```py dynamodb\_config.py
 import featureform as ff
 
-aws_creds = ff.AWSCredentials(
+aws_creds = ff.AWSStaticCredentials(
     access_key="<AWS_ACCESS_KEY>",
     secret_key="<AWS_SECRET_KEY>"
 )

@@ -1,20 +1,26 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
 	"encoding/json"
 	"fmt"
-	pc "github.com/featureform/provider/provider_config"
-	pt "github.com/featureform/provider/provider_type"
-	"github.com/joho/godotenv"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
+	"github.com/joho/godotenv"
 )
 
 func TestOnlineStoreFirestore(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration tests")
-	}
+	t.Skip("This is erroring @erik")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)

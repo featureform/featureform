@@ -6,7 +6,7 @@ spec:
   # chart identifies a matching chart from a .tgz
   chart:
     name: featureform
-    chartVersion: 0.2.0
+    chartVersion: 0.0.0
 
   # helmVersion identifies the Helm Version used to render the Chart.
   helmVersion: v3
@@ -23,8 +23,8 @@ spec:
     global:
       hostname: "repl{{ ConfigOption `hostname`}}"
       embeddedIngress:
-        disabled: '{{repl or (ConfigOptionEquals "enable_ingress" "1" | not) IsKurl }}'
-        enabled: '{{repl or (ConfigOptionEquals "enable_ingress" "1" | not) (not IsKurl) }}'
+        disabled: '{{repl or (ConfigOptionEquals "enable_ingress" "1" ) IsKurl }}'
+        enabled: '{{repl or (ConfigOptionEquals "enable_ingress" "1" | not) }}'
 
   # builder values provide a way to render the chart with all images
   # and manifests. this is used in replicated to create airgap packages

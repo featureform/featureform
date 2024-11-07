@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package logging
 
 import (
@@ -5,10 +12,13 @@ import (
 	"encoding/json"
 	"io"
 	"sync"
+	"testing"
 
+	"github.com/featureform/config"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest"
 )
 
 type Logger struct {
@@ -44,6 +54,11 @@ const (
 	Model              ResourceType = "model"
 	Label              ResourceType = "label"
 	LabelVariant       ResourceType = "label-variant"
+)
+
+const (
+	DebugLevel = "debug"
+	InfoLevel  = "info"
 )
 
 var GlobalLogger Logger
@@ -94,8 +109,6 @@ func (logger Logger) WithResource(resourceType ResourceType, name, variant strin
 	if variant != "" {
 		newValues["resource-variant"] = variant
 		logger.SugaredLogger = logger.SugaredLogger.With("resource-variant", variant)
-	} else {
-		logger.Warn("Resource variant is empty")
 	}
 
 	combinedValues := logger.appendValueMap(newValues)
@@ -195,7 +208,7 @@ func GetLoggerFromContext(ctx context.Context) Logger {
 	logger := ctx.Value(LoggerKey)
 	if logger == nil {
 		GlobalLogger.Warn("Logger not found in context")
-		return NewLogger("logger")
+		return NewLoggerWithLevel("logger", InfoLevel)
 	}
 	return logger.(Logger)
 }
@@ -227,14 +240,36 @@ func AddLoggerToContext(ctx context.Context, logger Logger) context.Context {
 	return ctx
 }
 
+func NewTestLogger(t *testing.T) Logger {
+	return WrapZapLogger(zaptest.NewLogger(t).Sugar())
+}
+
 func NewLogger(service string) Logger {
-	baseLogger, err := zap.NewDevelopment(
-		zap.AddStacktrace(zap.WarnLevel),
-	)
-	if err != nil {
-		panic(err)
+	if config.ShouldUseDebugLogging() {
+		return NewLoggerWithLevel(service, DebugLevel)
+	} else {
+		return NewLoggerWithLevel(service, InfoLevel)
+	}
+}
+
+func NewLoggerWithLevel(service string, loggerLevel string) Logger {
+	var baseLogger *zap.Logger
+	var err error
+	if loggerLevel == InfoLevel {
+		baseLogger, err = zap.NewProduction(zap.AddStacktrace(zap.WarnLevel))
+		if err != nil {
+			panic(err)
+		}
+	} else if loggerLevel == DebugLevel {
+		baseLogger, err = zap.NewDevelopment(zap.AddStacktrace(zap.WarnLevel))
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		panic("Invalid value for FEATUREFORM_DEBUG_LOGGING")
 	}
 	logger := baseLogger.Sugar().Named(service)
+	logger.Infof("New logger created with log level %s", loggerLevel)
 	return Logger{
 		SugaredLogger: logger,
 		values:        &sync.Map{},

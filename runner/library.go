@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package runner
 
@@ -22,9 +25,6 @@ func registerFactories() {
 	if err := RegisterFactory(MATERIALIZE, MaterializeRunnerFactory); err != nil {
 		panic(fmt.Errorf("failed to register 'Materialize' factory: %w", err))
 	}
-	if err := RegisterFactory(CREATE_TRANSFORMATION, CreateTransformationRunnerFactory); err != nil {
-		panic(fmt.Errorf("failed to register 'Create Transformation' factory: %w", err))
-	}
 	if err := RegisterFactory(CREATE_TRAINING_SET, TrainingSetRunnerFactory); err != nil {
 		panic(fmt.Errorf("failed to register 'Create Training Set' factory: %w", err))
 	}
@@ -40,12 +40,11 @@ func (n RunnerName) String() string {
 }
 
 const (
-	COPY_TO_ONLINE        RunnerName = "Copy to online"
-	CREATE_TRAINING_SET   RunnerName = "Create training set"
-	REGISTER_SOURCE       RunnerName = "Register source"
-	CREATE_TRANSFORMATION RunnerName = "Create transformation"
-	MATERIALIZE           RunnerName = "Materialize"
-	S3_IMPORT_DYNAMODB    RunnerName = "S3 import to DynamoDB"
+	COPY_TO_ONLINE      RunnerName = "Copy to online"
+	CREATE_TRAINING_SET RunnerName = "Create training set"
+	REGISTER_SOURCE     RunnerName = "Register source"
+	MATERIALIZE         RunnerName = "Materialize"
+	S3_IMPORT_DYNAMODB  RunnerName = "S3 import to DynamoDB"
 )
 
 type Config []byte
@@ -66,7 +65,7 @@ func ResetFactoryMap() {
 
 func RegisterFactory(name RunnerName, runnerFactory RunnerFactory) error {
 	if _, exists := factoryMap[name]; exists {
-		return fferr.NewInternalError(fmt.Errorf("factory already registered: %s", name))
+		return fferr.NewInternalErrorf("factory already registered: %s", name)
 	}
 	factoryMap[name] = runnerFactory
 	return nil
@@ -75,7 +74,7 @@ func RegisterFactory(name RunnerName, runnerFactory RunnerFactory) error {
 // Don't use this in testing, it affects global state and can break other tests or cause race conditions.
 func UnregisterFactory(name RunnerName) error {
 	if _, exists := factoryMap[name]; !exists {
-		return fferr.NewInternalError(fmt.Errorf("factory %s not registered", name))
+		return fferr.NewInternalErrorf("factory %s not registered", name)
 	}
 	delete(factoryMap, name)
 	return nil
@@ -84,7 +83,7 @@ func UnregisterFactory(name RunnerName) error {
 func Create(name RunnerName, config Config) (types.Runner, error) {
 	factory, exists := factoryMap[name]
 	if !exists {
-		return nil, fferr.NewInternalError(fmt.Errorf("factory does not exist: %s", name))
+		return nil, fferr.NewInternalErrorf("factory does not exist: %s", name)
 	}
 	runner, err := factory(config)
 	if err != nil {

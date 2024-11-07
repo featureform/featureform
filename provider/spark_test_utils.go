@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
@@ -17,10 +24,10 @@ func GetTestingBlobDatabricks(t *testing.T) *SparkOfflineStore {
 		t.Logf("could not open .env file... Checking environment: %s", err)
 	}
 	azureConfig := &pc.AzureFileStoreConfig{
-		AccountName:   helpers.GetEnv("AZURE_ACCOUNT_NAME", ""),
-		AccountKey:    helpers.GetEnv("AZURE_ACCOUNT_KEY", ""),
-		ContainerName: helpers.GetEnv("AZURE_CONTAINER_NAME", ""),
-		Path:          helpers.GetEnv("AZURE_CONTAINER_PATH", ""),
+		AccountName:   helpers.MustGetTestingEnv(t, "AZURE_ACCOUNT_NAME"),
+		AccountKey:    helpers.MustGetTestingEnv(t, "AZURE_ACCOUNT_KEY"),
+		ContainerName: helpers.MustGetTestingEnv(t, "AZURE_CONTAINER_NAME"),
+		Path:          helpers.MustGetTestingEnv(t, "AZURE_CONTAINER_PATH"),
 	}
 	return getTestingDatabricks(t, azureConfig, fs.Azure)
 }
@@ -30,17 +37,10 @@ func GetTestingS3Databricks(t *testing.T) *SparkOfflineStore {
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)
 	}
-	awsCreds := pc.AWSCredentials{
-		// These are not working in CI/CD at the time of this PR, but should be prefered.
-		// AWSAccessKeyId: helpers.GetEnv("AWS_ACCESS_KEY_ID", ""),
-		// AWSSecretKey:   helpers.GetEnv("AWS_SECRET_ACCESS_KEY", ""),
-		AWSAccessKeyId: helpers.GetEnv("DYNAMO_ACCESS_KEY", ""),
-		AWSSecretKey:   helpers.GetEnv("DYNAMO_SECRET_KEY", ""),
-	}
 	s3Config := &pc.S3FileStoreConfig{
-		Credentials:  awsCreds,
-		BucketRegion: helpers.GetEnv("S3_BUCKET_REGION", "us-east-2"),
-		BucketPath:   helpers.GetEnv("S3_BUCKET_PATH", "featureform-spark-testing"),
+		Credentials:  getTestingAWSCreds(t),
+		BucketRegion: helpers.MustGetTestingEnv(t, "S3_BUCKET_REGION"),
+		BucketPath:   helpers.MustGetTestingEnv(t, "S3_BUCKET_PATH"),
 		Path:         uuid.NewString(),
 	}
 	t.Logf("S3 CONFIG TestingS3Databricks: %+v\n", s3Config)
@@ -51,26 +51,64 @@ func getTestingDatabricks(t *testing.T, cfg SparkFileStoreConfig, fst fs.FileSto
 	databricksConfig := pc.DatabricksConfig{
 		Username: helpers.GetEnv("DATABRICKS_USERNAME", ""),
 		Password: helpers.GetEnv("DATABRICKS_PASSWORD", ""),
-		Host:     helpers.GetEnv("DATABRICKS_HOST", ""),
+		Host:     helpers.MustGetTestingEnv(t, "DATABRICKS_HOST"),
 		Token:    helpers.GetEnv("DATABRICKS_TOKEN", ""),
-		Cluster:  helpers.GetEnv("DATABRICKS_CLUSTER", ""),
+		Cluster:  helpers.MustGetTestingEnv(t, "DATABRICKS_CLUSTER"),
 	}
-	SparkOfflineConfig := pc.SparkConfig{
+	sparkOfflineConfig := pc.SparkConfig{
 		ExecutorType:   pc.Databricks,
 		ExecutorConfig: &databricksConfig,
 		StoreType:      fst,
 		StoreConfig:    cfg,
 	}
-	sparkSerializedConfig, err := SparkOfflineConfig.Serialize()
+	return getTestingSparkFromConfig(t, sparkOfflineConfig)
+}
+
+func GetTestingEMRGlue(t *testing.T, tableFormat pc.TableFormat) *SparkOfflineStore {
+	// TODO put these env variables into secrets
+	glueConfig := &pc.GlueConfig{
+		Database:    "ff",
+		Warehouse:   "s3://ali-aws-lake-house-iceberg-blog-demo/demo2/",
+		Region:      helpers.MustGetTestingEnv(t, "S3_BUCKET_REGION"),
+		TableFormat: tableFormat,
+	}
+	emrConfig := pc.EMRConfig{
+		Credentials:   getTestingAWSCreds(t),
+		ClusterRegion: helpers.MustGetTestingEnv(t, "AWS_EMR_CLUSTER_REGION"),
+		ClusterName:   helpers.MustGetTestingEnv(t, "AWS_EMR_CLUSTER_ID"),
+	}
+	s3Config := &pc.S3FileStoreConfig{
+		Credentials:  getTestingAWSCreds(t),
+		BucketRegion: helpers.MustGetTestingEnv(t, "S3_BUCKET_REGION"),
+		BucketPath:   helpers.MustGetTestingEnv(t, "S3_BUCKET_PATH"),
+		Path:         uuid.NewString(),
+	}
+	sparkOfflineConfig := pc.SparkConfig{
+		ExecutorType:   pc.EMR,
+		ExecutorConfig: &emrConfig,
+		StoreType:      fs.S3,
+		StoreConfig:    s3Config,
+		GlueConfig:     glueConfig,
+	}
+	return getTestingSparkFromConfig(t, sparkOfflineConfig)
+}
+
+func getTestingSparkFromConfig(t *testing.T, config pc.SparkConfig) *SparkOfflineStore {
+	sparkSerializedConfig, err := config.Serialize()
 	if err != nil {
-		t.Fatalf("could not serialize the SparkOfflineConfig")
+		t.Fatalf("could not serialize the SparkOfflineConfig: %s", err)
 	}
 
 	sparkProvider, err := Get(pt.SparkOffline, sparkSerializedConfig)
 	if err != nil {
 		t.Fatalf("Could not create spark provider: %s", err)
 	}
-	sparkOfflineStore := sparkProvider.(*SparkOfflineStore)
+	return sparkProvider.(*SparkOfflineStore)
+}
 
-	return sparkOfflineStore
+func getTestingAWSCreds(t *testing.T) pc.AWSStaticCredentials {
+	return pc.AWSStaticCredentials{
+		AccessKeyId: helpers.MustGetTestingEnv(t, "AWS_ACCESS_KEY_ID"),
+		SecretKey:   helpers.MustGetTestingEnv(t, "AWS_SECRET_ACCESS_KEY"),
+	}
 }

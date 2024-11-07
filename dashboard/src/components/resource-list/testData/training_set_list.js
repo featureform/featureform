@@ -1,0 +1,213 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
+export const trainingset_list = [
+  {
+    'all-variants': [
+      '2024-04-17t14-01-52',
+      '2024-04-17t14-59-42',
+      '2024-04-22t18-06-43',
+      '2024-04-22t18-11-31',
+    ],
+    type: 'TrainingSet',
+    'default-variant': '2024-04-22t18-11-31',
+    name: 'fraud_training',
+    variants: {
+      '2024-04-17t14-01-52': {
+        created: '2024-04-17T19:01:59.306270405Z',
+        description: '',
+        name: 'fraud_training',
+        owner: 'anthony@featureform.com',
+        provider: 'quickstart-postgres',
+        variant: '2024-04-17t14-01-52',
+        label: {
+          Name: 'fraudulent',
+          Variant: '2024-04-17t14-01-52',
+        },
+        features: null,
+        status: 'FAILED',
+        error:
+          'Resource Failed: required dataset is in a failed state\n\u003e\u003e\u003e resource_type: TRANSFORMATION\n\u003e\u003e\u003e resource_name: average_user_transaction\n\u003e\u003e\u003e resource_variant: 2024-04-17t14-01-52',
+        tags: [],
+        properties: {},
+      },
+      '2024-04-17t14-59-42': {
+        created: '2024-04-17T19:59:48.758443687Z',
+        description: '',
+        name: 'fraud_training',
+        owner: 'anthony@featureform.com',
+        provider: 'quickstart-postgres2',
+        variant: '2024-04-17t14-59-42',
+        label: {
+          Name: 'fraudulent',
+          Variant: '2024-04-17t14-59-42',
+        },
+        features: null,
+        status: 'READY',
+        error: '',
+        tags: [],
+        properties: {},
+      },
+      '2024-04-22t18-06-43': {
+        created: '2024-04-22T23:07:28.033906806Z',
+        description: '',
+        name: 'fraud_training',
+        owner: 'anthony@featureform.com',
+        provider: 'postgres-quickstart',
+        variant: '2024-04-22t18-06-43',
+        label: {
+          Name: 'fraudulent',
+          Variant: '2024-04-22t18-06-43',
+        },
+        features: null,
+        status: 'READY',
+        error: '',
+        tags: [],
+        properties: {},
+      },
+      '2024-04-22t18-11-31': {
+        created: '2024-04-22T23:12:37.766904659Z',
+        description: '',
+        name: 'fraud_training',
+        owner: 'anthony@featureform.com',
+        provider: 'postgres-quickstart',
+        variant: '2024-04-22t18-11-31',
+        label: {
+          Name: 'fraudulent',
+          Variant: '2024-04-22t18-11-31',
+        },
+        features: null,
+        status: 'FAILED',
+        error: '',
+        tags: ['tag1', 'tag2'],
+        properties: {},
+      },
+    },
+  },
+  {
+    'all-variants': [
+      '2024-04-23t13-51-18',
+      '2024-04-23t14-00-44',
+      '2024-04-23t14-02-42',
+      '2024-04-23t14-14-52',
+      '2024-04-23t14-27-53',
+      '2024-04-23t14-33-15',
+    ],
+    type: 'TrainingSet',
+    'default-variant': '2024-04-23t14-33-15',
+    name: 'fraud',
+    variants: {
+      '2024-04-23t13-51-18': {
+        created: '2024-04-23T13:51:32.37842668Z',
+        description: '',
+        name: 'fraud',
+        owner: 'simba@featureform.com',
+        provider: 'spark_provider',
+        variant: '2024-04-23t13-51-18',
+        label: {
+          Name: 'is_fraud',
+          Variant: '2024-04-23t13-51-18',
+        },
+        features: null,
+        status: 'FAILED',
+        error:
+          'Resource Failed: required feature is in a failed state\n\u003e\u003e\u003e resource_variant: 2024-04-23t13-51-18\n\u003e\u003e\u003e resource_type: FEATURE_VARIANT\n\u003e\u003e\u003e resource_name: avg_trans',
+        tags: [],
+        properties: {},
+      },
+      '2024-04-23t14-00-44': {
+        created: '2024-04-23T14:01:09.601261088Z',
+        description: '',
+        name: 'fraud',
+        owner: 'simba@featureform.com',
+        provider: 'spark_provider',
+        variant: '2024-04-23t14-00-44',
+        label: {
+          Name: 'is_fraud',
+          Variant: '2024-04-23t14-00-44',
+        },
+        features: null,
+        status: 'FAILED',
+        error:
+          'Resource Failed: required feature is in a failed state\n\u003e\u003e\u003e resource_type: FEATURE_VARIANT\n\u003e\u003e\u003e resource_name: avg_trans\n\u003e\u003e\u003e resource_variant: 2024-04-23t14-00-44',
+        tags: [],
+        properties: {},
+      },
+      '2024-04-23t14-02-42': {
+        created: '2024-04-23T14:02:49.92288335Z',
+        description: '',
+        name: 'fraud',
+        owner: 'simba@featureform.com',
+        provider: 'spark_provider',
+        variant: '2024-04-23t14-02-42',
+        label: {
+          Name: 'is_fraud',
+          Variant: '2024-04-23t14-02-42',
+        },
+        features: null,
+        status: 'FAILED',
+        error:
+          'Resource Failed: required feature is in a failed state\n\u003e\u003e\u003e resource_name: avg_trans\n\u003e\u003e\u003e resource_variant: 2024-04-23t14-02-42\n\u003e\u003e\u003e resource_type: FEATURE_VARIANT',
+        tags: [],
+        properties: {},
+      },
+      '2024-04-23t14-14-52': {
+        created: '2024-04-23T14:21:03.45249546Z',
+        description: '',
+        name: 'fraud',
+        owner: 'simba@featureform.com',
+        provider: 'spark_provider',
+        variant: '2024-04-23t14-14-52',
+        label: {
+          Name: 'is_fraud',
+          Variant: '2024-04-23t14-14-52',
+        },
+        features: null,
+        status: 'FAILED',
+        error:
+          'Resource Failed: required feature is in a failed state\n\u003e\u003e\u003e resource_type: FEATURE_VARIANT\n\u003e\u003e\u003e resource_name: avg_trans\n\u003e\u003e\u003e resource_variant: 2024-04-23t14-14-52',
+        tags: [],
+        properties: {},
+      },
+      '2024-04-23t14-27-53': {
+        created: '2024-04-23T14:32:07.604461338Z',
+        description: '',
+        name: 'fraud',
+        owner: 'simba@featureform.com',
+        provider: 'spark_provider',
+        variant: '2024-04-23t14-27-53',
+        label: {
+          Name: 'is_fraud',
+          Variant: '2024-04-23t14-27-53',
+        },
+        features: null,
+        status: 'FAILED',
+        error:
+          'Resource Failed: required feature is in a failed state\n\u003e\u003e\u003e resource_name: avg_trans\n\u003e\u003e\u003e resource_variant: 2024-04-23t14-27-53\n\u003e\u003e\u003e resource_type: FEATURE_VARIANT',
+        tags: [],
+        properties: {},
+      },
+      '2024-04-23t14-33-15': {
+        created: '2024-04-23T14:36:44.025373955Z',
+        description: '',
+        name: 'fraud',
+        owner: 'simba@featureform.com',
+        provider: 'spark_provider',
+        variant: '2024-04-23t14-33-15',
+        label: {
+          Name: 'is_fraud',
+          Variant: '2024-04-23t14-33-15',
+        },
+        features: null,
+        status: 'READY',
+        error: '',
+        tags: [],
+        properties: {},
+      },
+    },
+  },
+];

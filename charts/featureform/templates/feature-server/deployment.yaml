@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,11 +26,29 @@ spec:
         chart: featureform
         run: featureform-feature-server
         app: featureform-feature-server
-      {{ if .Values.restartOnUpdate }}
       annotations:
+        ff_placeholder: ""  # meaningless annotation to avoid nested conditional statements
+        {{- if .Values.datadog.enabled }}
+        ad.datadoghq.com/featureform-feature-server.checks: |
+          {
+            "openmetrics": {
+              "instances": [
+                {
+                  "openmetrics_endpoint": "http://%%host%%:9090/metrics",
+                  "namespace": {{ .Values.datadog.namespace | quote }},
+                  "metrics": [".*"]
+                }
+              ]
+            }
+          }
+        {{- end }}
+        {{- if .Values.restartOnUpdate }}
         timestamp: {{ now | quote }}
-      {{ end }}
+        {{- end }}
     spec:
+      serviceAccountName: {{ .Values.serving.serviceAccount }}
+      imagePullSecrets:
+        - name: {{ .Values.k8sImagePullSecret }}
       containers:
         - image: "{{ .Values.repository }}/{{ .Values.serving.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.pullPolicy }}

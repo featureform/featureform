@@ -1,9 +1,17 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package helpers
 
 import (
 	"fmt"
 	"os"
 	"strconv"
+	"testing"
 )
 
 // GetEnv Takes a environment variable key and returns the value if it exists.
@@ -12,6 +20,14 @@ func GetEnv(key, fallback string) string {
 	value, has := os.LookupEnv(key)
 	if !has {
 		return fallback
+	}
+	return value
+}
+
+func MustGetTestingEnv(t *testing.T, key string) string {
+	value, has := os.LookupEnv(key)
+	if !has {
+		t.Fatalf("ENV %s not set", key)
 	}
 	return value
 }

@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import time
 import featureform as ff
 from featureform.resources import Model
@@ -97,7 +104,7 @@ def test_registering_model_while_serving_training_set(
     assert (
         isinstance(model, Model)
         and model.name == model_name_a
-        and model.type() == "model"
+        and model.get_resource_type() == ff.ResourceType.MODEL
     )
 
     if is_local:
@@ -270,7 +277,7 @@ def test_registering_model_while_serving_features(
     assert (
         isinstance(model, Model)
         and model.name == model_name_e
-        and model.type() == "model"
+        and model.get_resource_type() == ff.ResourceType.MODEL
     )
 
     if is_local:

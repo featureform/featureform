@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package provider
 
@@ -11,15 +14,21 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	sf "github.com/snowflakedb/gosnowflake"
+
 	"github.com/featureform/fferr"
+	"github.com/featureform/logging"
+	"github.com/featureform/metadata"
+	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
+	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 	db "github.com/jackc/pgx/v4"
-	sf "github.com/snowflakedb/gosnowflake"
 )
 
 func sanitize(ident string) string {
@@ -27,11 +36,13 @@ func sanitize(ident string) string {
 }
 
 type SQLOfflineStoreConfig struct {
-	Config        pc.SerializedConfig
-	ConnectionURL string
-	Driver        string
-	ProviderType  pt.Type
-	QueryImpl     OfflineTableQueries
+	Config                  pc.SerializedConfig
+	ConnectionURL           string
+	Driver                  string
+	ProviderType            pt.Type
+	QueryImpl               OfflineTableQueries
+	ConnectionStringBuilder func(database, schema string) (string, error)
+	useDbConnectionCache    bool
 }
 
 type OfflineTableQueries interface {
@@ -66,13 +77,14 @@ type OfflineTableQueries interface {
 	numRows(n interface{}) (int64, error)
 	transformationCreate(name string, query string) []string
 	transformationUpdate(db *sql.DB, tableName string, query string) error
-	transformationExists() string
+	transformationExists() string // this isn't used anywhere should I still keep it
 }
 
 type sqlOfflineStore struct {
 	db     *sql.DB
 	parent SQLOfflineStoreConfig
 	query  OfflineTableQueries
+	getDb  func(database, schema string) (*sql.DB, error)
 	BaseProvider
 }
 
@@ -80,7 +92,7 @@ type sqlOfflineStore struct {
 // and initializes a table to track currently active Resource tables.
 func NewSQLOfflineStore(config SQLOfflineStoreConfig) (*sqlOfflineStore, error) {
 	url := config.ConnectionURL
-	db, err := sql.Open(config.Driver, url)
+	pgDb, err := sql.Open(config.Driver, url)
 	if err != nil {
 		wrapped := fferr.NewConnectionError(config.ProviderType.String(), err)
 		wrapped.AddDetail("action", "connection_initialization")
@@ -89,9 +101,17 @@ func NewSQLOfflineStore(config SQLOfflineStoreConfig) (*sqlOfflineStore, error) 
 	}
 
 	return &sqlOfflineStore{
-		db:     db,
+		db:     pgDb,
 		parent: config,
 		query:  config.QueryImpl,
+		getDb: func(database, schema string) (*sql.DB, error) {
+			url, err := config.ConnectionStringBuilder(database, schema)
+			if err != nil {
+				return nil, err
+			}
+
+			return getOrCreateDbConnection(config.Driver, url, config.useDbConnectionCache)
+		},
 		BaseProvider: BaseProvider{
 			ProviderType:   config.ProviderType,
 			ProviderConfig: config.Config,
@@ -99,28 +119,65 @@ func NewSQLOfflineStore(config SQLOfflineStoreConfig) (*sqlOfflineStore, error) 
 	}, nil
 }
 
-func checkName(id ResourceID) error {
-	if strings.Contains(id.Name, "__") || strings.Contains(id.Variant, "__") {
-		return fferr.NewInvalidArgumentError(fmt.Errorf("names cannot contain double underscores '__': %s", id.Name))
+var (
+	dbCache      = make(map[string]*sql.DB)
+	dbCacheMutex sync.Mutex
+)
+
+func getOrCreateDbConnection(driver, url string, useCache bool) (*sql.DB, error) {
+	if useCache {
+		dbCacheMutex.Lock()
+		defer dbCacheMutex.Unlock()
+
+		// Check if a connection already exists in the cache
+		if dbConn, ok := dbCache[url]; ok {
+			return dbConn, nil
+		}
+
+		dbConn, err := createDbConn(driver, url)
+		if err != nil {
+			return dbConn, err
+		}
+
+		// Cache the new connection
+		dbCache[url] = dbConn
+
+		return dbConn, nil
+	} else {
+		// Create a new connection without using the cache
+		dbConn, err := createDbConn(driver, url)
+		if err != nil {
+			return dbConn, err
+		}
+
+		return dbConn, nil
 	}
-	return nil
 }
 
+func createDbConn(driver string, url string) (*sql.DB, error) {
+	// Create a new connection
+	dbConn, err := sql.Open(driver, url)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set connection pool settings
+	dbConn.SetMaxOpenConns(25)
+	dbConn.SetMaxIdleConns(25)
+	dbConn.SetConnMaxLifetime(time.Hour)
+	return dbConn, nil
+}
+
+// TODO: deprecate in favor of provider_schema.ResourceToTableName
 func (store *sqlOfflineStore) getResourceTableName(id ResourceID) (string, error) {
-	if err := checkName(id); err != nil {
+	return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
+}
+
+func (store *sqlOfflineStore) getMaterializationTableName(id ResourceID) (string, error) {
+	if err := id.check(Feature); err != nil {
 		return "", err
 	}
-	var idType string
-	if id.Type == Feature {
-		idType = "feature"
-	} else {
-		idType = "label"
-	}
-	return fmt.Sprintf("featureform_resource_%s__%s__%s", idType, id.Name, id.Variant), nil
-}
-
-func (store *sqlOfflineStore) getMaterializationTableName(id MaterializationID) string {
-	return fmt.Sprintf("featureform_materialization_%s", id)
+	return ps.ResourceToTableName(FeatureMaterialization.String(), id.Name, id.Variant)
 }
 
 func (store *sqlOfflineStore) getJoinedMaterializationTableName(materializationIDs string) string {
@@ -129,53 +186,57 @@ func (store *sqlOfflineStore) getJoinedMaterializationTableName(materializationI
 }
 
 func (store *sqlOfflineStore) getTrainingSetName(id ResourceID) (string, error) {
-	if err := checkName(id); err != nil {
+	if err := id.check(TrainingSet); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("featureform_trainingset__%s__%s", id.Name, id.Variant), nil
+	return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 }
 
 func GetPrimaryTableName(id ResourceID) (string, error) {
-	if err := checkName(id); err != nil {
+	if err := id.check(Primary); err != nil {
 		return "", err
 	}
-
-	return fmt.Sprintf("featureform_primary__%s__%s", id.Name, id.Variant), nil
+	return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 }
 
-func (store *sqlOfflineStore) tableExists(tableName string) (bool, error) {
-	n := -1
-	query := store.query.tableExists()
-	err := store.db.QueryRow(query, tableName).Scan(&n)
-	if n > 0 && err == nil {
-		return true, nil
-	} else if err != nil {
-		return false, fferr.NewExecutionError(store.Type().String(), err)
+func (store *sqlOfflineStore) tableExists(location pl.Location) (bool, error) {
+	sqlLocation, ok := location.(*pl.SQLLocation)
+	if !ok {
+		return false, fferr.NewInvalidArgumentErrorf("location is not a SQLLocation")
 	}
-	query = store.query.viewExists()
-	err = store.db.QueryRow(query, tableName).Scan(&n)
-	if n > 0 && err == nil {
-		return true, nil
-	} else if err != nil {
-		return false, fferr.NewExecutionError(store.Type().String(), err)
+
+	return store.checkExists(sqlLocation)
+}
+
+func (store *sqlOfflineStore) checkExists(sqlLocation *pl.SQLLocation) (bool, error) {
+	// Check if the table exists in the database across tables and views
+	var n int
+
+	dbConn, err := store.getDb(sqlLocation.GetDatabase(), sqlLocation.GetSchema())
+	if err != nil {
+		return false, err
+	}
+
+	queries := []string{store.query.viewExists(), store.query.tableExists()}
+	for _, query := range queries {
+		err := dbConn.QueryRow(query, sqlLocation.GetTable()).Scan(&n)
+		if err != nil {
+			return false, fferr.NewExecutionError(store.Type().String(), err)
+		}
+		if n > 0 {
+			return true, nil
+		}
 	}
 	return false, nil
 }
 
 func (store *sqlOfflineStore) tableExistsForResourceId(id ResourceID) (bool, error) {
-	var tableName string
-	var err error
-	if id.check(Feature, Label) == nil {
-		tableName, err = store.getResourceTableName(id)
-	} else if id.check(TrainingSet) == nil {
-		tableName, err = store.getTrainingSetName(id)
-	} else if id.check(Primary) == nil || id.check(Transformation) == nil {
-		tableName, err = GetPrimaryTableName(id)
-	}
+	tableName, err := store.getResourceTableName(id)
 	if err != nil {
 		return false, err
 	}
-	return store.tableExists(tableName)
+
+	return store.tableExists(pl.NewSQLLocation(tableName))
 }
 
 func (store *sqlOfflineStore) AsOfflineStore() (OfflineStore, error) {
@@ -199,28 +260,41 @@ func (store *sqlOfflineStore) CheckHealth() (bool, error) {
 	return true, nil
 }
 
-func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
+func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
+	logger := logging.NewLogger("sql").WithProvider(store.Type().String(), "SQL")
+	logger.Debugw("Registering resource from source table", "id", id, "schema", schema, "options", opts)
+	if len(opts) > 0 {
+		logger.Errorw("resource options not supported", "options", opts)
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("resource options not supported"))
+	}
 	if err := id.check(Feature, Label); err != nil {
+		logger.Errorw("id check failed", "id", id, "error", err)
 		return nil, err
 	}
 	if exists, err := store.tableExistsForResourceId(id); err != nil {
+		logger.Errorw("table exists check failed", "id", id, "error", err)
 		return nil, err
 	} else if exists {
+		logger.Errorw("table already exists", "id", id)
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	if schema.Entity == "" || schema.Value == "" {
+		logger.Errorw("non-empty entity and value columns required", "schema", schema)
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("non-empty entity and value columns required"))
 	}
 	tableName, err := store.getResourceTableName(id)
 	if err != nil {
+		logger.Errorw("table name generation failed", "id", id, "error", err)
 		return nil, err
 	}
 	if schema.TS == "" {
 		if err := store.query.registerResources(store.db, tableName, schema, false); err != nil {
+			logger.Errorw("Register resources without timestamp failed", "table", tableName, "schema", schema, "error", err)
 			return nil, err
 		}
 	} else {
 		if err := store.query.registerResources(store.db, tableName, schema, true); err != nil {
+			logger.Errorw("Register resources with timestamp failed", "table", tableName, "schema", schema, "error", err)
 			return nil, err
 		}
 	}
@@ -233,41 +307,42 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 	}, nil
 }
 
-func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
-	if exists, err := store.tableExistsForResourceId(id); err != nil {
-		return nil, err
-	} else if exists {
-		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
+
+	// check type of tableLocation to ensure it is a SQLLocation
+	sqlLocation, ok := tableLocation.(*pl.SQLLocation)
+	if !ok {
+		return nil, fferr.NewInvalidArgumentErrorf("tableLocation is not a SQL")
 	}
-	tableName, err := GetPrimaryTableName(id)
+
+	sourceExists, err := store.tableExists(tableLocation)
 	if err != nil {
-		return nil, err
-	}
-	sourceExists, err := store.tableExists(sourceName)
-	if err != nil {
-		return nil, err
-	}
-	if !sourceExists {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("source table '%s' does not exist", sourceName))
-	}
-	query := store.query.primaryTableRegister(tableName, sourceName)
-	if _, err := store.db.Exec(query); err != nil {
 		return nil, err
 	}
 
-	columnNames, err := store.query.getColumns(store.db, tableName)
+	if !sourceExists {
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("source table '%s' does not exist", tableLocation.Location()))
+	}
+
+	dbConn, err := store.getDb(sqlLocation.GetDatabase(), sqlLocation.GetSchema())
+	if err != nil {
+		return nil, fferr.NewConnectionError(store.Type().String(), err)
+	}
+
+	columnNames, err := store.query.getColumns(dbConn, sqlLocation.GetTable())
 	if err != nil {
 		return nil, err
 	}
 
 	return &sqlPrimaryTable{
-		db:     store.db,
-		name:   tableName,
-		schema: TableSchema{Columns: columnNames},
-		query:  store.query,
+		db:          dbConn,
+		name:        sqlLocation.Location(),
+		sqlLocation: sqlLocation,
+		schema:      TableSchema{Columns: columnNames},
+		query:       store.query,
 	}, nil
 }
 
@@ -287,7 +362,11 @@ func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSche
 	if err != nil {
 		return nil, err
 	}
-	table, err := store.newsqlPrimaryTable(store.db, tableName, schema)
+	getDb, err := store.getDb("", "")
+	if err != nil {
+		return nil, fferr.NewConnectionError(store.Type().String(), err)
+	}
+	table, err := store.newsqlPrimaryTable(getDb, tableName, schema)
 	if err != nil {
 		return nil, err
 	}
@@ -303,9 +382,19 @@ func (store *sqlOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema
 	if err != nil {
 		return nil, err
 	}
+
+	// get current schema and database
+	var dbName, schemaName string
+	err = db.QueryRow("SELECT current_database(), current_schema()").Scan(&dbName, &schemaName)
+	if err != nil {
+		return nil, err
+	}
+
+	location, _ := pl.NewSQLLocationWithDBSchemaTable(dbName, schemaName, name).(*pl.SQLLocation)
 	return &sqlPrimaryTable{
 		db:           db,
-		name:         name,
+		name:         name, // TODO get rid of this and just use location
+		sqlLocation:  location,
 		schema:       schema,
 		query:        store.query,
 		providerType: store.Type(),
@@ -328,21 +417,35 @@ func (store *sqlOfflineStore) createsqlPrimaryTableQuery(name string, schema Tab
 	return store.query.primaryTableCreate(name, columnString), nil
 }
 
-func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
-	name, err := GetPrimaryTableName(id)
-	if err != nil {
-		return nil, err
+func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
+	location, err := source.GetPrimaryLocation()
+	sqlLocation, ok := location.(*pl.SQLLocation)
+	if !ok {
+		return nil, fferr.NewInvalidArgumentErrorf("location is not a SQLLocation")
 	}
-	if exists, err := store.tableExistsForResourceId(id); err != nil {
-		return nil, err
+	if location.Location() == "" {
+		return nil, fferr.NewInvalidArgumentErrorf("source variant does not have a primary table name")
+	}
+	if exists, err := store.tableExists(sqlLocation); err != nil {
+		return nil, fferr.NewInternalErrorf("could not check if table exists: %v", err)
 	} else if !exists {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
-	columnNames, err := store.query.getColumns(store.db, name)
+
+	dbConn, getDbErr := store.getDb(sqlLocation.GetDatabase(), sqlLocation.GetSchema())
+	if getDbErr != nil {
+		return nil, fferr.NewConnectionError(store.Type().String(), getDbErr)
+	}
+
+	columnNames, err := store.query.getColumns(dbConn, sqlLocation.GetTable())
+	if err != nil {
+		return nil, err
+	}
 
 	return &sqlPrimaryTable{
-		db:           store.db,
-		name:         name,
+		db:           dbConn,
+		name:         sqlLocation.GetTable(),
+		sqlLocation:  sqlLocation,
 		schema:       TableSchema{Columns: columnNames},
 		query:        store.query,
 		providerType: store.Type(),
@@ -350,10 +453,14 @@ func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, erro
 }
 
 func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	name, err := GetPrimaryTableName(id)
+	if err := id.check(Transformation); err != nil {
+		return nil, err
+	}
+	name, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	if err != nil {
 		return nil, err
 	}
+
 	existsQuery := store.query.tableExists()
 	rows, err := store.db.Query(existsQuery, name)
 	if err != nil {
@@ -368,9 +475,17 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 		return nil, err
 	}
 
+	var dbName, schemaName string
+	err = store.db.QueryRow("SELECT current_database(), current_schema()").Scan(&dbName, &schemaName)
+	if err != nil {
+		return nil, err
+	}
+	sqlLocation := pl.NewSQLLocationWithDBSchemaTable(dbName, schemaName, name).(*pl.SQLLocation)
+
 	return &sqlPrimaryTable{
 		db:           store.db,
 		name:         name,
+		sqlLocation:  sqlLocation,
 		schema:       TableSchema{Columns: columnNames},
 		query:        store.query,
 		providerType: store.Type(),
@@ -423,24 +538,37 @@ func (store *sqlOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, err
 	return store.getsqlResourceTable(id)
 }
 
-func (store *sqlOfflineStore) ResourceLocation(id ResourceID) (string, error) {
+func (store *sqlOfflineStore) ResourceLocation(id ResourceID, resource any) (pl.Location, error) {
+	if id.check(Primary) == nil {
+		if sv, ok := resource.(metadata.SourceVariant); !ok {
+			return nil, fferr.NewInvalidArgumentErrorf("resource is not a SourceVariant")
+		} else {
+			return pl.NewSQLLocation(sv.PrimaryDataSQLTableName()), nil
+		}
+	}
+
 	if exists, err := store.tableExistsForResourceId(id); err != nil {
-		return "", fmt.Errorf("could not check if table exists: %v", err)
+		return nil, fmt.Errorf("could not check if table exists: %v", err)
 	} else if !exists {
-		return "", fmt.Errorf("table does not exist: %v", id)
+		return nil, fmt.Errorf("table does not exist: %v", id)
 	}
 
 	var tableName string
 	var err error
-	if id.check(Feature, Label) == nil {
+	switch id.Type {
+	case Feature, Label:
 		tableName, err = store.getResourceTableName(id)
-	} else if id.check(TrainingSet) == nil {
+	case TrainingSet:
 		tableName, err = store.getTrainingSetName(id)
-	} else if id.check(Primary) == nil || id.check(Transformation) == nil {
+	case Primary:
 		tableName, err = GetPrimaryTableName(id)
+	case Transformation:
+		tableName, err = store.getTransformationTableName(id)
+	default:
+		err = fferr.NewInvalidArgumentError(fmt.Errorf("unsupported resource type: %s", id.Type))
 	}
 
-	return tableName, err
+	return pl.NewSQLLocation(tableName), err
 }
 
 type sqlMaterialization struct {
@@ -449,6 +577,7 @@ type sqlMaterialization struct {
 	tableName    string
 	query        OfflineTableQueries
 	providerType pt.Type
+	location     pl.Location
 }
 
 func (mat *sqlMaterialization) ID() MaterializationID {
@@ -494,9 +623,6 @@ func (mat *sqlMaterialization) IterateSegment(start, end int64) (FeatureIterator
 		return nil, wrapped
 	}
 	colType := mat.query.getValueColumnType(types[1])
-	if err != nil {
-		return nil, err
-	}
 	return newsqlFeatureIterator(rows, colType, mat.query, mat.providerType), nil
 }
 
@@ -661,11 +787,21 @@ func (store *sqlOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIt
 	featureColumns := ""
 	var matIDs []string
 
-	tableName0 := sanitize(store.getMaterializationTableName(MaterializationID(fmt.Sprintf("%s__%s", ids[0].Name, ids[0].Variant))))
+	tableName0, err := store.getMaterializationTableName(ids[0])
+	if err != nil {
+		return nil, err
+	}
 	for i, tableID := range ids {
-		matID := MaterializationID(fmt.Sprintf("%s__%s", tableID.Name, tableID.Variant))
+		matID, err := NewMaterializationID(tableID)
+		if err != nil {
+			return nil, err
+		}
 		matIDs = append(matIDs, string(matID))
-		matTableName := sanitize(store.getMaterializationTableName(matID))
+		matTableName, err := store.getMaterializationTableName(tableID)
+		if err != nil {
+			return nil, err
+		}
+		matTableName = sanitize(matTableName)
 
 		if i > 0 {
 			joinTables += "FULL OUTER JOIN "
@@ -688,7 +824,7 @@ func (store *sqlOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIt
 	joinedTableName := store.getJoinedMaterializationTableName(strings.Join(matIDs, "_"))
 	createQuery := ""
 	if len(ids) == 1 {
-		createQuery = fmt.Sprintf("CREATE VIEW \"%s\" AS SELECT %s AS entity %s FROM %s", joinedTableName, asEntity, withFeatures, tableName0)
+		createQuery = fmt.Sprintf("CREATE VIEW \"%s\" AS SELECT %s AS entity %s FROM %s", joinedTableName, asEntity, withFeatures, sanitize(tableName0))
 	} else {
 		createQuery = fmt.Sprintf("CREATE VIEW \"%s\" AS SELECT COALESCE(%s) AS entity %s FROM %s", joinedTableName, asEntity, withFeatures, joinTables)
 	}
@@ -720,7 +856,7 @@ func (store *sqlOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIt
 
 	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query, store.Type()), nil
 }
-func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
+func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("received %s; only features can be materialized", id.Type))
 	}
@@ -729,8 +865,14 @@ func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, options ...Ma
 		return nil, err
 	}
 
-	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
-	matTableName := store.getMaterializationTableName(matID)
+	matID, err := NewMaterializationID(id)
+	if err != nil {
+		return nil, err
+	}
+	matTableName, err := store.getMaterializationTableName(id)
+	if err != nil {
+		return nil, err
+	}
 	materializeQueries := store.query.materializationCreate(matTableName, resTable.name)
 	for _, materializeQry := range materializeQueries {
 		_, err = store.db.Exec(materializeQry)
@@ -747,9 +889,20 @@ func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, options ...Ma
 	}, nil
 }
 
-func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+func (store *sqlOfflineStore) SupportsMaterializationOption(opt MaterializationOptionType) (bool, error) {
+	return false, nil
+}
 
-	tableName := store.getMaterializationTableName(id)
+func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+	name, variant, err := ps.MaterializationIDToResource(string(id))
+	if err != nil {
+		return nil, err
+	}
+
+	tableName, err := store.getMaterializationTableName(ResourceID{name, variant, Feature})
+	if err != nil {
+		return nil, err
+	}
 
 	getMatQry := store.query.materializationExists()
 
@@ -774,12 +927,19 @@ func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Material
 		tableName:    tableName,
 		query:        store.query,
 		providerType: store.Type(),
+		location:     pl.NewSQLLocation(tableName),
 	}, err
 }
 
-func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
-	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
-	tableName := store.getMaterializationTableName(matID)
+func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+	tableName, err := store.getMaterializationTableName(id)
+	if err != nil {
+		return nil, err
+	}
+	matID, err := ps.ResourceToMaterializationID(id.Type.String(), id.Name, id.Variant)
+	if err != nil {
+		return nil, err
+	}
 	getMatQry := store.query.materializationExists()
 	resTable, err := store.getsqlResourceTable(id)
 	if err != nil {
@@ -799,7 +959,7 @@ func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID) (Materializat
 		return nil, err
 	}
 	return &sqlMaterialization{
-		id:           matID,
+		id:           MaterializationID(matID),
 		db:           store.db,
 		tableName:    tableName,
 		query:        store.query,
@@ -808,7 +968,14 @@ func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID) (Materializat
 }
 
 func (store *sqlOfflineStore) DeleteMaterialization(id MaterializationID) error {
-	tableName := store.getMaterializationTableName(id)
+	name, variant, err := ps.MaterializationIDToResource(string(id))
+	if err != nil {
+		return err
+	}
+	tableName, err := store.getMaterializationTableName(ResourceID{name, variant, Feature})
+	if err != nil {
+		return err
+	}
 	if exists, err := store.materializationExists(id); err != nil {
 		return err
 	} else if !exists {
@@ -822,7 +989,14 @@ func (store *sqlOfflineStore) DeleteMaterialization(id MaterializationID) error 
 }
 
 func (store *sqlOfflineStore) materializationExists(id MaterializationID) (bool, error) {
-	tableName := store.getMaterializationTableName(id)
+	name, variant, err := ps.MaterializationIDToResource(string(id))
+	if err != nil {
+		return false, err
+	}
+	tableName, err := store.getMaterializationTableName(ResourceID{name, variant, Feature})
+	if err != nil {
+		return false, err
+	}
 	getMatQry := store.query.materializationExists()
 	rows, err := store.db.Query(getMatQry, tableName)
 	if err != nil {
@@ -1054,6 +1228,7 @@ type sqlOfflineTable struct {
 type sqlPrimaryTable struct {
 	db           *sql.DB
 	name         string
+	sqlLocation  *pl.SQLLocation
 	query        OfflineTableQueries
 	schema       TableSchema
 	providerType pt.Type
@@ -1264,8 +1439,15 @@ func (table *sqlOfflineTable) resourceExists(rec ResourceRecord) (bool, error) {
 	return true, nil
 }
 
-func (store *sqlOfflineStore) CreateTransformation(config TransformationConfig) error {
-	name, err := store.createTransformationName(config.TargetTableID)
+func (store *sqlOfflineStore) SupportsTransformationOption(opt TransformationOptionType) (bool, error) {
+	return false, nil
+}
+
+func (store *sqlOfflineStore) CreateTransformation(config TransformationConfig, opts ...TransformationOption) error {
+	if len(opts) > 0 {
+		return fferr.NewInternalErrorf("OfflineStore does not support transformation options")
+	}
+	name, err := store.getTransformationTableName(config.TargetTableID)
 	if err != nil {
 		return err
 	}
@@ -1278,8 +1460,11 @@ func (store *sqlOfflineStore) CreateTransformation(config TransformationConfig) 
 	return nil
 }
 
-func (store *sqlOfflineStore) UpdateTransformation(config TransformationConfig) error {
-	name, err := store.createTransformationName(config.TargetTableID)
+func (store *sqlOfflineStore) UpdateTransformation(config TransformationConfig, opts ...TransformationOption) error {
+	if len(opts) > 0 {
+		return fferr.NewInternalErrorf("OfflineStore does not support transformation options")
+	}
+	name, err := store.getTransformationTableName(config.TargetTableID)
 	if err != nil {
 		return err
 	}
@@ -1291,21 +1476,11 @@ func (store *sqlOfflineStore) UpdateTransformation(config TransformationConfig) 
 	return nil
 }
 
-func (store *sqlOfflineStore) createTransformationName(id ResourceID) (string, error) {
-	switch id.Type {
-	case Transformation:
-		return GetPrimaryTableName(id)
-	case Label:
-		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Label"))
-	case Feature:
-		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Feature"))
-	case TrainingSet:
-		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Training Set"))
-	case Primary:
-		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Primary"))
-	default:
-		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type"))
+func (store *sqlOfflineStore) getTransformationTableName(id ResourceID) (string, error) {
+	if err := id.check(Transformation); err != nil {
+		return "", err
 	}
+	return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 }
 
 type sqlGenericTableIterator struct {
@@ -1418,7 +1593,7 @@ func (q *defaultOfflineSQLQueries) setVariableBinding(b variableBindingStyle) {
 	q.BindingStyle = b
 }
 
-const genericExists = `SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?`
+const genericExists = `SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ? AND table_schema = CURRENT_SCHEMA()`
 
 func (q defaultOfflineSQLQueries) tableExists() string {
 	return genericExists
@@ -1432,10 +1607,10 @@ func (q defaultOfflineSQLQueries) registerResources(db *sql.DB, tableName string
 	var query string
 	if timestamp {
 		query = fmt.Sprintf("CREATE VIEW %s AS SELECT IDENTIFIER('%s') as entity,  IDENTIFIER('%s') as value,  IDENTIFIER('%s') as ts FROM TABLE('%s')", sanitize(tableName),
-			schema.Entity, schema.Value, schema.TS, sanitize(schema.SourceTable))
+			schema.Entity, schema.Value, schema.TS, sanitize(schema.SourceTable.Location()))
 	} else {
 		query = fmt.Sprintf("CREATE VIEW %s AS SELECT IDENTIFIER('%s') as entity, IDENTIFIER('%s') as value, to_timestamp_ntz('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMP_NTZ as ts FROM TABLE('%s')", sanitize(tableName),
-			schema.Entity, schema.Value, time.UnixMilli(0).UTC(), sanitize(schema.SourceTable))
+			schema.Entity, schema.Value, time.UnixMilli(0).UTC(), sanitize(schema.SourceTable.Location()))
 	}
 	if _, err := db.Exec(query); err != nil {
 		wrapped := fferr.NewExecutionError("SQL", err)
@@ -1452,7 +1627,7 @@ func (q defaultOfflineSQLQueries) primaryTableRegister(tableName string, sourceN
 
 func (q defaultOfflineSQLQueries) getColumns(db *sql.DB, name string) ([]TableColumn, error) {
 	bind := q.newVariableBindingIterator()
-	qry := fmt.Sprintf("SELECT column_name FROM information_schema.columns WHERE table_name = %s order by ordinal_position", bind.Next())
+	qry := fmt.Sprintf("SELECT column_name FROM information_schema.columns WHERE table_name = %s and table_schema = CURRENT_SCHEMA() order by ordinal_position", bind.Next())
 	rows, err := db.Query(qry, name)
 	if err != nil {
 		wrapped := fferr.NewExecutionError("SQL", err)
@@ -1512,12 +1687,12 @@ func (q defaultOfflineSQLQueries) materializationUpdate(db *sql.DB, tableName st
 
 func (q defaultOfflineSQLQueries) getTable() string {
 	bind := q.newVariableBindingIterator()
-	return fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=%s", bind.Next())
+	return fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=%s and table_schema = CURRENT_SCHEMA()", bind.Next())
 }
 
 func (q defaultOfflineSQLQueries) materializationExists() string {
 	bind := q.newVariableBindingIterator()
-	return fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=%s", bind.Next())
+	return fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=%s and table_schema = CURRENT_SCHEMA()", bind.Next())
 }
 
 func (q defaultOfflineSQLQueries) materializationDrop(tableName string) string {
@@ -1582,7 +1757,7 @@ func (q defaultOfflineSQLQueries) writeExists(table string) string {
 
 func (q defaultOfflineSQLQueries) materializationIterateSegment(tableName string) string {
 	bind := q.newVariableBindingIterator()
-	return fmt.Sprintf("SELECT entity, value, ts FROM ( SELECT * FROM %s WHERE row_number>%s AND row_number<=%s)t1", sanitize(tableName), bind.Next(), bind.Next())
+	return fmt.Sprintf("SELECT entity, value, ts FROM ( SELECT * FROM %s WHERE row_number>%s AND row_number<=%s)t1;", sanitize(tableName), bind.Next(), bind.Next())
 }
 
 func (q defaultOfflineSQLQueries) createValuePlaceholderString(columns []TableColumn) string {
@@ -1716,6 +1891,7 @@ func (q defaultOfflineSQLQueries) getValueColumnType(t *sql.ColumnType) interfac
 		return sfString
 	case "int64":
 		return sfInt
+	// TODO: (Erik) determine if we want to handle int32 and int64 separately
 	case "float32", "float64":
 		return sfFloat
 	case "bool":
@@ -1752,12 +1928,28 @@ func (q defaultOfflineSQLQueries) transformationUpdate(db *sql.DB, tableName str
 
 func (q defaultOfflineSQLQueries) transformationExists() string {
 	bind := q.newVariableBindingIterator()
-	return fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=%s", bind.Next())
+	return fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=%s AND table_schema=CURRENT_SCHEMA()", bind.Next())
 }
 
 func GetTransformationTableName(id ResourceID) (string, error) {
-	if err := checkName(id); err != nil {
-		return "", err
+	if err := id.check(Transformation); err != nil {
+		return "", fferr.NewInternalErrorf("resource type must be %s: received %s", Transformation.String(), id.Type.String())
 	}
-	return fmt.Sprintf("featureform_transformation__%s__%s", id.Name, id.Variant), nil
+	return ps.ResourceToTableName("Transformation", id.Name, id.Variant)
+}
+
+func SanitizeSqlLocation(obj pl.FullyQualifiedObject) string {
+	ident := db.Identifier{}
+
+	if obj.Database != "" && obj.Schema != "" {
+		ident = append(ident, obj.Database)
+	}
+
+	if obj.Schema != "" {
+		ident = append(ident, obj.Schema)
+	}
+
+	ident = append(ident, obj.Table)
+
+	return ident.Sanitize()
 }

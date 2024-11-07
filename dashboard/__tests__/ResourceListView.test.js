@@ -1,6 +1,11 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import { cleanup, render } from '@testing-library/react';
-import Adapter from '@wojtekmaj/enzyme-adapter-react-17';
-import { configure } from 'enzyme';
 import produce from 'immer';
 import 'jest-canvas-mock';
 import React from 'react';
@@ -9,8 +14,6 @@ import {
   ResourceListView,
 } from '../src/components/resource-list/ResourceListView';
 import { deepCopy } from '../src/helper';
-
-configure({ adapter: new Adapter() });
 
 describe('ResourceListView tests', () => {
   beforeEach(() => {
@@ -21,24 +24,24 @@ describe('ResourceListView tests', () => {
     cleanup();
   });
 
-  const NO_RECORDS = 'No records to display';
   const PROGRESS_BAR = 'progressbar';
   const SVG_NODE = 'svg';
   const SPAN_NODE = 'SPAN';
-  const TD_NODE = 'TD';
+  const DIV_NODE = 'DIV';
+  const B_NODE = 'B';
 
   test('The resource list renders correctly when no data is present', () => {
     //given:
     const helper = render(<ResourceListView title='test' type='Feature' />);
 
     //when:
-    const foundNoRecords = helper.getByText(NO_RECORDS);
+    const foundTitle = helper.getByText('Features');
 
     //then:
-    expect(foundNoRecords.nodeName).toBe(TD_NODE);
+    expect(foundTitle.nodeName).toBe(B_NODE);
   });
 
-  test('The resouce list correctly renders the name and description columns', () => {
+  test('The resource list correctly renders the name and description columns', () => {
     //given: a row with data
     const helper = render(
       <ResourceListView
@@ -60,8 +63,8 @@ describe('ResourceListView tests', () => {
     const foundDesc = helper.getByText('my description');
 
     //then:
-    expect(foundName.nodeName).toBe(TD_NODE);
-    expect(foundDesc.nodeName).toBe(TD_NODE);
+    expect(foundName.nodeName).toBe(DIV_NODE);
+    expect(foundDesc.nodeName).toBe(DIV_NODE);
   });
 
   test('deepCopy takes an immutable object and makes it mutable', () => {
@@ -89,11 +92,9 @@ describe('ResourceListView tests', () => {
     const helper = render(<ResourceListView title='test' type='Feature' />);
 
     //when:
-    const foundNoRecords = await helper.findByText(NO_RECORDS);
     const foundProgressBar = await helper.findByRole(PROGRESS_BAR);
 
     //then:
-    expect(foundNoRecords.nodeName).toBe(TD_NODE);
     expect(foundProgressBar.nodeName).toBe(SPAN_NODE);
     expect(foundProgressBar.firstChild.nodeName).toBe(SVG_NODE);
   });
@@ -102,10 +103,8 @@ describe('ResourceListView tests', () => {
     const helper = render(
       <ResourceListView title='test' type='Feature' loading={true} />
     );
-    const foundNoRecords = await helper.findByText(NO_RECORDS);
     const foundProgressBar = await helper.findByRole(PROGRESS_BAR);
 
-    expect(foundNoRecords.nodeName).toBe(TD_NODE);
     expect(foundProgressBar.nodeName).toBe(SPAN_NODE);
     expect(foundProgressBar.firstChild.nodeName).toBe(SVG_NODE);
   });
@@ -119,10 +118,8 @@ describe('ResourceListView tests', () => {
         type='Feature'
       />
     );
-    const foundNoRecords = await helper.findByText(NO_RECORDS);
     const foundProgressBar = await helper.findByRole(PROGRESS_BAR);
 
-    expect(foundNoRecords.nodeName).toBe(TD_NODE);
     expect(foundProgressBar.nodeName).toBe(SPAN_NODE);
     expect(foundProgressBar.firstChild.nodeName).toBe(SVG_NODE);
   });
@@ -161,7 +158,7 @@ describe('ResourceListView tests', () => {
       />
     );
 
-    const foundTitle = await helper.findByText('Sources');
+    const foundTitle = await helper.findByText('Datasets');
     const foundNoDataContainer = await helper.findByTestId('noDataContainerId');
 
     expect(foundTitle.nodeName).toBeDefined();

@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package fferr
 
 import (
@@ -58,6 +65,7 @@ func NewDataTypeNotFoundError(value any, err error) *DataTypeNotFoundError {
 	}
 	baseError := newBaseError(err, DATATYPE_NOT_FOUND, codes.NotFound)
 	baseError.AddDetail("value_and_type", fmt.Sprintf("%#v %T", value, value))
+
 	return &DataTypeNotFoundError{
 		baseError,
 	}
@@ -92,6 +100,7 @@ func NewEntityNotFoundError(featureName, featureVariant, entityName string, err 
 	if err == nil {
 		err = fmt.Errorf("entity not found")
 	}
+
 	baseError := newBaseError(err, ENTITY_NOT_FOUND, codes.NotFound)
 	baseError.AddDetail("feature_name", featureName)
 	baseError.AddDetail("feature_variant", featureVariant)
@@ -172,6 +181,11 @@ func NewInvalidResourceTypeError(resourceName, resourceVariant string, resourceT
 	return &InvalidResourceTypeError{
 		baseError,
 	}
+}
+
+func NewInvalidResourceTypeErrorf(resourceName, resourceVariant string, resourceType ResourceType, format string, a ...any) *InvalidResourceTypeError {
+	err := fmt.Errorf(format, a...)
+	return NewInvalidResourceTypeError(resourceName, resourceVariant, resourceType, err)
 }
 
 type InvalidResourceTypeError struct {

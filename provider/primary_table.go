@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
@@ -7,6 +14,7 @@ import (
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
+	pl "github.com/featureform/provider/location"
 	"github.com/featureform/provider/types"
 	"github.com/parquet-go/parquet-go"
 )
@@ -31,7 +39,7 @@ func (tbl *FileStorePrimaryTable) WriteBatch(records []GenericRecord) error {
 	if err := destination.ParseFilePath(tbl.schema.SourceTable); err != nil {
 		return err
 	}
-	exists, err := tbl.store.Exists(destination)
+	exists, err := tbl.store.Exists(pl.NewFileLocation(destination))
 	if err != nil {
 		return err
 	}
@@ -124,6 +132,7 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 	}
 	fmt.Printf("Sources: %d found\n", len(sources))
 	fmt.Printf("Source %s extension %s\n", sources[0].ToURI(), string(sources[0].Ext()))
+
 	switch sources[0].Ext() {
 	case filestore.Parquet:
 		return newMultipleFileParquetIterator(sources, tbl.store, n)
@@ -132,11 +141,11 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 			return nil, fferr.NewInternalErrorf("multiple CSV files found for table (%v)", tbl.id)
 		}
 		fmt.Printf("Reading file at key %s in file store type %s\n", sources[0].Key(), tbl.store.FilestoreType())
-		b, err := tbl.store.Read(sources[0])
+		src, err := tbl.store.Open(sources[0])
 		if err != nil {
 			return nil, err
 		}
-		return newCSVIterator(b, n)
+		return newCSVIterator(src, n)
 	default:
 		return nil, fferr.NewInvalidFileTypeError(string(sources[0].Ext()), nil)
 	}

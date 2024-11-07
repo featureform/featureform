@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,7 +29,10 @@ spec:
         timestamp: {{ now | quote }}
       {{ end }}
     spec:
-      serviceAccountName: ff-coordinator-sa
+      serviceAccountName: {{ .Values.coordinator.serviceAccount }}
+
+      imagePullSecrets:
+        - name: {{ .Values.k8sImagePullSecret }}
 
       containers:
         - name: "featureform-coordinator"
@@ -33,6 +43,10 @@ spec:
               value: {{ .Values.etcd.port | quote }}
             - name: ETCD_HOST
               value: {{ .Values.etcd.host }}
+            - name: ETCD_USERNAME
+              value: {{ .Values.etcd.username }}
+            - name: ETCD_PASSWORD
+              value: {{ .Values.etcd.password | quote }}
             - name: METADATA_PORT
               value: {{ .Values.metadata.port | quote }}
             - name: METADATA_HOST
@@ -45,6 +59,46 @@ spec:
               value: "{{ .Values.repository | default .Values.repository }}/k8s_runner:{{ .Values.versionOverride | default .Chart.AppVersion }}"
             - name: DEBUG
               value: {{ .Values.debug | quote }}
+            - name: SLACK_API_TOKEN
+              value: {{ .Values.slackApiToken | quote }}
+            - name: SLACK_CHANNEL_ID
+              value: {{ .Values.slackApiChannel | quote }}
+            - name: K8S_IMAGE_PULL_SECRET
+              value: {{ .Values.k8sImagePullSecret | quote }}
+            - name: FF_STATE_PROVIDER
+              value: {{ .Values.stateProvider | quote }}
+            - name: FEATUREFORM_HOST
+              value: {{ .Values.hostname | quote }}
+            - name: PSQL_HOST
+              value: {{ .Values.psql.host | quote }}
+            - name: PSQL_PORT
+              value: {{ .Values.psql.port | quote }}
+            - name: PSQL_DB
+              value: {{ .Values.psql.db | quote }}
+            - name: PSQL_SSLMODE
+              value: {{ .Values.psql.sslmode | quote }}
+            - name: TASK_POLL_INTERVAL
+              value: {{ .Values.coordinator.execution.taskPollInterval | quote }}
+            - name: TASK_STATUS_SYNC_INTERVAL
+              value: {{ .Values.coordinator.execution.taskStatusSyncInterval | quote }}
+            - name: TASK_DEPENDENCY_POLL_INTERVAL
+              value: {{ .Values.coordinator.execution.taskDependencyPollInterval | quote }}
+          {{ if eq .Values.stateProvider "psql" }}
+            - name: PSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: psql-secret-literal
+                  key: user
+            - name: PSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: psql-secret-literal
+                  key: password
+          {{ end }}
+            - name: K8S_SERVICE_ACCOUNT_NAME
+              value: {{ .Values.coordinator.serviceAccount | quote }}
+            - name: MAX_JOB_DURATION
+              value: {{ .Values.coordinator.execution.maxJobDuration | quote }}
 
 
           ports:

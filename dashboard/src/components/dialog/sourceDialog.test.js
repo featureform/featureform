@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import {
   cleanup,
   fireEvent,
@@ -6,7 +13,6 @@ import {
 } from '@testing-library/react';
 import 'jest-canvas-mock';
 import React from 'react';
-import faultyData from './faultyTimestamp.test.json';
 import SourceDialog from './SourceDialog';
 import testData from './transactions.test.json';
 
@@ -32,33 +38,20 @@ describe('Source Table Dialog Tests', () => {
   const ERROR_MSG = 'Error 500 - Something went wrong';
 
   const apiDataMock = {
-    //remove stats form source response
-    fetchSourceModalData: jest
-      .fn()
-      .mockResolvedValue({ ...testData, stats: [] }),
-  };
-
-  const apiStatsMock = {
-    fetchFeatureFileStats: jest.fn().mockResolvedValue(testData),
-  };
-
-  const apiFaultyStatsMock = {
-    fetchFeatureFileStats: jest.fn().mockResolvedValue(faultyData),
+    fetchSourceModalData: jest.fn().mockResolvedValue({ ...testData }),
   };
 
   const apiEmptyMock = {
     fetchSourceModalData: jest.fn().mockResolvedValue({
       columns: [],
       rows: [],
-      stats: [],
     }),
   };
 
   const apiNullMock = {
-    fetchFeatureFileStats: jest.fn().mockResolvedValue({
+    fetchSourceModalData: jest.fn().mockResolvedValue({
       columns: ['Column 1', 'Column 2'],
       rows: null,
-      stats: null,
     }),
   };
 
@@ -104,7 +97,7 @@ describe('Source Table Dialog Tests', () => {
 
   test('Dialog renders OK with null row responses', async () => {
     //given:
-    const { testBody, apiParam, name } = getTestBody(
+    const { testBody } = getTestBody(
       apiNullMock,
       DEFAULT_NAME,
       DEFAULT_VARIANT,
@@ -119,11 +112,6 @@ describe('Source Table Dialog Tests', () => {
     const foundColumn2 = helper.getByText('Column 2');
 
     //then:
-    expect(apiParam.fetchFeatureFileStats).toHaveBeenCalledTimes(1);
-    expect(apiParam.fetchFeatureFileStats).toHaveBeenCalledWith(
-      name,
-      DEFAULT_VARIANT
-    );
     expect(foundName.textContent).toBe(`${DEFAULT_NAME} - ${DEFAULT_VARIANT}`);
     expect(foundName.nodeName).toBe(H2_NODE);
     expect(foundColumn1.nodeName).toBe(TH_NODE);
@@ -160,70 +148,6 @@ describe('Source Table Dialog Tests', () => {
       const foundRow = helper.getAllByText(row);
       expect(foundRow.length).toBeGreaterThan(0);
       expect(foundRow[0].nodeName).toBe(P_NODE);
-    });
-  });
-
-  test('A feature stats dialog table renders the stats data', async () => {
-    //given:
-    const { testBody, apiParam } = getTestBody(
-      apiStatsMock,
-      DEFAULT_NAME,
-      DEFAULT_VARIANT,
-      'Feature'
-    );
-    const helper = render(testBody);
-
-    //when: the user clicks open
-    fireEvent.click(helper.getByTestId(OPEN_BTN_ID));
-    await helper.findByTestId(TITLE_ID);
-
-    //then: the stast api is called, and data row's values are rendered OK
-    expect(apiParam.fetchFeatureFileStats).toHaveBeenCalledTimes(1);
-    expect(apiParam.fetchFeatureFileStats).toHaveBeenCalledWith(
-      DEFAULT_NAME,
-      DEFAULT_VARIANT
-    );
-    testData.rows[0].map((row) => {
-      const foundRow = helper.getAllByText(row);
-      expect(foundRow.length).toBeGreaterThan(0);
-      expect(foundRow[0].nodeName).toBe(P_NODE);
-    });
-  });
-
-  test('A null "ts" dataframe stat column is not rendered', async () => {
-    //given:
-    const { testBody, apiParam } = getTestBody(
-      apiFaultyStatsMock,
-      DEFAULT_NAME,
-      DEFAULT_VARIANT,
-      'Feature'
-    );
-    const helper = render(testBody);
-
-    //when: the user clicks open
-    fireEvent.click(helper.getByTestId(OPEN_BTN_ID));
-    await helper.findByTestId(TITLE_ID);
-
-    //then: the stast api is called, and data row's values are rendered OK
-    expect(apiParam.fetchFeatureFileStats).toHaveBeenCalledTimes(1);
-    expect(apiParam.fetchFeatureFileStats).toHaveBeenCalledWith(
-      DEFAULT_NAME,
-      DEFAULT_VARIANT
-    );
-
-    let skipIndex = faultyData.columns.indexOf('ts'); //1
-
-    faultyData.rows[0].map((row, index) => {
-      if (index !== skipIndex) {
-        //rowItem should render
-        const foundRow = helper.getAllByText(row);
-        expect(foundRow.length).toBeGreaterThan(0);
-        expect(foundRow[0].nodeName).toBe(P_NODE);
-      } else {
-        //rowItem should not render
-        const shouldNotExist = helper.queryAllByText(row);
-        expect(shouldNotExist.length).toBe(0);
-      }
     });
   });
 

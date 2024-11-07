@@ -170,11 +170,3 @@
     handler: python
     options:
         show_root_heading: true
-
-### Qdrant
-
-::: featureform.register.Registrar.register_qdrant
-    handler: python
-    options:
-        show_root_heading: false
-        show_root_toc_entry: false

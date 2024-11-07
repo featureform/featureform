@@ -1,6 +1,9 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
 
 ##############################################  HELP  ##################################################################
 
@@ -151,6 +154,136 @@ test_filestore
 	Description:
 		Runs golang unit tests
 
+get_secrets
+	Requirements:
+		- python 3.7-3.10
+		- AWS Credentials with access to Secrets Manager
+		- boto3 > 1.34 (needs `SecretsManager.Client.batch_get_secret_value`)
+
+	Description:
+		Gets secrets from AWS Secrets Manager and writes them to .env file in root of repository
+
+update_secrets
+	Requirements:
+		- python 3.7-3.10
+		- AWS Credentials with access to Secrets Manager
+		- boto3 > 1.34 (needs `SecretsManager.Client.batch_get_secret_value`)
+
+	Description:
+		Updates secrets from AWS Secrets Manager and writes them to .env file in root of repository
+
+
+setup_e2e_core:
+	Requirements:
+		- python 3.7-3.10
+		- Secrets in .env file
+		- activated virtual environment
+		- docker running
+
+	Description:
+		Installs featureform client, packages for pytest, as well as a redis docker container
+
+
+teardown_e2e_core:
+	Requirements:
+		- docker running with featureform_redis container
+
+	Description:
+		Removes the featureform_redis running container
+
+setup_e2e_standalone:
+	Requirements:
+		- Golang 1.21
+
+	Description:
+		Runs the standalone featureform script in the background and logs to featureform.log
+
+teardown_e2e_standalone:
+	Requirements:
+		- standalone featureform script running
+
+	Description:
+		Teardown the standalone featureform script
+
+setup_e2e_docker:
+	Requirements:
+		- Docker running
+
+	Description:
+		Builds the featureform single docker image and deploys it to a container, featureform_e2e
+
+teardown_e2e_docker:
+	Requirements:
+		- Featureform container, featureform_e2e, running
+
+	Description:
+		Teardown the featureform_e2e docker container
+
+test_e2e_pytest:
+	Requirements:
+		- python 3.7-3.10
+		- Secrets in .env file
+		- activated virtual environment
+		- featureform running either in docker or standalone script
+
+	Description:
+		Runs the pytest tests for the end-to-end tests
+
+test_e2e_behave:
+	Requirements:
+		- python 3.7-3.10
+		- Secrets in .env file
+		- activated virtual environment
+		- featureform running either in docker or standalone script
+
+	Description:
+		Runs the behave tests for the end-to-end tests
+
+test_e2e:
+	Requirements:
+		- python 3.7-3.10
+		- Secrets in .env file
+		- activated virtual environment
+		- featureform running either in docker or standalone script
+
+	Description:
+		Runs the behave & pytests tests for the end-to-end tests
+
+
+setup_all_docker:
+	Requirements:
+		- python 3.7-3.10
+		- activated virtual environment
+		- AWS Credentials with access to Secrets Manager
+		- Docker running
+
+	Description:
+		Creates a new environment with client installed as well as all the setup needed to run any test using Docker
+
+teardown_all_docker:
+	Requirements:
+		- setup_all_docker
+
+	Description:
+		Tears down the environment created by setup_all_docker
+
+setup_all_standalone:
+	Requirements:
+		- python 3.7-3.10
+		- activated virtual environment
+		- AWS Credentials with access to Secrets Manager
+		- Docker running
+
+	Description:
+		Creates a new environment with client installed as well as all the setup needed to run any test using Docker and Featureform standalone script
+
+teardown_all_standalone:
+	Requirements:
+		- setup_all_standalone
+
+	Description:
+		Tears down the environment created by setup_all_standalone
+
 endef
 export HELP_BODY
 
@@ -177,6 +310,8 @@ gen_grpc:						## Generates GRPC Dependencies
 
 	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./metadata/proto/metadata.proto
 	python3 -m grpc_tools.protoc -I ./client/src --python_out=./client/src/ --mypy_out=./client/src --grpc_python_out=./client/src/ ./client/src/featureform/proto/metadata.proto
+
+	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./scheduling/proto/scheduling.proto
 
 update_python: gen_grpc 				## Updates the python package locally
 	pip3 install pytest
@@ -210,14 +345,14 @@ stop_postgres:
 
 ##############################################  PYTHON TESTS ###########################################################
 pytest:
-	python -m pytest
+	python -m pytest --ignore tests/end_to_end/pytest
 	-rm -r .featureform
 	-rm -f transactions.csv
 
 pytest_coverage:
 	-rm -r .featureform
 	curl -C - https://featureform-demo-files.s3.amazonaws.com/transactions_short.csv -o transactions.csv
-	python -m pytest -v -s -m 'local' --cov=client/src/featureform client/tests/ --cov-report=xml
+	python -m pytest -v -s -m 'local' --cov=client/src/featureform client/tests/ --cov-report=xml --ignore tests/end_to_end/pytest
 	-rm -r .featureform
 	-rm -f transactions.csv
 
@@ -331,70 +466,128 @@ test_importable_online: ## Run importable online table tests. Run with `make tes
 	go test -v -coverpkg=./... -coverprofile coverage/cover.out.tmp ./provider --tags=importable_online --provider=$(provider)
 
 
-##############################################  MINIKUBE ###############################################################
+#############################################  SECRETS ################################################################
+get_secrets:
+	python scripts/secret_manager.py
 
-containers: gen_grpc						## Build Docker containers for Minikube
-	minikube image build --v=3 -f ./api/Dockerfile . -t local/api-server:stable & \
-	minikube image build --v=3 -f ./dashboard/Dockerfile . -t local/dashboard:stable & \
-	minikube image build --v=3 -f ./coordinator/Dockerfile --build-opt=build-arg=TESTING=True . -t local/coordinator:stable & \
-	minikube image build --v=3 -f ./metadata/Dockerfile . -t local/metadata:stable & \
-	minikube image build --v=3 -f ./metadata/dashboard/Dockerfile . -t local/metadata-dashboard:stable & \
-	minikube image build --v=3 -f ./serving/Dockerfile . -t local/serving:stable & \
-	minikube image build --v=3 -f ./runner/Dockerfile --build-opt=build-arg=TESTING=True . -t local/worker:stable & \
-	minikube image build --v=3 -f ./provider/scripts/k8s/Dockerfile . -t local/k8s_runner:stable & \
-	minikube image build --v=3 -f ./provider/scripts/k8s/Dockerfile.scikit . -t local/k8s_runner:stable-scikit & \
+update_secrets:
+	python scripts/secret_manager.py --update
+
+
+#########################################  End To End Tests ###########################################################
+setup_e2e_core:
+	pip install -e client/
+	pip install -r pytest-requirements.txt
+	pip install -r tests/end_to_end/requirements.txt
+
+	docker run --name featureform_redis -d -p 6379:6379 redis
+	docker run --name featureform_postgres -d -p 5432:5432 -e POSTGRES_PASSWORD=password postgres
+
+teardown_e2e_core:
+	-docker kill featureform_redis
+	-docker rm featureform_redis
+
+	-docker kill featureform_postgres
+	-docker rm featureform_postgres
+
+setup_e2e_standalone: setup_e2e_core
+	nohup go run main/main.go > featureform.log 2>&1 &
+
+teardown_e2e_standalone: teardown_e2e_core
+	kill -9 $$(ps aux | grep 'exe/main' | grep -v grep | awk '{print $$2}')
+
+# Target for setting up e2e Docker environment
+setup_e2e_docker: setup_e2e_core
+	docker build . -t featureform:e2e_test
+
+	@ARCH=$$(uname -m); \
+	if [ "$$ARCH" = "arm64" ]; then \
+		echo "Running on Apple Silicon (ARM64 architecture)."; \
+		docker run -d --name featureform_e2e -p 7878:7878 -p 80:80 \
+			-e ETCD_UNSUPPORTED_ARCH="arm64" \
+			-e FF_AUTH_PROVIDER="disabled" \
+			-e NEXT_PUBLIC_FF_AUTH_PROVIDER="disabled" \
+			featureform:e2e_test; \
+	else \
+		echo "Running on Intel (x86_64 architecture)."; \
+		docker run -d --name featureform_e2e -p 7878:7878 -p 80:80 \
+			-e FF_AUTH_PROVIDER="disabled" \
+			-e NEXT_PUBLIC_FF_AUTH_PROVIDER="disabled" \
+			featureform:e2e_test; \
+	fi
+
+	@echo ""
+	@echo "Featureform is now running in a Docker container. To run the end-to-end tests, you will need to set the following environment variables:"
+	@echo "export REDIS_HOST=host.docker.internal"
+	@echo "export POSTGRES_HOST=host.docker.internal"
+
+# Target for tearing down e2e Docker environment
+teardown_e2e_docker: teardown_e2e_core
+	-docker kill featureform_e2e
+	-docker rm featureform_e2e
+
+test_e2e_pytest:
+	pytest -vv -s -n 5 tests/end_to_end/pytest
+
+test_e2e_behave: 
+	echo "Starting end to end tests"
+	pytest -vv -s tests/end_to_end/pytest
+
+	export FF_TIMESTAMP_VARIANT="false" && export FF_GET_EQUIVALENT_VARIANTS: "false"
+	behavex -t '~@wip' -t '~@long' -t '~@av' --no-capture --no-logcapture --no-capture-stderr --parallel-processes 5 --parallel-scheme scenario
+
+	export FF_TIMESTAMP_VARIANT="true" && export FF_GET_EQUIVALENT_VARIANTS: "true"
+	behavex -t '~@wip' -t '~@long' -t '@av' --no-capture --no-logcapture --no-capture-stderr --parallel-processes 5 --parallel-scheme scenario
+
+test_e2e: test_e2e_pytest test_e2e_behave
+
+#########################################  Setup Everything  ###########################################################
+setup_all_docker: init update_secrets setup_e2e_docker
+
+teardown_all_docker: teardown_e2e_docker
+
+setup_all_standalone: init update_secrets setup_e2e_standalone
+
+teardown_all_standalone: teardown_e2e_standalone
+
+
+##############################################  MINIKUBE ###############################################################
+MINIKUBE_VERSION ?= v1.23.12
+
+minikube_build_images: gen_grpc   ## Build Docker images for Minikube
+	minikube image build -f ./api/Dockerfile -t local/api-server:stable . & \
+	minikube image build -f ./dashboard/Dockerfile -t local/dashboard:stable . & \
+	minikube image build -f ./coordinator/Dockerfile --build-opt=build-arg=TESTING=True -t local/coordinator:stable . & \
+	minikube image build -f ./metadata/Dockerfile -t local/metadata:stable . & \
+	minikube image build -f ./metadata/dashboard/Dockerfile -t local/metadata-dashboard:stable . & \
+	minikube image build -f ./serving/Dockerfile -t local/serving:stable . & \
+	minikube image build -f ./runner/Dockerfile --build-opt=build-arg=TESTING=True -t local/worker:stable . & \
+	minikube image build -f ./provider/scripts/k8s/Dockerfile -t local/k8s_runner:stable . & \
+	minikube image build -f ./provider/scripts/k8s/Dockerfile.scikit -t local/k8s_runner:stable-scikit . & \
+	minikube image build -f ./search_loader/Dockerfile -t local/search-loader:stable . & \
 	wait; \
 	echo "Build Complete"
 
-start_minikube:	##Starts Minikube
-	minikube start --kubernetes-version=v1.23.12
 
-reset_minikube:	##Resets Minikube
+minikube_start:	##Starts Minikube
+	minikube start --kubernetes-version=$(MINIKUBE_VERSION)
+
+minikube_delete: ##Deletes Minikube
 	minikube delete
-	minikube start --kubernetes-version=v1.23.12
 
-install_featureform: start_minikube containers		## Configures Featureform on Minikube
+minikube_reset: minikube_delete minikube_start	##Resets Minikube
+	
+minikube_install_featureform: minikube_start minikube_build_images	## Configures Featureform on Minikube
 	helm repo add jetstack https://charts.jetstack.io
 	helm repo update
 	helm install certmgr jetstack/cert-manager \
-        --set installCRDs=true \
-        --version v1.8.0 \
-        --namespace cert-manager \
-        --create-namespace
-	helm install featureform ./charts/featureform --set repository=local --set pullPolicy=Never --set versionOverride=stable
-	kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt'| base64 -d > tls.crt
-	export FEATUREFORM_HOST=localhost:443
-    export FEATUREFORM_CERT=tls.crt
-
-test_e2e: update_python					## Runs End-to-End tests on minikube
-	pip3 install requests
-	-helm install quickstart ./charts/quickstart
-	kubectl wait --for=condition=complete job/featureform-quickstart-loader --timeout=720s
-	kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=ingress-nginx --timeout=720s
-	kubectl wait --for=condition=READY=true pod -l app.kubernetes.io/name=etcd --timeout=720s
-	kubectl wait --for=condition=READY=true pod -l chart=featureform --timeout=720s
-
-	-kubectl port-forward svc/featureform-ingress-nginx-controller 8000:443 7000:80 &
-	-kubectl port-forward svc/featureform-etcd 2379:2379 &
-
-	while ! echo exit | nc localhost 7000; do sleep 10; done
-	while ! echo exit | nc localhost 2379; do sleep 10; done
-
-	featureform apply --no-wait client/examples/quickstart.py --host localhost:8000 --cert tls.crt
-	pytest client/tests/e2e.py
-	pytest -m 'hosted' client/tests/test_serving_model.py
-	pytest -m 'hosted' client/tests/test_getting_model.py
-	pytest -m 'hosted' client/tests/test_updating_provider.py
-	pytest -m 'hosted' client/tests/test_class_api.py
-	pytest -m 'hosted' client/tests/test_source_dataframe.py
-	pytest -m 'hosted' client/tests/test_training_set_dataframe.py
-#	pytest -m 'hosted' client/tests/test_search.py
-
-	 echo "Starting end to end tests"
-	 ./tests/end_to_end/end_to_end_tests.sh localhost:8000 ./tls.crt
-
-reset_e2e:  			 			## Resets Cluster. Requires install_etcd
-	-kubectl port-forward svc/featureform-etcd 2379:2379 &
-	while ! echo exit | nc localhost 2379; do sleep 10; done
-	etcdctl --user=root:secretpassword del "" --prefix
-	-helm uninstall quickstart
+		--set installCRDs=true \
+		--version v1.8.0 \
+		--namespace cert-manager \
+		--create-namespace
+	helm install quickstart ./charts/quickstart --wait --timeout=15s
+	helm install featureform ./charts/featureform \
+		--set repository=local \
+		--set pullPolicy=Never \
+		--set versionOverride=stable
+	kubectl get secret featureform-ca-secret -o=custom-columns=':.data.tls\.crt' | base64 -d > tls.crt

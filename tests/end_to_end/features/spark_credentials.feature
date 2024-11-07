@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 Feature: Spark Credentials
 
   @wip
@@ -7,12 +14,12 @@ Feature: Spark Credentials
     And I create EMR credentials with Cluster ID "<emr_cluster_id>", Region "<emr_cluster_region>"
     Then An exception that "matches" "<exception>" should be raised
     Examples:
-      | emr_cluster_id | emr_cluster_region | cloud_provider | exception                                                                                                                     |
-      | DUMMYID        | us-east-1          | AWS            | None                                                                                                                          |
-      | empty          | us-east-1          | AWS            | 'EMRCredentials' emr_cluster_id cannot be empty                                                                               |
-      | DUMMYID        | empty              | AWS            | 'EMRCredentials' emr_cluster_region cannot be empty                                                                           |
-      | DUMMYID        | us-east-1          | empty          | type of argument "credentials" must be featureform.resources.AWSCredentials; got NoneType instead                             |
-      | DUMMYID        | us-east-1          | GCP            | type of argument "credentials" must be featureform.resources.AWSCredentials; got featureform.resources.GCPCredentials instead |
+      | emr_cluster_id | emr_cluster_region | cloud_provider | exception                                                                                                                                                                                    |
+      | DUMMYID        | us-east-1          | AWS            | None                                                                                                                                                                                         |
+      | empty          | us-east-1          | AWS            | 'EMRCredentials' emr_cluster_id cannot be empty                                                                                                                                              |
+      | DUMMYID        | empty              | AWS            | 'EMRCredentials' emr_cluster_region cannot be empty                                                                                                                                          |
+      | DUMMYID        | us-east-1          | empty          | type of argument "credentials" must be one of (featureform.resources.AWSStaticCredentials, featureform.resources.AWSAssumeRoleCredentials); got NoneType instead                             |
+      | DUMMYID        | us-east-1          | GCP            | type of argument "credentials" must be one of (featureform.resources.AWSStaticCredentials, featureform.resources.AWSAssumeRoleCredentials); got featureform.resources.GCPCredentials instead |
 
   @wip
   Scenario Outline: Databricks Credentials

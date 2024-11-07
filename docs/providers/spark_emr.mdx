@@ -32,7 +32,7 @@ The EMR cluster, before being deployed, must run a bootstrap action to install t
 ```py spark\_quickstart.py
 import featureform as ff
 
-aws_credentials = ff.AWSCredentials(
+aws_credentials = ff.AWSStaticCredentials(
     access_key="",
     secret_key=""
 )

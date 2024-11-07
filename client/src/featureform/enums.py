@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 from dataclasses import dataclass
 from enum import Enum
 from featureform.proto import metadata_pb2 as pb
@@ -99,6 +106,7 @@ class ResourceStatus(str, Enum):
     PENDING = "PENDING"
     READY = "READY"
     FAILED = "FAILED"
+    RUNNING = "RUNNING"
 
     @staticmethod
     def from_proto(proto):
@@ -108,6 +116,7 @@ class ResourceStatus(str, Enum):
 class ComputationMode(Enum):
     PRECOMPUTED = "PRECOMPUTED"
     CLIENT_COMPUTED = "CLIENT_COMPUTED"
+    STREAMING = "STREAMING"
 
     def __eq__(self, other: str) -> bool:
         return self.value == other
@@ -117,6 +126,10 @@ class ComputationMode(Enum):
             return pb.ComputationMode.PRECOMPUTED
         elif self == ComputationMode.CLIENT_COMPUTED:
             return pb.ComputationMode.CLIENT_COMPUTED
+        elif self == ComputationMode.STREAMING:
+            return pb.ComputationMode.STREAMING
+        else:
+            raise ValueError(f"Unknown computation mode: {self}")
 
 
 @typechecked
@@ -196,8 +209,7 @@ class FileFormat(str, Enum):
 
 
 @typechecked
-@dataclass
-class ResourceType(Enum):
+class DataResourceType(Enum):
     # ResourceType is an enumeration representing the possible types of
     # resources that may be registered with Featureform. Each value is based
     # on OfflineResourceType in providers/offline.go
@@ -209,3 +221,104 @@ class ResourceType(Enum):
     PRIMARY = 4
     TRANSFORMATION = 5
     FEATURE_MATERIALIZATION = 6
+
+
+class ResourceType(Enum):
+    NO_TYPE = 0
+    USER = 1
+    PROVIDER = 2
+    SOURCE_VARIANT = 3
+    ENTITY = 4
+    FEATURE_VARIANT = 5
+    ONDEMAND_FEATURE = 6
+    LABEL_VARIANT = 7
+    TRAININGSET_VARIANT = 8
+    SCHEDULE = 9
+    MODEL = 10
+    TRANSFORMATION = 11
+
+    def to_string(self) -> str:
+        return self.name.replace("_", " ").title()
+
+
+@typechecked
+@dataclass
+class TableFormat(str, Enum):
+    ICEBERG = "iceberg"
+    DELTA = "delta"
+
+    @classmethod
+    def get_format(cls, format: str):
+        try:
+            return cls(format)
+        except ValueError:
+            raise ValueError(f"Table format not supported: {format}")
+
+    @classmethod
+    def is_supported(cls, table_format: str) -> bool:
+        return table_format in [table_format.value for table_format in cls]
+
+    @classmethod
+    def supported_formats(cls) -> str:
+        return ", ".join([table_format.value for table_format in cls])
+
+
+class LocationType(str, Enum):
+    TABLE = "table"
+    FILESTORE = "filestore"
+    CATALOG = "catalog"
+
+
+class RefreshMode(Enum):
+    AUTO = pb.RefreshMode.REFRESH_MODE_AUTO
+    FULL = pb.RefreshMode.REFRESH_MODE_FULL
+    INCREMENTAL = pb.RefreshMode.REFRESH_MODE_INCREMENTAL
+
+    @classmethod
+    def from_proto(cls, proto_value):
+        try:
+            return cls(proto_value)
+        except ValueError:
+            return None
+
+    def to_proto(self):
+        return self.value
+
+    def to_string(self):
+        return self.name
+
+    @classmethod
+    def from_string(cls, value):
+        try:
+            return cls[value.upper()]
+        except KeyError:
+            raise ValueError(f"Refresh Mode value not supported: {value}")
+        except AttributeError:
+            raise ValueError(f"Refresh Mode value required: received {value}")
+
+
+class Initialize(Enum):
+    ON_CREATE = pb.Initialize.INITIALIZE_ON_CREATE
+    ON_SCHEDULE = pb.Initialize.INITIALIZE_ON_SCHEDULE
+
+    @classmethod
+    def from_proto(cls, proto_value):
+        try:
+            return cls(proto_value)
+        except ValueError:
+            return None
+
+    def to_proto(self):
+        return self.value
+
+    def to_string(self):
+        return self.name
+
+    @classmethod
+    def from_string(cls, value):
+        try:
+            return cls[value.upper()]
+        except KeyError:
+            raise ValueError(f"Initialize value not supported: {value}")
+        except AttributeError:
+            raise ValueError(f"Initialize value required: received {value}")

@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import mkdocs_gen_files
 import os
 
@@ -7,7 +14,8 @@ excluded_files = [
     "__init__.py",
     "__main__.py",
     "cli.py",
-    "client.py" "dashboard_metadata.py",
+    "client.py",
+    "dashboard_metadata.py",
     "format.py",
     "get.py",
     "list.py",

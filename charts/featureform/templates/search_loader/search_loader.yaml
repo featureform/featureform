@@ -1,0 +1,40 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: search-loader
+spec:
+  template:
+    spec:
+      imagePullSecrets:
+        - name: { { .Values.k8sImagePullSecret } }
+      restartPolicy: Never
+      containers:
+        - name: loader
+          image: "{{ .Values.repository | default .Values.repository }}/{{ .Values.searchjob.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              until curl -s http://{{ .Values.meilisearch.host }}:7700/health | grep -q '"status":"available"'; do
+                echo "Waiting for Meilisearch to be ready..."
+                sleep 20
+              done
+              echo "Meilisearch pod is ready. Starting the resource upload..."
+              ./main
+          env:
+            - name: METADATA_HOST
+              value: { { .Values.metadata.host } }
+            - name: METADATA_PORT
+              value: { { .Values.metadata.port | quote } }
+            - name: MEILISEARCH_HOST
+              value: { { .Values.meilisearch.host } }
+            - name: MEILISEARCH_PORT
+              value: { { .Values.meilisearch.port | quote } }
+            - name: MEILISEARCH_APIKEY
+              value: { { .Values.meilisearch.apikey | quote } }

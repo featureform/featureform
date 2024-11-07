@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
@@ -40,12 +47,16 @@ func postgresOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 
 	queries := postgresSQLQueries{}
 	queries.setVariableBinding(PostgresBindingStyle)
+	connectionUrlBuilder := PostgresConnectionBuilderFunc(sc)
+	connUrl, _ := connectionUrlBuilder(sc.Database, sc.Schema)
 	sgConfig := SQLOfflineStoreConfig{
-		Config:        config,
-		ConnectionURL: fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", sc.Username, sc.Password, sc.Host, sc.Port, sc.Database, sslMode),
-		Driver:        "postgres",
-		ProviderType:  pt.PostgresOffline,
-		QueryImpl:     &queries,
+		Config:                  config,
+		ConnectionURL:           connUrl,
+		Driver:                  "postgres",
+		ProviderType:            pt.PostgresOffline,
+		QueryImpl:               &queries,
+		ConnectionStringBuilder: connectionUrlBuilder,
+		useDbConnectionCache:    true,
 	}
 
 	store, err := NewSQLOfflineStore(sgConfig)
@@ -60,21 +71,21 @@ type postgresSQLQueries struct {
 }
 
 func (q postgresSQLQueries) tableExists() string {
-	return "SELECT COUNT(*) FROM pg_tables WHERE  tablename  = $1"
+	return "SELECT COUNT(*) FROM pg_tables WHERE tablename  = $1 AND schemaname = CURRENT_SCHEMA()"
 }
 
 func (q postgresSQLQueries) viewExists() string {
-	return "select count(*) from pg_views where viewname = $1"
+	return "select count(*) from pg_views where viewname = $1 AND schemaname = CURRENT_SCHEMA()"
 }
 
 func (q postgresSQLQueries) registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error {
 	var query string
 	if timestamp {
 		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, %s as ts FROM %s", sanitize(tableName),
-			sanitize(schema.Entity), sanitize(schema.Value), sanitize(schema.TS), sanitize(schema.SourceTable))
+			sanitize(schema.Entity), sanitize(schema.Value), sanitize(schema.TS), sanitize(schema.SourceTable.Location()))
 	} else {
 		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, to_timestamp('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMPTZ as ts FROM %s", sanitize(tableName),
-			sanitize(schema.Entity), sanitize(schema.Value), time.UnixMilli(0).UTC(), sanitize(schema.SourceTable))
+			sanitize(schema.Entity), sanitize(schema.Value), time.UnixMilli(0).UTC(), sanitize(schema.SourceTable.Location()))
 	}
 	fmt.Printf("Resource creation query: %s", query)
 	if _, err := db.Exec(query); err != nil {
@@ -254,23 +265,50 @@ func (q postgresSQLQueries) transformationExists() string {
 }
 
 func (q postgresSQLQueries) getColumns(db *sql.DB, tableName string) ([]TableColumn, error) {
-	qry := fmt.Sprintf("SELECT attname AS column_name FROM   pg_attribute WHERE  attrelid = 'public.%s'::regclass AND    attnum > 0 ORDER  BY attnum", tableName)
-	rows, err := db.Query(qry)
+	var schemaName string
+	err := db.QueryRow("SELECT current_schema()").Scan(&schemaName)
+	if err != nil {
+		return nil, fferr.NewExecutionError(pt.PostgresOffline.String(), err)
+	}
+
+	qry := `
+		SELECT attname AS column_name
+		FROM pg_attribute 
+		WHERE attrelid = $1::regclass
+		AND attnum > 0
+		ORDER BY attnum;
+	`
+
+	// Assuming tableName might already include the schema, so we handle it appropriately
+	qualifiedTableName := fmt.Sprintf("%s.%s", sanitize(schemaName), sanitize(tableName))
+
+	rows, err := db.Query(qry, qualifiedTableName)
 	if err != nil {
 		wrapped := fferr.NewExecutionError(pt.PostgresOffline.String(), err)
+		wrapped.AddDetail("schema_name", schemaName)
 		wrapped.AddDetail("table_name", tableName)
 		return nil, wrapped
 	}
 	defer rows.Close()
+
 	columnNames := make([]TableColumn, 0)
 	for rows.Next() {
 		var column string
 		if err := rows.Scan(&column); err != nil {
 			wrapped := fferr.NewExecutionError(pt.PostgresOffline.String(), err)
+			wrapped.AddDetail("schema_name", schemaName)
 			wrapped.AddDetail("table_name", tableName)
 			return nil, wrapped
 		}
 		columnNames = append(columnNames, TableColumn{Name: column})
 	}
+
+	if err := rows.Err(); err != nil {
+		wrapped := fferr.NewExecutionError(pt.PostgresOffline.String(), err)
+		wrapped.AddDetail("schema_name", schemaName)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
+	}
+
 	return columnNames, nil
 }

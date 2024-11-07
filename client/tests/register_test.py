@@ -1,22 +1,36 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
+import ast
 import os
 import shutil
 import stat
 import sys
+import textwrap
 
 import featureform as ff
-from featureform import ResourceRedefinedError, InvalidSQLQuery
+from featureform import InvalidSQLQuery
 
 sys.path.insert(0, "client/src/")
 import pytest
 from featureform.register import (
-    Provider,
     Registrar,
     SQLTransformationDecorator,
     DFTransformationDecorator,
     SnowflakeConfig,
     Model,
     get_name_variant,
+    Variants,
+    FeatureColumnResource,
+    LabelColumnResource,
 )
+from featureform.resources import Provider, TrainingSetVariant, PrimaryData, SQLTable
+from featureform.proto import metadata_pb2 as pb
+from featureform.enums import ResourceType
 
 
 @pytest.mark.parametrize(
@@ -353,10 +367,10 @@ def run_before_and_after_tests(tmpdir):
         ),
         (
             """
-                                            SELECT *
-                                            FROM {{ name.variant2 }}
-                                            WHERE x >= 5.
-                                            """,
+                                                        SELECT *
+                                                        FROM {{ name.variant2 }}
+                                                        WHERE x >= 5.
+                                                        """,
             None,
         ),
         (
@@ -579,3 +593,333 @@ def test_register_blob_store(container_name, expected_error, ff_registrar):
         assert str(ve) == str(expected_error)
     except Exception as e:
         raise e
+
+
+feature_dict = {
+    "name": "feature_name",
+    "status": pb.ResourceStatus(status=pb.ResourceStatus.Status.CREATED),
+    "default_variant": "default",
+    "variants": ["not_default", "default"],
+}
+label_dict = {
+    "name": "label_name",
+    "status": pb.ResourceStatus(status=pb.ResourceStatus.Status.CREATED),
+    "default_variant": "default",
+    "variants": ["default"],
+}
+source_dict = {
+    "name": "source_name",
+    "status": pb.ResourceStatus(status=pb.ResourceStatus.Status.CREATED),
+    "default_variant": "variant3",
+    "variants": ["variant1, variant2, variant3"],
+}
+ts_dict = {
+    "name": "ts_name",
+    "status": pb.ResourceStatus(status=pb.ResourceStatus.Status.CREATED),
+    "default_variant": "2024-07-26t10-42-25",
+    "variants": ["2024-07-24t10-28-25", "2024-07-26t10-42-25"],
+}
+
+ts2_dict = {
+    "name": "ts2",
+    "status": pb.ResourceStatus(status=pb.ResourceStatus.Status.CREATED),
+    "default_variant": "var",
+    "variants": ["var"],
+}
+
+test_model = ff.Model("model_name")
+
+test_variant = Variants(
+    {
+        "res1": FeatureColumnResource(
+            transformation_args=(
+                Registrar(),
+                "source_variant",
+                ["col1", "col2"],
+            ),
+            type="string",
+            name="feature_name",
+        ),
+        "res2": LabelColumnResource(
+            transformation_args=(
+                Registrar(),
+                "source_variant",
+                ["col1", "col2"],
+            ),
+            type="string",
+            name="label_name",
+        ),
+    }
+)
+
+source_variant_dict = {
+    "name": "source_name",
+    "variant": "variant1",
+    "primaryData": pb.PrimaryData(
+        table=pb.SQLTable(name="name", database="database", schema="schema"),
+        timestamp_column="T23-40-23",
+    ),
+    "owner": "User",
+    "provider": "Provider",
+    "status": pb.ResourceStatus(status=pb.ResourceStatus.Status.CREATED),
+    "table": "transactions",
+}
+
+feature_variant_dict = {
+    "name": "feature_name",
+    "variant": "variant1",
+    "source": pb.NameVariant(name="source_name", variant="source_variant"),
+    "entity": "User",
+    "description": "its a feature",
+    "provider": "Provider",
+    "status": pb.ResourceStatus(status=pb.ResourceStatus.Status.CREATED),
+}
+
+label_variant_dict = {
+    "name": "label_name",
+    "variant": "variant1",
+    "source": pb.NameVariant(name="source_name", variant="source_variant"),
+    "entity": "User",
+    "owner": "Me",
+    "description": "its a label",
+    "provider": "Provider",
+    "status": pb.ResourceStatus(status=pb.ResourceStatus.Status.CREATED),
+}
+
+
+class MockStub:
+    def GetFeatures(self, req):
+        feature_name = next(req).name.name
+        if feature_name == "feature_name":
+            yield pb.Feature(**feature_dict)
+
+    def GetLabels(self, req):
+        label_name = next(req).name.name
+        if label_name == "label_name":
+            yield pb.Label(**label_dict)
+
+    def GetSources(self, req):
+        source_name = next(req).name.name
+        if source_name == "source_name":
+            yield pb.Source(**source_dict)
+
+    def GetTrainingSets(self, req):
+        training_set_name = next(req).name.name
+        if training_set_name == "ts_name":
+            yield pb.TrainingSet(**ts_dict)
+        elif training_set_name == "ts2":
+            yield pb.TrainingSet(**ts2_dict)
+
+    def GetSourceVariants(self, req):
+        source_name = next(req).name_variant.name
+        if source_name == "source_name":
+            yield pb.SourceVariant(**source_variant_dict)
+
+    def GetFeatureVariants(self, req):
+        feature_name = next(req).name_variant.name
+        if feature_name == "feature_name":
+            yield pb.FeatureVariant(**feature_variant_dict)
+
+    def GetLabelVariants(self, req):
+        label_name = next(req).name_variant.name
+        if label_name == "label_name":
+            yield pb.LabelVariant(**label_variant_dict)
+
+
+@pytest.mark.parametrize(
+    "resource_name, resource_type, expected_output, expected_error, expected_error_msg",
+    [
+        (
+            "feature_name",
+            ResourceType.FEATURE_VARIANT,
+            feature_dict["variants"],
+            None,
+            "",
+        ),
+        ("label_name", ResourceType.LABEL_VARIANT, label_dict["variants"], None, ""),
+        ("source_name", ResourceType.SOURCE_VARIANT, source_dict["variants"], None, ""),
+        ("ts_name", ResourceType.TRAININGSET_VARIANT, ts_dict["variants"], None, ""),
+        (
+            TrainingSetVariant(
+                name="ts2",
+                owner="User",
+                label=("label", "variant"),
+                features=[("feature", "variant")],
+                description="description",
+                variant="var",
+            ),
+            None,
+            ["var"],
+            None,
+            "",
+        ),
+        (
+            "feature_without_type",
+            None,
+            None,
+            ValueError,
+            "A resource type param must be provided if the resource name param is of type string.",
+        ),
+        (
+            test_model,
+            None,
+            None,
+            ValueError,
+            f"Expected input: string, Feature, Label, Source or Training Set object, actual input: {test_model}.",
+        ),
+        (
+            "provider_name",
+            ResourceType.PROVIDER,
+            None,
+            ValueError,
+            "Resource type Provider doesnt have variants.",
+        ),
+    ],
+)
+def test_get_variants(
+    resource_name, resource_type, expected_output, expected_error, expected_error_msg
+):
+    client = ff.Client(host="localhost:7878", insecure=True, dry_run=True)
+    client._stub = MockStub()
+    if expected_error is None:
+        all_variants = client.get_variants(resource_name, resource_type)
+        assert all_variants == expected_output
+    else:
+        with pytest.raises(expected_error) as e:
+            all_variants = client.get_variants(resource_name, resource_type)
+        assert str(e.value) == expected_error_msg
+
+
+@pytest.mark.parametrize(
+    "resource_name, resource_type, expected_output, expected_error, expected_error_msg",
+    [
+        (
+            "feature_name",
+            ResourceType.FEATURE_VARIANT,
+            feature_dict["default_variant"],
+            None,
+            "",
+        ),
+        (
+            "label_name",
+            ResourceType.LABEL_VARIANT,
+            label_dict["default_variant"],
+            None,
+            "",
+        ),
+        (
+            "source_name",
+            ResourceType.SOURCE_VARIANT,
+            source_dict["default_variant"],
+            None,
+            "",
+        ),
+        (
+            "ts_name",
+            ResourceType.TRAININGSET_VARIANT,
+            ts_dict["default_variant"],
+            None,
+            "",
+        ),
+        (
+            TrainingSetVariant(
+                name="ts2",
+                owner="User",
+                label=("label", "variant"),
+                features=[("feature", "variant")],
+                description="description",
+                variant="var",
+            ),
+            None,
+            "var",
+            None,
+            "",
+        ),
+        (
+            "feature_without_type",
+            None,
+            None,
+            ValueError,
+            "A resource type param must be provided if the resource name param is of type string.",
+        ),
+        (
+            test_model,
+            None,
+            None,
+            ValueError,
+            (
+                f"Expected input: string, Feature, Label, Source or Training Set object, actual input: {test_model}."
+            ),
+        ),
+        (
+            "provider_name",
+            ResourceType.PROVIDER,
+            None,
+            ValueError,
+            "Resource type Provider doesnt have variants.",
+        ),
+        (
+            test_variant,
+            None,
+            "",
+            ValueError,
+            f"{test_variant} is of type Variants. Please provide a resource type.",
+        ),
+    ],
+)
+def test_get_latest_variant(
+    resource_name, resource_type, expected_output, expected_error, expected_error_msg
+):
+    client = ff.Client(host="localhost:7878", insecure=True, dry_run=True)
+    client._stub = MockStub()
+    if expected_error is None:
+        all_variants = client.latest_variant(resource_name, resource_type)
+        assert all_variants == expected_output
+    else:
+        with pytest.raises(expected_error) as e:
+            all_variants = client.latest_variant(resource_name, resource_type)
+        assert str(e.value) == expected_error_msg
+
+
+def test_get_source():
+    client = ff.Client(host="localhost:7878", insecure=True, dry_run=True)
+    client._stub = MockStub()
+    source_variant_column_registrar = client.get_source("source_name", "variant1")
+    source_variant = source_variant_column_registrar.source()
+    assert source_variant.name == source_variant_dict["name"]
+    assert source_variant.definition == PrimaryData(
+        SQLTable(schema="schema", name="name", database="database"), "T23-40-23"
+    )
+    assert source_variant.owner == source_variant_dict["owner"]
+    assert source_variant.provider == source_variant_dict["provider"]
+    assert source_variant.created == None
+    assert source_variant.status == "CREATED"
+
+
+def test_get_feature():
+    client = ff.Client(host="localhost:7878", insecure=True, dry_run=True)
+    client._stub = MockStub()
+    feature_variant = client.get_feature("feature_name", "variant1")
+    assert feature_variant.name == feature_variant_dict["name"]
+    assert feature_variant.status == "CREATED"
+    assert feature_variant.entity == feature_variant_dict["entity"]
+    assert feature_variant.variant == feature_variant_dict["variant"]
+    assert feature_variant.description == feature_variant_dict["description"]
+    assert feature_variant.provider == feature_variant_dict["provider"]
+    assert feature_variant.source[0] == "source_name"
+    assert feature_variant.source[1] == "source_variant"
+
+
+def test_get_label():
+    client = ff.Client(host="localhost:7878", insecure=True, dry_run=True)
+    client._stub = MockStub()
+    label_variant = client.get_label("label_name", "variant1")
+    assert label_variant.name == label_variant_dict["name"]
+    assert label_variant.status == "CREATED"
+    assert label_variant.entity == label_variant_dict["entity"]
+    assert label_variant.owner == label_variant_dict["owner"]
+    assert label_variant.variant == label_variant_dict["variant"]
+    assert label_variant.description == label_variant_dict["description"]
+    assert label_variant.provider == label_variant_dict["provider"]
+    assert label_variant.source[0] == "source_name"
+    assert label_variant.source[1] == "source_variant"

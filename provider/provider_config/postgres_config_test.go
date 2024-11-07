@@ -1,10 +1,20 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider_config
 
 import (
 	"reflect"
 	"testing"
 
-	ss "github.com/featureform/helpers/string_set"
+	"github.com/featureform/provider/retriever"
+	"github.com/stretchr/testify/assert"
+
+	ss "github.com/featureform/helpers/stringset"
 )
 
 func TestPostgresConfigMutableFields(t *testing.T) {
@@ -19,7 +29,7 @@ func TestPostgresConfigMutableFields(t *testing.T) {
 		Host:     "0.0.0.0",
 		Port:     "5432",
 		Username: "postgres",
-		Password: "password",
+		Password: retriever.NewStaticValue[string]("password"),
 		Database: "postgres",
 		SSLMode:  "disable",
 	}
@@ -46,7 +56,7 @@ func TestPostgresConfigDifferingFields(t *testing.T) {
 				Host:     "0.0.0.0",
 				Port:     "5432",
 				Username: "postgres",
-				Password: "password",
+				Password: retriever.NewStaticValue[string]("password"),
 				Database: "postgres",
 				SSLMode:  "disable",
 			},
@@ -54,7 +64,7 @@ func TestPostgresConfigDifferingFields(t *testing.T) {
 				Host:     "0.0.0.0",
 				Port:     "5432",
 				Username: "postgres",
-				Password: "password",
+				Password: retriever.NewStaticValue[string]("password"),
 				Database: "postgres",
 				SSLMode:  "disable",
 			},
@@ -64,7 +74,7 @@ func TestPostgresConfigDifferingFields(t *testing.T) {
 				Host:     "0.0.0.0",
 				Port:     "5432",
 				Username: "postgres",
-				Password: "password",
+				Password: retriever.NewStaticValue[string]("password"),
 				Database: "postgres",
 				SSLMode:  "disable",
 			},
@@ -72,7 +82,7 @@ func TestPostgresConfigDifferingFields(t *testing.T) {
 				Host:     "127.0.0.1",
 				Port:     "5432",
 				Username: "root",
-				Password: "password",
+				Password: retriever.NewStaticValue[string]("password"),
 				Database: "transaction",
 				SSLMode:  "require",
 			},
@@ -99,4 +109,49 @@ func TestPostgresConfigDifferingFields(t *testing.T) {
 		})
 	}
 
+}
+
+func TestPostgresConfig_Serde_BackwardsCmp(t *testing.T) {
+	serializedConfig := []byte(`{"Host":"localhost","Port":"5432","Username":"user","Password":"password","Database":"testdb","SSLMode":"disable"}`)
+
+	var deserializedConfig PostgresConfig
+	err := deserializedConfig.Deserialize(serializedConfig)
+	if err != nil {
+		t.Fatalf("Failed to deserialize config: %v", err)
+	}
+
+	expectedConfig := &PostgresConfig{
+		Host:     "localhost",
+		Port:     "5432",
+		Username: "user",
+		Password: retriever.NewStaticValue[string]("password"),
+		Database: "testdb",
+		Schema:   "public",
+		SSLMode:  "disable",
+	}
+
+	// Compare original and deserialized configs
+	assert.Equal(t, expectedConfig, &deserializedConfig)
+}
+
+func TestPostgresConfig_Serde_MissingPassword(t *testing.T) {
+	serializedConfig := []byte(`{"Host":"localhost","Port":"5432","Username":"user","Database":"testdb","SSLMode":"disable"}`)
+
+	var deserializedConfig PostgresConfig
+	err := deserializedConfig.Deserialize(serializedConfig)
+	if err != nil {
+		t.Fatalf("Failed to deserialize config: %v", err)
+	}
+
+	expectedConfig := &PostgresConfig{
+		Host:     "localhost",
+		Port:     "5432",
+		Username: "user",
+		Password: retriever.NewStaticValue[string](""),
+		Database: "testdb",
+		Schema:   "public",
+		SSLMode:  "disable",
+	}
+
+	assert.Equal(t, expectedConfig, &deserializedConfig)
 }

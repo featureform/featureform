@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import os
 import sys
 
@@ -77,12 +84,13 @@ def test_execute_sql_query(arguments, expected_output, spark, request):
     args = request.getfixturevalue(arguments)
     output_file = execute_sql_query(
         args.job_type,
-        args.output_uri,
+        args.output,
         args.sql_query,
         args.spark_config,
-        args.source_list,
+        args.sources,
         args.output_format,
         args.headers,
+        args.credential,
     )
 
     expected_df = spark.read.parquet(expected_output)
@@ -107,12 +115,13 @@ def test_execute_sql_query(arguments, expected_output, spark, request):
 def test_execute_df_job(arguments, expected_output, spark, request):
     args = request.getfixturevalue(arguments)
     output_file = execute_df_job(
-        args.output_uri,
+        args.output,
         args.code,
         args.store_type,
         args.spark_config,
+        args.headers,
         args.credential,
-        args.source,
+        args.sources,
     )
 
     expected_df = spark.read.parquet(expected_output)
@@ -122,12 +131,13 @@ def test_execute_df_job(arguments, expected_output, spark, request):
     assert expected_df.schema == output_df.schema
 
 
-def test_set_spark_config(spark):
+def test_set_spark_config(sparkbuilder):
     config = {
         "fs.azure.account.key.account_name.dfs.core.windows.net": "adfjaidfasdklciadsj=="
     }
 
-    set_spark_configs(spark, config)
+    set_spark_configs(sparkbuilder, config)
+    spark = sparkbuilder.getOrCreate()
 
     for key, value in config.items():
         assert spark.conf.get(key) == value

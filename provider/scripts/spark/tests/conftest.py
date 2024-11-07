@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import os
 import sys
 from argparse import Namespace
@@ -19,26 +26,49 @@ def sql_all_arguments():
         "sql",
         "--job_type",
         "Transformation",
-        "--output_uri",
-        "s3://featureform-testing/fake-path",
+        "--output",
+        '{"outputLocation":"s3://featureform-testing/fake-path","locationType": "filestore"}',
         "--sql_query",
         "SELECT * FROM source_0",
-        "--source_list",
-        "s3://path",
-        "s3://path",
+        "--sources",
+        '{"location": "s3://path", "provider": "SPARK_OFFLINE", "locationType": "filestore"}',
+        '{"location": "s3://path", "provider": "SPARK_OFFLINE", "locationType": "filestore"}',
     ]
     expected_args = Namespace(
         transformation_type="sql",
         job_type="Transformation",
-        output_uri="s3://featureform-testing/fake-path",
+        output={
+            "outputLocation": "s3://featureform-testing/fake-path",
+            "locationType": "filestore",
+        },
         sql_query="SELECT * FROM source_0",
-        source_list=["s3://path", "s3://path"],
+        sources=[
+            {
+                "location": "s3://path",
+                "provider": "SPARK_OFFLINE",
+                "locationType": "filestore",
+            },
+            {
+                "location": "s3://path",
+                "provider": "SPARK_OFFLINE",
+                "locationType": "filestore",
+            },
+        ],
         spark_config={},
         credential={},
         store_type=None,
         output_format="parquet",
         headers="include",
         submit_params_uri=None,
+        is_update=False,
+        direct_copy_use_iceberg=False,
+        direct_copy_target=None,
+        direct_copy_table_name=None,
+        direct_copy_feature_name=None,
+        direct_copy_feature_variant=None,
+        direct_copy_entity_column=None,
+        direct_copy_value_column=None,
+        direct_copy_timestamp_column=None,
     )
     return (input_args, expected_args)
 
@@ -48,15 +78,24 @@ def sql_local_all_arguments():
     expected_args = Namespace(
         transformation_type="sql",
         job_type="Transformation",
-        output_uri=f"{dir_path}/test_files/output/test_sql_transformation",
+        output={
+            "outputLocation": f"{dir_path}/test_files/output/test_sql_transformation",
+            "locationType": "filestore",
+        },
         sql_query="SELECT * FROM source_0",
-        source_list=[f"{dir_path}/test_files/input/transaction.parquet"],
+        sources=[
+            {
+                "location": f"{dir_path}/test_files/input/transaction.parquet",
+                "locationType": "filestore",
+            }
+        ],
         store_type="local",
         spark_config={},
         credential={},
         output_format="parquet",
         headers="include",
         submit_params_uri=None,
+        is_update=False,
     )
     return expected_args
 
@@ -67,34 +106,60 @@ def sql_partial_arguments():
         "sql",
         "--job_type",
         "Transformation",
-        "--output_uri",
-        "s3://featureform-testing/fake-path",
+        "--output",
+        '{"outputLocation":"s3://featureform-testing/fake-path", "locationType": "filestore"}',
     ]
     expected_args = Namespace(
         transformation_type="sql",
         job_type="Transformation",
-        output_uri="s3://featureform-testing/fake-path",
+        output={
+            "outputLocation": "s3://featureform-testing/fake-path",
+            "locationType": "filestore",
+        },
         sql_query=None,
-        source_list=None,
+        sources=None,
         spark_config={},
         credential={},
         store_type=None,
         output_format="parquet",
         headers="include",
         submit_params_uri=None,
+        is_update=False,
+        direct_copy_use_iceberg=False,
+        direct_copy_target=None,
+        direct_copy_table_name=None,
+        direct_copy_feature_name=None,
+        direct_copy_feature_variant=None,
+        direct_copy_entity_column=None,
+        direct_copy_value_column=None,
+        direct_copy_timestamp_column=None,
     )
     return (input_args, expected_args)
 
 
 @pytest.fixture(scope="module")
-def sql_invaild_arguments():
+def sql_invalid_arguments():
     input_args = ["sql", "--job_type", "Transformation", "--hi"]
     expected_args = Namespace(
         transformation_type="sql",
         job_type="Transformation",
-        output_uri="s3://featureform-testing/fake-path",
+        output={
+            "outputLocation": "s3://featureform-testing/fake-path",
+            "locationType": "filestore",
+        },
         sql_query="SELECT * FROM source_0",
-        source_list=["s3://path s3://path"],
+        sources=[
+            {
+                "location": "s3://path s3://path",
+                "provider": "SPARK_OFFLINE",
+                "locationType": "filestore",
+            },
+            {
+                "location": "s3://path s3://path",
+                "provider": "SPARK_OFFLINE",
+                "locationType": "filestore",
+            },
+        ],
         spark_config={},
         credential={},
         store_type=None,
@@ -110,9 +175,12 @@ def sql_invalid_local_arguments():
     expected_args = Namespace(
         transformation_type="sql",
         job_type="Transform",
-        output_uri="s3://featureform-testing/fake-path",
+        output={
+            "outputLocation": "s3://featureform-testing/fake-path",
+            "locationType": "filestore",
+        },
         sql_query="SELECT * FROM source_0",
-        source_list=["NONE"],
+        sources=["NONE"],
         store_type=None,
         output_format="parquet",
         headers="include",
@@ -125,22 +193,39 @@ def sql_invalid_local_arguments():
 def df_all_arguments():
     input_args = [
         "df",
-        "--output_uri",
-        "s3://featureform-testing/fake-path",
+        "--output",
+        '{"outputLocation":"s3://featureform-testing/fake-path","locationType": "filestore"}',
         "--code",
         "code",
-        "--source",
-        "s3://featureform/transaction",
-        "s3://featureform/account",
+        "--sources",
+        '{"location": "s3://featureform/transaction", "provider": "SPARK_OFFLINE", "locationType": "filestore"}',
+        '{"location": "s3://featureform/account", "provider": "SPARK_OFFLINE", "locationType": "filestore"}',
     ]
     expected_args = Namespace(
         transformation_type="df",
-        output_uri="s3://featureform-testing/fake-path",
+        output={
+            "outputLocation": "s3://featureform-testing/fake-path",
+            "locationType": "filestore",
+        },
         code="code",
-        source=["s3://featureform/transaction", "s3://featureform/account"],
+        sources=[
+            {
+                "location": "s3://featureform/transaction",
+                "provider": "SPARK_OFFLINE",
+                "locationType": "filestore",
+            },
+            {
+                "location": "s3://featureform/account",
+                "provider": "SPARK_OFFLINE",
+                "locationType": "filestore",
+            },
+        ],
         spark_config={},
         credential={},
         store_type=None,
+        headers="include",
+        submit_params_uri=None,
+        is_update=False,
     )
     return (input_args, expected_args)
 
@@ -150,10 +235,12 @@ def df_partial_arguments():
     input_args = ["df", "--job_type", "Transformation"]
     expected_args = Namespace(
         transformation_type="df",
-        output_uri=None,
+        output=None,
         spark_config=None,
         credential=None,
         store_type=None,
+        last_run_timestamp=None,
+        is_update=False,
     )
     return (input_args, expected_args)
 
@@ -163,10 +250,18 @@ def df_invaild_arguments():
     input_args = ["df", "--job_type", "Transformation", "--hi"]
     expected_args = Namespace(
         transformation_type="df",
-        output_uri="s3://featureform-testing/fake-path",
+        output={
+            "outputLocation": "s3://featureform-testing/fake-path",
+            "locationType": "filestore",
+        },
         spark_config={},
         credential={},
         store_type=None,
+        last_run_timestamp=None,
+        is_update=False,
+        output_format="parquet",
+        headers="include",
+        submit_params_uri=None,
     )
     return (input_args, expected_args)
 
@@ -177,8 +272,8 @@ def sql_databricks_all_arguments():
         "sql",
         "--job_type",
         "Transformation",
-        "--output_uri",
-        "abfss://<container-name>@<storage-account-name>.blob.core.windows.net/output/test_transformation.csv",
+        "--output",
+        '{"outputLocation":"abfss://<container-name>@<storage-account-name>.blob.core.windows.net/output/test_transformation.csv", "locationType": "filestore"}',
         "--sql_query",
         "SELECT * FROM source_0",
         "--store_type",
@@ -187,16 +282,23 @@ def sql_databricks_all_arguments():
         "fs.azure.account.key.account_name.dfs.core.windows.net=adfjaidfasdklciadsj==",
         "--credential",
         "key=value",
-        "--source_list",
-        "abfss://<container-name>@<storage-account-name>.blob.core.windows.net/ice_cream_100rows.csv",
+        "--sources",
+        '{"location": "abfss://<container-name>@<storage-account-name>.blob.core.windows.net/ice_cream_100rows.csv", "provider": "SPARK_OFFLINE", "locationType": "filestore"}',
     ]
     expected_args = Namespace(
         transformation_type="sql",
         job_type="Transformation",
-        output_uri="abfss://<container-name>@<storage-account-name>.blob.core.windows.net/output/test_transformation.csv",
+        output={
+            "outputLocation": "abfss://<container-name>@<storage-account-name>.blob.core.windows.net/output/test_transformation.csv",
+            "locationType": "filestore",
+        },
         sql_query="SELECT * FROM source_0",
-        source_list=[
-            "abfss://<container-name>@<storage-account-name>.blob.core.windows.net/ice_cream_100rows.csv"
+        sources=[
+            {
+                "location": "abfss://<container-name>@<storage-account-name>.blob.core.windows.net/ice_cream_100rows.csv",
+                "locationType": "filestore",
+                "provider": "SPARK_OFFLINE",
+            }
         ],
         store_type="azure_blob_store",
         spark_config={
@@ -206,6 +308,15 @@ def sql_databricks_all_arguments():
         output_format="parquet",
         headers="include",
         submit_params_uri=None,
+        is_update=False,
+        direct_copy_use_iceberg=False,
+        direct_copy_target=None,
+        direct_copy_table_name=None,
+        direct_copy_feature_name=None,
+        direct_copy_feature_variant=None,
+        direct_copy_entity_column=None,
+        direct_copy_value_column=None,
+        direct_copy_timestamp_column=None,
     )
     return input_args, expected_args
 
@@ -221,12 +332,25 @@ def invalid_arguments():
 def df_local_all_arguments(df_transformation):
     expected_args = Namespace(
         transformation_type="df",
-        output_uri=f"{dir_path}/test_files/output/test_df_transformation",
+        output={
+            "outputLocation": f"{dir_path}/test_files/output/test_df_transformation",
+            "locationType": "filestore",
+        },
         code=df_transformation,
-        source=[f"{dir_path}/test_files/input/transaction.parquet"],
+        sources=[
+            {
+                "location": f"{dir_path}/test_files/input/transaction.parquet",
+                "locationType": "filestore",
+                "provider": "SPARK_OFFLINE",
+            }
+        ],
         spark_config={},
         credential={},
         store_type="local",
+        is_update=False,
+        output_format="parquet",
+        headers="include",
+        submit_params_uri=None,
     )
     return expected_args
 
@@ -237,9 +361,15 @@ def df_local_pass_none_code_failure():
         transformation_type="df",
         output_uri=f"{dir_path}/test_files/output/test_transformation",
         code="s3://featureform-testing/fake-path/code",
-        source=[f"{dir_path}/test_files/input/transaction.parquet"],
+        sources=[
+            {
+                "locations": f"{dir_path}/test_files/input/transaction.parquet",
+                "provider": "SPARK_OFFLINE",
+            }
+        ],
         spark_config={},
         credential={},
+        is_update=False,
     )
     return expected_args
 
@@ -254,6 +384,11 @@ def df_transformation():
     with open(file_path, "wb") as f:
         dill.dump(transformation.__code__, f)
     return file_path
+
+
+@pytest.fixture(scope="module")
+def sparkbuilder():
+    return SparkSession.builder.appName("Testing App")
 
 
 @pytest.fixture(scope="module")

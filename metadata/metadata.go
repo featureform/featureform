@@ -1,24 +1,37 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
+// TODO: need to figure out entry point for GetStatus
+// modify if status is not in proto then check the task manager
 
 package metadata
 
 import (
 	"context"
 	"fmt"
-	mapset "github.com/deckarep/golang-set/v2"
 	"io"
 	"net"
-	"regexp"
+	"os"
+	"sort"
 	"strings"
 	"time"
 
-	"github.com/featureform/helpers"
+	"github.com/featureform/metadata/equivalence"
+
+	mapset "github.com/deckarep/golang-set/v2"
+
+	"github.com/featureform/filestore"
+	"github.com/featureform/helpers/interceptors"
 	"github.com/featureform/logging"
+	"github.com/featureform/scheduling"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/lib"
+	"github.com/featureform/helpers/notifications"
+	schproto "github.com/featureform/scheduling/proto"
 
 	"github.com/pkg/errors"
 
@@ -26,8 +39,10 @@ import (
 
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/metadata/search"
+	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	ptypes "github.com/featureform/provider/types"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
@@ -98,22 +113,36 @@ func (r ResourceType) Serialized() pb.ResourceType {
 	return pb.ResourceType(r)
 }
 
-type ResourceStatus int32
-
-const (
-	NO_STATUS ResourceStatus = ResourceStatus(pb.ResourceStatus_NO_STATUS)
-	CREATED                  = ResourceStatus(pb.ResourceStatus_CREATED)
-	PENDING                  = ResourceStatus(pb.ResourceStatus_PENDING)
-	READY                    = ResourceStatus(pb.ResourceStatus_READY)
-	FAILED                   = ResourceStatus(pb.ResourceStatus_FAILED)
-)
-
-func (r ResourceStatus) String() string {
-	return pb.ResourceStatus_Status_name[int32(r)]
-}
-
-func (r ResourceStatus) Serialized() pb.ResourceStatus_Status {
-	return pb.ResourceStatus_Status(r)
+// Returns an empty Resource Object of the given type to unmarshal etcd value into
+func CreateEmptyResource(t ResourceType) (Resource, error) {
+	switch t {
+	case FEATURE:
+		return &featureResource{&pb.Feature{}}, nil
+	case FEATURE_VARIANT:
+		return &featureVariantResource{&pb.FeatureVariant{}}, nil
+	case LABEL:
+		return &labelResource{&pb.Label{}}, nil
+	case LABEL_VARIANT:
+		return &labelVariantResource{&pb.LabelVariant{}}, nil
+	case USER:
+		return &userResource{&pb.User{}}, nil
+	case ENTITY:
+		return &entityResource{&pb.Entity{}}, nil
+	case PROVIDER:
+		return &providerResource{&pb.Provider{}}, nil
+	case SOURCE:
+		return &sourceResource{&pb.Source{}}, nil
+	case SOURCE_VARIANT:
+		return &sourceVariantResource{&pb.SourceVariant{}}, nil
+	case TRAINING_SET:
+		return &trainingSetResource{&pb.TrainingSet{}}, nil
+	case TRAINING_SET_VARIANT:
+		return &trainingSetVariantResource{&pb.TrainingSetVariant{}}, nil
+	case MODEL:
+		return &modelResource{&pb.Model{}}, nil
+	default:
+		return nil, fferr.NewUnimplementedErrorf("unable to create empty resource of type %T", t)
+	}
 }
 
 type ComputationMode int32
@@ -121,6 +150,7 @@ type ComputationMode int32
 const (
 	PRECOMPUTED     ComputationMode = ComputationMode(pb.ComputationMode_PRECOMPUTED)
 	CLIENT_COMPUTED                 = ComputationMode(pb.ComputationMode_CLIENT_COMPUTED)
+	STREAMING                       = ComputationMode(pb.ComputationMode_STREAMING)
 )
 
 func (cm ComputationMode) Equals(mode pb.ComputationMode) bool {
@@ -149,10 +179,39 @@ func (serv *MetadataServer) needsJob(res Resource) bool {
 			serv.Logger.Errorf("resource has type FEATURE VARIANT but failed to cast %s", res.ID())
 			return false
 		} else {
-			return PRECOMPUTED.Equals(fv.serialized.Mode)
+			return !CLIENT_COMPUTED.Equals(fv.serialized.Mode)
 		}
 	}
 	return false
+}
+
+func (serv *MetadataServer) needsRun(ctx context.Context, res Resource) bool {
+	logger := logging.GetLoggerFromContext(ctx)
+	switch res.ID().Type {
+	case TRAINING_SET_VARIANT:
+		return true
+	case FEATURE_VARIANT:
+		fv, ok := res.(*featureVariantResource)
+		if !ok {
+			logger.Errorw("resource has type FEATURE VARIANT but failed to cast", "resource", res.ID())
+			return false
+		}
+		// Don't need to run on-demand features
+		isClientComputed := CLIENT_COMPUTED.Equals(fv.serialized.Mode)
+		return !isClientComputed
+	case SOURCE_VARIANT:
+		sv, ok := res.(*sourceVariantResource)
+		if !ok {
+			logger.Errorw("resource has type SOURCE VARIANT but failed to cast", "resource", res.ID())
+			return false
+		}
+		// Don't need to run primaries
+		_, isTransform := sv.serialized.Definition.(*pb.SourceVariant_Transformation)
+		return isTransform
+	default:
+		logger.Warnw("Calling needsRun on un-handled resource", "resource", res.ID())
+		return false
+	}
 }
 
 type ResourceID struct {
@@ -219,42 +278,59 @@ func resourceNamedSafely(id ResourceID) error {
 }
 
 type ResourceVariant interface {
+	ID() ResourceID
 	IsEquivalent(ResourceVariant) (bool, error)
 	ToResourceVariantProto() *pb.ResourceVariant
+	Owner() string
 }
 
 type Resource interface {
-	Notify(ResourceLookup, operation, Resource) error
+	Equals(any) bool
+	Less(any) bool
+	Notify(context.Context, ResourceLookup, operation, Resource) error
 	ID() ResourceID
 	Schedule() string
-	Dependencies(ResourceLookup) (ResourceLookup, error)
+	Dependencies(context.Context, ResourceLookup) (ResourceLookup, error)
 	Proto() proto.Message
 	GetStatus() *pb.ResourceStatus
-	UpdateStatus(pb.ResourceStatus) error
+	UpdateStatus(*pb.ResourceStatus) error
 	UpdateSchedule(string) error
 	Update(ResourceLookup, Resource) error
 }
 
-func isDirectDependency(lookup ResourceLookup, dependency, parent Resource) (bool, error) {
+func isDirectDependency(ctx context.Context, lookup ResourceLookup, dependency, parent Resource) (bool, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger.Debugw("checking direct dependency", "dependency", dependency.ID(), "parent", parent.ID())
 	depId := dependency.ID()
-	deps, depsErr := parent.Dependencies(lookup)
+	deps, depsErr := parent.Dependencies(ctx, lookup)
 	if depsErr != nil {
+		logger.Errorw("failed to get dependencies", "error", depsErr, "parent", parent.ID())
 		return false, depsErr
 	}
-	return deps.Has(depId)
+	return deps.Has(ctx, depId)
 }
 
 type ResourceLookup interface {
 	Lookup(context.Context, ResourceID) (Resource, error)
-	Has(ResourceID) (bool, error)
-	Set(ResourceID, Resource) error
-	Submap([]ResourceID) (ResourceLookup, error)
-	ListForType(ResourceType) ([]Resource, error)
-	List() ([]Resource, error)
-	HasJob(ResourceID) (bool, error)
-	SetJob(ResourceID, string) error
-	SetStatus(context.Context, ResourceID, pb.ResourceStatus) error
-	SetSchedule(ResourceID, string) error
+	Has(context.Context, ResourceID) (bool, error)
+	Set(context.Context, ResourceID, Resource) error
+	Submap(context.Context, []ResourceID) (ResourceLookup, error)
+	ListForType(context.Context, ResourceType) ([]Resource, error)
+	List(context.Context) ([]Resource, error)
+	ListVariants(context.Context, ResourceType, string) ([]Resource, error)
+	HasJob(context.Context, ResourceID) (bool, error)
+	SetJob(context.Context, ResourceID, string) error
+	SetStatus(context.Context, ResourceID, *pb.ResourceStatus) error
+	SetSchedule(context.Context, ResourceID, string) error
+}
+
+type resourceStatusImplementation interface {
+	// TODO we have a few ways to save a status, consolidate and clean up the abstractions
+	SetAndSaveStatus(ctx context.Context, status *scheduling.Status, msg string, lookup ResourceLookup) error
+}
+
+type resourceTaskImplementation interface {
+	TaskIDs() ([]scheduling.TaskID, error)
 }
 
 type SearchWrapper struct {
@@ -262,8 +338,8 @@ type SearchWrapper struct {
 	ResourceLookup
 }
 
-func (wrapper SearchWrapper) Set(id ResourceID, res Resource) error {
-	if err := wrapper.ResourceLookup.Set(id, res); err != nil {
+func (wrapper SearchWrapper) Set(ctx context.Context, id ResourceID, res Resource) error {
+	if err := wrapper.ResourceLookup.Set(ctx, id, res); err != nil {
 		return err
 	}
 
@@ -305,17 +381,17 @@ func (lookup LocalResourceLookup) Lookup(ctx context.Context, id ResourceID) (Re
 	return res, nil
 }
 
-func (lookup LocalResourceLookup) Has(id ResourceID) (bool, error) {
+func (lookup LocalResourceLookup) Has(ctx context.Context, id ResourceID) (bool, error) {
 	_, has := lookup[id]
 	return has, nil
 }
 
-func (lookup LocalResourceLookup) Set(id ResourceID, res Resource) error {
+func (lookup LocalResourceLookup) Set(ctx context.Context, id ResourceID, res Resource) error {
 	lookup[id] = res
 	return nil
 }
 
-func (lookup LocalResourceLookup) Submap(ids []ResourceID) (ResourceLookup, error) {
+func (lookup LocalResourceLookup) Submap(ctx context.Context, ids []ResourceID) (ResourceLookup, error) {
 	resources := make(LocalResourceLookup, len(ids))
 	for _, id := range ids {
 		resource, has := lookup[id]
@@ -329,7 +405,7 @@ func (lookup LocalResourceLookup) Submap(ids []ResourceID) (ResourceLookup, erro
 	return resources, nil
 }
 
-func (lookup LocalResourceLookup) ListForType(t ResourceType) ([]Resource, error) {
+func (lookup LocalResourceLookup) ListForType(ctx context.Context, t ResourceType) ([]Resource, error) {
 	resources := make([]Resource, 0)
 	for id, res := range lookup {
 		if id.Type == t {
@@ -339,7 +415,17 @@ func (lookup LocalResourceLookup) ListForType(t ResourceType) ([]Resource, error
 	return resources, nil
 }
 
-func (lookup LocalResourceLookup) List() ([]Resource, error) {
+func (lookup LocalResourceLookup) ListVariants(ctx context.Context, t ResourceType, name string) ([]Resource, error) {
+	resources := make([]Resource, 0)
+	for id, res := range lookup {
+		if id.Type == t && id.Name == name {
+			resources = append(resources, res)
+		}
+	}
+	return resources, nil
+}
+
+func (lookup LocalResourceLookup) List(ctx context.Context) ([]Resource, error) {
 	resources := make([]Resource, 0, len(lookup))
 	for _, res := range lookup {
 		resources = append(resources, res)
@@ -347,7 +433,7 @@ func (lookup LocalResourceLookup) List() ([]Resource, error) {
 	return resources, nil
 }
 
-func (lookup LocalResourceLookup) SetStatus(ctx context.Context, id ResourceID, status pb.ResourceStatus) error {
+func (lookup LocalResourceLookup) SetStatus(ctx context.Context, id ResourceID, status *pb.ResourceStatus) error {
 	res, has := lookup[id]
 	if !has {
 		wrapped := fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("resource not found"))
@@ -361,11 +447,11 @@ func (lookup LocalResourceLookup) SetStatus(ctx context.Context, id ResourceID, 
 	return nil
 }
 
-func (lookup LocalResourceLookup) SetJob(id ResourceID, schedule string) error {
+func (lookup LocalResourceLookup) SetJob(ctx context.Context, id ResourceID, schedule string) error {
 	return nil
 }
 
-func (lookup LocalResourceLookup) SetSchedule(id ResourceID, schedule string) error {
+func (lookup LocalResourceLookup) SetSchedule(ctx context.Context, id ResourceID, schedule string) error {
 	res, has := lookup[id]
 	if !has {
 		wrapped := fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("resource not found"))
@@ -379,34 +465,48 @@ func (lookup LocalResourceLookup) SetSchedule(id ResourceID, schedule string) er
 	return nil
 }
 
-func (lookup LocalResourceLookup) HasJob(id ResourceID) (bool, error) {
+func (lookup LocalResourceLookup) HasJob(ctx context.Context, id ResourceID) (bool, error) {
 	return false, nil
 }
 
-type SourceResource struct {
+type sourceResource struct {
 	serialized *pb.Source
 }
 
-func (resource *SourceResource) ID() ResourceID {
+func (resource *sourceResource) ID() ResourceID {
 	return ResourceID{
 		Name: resource.serialized.Name,
 		Type: SOURCE,
 	}
 }
 
-func (resource *SourceResource) Schedule() string {
+func (resource *sourceResource) Equals(other any) bool {
+	if _, ok := other.(*sourceResource); !ok {
+		return false
+	}
+	return resource == other
+}
+
+func (resource *sourceResource) Less(other any) bool {
+	if _, ok := other.(*sourceResource); !ok {
+		return false
+	}
+	return resource.ID().String() < other.(Resource).ID().String()
+}
+
+func (resource *sourceResource) Schedule() string {
 	return ""
 }
 
-func (resource *SourceResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *sourceResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	return make(LocalResourceLookup), nil
 }
 
-func (resource *SourceResource) Proto() proto.Message {
+func (resource *sourceResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *SourceResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *sourceResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	otherId := that.ID()
 	isVariant := otherId.Type == SOURCE_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -420,20 +520,20 @@ func (this *SourceResource) Notify(lookup ResourceLookup, op operation, that Res
 	return nil
 }
 
-func (resource *SourceResource) GetStatus() *pb.ResourceStatus {
+func (resource *sourceResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *SourceResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
+func (resource *sourceResource) UpdateStatus(status *pb.ResourceStatus) error {
+	resource.serialized.Status = status
 	return nil
 }
 
-func (resource *SourceResource) UpdateSchedule(schedule string) error {
+func (resource *sourceResource) UpdateSchedule(schedule string) error {
 	return fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
-func (resource *SourceResource) Update(lookup ResourceLookup, updateRes Resource) error {
+func (resource *sourceResource) Update(lookup ResourceLookup, updateRes Resource) error {
 	wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
 	wrapped.AddDetail("resource_type", resource.ID().Type.String())
 	return wrapped
@@ -451,11 +551,25 @@ func (resource *sourceVariantResource) ID() ResourceID {
 	}
 }
 
+func (resource *sourceVariantResource) Equals(other any) bool {
+	if _, ok := other.(*sourceVariantResource); !ok {
+		return false
+	}
+	return resource == other
+}
+
+func (resource *sourceVariantResource) Less(other any) bool {
+	if _, ok := other.(*sourceVariantResource); !ok {
+		return false
+	}
+	return resource.ID().String() < other.(Resource).ID().String()
+}
+
 func (resource *sourceVariantResource) Schedule() string {
 	return resource.serialized.Schedule
 }
 
-func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *sourceVariantResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
@@ -471,7 +585,7 @@ func (resource *sourceVariantResource) Dependencies(lookup ResourceLookup) (Reso
 			Type: SOURCE,
 		},
 	}
-	deps, err := lookup.Submap(depIds)
+	deps, err := lookup.Submap(ctx, depIds)
 	if err != nil {
 		return nil, err
 	}
@@ -482,7 +596,7 @@ func (resource *sourceVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (sourceVariantResource *sourceVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (sourceVariantResource *sourceVariantResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	id := that.ID()
 	t := id.Type
 	key := id.Proto()
@@ -502,9 +616,9 @@ func (resource *sourceVariantResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *sourceVariantResource) UpdateStatus(status pb.ResourceStatus) error {
+func (resource *sourceVariantResource) UpdateStatus(status *pb.ResourceStatus) error {
 	resource.serialized.LastUpdated = tspb.Now()
-	resource.serialized.Status = &status
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -525,82 +639,47 @@ func (resource *sourceVariantResource) Update(lookup ResourceLookup, updateRes R
 }
 
 func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
-	/**
-	Key Fields for a SourceVariant are
-	- Name
-	- Definition
-	- Owner
-	- Provider
-	*/
-	otherVariant, ok := other.(*sourceVariantResource)
+	otherCasted, ok := other.(*sourceVariantResource)
 	if !ok {
 		return false, nil
 	}
 
-	thisProto := resource.serialized
-	otherProto := otherVariant.serialized
-
-	isDefinitionEqual := false
-	var err error
-	switch thisDef := thisProto.Definition.(type) {
-	case *pb.SourceVariant_Transformation:
-		if otherDef, ok := otherProto.Definition.(*pb.SourceVariant_Transformation); ok {
-			isDefinitionEqual, err = isSourceProtoDefinitionEqual(thisDef, otherDef)
-			if err != nil {
-				return false, fferr.NewInternalError(fmt.Errorf("error comparing source definitions: %v", err))
-			}
-
-		}
-	case *pb.SourceVariant_PrimaryData:
-		if otherDef, ok := otherProto.Definition.(*pb.SourceVariant_PrimaryData); ok {
-			isDefinitionEqual = proto.Equal(thisDef.PrimaryData, otherDef.PrimaryData)
-		}
+	thisSv, err := equivalence.SourceVariantFromProto(resource.serialized)
+	if err != nil {
+		return false, err
+	}
+	otherSv, err := equivalence.SourceVariantFromProto(otherCasted.serialized)
+	if err != nil {
+		return false, err
 	}
 
-	if thisProto.GetName() == otherProto.GetName() &&
-		thisProto.GetOwner() == otherProto.GetOwner() &&
-		thisProto.GetProvider() == otherProto.GetProvider() &&
-		isDefinitionEqual {
-
-		return true, nil
-	}
-	return false, nil
+	return thisSv.IsEquivalent(otherSv), nil
 }
 
-func isSourceProtoDefinitionEqual(thisDef, otherDef *pb.SourceVariant_Transformation) (bool, error) {
-	isDefinitionEqual := false
-	switch thisDef.Transformation.Type.(type) {
-	case *pb.Transformation_DFTransformation:
-		if otherDef, ok := otherDef.Transformation.Type.(*pb.Transformation_DFTransformation); ok {
-			sourceTextEqual := thisDef.Transformation.GetDFTransformation().SourceText == otherDef.DFTransformation.SourceText
-			inputsEqual, err := lib.EqualProtoContents(thisDef.Transformation.GetDFTransformation().Inputs, otherDef.DFTransformation.Inputs)
-			if err != nil {
-				return false, fferr.NewInternalError(fmt.Errorf("error comparing transformation inputs: %v", err))
-			}
-			isDefinitionEqual = sourceTextEqual &&
-				inputsEqual
-		}
-	case *pb.Transformation_SQLTransformation:
-		if _, ok := otherDef.Transformation.Type.(*pb.Transformation_SQLTransformation); ok {
-			isDefinitionEqual = isSqlEqual(thisDef.Transformation.GetSQLTransformation().Query, otherDef.Transformation.GetSQLTransformation().Query)
-		}
+func (resource *sourceVariantResource) SetAndSaveStatus(ctx context.Context, status *scheduling.Status, msg string, lookup ResourceLookup) error {
+	resource.serialized.Status.Status = status.Proto()
+	resource.serialized.Status.ErrorMessage = msg
+	err := lookup.Set(ctx, resource.ID(), resource)
+	if err != nil {
+		return err
 	}
-
-	kubernetesArgsEqual := proto.Equal(thisDef.Transformation.GetKubernetesArgs(), otherDef.Transformation.GetKubernetesArgs())
-	return isDefinitionEqual && kubernetesArgsEqual, nil
+	return nil
 }
 
-// isSqlEqual checks if two SQL strings are equal after normalizing whitespace.
-func isSqlEqual(thisSql, otherSql string) bool {
-	re := regexp.MustCompile(`\s+`)
-
-	thisSql = re.ReplaceAllString(thisSql, " ")
-	otherSql = re.ReplaceAllString(otherSql, " ")
-	return strings.TrimSpace(thisSql) == strings.TrimSpace(otherSql)
+func (resource *sourceVariantResource) TaskIDs() ([]scheduling.TaskID, error) {
+	// Check if using a deprecated taskID singleton
+	if resource.serialized.TaskId != "" {
+		return parseResourceTasks([]string{resource.serialized.TaskId})
+	}
+	return parseResourceTasks(resource.serialized.TaskIdList)
 }
 
 func (resource *sourceVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
 	return &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{SourceVariant: resource.serialized}}
+}
+
+func (resource *sourceVariantResource) Owner() string {
+	return resource.serialized.Owner
 }
 
 type featureResource struct {
@@ -614,11 +693,25 @@ func (resource *featureResource) ID() ResourceID {
 	}
 }
 
+func (resource *featureResource) Equals(other any) bool {
+	if _, ok := other.(*featureResource); !ok {
+		return false
+	}
+	return resource == other
+}
+
+func (resource *featureResource) Less(other any) bool {
+	if _, ok := other.(*featureResource); !ok {
+		return false
+	}
+	return resource.ID().String() < other.(Resource).ID().String()
+}
+
 func (resource *featureResource) Schedule() string {
 	return ""
 }
 
-func (resource *featureResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *featureResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	return make(LocalResourceLookup), nil
 }
 
@@ -626,7 +719,7 @@ func (resource *featureResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *featureResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *featureResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	otherId := that.ID()
 	isVariant := otherId.Type == FEATURE_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -644,8 +737,8 @@ func (resource *featureResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *featureResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
+func (resource *featureResource) UpdateStatus(status *pb.ResourceStatus) error {
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -671,11 +764,25 @@ func (resource *featureVariantResource) ID() ResourceID {
 	}
 }
 
+func (resource *featureVariantResource) Equals(other any) bool {
+	if _, ok := other.(*featureVariantResource); !ok {
+		return false
+	}
+	return resource == other
+}
+
+func (resource *featureVariantResource) Less(other any) bool {
+	if _, ok := other.(*featureVariantResource); !ok {
+		return false
+	}
+	return resource.ID().String() < other.(Resource).ID().String()
+}
+
 func (resource *featureVariantResource) Schedule() string {
 	return resource.serialized.Schedule
 }
 
-func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *featureVariantResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
@@ -688,11 +795,12 @@ func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (Res
 		},
 	}
 	if PRECOMPUTED.Equals(serialized.Mode) {
-		depIds = append(depIds, ResourceID{
-			Name:    serialized.Source.Name,
-			Variant: serialized.Source.Variant,
-			Type:    SOURCE_VARIANT,
-		},
+		depIds = append(depIds,
+			ResourceID{
+				Name:    serialized.Source.Name,
+				Variant: serialized.Source.Variant,
+				Type:    SOURCE_VARIANT,
+			},
 			ResourceID{
 				Name: serialized.Entity,
 				Type: ENTITY,
@@ -706,7 +814,7 @@ func (resource *featureVariantResource) Dependencies(lookup ResourceLookup) (Res
 			})
 		}
 	}
-	deps, err := lookup.Submap(depIds)
+	deps, err := lookup.Submap(ctx, depIds)
 	if err != nil {
 		return nil, err
 	}
@@ -717,7 +825,7 @@ func (resource *featureVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *featureVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *featureVariantResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	if !PRECOMPUTED.Equals(this.serialized.Mode) {
 		return nil
 	}
@@ -735,9 +843,9 @@ func (resource *featureVariantResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *featureVariantResource) UpdateStatus(status pb.ResourceStatus) error {
+func (resource *featureVariantResource) UpdateStatus(status *pb.ResourceStatus) error {
 	resource.serialized.LastUpdated = tspb.Now()
-	resource.serialized.Status = &status
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -758,43 +866,21 @@ func (resource *featureVariantResource) Update(lookup ResourceLookup, updateRes 
 }
 
 func (resource *featureVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
-	/**
-	Key Fields for a FeatureVariant are
-	- Name
-	- Source
-	- Function
-	- Provider
-	- Entity
-	- Owner
-	- Type
-	*/
-
-	otherVariant, ok := other.(*featureVariantResource)
+	otherCasted, ok := other.(*featureVariantResource)
 	if !ok {
 		return false, nil
 	}
 
-	thisProto := resource.serialized
-	otherProto := otherVariant.serialized
-
-	isEquivalentLocation := false
-	if thisProto.GetFunction() != nil {
-		isEquivalentLocation = proto.Equal(thisProto.GetFunction(), otherProto.GetFunction())
-	} else {
-		isEquivalentLocation = proto.Equal(thisProto.GetColumns(), otherProto.GetColumns())
+	thisFv, err := equivalence.FeatureVariantFromProto(resource.serialized)
+	if err != nil {
+		return false, err
+	}
+	otherFv, err := equivalence.FeatureVariantFromProto(otherCasted.serialized)
+	if err != nil {
+		return false, err
 	}
 
-	if thisProto.GetName() == otherProto.GetName() &&
-		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
-		thisProto.GetProvider() == otherProto.GetProvider() &&
-		thisProto.GetEntity() == otherProto.GetEntity() &&
-		proto.Equal(thisProto.GetType(), otherProto.GetType()) &&
-		isEquivalentLocation &&
-		thisProto.Owner == otherProto.Owner {
-
-		return true, nil
-	}
-	return false, nil
+	return thisFv.IsEquivalent(otherFv), nil
 }
 
 func (resource *featureVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
@@ -813,6 +899,28 @@ func (resource *featureVariantResource) GetDefinition() string {
 	return ondemand.Ondemand.GetDefinition()
 }
 
+func (resource *featureVariantResource) SetAndSaveStatus(ctx context.Context, status *scheduling.Status, msg string, lookup ResourceLookup) error {
+	resource.serialized.Status.Status = status.Proto()
+	resource.serialized.Status.ErrorMessage = msg
+	err := lookup.Set(ctx, resource.ID(), resource)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (resource *featureVariantResource) TaskIDs() ([]scheduling.TaskID, error) {
+	// Check if using a deprecated taskID singleton
+	if resource.serialized.TaskId != "" {
+		return parseResourceTasks([]string{resource.serialized.TaskId})
+	}
+	return parseResourceTasks(resource.serialized.TaskIdList)
+}
+
+func (resource *featureVariantResource) Owner() string {
+	return resource.serialized.Owner
+}
+
 type labelResource struct {
 	serialized *pb.Label
 }
@@ -824,11 +932,25 @@ func (resource *labelResource) ID() ResourceID {
 	}
 }
 
+func (resource *labelResource) Equals(other any) bool {
+	if _, ok := other.(*labelResource); !ok {
+		return false
+	}
+	return resource == other
+}
+
+func (resource *labelResource) Less(other any) bool {
+	if _, ok := other.(*labelResource); !ok {
+		return false
+	}
+	return resource.ID().String() < other.(Resource).ID().String()
+}
+
 func (resource *labelResource) Schedule() string {
 	return ""
 }
 
-func (resource *labelResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *labelResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	return make(LocalResourceLookup), nil
 }
 
@@ -836,7 +958,7 @@ func (resource *labelResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *labelResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *labelResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	otherId := that.ID()
 	isVariant := otherId.Type == LABEL_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -854,8 +976,8 @@ func (resource *labelResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *labelResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
+func (resource *labelResource) UpdateStatus(status *pb.ResourceStatus) error {
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -881,36 +1003,60 @@ func (resource *labelVariantResource) ID() ResourceID {
 	}
 }
 
+func (resource *labelVariantResource) Equals(other any) bool {
+	if _, ok := other.(*labelVariantResource); !ok {
+		return false
+	}
+	return resource == other
+}
+
+func (resource *labelVariantResource) Less(other any) bool {
+	if _, ok := other.(*labelVariantResource); !ok {
+		return false
+	}
+	return resource.ID().String() < other.(Resource).ID().String()
+}
+
 func (resource *labelVariantResource) Schedule() string {
 	return ""
 }
 
-func (resource *labelVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *labelVariantResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
+	// dependencies for a label variant are different depending on the computation mode
 	depIds := []ResourceID{
-		{
-			Name:    serialized.Source.Name,
-			Variant: serialized.Source.Variant,
-			Type:    SOURCE_VARIANT,
-		},
-		{
-			Name: serialized.Entity,
-			Type: ENTITY,
-		},
 		{
 			Name: serialized.Owner,
 			Type: USER,
+		},
+		{
+			Name: serialized.Name,
+			Type: LABEL,
 		},
 		{
 			Name: serialized.Provider,
 			Type: PROVIDER,
 		},
 		{
-			Name: serialized.Name,
-			Type: LABEL,
+			Name: serialized.Entity,
+			Type: ENTITY,
+		},
+		{
+			Name: serialized.Provider,
+			Type: PROVIDER,
 		},
 	}
-	deps, err := lookup.Submap(depIds)
+	isStream := serialized.GetStream() != nil
+	if !isStream {
+		depIds = append(
+			depIds, ResourceID{
+				Name:    serialized.Source.Name,
+				Variant: serialized.Source.Variant,
+				Type:    SOURCE_VARIANT,
+			},
+		)
+	}
+	deps, err := lookup.Submap(ctx, depIds)
 	if err != nil {
 		return nil, err
 	}
@@ -921,7 +1067,11 @@ func (resource *labelVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *labelVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *labelVariantResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
+	isStream := this.serialized.GetStream() != nil
+	if isStream {
+		return nil
+	}
 	id := that.ID()
 	releventOp := op == create_op && id.Type == TRAINING_SET_VARIANT
 	if !releventOp {
@@ -936,8 +1086,8 @@ func (resource *labelVariantResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *labelVariantResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
+func (resource *labelVariantResource) UpdateStatus(status *pb.ResourceStatus) error {
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -956,39 +1106,48 @@ func (resource *labelVariantResource) Update(lookup ResourceLookup, updateRes Re
 	return nil
 }
 
+func (resource *labelVariantResource) SetAndSaveStatus(ctx context.Context, status *scheduling.Status, msg string, lookup ResourceLookup) error {
+	resource.serialized.Status.Status = status.Proto()
+	resource.serialized.Status.ErrorMessage = msg
+	err := lookup.Set(ctx, resource.ID(), resource)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (resource *labelVariantResource) TaskIDs() ([]scheduling.TaskID, error) {
+	// Check if using a deprecated taskID singleton
+	if resource.serialized.TaskId != "" {
+		return parseResourceTasks([]string{resource.serialized.TaskId})
+	}
+	return parseResourceTasks(resource.serialized.TaskIdList)
+}
+
 func (resource *labelVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
-	/**
-	Key Fields for a LabelVariant are
-	- Name
-	- Source
-	- Columns
-	- Owner
-	- Entity
-	- Type
-	*/
-	otherVariant, ok := other.(*labelVariantResource)
+	otherCasted, ok := other.(*labelVariantResource)
 	if !ok {
 		return false, nil
 	}
 
-	thisProto := resource.serialized
-	otherProto := otherVariant.serialized
-
-	if thisProto.GetName() == otherProto.GetName() &&
-		proto.Equal(thisProto.GetSource(), otherProto.GetSource()) &&
-		proto.Equal(thisProto.GetColumns(), otherProto.GetColumns()) &&
-		thisProto.Entity == otherProto.Entity &&
-		proto.Equal(thisProto.GetType(), otherProto.GetType()) &&
-		thisProto.Owner == otherProto.Owner {
-
-		return true, nil
+	thisLv, err := equivalence.LabelVariantFromProto(resource.serialized)
+	if err != nil {
+		return false, err
+	}
+	otherLv, err := equivalence.LabelVariantFromProto(otherCasted.serialized)
+	if err != nil {
+		return false, err
 	}
 
-	return false, nil
+	return thisLv.IsEquivalent(otherLv), nil
 }
 
 func (resource *labelVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
 	return &pb.ResourceVariant{Resource: &pb.ResourceVariant_LabelVariant{LabelVariant: resource.serialized}}
+}
+
+func (resource *labelVariantResource) Owner() string {
+	return resource.serialized.Owner
 }
 
 type trainingSetResource struct {
@@ -1002,11 +1161,25 @@ func (resource *trainingSetResource) ID() ResourceID {
 	}
 }
 
+func (resource *trainingSetResource) Equals(other any) bool {
+	if _, ok := other.(*trainingSetResource); !ok {
+		return false
+	}
+	return resource == other
+}
+
+func (resource *trainingSetResource) Less(other any) bool {
+	if _, ok := other.(*trainingSetResource); !ok {
+		return false
+	}
+	return resource.ID().String() < other.(Resource).ID().String()
+}
+
 func (resource *trainingSetResource) Schedule() string {
 	return ""
 }
 
-func (resource *trainingSetResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *trainingSetResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	return make(LocalResourceLookup), nil
 }
 
@@ -1014,7 +1187,7 @@ func (resource *trainingSetResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *trainingSetResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *trainingSetResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	otherId := that.ID()
 	isVariant := otherId.Type == TRAINING_SET_VARIANT && otherId.Name == this.serialized.Name
 	if !isVariant {
@@ -1032,8 +1205,8 @@ func (resource *trainingSetResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *trainingSetResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
+func (resource *trainingSetResource) UpdateStatus(status *pb.ResourceStatus) error {
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -1059,11 +1232,25 @@ func (resource *trainingSetVariantResource) ID() ResourceID {
 	}
 }
 
+func (resource *trainingSetVariantResource) Equals(other any) bool {
+	if _, ok := other.(*trainingSetVariantResource); !ok {
+		return false
+	}
+	return resource == other
+}
+
+func (resource *trainingSetVariantResource) Less(other any) bool {
+	if _, ok := other.(*trainingSetVariantResource); !ok {
+		return false
+	}
+	return resource.ID().String() < other.(Resource).ID().String()
+}
+
 func (resource *trainingSetVariantResource) Schedule() string {
 	return resource.serialized.Schedule
 }
 
-func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *trainingSetVariantResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := []ResourceID{
 		{
@@ -1091,7 +1278,7 @@ func (resource *trainingSetVariantResource) Dependencies(lookup ResourceLookup) 
 			Type:    FEATURE_VARIANT,
 		})
 	}
-	deps, err := lookup.Submap(depIds)
+	deps, err := lookup.Submap(ctx, depIds)
 	if err != nil {
 		return nil, err
 	}
@@ -1102,7 +1289,7 @@ func (resource *trainingSetVariantResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *trainingSetVariantResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *trainingSetVariantResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	return nil
 }
 
@@ -1110,9 +1297,9 @@ func (resource *trainingSetVariantResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *trainingSetVariantResource) UpdateStatus(status pb.ResourceStatus) error {
+func (resource *trainingSetVariantResource) UpdateStatus(status *pb.ResourceStatus) error {
 	resource.serialized.LastUpdated = tspb.Now()
-	resource.serialized.Status = &status
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -1132,40 +1319,48 @@ func (resource *trainingSetVariantResource) Update(lookup ResourceLookup, update
 	return nil
 }
 
+func (resource *trainingSetVariantResource) SetAndSaveStatus(ctx context.Context, status *scheduling.Status, msg string, lookup ResourceLookup) error {
+	resource.serialized.Status.Status = status.Proto()
+	resource.serialized.Status.ErrorMessage = msg
+	err := lookup.Set(ctx, resource.ID(), resource)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (resource *trainingSetVariantResource) TaskIDs() ([]scheduling.TaskID, error) {
+	// Check if using a deprecated taskID singleton
+	if resource.serialized.TaskId != "" {
+		return parseResourceTasks([]string{resource.serialized.TaskId})
+	}
+	return parseResourceTasks(resource.serialized.TaskIdList)
+}
+
 func (resource *trainingSetVariantResource) IsEquivalent(other ResourceVariant) (bool, error) {
-	/**
-	Key Fields for a TrainingSetVariant are
-	- Name
-	- Labels
-	- Features
-	- Lag Features
-	- Owner
-	*/
-	otherVariant, ok := other.(*trainingSetVariantResource)
+	otherCasted, ok := other.(*trainingSetVariantResource)
 	if !ok {
 		return false, nil
 	}
 
-	thisProto := resource.serialized
-	otherProto := otherVariant.serialized
-
-	equivalentLabals := proto.Equal(thisProto.GetLabel(), otherProto.GetLabel())
-	equivalentFeatures := lib.EqualProtoSlices(thisProto.GetFeatures(), otherProto.GetFeatures())
-	equivalentLagFeatures := lib.EqualProtoSlices(thisProto.GetFeatureLags(), otherProto.GetFeatureLags())
-
-	if thisProto.GetName() == otherProto.GetName() &&
-		equivalentLabals &&
-		equivalentFeatures &&
-		equivalentLagFeatures &&
-		thisProto.Owner == otherProto.Owner {
-
-		return true, nil
+	thisTsv, err := equivalence.TrainingSetVariantFromProto(resource.serialized)
+	if err != nil {
+		return false, err
 	}
-	return false, nil
+	otherTsv, err := equivalence.TrainingSetVariantFromProto(otherCasted.serialized)
+	if err != nil {
+		return false, err
+	}
+
+	return thisTsv.IsEquivalent(otherTsv), nil
 }
 
 func (resource *trainingSetVariantResource) ToResourceVariantProto() *pb.ResourceVariant {
 	return &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{TrainingSetVariant: resource.serialized}}
+}
+
+func (resource *trainingSetVariantResource) Owner() string {
+	return resource.serialized.Owner
 }
 
 type modelResource struct {
@@ -1179,11 +1374,25 @@ func (resource *modelResource) ID() ResourceID {
 	}
 }
 
+func (resource *modelResource) Equals(other any) bool {
+	if _, ok := other.(*modelResource); !ok {
+		return false
+	}
+	return resource == other
+}
+
+func (resource *modelResource) Less(other any) bool {
+	if _, ok := other.(*modelResource); !ok {
+		return false
+	}
+	return resource.ID().String() < other.(Resource).ID().String()
+}
+
 func (resource *modelResource) Schedule() string {
 	return ""
 }
 
-func (resource *modelResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *modelResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	serialized := resource.serialized
 	depIds := make([]ResourceID, 0)
 	for _, feature := range serialized.Features {
@@ -1207,7 +1416,7 @@ func (resource *modelResource) Dependencies(lookup ResourceLookup) (ResourceLook
 			Type:    TRAINING_SET_VARIANT,
 		})
 	}
-	deps, err := lookup.Submap(depIds)
+	deps, err := lookup.Submap(ctx, depIds)
 	if err != nil {
 		return nil, err
 	}
@@ -1218,7 +1427,7 @@ func (resource *modelResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *modelResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *modelResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	return nil
 }
 
@@ -1226,7 +1435,7 @@ func (resource *modelResource) GetStatus() *pb.ResourceStatus {
 	return &pb.ResourceStatus{Status: pb.ResourceStatus_NO_STATUS}
 }
 
-func (resource *modelResource) UpdateStatus(status pb.ResourceStatus) error {
+func (resource *modelResource) UpdateStatus(status *pb.ResourceStatus) error {
 	return nil
 }
 
@@ -1258,11 +1467,25 @@ func (resource *userResource) ID() ResourceID {
 	}
 }
 
+func (resource *userResource) Equals(other any) bool {
+	if _, ok := other.(*userResource); !ok {
+		return false
+	}
+	return resource == other
+}
+
+func (resource *userResource) Less(other any) bool {
+	if _, ok := other.(*userResource); !ok {
+		return false
+	}
+	return resource.ID().String() < other.(Resource).ID().String()
+}
+
 func (resource *userResource) Schedule() string {
 	return ""
 }
 
-func (resource *userResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *userResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	return make(LocalResourceLookup), nil
 }
 
@@ -1270,8 +1493,8 @@ func (resource *userResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *userResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	if isDep, err := isDirectDependency(lookup, this, that); err != nil {
+func (this *userResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
+	if isDep, err := isDirectDependency(ctx, lookup, this, that); err != nil {
 		return err
 	} else if !isDep {
 		return nil
@@ -1297,8 +1520,8 @@ func (resource *userResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *userResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
+func (resource *userResource) UpdateStatus(status *pb.ResourceStatus) error {
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -1328,11 +1551,25 @@ func (resource *providerResource) ID() ResourceID {
 	}
 }
 
+func (resource *providerResource) Equals(other any) bool {
+	if _, ok := other.(*providerResource); !ok {
+		return false
+	}
+	return resource == other
+}
+
+func (resource *providerResource) Less(other any) bool {
+	if _, ok := other.(*providerResource); !ok {
+		return false
+	}
+	return resource.ID().String() < other.(Resource).ID().String()
+}
+
 func (resource *providerResource) Schedule() string {
 	return ""
 }
 
-func (resource *providerResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *providerResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	return make(LocalResourceLookup), nil
 }
 
@@ -1340,8 +1577,8 @@ func (resource *providerResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *providerResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
-	if isDep, err := isDirectDependency(lookup, this, that); err != nil {
+func (this *providerResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
+	if isDep, err := isDirectDependency(ctx, lookup, this, that); err != nil {
 		return err
 	} else if !isDep {
 		return nil
@@ -1367,8 +1604,8 @@ func (resource *providerResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *providerResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
+func (resource *providerResource) UpdateStatus(status *pb.ResourceStatus) error {
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -1446,11 +1683,25 @@ func (resource *entityResource) ID() ResourceID {
 	}
 }
 
+func (resource *entityResource) Equals(other any) bool {
+	if _, ok := other.(*entityResource); !ok {
+		return false
+	}
+	return resource == other
+}
+
+func (resource *entityResource) Less(other any) bool {
+	if _, ok := other.(*entityResource); !ok {
+		return false
+	}
+	return resource.ID().String() < other.(Resource).ID().String()
+}
+
 func (resource *entityResource) Schedule() string {
 	return ""
 }
 
-func (resource *entityResource) Dependencies(lookup ResourceLookup) (ResourceLookup, error) {
+func (resource *entityResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
 	return make(LocalResourceLookup), nil
 }
 
@@ -1458,7 +1709,7 @@ func (resource *entityResource) Proto() proto.Message {
 	return resource.serialized
 }
 
-func (this *entityResource) Notify(lookup ResourceLookup, op operation, that Resource) error {
+func (this *entityResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	id := that.ID()
 	key := id.Proto()
 	t := id.Type
@@ -1478,8 +1729,8 @@ func (resource *entityResource) GetStatus() *pb.ResourceStatus {
 	return resource.serialized.GetStatus()
 }
 
-func (resource *entityResource) UpdateStatus(status pb.ResourceStatus) error {
-	resource.serialized.Status = &status
+func (resource *entityResource) UpdateStatus(status *pb.ResourceStatus) error {
+	resource.serialized.Status = status
 	return nil
 }
 
@@ -1499,55 +1750,306 @@ func (resource *entityResource) Update(lookup ResourceLookup, updateRes Resource
 }
 
 type MetadataServer struct {
-	Logger     logging.Logger
-	lookup     ResourceLookup
-	address    string
-	grpcServer *grpc.Server
-	listener   net.Listener
+	Logger      logging.Logger
+	lookup      ResourceLookup
+	address     string
+	grpcServer  *grpc.Server
+	listener    net.Listener
+	taskManager *scheduling.TaskMetadataManager
 	pb.UnimplementedMetadataServer
+	schproto.UnimplementedTasksServer
+	slackNotifier notifications.SlackNotifier
+}
+
+func (serv *MetadataServer) CreateTaskRun(ctx context.Context, request *schproto.CreateRunRequest) (*schproto.RunID, error) {
+	_, _, logger := serv.Logger.InitializeRequestID(ctx)
+	tid, err := scheduling.ParseTaskID(request.GetTaskID().GetId())
+	if err != nil {
+		logger.Errorw("failed to parse task id", "task id", request.GetTaskID().GetId(), "error", err)
+		return nil, err
+	}
+
+	rid, err := serv.taskManager.CreateTaskRun(request.Name, tid, scheduling.OnApplyTrigger{TriggerName: "apply"})
+	if err != nil {
+		return nil, err
+	}
+	return &schproto.RunID{Id: rid.ID.String()}, nil
+}
+
+func (serv *MetadataServer) SyncUnfinishedRuns(ctx context.Context, empty *schproto.Empty) (*schproto.Empty, error) {
+	err := serv.taskManager.SyncIncompleteRuns()
+	if err != nil {
+		return nil, err
+	}
+	return &schproto.Empty{}, nil
 }
 
 func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	config.Logger.Infow("Creating new metadata server", "Address:", config.Address)
-	lookup, err := config.StorageProvider.GetResourceLookup()
-
+	baseLookup := MemoryResourceLookup{config.TaskManager.Storage}
+	wrappedLookup, err := initializeLookup(config, &baseLookup, search.NewMeilisearch)
 	if err != nil {
-		config.Logger.Errorw("Could not get resource lookup", "error", err.Error())
 		return nil, err
 	}
-	if config.SearchParams != nil {
-		searcher, errInitializeSearch := search.NewMeilisearch(config.SearchParams)
-		if errInitializeSearch != nil {
-			config.Logger.Errorw("Could not initialize Meili search", "error", errInitializeSearch.Error())
-			return nil, errInitializeSearch
+	return &MetadataServer{
+		lookup:        wrappedLookup,
+		address:       config.Address,
+		Logger:        config.Logger,
+		taskManager:   &config.TaskManager,
+		slackNotifier: *notifications.NewSlackNotifier(os.Getenv("SLACK_CHANNEL_ID"), config.Logger),
+	}, nil
+}
+
+func initializeLookup(config *Config, lookup *MemoryResourceLookup, newSearchStub search.NewMeilisearchFunc) (ResourceLookup, error) {
+	if config.SearchParams == nil {
+		config.Logger.Debug("No configuration search params are present, using non-search wrappped lookup")
+		return lookup, nil
+	}
+	searcher, err := newSearchStub(config.SearchParams)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SearchWrapper{
+		Searcher:       searcher,
+		ResourceLookup: lookup,
+	}, nil
+}
+
+func (serv *MetadataServer) GetTaskByID(ctx context.Context, taskID *schproto.TaskID) (*schproto.TaskMetadata, error) {
+	_, _, logger := serv.Logger.InitializeRequestID(ctx)
+	tid, err := scheduling.ParseTaskID(taskID.GetId())
+	if err != nil {
+		logger.Errorw("failed to parse task id", "task id", taskID.GetId(), "error", err)
+		return nil, err
+	}
+	task, err := serv.taskManager.GetTaskByID(tid)
+	if err != nil {
+		logger.Errorw("failed to get task by id", "task id", taskID.GetId(), "error", err)
+		return nil, err
+	}
+	p, err := task.ToProto()
+	if err != nil {
+		logger.Errorw("failed to wrap task metadata", "error", err)
+		return nil, err
+	}
+	return p, nil
+}
+
+func (serv *MetadataServer) GetRuns(id *schproto.TaskID, stream schproto.Tasks_GetRunsServer) error {
+	tid, err := scheduling.ParseTaskID(id.GetId())
+	if err != nil {
+		return err
+	}
+	runs, err := serv.taskManager.GetTaskRunMetadata(tid)
+	if err != nil {
+		return err
+	}
+	for _, run := range runs {
+		wrapped, err := run.ToProto()
+		if err != nil {
+			return err
 		}
-		lookup = &SearchWrapper{
-			Searcher:       searcher,
-			ResourceLookup: lookup,
+		err = stream.Send(wrapped)
+		if err != nil {
+			return err
 		}
 	}
-	return &MetadataServer{
-		lookup:  lookup,
-		address: config.Address,
-		Logger:  config.Logger,
-	}, nil
+	return nil
+}
+
+func (serv *MetadataServer) GetAllRuns(_ *schproto.Empty, stream schproto.Tasks_GetAllRunsServer) error {
+	runs, err := serv.taskManager.GetAllTaskRuns()
+	if err != nil {
+		return err
+	}
+
+	for _, run := range runs {
+		wrapped, err := run.ToProto()
+		if err != nil {
+			return err
+		}
+		err = stream.Send(wrapped)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (serv *MetadataServer) GetUnfinishedRuns(_ *schproto.Empty, stream schproto.Tasks_GetUnfinishedRunsServer) error {
+	runs, err := serv.taskManager.GetUnfinishedTaskRuns()
+	if err != nil {
+		return err
+	}
+
+	for _, run := range runs {
+		wrapped, err := run.ToProto()
+		if err != nil {
+			return err
+		}
+		err = stream.Send(wrapped)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (serv *MetadataServer) GetRunMetadata(ctx context.Context, id *schproto.TaskRunID) (*schproto.TaskRunMetadata, error) {
+	_, _, logger := serv.Logger.InitializeRequestID(ctx)
+	tid, err := scheduling.ParseTaskID(id.TaskID.GetId())
+	if err != nil {
+		logger.Errorw("failed to parse task id", "task id", id.TaskID.GetId(), "error", err)
+		return nil, err
+	}
+	rid, err := scheduling.ParseTaskRunID(id.RunID.GetId())
+	if err != nil {
+		logger.Errorw("failed to parse run id", "run id", id.RunID.GetId(), "error", err)
+		return nil, err
+	}
+	run, err := serv.taskManager.GetRunByID(tid, rid)
+	if err != nil {
+		logger.Errorw("failed to get run by id", "task id", id.TaskID.GetId(), "run id", id.RunID.GetId(), "error", err)
+		return nil, err
+	}
+	wrapped, err := run.ToProto()
+	if err != nil {
+		logger.Errorw("failed to wrap task run metadata", "error", err)
+		return nil, err
+	}
+	return wrapped, nil
+
+}
+
+func (serv *MetadataServer) GetLatestRun(ctx context.Context, taskID *schproto.TaskID) (*schproto.TaskRunMetadata, error) {
+	_, _, logger := serv.Logger.InitializeRequestID(ctx)
+	tid, err := scheduling.ParseTaskID(taskID.GetId())
+	if err != nil {
+		logger.Errorw("failed to parse task id", "task id", taskID.GetId(), "error", err)
+		return nil, err
+	}
+	run, err := serv.taskManager.GetLatestRun(tid)
+	if err != nil {
+		logger.Errorw("failed to get latest run", "task id", taskID.GetId(), "error", err)
+		return nil, err
+	}
+
+	wrapped, err := run.ToProto()
+	if err != nil {
+		logger.Errorw("failed to wrap task run metadata", "error", err)
+		return nil, err
+	}
+
+	return wrapped, nil
+}
+
+func (serv *MetadataServer) SetRunStatus(ctx context.Context, update *schproto.StatusUpdate) (*schproto.Empty, error) {
+	_, _, logger := serv.Logger.InitializeRequestID(ctx)
+	logger.Debugw("SetRunStatus", "status", update.Status)
+	rid, err := scheduling.ParseTaskRunID(update.GetRunID().GetId())
+	if err != nil {
+		logger.Errorw("failed to parse run id", "run id", update.GetRunID().GetId(), "error", err)
+		return nil, err
+	}
+	tid, err := scheduling.ParseTaskID(update.GetTaskID().GetId())
+	if err != nil {
+		logger.Errorw("failed to parse task id", "task id", update.GetTaskID().GetId(), "error", err)
+		return nil, err
+	}
+
+	err = serv.taskManager.SetRunStatus(rid, tid, update.Status)
+	if err != nil {
+		logger.Errorw("failed to set run status", "run id", update.GetRunID().GetId(), "task id", update.GetTaskID().GetId(), "error", err)
+		return nil, err
+	}
+	return &schproto.Empty{}, nil
+}
+
+func (serv *MetadataServer) AddRunLog(ctx context.Context, log *schproto.Log) (*schproto.Empty, error) {
+	_, _, logger := serv.Logger.InitializeRequestID(ctx)
+	rid, err := scheduling.ParseTaskRunID(log.GetRunID().GetId())
+	if err != nil {
+		logger.Errorw("failed to parse run id", "run id", log.GetRunID().GetId(), "error", err)
+		return nil, err
+	}
+	tid, err := scheduling.ParseTaskID(log.GetTaskID().GetId())
+	if err != nil {
+		logger.Errorw("failed to parse task id", "task id", log.GetTaskID().GetId(), "error", err)
+		return nil, err
+	}
+	err = serv.taskManager.AppendRunLog(rid, tid, log.Log)
+	if err != nil {
+		logger.Errorw("failed to append run log", "run id", log.GetRunID().GetId(), "task id", log.GetTaskID().GetId(), "error", err)
+		return nil, err
+	}
+	return &schproto.Empty{}, nil
+}
+
+func (serv *MetadataServer) SetRunResumeID(ctx context.Context, update *schproto.ResumeIDUpdate) (*schproto.Empty, error) {
+	_, _, logger := serv.Logger.InitializeRequestID(ctx)
+	taskID, runID, resumeID := update.GetTaskID().GetId(), update.GetRunID().GetId(), update.GetResumeID().GetId()
+	logger = logger.WithValues(map[string]interface{}{
+		"task_id":   taskID,
+		"run_id":    runID,
+		"resume_id": resumeID,
+	})
+	logger.Info("Setting Resume ID")
+	tid, err := scheduling.ParseTaskID(taskID)
+	if err != nil {
+		logger.Errorw("failed to parse task id", "error", err)
+		return nil, err
+	}
+	rid, err := scheduling.ParseTaskRunID(runID)
+	if err != nil {
+		logger.Errorw("failed to parse run id", "error", err)
+		return nil, err
+	}
+	err = serv.taskManager.SetResumeID(rid, tid, ptypes.ResumeID(resumeID))
+	if err != nil {
+		logger.Errorw("failed to set resume ID", "error", err)
+		return nil, err
+	}
+	return &schproto.Empty{}, nil
+}
+
+func (serv *MetadataServer) WatchForCancel(ctx context.Context, id *schproto.TaskRunID) (*pb.ResourceStatus, error) {
+	_, _, logger := serv.Logger.InitializeRequestID(ctx)
+	tid, err := scheduling.ParseTaskID(id.TaskID.GetId())
+	if err != nil {
+		logger.Errorw("failed to parse task id", "task id", id.TaskID.GetId(), "error", err)
+		return nil, err
+	}
+	rid, err := scheduling.ParseTaskRunID(id.RunID.GetId())
+	if err != nil {
+		logger.Errorw("failed to parse run id", "run id", id.RunID.GetId(), "error", err)
+		return nil, err
+	}
+	err = serv.taskManager.WatchForCancel(tid, rid)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.ResourceStatus{Status: pb.ResourceStatus_CANCELLED}, nil
 }
 
 func (serv *MetadataServer) Serve() error {
 	if serv.grpcServer != nil {
-		return fferr.NewInternalError(fmt.Errorf("server already running"))
+		return fferr.NewInternalErrorf("server already running")
 	}
 	lis, err := net.Listen("tcp", serv.address)
 	if err != nil {
-		return fferr.NewInternalError(fmt.Errorf("cannot listen to server address %s", serv.address))
+		return fferr.NewInternalErrorf("cannot listen to server address %s", serv.address)
 	}
 	return serv.ServeOnListener(lis)
 }
 
 func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
 	serv.listener = lis
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(helpers.UnaryServerErrorInterceptor), grpc.StreamInterceptor(helpers.StreamServerErrorInterceptor))
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(interceptors.UnaryServerErrorInterceptor), grpc.StreamInterceptor(interceptors.StreamServerErrorInterceptor))
 	pb.RegisterMetadataServer(grpcServer, serv)
+	schproto.RegisterTasksServer(grpcServer, serv)
 	serv.grpcServer = grpcServer
 	serv.Logger.Infow("Server starting", "Address", serv.listener.Addr().String())
 	return grpcServer.Serve(lis)
@@ -1555,7 +2057,7 @@ func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
 
 func (serv *MetadataServer) GracefulStop() error {
 	if serv.grpcServer == nil {
-		return fferr.NewInternalError(fmt.Errorf("server not running"))
+		return fferr.NewInternalErrorf("server not running")
 	}
 	serv.grpcServer.GracefulStop()
 	serv.grpcServer = nil
@@ -1604,26 +2106,44 @@ func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 }
 
 type Config struct {
-	Logger          logging.Logger
-	SearchParams    *search.MeilisearchParams
-	StorageProvider StorageProvider
-	Address         string
+	Logger       logging.Logger
+	SearchParams *search.MeilisearchParams
+	TaskManager  scheduling.TaskMetadataManager
+	Address      string
 }
 
 func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.ScheduleChangeRequest) (*pb.Empty, error) {
+	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
+	logger.Infow("Requesting schedule change", "resource_id", req.ResourceId, "schedule", req.Schedule)
 	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
-	err := serv.lookup.SetSchedule(resID, req.Schedule)
+	err := serv.lookup.SetSchedule(ctx, resID, req.Schedule)
 	return &pb.Empty{}, err
 }
 
 func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetStatusRequest) (*pb.Empty, error) {
-	logger := logging.GetLoggerFromContext(ctx)
+	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
 	logger.Infow("Setting resource status", "resource_id", req.ResourceId, "status", req.Status.Status)
 	resID := ResourceID{Name: req.ResourceId.Resource.Name, Variant: req.ResourceId.Resource.Variant, Type: ResourceType(req.ResourceId.ResourceType)}
-	err := serv.lookup.SetStatus(ctx, resID, *req.Status)
+	err := serv.lookup.SetStatus(ctx, resID, req.Status)
 	if err != nil {
 		logger.Errorw("Could not set resource status", "error", err.Error())
+	} else {
+		//if no error, notify slack
+		go func() {
+			slackError := serv.slackNotifier.ChangeNotification(
+				resID.Type.String(),
+				resID.Name,
+				resID.Variant,
+				req.Status.String(),
+				req.Status.ErrorMessage,
+			)
+
+			if slackError != nil {
+				logger.Errorw("Could not notify slack for resource udpate", "error", slackError.Error())
+			}
+		}()
 	}
+
 	return &pb.Empty{}, err
 }
 
@@ -1642,6 +2162,12 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variantReq
 
 	variant := variantRequest.FeatureVariant
 	variant.Created = tspb.New(time.Now())
+	taskTarget := scheduling.NameVariant{Name: variant.Name, Variant: variant.Variant, ResourceType: FEATURE_VARIANT.String()}
+	task, err := serv.taskManager.CreateTask("mytask", scheduling.ResourceCreation, taskTarget)
+	if err != nil {
+		return nil, err
+	}
+	variant.TaskIdList = []string{task.ID.String()}
 	return serv.genericCreate(ctx, &featureVariantResource{variant}, func(name, variant string) Resource {
 		return &featureResource{
 			&pb.Feature{
@@ -1655,16 +2181,16 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variantReq
 }
 
 func (serv *MetadataServer) GetFeatures(stream pb.Metadata_GetFeaturesServer) error {
-	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
-	serv.Logger.Info("Opened Get Features stream")
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened Get Features stream")
 	return serv.genericGet(ctx, stream, FEATURE, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Feature))
 	})
 }
 
 func (serv *MetadataServer) GetFeatureVariants(stream pb.Metadata_GetFeatureVariantsServer) error {
-	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
-	serv.Logger.Info("Opened Get Feature Variants stream")
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened Get Feature Variants stream")
 	return serv.genericGet(ctx, stream, FEATURE_VARIANT, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.FeatureVariant))
 	})
@@ -1685,6 +2211,13 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variantReque
 
 	variant := variantRequest.LabelVariant
 	variant.Created = tspb.New(time.Now())
+	taskTarget := scheduling.NameVariant{Name: variant.Name, Variant: variant.Variant, ResourceType: LABEL_VARIANT.String()}
+	task, err := serv.taskManager.CreateTask("mytask", scheduling.ResourceCreation, taskTarget)
+	if err != nil {
+		logger.Errorw("Failed to create task", "error", err)
+		return nil, err
+	}
+	variant.TaskIdList = []string{task.ID.String()}
 	return serv.genericCreate(ctx, &labelVariantResource{variant}, func(name, variant string) Resource {
 		return &labelResource{
 			&pb.Label{
@@ -1698,16 +2231,16 @@ func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variantReque
 }
 
 func (serv *MetadataServer) GetLabels(stream pb.Metadata_GetLabelsServer) error {
-	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
-	serv.Logger.Info("Opened Get Labels stream")
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened Get Labels stream")
 	return serv.genericGet(ctx, stream, LABEL, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Label))
 	})
 }
 
 func (serv *MetadataServer) GetLabelVariants(stream pb.Metadata_GetLabelVariantsServer) error {
-	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
-	serv.Logger.Info("Opened Get Label Variants stream")
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened Get Label Variants stream")
 	return serv.genericGet(ctx, stream, LABEL_VARIANT, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.LabelVariant))
 	})
@@ -1728,6 +2261,12 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, varian
 
 	variant := variantRequest.TrainingSetVariant
 	variant.Created = tspb.New(time.Now())
+	taskTarget := scheduling.NameVariant{Name: variant.Name, Variant: variant.Variant, ResourceType: TRAINING_SET_VARIANT.String()}
+	task, err := serv.taskManager.CreateTask("mytask", scheduling.ResourceCreation, taskTarget)
+	if err != nil {
+		return nil, err
+	}
+	variant.TaskIdList = []string{task.ID.String()}
 	return serv.genericCreate(ctx, &trainingSetVariantResource{variant}, func(name, variant string) Resource {
 		return &trainingSetResource{
 			&pb.TrainingSet{
@@ -1741,16 +2280,16 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, varian
 }
 
 func (serv *MetadataServer) GetTrainingSets(stream pb.Metadata_GetTrainingSetsServer) error {
-	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
-	serv.Logger.Info("Opened Get Training Sets stream")
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened Get Training Sets stream")
 	return serv.genericGet(ctx, stream, TRAINING_SET, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.TrainingSet))
 	})
 }
 
 func (serv *MetadataServer) GetTrainingSetVariants(stream pb.Metadata_GetTrainingSetVariantsServer) error {
-	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
-	serv.Logger.Info("Opened Get Training Set Variants stream")
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened Get Training Set Variants stream")
 	return serv.genericGet(ctx, stream, TRAINING_SET_VARIANT, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.TrainingSetVariant))
 	})
@@ -1767,12 +2306,25 @@ func (serv *MetadataServer) ListSources(request *pb.ListRequest, stream pb.Metad
 func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variantRequest *pb.SourceVariantRequest) (*pb.Empty, error) {
 	ctx = logging.AttachRequestID(variantRequest.RequestId, ctx, serv.Logger)
 	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.SourceVariant, variantRequest.SourceVariant.Name, variantRequest.SourceVariant.Variant)
-	logger.Info("Creating Source Variant")
+	logger.Info("Creating Source Variant", "source_name", variantRequest.SourceVariant.Name, "source_variant", variantRequest.SourceVariant.Variant)
 
 	variant := variantRequest.SourceVariant
 	variant.Created = tspb.New(time.Now())
+	taskTarget := scheduling.NameVariant{Name: variant.Name, Variant: variant.Variant, ResourceType: SOURCE_VARIANT.String()}
+	task, err := serv.taskManager.CreateTask("mytask", scheduling.ResourceCreation, taskTarget)
+	if err != nil {
+		logger.Errorw("failed to create task", "error", err)
+		return nil, err
+	}
+	variant.TaskIdList = []string{task.ID.String()}
+	if _, isTransformation := variant.Definition.(*pb.SourceVariant_Transformation); isTransformation {
+		if err := serv.addTransformationLocation(ctx, variant); err != nil {
+			logger.Errorw("failed to add transformation location", "error", err)
+			return nil, err
+		}
+	}
 	return serv.genericCreate(ctx, &sourceVariantResource{variant}, func(name, variant string) Resource {
-		return &SourceResource{
+		return &sourceResource{
 			&pb.Source{
 				Name:           name,
 				DefaultVariant: variant,
@@ -1783,20 +2335,188 @@ func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variantRequ
 	})
 }
 
+// addTransformationLocation adds the location to the transformation field of the source variant given the client
+// isn't capable of populating the location field properly. Given metadata is the source of truth and "upstream"
+func (serv *MetadataServer) addTransformationLocation(ctx context.Context, sv *pb.SourceVariant) error {
+	logger := serv.Logger.With("source_name", sv.Name, "source_variant", sv.Variant)
+	if sv.GetTransformation() == nil {
+		logger.Warn("Transformation not set on source variant")
+		return nil
+	}
+	if sv.GetTransformation().Location != nil {
+		logger.Debug("Transformation location already set")
+		return nil
+	}
+	providerName := sv.GetProvider()
+	logger.Debugw("Looking up provider for transformation location", "provider", providerName)
+	providerResource, err := serv.lookup.Lookup(ctx, ResourceID{Name: providerName, Type: PROVIDER})
+	if err != nil {
+		logger.Errorw("Failed to lookup provider resource", "provider", providerName, "error", err)
+		return err
+	}
+	logger.Debugw("Provider for transformation location", "provider", providerName)
+	providerProto, isProviderProto := providerResource.Proto().(*pb.Provider)
+	if !isProviderProto {
+		logger.Errorw("Provider resource is not a provider proto", "provider", providerResource.Proto())
+		return fferr.NewInternalErrorf("provider resource is not a provider proto")
+	}
+	localizer, err := GetLocalizer(pt.Type(providerProto.GetType()), providerProto.GetSerializedConfig())
+	if err != nil {
+		logger.Errorw("Failed to get localizer", "provider", providerName, "error", err)
+		return err
+	}
+	location, err := localizer.Localize(sv)
+	if err != nil {
+		logger.Errorw("Failed to localize transformation location", "provider", providerName, "error", err)
+		return err
+	}
+	logger.Debugw("Localized transformation location", "location", location.Location(), "type", location.Type())
+	transformation := sv.GetTransformation()
+
+	switch lt := location.(type) {
+	case *pl.SQLLocation:
+		logger.Debugw("Adding SQL location to transformation", "location", lt.Location())
+		transformation.Location = &pb.Transformation_Table{
+			Table: &pb.SQLTable{
+				Name: lt.Location(),
+			},
+		}
+	case *pl.CatalogLocation:
+		logger.Debugw("Adding catalog location to transformation", "database", lt.Database(), "table", lt.Table())
+		transformation.Location = &pb.Transformation_Catalog{
+			Catalog: &pb.CatalogTable{
+				Database:    lt.Database(),
+				Table:       lt.Table(),
+				TableFormat: lt.TableFormat(),
+			},
+		}
+	case *pl.FileStoreLocation:
+		logger.Debugw("Adding filestore location to transformation", "path", lt.Filepath().ToURI())
+		transformation.Location = &pb.Transformation_Filestore{
+			Filestore: &pb.FileStoreTable{
+				Path: lt.Filepath().ToURI(),
+			},
+		}
+	default:
+		logger.Errorw("Unknown location type", "type", lt)
+		return fferr.NewInternalErrorf("unknown location type: %s", lt)
+	}
+
+	return nil
+}
+
 func (serv *MetadataServer) GetSources(stream pb.Metadata_GetSourcesServer) error {
-	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
-	serv.Logger.Info("Opened Get Sources stream")
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened Get Sources stream")
 	return serv.genericGet(ctx, stream, SOURCE, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Source))
 	})
 }
 
 func (serv *MetadataServer) GetSourceVariants(stream pb.Metadata_GetSourceVariantsServer) error {
-	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
-	serv.Logger.Info("Opened Get Source Variants stream")
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened Get Source Variants stream")
 	return serv.genericGet(ctx, stream, SOURCE_VARIANT, func(msg proto.Message) error {
-		return stream.Send(msg.(*pb.SourceVariant))
+		sv, isSourceVariant := msg.(*pb.SourceVariant)
+		if !isSourceVariant {
+			return fferr.NewInternalErrorf("expected source variant, got %T", msg)
+		}
+		if err := serv.sourceVariantBackwardsCompatibility(ctx, sv); err != nil {
+			return err
+		}
+		return stream.Send(sv)
 	})
+}
+
+// sourceVariantBackwardsCompatibility is an update operation that supports backwards compatibility for source variants that
+// were created before the expansion of location type into `CatalogTable` and `FileStoreTable` (i.e. PR #1109); for primary
+// sources, it achieves this by checking the location "name" to see if it stars with `glue://`, for Iceberg catalog locations,
+// or `s3://` or `s3a://`, for S3 filestore locations and updating the source variant's location to the new format.
+func (serv *MetadataServer) sourceVariantBackwardsCompatibility(ctx context.Context, sv *pb.SourceVariant) error {
+	logger := serv.Logger.With("source_name", sv.Name, "source_variant", sv.Variant)
+	logger.Debug("Checking source variant for backwards compatibility")
+	switch def := sv.GetDefinition().(type) {
+	case *pb.SourceVariant_PrimaryData:
+		logger.Debug("Backfilling primary data location")
+		location := def.PrimaryData.GetLocation()
+
+		sqlTable, isSQLTable := location.(*pb.PrimaryData_Table)
+		// If the location is not a SQL table, the assumption is that it has already been backfilled
+		// or is a resource created using the new protos; in either case, nothing needs to be done.
+		if !isSQLTable {
+			logger.Debugw("Primary data location is not a SQL table", "location", location)
+			return nil
+		}
+
+		name := sqlTable.Table.GetName()
+
+		isCatalogTable := strings.HasPrefix(name, "glue://")
+		isFilestoreTable := strings.HasPrefix(name, filestore.S3Prefix) || strings.HasPrefix(name, filestore.S3APrefix)
+
+		// If the location name doesn't match the expected prefixes, it is assumed that the location is already
+		// correctly defined as a SQL table location.
+		if !isCatalogTable && !isFilestoreTable {
+			logger.Debugw("Primary data location is either newly created or has already been backfilled", "location_name", name)
+			return nil
+		}
+
+		if isCatalogTable {
+			logger.Debug("Primary data location is a catalog table")
+			// We no longer need this faux scheme to differentiate between catalog and filestore locations
+			glueLocation := strings.TrimPrefix(name, "glue://")
+			// The remainder of the "name" will be the database and table name separated by a "/" as if
+			// they were part of a file path.
+			parts := strings.Split(glueLocation, "/")
+			if len(parts) != 2 {
+				logger.Errorw("Invalid glue location", "location", glueLocation)
+				return fferr.NewInternalErrorf("invalid glue location: %s; expected 'database/table'", glueLocation)
+			}
+			logger.Debugw("Backfilling primary data location as catalog table", "database", parts[0], "table", parts[1])
+			catalogSv, isPrimaryData := sv.GetDefinition().(*pb.SourceVariant_PrimaryData)
+			if !isPrimaryData {
+				return fferr.NewInternalErrorf("source variant definition is not primary data; got %T", sv.GetDefinition())
+			}
+
+			catalogSv.PrimaryData.Location = &pb.PrimaryData_Catalog{
+				Catalog: &pb.CatalogTable{
+					Database: parts[0],
+					Table:    parts[1],
+					// Given Iceberg was the only supported table format prior to the expansion of location types,
+					// we can safely assume that the table format is Iceberg.
+					TableFormat: string(pc.Iceberg),
+				},
+			}
+		} else if isFilestoreTable {
+			logger.Debugw("Backfilling primary data location as filestore table", "path", name)
+			filestoreSv, isPrimaryData := sv.GetDefinition().(*pb.SourceVariant_PrimaryData)
+			if !isPrimaryData {
+				return fferr.NewInternalErrorf("source variant definition is not primary data; got %T", sv.GetDefinition())
+			}
+
+			filestoreSv.PrimaryData.Location = &pb.PrimaryData_Filestore{
+				Filestore: &pb.FileStoreTable{
+					Path: name,
+				},
+			}
+		}
+	case *pb.SourceVariant_Transformation:
+		logger.Debug("Backfilling transformation location")
+		// addTransformationLocation already works to handle new transformations, so we just need to call it here
+		// on existing transformations to ensure they are correctly backfilled.
+		if err := serv.addTransformationLocation(ctx, sv); err != nil {
+			return err
+		}
+	default:
+		return fferr.NewInternalErrorf("unknown source variant definition type: %T", def)
+	}
+	id := ResourceID{Name: sv.Name, Variant: sv.Variant, Type: SOURCE_VARIANT}
+	logger.Debugw("Setting source variant", "id", id)
+	if err := serv.lookup.Set(ctx, id, &sourceVariantResource{sv}); err != nil {
+		logger.Errorw("Failed to set source variant", "id", id, "error", err)
+		return err
+	}
+	logger.Debug("Successfully backfilled location for source variant")
+	return nil
 }
 
 func (serv *MetadataServer) ListUsers(request *pb.ListRequest, stream pb.Metadata_ListUsersServer) error {
@@ -1811,13 +2531,12 @@ func (serv *MetadataServer) CreateUser(ctx context.Context, userRequest *pb.User
 	ctx = logging.AttachRequestID(userRequest.RequestId, ctx, serv.Logger)
 	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.User, userRequest.User.Name, logging.NoVariant)
 	logger.Info("Creating User")
-
 	return serv.genericCreate(ctx, &userResource{userRequest.User}, nil)
 }
 
 func (serv *MetadataServer) GetUsers(stream pb.Metadata_GetUsersServer) error {
-	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
-	serv.Logger.Info("Opened Get Users stream")
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened Get Users stream")
 	return serv.genericGet(ctx, stream, USER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.User))
 	})
@@ -1841,8 +2560,8 @@ func (serv *MetadataServer) CreateProvider(ctx context.Context, providerRequest 
 }
 
 func (serv *MetadataServer) GetProviders(stream pb.Metadata_GetProvidersServer) error {
-	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
-	serv.Logger.Info("Opened Get Providers stream")
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened Get Providers stream")
 	return serv.genericGet(ctx, stream, PROVIDER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Provider))
 	})
@@ -1864,8 +2583,8 @@ func (serv *MetadataServer) CreateEntity(ctx context.Context, entityRequest *pb.
 }
 
 func (serv *MetadataServer) GetEntities(stream pb.Metadata_GetEntitiesServer) error {
-	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
-	serv.Logger.Info("Opened Get Entities stream")
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened Get Entities stream")
 	return serv.genericGet(ctx, stream, ENTITY, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Entity))
 	})
@@ -1887,18 +2606,71 @@ func (serv *MetadataServer) CreateModel(ctx context.Context, modelRequest *pb.Mo
 }
 
 func (serv *MetadataServer) GetModels(stream pb.Metadata_GetModelsServer) error {
-	ctx := logging.AddLoggerToContext(stream.Context(), serv.Logger)
-	serv.Logger.Info("Opened Get Models stream")
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened Get Models stream")
 	return serv.genericGet(ctx, stream, MODEL, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Model))
 	})
 }
 
+// Run updates resources that have already been applied.
+func (serv *MetadataServer) Run(ctx context.Context, req *pb.RunRequest) (*pb.Empty, error) {
+	ctx = logging.AttachRequestID(req.RequestId, ctx, serv.Logger)
+	baseLogger := logging.GetLoggerFromContext(ctx)
+	baseLogger.Infow("Running resource variants", "num", len(req.Variants))
+	for _, variant := range req.Variants {
+		resVar, _, err := serv.extractResourceVariant(variant)
+		if err != nil {
+			baseLogger.Errorw("Failed to extract resource variant", "res", resVar, "error", err)
+			return nil, err
+		}
+		id := resVar.ID()
+		logger := baseLogger.WithResource(id.Type.ToLoggingResourceType(), id.Name, id.Variant)
+		// What we receive from the client won't have Task IDs set, so we grab directly from lookup again.
+		logger.Debugw("Looking up resource", "res", id)
+		res, err := serv.lookup.Lookup(ctx, id)
+		if err != nil {
+			logger.Errorw("Failed to lookup resource", "error", err)
+			return nil, err
+		}
+		if taskImpl, hasTasks := res.(resourceTaskImplementation); serv.needsRun(ctx, res) && hasTasks {
+			if err := serv.createTaskRuns(ctx, id, taskImpl, logger); err != nil {
+				return nil, err
+			}
+		} else {
+			logger.Infow("Resource doesn't need run", "res", res.ID())
+		}
+	}
+	return &pb.Empty{}, nil
+}
+
+func (serv *MetadataServer) createTaskRuns(ctx context.Context, id ResourceID, taskImpl resourceTaskImplementation, logger logging.Logger) error {
+	logger.Infow("Creating TaskRun for resource")
+	taskIDs, err := taskImpl.TaskIDs()
+	if err != nil {
+		logger.Errorw("error getting task IDs from ResourceTaskIplementation", "error", err)
+		return err
+	}
+	for _, taskId := range taskIDs {
+		trigger := scheduling.OnApplyTrigger{TriggerName: "Run"}
+		taskName := fmt.Sprintf("Create Resource %s (%s)", id.Name, id.Variant)
+		// This creates task runs to be picked up by the coordinator.
+		taskRun, err := serv.taskManager.CreateTaskRun(taskName, taskId, trigger)
+		if err != nil {
+			logger.Errorw("unable to create task run", "task name", taskName, "task ID", taskId, "trigger", trigger.TriggerName, "error", err)
+			return err
+		}
+		logger.Infow("Successfully Created Task", "task ID", taskRun.TaskId, "taskrun ID", taskRun.ID)
+	}
+	return nil
+}
+
 // GetEquivalent attempts to find an equivalent resource based on the provided ResourceVariant.
-func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceVariantRequest) (*pb.ResourceVariant, error) {
-	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
-	logger.Info("Getting Equivalent Resource Variant, %v", req.ResourceVariant.Resource)
-	return serv.getEquivalent(ctx, req.ResourceVariant, true)
+func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.GetEquivalentRequest) (*pb.ResourceVariant, error) {
+	ctx = logging.AttachRequestID(req.RequestId, ctx, serv.Logger)
+	logging.GetLoggerFromContext(ctx).Infow("Getting Equivalent Resource Variant", "resource", req.Variant.Resource)
+	// todox: need to decide how to handle username. won't be availlable in OSS
+	return serv.getEquivalent(ctx, req, true, "default")
 }
 
 /*
@@ -1906,48 +2678,86 @@ func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.ResourceV
 This method is used to get the equivalent resource variant for a given resource variant. readyStatus is used to determine
 if we should only return the equivalent resource variant if it is ready.
 */
-func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.ResourceVariant, filterStatus bool) (*pb.ResourceVariant, error) {
+func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.GetEquivalentRequest, filterStatus bool, username string) (*pb.ResourceVariant, error) {
 	noEquivalentResponse := &pb.ResourceVariant{}
 	logger := logging.GetLoggerFromContext(ctx)
-	currentResource, resourceType, err := serv.extractResourceVariant(req)
+	logger.Infow("getEquivalent: START to get Equivalent Resource Variant", "request", req.String())
+	currentResource, resType, err := serv.extractResourceVariant(req.Variant)
+
 	if err != nil {
-		logger.Errorw("Error extracting resource variant", "resource variant", req, "error", err)
+		logger.Errorw("error extracting resource variant", "resource variant", req, "error", err)
+
 		return nil, err
 	}
-	resourcesForType, err := serv.lookup.ListForType(resourceType)
+	logger.Debugw("getEquivalent: extracted resource variant")
+
+	resourcesForType, err := serv.lookup.ListVariants(ctx, resType, currentResource.ID().Name)
 	if err != nil {
 		logger.Errorw("Unable to list resources", "error", err)
 		return nil, err
 	}
-
-	equivalentResourceVariant, err := findEquivalent(resourcesForType, currentResource, filterStatus)
+	logger.Debugw("getEquivalent: listed resource variants")
+	filtered, err := serv.filterResources(ctx, resourcesForType, username, filterStatus)
+	if err != nil {
+		return nil, err
+	}
+	logger.Debugw("getEquivalent: filtered resources")
+	equivalentResourceVariant, err := serv.findEquivalent(ctx, filtered, currentResource)
 	if err != nil {
 		logger.Errorw("Unable to find equivalent resource", "error", err)
 		return nil, err
 	}
+	logger.Debugw("getEquivalent: ran findEquivalent")
 
 	if equivalentResourceVariant == nil {
 		return noEquivalentResponse, nil
 	}
-
+	logger.Debugw("getEquivalent: Successfully finished get equivalent resource variant")
 	return equivalentResourceVariant.ToResourceVariantProto(), nil
 }
 
-// findEquivalent searches through a slice of Resources to find an equivalent ResourceVariant.
-func findEquivalent(resources []Resource, resource ResourceVariant, filterStatus bool) (ResourceVariant, error) {
+func (serv *MetadataServer) filterResources(ctx context.Context, resources []Resource, username string, filterStatus bool) ([]ResourceVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	variants := make([]ResourceVariant, 0)
+
+	// We need a slice of ResourceVariants to sort by Owner
+	logger.Debugw("getEquivalent: filtering resources", "resource_count", len(resources))
 	for _, res := range resources {
+		logger.Infow("filtering resource", "resource", res.ID().String())
 		// If we are filtering by ready status, we only want to return the equivalent resource variant if it is ready.
 		if filterStatus && !isValidStatusForEquivalent(res) {
 			continue
 		}
-
-		other, ok := res.(ResourceVariant)
+		rv, ok := res.(ResourceVariant)
 		if !ok {
+			logger.Errorw("resource is not a ResourceVariant", "resource", res.ID().String())
 			return nil, fferr.NewInvalidResourceTypeError(res.ID().Name, res.ID().Variant, fferr.ResourceType(res.ID().Type.String()), fmt.Errorf("resource is not a ResourceVariant: %T", res))
 		}
+		variants = append(variants, rv)
+	}
+	logger.Debugw("getEquivalent: filtered resources loop")
 
+	// Sorting the variants by Owner ensures that a user's own resources are considered first when checking for equivalence. This ensures
+	// that a user who has been granted access to a super admin's resources will still have their own resources considered first for equivalence.
+	sort.Slice(variants, func(i, j int) bool {
+		if variants[i].Owner() == username && variants[j].Owner() != username {
+			return true
+		}
+		return false
+	})
+	logger.Debugw("getEquivalent: sorted resources")
+
+	return variants, nil
+}
+
+// findEquivalent searches through a slice of Resources to find an equivalent ResourceVariant.
+func (serv *MetadataServer) findEquivalent(ctx context.Context, resources []ResourceVariant, resource ResourceVariant) (ResourceVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	for _, other := range resources {
+		logger.Infow("finding equivalent", "this", resource.ID().String(), "other", other.ID().String())
 		equivalent, err := resource.IsEquivalent(other)
 		if err != nil {
+			logger.Errorw("error checking equivalence", "error", err)
 			return nil, fferr.NewInternalError(err)
 		}
 		if equivalent {
@@ -1973,15 +2783,16 @@ func (serv *MetadataServer) extractResourceVariant(req *pb.ResourceVariant) (Res
 	}
 }
 
+var equivalentStatuses = mapset.NewSet(
+	pb.ResourceStatus_NO_STATUS,
+	pb.ResourceStatus_READY,
+	pb.ResourceStatus_PENDING,
+	pb.ResourceStatus_RUNNING,
+	pb.ResourceStatus_CREATED,
+)
+
 func isValidStatusForEquivalent(res Resource) bool {
 	resourceStatus := res.GetStatus()
-	equivalentStatuses := mapset.NewSet(
-		pb.ResourceStatus_READY,
-		pb.ResourceStatus_PENDING,
-		pb.ResourceStatus_RUNNING,
-		pb.ResourceStatus_CREATED,
-	)
-
 	return resourceStatus != nil && equivalentStatuses.Contains(resourceStatus.Status)
 }
 
@@ -2025,26 +2836,22 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		}
 		res = existing
 	}
-	if serv.needsJob(res) && existing == nil {
-		logger.Info("Creating Job")
-		if err := serv.lookup.SetJob(id, res.Schedule()); err != nil {
-			return nil, err
-		}
-		logger.Info("Successfully Created Job")
-	}
+
 	// Create the parent first. Better to have a hanging parent than a hanging dependency.
+
 	parentId, hasParent := id.Parent()
 	if hasParent {
-		parentExists, err := serv.lookup.Has(parentId)
+		parentExists, err := serv.lookup.Has(ctx, parentId)
 		if err != nil {
-			logger.Errorw("Parent does not exist", "parent-id", parentId, "error", err)
+			logger.Errorw("Unable to check if parent exists", "parent-id", parentId, "error", err)
 			return nil, err
 		}
 
 		if !parentExists {
 			logger.Debug("Parent does not exist, creating new parent")
 			parent := init(id.Name, id.Variant)
-			err = serv.lookup.Set(parentId, parent)
+			logger.Infow("Parent ID", "Parent ID", parent.ID().String())
+			err = serv.lookup.Set(ctx, parentId, parent)
 			if err != nil {
 				logger.Errorw("Unable to create new parent", "parent-id", parentId, "error", err)
 				return nil, err
@@ -2056,13 +2863,40 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 			}
 		}
 	}
-	if err := serv.lookup.Set(id, res); err != nil {
+
+	if err := serv.lookup.Set(ctx, id, res); err != nil {
 		logger.Errorw("Error setting resource to lookup", "error", err)
 		return nil, err
 	}
+
+	if serv.needsJob(res) && existing == nil {
+		logger.Info("Creating Job")
+		var taskIDs []scheduling.TaskID
+		if r, ok := res.(resourceTaskImplementation); ok {
+			taskIDs, err = r.TaskIDs()
+			if err != nil {
+				logger.Errorw("error getting task IDs from ResourceTaskIplementation", "error", err)
+				return nil, err
+			}
+		}
+
+		// This logic is going to get removed. Currently exists to support the old coordinator logic.
+		for _, id := range taskIDs {
+			logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
+			trigger := scheduling.OnApplyTrigger{TriggerName: "Apply"}
+			taskName := fmt.Sprintf("Create Resource %s (%s)", res.ID().Name, res.ID().Variant)
+			taskRun, err := serv.taskManager.CreateTaskRun(taskName, id, trigger)
+			if err != nil {
+				logger.Errorw("unable to create task run", "task name", taskName, "task ID", id, "trigger", trigger.TriggerName, "error", err)
+				return nil, err
+			}
+			logger.Infow("Successfully Created Task", "task ID", taskRun.TaskId, "taskrun ID", taskRun.ID, "resource ID", res.ID().String())
+		}
+
+	}
 	if existing == nil {
-		if err := serv.propagateChange(res); err != nil {
-			logger.Error(err)
+		if err := serv.propagateChange(ctx, res); err != nil {
+			logger.Errorw("Propagate change error", "error", err)
 			return nil, err
 		}
 	}
@@ -2070,12 +2904,14 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 }
 
 func (serv *MetadataServer) setDefaultVariant(ctx context.Context, id ResourceID, defaultVariant string) error {
+	logger := logging.GetLoggerFromContext(ctx)
 	parent, err := serv.lookup.Lookup(ctx, id)
 	if err != nil {
+		logger.Errorw("Unable to lookup parent", "parent-id", id, "error", err)
 		return err
 	}
 	var parentResource Resource
-	if resource, ok := parent.(*SourceResource); ok {
+	if resource, ok := parent.(*sourceResource); ok {
 		resource.serialized.DefaultVariant = defaultVariant
 		parentResource = resource
 	}
@@ -2091,8 +2927,10 @@ func (serv *MetadataServer) setDefaultVariant(ctx context.Context, id ResourceID
 		resource.serialized.DefaultVariant = defaultVariant
 		parentResource = resource
 	}
-	err = serv.lookup.Set(id, parentResource)
+	logger.Debugw("set default variant for source", "source", parent.ID().Name, "source type", parent.ID().Type, "variant", defaultVariant)
+	err = serv.lookup.Set(ctx, id, parentResource)
 	if err != nil {
+		logger.Errorw("unable to set default variant", "parent-id", id, "error", err)
 		return err
 	}
 	return nil
@@ -2115,10 +2953,7 @@ func (serv *MetadataServer) validateExisting(newRes Resource, existing Resource)
 }
 
 func (serv *MetadataServer) isEquivalent(newRes Resource, existing Resource) (bool, error) {
-	// only works on resource variants right now
-	if existing.GetStatus() != nil && existing.GetStatus().Status != pb.ResourceStatus_READY {
-		return false, nil
-	}
+	serv.Logger.Debugw("Checking resource variant equivalence", "newRes", newRes.Proto(), "existing", existing.Proto())
 
 	resVariant, ok := newRes.(ResourceVariant)
 	if !ok {
@@ -2135,17 +2970,25 @@ func (serv *MetadataServer) isEquivalent(newRes Resource, existing Resource) (bo
 	return isEquivalent, nil
 }
 
-func (serv *MetadataServer) propagateChange(newRes Resource) error {
+func (serv *MetadataServer) propagateChange(ctx context.Context, newRes Resource) error {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger.Infow("Propagating change", "resource", newRes.ID().String())
 	visited := make(map[ResourceID]struct{})
 	// We have to make it a var so that the anonymous function can call itself.
-	var propagateChange func(parent Resource) error
-	propagateChange = func(parent Resource) error {
-		deps, err := parent.Dependencies(serv.lookup)
+	var propagateChange func(parent Resource, depth int) error
+	propagateChange = func(parent Resource, depth int) error {
+		if depth == 2 {
+			logger.Debugw("Reached max depth", "depth", depth)
+			return nil
+		}
+		deps, err := parent.Dependencies(ctx, serv.lookup)
 		if err != nil {
+			logger.Errorw("Unable to get dependencies", "error", err)
 			return err
 		}
-		depList, err := deps.List()
+		depList, err := deps.List(ctx)
 		if err != nil {
+			logger.Errorw("Unable to list dependencies", "error", err)
 			return err
 		}
 		for _, res := range depList {
@@ -2154,19 +2997,46 @@ func (serv *MetadataServer) propagateChange(newRes Resource) error {
 				continue
 			}
 			visited[id] = struct{}{}
-			if err := res.Notify(serv.lookup, create_op, newRes); err != nil {
+			if err := res.Notify(ctx, serv.lookup, create_op, newRes); err != nil {
+				logger.Errorw("unable to notify dependency", "error", err)
 				return err
 			}
-			if err := serv.lookup.Set(res.ID(), res); err != nil {
+			if err := serv.lookup.Set(ctx, res.ID(), res); err != nil {
+				logger.Errorw("unable to set dependency", "error", err)
 				return err
 			}
-			if err := propagateChange(res); err != nil {
+			if err := propagateChange(res, depth+1); err != nil {
 				return err
 			}
 		}
 		return nil
 	}
-	return propagateChange(newRes)
+	return propagateChange(newRes, 0)
+}
+
+func (serv *MetadataServer) fetchStatus(taskId scheduling.TaskID) (*scheduling.Status, string, error) {
+	run, err := serv.taskManager.GetLatestRun(taskId)
+	if err != nil {
+		_, ok := err.(*fferr.NoRunsForTaskError)
+		if ok {
+			noStatus := scheduling.NO_STATUS
+			return &noStatus, "", nil
+		}
+		return nil, "", err
+	}
+	return &run.Status, run.Error, nil
+}
+
+func parseResourceTasks(ids []string) ([]scheduling.TaskID, error) {
+	var taskIDs []scheduling.TaskID
+	for _, id := range ids {
+		if tid, err := scheduling.ParseTaskID(id); err != nil {
+			return []scheduling.TaskID{}, fferr.NewInternalErrorf("unable to convert %s to type TaskIDs", id)
+		} else {
+			taskIDs = append(taskIDs, tid)
+		}
+	}
+	return taskIDs, nil
 }
 
 func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, t ResourceType, send sendFn) error {
@@ -2183,7 +3053,7 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 				logger.Debugw("End of stream reached. Stream request completed")
 				return nil
 			}
-			if err != nil {
+			if recvErr != nil {
 				logger.Errorw("Unable to receive request", "error", recvErr)
 				return fferr.NewInternalError(recvErr)
 			}
@@ -2221,6 +3091,30 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 			loggerWithResource.Errorw("Unable to look up resource", "error", err)
 			return err
 		}
+
+		// Fetches the latest run for the task and returns it for the CLI status watcher.
+		// Can improve on this by linking the request to a specific run but that requires
+		// additional changes
+		if serv.needsJob(resource) {
+			if res, ok := resource.(resourceStatusImplementation); ok {
+				taskID, err := resource.(resourceTaskImplementation).TaskIDs()
+				if err != nil {
+					return err
+				}
+				if len(taskID) >= 0 {
+					// This logic gets the status of the latest task for a resource. Need to create
+					// better logic around this later
+					status, msg, err := serv.fetchStatus(taskID[len(taskID)-1])
+					if err != nil {
+						serv.Logger.Errorw("Failed to set status", "error", err)
+						return err
+					}
+					if err := res.SetAndSaveStatus(ctx, status, msg, serv.lookup); err != nil {
+						return err
+					}
+				}
+			}
+		}
 		loggerWithResource.Debug("Sending Resource")
 		serialized := resource.Proto()
 		if err := send(serialized); err != nil {
@@ -2234,7 +3128,7 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 func (serv *MetadataServer) genericList(ctx context.Context, t ResourceType, send sendFn) error {
 	logger := logging.GetLoggerFromContext(ctx)
 	logger.Infow("Listing Resources", "type", t)
-	resources, err := serv.lookup.ListForType(t)
+	resources, err := serv.lookup.ListForType(ctx, t)
 	if err != nil {
 		logger.Error("Unable to lookup list for type %v: %v", t, err)
 		return err
@@ -2249,6 +3143,17 @@ func (serv *MetadataServer) genericList(ctx context.Context, t ResourceType, sen
 		}
 	}
 	return nil
+}
+
+func (serv *MetadataServer) GetResourceDAG(ctx context.Context, r Resource) (ResourceDAG, error) {
+	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
+	dag, err := NewResourceDAG(ctx, serv.lookup, r)
+	if err != nil {
+		logger.Errorw("Unable to create Resource DAG", "error", err)
+		return ResourceDAG{}, err
+	}
+
+	return dag, nil
 }
 
 // Resource Variant structs for Dashboard
@@ -2268,12 +3173,13 @@ type TrainingSetVariantResource struct {
 }
 
 type FeatureVariantResource struct {
-	Created     time.Time `json:"created"`
-	Description string    `json:"description"`
-	Entity      string    `json:"entity"`
-	Name        string    `json:"name"`
-	Owner       string    `json:"owner"`
-	Provider    string    `json:"provider"`
+	Created      time.Time `json:"created"`
+	Description  string    `json:"description"`
+	Entity       string    `json:"entity"`
+	Name         string    `json:"name"`
+	Owner        string    `json:"owner"`
+	Provider     string    `json:"provider"`
+	ProviderType string    `json:"providerType"`
 	// TODO(simba) Make this not a string
 	DataType     string                                  `json:"data-type"`
 	Variant      string                                  `json:"variant"`
@@ -2296,6 +3202,7 @@ type LabelVariantResource struct {
 	Name         string                                  `json:"name"`
 	Owner        string                                  `json:"owner"`
 	Provider     string                                  `json:"provider"`
+	ProviderType string                                  `json:"providerType"`
 	DataType     string                                  `json:"data-type"`
 	Variant      string                                  `json:"variant"`
 	Location     map[string]string                       `json:"location"`
@@ -2328,6 +3235,37 @@ type SourceVariantResource struct {
 	Error          string                                  `json:"error"`
 	Specifications map[string]string                       `json:"specifications"`
 	Inputs         []NameVariant                           `json:"inputs"`
+}
+
+// TODO: Might need to modify this to add number of features and number of labels
+type EntityResource struct {
+	Name         string                                  `json:"name"`
+	Type         string                                  `json:"type"`
+	Description  string                                  `json:"description"`
+	Features     map[string][]FeatureVariantResource     `json:"features"`
+	Labels       map[string][]LabelVariantResource       `json:"labels"`
+	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
+	Status       string                                  `json:"status"`
+	Tags         Tags                                    `json:"tags"`
+	Properties   Properties                              `json:"properties"`
+}
+
+type ProviderResource struct {
+	Name             string                                  `json:"name"`
+	Description      string                                  `json:"description"`
+	Type             string                                  `json:"type"`          // resource type: "Provider"
+	ProviderType     string                                  `json:"provider-type"` // Online, Offline, etc.
+	Software         string                                  `json:"software"`
+	Team             string                                  `json:"team"`
+	SerializedConfig []byte                                  `json:"serialized-config"`
+	Sources          map[string][]SourceVariantResource      `json:"sources"`
+	Features         map[string][]FeatureVariantResource     `json:"features"`
+	Labels           map[string][]LabelVariantResource       `json:"labels"`
+	TrainingSets     map[string][]TrainingSetVariantResource `json:"training-sets"`
+	Status           string                                  `json:"status"`
+	Error            string                                  `json:"error"`
+	Tags             Tags                                    `json:"tags"`
+	Properties       Properties                              `json:"properties"`
 }
 
 func getSourceString(variant *SourceVariant) string {

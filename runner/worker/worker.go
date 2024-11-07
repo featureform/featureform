@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package worker
 
@@ -12,7 +15,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/featureform/coordinator"
+	"github.com/featureform/coordinator/spawner"
+
 	"github.com/featureform/runner"
 	"github.com/google/uuid"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -79,8 +83,8 @@ func CreateAndRun() error {
 	if jobRunner.IsUpdateJob() {
 		jobResource := jobRunner.Resource()
 		logger.Infof("Logging update success in etcd for job: %v", jobResource)
-		etcdConfig := &coordinator.ETCDConfig{}
-		err := etcdConfig.Deserialize(coordinator.Config(etcdConf))
+		etcdConfig := &spawner.ETCDConfig{}
+		err := etcdConfig.Deserialize(spawner.Config(etcdConf))
 		if err != nil {
 			return err
 		}
@@ -90,7 +94,7 @@ func CreateAndRun() error {
 		}
 		resourceID := jobRunner.Resource()
 		timeCompleted := time.Now()
-		updatedEvent := &coordinator.ResourceUpdatedEvent{
+		updatedEvent := &spawner.ResourceUpdatedEvent{
 			ResourceID: resourceID,
 			Completed:  timeCompleted,
 		}

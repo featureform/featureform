@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import Resource from './Resource.js';
 const SearchClient = require('./Search.js');
 // Set to true run locally
@@ -84,7 +91,7 @@ export const testDetailsData = {
           error: '',
           definition: '',
           specifications: {
-            'Docker Image': 'featureformcom/k8s_runner:latest',
+            'Docker Image': 'featureformenterprise/k8s_runner:latest',
           },
         },
         empty_specs: {
@@ -112,7 +119,7 @@ export const testDetailsData = {
 
 export const providerLogos = Object.freeze({
   // local mode
-  LOCALMODE: 'static/localmode.png',
+  LOCALMODE: '/static/localmode.png',
 
   // Offline Stores
   BIGQUERY: 'static/google_bigquery.svg',
@@ -124,17 +131,46 @@ export const providerLogos = Object.freeze({
   CLICKHOUSE: 'static/clickhouse-logo.svg',
 
   // Filestores
-  AZURE: 'static/azure_storage_accounts.svg',
-  GCS: 'static/google_cloud_storage.svg',
-  S3: 'static/amazon_s3.svg',
-  HDFS: 'static/apache_hadoop.svg',
+  AZURE: '/static/azure_storage_accounts.svg',
+  GCS: '/static/google_cloud_storage.svg',
+  S3: '/static/amazon_s3.svg',
+  HDFS: '/static/apache_hadoop.svg',
 
   // Online Stores
-  REDIS: 'static/Redis_Logo.svg',
-  CASSANDRA: 'static/apache_cassandra.svg',
-  DYNAMODB: 'static/amazon_dynamoDB.svg',
-  FIRESTORE: 'static/google_firestore.svg',
-  MONGODB: 'static/mongoDB.svg',
+  REDIS: '/static/Redis_Logo.svg',
+  CASSANDRA: '/static/apache_cassandra.svg',
+  DYNAMODB: '/static/amazon_dynamoDB.svg',
+  FIRESTORE: '/static/google_firestore.svg',
+  MONGODB: '/static/mongoDB.svg',
+  WEAVIATE_ONLINE: '/static/weaviate_logo.png',
+});
+
+//some cases use the fully qualified name. will unite at some point
+export const providerLogoMap = Object.freeze({
+  //offline stores
+  BIGQUERY_OFFLINE: providerLogos.BIGQUERY,
+  POSTGRES_OFFLINE: providerLogos.POSTGRES,
+  REDSHIFT_OFFLINE: providerLogos.REDSHIFT,
+  SNOWFLAKE_OFFLINE: providerLogos.SNOWFLAKE,
+  SPARK_OFFLINE: providerLogos.SPARK,
+  K8S_OFFLINE: providerLogos.KUBERNETES,
+  CLICKHOUSE_OFFLINE: providerLogos.CLICKHOUSE,
+
+  // Filestores
+  AZURE: providerLogos.AZURE,
+  GCS: providerLogos.GCS,
+  S3: providerLogos.S3,
+  HDFS: providerLogos.HDFS,
+
+  // Online Stores
+  LOCAL_ONLINE: providerLogos.LOCALMODE,
+  REDIS_ONLINE: providerLogos.REDIS,
+  CASSANDRA_ONLINE: providerLogos.CASSANDRA,
+  DYNAMODB_ONLINE: providerLogos.DYNAMODB,
+  FIRESTORE_ONLINE: providerLogos.FIRESTORE,
+  MONGODB_ONLINE: providerLogos.MONGODB,
+  NONE: providerLogos.LOCALMODE,
+  WEAVIATE_ONLINE: providerLogos.WEAVIATE_ONLINE,
 });
 
 var hostname = 'localhost';
@@ -174,42 +210,48 @@ export default class ResourcesAPI {
     SEARCH_URL.host,
     SEARCH_URL.apiKey
   );
-  checkStatus() {
-    return fetch(API_URL, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-      .then((res) => {
-        res.json().then((json_data) => ({ data: json_data }));
-      })
-      .catch((error) => {
-        console.error(error);
+  async checkStatus() {
+    try {
+      const res = await fetch(API_URL, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+      res.json().then((json_data) => ({ data: json_data }));
+    } catch (error) {
+      console.error(error);
+    }
   }
 
-  fetchResources(type) {
+  fetchResources(type, pageSize = 10, offset = 0, filter = {}) {
     var fetchAddress;
     let resourceType = Resource[type];
     if (local) {
       return { data: testListData[type] };
     } else {
-      fetchAddress = `${API_URL + '/data'}${resourceType.urlPath}`;
+      fetchAddress = `${API_URL + '/data'}${
+        resourceType.urlPath
+      }?pageSize=${pageSize}&offset=${offset}`;
     }
     if (process.env.REACT_APP_EMPTY_RESOURCE_VIEW === 'true') {
       fetchAddress = '/data/lists/wine-data-empty.json';
     }
     return fetch(fetchAddress, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify(filter),
     })
       .then((res) =>
         res.json().then((json_data) => {
           if (local) {
             return { data: testData[type] };
           } else {
-            return { data: json_data };
+            return {
+              data: json_data?.resourceList ?? [],
+              count: json_data?.count ?? 0,
+            };
           }
         })
       )
@@ -241,29 +283,31 @@ export default class ResourcesAPI {
       });
   }
 
-  fetchVersionMap() {
+  async fetchVersionMap() {
     const fetchAddress = `${API_URL + '/data/version'}`;
 
-    return fetch(fetchAddress, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-      .then((res) =>
-        res.json().then((json_data) => {
-          return { data: json_data };
-        })
-      )
-      .catch((error) => {
-        console.error(error);
-        return { data: 'Default' };
+    try {
+      const res = await fetch(fetchAddress, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+      const json_data = await res.json();
+      return { data: json_data };
+    } catch (error) {
+      console.error(error);
+      return { data: 'Default' };
+    }
   }
 
   fetchSearch(query) {
     return query === null
       ? {}
-      : fetch(`${API_URL}/data/search?q=${query}`)
+      : fetch(`${API_URL}/data/search?q=${query}`, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
           .then((res) => res.json())
           .catch((error) => {
             console.error(error);
@@ -273,34 +317,30 @@ export default class ResourcesAPI {
   fetchSourceModalData(name, variant = 'default') {
     return name === null
       ? {}
-      : fetch(`${API_URL}/data/sourcedata?name=${name}&variant=${variant}`)
+      : fetch(`${API_URL}/data/sourcedata?name=${name}&variant=${variant}`, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
           .then((res) => res.json())
           .catch((error) => {
             console.error(error);
           });
   }
 
-  fetchFeatureFileStats(name, variant = 'default') {
-    return name === null
-      ? {}
-      : fetch(`${API_URL}/data/filestatdata?name=${name}&variant=${variant}`)
-          .then((res) => res.json())
-          .catch((error) => {
-            console.error(error);
-          });
-  }
-
-  fetchVariantSearchStub() {
+  async fetchVariantSearchStub() {
     const fetchAddress = '/data/lists/search_results_example.json';
 
-    return fetch(fetchAddress, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-      .then((res) => res.json().then((json_data) => ({ data: json_data })))
-      .catch((error) => {
-        console.error(error);
+    try {
+      const res = await fetch(fetchAddress, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+      const json_data = await res.json();
+      return { data: json_data };
+    } catch (error) {
+      console.error(error);
+    }
   }
 }

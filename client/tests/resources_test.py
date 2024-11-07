@@ -1,12 +1,23 @@
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import os.path
 import sys
+import unittest
 
 sys.path.insert(0, "client/src/")
 import pytest
 from featureform.resources import (
+    DailyPartition,
+    DatabricksCredentials,
+    FileStore,
+    GlueCatalogTable,
+    KafkaTopic,
+    Location,
     ResourceRedefinedError,
     ResourceState,
     RedisConfig,
@@ -20,6 +31,8 @@ from featureform.resources import (
     ClickHouseConfig,
     OnlineBlobConfig,
     K8sConfig,
+    SparkConfig,
+    SparkFlags,
     User,
     Provider,
     Entity,
@@ -38,13 +51,22 @@ from featureform.resources import (
     K8sResourceSpecs,
     SparkCredentials,
     GCPCredentials,
+    SnowflakeCatalog,
+    SnowflakeDynamicTableConfig,
 )
 
-from featureform import ScalarType, VectorType
+from featureform import ScalarType, TableFormat, VectorType
 
-from featureform.register import OfflineK8sProvider, Registrar, FileStoreProvider
+from featureform.register import (
+    OfflineK8sProvider,
+    OfflineSparkProvider,
+    Registrar,
+    FileStoreProvider,
+)
 
 from featureform.proto import metadata_pb2 as pb
+
+from featureform.enums import TableFormat, RefreshMode, Initialize
 
 
 @pytest.fixture
@@ -263,6 +285,34 @@ def bigquery_provider(bigquery_config):
 
 
 @pytest.fixture
+def spark_provider(registrar):
+    databricks = DatabricksCredentials(
+        username="a", password="b", cluster_id="abcd-123def-ghijklmn"
+    )
+    azure_blob = AzureFileStoreConfig(
+        account_name="", account_key="", container_name="", root_path=""
+    )
+
+    config = SparkConfig(
+        executor_type=databricks.type(),
+        executor_config=databricks.config(),
+        store_type=azure_blob.store_type(),
+        store_config=azure_blob.config(),
+    )
+    provider = Provider(
+        name="spark",
+        function="OFFLINE",
+        description="",
+        team="",
+        config=config,
+        tags=[],
+        properties={},
+    )
+
+    return OfflineSparkProvider(registrar, provider)
+
+
+@pytest.fixture
 def core_site_path():
     return "test_files/yarn_files/core-site.xml"
 
@@ -390,7 +440,9 @@ def mock_provider(kubernetes_config):
 
 @pytest.fixture
 def registrar():
-    return Registrar()
+    r = Registrar()
+    r.set_default_owner("tester")
+    return r
 
 
 def get_transformation_config(registrar):
@@ -806,7 +858,7 @@ def test_add_all_resource_types(all_resources_strange_order, redis_config):
 def test_resource_types_differ(all_resources_set):
     types = set()
     for resource in all_resources_set:
-        t = resource.type()
+        t = resource.get_resource_type()
         assert t not in types
         types.add(t)
 
@@ -1008,3 +1060,330 @@ def test_add_all_resources_with_schedule(all_resources_strange_order, redis_conf
             name="primary", variant="abc", resource_type=7, schedule_string="* * * * *"
         ),
     ]
+
+
+class TestPrimaryData(unittest.TestCase):
+    def setUp(self):
+        self.timestamp_column = "timestamp"
+
+    def test_kwargs_sql_location(self):
+        location = SQLTable(schema="public", database="test_db", name="test_table")
+        primary_data = PrimaryData(
+            location=location, timestamp_column=self.timestamp_column
+        )
+
+        expected = {
+            "primaryData": pb.PrimaryData(
+                table=pb.SQLTable(
+                    schema="public",
+                    database="test_db",
+                    name="test_table",
+                ),
+                timestamp_column=self.timestamp_column,
+            )
+        }
+
+        self.assertEqual(primary_data.kwargs(), expected)
+
+    def test_kwargs_sql_table(self):
+        location = SQLTable(name="test_table")
+        primary_data = PrimaryData(
+            location=location, timestamp_column=self.timestamp_column
+        )
+
+        expected = {
+            "primaryData": pb.PrimaryData(
+                table=pb.SQLTable(name="test_table"),
+                timestamp_column=self.timestamp_column,
+            )
+        }
+
+        self.assertEqual(primary_data.kwargs(), expected)
+
+    def test_kwargs_file_store(self):
+        location = FileStore(path_uri="/path/to/file")
+        primary_data = PrimaryData(
+            location=location, timestamp_column=self.timestamp_column
+        )
+
+        expected = {
+            "primaryData": pb.PrimaryData(
+                filestore=pb.FileStoreTable(path="/path/to/file"),
+                timestamp_column=self.timestamp_column,
+            )
+        }
+
+        self.assertEqual(primary_data.kwargs(), expected)
+
+    def test_kwargs_glue_catalog_table(self):
+        location = GlueCatalogTable(
+            database="test_db", table="test_table", table_format=TableFormat.ICEBERG
+        )
+        primary_data = PrimaryData(
+            location=location, timestamp_column=self.timestamp_column
+        )
+
+        expected = {
+            "primaryData": pb.PrimaryData(
+                catalog=pb.CatalogTable(
+                    database="test_db",
+                    table="test_table",
+                    table_format="iceberg",
+                ),
+                timestamp_column=self.timestamp_column,
+            )
+        }
+
+        self.assertEqual(primary_data.kwargs(), expected)
+
+    def test_kwargs_kafka_topic(self):
+        location = KafkaTopic(topic="test_topic")
+        primary_data = PrimaryData(
+            location=location, timestamp_column=self.timestamp_column
+        )
+
+        expected = {
+            "primaryData": pb.PrimaryData(
+                kafka=pb.Kafka(topic="test_topic"),
+                timestamp_column=self.timestamp_column,
+            )
+        }
+
+    def test_unsupported_location_type(self):
+        class UnsupportedLocation(Location):
+            pass
+
+        location = UnsupportedLocation()
+        primary_data = PrimaryData(
+            location=location, timestamp_column=self.timestamp_column
+        )
+
+        with self.assertRaises(ValueError) as context:
+            primary_data.kwargs()
+
+        self.assertIn("Unsupported location type", str(context.exception))
+
+
+@pytest.mark.parametrize(
+    "catalog, config",
+    [
+        (
+            SnowflakeCatalog(external_volume="ext_vol", base_location="base_loc"),
+            {
+                "ExternalVolume": "ext_vol",
+                "BaseLocation": "base_loc",
+                "TableFormat": TableFormat.ICEBERG,
+                "TableConfig": {
+                    "TargetLag": "DOWNSTREAM",
+                    "RefreshMode": "AUTO",
+                    "Initialize": "ON_CREATE",
+                },
+            },
+        ),
+        (
+            SnowflakeCatalog(
+                external_volume="ext_vol",
+                base_location="base_loc",
+                table_config=SnowflakeDynamicTableConfig(
+                    target_lag="65 minutes",
+                    refresh_mode=RefreshMode.AUTO,
+                    initialize=Initialize.ON_SCHEDULE,
+                ),
+            ),
+            {
+                "ExternalVolume": "ext_vol",
+                "BaseLocation": "base_loc",
+                "TableFormat": TableFormat.ICEBERG,
+                "TableConfig": {
+                    "TargetLag": "65 minutes",
+                    "RefreshMode": "AUTO",
+                    "Initialize": "ON_SCHEDULE",
+                },
+            },
+        ),
+        (
+            SnowflakeCatalog(
+                external_volume="ext_vol",
+                base_location="base_loc",
+                table_config=SnowflakeDynamicTableConfig(
+                    target_lag="DOWNSTREAM",
+                    refresh_mode=RefreshMode.FULL,
+                    initialize=Initialize.ON_SCHEDULE,
+                ),
+            ),
+            {
+                "ExternalVolume": "ext_vol",
+                "BaseLocation": "base_loc",
+                "TableFormat": TableFormat.ICEBERG,
+                "TableConfig": {
+                    "TargetLag": "DOWNSTREAM",
+                    "RefreshMode": "FULL",
+                    "Initialize": "ON_SCHEDULE",
+                },
+            },
+        ),
+        pytest.param(
+            lambda: SnowflakeCatalog(
+                external_volume="ext_vol",
+                base_location="base_loc",
+                table_config=SnowflakeDynamicTableConfig(
+                    target_lag="20 seconds",
+                ),
+            ),
+            {
+                "ExternalVolume": "ext_vol",
+                "BaseLocation": "base_loc",
+                "TableFormat": TableFormat.ICEBERG,
+                "TableConfig": {
+                    "TargetLag": "20 seconds",
+                    "RefreshMode": "AUTO",
+                    "Initialize": "ON_CREATE",
+                },
+            },
+            marks=pytest.mark.xfail(reason="minimum target lag is 1 minutes"),
+        ),
+        pytest.param(
+            lambda: SnowflakeCatalog(
+                external_volume="ext_vol",
+                base_location="base_loc",
+                table_config=SnowflakeDynamicTableConfig(
+                    target_lag="1 day",
+                ),
+            ),
+            {
+                "ExternalVolume": "ext_vol",
+                "BaseLocation": "base_loc",
+                "TableFormat": TableFormat.ICEBERG,
+                "TableConfig": {
+                    "TargetLag": "1 day",
+                    "RefreshMode": "AUTO",
+                    "Initialize": "ON_CREATE",
+                },
+            },
+            marks=pytest.mark.xfail(reason='units must be plural (e.g. "days")'),
+        ),
+    ],
+)
+def test_snowflake_catalog(catalog, config):
+    if callable(catalog):
+        catalog = catalog()
+
+    assert catalog.config() == config
+
+
+@pytest.mark.parametrize(
+    "config, proto",
+    [
+        (SnowflakeDynamicTableConfig(), pb.SnowflakeDynamicTableConfig()),
+        (
+            SnowflakeDynamicTableConfig(
+                target_lag="1 day",
+                refresh_mode=RefreshMode.AUTO,
+                initialize=Initialize.ON_CREATE,
+            ),
+            pb.SnowflakeDynamicTableConfig(
+                target_lag="1 day",
+                refresh_mode=pb.RefreshMode.REFRESH_MODE_AUTO,
+                initialize=pb.Initialize.INITIALIZE_ON_CREATE,
+            ),
+        ),
+    ],
+)
+def test_snowflake_dynamic_table_config(config, proto):
+    assert config.to_proto() == proto
+
+
+def test_sql_transformation_to_proto():
+    query = "SELECT * FROM {{ X.Y }}"
+    transformation = SQLTransformation(
+        query=query,
+        func_params_to_inputs={"X": ("df", "var")},
+        partition_options=DailyPartition(column="date"),
+        spark_flags=SparkFlags(
+            spark_params={"spark.executor.memory": "1g"},
+            write_options={"-something": "spark.executor.memory=1g"},
+            table_properties={"something": "1g"},
+        ),
+    )
+
+    expected = pb.Transformation(
+        SQLTransformation=pb.SQLTransformation(
+            query=query.encode(),
+        ),
+        DailyPartition=pb.DailyPartition(column="date"),
+        spark_flags=pb.SparkFlags(
+            spark_params=[pb.SparkParam(key="spark.executor.memory", value="1g")],
+            write_options=[
+                pb.WriteOption(key="-something", value="spark.executor.memory=1g")
+            ],
+            table_properties=[pb.TableProperty(key="something", value="1g")],
+        ),
+    )
+    assert transformation.to_proto() == expected
+
+
+def test_df_transformation_to_proto():
+    query = "SELECT * FROM {{ X.Y }}"
+    transformation = DFTransformation(
+        query=query.encode(),
+        inputs=[],
+        args=K8sArgs("my/docker:image", None),
+        source_text="source_text",
+        canonical_func_text="SELECT * FROM {{ X.Y }}",
+        partition_options=DailyPartition(column="date"),
+        spark_flags=SparkFlags(
+            spark_params={"spark.executor.memory": "1g"},
+            write_options={"-something": "spark.executor.memory=1g"},
+            table_properties={"something": "1g"},
+        ),
+    )
+
+    expected = pb.Transformation(
+        DFTransformation=pb.DFTransformation(
+            query=query.encode(),
+            source_text="source_text",
+            canonical_func_text="SELECT * FROM {{ X.Y }}",
+            inputs=[],
+        ),
+        kubernetes_args=pb.KubernetesArgs(docker_image="my/docker:image"),
+        DailyPartition=pb.DailyPartition(column="date"),
+        spark_flags=pb.SparkFlags(
+            spark_params=[pb.SparkParam(key="spark.executor.memory", value="1g")],
+            write_options=[
+                pb.WriteOption(key="-something", value="spark.executor.memory=1g")
+            ],
+            table_properties=[pb.TableProperty(key="something", value="1g")],
+        ),
+    )
+    assert transformation.to_proto() == expected
+
+
+def test_df_source_equivalence(spark_provider):
+    # fmt :off
+    @spark_provider.df_transformation(inputs=[("df", "var")])
+    def my_function(df):
+        """doc string"""
+        """doc string"""
+        df = df.head(5)
+
+        # another comment
+        if df.empty:  # df df
+            # do something complex that can be split it up into different lines
+            some_var = [i**2 for i in range(10)]
+            if df.empty:
+                return df
+            return df
+        return df  # some more comments and stuff
+
+    # fmt :on
+
+    expected = """def my_function(df):
+    df = df.head(5)
+    if df.empty:
+        some_var = [(i ** 2) for i in range(10)]
+        if df.empty:
+            return df
+        return df
+    return df"""
+
+    assert my_function.transformation.canonical_func_text == expected

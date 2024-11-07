@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package runner
 
@@ -8,7 +11,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	pl "github.com/featureform/provider/location"
 	pt "github.com/featureform/provider/provider_type"
 )
 
@@ -19,24 +24,35 @@ type MockOfflineCreateTrainingSetFail struct {
 func (m MockOfflineCreateTrainingSetFail) CreateResourceTable(provider.ResourceID, provider.TableSchema) (provider.OfflineTable, error) {
 	return nil, nil
 }
+
 func (m MockOfflineCreateTrainingSetFail) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (m MockOfflineCreateTrainingSetFail) CreateMaterialization(id provider.ResourceID, options ...provider.MaterializationOptions) (provider.Materialization, error) {
+
+func (m MockOfflineCreateTrainingSetFail) CreateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (provider.Materialization, error) {
 	return nil, nil
 }
-func (m MockOfflineCreateTrainingSetFail) UpdateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+
+func (m MockOfflineCreateTrainingSetFail) SupportsMaterializationOption(opt provider.MaterializationOptionType) (bool, error) {
+	return false, nil
+}
+
+func (m MockOfflineCreateTrainingSetFail) UpdateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (provider.Materialization, error) {
 	return nil, nil
 }
+
 func (m MockOfflineCreateTrainingSetFail) GetMaterialization(id provider.MaterializationID) (provider.Materialization, error) {
 	return nil, nil
 }
+
 func (m MockOfflineCreateTrainingSetFail) DeleteMaterialization(id provider.MaterializationID) error {
 	return nil
 }
+
 func (m MockOfflineCreateTrainingSetFail) CreateTrainingSet(provider.TrainingSetDef) error {
 	return fmt.Errorf("could not create training set")
 }
+
 func (m MockOfflineCreateTrainingSetFail) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
 	return nil, nil
 }
@@ -58,22 +74,26 @@ func (m MockOfflineCreateTrainingSetFail) UpdateTrainingSet(provider.TrainingSet
 func (m MockOfflineCreateTrainingSetFail) CreatePrimaryTable(id provider.ResourceID, schema provider.TableSchema) (provider.PrimaryTable, error) {
 	return nil, nil
 }
-func (m MockOfflineCreateTrainingSetFail) GetPrimaryTable(id provider.ResourceID) (provider.PrimaryTable, error) {
+func (m MockOfflineCreateTrainingSetFail) GetPrimaryTable(id provider.ResourceID, source metadata.SourceVariant) (provider.PrimaryTable, error) {
 	return nil, nil
 }
 
-func (m MockOfflineCreateTrainingSetFail) RegisterResourceFromSourceTable(id provider.ResourceID, schema provider.ResourceSchema) (provider.OfflineTable, error) {
+func (m MockOfflineCreateTrainingSetFail) RegisterResourceFromSourceTable(id provider.ResourceID, schema provider.ResourceSchema, opts ...provider.ResourceOption) (provider.OfflineTable, error) {
 	return nil, nil
 }
 
-func (m MockOfflineCreateTrainingSetFail) RegisterPrimaryFromSourceTable(id provider.ResourceID, sourceName string) (provider.PrimaryTable, error) {
+func (m MockOfflineCreateTrainingSetFail) RegisterPrimaryFromSourceTable(id provider.ResourceID, tableLocation pl.Location) (provider.PrimaryTable, error) {
 	return nil, nil
 }
 
-func (m MockOfflineCreateTrainingSetFail) CreateTransformation(config provider.TransformationConfig) error {
+func (m MockOfflineCreateTrainingSetFail) SupportsTransformationOption(opt provider.TransformationOptionType) (bool, error) {
+	return false, nil
+}
+
+func (m MockOfflineCreateTrainingSetFail) CreateTransformation(config provider.TransformationConfig, opt ...provider.TransformationOption) error {
 	return nil
 }
-func (m MockOfflineCreateTrainingSetFail) UpdateTransformation(config provider.TransformationConfig) error {
+func (m MockOfflineCreateTrainingSetFail) UpdateTransformation(config provider.TransformationConfig, opts ...provider.TransformationOption) error {
 	return nil
 }
 func (m MockOfflineCreateTrainingSetFail) GetTransformationTable(id provider.ResourceID) (provider.TransformationTable, error) {
@@ -88,8 +108,8 @@ func (m MockOfflineCreateTrainingSetFail) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 
-func (m MockOfflineCreateTrainingSetFail) ResourceLocation(id provider.ResourceID) (string, error) {
-	return "", nil
+func (m MockOfflineCreateTrainingSetFail) ResourceLocation(id provider.ResourceID, resource any) (pl.Location, error) {
+	return nil, nil
 }
 
 func TestRunTrainingSet(t *testing.T) {
@@ -196,5 +216,63 @@ func TestTrainingSetFactory(t *testing.T) {
 	_, err = Create("TEST_CREATE_TRAINING_SET", serializedConfig)
 	if err != nil {
 		t.Fatalf("Could not create create training set runner")
+	}
+}
+
+// TODO: (Erik) improve and expand on this test
+func TestTrainingSetRunnerConfigSerde(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  TrainingSetRunnerConfig
+	}{
+		{
+			name: "Valid Config",
+			cfg: TrainingSetRunnerConfig{
+				OfflineType:   pt.SnowflakeOffline,
+				OfflineConfig: []byte(`{"account":"account","password":"password","role":"role","warehouse":"warehouse","database":"database","schema":"schema"}`),
+				Def: provider.TrainingSetDef{
+					ID:    provider.ResourceID{Name: "ts", Variant: "ts-variant", Type: provider.TrainingSet},
+					Label: provider.ResourceID{Name: "lbl", Variant: "lbl-variant", Type: provider.Label},
+					LabelSourceMapping: provider.SourceMapping{
+						Template:            "SELECT * FROM table",
+						Source:              "table",
+						ProviderType:        pt.SnowflakeOffline,
+						ProviderConfig:      []byte(`{"account":"account","password":"password","role":"role","warehouse":"warehouse","database":"database","schema":"schema"}`),
+						TimestampColumnName: "ts",
+						Location:            pl.NewSQLLocation("table"),
+					},
+					Features: []provider.ResourceID{
+						{Name: "f1", Variant: "f1-variant", Type: provider.Feature},
+					},
+					FeatureSourceMappings: []provider.SourceMapping{
+						{
+							Template:            "SELECT * FROM table",
+							Source:              "table",
+							ProviderType:        pt.SnowflakeOffline,
+							ProviderConfig:      []byte(`{"account":"account","password":"password","role":"role","warehouse":"warehouse","database":"database","schema":"schema"}`),
+							TimestampColumnName: "ts",
+							Location:            pl.NewSQLLocation("table"),
+						},
+					},
+				},
+				IsUpdate: false,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			serialized, err := tt.cfg.Serialize()
+			if err != nil {
+				t.Fatalf("failed to serialize config: %v", err)
+			}
+
+			deserialized := TrainingSetRunnerConfig{}
+			err = deserialized.Deserialize(serialized)
+			if err != nil {
+				t.Fatalf("failed to deserialize config: %v", err)
+			}
+
+		})
 	}
 }

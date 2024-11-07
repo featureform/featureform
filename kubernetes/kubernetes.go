@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package kubernetes
 
@@ -187,6 +190,10 @@ func newJobSpec(config KubernetesRunnerConfig, rsrcReqs v1.ResourceRequirements)
 		pullPolicy = v1.PullIfNotPresent
 	}
 
+	secretName := helpers.GetEnv("K8S_IMAGE_PULL_SECRET", "regcred")
+	serviceAccount := helpers.GetEnv("K8S_SERVICE_ACCOUNT_NAME", "ff-coordinator-sa")
+	imagePullSecret := v1.LocalObjectReference{Name: secretName}
+
 	return batchv1.JobSpec{
 		Completions:             &config.NumTasks,
 		Parallelism:             &config.NumTasks,
@@ -195,6 +202,8 @@ func newJobSpec(config KubernetesRunnerConfig, rsrcReqs v1.ResourceRequirements)
 		TTLSecondsAfterFinished: &ttlLimitSeconds,
 		Template: v1.PodTemplateSpec{
 			Spec: v1.PodSpec{
+				ImagePullSecrets:   []v1.LocalObjectReference{imagePullSecret},
+				ServiceAccountName: serviceAccount,
 				Containers: []v1.Container{
 					{
 						Name:            containerID,

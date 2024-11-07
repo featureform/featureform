@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package fferr
 
 import (
@@ -11,7 +18,6 @@ func NewInternalError(err error) *InternalError {
 		err = fmt.Errorf("internal")
 	}
 	baseError := newBaseError(err, INTERNAL_ERROR, codes.Internal)
-
 	return &InternalError{
 		baseError,
 	}
@@ -36,6 +42,11 @@ func NewInvalidArgumentError(err error) *InvalidArgumentError {
 	}
 }
 
+func NewInvalidArgumentErrorf(format string, a ...any) *InvalidArgumentError {
+	err := fmt.Errorf(format, a...)
+	return NewInvalidArgumentError(err)
+}
+
 type InvalidArgumentError struct {
 	baseError
 }
@@ -55,4 +66,36 @@ func NewKeyNotFoundError(key string, err error) *KeyNotFoundError {
 
 type KeyNotFoundError struct {
 	baseError
+}
+
+func NewParsingError(err error) *ParsingError {
+	if err == nil {
+		err = fmt.Errorf("parsing error")
+	}
+	baseError := newBaseError(err, PARSING_ERROR, codes.InvalidArgument)
+
+	return &ParsingError{
+		baseError,
+	}
+}
+
+type ParsingError struct {
+	baseError
+}
+
+type UnimplementedError struct {
+	baseError
+}
+
+func NewUnimplementedErrorf(format string, a ...any) *UnimplementedError {
+	err := fmt.Errorf(format, a...)
+	return NewUnimplementedError(err)
+}
+
+func NewUnimplementedError(err error) *UnimplementedError {
+	baseError := newBaseError(err, UNIMPLEMENTED_ERROR, codes.Unimplemented)
+
+	return &UnimplementedError{
+		baseError,
+	}
 }

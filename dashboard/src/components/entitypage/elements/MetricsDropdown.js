@@ -1,88 +1,74 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import { Box, Chip, Grid, Typography } from '@mui/material';
-import { makeStyles } from '@mui/styles';
-import React, { useEffect } from 'react';
+import { styled } from '@mui/system';
+import React, { useEffect, useState } from 'react';
 import { connect } from 'react-redux';
 import QueryDropdown from './QueryDropdown';
 import TimeDropdown from './TimeDropdown';
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    flexGrow: 1,
+const Root = styled(Box)(({ theme }) => ({
+  flexGrow: 1,
+  padding: theme.spacing(0),
+  backgroundColor: theme.palette.background.paper,
+  flexBasis: theme.spacing(0),
+  flexDirection: 'row',
+  '& > *': {
     padding: theme.spacing(0),
-    backgroundColor: theme.palette.background.paper,
-    flexBasis: theme.spacing(0),
-    flexDirection: 'row',
-    '& > *': {
-      padding: theme.spacing(0),
-    },
-  },
-  linkPromChip: {
-    paddingLeft: theme.spacing(2),
-  },
-  summaryData: {
-    padding: theme.spacing(0),
-  },
-  titleBar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    '& > *': {
-      paddingBottom: '0em',
-    },
-  },
-  aggDropdown: {
-    minWidth: '0em',
-    display: 'flex',
-    '& > *': {
-      paddingBottom: '0em',
-    },
-  },
-  graphTitle: {
-    marginTop: 'auto',
-    marginBottom: 'auto',
-  },
-  summaryItemDetail: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: theme.spacing(1),
-  },
-  actionItemDetail: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: theme.spacing(1),
-  },
-  summaryAddedDesc: {
-    paddingLeft: theme.spacing(1),
-  },
-  timeSlider: {
-    width: '20%',
-    transform: 'scale(0.9, 0.9)',
-  },
-  graph: {
-    height: '80em',
-    alignItems: 'center',
-    '& > *': {
-      height: '70em',
-    },
   },
 }));
+
+const TitleBar = styled(Box)({
+  display: 'flex',
+  justifyContent: 'space-between',
+  '& > *': {
+    paddingBottom: '0em',
+  },
+});
+
+const AggDropdown = styled(Box)({
+  minWidth: '0em',
+  display: 'flex',
+  '& > *': {
+    paddingBottom: '0em',
+  },
+});
+
+const GraphTitle = styled(Box)({
+  marginTop: 'auto',
+  marginBottom: 'auto',
+});
+
+const Graph = styled(Box)({
+  height: '80em',
+  alignItems: 'center',
+  '& > *': {
+    height: '70em',
+  },
+});
 
 const queryFormats = {
   Feature: {
     Throughput: {
       query: function (name, variant, step) {
-        return `rate(test_counter{feature="${name}",status="success",key="${variant}"}[${step}])`;
+        return `rate(requests{name="${name}",status="success",variant="${variant}"}[${step}])`;
       },
       type: 'count',
     },
     Latency: {
       query: function (name, variant, step) {
-        return `rate(test_duration_seconds_sum{feature="${name}",status="",key="${variant}"}[${step}])/rate(test_duration_seconds_count{feature="${name}",key="${variant}",status=""}[${step}])`;
+        return `rate(request_duration_sum{name="${name}",status="",variant="${variant}"}[${step}])/rate(request_duration_count{name="${name}",variant="${variant}",status=""}[${step}])`;
       },
       type: 'latency',
     },
     Errors: {
       query: function (name, variant, step) {
-        return `rate(test_counter{feature="${name}",key="${variant}",status="error"}[${step}])`;
+        return `rate(requests{name="${name}",variant="${variant}",status="error"}[${step}])`;
       },
       type: 'count',
     },
@@ -90,13 +76,13 @@ const queryFormats = {
   TrainingSet: {
     Throughput: {
       query: function (name, variant, step) {
-        return `rate(test_counter{feature="${name}",key="${variant}",status="training_row_serve"}[${step}])`;
+        return `rate(requests{name="${name}",variant="${variant}",status="training_row_serve"}[${step}])`;
       },
       type: 'count',
     },
     Errors: {
       query: function (name, variant, step) {
-        return `rate(test_counter{feature="${name}",key="${variant}",status="error"}[${step}])`;
+        return `rate(requests{name="${name}",variant="${variant}",status="error"}[${step}])`;
       },
       type: 'count',
     },
@@ -106,9 +92,8 @@ const queryFormats = {
 const prometheusAPI = 'http://localhost:9090/api/v1/labels';
 
 const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
-  const classes = useStyles();
-  const [apiConnected, setAPIConnected] = React.useState(false);
-  const [step, setStep] = React.useState('1m');
+  const [apiConnected, setAPIConnected] = useState(false);
+  const [step, setStep] = useState('1m');
 
   const createPromUrl = () => {
     /*eslint-disable react/jsx-key*/
@@ -149,57 +134,50 @@ const MetricsDropdown = ({ type, name, variant, timeRange, aggregates }) => {
   return (
     <>
       {type in queryFormats ? (
-        <Box
-          className={classes.root}
-          style={{ height: totalChartHeight }}
-          data-testid='viewPortId'
-        >
-          <Typography variant='body1' className={classes.linkPromChip}>
+        <Root style={{ height: totalChartHeight }} data-testid='viewPortId'>
+          <Typography variant='body1' sx={{ paddingLeft: 2 }}>
             Source:
           </Typography>
           <Chip
             variant='outlined'
             clickable={apiConnected}
-            className={classes.linkChip}
             size='small'
             color={apiConnected ? 'secondary' : 'error'}
             onClick={linkToPrometheus}
             label={'Prometheus'}
-          ></Chip>
+          />
           <Grid container spacing={0}>
             <Grid item xs={12} height='10em'>
-              <div className={classes.graph}>
+              <Graph>
                 <Box>
                   {Object.entries(queryFormats[type]).map(
-                    ([query_name, query_data], i) => {
-                      return (
-                        <div key={i}>
-                          <div className={classes.titleBar}>
-                            <div className={classes.graphTitle}>
-                              <Typography variant='h6'>{query_name}</Typography>
-                            </div>
-                            <div className={classes.aggDropdown}>
-                              <TimeDropdown />
-                              {/*<AggregateDropdown graph={i} />*/}
-                            </div>
-                          </div>
-                          <QueryDropdown
-                            query={query_data.query(name, variant, step)}
-                            type={type}
-                            name={name}
-                            query_type={query_data.type}
-                            aggregate={aggregates[i]}
-                            remote={apiConnected}
-                          />
-                        </div>
-                      );
-                    }
+                    ([query_name, query_data], i) => (
+                      <div key={i}>
+                        <TitleBar>
+                          <GraphTitle>
+                            <Typography variant='h6'>{query_name}</Typography>
+                          </GraphTitle>
+                          <AggDropdown>
+                            <TimeDropdown />
+                            {/*<AggregateDropdown graph={i} />*/}
+                          </AggDropdown>
+                        </TitleBar>
+                        <QueryDropdown
+                          query={query_data.query(name, variant, step)}
+                          type={type}
+                          name={name}
+                          query_type={query_data.type}
+                          aggregate={aggregates[i]}
+                          remote={apiConnected}
+                        />
+                      </div>
+                    )
                   )}
                 </Box>
-              </div>
+              </Graph>
             </Grid>
           </Grid>
-        </Box>
+        </Root>
       ) : null}
     </>
   );

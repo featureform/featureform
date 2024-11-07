@@ -1,14 +1,21 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
 	"fmt"
-	pc "github.com/featureform/provider/provider_config"
-	pt "github.com/featureform/provider/provider_type"
 	"reflect"
 	"testing"
+
+	"github.com/featureform/filestore"
+	pl "github.com/featureform/provider/location"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 )
 
 var mockConfig pc.SerializedConfig = pc.SerializedConfig("abc")
@@ -69,5 +76,50 @@ func TestBaseProvider(t *testing.T) {
 	}
 	if !reflect.DeepEqual(mock.Config(), mockConfig) {
 		t.Fatalf("Config not passed down to provider")
+	}
+}
+
+func TestLocationInterface(t *testing.T) {
+	tests := []struct {
+		name           string
+		locationType   string
+		locationString string
+	}{
+		{
+			name:           "TestSQLLocation",
+			locationType:   "sql",
+			locationString: "test_table",
+		},
+		{
+			name:           "TestFileLocation",
+			locationType:   "s3File",
+			locationString: "s3://test_bucket/test_file.csv",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			switch test.locationType {
+			case "sql":
+				location := pl.NewSQLLocation(test.locationString)
+				if location.Location() != test.locationString {
+					t.Fatalf("SQLLocation failed to return correct location: Expected: %s, Got: %s", test.locationString, location.Location())
+				}
+			case "s3File":
+				s3FilePath, err := filestore.NewEmptyFilepath(filestore.S3)
+				if err != nil {
+					t.Fatalf("Failed to create S3 filepath: %s", err)
+				}
+				err = s3FilePath.ParseFilePath(test.locationString)
+				if err != nil {
+					t.Fatalf("Failed to parse S3 filepath: %s", err)
+				}
+
+				location := pl.NewFileLocation(s3FilePath)
+				if location.Location() != test.locationString {
+					t.Fatalf("FileLocation failed to return correct location: Expected: %s, Got: %s", test.locationString, location.Location())
+				}
+			}
+		})
 	}
 }

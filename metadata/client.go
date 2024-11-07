@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package metadata
 
@@ -8,18 +11,31 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
+
+	"github.com/featureform/filestore"
+	pc "github.com/featureform/provider/provider_config"
+	"github.com/featureform/scheduling"
+	sch "github.com/featureform/scheduling/proto"
+
+	help "github.com/featureform/helpers/notifications"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
+	pl "github.com/featureform/provider/location"
 	"github.com/featureform/provider/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	grpc_status "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -56,6 +72,15 @@ func (variants NameVariants) Serialize() []*pb.NameVariant {
 	return serialized
 }
 
+func (variants NameVariants) Contains(nv NameVariant) bool {
+	for _, variant := range variants {
+		if variant == nv {
+			return true
+		}
+	}
+	return false
+}
+
 func parseNameVariants(protos []*pb.NameVariant) NameVariants {
 	parsed := make([]NameVariant, len(protos))
 	for i, serialized := range protos {
@@ -89,9 +114,11 @@ func (properties Properties) Serialize() *pb.Properties {
 }
 
 type Client struct {
-	Logger   logging.Logger
-	conn     *grpc.ClientConn
-	GrpcConn pb.MetadataClient
+	Logger        logging.Logger
+	conn          *grpc.ClientConn
+	GrpcConn      pb.MetadataClient
+	Tasks         TaskService
+	slackNotifier help.Notifier
 }
 
 type ResourceDef interface {
@@ -104,33 +131,6 @@ func (client *Client) RequestScheduleChange(ctx context.Context, resID ResourceI
 	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
 	scheduleChangeRequest := pb.ScheduleChangeRequest{ResourceId: &resourceID, Schedule: schedule}
 	_, err := client.GrpcConn.RequestScheduleChange(ctx, &scheduleChangeRequest)
-	return err
-}
-
-func (client *Client) SetStatusError(ctx context.Context, resID ResourceID, status ResourceStatus, jobErr error) error {
-	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
-	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
-	errorStatus, ok := grpc_status.FromError(jobErr)
-	errorProto := errorStatus.Proto()
-	var errorStatusProto *pb.ErrorStatus
-	if ok {
-		errorStatusProto = &pb.ErrorStatus{Code: errorProto.Code, Message: errorProto.Message, Details: errorProto.Details}
-	} else {
-		errorStatusProto = nil
-	}
-
-	resourceStatus := pb.ResourceStatus{Status: pb.ResourceStatus_Status(status), ErrorMessage: jobErr.Error(), ErrorStatus: errorStatusProto}
-	statusRequest := pb.SetStatusRequest{ResourceId: &resourceID, Status: &resourceStatus}
-	_, err := client.GrpcConn.SetResourceStatus(ctx, &statusRequest)
-	return err
-}
-
-func (client *Client) SetStatus(ctx context.Context, resID ResourceID, status ResourceStatus, errorMessage string) error {
-	nameVariant := pb.NameVariant{Name: resID.Name, Variant: resID.Variant}
-	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resID.Type.Serialized()}
-	resourceStatus := pb.ResourceStatus{Status: pb.ResourceStatus_Status(status), ErrorMessage: errorMessage}
-	statusRequest := pb.SetStatusRequest{ResourceId: &resourceID, Status: &resourceStatus}
-	_, err := client.GrpcConn.SetResourceStatus(ctx, &statusRequest)
 	return err
 }
 
@@ -291,6 +291,16 @@ func (p PythonFunction) SerializePythonFunction() *pb.FeatureVariant_Function {
 	}
 }
 
+type Streaming struct {
+	OfflineProvider string
+}
+
+func (s Streaming) SerializeStream() *pb.Stream {
+	return &pb.Stream{
+		OfflineProvider: s.OfflineProvider,
+	}
+}
+
 func (def FeatureDef) ResourceType() ResourceType {
 	return FEATURE_VARIANT
 }
@@ -326,6 +336,9 @@ func (def FeatureDef) Serialize(requestID string) (*pb.FeatureVariantRequest, er
 		serialized.FeatureVariant.Location = def.Location.(ResourceVariantColumns).SerializeFeatureColumns()
 	case PythonFunction:
 		serialized.FeatureVariant.Location = def.Location.(PythonFunction).SerializePythonFunction()
+	case Streaming:
+		serializedStream := def.Location.(Streaming).SerializeStream()
+		serialized.FeatureVariant.Location = &pb.FeatureVariant_Stream{Stream: serializedStream}
 	case nil:
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("FeatureDef Columns not set"))
 	default:
@@ -357,7 +370,7 @@ func (client *Client) parseFeatureStream(stream featureStream) ([]*Feature, erro
 		} else if err != nil {
 			return nil, err
 		}
-		features = append(features, wrapProtoFeature(serial))
+		features = append(features, WrapProtoFeature(serial))
 	}
 	return features, nil
 }
@@ -375,7 +388,7 @@ func (client *Client) parseFeatureVariantStream(stream featureVariantStream) ([]
 		} else if err != nil {
 			return nil, err
 		}
-		features = append(features, wrapProtoFeatureVariant(serial))
+		features = append(features, WrapProtoFeatureVariant(serial))
 	}
 	return features, nil
 }
@@ -462,10 +475,13 @@ func (def LabelDef) Serialize(requestID string) (*pb.LabelVariantRequest, error)
 	switch x := def.Location.(type) {
 	case ResourceVariantColumns:
 		serialized.LabelVariant.Location = def.Location.(ResourceVariantColumns).SerializeLabelColumns()
+	case Streaming:
+		serializedStream := def.Location.(Streaming).SerializeStream()
+		serialized.LabelVariant.Location = &pb.LabelVariant_Stream{Stream: serializedStream}
 	case nil:
-		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("LabelDef Primary not set"))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("LabelDef Source not set"))
 	default:
-		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("LabelDef Primary has unexpected type %T", x))
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("LabelDef Source has unexpected type %T", x))
 	}
 	return serialized, nil
 }
@@ -473,6 +489,7 @@ func (def LabelDef) Serialize(requestID string) (*pb.LabelVariantRequest, error)
 func (client *Client) CreateLabelVariant(ctx context.Context, def LabelDef) error {
 	requestID := logging.GetRequestIDFromContext(ctx)
 	serialized, err := def.Serialize(requestID)
+	client.Logger.Debugw("Creating label variant", "serialized", serialized)
 	if err != nil {
 		return err
 	}
@@ -520,7 +537,7 @@ func (client *Client) parseLabelStream(stream labelStream) ([]*Label, error) {
 		} else if err != nil {
 			return nil, err
 		}
-		labels = append(labels, wrapProtoLabel(serial))
+		labels = append(labels, WrapProtoLabel(serial))
 	}
 	return labels, nil
 }
@@ -538,14 +555,17 @@ func (client *Client) parseLabelVariantStream(stream labelVariantStream) ([]*Lab
 		} else if err != nil {
 			return nil, err
 		}
-		features = append(features, wrapProtoLabelVariant(serial))
+		features = append(features, WrapProtoLabelVariant(serial))
 	}
 	return features, nil
 }
 
 func (client *Client) ListTrainingSets(ctx context.Context) ([]*TrainingSet, error) {
 	logger := logging.GetLoggerFromContext(ctx)
-	stream, err := client.GrpcConn.ListTrainingSets(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
+	stream, err := client.GrpcConn.ListTrainingSets(
+		ctx,
+		&pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)},
+	)
 	if err != nil {
 		logger.Errorw("Failed to list training sets", "error", err)
 		return nil, err
@@ -664,7 +684,7 @@ func (client *Client) parseTrainingSetStream(stream trainingSetStream) ([]*Train
 		} else if err != nil {
 			return nil, err
 		}
-		trainingSets = append(trainingSets, wrapProtoTrainingSet(serial))
+		trainingSets = append(trainingSets, WrapProtoTrainingSet(serial))
 	}
 	return trainingSets, nil
 }
@@ -682,7 +702,7 @@ func (client *Client) parseTrainingSetVariantStream(stream trainingSetVariantStr
 		} else if err != nil {
 			return nil, err
 		}
-		features = append(features, wrapProtoTrainingSetVariant(serial))
+		features = append(features, WrapProtoTrainingSetVariant(serial))
 	}
 	return features, nil
 }
@@ -750,9 +770,6 @@ func (t PrimaryDataSource) isSourceType() bool {
 func (t SQLTransformationType) IsTransformationType() bool {
 	return true
 }
-func (t SQLTable) isPrimaryData() bool {
-	return true
-}
 
 type TransformationSource struct {
 	TransformationType TransformationType
@@ -768,7 +785,8 @@ type SQLTransformationType struct {
 }
 
 type PrimaryDataSource struct {
-	Location PrimaryDataLocationType
+	Location        PrimaryDataLocationType
+	TimestampColumn string
 }
 
 type PrimaryDataLocationType interface {
@@ -779,19 +797,23 @@ type SQLTable struct {
 	Name string
 }
 
+func (t SQLTable) isPrimaryData() bool {
+	return true
+}
+
 type TransformationSourceDef struct {
 	Def interface{}
 }
 
-func (s TransformationSource) Serialize() (*pb.SourceVariant_Transformation, error) {
+func (t TransformationSource) Serialize() (*pb.SourceVariant_Transformation, error) {
 	var transformation *pb.Transformation
-	switch x := s.TransformationType.(type) {
+	switch x := t.TransformationType.(type) {
 	case SQLTransformationType:
 		transformation = &pb.Transformation{
 			Type: &pb.Transformation_SQLTransformation{
 				SQLTransformation: &pb.SQLTransformation{
-					Query:  s.TransformationType.(SQLTransformationType).Query,
-					Source: s.TransformationType.(SQLTransformationType).Sources.Serialize(),
+					Query:  t.TransformationType.(SQLTransformationType).Query,
+					Source: t.TransformationType.(SQLTransformationType).Sources.Serialize(),
 				},
 			},
 		}
@@ -805,16 +827,17 @@ func (s TransformationSource) Serialize() (*pb.SourceVariant_Transformation, err
 	}, nil
 }
 
-func (s PrimaryDataSource) Serialize() (*pb.SourceVariant_PrimaryData, error) {
+func (t PrimaryDataSource) Serialize() (*pb.SourceVariant_PrimaryData, error) {
 	var primaryData *pb.PrimaryData
-	switch x := s.Location.(type) {
+	switch x := t.Location.(type) {
 	case SQLTable:
 		primaryData = &pb.PrimaryData{
 			Location: &pb.PrimaryData_Table{
-				Table: &pb.PrimarySQLTable{
-					Name: s.Location.(SQLTable).Name,
+				Table: &pb.SQLTable{
+					Name: t.Location.(SQLTable).Name,
 				},
 			},
+			TimestampColumn: t.TimestampColumn,
 		}
 	case nil:
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("PrimaryDataSource Type not set"))
@@ -883,7 +906,15 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 		for _, id := range ids {
 			err := stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx)})
 			if err != nil {
-				logger.Errorw("Failed to send source variant", "name", id.Name, "variant", id.Variant, "error", err)
+				logger.Errorw(
+					"Failed to send source variant",
+					"name",
+					id.Name,
+					"variant",
+					id.Variant,
+					"error",
+					err,
+				)
 			}
 		}
 		err := stream.CloseSend()
@@ -920,7 +951,7 @@ func (client *Client) parseSourceStream(stream sourceStream) ([]*Source, error) 
 		} else if err != nil {
 			return nil, err
 		}
-		sources = append(sources, wrapProtoSource(serial))
+		sources = append(sources, WrapProtoSource(serial))
 	}
 	return sources, nil
 }
@@ -939,13 +970,21 @@ func (client *Client) parseSourceVariantStream(stream sourceVariantStream) ([]*S
 			client.Logger.Errorw("Error receiving parsed stream", "error", err)
 			// print if this is a grpc status error
 			if grpcStatus, ok := grpc_status.FromError(err); ok {
-				client.Logger.Errorw("GRPC status error", "code", grpcStatus.Code(), "message", grpcStatus.Message(), "details", grpcStatus.Details())
+				client.Logger.Errorw(
+					"GRPC status error",
+					"code",
+					grpcStatus.Code(),
+					"message",
+					grpcStatus.Message(),
+					"details",
+					grpcStatus.Details(),
+				)
 			} else {
 				client.Logger.Errorw("Error is not a grpc status error", "error", err)
 			}
 			return nil, err
 		}
-		sourceVariants = append(sourceVariants, wrapProtoSourceVariant(serial))
+		sourceVariants = append(sourceVariants, WrapProtoSourceVariant(serial))
 	}
 	return sourceVariants, nil
 }
@@ -1026,7 +1065,7 @@ func (client *Client) parseUserStream(stream userStream) ([]*User, error) {
 		} else if err != nil {
 			return nil, err
 		}
-		users = append(users, wrapProtoUser(serial))
+		users = append(users, WrapProtoUser(serial))
 	}
 	return users, nil
 }
@@ -1118,7 +1157,7 @@ func (client *Client) parseProviderStream(stream providerStream) ([]*Provider, e
 		} else if err != nil {
 			return nil, err
 		}
-		providers = append(providers, wrapProtoProvider(serial))
+		providers = append(providers, WrapProtoProvider(serial))
 	}
 	return providers, nil
 }
@@ -1201,7 +1240,7 @@ func (client *Client) parseEntityStream(stream entityStream) ([]*Entity, error) 
 		} else if err != nil {
 			return nil, err
 		}
-		entities = append(entities, wrapProtoEntity(serial))
+		entities = append(entities, WrapProtoEntity(serial))
 	}
 	return entities, nil
 }
@@ -1286,7 +1325,7 @@ func (client *Client) parseModelStream(stream modelStream) ([]*Model, error) {
 		} else if err != nil {
 			return nil, err
 		}
-		models = append(models, wrapProtoModel(serial))
+		models = append(models, WrapProtoModel(serial))
 	}
 	return models, nil
 }
@@ -1378,6 +1417,22 @@ func (fn fetchProviderFns) Provider() string {
 
 func (fn fetchProviderFns) FetchProvider(client *Client, ctx context.Context) (*Provider, error) {
 	return client.GetProvider(ctx, fn.Provider())
+}
+
+type StreamGetter interface {
+	GetStream() Stream
+}
+
+type Stream interface {
+	FetchProvider(client *Client, ctx context.Context) (*Provider, error)
+}
+
+type StreamDef struct {
+	offlineProvider string
+}
+
+func (s StreamDef) FetchProvider(client *Client, ctx context.Context) (*Provider, error) {
+	return client.GetProvider(ctx, s.offlineProvider)
 }
 
 type trainingSetsGetter interface {
@@ -1498,13 +1553,43 @@ func (fn fetchPropertiesFn) Properties() Properties {
 	return properties
 }
 
+type serializedConfigGetter interface {
+	GetSerializedConfig() []byte
+}
+
+type fetchSerializedConfigFn struct {
+	getter serializedConfigGetter
+}
+
+func (fn fetchSerializedConfigFn) SerializedConfig() pc.SerializedConfig {
+	return fn.getter.GetSerializedConfig()
+}
+
+type maxJobDurationGetter interface {
+	GetMaxJobDuration() *durationpb.Duration
+}
+
+type fetchMaxJobDurationFn struct {
+	getter maxJobDurationGetter
+}
+
+func (fn fetchMaxJobDurationFn) MaxJobDuration() time.Duration {
+	duration := fn.getter.GetMaxJobDuration()
+
+	if duration == nil || (duration.Seconds == 0 && duration.Nanos == 0) {
+		return time.Hour * 48
+	}
+
+	return duration.AsDuration()
+}
+
 type Feature struct {
 	serialized *pb.Feature
 	variantsFns
 	protoStringer
 }
 
-func wrapProtoFeature(serialized *pb.Feature) *Feature {
+func WrapProtoFeature(serialized *pb.Feature) *Feature {
 	return &Feature{
 		serialized:    serialized,
 		variantsFns:   variantsFns{serialized},
@@ -1528,7 +1613,7 @@ type FeatureVariant struct {
 	fetchPropertiesFn
 }
 
-func wrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
+func WrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 	return &FeatureVariant{
 		serialized:           serialized,
 		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
@@ -1627,7 +1712,7 @@ func (variant *FeatureVariant) Variant() string {
 }
 
 func (variant *FeatureVariant) Type() (types.ValueType, error) {
-	return types.FromProto(variant.serialized.GetType())
+	return types.ValueTypeFromProto(variant.serialized.GetType())
 }
 
 func (variant *FeatureVariant) Entity() string {
@@ -1638,11 +1723,11 @@ func (variant *FeatureVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
-func (variant *FeatureVariant) Status() ResourceStatus {
+func (variant *FeatureVariant) Status() scheduling.Status {
 	if variant.serialized.GetStatus() != nil {
-		return ResourceStatus(variant.serialized.GetStatus().Status)
+		return scheduling.Status(variant.serialized.GetStatus().Status)
 	}
-	return ResourceStatus(0)
+	return scheduling.CREATED
 }
 
 func (variant *FeatureVariant) Error() string {
@@ -1692,6 +1777,17 @@ func (variant *FeatureVariant) LocationFunction() interface{} {
 	return function
 }
 
+func (variant *FeatureVariant) LocationStream() interface{} {
+	if variant.Mode() != STREAMING {
+		return nil
+	}
+	src := variant.serialized.GetStream()
+	stream := Streaming{
+		OfflineProvider: src.OfflineProvider,
+	}
+	return stream
+}
+
 func (variant *FeatureVariant) Tags() Tags {
 	return variant.fetchTagsFn.Tags()
 }
@@ -1706,7 +1802,7 @@ func (variant *FeatureVariant) Mode() ComputationMode {
 
 func (variant *FeatureVariant) IsOnDemand() bool {
 	switch variant.Mode() {
-	case PRECOMPUTED:
+	case PRECOMPUTED, STREAMING:
 		return false
 	case CLIENT_COMPUTED:
 		return true
@@ -1738,6 +1834,25 @@ func (variant *FeatureVariant) Dimension() int32 {
 	return 0
 }
 
+func (variant *FeatureVariant) GetStream() Stream {
+	mode := variant.Mode()
+	if mode != STREAMING {
+		return nil
+	}
+	location := variant.Location().(*pb.FeatureVariant_Stream)
+	return StreamDef{
+		offlineProvider: location.Stream.OfflineProvider,
+	}
+}
+
+func (variant *FeatureVariant) ResourceSnowflakeConfig() (*ResourceSnowflakeConfig, error) {
+	if variant.Mode() != PRECOMPUTED {
+		return nil, fferr.NewInvalidArgumentErrorf("Ondemand features do not support Snowflake Dynamic Table configurations")
+	}
+
+	return getResourceSnowflakeConfig(variant.serialized)
+}
+
 type User struct {
 	serialized *pb.User
 	fetchTrainingSetsFns
@@ -1753,7 +1868,7 @@ func (u User) Variant() string {
 	return ""
 }
 
-func wrapProtoUser(serialized *pb.User) *User {
+func WrapProtoUser(serialized *pb.User) *User {
 	return &User{
 		serialized:           serialized,
 		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
@@ -1770,11 +1885,11 @@ func (user *User) Name() string {
 	return user.serialized.GetName()
 }
 
-func (user *User) Status() ResourceStatus {
+func (user *User) Status() scheduling.Status {
 	if user.serialized.GetStatus() != nil {
-		return ResourceStatus(user.serialized.GetStatus().Status)
+		return scheduling.Status(user.serialized.GetStatus().Status)
 	}
-	return ResourceStatus(0)
+	return scheduling.CREATED
 }
 
 func (user *User) Error() string {
@@ -1801,22 +1916,40 @@ type Provider struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
+	fetchSerializedConfigFn
 }
 
 func (p Provider) Variant() string {
 	return ""
 }
 
-func wrapProtoProvider(serialized *pb.Provider) *Provider {
+func WrapProtoProvider(serialized *pb.Provider) *Provider {
 	return &Provider{
-		serialized:           serialized,
-		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
-		fetchFeaturesFns:     fetchFeaturesFns{serialized},
-		fetchLabelsFns:       fetchLabelsFns{serialized},
-		fetchSourcesFns:      fetchSourcesFns{serialized},
-		protoStringer:        protoStringer{serialized},
-		fetchTagsFn:          fetchTagsFn{serialized},
-		fetchPropertiesFn:    fetchPropertiesFn{serialized},
+		serialized:              serialized,
+		fetchTrainingSetsFns:    fetchTrainingSetsFns{serialized},
+		fetchFeaturesFns:        fetchFeaturesFns{serialized},
+		fetchLabelsFns:          fetchLabelsFns{serialized},
+		fetchSourcesFns:         fetchSourcesFns{serialized},
+		protoStringer:           protoStringer{serialized},
+		fetchTagsFn:             fetchTagsFn{serialized},
+		fetchPropertiesFn:       fetchPropertiesFn{serialized},
+		fetchSerializedConfigFn: fetchSerializedConfigFn{serialized},
+	}
+}
+
+func (provider *Provider) ToShallowMap() ProviderResource {
+	return ProviderResource{
+		Name:             provider.Name(),
+		Description:      provider.Description(),
+		Type:             "Provider",
+		ProviderType:     provider.Type(),
+		Software:         provider.Software(),
+		Team:             provider.Team(),
+		SerializedConfig: provider.SerializedConfig(),
+		Status:           provider.Status().String(),
+		Error:            provider.Error(),
+		Tags:             provider.Tags(),
+		Properties:       provider.Properties(),
 	}
 }
 
@@ -1844,11 +1977,11 @@ func (provider *Provider) SerializedConfig() []byte {
 	return provider.serialized.GetSerializedConfig()
 }
 
-func (provider *Provider) Status() ResourceStatus {
+func (provider *Provider) Status() scheduling.Status {
 	if provider.serialized.GetStatus() != nil {
-		return ResourceStatus(provider.serialized.GetStatus().Status)
+		return scheduling.Status(provider.serialized.GetStatus().Status)
 	}
-	return ResourceStatus(0)
+	return scheduling.CREATED
 }
 
 func (provider *Provider) Error() string {
@@ -1880,7 +2013,7 @@ func (m Model) Variant() string {
 	return ""
 }
 
-func wrapProtoModel(serialized *pb.Model) *Model {
+func WrapProtoModel(serialized *pb.Model) *Model {
 	return &Model{
 		serialized:           serialized,
 		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
@@ -1900,8 +2033,8 @@ func (model *Model) Description() string {
 	return model.serialized.GetDescription()
 }
 
-func (model *Model) Status() ResourceStatus {
-	return ResourceStatus(0)
+func (model *Model) Status() scheduling.Status {
+	return scheduling.CREATED
 }
 
 func (model *Model) Error() string {
@@ -1922,7 +2055,7 @@ type Label struct {
 	protoStringer
 }
 
-func wrapProtoLabel(serialized *pb.Label) *Label {
+func WrapProtoLabel(serialized *pb.Label) *Label {
 	return &Label{
 		serialized:    serialized,
 		variantsFns:   variantsFns{serialized},
@@ -1945,7 +2078,7 @@ type LabelVariant struct {
 	fetchPropertiesFn
 }
 
-func wrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
+func WrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
 	return &LabelVariant{
 		serialized:           serialized,
 		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
@@ -1990,7 +2123,7 @@ func (variant *LabelVariant) Variant() string {
 }
 
 func (variant *LabelVariant) Type() (types.ValueType, error) {
-	return types.FromProto(variant.serialized.GetType())
+	return types.ValueTypeFromProto(variant.serialized.GetType())
 }
 
 func (variant *LabelVariant) Entity() string {
@@ -2001,11 +2134,11 @@ func (variant *LabelVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
-func (variant *LabelVariant) Status() ResourceStatus {
+func (variant *LabelVariant) Status() scheduling.Status {
 	if variant.serialized.GetStatus() != nil {
-		return ResourceStatus(variant.serialized.GetStatus().Status)
+		return scheduling.Status(variant.serialized.GetStatus().Status)
 	}
-	return ResourceStatus(0)
+	return scheduling.CREATED
 }
 
 func (variant *LabelVariant) Error() string {
@@ -2041,13 +2174,27 @@ func (variant *LabelVariant) Properties() Properties {
 	return variant.fetchPropertiesFn.Properties()
 }
 
+func (variant *LabelVariant) GetStream() Stream {
+	stream := variant.serialized.GetStream()
+	if stream == nil {
+		return nil
+	}
+	return StreamDef{
+		offlineProvider: stream.OfflineProvider,
+	}
+}
+
+func (variant *LabelVariant) ResourceSnowflakeConfig() (*ResourceSnowflakeConfig, error) {
+	return getResourceSnowflakeConfig(variant.serialized)
+}
+
 type TrainingSet struct {
 	serialized *pb.TrainingSet
 	variantsFns
 	protoStringer
 }
 
-func wrapProtoTrainingSet(serialized *pb.TrainingSet) *TrainingSet {
+func WrapProtoTrainingSet(serialized *pb.TrainingSet) *TrainingSet {
 	return &TrainingSet{
 		serialized:    serialized,
 		variantsFns:   variantsFns{serialized},
@@ -2070,7 +2217,7 @@ type TrainingSetVariant struct {
 	fetchPropertiesFn
 }
 
-func wrapProtoTrainingSetVariant(serialized *pb.TrainingSetVariant) *TrainingSetVariant {
+func WrapProtoTrainingSetVariant(serialized *pb.TrainingSetVariant) *TrainingSetVariant {
 	return &TrainingSetVariant{
 		serialized:        serialized,
 		fetchFeaturesFns:  fetchFeaturesFns{serialized},
@@ -2115,11 +2262,11 @@ func (variant *TrainingSetVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
-func (variant *TrainingSetVariant) Status() ResourceStatus {
+func (variant *TrainingSetVariant) Status() scheduling.Status {
 	if variant.serialized.GetStatus() != nil {
-		return ResourceStatus(variant.serialized.GetStatus().Status)
+		return scheduling.Status(variant.serialized.GetStatus().Status)
 	}
-	return ResourceStatus(0)
+	return scheduling.CREATED
 }
 
 func (variant *TrainingSetVariant) Error() string {
@@ -2153,13 +2300,17 @@ func (variant *TrainingSetVariant) Properties() Properties {
 	return variant.fetchPropertiesFn.Properties()
 }
 
+func (variant *TrainingSetVariant) ResourceSnowflakeConfig() (*ResourceSnowflakeConfig, error) {
+	return getResourceSnowflakeConfig(variant.serialized)
+}
+
 type Source struct {
 	serialized *pb.Source
 	variantsFns
 	protoStringer
 }
 
-func wrapProtoSource(serialized *pb.Source) *Source {
+func WrapProtoSource(serialized *pb.Source) *Source {
 	return &Source{
 		serialized:    serialized,
 		variantsFns:   variantsFns{serialized},
@@ -2182,6 +2333,7 @@ type SourceVariant struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
+	fetchMaxJobDurationFn
 }
 
 type TransformationArgType string
@@ -2222,6 +2374,257 @@ func (arg KubernetesArgs) Type() TransformationArgType {
 	return K8sArgs
 }
 
+type RefreshMode string
+type Initialize string
+
+const (
+	AutoRefresh        RefreshMode = "AUTO" // Default
+	FullRefresh        RefreshMode = "FULL"
+	IncrementalRefresh RefreshMode = "INCREMENTAL"
+
+	InitializeOnCreate   Initialize = "ON_CREATE" // Default
+	InitializeOnSchedule Initialize = "ON_SCHEDULE"
+)
+
+func RefreshModeFromProto(proto pb.RefreshMode) (RefreshMode, error) {
+	var refreshMode RefreshMode
+	switch proto {
+	case pb.RefreshMode_REFRESH_MODE_AUTO:
+		refreshMode = AutoRefresh
+	case pb.RefreshMode_REFRESH_MODE_FULL:
+		refreshMode = FullRefresh
+	case pb.RefreshMode_REFRESH_MODE_INCREMENTAL:
+		refreshMode = IncrementalRefresh
+	case pb.RefreshMode_REFRESH_MODE_UNSPECIFIED:
+		return refreshMode, fferr.NewInvalidArgumentErrorf("Refresh mode unspecified")
+	default:
+		return refreshMode, fferr.NewInternalErrorf("Unknown refresh mode %v", proto)
+	}
+	return refreshMode, nil
+}
+
+func RefreshModeFromString(refreshMode string) (RefreshMode, error) {
+	switch refreshMode {
+	case "AUTO":
+		return AutoRefresh, nil
+	case "FULL":
+		return FullRefresh, nil
+	case "INCREMENTAL":
+		return IncrementalRefresh, nil
+	default:
+		return "", fferr.NewInvalidArgumentErrorf("Invalid refresh mode %s", refreshMode)
+	}
+}
+
+func InitializeFromProto(proto pb.Initialize) (Initialize, error) {
+	var initialize Initialize
+	switch proto {
+	case pb.Initialize_INITIALIZE_ON_CREATE:
+		initialize = InitializeOnCreate
+	case pb.Initialize_INITIALIZE_ON_SCHEDULE:
+		initialize = InitializeOnSchedule
+	case pb.Initialize_INITIALIZE_UNSPECIFIED:
+		return initialize, fferr.NewInvalidArgumentErrorf("Initialize unspecified")
+	default:
+		return initialize, fferr.NewInternalErrorf("Unknown initialize mode %v", proto)
+	}
+	return initialize, nil
+}
+
+func InitializeFromString(initialize string) (Initialize, error) {
+	switch initialize {
+	case "ON_CREATE":
+		return InitializeOnCreate, nil
+	case "ON_SCHEDULE":
+		return InitializeOnSchedule, nil
+	default:
+		return "", fferr.NewInvalidArgumentErrorf("Invalid initialize mode %s", initialize)
+	}
+}
+
+type ResourceSnowflakeConfig struct {
+	DynamicTableConfig *SnowflakeDynamicTableConfig
+	Warehouse          string
+}
+
+func (config *ResourceSnowflakeConfig) Merge(c *pc.SnowflakeConfig) error {
+	if config.DynamicTableConfig == nil {
+		config.DynamicTableConfig = &SnowflakeDynamicTableConfig{}
+	}
+
+	if err := config.ValidateConfig(c); err != nil {
+		return err
+	}
+
+	// Merge ExternalVolume and BaseLocation from catalog to resource level
+	// No additional validation is needed here because these values are coming from the catalog level
+	config.DynamicTableConfig.ExternalVolume = c.Catalog.ExternalVolume
+	config.DynamicTableConfig.BaseLocation = c.Catalog.BaseLocation
+
+	if err := config.ValidateMergeableFields(c); err != nil {
+		return err
+	}
+
+	if config.DynamicTableConfig.TargetLag == "" {
+		config.DynamicTableConfig.TargetLag = c.Catalog.TableConfig.TargetLag
+	}
+
+	if config.DynamicTableConfig.RefreshMode == "" {
+		refreshMode, err := RefreshModeFromString(c.Catalog.TableConfig.RefreshMode)
+		if err != nil {
+			return err
+		}
+		config.DynamicTableConfig.RefreshMode = refreshMode
+	}
+
+	if config.DynamicTableConfig.Initialize == "" {
+		initialize, err := InitializeFromString(c.Catalog.TableConfig.Initialize)
+		if err != nil {
+			return err
+		}
+
+		config.DynamicTableConfig.Initialize = initialize
+	}
+
+	if config.Warehouse == "" {
+		config.Warehouse = c.Warehouse
+	}
+
+	return nil
+}
+
+func (config ResourceSnowflakeConfig) ValidateConfig(c *pc.SnowflakeConfig) error {
+	if c.Catalog == nil {
+		return fferr.NewInvalidArgumentErrorf("Snowflake catalog configuration is required")
+	}
+
+	if c.Catalog.ExternalVolume == "" {
+		return fferr.NewInvalidArgumentErrorf("Snowflake catalog configuration requires an external volume")
+	}
+
+	if c.Catalog.BaseLocation == "" {
+		return fferr.NewInvalidArgumentErrorf("Snowflake catalog configuration requires a base location")
+	}
+
+	if c.Warehouse == "" {
+		return fferr.NewInvalidArgumentErrorf("Snowflake configuration requires a warehouse")
+	}
+
+	return nil
+}
+
+func (config ResourceSnowflakeConfig) ValidateMergeableFields(c *pc.SnowflakeConfig) error {
+	if err := config.ValidateConfig(c); err != nil {
+		return err
+	}
+
+	if config.DynamicTableConfig.TargetLag == "" && c.Catalog.TableConfig.TargetLag == "" {
+		return fferr.NewInvalidArgumentErrorf("Snowflake dynamic table configuration requires a target lag")
+	}
+
+	if config.DynamicTableConfig.RefreshMode == "" && c.Catalog.TableConfig.RefreshMode == "" {
+		return fferr.NewInvalidArgumentErrorf("Snowflake dynamic table configuration requires a refresh mode")
+	}
+
+	if config.DynamicTableConfig.Initialize == "" && c.Catalog.TableConfig.Initialize == "" {
+		return fferr.NewInvalidArgumentErrorf("Snowflake dynamic table configuration requires an initialize mode")
+	}
+
+	if config.Warehouse == "" && c.Warehouse == "" {
+		return fferr.NewInvalidArgumentErrorf("Snowflake configuration requires a warehouse")
+	}
+
+	return nil
+}
+
+func (config ResourceSnowflakeConfig) Validate() error {
+	if config.DynamicTableConfig.ExternalVolume == "" {
+		return fferr.NewInvalidArgumentErrorf("Snowflake dynamic table configuration requires an external volume")
+	}
+
+	if config.DynamicTableConfig.BaseLocation == "" {
+		return fferr.NewInvalidArgumentErrorf("Snowflake dynamic table configuration requires a base location")
+	}
+
+	if err := config.DynamicTableConfig.ValidateTargetLag(); err != nil {
+		return err
+	}
+
+	if config.DynamicTableConfig.RefreshMode == "" {
+		return fferr.NewInvalidArgumentErrorf("Snowflake dynamic table configuration requires a refresh mode")
+	}
+
+	if config.DynamicTableConfig.Initialize == "" {
+		return fferr.NewInvalidArgumentErrorf("Snowflake dynamic table configuration requires an initialize mode")
+	}
+
+	if config.Warehouse == "" {
+		return fferr.NewInvalidArgumentErrorf("Snowflake configuration requires a warehouse")
+	}
+
+	return nil
+}
+
+func (config SnowflakeDynamicTableConfig) ValidateTargetLag() error {
+	if config.TargetLag == "" {
+		return fferr.NewInvalidArgumentErrorf("Snowflake dynamic table configuration requires a target lag")
+	}
+
+	// Regex to match the pattern `<num> <unit>` or 'DOWNSTREAM'
+	re := regexp.MustCompile(`^(\d+)\s+(seconds|minutes|hours|days)$|^(?i:DOWNSTREAM)$`)
+
+	targetLagTrimmed := strings.TrimSpace(config.TargetLag)
+
+	if !re.MatchString(targetLagTrimmed) {
+		return fferr.NewInvalidArgumentErrorf("Snowflake dynamic table configuration target lag is invalid: %s", config.TargetLag)
+	}
+
+	// If it's "DOWNSTREAM", it's valid
+	if strings.EqualFold(targetLagTrimmed, "DOWNSTREAM") {
+		return nil
+	}
+
+	// Extract the number and the unit
+	matches := re.FindStringSubmatch(targetLagTrimmed)
+	if len(matches) < 3 {
+		return fferr.NewInvalidArgumentErrorf("Failed to parse target lag")
+	}
+
+	value, err := strconv.Atoi(matches[1]) // The numeric part
+	if err != nil {
+		return fferr.NewInvalidArgumentErrorf("Invalid number in target lag: %v", err)
+	}
+	unit := matches[2] // The unit part (seconds, minutes, etc.)
+
+	// Enforce the minimum target lag (e.g., at least 1 minute)
+	switch unit {
+	case "seconds":
+		if value < 60 {
+			return fferr.NewInvalidArgumentErrorf("Minimum target lag is 1 minute, but got less than 60 seconds")
+		}
+	case "minutes":
+		if value < 1 {
+			return fferr.NewInvalidArgumentErrorf("Minimum target lag is 1 minute")
+		}
+	}
+
+	// If the target lag meets the criteria, return nil (valid)
+	return nil
+}
+
+type SnowflakeDynamicTableConfig struct {
+	// ExternalVolume and BaseLocation are required for Snowflake Dynamic Table configuration;
+	// however, we have specified these at the catalog level given it's less likely users will
+	// want to change these values resource to resource.
+	// Given this, we'll need to grab the values from the catalog level and pass them to the
+	// resource level via the SnowflakeDynamicTableConfig.
+	ExternalVolume string
+	BaseLocation   string
+	TargetLag      string
+	RefreshMode    RefreshMode
+	Initialize     Initialize
+}
+
 func (variant *SourceVariant) parseKubernetesArgs() KubernetesArgs {
 	args := variant.serialized.GetTransformation().GetKubernetesArgs()
 	specs := args.GetSpecs()
@@ -2243,18 +2646,27 @@ func (variant *SourceVariant) DFTransformationQuerySource() string {
 	return variant.serialized.GetTransformation().GetDFTransformation().GetSourceText()
 }
 
-func wrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
+func (variant *SourceVariant) TaskIDs() ([]scheduling.TaskID, error) {
+	// Check if using a deprecated taskID singleton
+	if variant.serialized.TaskId != "" {
+		return parseResourceTasks([]string{variant.serialized.TaskId})
+	}
+	return parseResourceTasks(variant.serialized.TaskIdList)
+}
+
+func WrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
 	return &SourceVariant{
-		serialized:           serialized,
-		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
-		fetchFeaturesFns:     fetchFeaturesFns{serialized},
-		fetchLabelsFns:       fetchLabelsFns{serialized},
-		fetchProviderFns:     fetchProviderFns{serialized},
-		createdFn:            createdFn{serialized},
-		lastUpdatedFn:        lastUpdatedFn{serialized},
-		protoStringer:        protoStringer{serialized},
-		fetchTagsFn:          fetchTagsFn{serialized},
-		fetchPropertiesFn:    fetchPropertiesFn{serialized},
+		serialized:            serialized,
+		fetchTrainingSetsFns:  fetchTrainingSetsFns{serialized},
+		fetchFeaturesFns:      fetchFeaturesFns{serialized},
+		fetchLabelsFns:        fetchLabelsFns{serialized},
+		fetchProviderFns:      fetchProviderFns{serialized},
+		createdFn:             createdFn{serialized},
+		lastUpdatedFn:         lastUpdatedFn{serialized},
+		protoStringer:         protoStringer{serialized},
+		fetchTagsFn:           fetchTagsFn{serialized},
+		fetchPropertiesFn:     fetchPropertiesFn{serialized},
+		fetchMaxJobDurationFn: fetchMaxJobDurationFn{serialized},
 	}
 }
 
@@ -2287,7 +2699,6 @@ func (variant *SourceVariant) ToShallowMap() SourceVariantResource {
 		Specifications: getSourceArgs(variant),
 		Inputs:         variant.getInputs(),
 	}
-
 }
 
 func (variant *SourceVariant) Name() string {
@@ -2314,11 +2725,11 @@ func (variant *SourceVariant) Owner() string {
 	return variant.serialized.GetOwner()
 }
 
-func (variant *SourceVariant) Status() ResourceStatus {
+func (variant *SourceVariant) Status() scheduling.Status {
 	if variant.serialized.GetStatus() != nil {
-		return ResourceStatus(variant.serialized.GetStatus().Status)
+		return scheduling.Status(variant.serialized.GetStatus().Status)
 	}
-	return ResourceStatus(0)
+	return scheduling.CREATED
 }
 
 func (variant *SourceVariant) Error() string {
@@ -2337,6 +2748,27 @@ func (variant *SourceVariant) IsSQLTransformation() bool {
 		return false
 	}
 	return reflect.TypeOf(variant.serialized.GetTransformation().Type) == reflect.TypeOf(&pb.Transformation_SQLTransformation{})
+}
+
+func (variant *SourceVariant) HasResourceSnowflakeConfig() bool {
+	if !variant.IsTransformation() {
+		return false
+	}
+	isSqlTransformation := reflect.TypeOf(variant.serialized.GetTransformation().Type) == reflect.TypeOf(&pb.Transformation_SQLTransformation{})
+
+	if !isSqlTransformation {
+		return false
+	}
+
+	return variant.serialized.GetTransformation().GetSQLTransformation().GetResourceSnowflakeConfig() != nil
+}
+
+func (variant *SourceVariant) ResourceSnowflakeConfig() (*ResourceSnowflakeConfig, error) {
+	if !variant.HasResourceSnowflakeConfig() {
+		return nil, nil
+	}
+
+	return getResourceSnowflakeConfig(variant.serialized.GetTransformation().GetSQLTransformation())
 }
 
 func (variant *SourceVariant) SQLTransformationQuery() string {
@@ -2404,18 +2836,99 @@ func (variant *SourceVariant) isPrimaryData() bool {
 	return reflect.TypeOf(variant.serialized.GetDefinition()) == reflect.TypeOf(&pb.SourceVariant_PrimaryData{})
 }
 
-func (variant *SourceVariant) IsPrimaryDataSQLTable() bool {
+func (variant *SourceVariant) IsPrimaryData() bool {
 	if !variant.isPrimaryData() {
 		return false
 	}
-	return reflect.TypeOf(variant.serialized.GetPrimaryData().GetLocation()) == reflect.TypeOf(&pb.PrimaryData_Table{})
+	return reflect.TypeOf(variant.serialized.GetPrimaryData()) == reflect.TypeOf(&pb.PrimaryData{})
 }
 
 func (variant *SourceVariant) PrimaryDataSQLTableName() string {
-	if !variant.IsPrimaryDataSQLTable() {
+	if !variant.IsPrimaryData() {
 		return ""
 	}
 	return variant.serialized.GetPrimaryData().GetTable().GetName()
+}
+
+func (variant *SourceVariant) PrimaryDataTimestampColumn() string {
+	if !variant.IsPrimaryData() {
+		return ""
+	}
+	return variant.serialized.GetPrimaryData().GetTimestampColumn()
+}
+
+func (variant *SourceVariant) GetPrimaryLocation() (pl.Location, error) {
+	if !variant.isPrimaryData() {
+		return nil, nil
+	}
+	switch pt := variant.serialized.GetPrimaryData().GetLocation().(type) {
+	case *pb.PrimaryData_Table:
+		return pl.NewSQLLocationWithDBSchemaTable(
+			pt.Table.GetDatabase(),
+			pt.Table.GetSchema(),
+			pt.Table.GetName(),
+		), nil
+	case *pb.PrimaryData_Filestore:
+		fp := filestore.FilePath{}
+		if err := fp.ParseFilePath(pt.Filestore.GetPath()); err != nil {
+			return nil, err
+		}
+		return pl.NewFileLocation(&fp), nil
+	case *pb.PrimaryData_Catalog:
+		return pl.NewCatalogLocation(pt.Catalog.GetDatabase(), pt.Catalog.GetTable(), pt.Catalog.GetTableFormat()), nil
+	default:
+		return nil, nil
+	}
+}
+
+func (variant *SourceVariant) GetTransformationLocation() (pl.Location, error) {
+	if !variant.IsTransformation() {
+		return nil, nil
+	}
+	switch pt := variant.serialized.GetTransformation().GetLocation().(type) {
+	case *pb.Transformation_Table:
+		table := pt.Table.GetName()
+		return pl.NewSQLLocation(table), nil
+	case *pb.Transformation_Filestore:
+		fp := filestore.FilePath{}
+		if err := fp.ParseDirPath(pt.Filestore.GetPath()); err != nil {
+			return nil, err
+		}
+		return pl.NewFileLocation(&fp), nil
+	case *pb.Transformation_Catalog:
+		return pl.NewCatalogLocation(pt.Catalog.GetDatabase(), pt.Catalog.GetTable(), pt.Catalog.GetTableFormat()), nil
+	default:
+		return nil, fferr.NewInternalErrorf("Unknown SQLTransformation location type %v", pt)
+	}
+}
+
+func (variant *SourceVariant) SparkFlags() pc.SparkFlags {
+	if !variant.IsTransformation() {
+		return pc.SparkFlags{}
+	}
+
+	sparkFlagsProto := variant.serialized.GetTransformation().GetSparkFlags()
+
+	sparkParams := make(map[string]string)
+	for _, param := range sparkFlagsProto.GetSparkParams() {
+		sparkParams[param.Key] = param.Value
+	}
+
+	writeOptions := make(map[string]string)
+	for _, option := range sparkFlagsProto.GetWriteOptions() {
+		writeOptions[option.Key] = option.Value
+	}
+
+	tableProperties := make(map[string]string)
+	for _, prop := range sparkFlagsProto.GetTableProperties() {
+		tableProperties[prop.Key] = prop.Value
+	}
+
+	return pc.SparkFlags{
+		SparkParams:     sparkParams,
+		WriteOptions:    writeOptions,
+		TableProperties: tableProperties,
+	}
 }
 
 func (variant *SourceVariant) Tags() Tags {
@@ -2436,11 +2949,11 @@ type Entity struct {
 	fetchPropertiesFn
 }
 
-func (e Entity) Variant() string {
+func (entity Entity) Variant() string {
 	return ""
 }
 
-func wrapProtoEntity(serialized *pb.Entity) *Entity {
+func WrapProtoEntity(serialized *pb.Entity) *Entity {
 	return &Entity{
 		serialized:           serialized,
 		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
@@ -2452,6 +2965,17 @@ func wrapProtoEntity(serialized *pb.Entity) *Entity {
 	}
 }
 
+func (entity *Entity) ToShallowMap() EntityResource {
+	return EntityResource{
+		Name:        entity.Name(),
+		Type:        "Entity",
+		Description: entity.Description(),
+		Status:      entity.Status().String(),
+		Tags:        entity.Tags(),
+		Properties:  entity.Properties(),
+	}
+}
+
 func (entity *Entity) Name() string {
 	return entity.serialized.GetName()
 }
@@ -2460,11 +2984,11 @@ func (entity *Entity) Description() string {
 	return entity.serialized.GetDescription()
 }
 
-func (entity *Entity) Status() ResourceStatus {
+func (entity *Entity) Status() scheduling.Status {
 	if entity.serialized.GetStatus() != nil {
-		return ResourceStatus(entity.serialized.GetStatus().Status)
+		return scheduling.Status(entity.serialized.GetStatus().Status)
 	}
-	return ResourceStatus(0)
+	return scheduling.CREATED
 }
 
 func (entity *Entity) Error() string {
@@ -2492,16 +3016,70 @@ func NewClient(host string, logger logging.Logger) (*Client, error) {
 	if err != nil {
 		return nil, fferr.NewInternalError(err)
 	}
-	client := pb.NewMetadataClient(conn)
+	metadataClient := pb.NewMetadataClient(conn)
+	tasksClient := sch.NewTasksClient(conn)
+	slackNotifier := help.NewSlackNotifier(os.Getenv("SLACK_CHANNEL_ID"), logger)
 	return &Client{
 		Logger:   logger,
 		conn:     conn,
-		GrpcConn: client,
+		GrpcConn: metadataClient,
+		Tasks: &Tasks{
+			logger:   logger,
+			conn:     conn,
+			GrpcConn: tasksClient,
+		},
+		slackNotifier: slackNotifier,
 	}, nil
+}
+
+func (client *Client) GetResourceDAG(ctx context.Context, resource Resource) (ResourceDAG, error) {
+	// TODO: Create the lookup object for the resource
+	dag, err := NewResourceDAG(ctx, nil, resource)
+	if err != nil {
+		return ResourceDAG{}, err
+	}
+
+	return dag, nil
 }
 
 func (client *Client) Close() {
 	if err := client.conn.Close(); err != nil {
 		client.Logger.Errorw("Failed to close connection", "error", err)
 	}
+}
+
+type resourceSnowflakeConfigGetter interface {
+	GetResourceSnowflakeConfig() *pb.ResourceSnowflakeConfig
+}
+
+func getResourceSnowflakeConfig(getter resourceSnowflakeConfigGetter) (*ResourceSnowflakeConfig, error) {
+	resConfig := &ResourceSnowflakeConfig{
+		DynamicTableConfig: &SnowflakeDynamicTableConfig{},
+	}
+	config := getter.GetResourceSnowflakeConfig()
+	if config == nil {
+		return resConfig, nil
+	}
+
+	if config.GetDynamicTableConfig() != nil {
+		refreshMode, refreshModeErr := RefreshModeFromProto(config.DynamicTableConfig.GetRefreshMode())
+		if refreshModeErr != nil {
+			return nil, refreshModeErr
+		}
+
+		initialize, initializeErr := InitializeFromProto(config.DynamicTableConfig.GetInitialize())
+		if initializeErr != nil {
+			return nil, initializeErr
+		}
+
+		resConfig.DynamicTableConfig.RefreshMode = refreshMode
+		resConfig.DynamicTableConfig.Initialize = initialize
+		resConfig.DynamicTableConfig.TargetLag = config.DynamicTableConfig.GetTargetLag()
+	}
+
+	if config.GetWarehouse() != "" {
+		resConfig.Warehouse = config.GetWarehouse()
+	}
+
+	return resConfig, nil
 }

@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
@@ -5,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"strconv"
 	"time"
@@ -44,6 +52,7 @@ const (
 const (
 	// Default timeout when waiting for dynamoDB tables to be ready
 	defaultDynamoTableTimeout = 30 * time.Second
+	maxRetries                = 5
 )
 
 type dynamodbTableKey struct {
@@ -66,15 +75,20 @@ type dynamodbOnlineStore struct {
 	client *dynamodb.Client
 	prefix string
 	BaseProvider
-	timeout time.Duration
-	logger  *zap.SugaredLogger
+	timeout            time.Duration
+	logger             *zap.SugaredLogger
+	accessKey          string
+	secretKey          string
+	region             string
+	stronglyConsistent bool
 }
 
 type dynamodbOnlineTable struct {
-	client    *dynamodb.Client
-	key       dynamodbTableKey
-	valueType vt.ValueType
-	version   serializeVersion
+	client             *dynamodb.Client
+	key                dynamodbTableKey
+	valueType          vt.ValueType
+	version            serializeVersion
+	stronglyConsistent bool
 }
 
 // dynamodbMetadataEntry is the format of each row in the Metadata table.
@@ -126,12 +140,20 @@ func dynamodbOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error
 func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, error) {
 	args := []func(*config.LoadOptions) error{
 		config.WithRegion(options.Region),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(options.AccessKey, options.SecretKey, "")),
 		config.WithRetryer(func() aws.Retryer {
 			return retry.AddWithMaxBackoffDelay(retry.NewStandard(func(o *retry.StandardOptions) {
 				o.RateLimiter = ratelimit.None
 			}), defaultDynamoTableTimeout)
 		}),
+	}
+	accessKey, secretKey := "", ""
+	// If the user is using a service account, we don't need to provide credentials
+	// as the AWS SDK will use the IAM role of the K8s pod to authenticate.
+	if staticCreds, ok := options.Credentials.(pc.AWSStaticCredentials); ok {
+		accessKey = staticCreds.AccessKeyId
+		secretKey = staticCreds.SecretKey
+		creds := config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, ""))
+		args = append(args, creds)
 	}
 	// If we are using a custom endpoint, such as when running localstack, we should point at it. We'd never set this when
 	// directly accessing DynamoDB on AWS.
@@ -160,6 +182,7 @@ func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, e
 		ProviderType:   pt.DynamoDBOnline,
 		ProviderConfig: options.Serialized(),
 	}, defaultDynamoTableTimeout, logger.SugaredLogger,
+		accessKey, secretKey, options.Region, options.StronglyConsistent,
 	}, nil
 }
 
@@ -277,15 +300,18 @@ func (store *dynamodbOnlineStore) GetTable(feature, variant string) (OnlineStore
 	if err != nil {
 		return nil, fferr.NewDatasetNotFoundError(feature, variant, err)
 	}
-	table := &dynamodbOnlineTable{client: store.client, key: key, valueType: meta.Valuetype, version: meta.Version}
+	table := &dynamodbOnlineTable{client: store.client, key: key, valueType: meta.Valuetype, version: meta.Version, stronglyConsistent: store.stronglyConsistent}
 	return table, nil
+}
+
+func (store *dynamodbOnlineStore) FormatTableName(feature, variant string) string {
+	return formatDynamoTableName(store.prefix, feature, variant)
 }
 
 func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType vt.ValueType) (OnlineStoreTable, error) {
 	key := dynamodbTableKey{store.prefix, feature, variant}
 	tableName := formatDynamoTableName(store.prefix, feature, variant)
-	_, err := store.getFromMetadataTable(tableName)
-	if err == nil {
+	if _, err := store.getFromMetadataTable(tableName); err == nil {
 		wrapped := fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
 		wrapped.AddDetail("tablename", tableName)
 		return nil, wrapped
@@ -306,18 +332,16 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 			},
 		},
 	}
-	err = store.updateMetadataTable(tableName, valueType, dynamoSerializationVersion)
-	if err != nil {
-		return nil, err
-	}
-	_, err = store.client.CreateTable(context.TODO(), params)
-	if err != nil {
+	if _, err := store.client.CreateTable(context.TODO(), params); err != nil {
 		return nil, fferr.NewResourceExecutionError(pt.DynamoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
 	if err := waitForDynamoTable(store.client, tableName, store.timeout); err != nil {
 		return nil, fferr.NewResourceExecutionError(pt.DynamoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
-	return &dynamodbOnlineTable{store.client, key, valueType, dynamoSerializationVersion}, nil
+	if err := store.updateMetadataTable(tableName, valueType, dynamoSerializationVersion); err != nil {
+		return nil, err
+	}
+	return &dynamodbOnlineTable{store.client, key, valueType, dynamoSerializationVersion, store.stronglyConsistent}, nil
 }
 
 func (store *dynamodbOnlineStore) DeleteTable(feature, variant string) error {
@@ -472,10 +496,31 @@ func (table dynamodbOnlineTable) BatchSet(items []SetItem) error {
 			table.key.ToTableName(): reqs,
 		},
 	}
-	if _, err := table.client.BatchWriteItem(context.TODO(), batchInput); err != nil {
-		return fferr.NewExecutionError("DynamoDB", err)
+
+	if err := table.batchSetWithRetry(context.TODO(), batchInput); err != nil {
+		return err
 	}
 	return nil
+}
+
+func (table dynamodbOnlineTable) batchSetWithRetry(ctx context.Context, input *dynamodb.BatchWriteItemInput) error {
+	totalWaitedTime := time.Duration(0)
+	for attempts := 0; attempts < maxRetries; attempts++ {
+		output, err := table.client.BatchWriteItem(ctx, input)
+		if err != nil {
+			return fferr.NewExecutionError("DynamoDB", err)
+		}
+		if len(output.UnprocessedItems) == 0 {
+			return nil
+		}
+
+		input.RequestItems = output.UnprocessedItems
+
+		waitTime, newTotalWait := exponentialBackoff(attempts, totalWaitedTime)
+		time.Sleep(waitTime)
+		totalWaitedTime = newTotalWait
+	}
+	return fferr.NewExecutionError("DynamoDB", fmt.Errorf("failed to write all items after %d retries, unprocessed items: %d", maxRetries, len(input.RequestItems)))
 }
 
 func (table dynamodbOnlineTable) MaxBatchSize() (int, error) {
@@ -519,6 +564,7 @@ func (table dynamodbOnlineTable) Get(entity string) (interface{}, error) {
 				Value: entity,
 			},
 		},
+		ConsistentRead: aws.Bool(table.stronglyConsistent),
 	}
 	output_val, err := table.client.GetItem(context.TODO(), input)
 	if len(output_val.Item) == 0 {
@@ -543,13 +589,13 @@ func (table dynamodbOnlineTable) Get(entity string) (interface{}, error) {
 // We can't use waitForDynamoTable since we need to ignore most tcp and network errors and
 // continue to retry.
 func waitForDynamoDB(client *dynamodb.Client) error {
-	waitTime := time.Second
 	totalWait := time.Duration(0)
-	var err error
-	for attempts := 0; attempts < 3; attempts++ {
-		_, err = client.DescribeTable(context.TODO(), &dynamodb.DescribeTableInput{
+
+	for attempts := 0; attempts < maxRetries; attempts++ {
+		_, err := client.DescribeTable(context.TODO(), &dynamodb.DescribeTableInput{
 			TableName: aws.String("FEATUREFORM-PING"), // Arbitrary name
 		})
+
 		if err != nil {
 			var resourceNotFoundErr *types.ResourceNotFoundException
 			if errors.As(err, &resourceNotFoundErr) {
@@ -560,16 +606,24 @@ func waitForDynamoDB(client *dynamodb.Client) error {
 			// DescribeTable succeeded, indicating DynamoDB is ready and the table exists.
 			return nil
 		}
+
+		waitTime, newTotalWait := exponentialBackoff(attempts, totalWait)
 		time.Sleep(waitTime)
-		totalWait += waitTime
-		// Exponential backoff
-		waitTime = waitTime * 2
-		// Don't wait longer than the max
-		if totalWait+waitTime > defaultDynamoTableTimeout {
-			waitTime = defaultDynamoTableTimeout - totalWait
-		}
+		totalWait = newTotalWait
 	}
-	return fferr.NewConnectionError("DynamoDB", err)
+
+	return errors.New("DynamoDB is not ready after the maximum number of retries")
+}
+
+// exponentialBackoff handles the waiting with exponential backoff. TODO ditch for a resilience library
+func exponentialBackoff(attempt int, totalWaitedTime time.Duration) (time.Duration, time.Duration) {
+	// Using math.Pow to calculate the exponential increase
+	timeToWaitBeforeRetry := time.Second * time.Duration(math.Pow(2, float64(attempt)))
+	if totalWaitedTime+timeToWaitBeforeRetry > defaultDynamoTableTimeout {
+		// If we're going to wait longer than the timeout, just wait the remaining time
+		timeToWaitBeforeRetry = defaultDynamoTableTimeout - totalWaitedTime
+	}
+	return timeToWaitBeforeRetry, totalWaitedTime + timeToWaitBeforeRetry
 }
 
 // waitForDynamoDB waits for a DynamoDB table.

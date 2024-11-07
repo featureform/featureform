@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package backup
 
 import (
@@ -87,9 +94,9 @@ type S3 struct {
 
 func (s3 *S3) Init() error {
 	filestoreConfig := pc.S3FileStoreConfig{
-		Credentials: pc.AWSCredentials{
-			AWSAccessKeyId: s3.AWSAccessKeyId,
-			AWSSecretKey:   s3.AWSSecretKey,
+		Credentials: pc.AWSStaticCredentials{
+			AccessKeyId: s3.AWSAccessKeyId,
+			SecretKey:   s3.AWSSecretKey,
 		},
 		BucketRegion: s3.BucketRegion,
 		BucketPath:   s3.BucketName,

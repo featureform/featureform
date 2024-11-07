@@ -1,5 +1,12 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 package provider
@@ -20,7 +27,6 @@ func init() {
 		pt.FirestoreOnline:   firestoreOnlineStoreFactory,
 		pt.DynamoDBOnline:    dynamodbOnlineStoreFactory,
 		pt.PineconeOnline:    pineconeOnlineStoreFactory,
-		pt.QdrantOnline:      qdrantOnlineStoreFactory,
 		pt.MemoryOffline:     memoryOfflineStoreFactory,
 		pt.MySqlOffline:      mySqlOfflineStoreFactory,
 		pt.PostgresOffline:   postgresOfflineStoreFactory,
@@ -78,7 +84,7 @@ func (provider BaseProvider) CheckHealth() (bool, error) {
 
 type Factory func(pc.SerializedConfig) (Provider, error)
 
-var factories map[pt.Type]Factory = make(map[pt.Type]Factory)
+var factories = make(map[pt.Type]Factory)
 
 func RegisterFactory(t pt.Type, f Factory) error {
 	if _, has := factories[t]; has {

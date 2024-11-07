@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package main
 
@@ -10,6 +13,7 @@ import (
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
+	"github.com/featureform/scheduling"
 	"go.uber.org/zap"
 )
 
@@ -17,10 +21,12 @@ func main() {
 	sugaredLogger := zap.NewExample().Sugar()
 	logger := logging.WrapZapLogger(sugaredLogger)
 	addr := help.GetEnv("METADATA_PORT", "8080")
+
+	meta, err := scheduling.NewMemoryTaskMetadataManager()
 	config := &metadata.Config{
-		Logger:          logger,
-		Address:         fmt.Sprintf(":%s", addr),
-		StorageProvider: metadata.LocalStorageProvider{},
+		Logger:      logger,
+		Address:     fmt.Sprintf(":%s", addr),
+		TaskManager: meta,
 	}
 	server, err := metadata.NewMetadataServer(config)
 	if err != nil {

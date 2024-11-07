@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import sys
 
 import pytest
@@ -17,18 +24,30 @@ class TestApply:
         runner = CliRunner()
         with pytest.raises(
             ValueError,
-            match="Argument must be a path to a file or URL with a valid schema",
+            match="Argument must be a path to a file, directory or URL with a valid schema",
         ):
-            runner.invoke(apply, ". --dry-run".split(), catch_exceptions=False)
+            runner.invoke(
+                apply, "nonexistent_file.py --dry-run".split(), catch_exceptions=False
+            )
 
     def test_invalid_url(self):
         runner = CliRunner()
         with pytest.raises(
             ValueError,
-            match="Argument must be a path to a file or URL with a valid schema",
+            match="Argument must be a path to a file, directory or URL with a valid schema",
         ):
             runner.invoke(
                 apply, "www.something.com --dry-run".split(), catch_exceptions=False
+            )
+
+    def test_invalid_dir(self):
+        runner = CliRunner()
+        with pytest.raises(
+            ValueError,
+            match="Argument must be a path to a file, directory or URL with a valid schema",
+        ):
+            runner.invoke(
+                apply, "./my_ff_dir --dry-run".split(), catch_exceptions=False
             )
 
     def test_valid_url(self):
@@ -45,6 +64,15 @@ class TestApply:
         result = runner.invoke(
             apply,
             "client/examples/quickstart.py --dry-run".split(),
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+
+    def test_valid_dir(self):
+        runner = CliRunner()
+        result = runner.invoke(
+            apply,
+            "client/examples/example_dir --dry-run".split(),
             catch_exceptions=False,
         )
         assert result.exit_code == 0

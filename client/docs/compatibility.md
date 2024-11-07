@@ -21,7 +21,6 @@
 |     Pinecone      | &check; |     &check;     |
 |   Redis Vector    | &check; |     &check;     |
 |     Weaviate      | &check; |     &check;     |
-|     Qdrant        | &check; |     &check;     |
 
 
 ## Features

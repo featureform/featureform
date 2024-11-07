@@ -1,11 +1,17 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 from featureform.proto import metadata_pb2
 import grpc
-from featureform.proto import metadata_pb2_grpc as ff_grpc
 from .format import *
 
 
 def get_user_info(stub, name):
-    searchName = metadata_pb2.Name(name=name)
+    searchName = metadata_pb2.NameRequest(name=metadata_pb2.Name(name=name))
     try:
         for user in stub.GetUsers(iter([searchName])):
             format_rows("USER NAME: ", user.name)
@@ -27,7 +33,7 @@ def get_user_info(stub, name):
 
 
 def get_entity_info(stub, name):
-    searchName = metadata_pb2.Name(name=name)
+    searchName = metadata_pb2.NameRequest(name=metadata_pb2.Name(name=name))
     try:
         for x in stub.GetEntities(iter([searchName])):
             format_rows(
@@ -64,7 +70,7 @@ def get_resource_info(stub, resource_type, name):
         "model": stub.GetModels,
     }
 
-    searchName = metadata_pb2.Name(name=name)
+    searchName = metadata_pb2.NameRequest(name=metadata_pb2.Name(name=name))
     try:
         for x in stub_get_functions[resource_type](iter([searchName])):
             rows = [("NAME: ", x.name)]
@@ -89,7 +95,8 @@ def get_resource_info(stub, resource_type, name):
 
 
 def get_feature_variant_info(stub, name, variant):
-    searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
+    name_variant = metadata_pb2.NameVariant(name=name, variant=variant)
+    searchNameVariant = metadata_pb2.NameVariantRequest(name_variant=name_variant)
     try:
         for x in stub.GetFeatureVariants(iter([searchNameVariant])):
             status = x.status.Status._enum_type.values[x.status.status].name
@@ -120,7 +127,8 @@ def get_feature_variant_info(stub, name, variant):
 
 
 def get_label_variant_info(stub, name, variant):
-    searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
+    name_variant = metadata_pb2.NameVariant(name=name, variant=variant)
+    searchNameVariant = metadata_pb2.NameVariantRequest(name_variant=name_variant)
     try:
         for x in stub.GetLabelVariants(iter([searchNameVariant])):
             status = x.status.Status._enum_type.values[x.status.status].name
@@ -151,7 +159,8 @@ def get_label_variant_info(stub, name, variant):
 
 
 def get_source_variant_info(stub, name, variant):
-    searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
+    name_variant = metadata_pb2.NameVariant(name=name, variant=variant)
+    searchNameVariant = metadata_pb2.NameVariantRequest(name_variant=name_variant)
     try:
         for x in stub.GetSourceVariants(iter([searchNameVariant])):
             status = x.status.Status._enum_type.values[x.status.status].name
@@ -196,7 +205,8 @@ def get_source_variant_info(stub, name, variant):
 
 
 def get_training_set_variant_info(stub, name, variant):
-    searchNameVariant = metadata_pb2.NameVariant(name=name, variant=variant)
+    name_variant = metadata_pb2.NameVariant(name=name, variant=variant)
+    searchNameVariant = metadata_pb2.NameVariantRequest(name_variant=name_variant)
     try:
         for x in stub.GetTrainingSetVariants(iter([searchNameVariant])):
             status = x.status.Status._enum_type.values[x.status.status].name
@@ -225,7 +235,7 @@ def get_training_set_variant_info(stub, name, variant):
 
 
 def get_provider_info(stub, name):
-    searchName = metadata_pb2.Name(name=name)
+    searchName = metadata_pb2.NameRequest(name=metadata_pb2.Name(name=name))
     try:
         for x in stub.GetProviders(iter([searchName])):
             status = x.status.Status._enum_type.values[x.status.status].name

@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 # To properly display pending deprecation warnings for the ResourceClient
 # and ServingClient classes, we need to set the formatwarning function
 # to a custom function to avoid the default behavior of printing the
@@ -21,17 +28,20 @@ from .serving import ServingClient
 from .resources import (
     DatabricksCredentials,
     EMRCredentials,
-    AWSCredentials,
+    AWSStaticCredentials,
+    AWSAssumeRoleCredentials,
     GCPCredentials,
+    GlueCatalog,
     SparkCredentials,
+    BasicCredentials,
+    KerberosCredentials,
 )
 from .client import Client
-from .enums import ResourceType
+from .enums import ResourceType, TableFormat, DataResourceType
 
 ServingClient = ServingClient
 ResourceClient = ResourceClient
 Client = Client
-
 
 # Executor Credentials
 DatabricksCredentials = DatabricksCredentials
@@ -39,20 +49,28 @@ EMRCredentials = EMRCredentials
 SparkCredentials = SparkCredentials
 
 # Cloud Provider Credentials
-AWSCredentials = AWSCredentials
+AWSStaticCredentials = AWSStaticCredentials
+AWSAssumeRoleCredentials = AWSAssumeRoleCredentials
 GCPCredentials = GCPCredentials
+GlueCatalog = GlueCatalog
+
+# HDFS Credentials
+BasicCredentials = BasicCredentials
+KerberosCredentials = KerberosCredentials
 
 # Class API
 Feature = FeatureColumnResource
 Label = LabelColumnResource
 Variants = Variants
 Embedding = EmbeddingColumnResource
+FeatureStream = FeatureStreamResource
+LabelStream = LabelStreamResource
 MultiFeature = MultiFeatureColumnResource
 
-
-register_user("default_user").make_default_owner()
 set_run = set_run
 get_run = get_run
 
 # Enums
+DataResourceType = DataResourceType
 ResourceType = ResourceType
+TableFormat = TableFormat

@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider_config
 
 import (
@@ -5,6 +12,8 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	"github.com/featureform/provider/retriever"
 
 	fs "github.com/featureform/filestore"
 	pt "github.com/featureform/provider/provider_type"
@@ -146,10 +155,14 @@ func TestDynamo(t *testing.T) {
 	}
 
 	config := jsonDict["DynamodbConfig"].(map[string]interface{})
+	credentials := config["Credentials"].(map[string]interface{})
+	awsCreds := AWSStaticCredentials{
+		AccessKeyId: credentials["AccessKeyId"].(string),
+		SecretKey:   credentials["SecretKey"].(string),
+	}
 	instance := DynamodbConfig{
-		Region:    config["Region"].(string),
-		AccessKey: config["AccessKey"].(string),
-		SecretKey: config["SecretKey"].(string),
+		Region:      config["Region"].(string),
+		Credentials: awsCreds,
 	}
 
 	assert.NotNil(t, instance)
@@ -252,7 +265,7 @@ func TestPostgres(t *testing.T) {
 		Host:     config["Host"].(string),
 		Port:     config["Port"].(string),
 		Username: config["Username"].(string),
-		Password: config["Password"].(string),
+		Password: retriever.NewStaticValue[string](config["Password"].(string)),
 		Database: config["Database"].(string),
 	}
 
@@ -434,9 +447,9 @@ func TestS3(t *testing.T) {
 
 	config := jsonDict["S3StoreConfig"].(map[string]interface{})
 	credendials := config["Credentials"].(map[string]interface{})
-	awsCreds := AWSCredentials{
-		AWSAccessKeyId: credendials["AWSAccessKeyId"].(string),
-		AWSSecretKey:   credendials["AWSSecretKey"].(string),
+	awsCreds := AWSStaticCredentials{
+		AccessKeyId: credendials["AccessKeyId"].(string),
+		SecretKey:   credendials["SecretKey"].(string),
 	}
 	instance := S3FileStoreConfig{
 		Credentials:  awsCreds,
@@ -491,10 +504,9 @@ func TestHDFSConfig(t *testing.T) {
 
 	config := jsonDict["HDFSConfig"].(map[string]interface{})
 	instance := HDFSFileStoreConfig{
-		Host:     config["Host"].(string),
-		Port:     config["Port"].(string),
-		Path:     config["Path"].(string),
-		Username: config["Username"].(string),
+		Host: config["Host"].(string),
+		Port: config["Port"].(string),
+		Path: config["Path"].(string),
 	}
 
 	assert.NotNil(t, instance)

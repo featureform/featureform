@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package metadata
 
 import (
@@ -152,7 +159,7 @@ func (MetadataServerMock) GetSources(ctx context.Context, opts ...grpc.CallOptio
 	return nil, nil
 }
 
-func (MetadataServerMock) GetEquivalent(ctx context.Context, req *pb.ResourceVariantRequest, opts ...grpc.CallOption) (*pb.ResourceVariant, error) {
+func (MetadataServerMock) GetEquivalent(ctx context.Context, req *pb.GetEquivalentRequest, opts ...grpc.CallOption) (*pb.ResourceVariant, error) {
 	return nil, nil
 }
 
@@ -202,5 +209,9 @@ func (MetadataServerMock) SetResourceStatus(ctx context.Context, in *pb.SetStatu
 	return nil, nil
 }
 func (MetadataServerMock) RequestScheduleChange(ctx context.Context, in *pb.ScheduleChangeRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
+	return nil, nil
+}
+
+func (MetadataServerMock) Run(ctx context.Context, in *pb.RunRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	return nil, nil
 }

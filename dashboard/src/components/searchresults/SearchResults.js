@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import { useRouter } from 'next/router';
 import React, { useEffect, useState } from 'react';
 import { connect } from 'react-redux';
@@ -11,26 +18,21 @@ function useQuery() {
   return new URLSearchParams(router.query);
 }
 
-const mapDispatchToProps = (dispatch) => {
-  return {
-    fetch: (api, query) => dispatch(fetchSearch({ api, query })),
-    setVariant: (type, name, variant) => {
-      dispatch(setVariant({ type, name, variant }));
-    },
-  };
-};
-
 const SearchResults = ({ searchResults, api, setVariant, ...props }) => {
-  let search_query = useQuery().get('q');
+  const searchQuery = useQuery().get('q');
   const [loading, setLoading] = useState(false);
   const fetchQuery = props.fetch;
-  useEffect(async () => {
-    if (api && search_query) {
-      setLoading(true);
-      await fetchQuery(api, search_query);
-      setLoading(false);
-    }
-  }, [search_query, api, fetchQuery]);
+
+  useEffect(() => {
+    const getQuery = async () => {
+      if (api && searchQuery) {
+        setLoading(true);
+        await fetchQuery(api, searchQuery);
+        setLoading(false);
+      }
+    };
+    getQuery();
+  }, [searchQuery, api, fetchQuery]);
 
   return (
     <>
@@ -39,7 +41,7 @@ const SearchResults = ({ searchResults, api, setVariant, ...props }) => {
       ) : (
         <SearchResultsView
           results={searchResults?.resources}
-          search_query={search_query}
+          searchQuery={searchQuery}
           setVariant={setVariant}
         />
       )}
@@ -50,5 +52,14 @@ const SearchResults = ({ searchResults, api, setVariant, ...props }) => {
 const mapStateToProps = (state) => ({
   searchResults: state.searchResults,
 });
+
+const mapDispatchToProps = (dispatch) => {
+  return {
+    fetch: (api, query) => dispatch(fetchSearch({ api, query })),
+    setVariant: (type, name, variant) => {
+      dispatch(setVariant({ type, name, variant }));
+    },
+  };
+};
 
 export default connect(mapStateToProps, mapDispatchToProps)(SearchResults);

@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 Feature: Credentials
 
   @wip
@@ -6,10 +13,10 @@ Feature: Credentials
     When I create the AWS credentials with an access key "<access_key>" and secret key "<secret_key>"
     Then An exception that "matches" "<exception>" should be raised
     Examples:
-      | access_key | secret_key | exception                                   |
-      | AXASCASCA  | asdvadvadv | None                                        |
-      | empty      | asdvadvadv | 'AWSCredentials' access_key cannot be empty |
-      | AXASCASCA  | empty      | 'AWSCredentials' secret_key cannot be empty |
+      | access_key | secret_key | exception                                         |
+      | AXASCASCA  | asdvadvadv | None                                              |
+      | empty      | asdvadvadv | 'AWSStaticCredentials' access_key cannot be empty |
+      | AXASCASCA  | empty      | 'AWSStaticCredentials' secret_key cannot be empty |
 
   @wip
   Scenario Outline: Create GCP Credentials

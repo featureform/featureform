@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package provider
 
@@ -18,11 +21,18 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/filestore"
+	fs "github.com/featureform/filestore"
+	"github.com/featureform/metadata"
+	pb "github.com/featureform/metadata/proto"
+	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
+	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 	"github.com/parquet-go/parquet-go"
+	"gotest.tools/v3/assert"
 )
 
 const outputDir = "test_files/output"
@@ -180,7 +190,7 @@ func testResourceLocation(t *testing.T, store OfflineStore) {
 		},
 	}
 
-	_, err := store.CreatePrimaryTable(id, schema)
+	table, err := store.CreatePrimaryTable(id, schema)
 	if err != nil {
 		t.Fatalf("could not create primary table: %v", err)
 	}
@@ -189,19 +199,36 @@ func testResourceLocation(t *testing.T, store OfflineStore) {
 		t.Fatalf("Failed to get table: %v", err)
 	}
 
-	location, err := store.ResourceLocation(id)
-	if location == "" || err != nil {
+	svProto := pb.SourceVariant{
+		Table: table.GetName(),
+		Definition: &pb.SourceVariant_PrimaryData{
+			PrimaryData: &pb.PrimaryData{
+				Location: &pb.PrimaryData_Table{
+					Table: &pb.SQLTable{
+						Name: table.GetName(),
+					},
+				},
+			},
+		},
+	}
+	sv := metadata.WrapProtoSourceVariant(&svProto)
+
+	location, err := store.ResourceLocation(id, *sv)
+	if err != nil {
+		t.Fatalf("Failed to get location: %v", err)
+	}
+	if location.Location() == "" || err != nil {
 		t.Fatalf("Failed to get location: %v", err)
 	}
 
 	if store.Type() == pt.SparkOffline || store.Type() == pt.K8sOffline {
 		expectedLocation := fmt.Sprintf("featureform/transformation/%s/%s", id.Name, id.Variant)
-		if !strings.Contains(location, expectedLocation) {
+		if !strings.Contains(location.Location(), expectedLocation) {
 			t.Fatalf("Location is incorrect: %s needs to have %s", location, expectedLocation)
 		}
 	} else {
 		expectedLocation := fmt.Sprintf("featureform_primary__%s__%s", id.Name, id.Variant)
-		if location != expectedLocation {
+		if location.Location() != expectedLocation {
 			t.Fatalf("Location is incorrect: %s != expected location (%s)", location, expectedLocation)
 		}
 	}
@@ -433,7 +460,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			t.Fatalf("Failed to write batch: %s", err)
 		}
 
-		mat, err := store.CreateMaterialization(id)
+		mat, err := store.CreateMaterialization(id, MaterializationOptions{Output: fs.Parquet})
 		if err != nil {
 			t.Fatalf("Failed to create materialization: %s", err)
 		}
@@ -747,8 +774,8 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 		if err := table.WriteBatch(test.WriteRecords); err != nil {
 			t.Fatalf("Failed to write batch: %s", err)
 		}
-
-		mat, err := store.CreateMaterialization(id)
+		opts := MaterializationOptions{Output: fs.Parquet}
+		mat, err := store.CreateMaterialization(id, opts)
 		if err != nil {
 			t.Fatalf("Failed to create materialization: %s", err)
 		}
@@ -762,7 +789,7 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 			t.Fatalf("Failed to write batch: %s", err)
 		}
 
-		mat, err = store.UpdateMaterialization(id)
+		mat, err = store.UpdateMaterialization(id, opts)
 		if err != nil {
 			t.Fatalf("Failed to update materialization: %s", err)
 		}
@@ -814,25 +841,29 @@ func testInvalidMaterialization(t *testing.T, store OfflineStore) {
 	if _, err := store.CreateResourceTable(id, schema); err != nil {
 		t.Fatalf("Failed to create table: %s", err)
 	}
-	if _, err := store.CreateMaterialization(id); err == nil {
+	if _, err := store.CreateMaterialization(id, MaterializationOptions{Output: fs.Parquet}); err == nil {
 		t.Fatalf("Succeeded in materializing label")
 	}
 }
 
 func testMaterializeUnknown(t *testing.T, store OfflineStore) {
 	id := randomID(Feature)
-	if _, err := store.CreateMaterialization(id); err == nil {
+	if _, err := store.CreateMaterialization(id, MaterializationOptions{Output: fs.Parquet}); err == nil {
 		t.Fatalf("Succeeded in materializing uninitialized resource")
 	}
 }
 
 func testMaterializationNotFound(t *testing.T, store OfflineStore) {
-	id := MaterializationID(uuid.NewString())
-	_, err := store.GetMaterialization(id)
-	if err == nil {
+	id := randomID(Feature)
+	matIDStr, err := ps.ResourceToMaterializationID(id.Type.String(), id.Name, id.Variant)
+	if err != nil {
+		t.Fatalf("Failed to get materialization ID: %s", err)
+	}
+	matID := MaterializationID(matIDStr)
+	if _, err := store.GetMaterialization(matID); err == nil {
 		t.Fatalf("Succeeded in getting uninitialized materialization")
 	}
-	err = store.DeleteMaterialization(id)
+	err = store.DeleteMaterialization(matID)
 	if err == nil {
 		t.Fatalf("Succeeded in deleting uninitialized materialization")
 	}
@@ -1890,7 +1921,22 @@ func testPrimaryTableWrite(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not create table: %v", err)
 		}
-		_, err = store.GetPrimaryTable(test.Rec) // Need To Fix Schema Here
+
+		svProto := pb.SourceVariant{
+			Table: table.GetName(),
+			Definition: &pb.SourceVariant_PrimaryData{
+				PrimaryData: &pb.PrimaryData{
+					Location: &pb.PrimaryData_Table{
+						Table: &pb.SQLTable{
+							Name: table.GetName(),
+						},
+					},
+				},
+			},
+		}
+		sv := metadata.WrapProtoSourceVariant(&svProto)
+
+		_, err = store.GetPrimaryTable(test.Rec, *sv) // Need To Fix Schema Here
 		if err != nil {
 			t.Fatalf("Could not get Primary table: %v", err)
 		}
@@ -2166,28 +2212,40 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 	}
 
 	testTransform := func(t *testing.T, test TransformTest) {
-		table, err := store.CreatePrimaryTable(test.PrimaryTable, test.Schema)
+		primaryTable, err := store.CreatePrimaryTable(test.PrimaryTable, test.Schema)
 		if err != nil {
 			t.Fatalf("Could not initialize table: %v", err)
 		}
-		if err := table.WriteBatch(test.Records); err != nil {
+		if err := primaryTable.WriteBatch(test.Records); err != nil {
 			t.Fatalf("Could not write value: %v", err)
 		}
 
-		modifyTransformationConfig(t, t.Name(), table.GetName(), store.Type(), &test.Config)
+		modifyTransformationConfig(t, t.Name(), primaryTable.GetName(), store.Type(), &test.Config)
 		if err := store.CreateTransformation(test.Config); err != nil {
 			t.Fatalf("Could not create transformation: %v", err)
 		}
-		rows, err := table.NumRows()
+		rows, err := primaryTable.NumRows()
 		if err != nil {
 			t.Fatalf("could not get NumRows of table: %v", err)
 		}
 		if int(rows) != len(test.Records) {
 			t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(test.Records), rows)
 		}
-		table, err = store.GetTransformationTable(test.Config.TargetTableID)
+		table, err := store.GetTransformationTable(test.Config.TargetTableID)
 		if err != nil {
 			t.Errorf("Could not get transformation table: %v", err)
+		}
+
+		var location pl.Location
+		if store.Type() == pt.SparkOffline {
+			sparkStore := store.(*SparkOfflineStore)
+			fp, err := sparkStore.Store.CreateFilePath(table.GetName(), false)
+			if err != nil {
+				t.Fatalf("Could not create file path: %v", err)
+			}
+			location = pl.NewFileLocation(fp)
+		} else {
+			location = pl.NewSQLLocation(table.GetName())
 		}
 
 		// create feature on transformation
@@ -2195,7 +2253,7 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 			Entity:      "entity",
 			Value:       "int",
 			TS:          "ts",
-			SourceTable: table.GetName(),
+			SourceTable: location,
 		}
 		_, err = store.RegisterResourceFromSourceTable(featureID, recSchema)
 		if err != nil {
@@ -2205,12 +2263,26 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not get resource table: %v", err)
 		}
-		_, err = store.CreateMaterialization(featureID)
+		_, err = store.CreateMaterialization(featureID, MaterializationOptions{Output: fs.Parquet})
 		if err != nil {
 			t.Fatalf("Could not create materialization: %v", err)
 		}
 
-		table, err = store.GetPrimaryTable(test.PrimaryTable)
+		svProto := pb.SourceVariant{
+			Table: primaryTable.GetName(),
+			Definition: &pb.SourceVariant_PrimaryData{
+				PrimaryData: &pb.PrimaryData{
+					Location: &pb.PrimaryData_Table{
+						Table: &pb.SQLTable{
+							Name: primaryTable.GetName(),
+						},
+					},
+				},
+			},
+		}
+		sv := metadata.WrapProtoSourceVariant(&svProto)
+
+		table, err = store.GetPrimaryTable(test.PrimaryTable, *sv)
 		if err != nil {
 			t.Fatalf("Could not get primary table: %v", err)
 		}
@@ -2315,7 +2387,7 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 				},
 				Query: "SELECT * FROM tb",
 				SourceMapping: []SourceMapping{
-					SourceMapping{
+					{
 						Template: "tb",
 						Source:   "TBD",
 					},
@@ -2373,7 +2445,7 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 				},
 				Query: "SELECT COUNT(*) as total_count FROM tb",
 				SourceMapping: []SourceMapping{
-					SourceMapping{
+					{
 						Template: "tb",
 						Source:   "TBD",
 					},
@@ -2389,26 +2461,26 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 	}
 
 	testTransform := func(t *testing.T, test TransformTest) {
-		table, err := store.CreatePrimaryTable(test.PrimaryTable, test.Schema)
+		primaryTable, err := store.CreatePrimaryTable(test.PrimaryTable, test.Schema)
 		if err != nil {
 			t.Fatalf("Could not initialize table: %v", err)
 		}
-		if err := table.WriteBatch(test.Records); err != nil {
+		if err := primaryTable.WriteBatch(test.Records); err != nil {
 			t.Fatalf("Could not write records: %v", err)
 		}
 
-		modifyTransformationConfig(t, t.Name(), table.GetName(), store.Type(), &test.Config)
+		modifyTransformationConfig(t, t.Name(), primaryTable.GetName(), store.Type(), &test.Config)
 		if err := store.CreateTransformation(test.Config); err != nil {
 			t.Fatalf("Could not create transformation: %v", err)
 		}
-		rows, err := table.NumRows()
+		rows, err := primaryTable.NumRows()
 		if err != nil {
 			t.Fatalf("could not get NumRows of table: %v", err)
 		}
 		if int(rows) != len(test.Records) {
 			t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(test.Records), rows)
 		}
-		table, err = store.GetTransformationTable(test.Config.TargetTableID)
+		table, err := store.GetTransformationTable(test.Config.TargetTableID)
 		if err != nil {
 			t.Errorf("Could not get transformation table: %v", err)
 		}
@@ -2438,7 +2510,22 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 		if err := iterator.Close(); err != nil {
 			t.Fatalf("Could not close iterator: %v", err)
 		}
-		table, err = store.GetPrimaryTable(test.PrimaryTable)
+
+		svProto := pb.SourceVariant{
+			Table: primaryTable.GetName(),
+			Definition: &pb.SourceVariant_PrimaryData{
+				PrimaryData: &pb.PrimaryData{
+					Location: &pb.PrimaryData_Table{
+						Table: &pb.SQLTable{
+							Name: primaryTable.GetName(),
+						},
+					},
+				},
+			},
+		}
+		sv := metadata.WrapProtoSourceVariant(&svProto)
+
+		table, err = store.GetPrimaryTable(test.PrimaryTable, *sv)
 		if err != nil {
 			t.Fatalf("Could not get primary table: %v", err)
 		}
@@ -2900,7 +2987,7 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 	if int(rows) != len(tests["First"].Records) {
 		t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(tests["First"].Records), rows)
 	}
-	mat, err := store.CreateMaterialization(tests["First"].Config.TargetTableID)
+	mat, err := store.CreateMaterialization(tests["First"].Config.TargetTableID, MaterializationOptions{Output: fs.Parquet})
 	if err != nil {
 		t.Fatalf("Could not create materialization: %v", err)
 	}
@@ -2949,6 +3036,18 @@ func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not write batch: %v", err)
 	}
 
+	var location pl.Location
+	if store.Type() == pt.SparkOffline {
+		sparkStore := store.(*SparkOfflineStore)
+		fp, err := sparkStore.Store.CreateFilePath(table.GetName(), false)
+		if err != nil {
+			t.Fatalf("Could not create file path: %v", err)
+		}
+		location = pl.NewFileLocation(fp)
+	} else {
+		location = pl.NewSQLLocation(table.GetName())
+	}
+
 	featureID := ResourceID{
 		Name:    uuid.NewString(),
 		Variant: uuid.NewString(),
@@ -2958,7 +3057,7 @@ func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 		Entity:      "col1",
 		Value:       "col2",
 		TS:          "col4",
-		SourceTable: table.GetName(),
+		SourceTable: location,
 	}
 	t.Log("Resource Name: ", featureID.Name)
 	_, err = store.RegisterResourceFromSourceTable(featureID, recSchema)
@@ -2969,7 +3068,7 @@ func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Fatalf("Could not get resource table: %v", err)
 	}
-	mat, err := store.CreateMaterialization(featureID)
+	mat, err := store.CreateMaterialization(featureID, MaterializationOptions{Output: fs.Parquet})
 	if err != nil {
 		t.Fatalf("Could not create materialization: %v", err)
 	}
@@ -2987,7 +3086,7 @@ func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Fatalf("Could not delete materialization: %v", err)
 	}
-	mat, err = store.CreateMaterialization(featureID)
+	mat, err = store.CreateMaterialization(featureID, MaterializationOptions{Output: fs.Parquet})
 	if err != nil {
 		t.Fatalf("Could not recreate materialization: %v", err)
 	}
@@ -3039,6 +3138,18 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not write batch: %v", err)
 	}
 
+	var location pl.Location
+	if store.Type() == pt.SparkOffline {
+		sparkStore := store.(*SparkOfflineStore)
+		fp, err := sparkStore.Store.CreateFilePath(table.GetName(), false)
+		if err != nil {
+			t.Fatalf("Could not create file path: %v", err)
+		}
+		location = pl.NewFileLocation(fp)
+	} else {
+		location = pl.NewSQLLocation(table.GetName())
+	}
+
 	featureID := ResourceID{
 		Name:    uuid.NewString(),
 		Variant: uuid.NewString(),
@@ -3047,7 +3158,7 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 	recSchema := ResourceSchema{
 		Entity:      "col1",
 		Value:       "col2",
-		SourceTable: table.GetName(),
+		SourceTable: location,
 	}
 	t.Log("Resource Name: ", featureID.Name)
 	_, err = store.RegisterResourceFromSourceTable(featureID, recSchema)
@@ -3066,7 +3177,7 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 	labelSchema := ResourceSchema{
 		Entity:      "col1",
 		Value:       "col4",
-		SourceTable: table.GetName(),
+		SourceTable: location,
 	}
 	t.Log("Label Name: ", labelID.Name)
 	_, err = store.RegisterResourceFromSourceTable(labelID, labelSchema)
@@ -3167,13 +3278,23 @@ func testCreatePrimaryFromNonExistentSource(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Fatalf("Could not create primary table: %v", err)
 	}
-	tableName := sanitizeTableName(string(store.Type()), table.GetName())
-	tableName = fmt.Sprintf("%s_%s", table.GetName(), "nonexistant")
-	_, err = store.RegisterPrimaryFromSourceTable(primaryID, tableName)
-	if err == nil {
-		t.Fatalf("Successfully created primary table from non-existant source")
+	tableName := fmt.Sprintf("%s_%s", "nonexistent", table.GetName())
+	var primaryErr error
+	if store.Type() == pt.SparkOffline {
+		sourceTablePath, err := table.(*FileStorePrimaryTable).GetSource()
+		if err != nil {
+			t.Fatalf("Could not get source table path: %v", err)
+		}
+
+		_, primaryErr = store.RegisterPrimaryFromSourceTable(primaryID, pl.NewFileLocation(sourceTablePath))
+	} else {
+		_, primaryErr = store.RegisterPrimaryFromSourceTable(primaryID, pl.NewSQLLocation(tableName))
 	}
-	if strings.Contains(err.Error(), "source does not exist") {
+
+	if primaryErr == nil {
+		t.Fatalf("Successfully created primary table from non-existent source")
+	}
+	if strings.Contains(primaryErr.Error(), "source does not exist") {
 		t.Fatalf("error message doesn't match got: %s", err.Error())
 	}
 }
@@ -3230,13 +3351,32 @@ func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not get source table path: %v", err)
 		}
-		tableName = sourceTablePath.ToURI()
+
+		_, err = store.RegisterPrimaryFromSourceTable(primaryCopyID, pl.NewFileLocation(sourceTablePath))
+		if err != nil {
+			t.Fatalf("Could not register from Source Table: %s", err)
+		}
+	} else {
+		_, err = store.RegisterPrimaryFromSourceTable(primaryCopyID, pl.NewSQLLocation(tableName))
+		if err != nil {
+			t.Fatalf("Could not register from Source Table: %s", err)
+		}
 	}
-	_, err = store.RegisterPrimaryFromSourceTable(primaryCopyID, tableName)
-	if err != nil {
-		t.Fatalf("Could not register from Source Table: %s", err)
+
+	svProto := pb.SourceVariant{
+		Table: tableName,
+		Definition: &pb.SourceVariant_PrimaryData{
+			PrimaryData: &pb.PrimaryData{
+				Location: &pb.PrimaryData_Table{
+					Table: &pb.SQLTable{
+						Name: tableName,
+					},
+				},
+			},
+		},
 	}
-	_, err = store.GetPrimaryTable(primaryCopyID)
+	sv := metadata.WrapProtoSourceVariant(&svProto)
+	_, err = store.GetPrimaryTable(primaryCopyID, *sv)
 	if err != nil {
 		t.Fatalf("Could not get primary table: %v", err)
 	}
@@ -3380,7 +3520,7 @@ func getTableName(testName string, tableName string) string {
 		prefix := fmt.Sprintf("%s.%s", os.Getenv("BIGQUERY_PROJECT_ID"), os.Getenv("BIGQUERY_DATASET_ID"))
 		tableName = fmt.Sprintf("`%s.%s`", prefix, tableName)
 	} else if strings.Contains(testName, "CLICKHOUSE") {
-		tableName = sanitizeCH(tableName)
+		tableName = SanitizeClickHouseIdentifier(tableName)
 	} else {
 		tableName = sanitize(tableName)
 	}
@@ -3391,7 +3531,7 @@ func sanitizeTableName(testName string, tableName string) string {
 	if !strings.Contains(testName, "BIGQUERY") {
 		tableName = sanitize(tableName)
 	} else if strings.Contains(testName, "CLICKHOUSE") {
-		tableName = sanitizeCH(tableName)
+		tableName = SanitizeClickHouseIdentifier(tableName)
 	}
 	return tableName
 }
@@ -4199,7 +4339,7 @@ func testBatchFeature(t *testing.T, store OfflineStore) {
 			if err := table.WriteBatch(recs); err != nil {
 				t.Fatalf("Failed to write batch: %v", err)
 			}
-			_, err = store.CreateMaterialization(id)
+			_, err = store.CreateMaterialization(id, MaterializationOptions{Output: fs.Parquet})
 			if err != nil {
 				t.Fatalf("Failed to create materialization: %s", err)
 			}
@@ -4334,7 +4474,7 @@ func TestTableSchemaToParquetRecords(t *testing.T) {
 			t.Fatalf("Could not write parquet records: %v", err)
 		}
 		buf := new(bytes.Buffer)
-		writeErr := parquet.Write[any](buf, parquetRecords, schema)
+		writeErr := parquet.Write(buf, parquetRecords, schema)
 		if writeErr != nil {
 			t.Fatalf("Could not write parquet records: %v", writeErr)
 		}
@@ -4342,7 +4482,7 @@ func TestTableSchemaToParquetRecords(t *testing.T) {
 		if wFileErr != nil {
 			t.Fatalf("Could not write parquet file: %v", wFileErr)
 		}
-		data, err := os.ReadFile(testFilename)
+		data, err := os.Open(testFilename)
 		if err != nil {
 			t.Fatalf("Could not read parquet file: %v", err)
 		}
@@ -4674,6 +4814,237 @@ func testTrainTestSplit(t *testing.T, store OfflineStore) {
 				t.Skip()
 			}
 			testConst.TestFunction(t, store, testConst.TestParameters)
+		})
+	}
+}
+
+func TestResumeOption(t *testing.T) {
+	testSuite := map[string]func(t *testing.T){
+		"Test Resume Constructor":    testResumeConstructor,
+		"Test Resumable Constructor": testResumableConstructor,
+		"Test Set Resume ID":         testSetResumeID,
+		"Test Finish With Error":     testResumeFinishWithError,
+		"Test Finish Called Twice":   testResumeFinishTwice,
+		"Test Timeout":               testTimeout,
+	}
+	for name, test := range testSuite {
+		t.Run(name, test)
+	}
+}
+
+func testTimeout(t *testing.T) {
+	opt := RunAsyncWithResume(time.Millisecond)
+	done := make(chan struct{})
+	go func() {
+		if err := opt.Wait(); err == nil {
+			t.Fatalf("Timeout didn't return an error")
+		}
+		done <- struct{}{}
+	}()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatalf("Wait didn't timeout")
+	}
+}
+
+func testResumeFinishTwice(t *testing.T) {
+	opt := RunAsyncWithResume(time.Second)
+	if err := opt.finishWithError(nil); err != nil {
+		t.Fatalf("First finish returned error: %s", err)
+	}
+	if err := opt.finishWithError(nil); err == nil {
+		t.Fatalf("Second finish didn't have error")
+	}
+}
+
+func testResumeFinishWithError(t *testing.T) {
+	opt := RunAsyncWithResume(time.Second)
+	expErr := fmt.Errorf("Expected Error")
+	errChan := make(chan error)
+	go func(opt *ResumeOption) {
+		errChan <- opt.Wait()
+	}(opt)
+	if err := opt.finishWithError(expErr); err != nil {
+		t.Fatalf("Finish failed: %s", err)
+	}
+	if err := <-errChan; err != expErr {
+		t.Fatalf("Errors don't match. Want: %s. Got: %s", expErr, err)
+	}
+
+}
+
+func testSetResumeID(t *testing.T) {
+	opt := RunAsyncWithResume(time.Second)
+	if opt.IsResumeIDSet() {
+		t.Fatalf("ResumeID marked as set")
+	}
+	id := types.ResumeID("id")
+	if err := opt.setResumeID(id); err != nil {
+		t.Fatalf("Failed to set resume ID: %s", err)
+	}
+	gotID := opt.ResumeID()
+	if !reflect.DeepEqual(gotID, id) {
+		t.Fatalf("IDs do not match\nGot: %v\nWanted: %v", gotID, id)
+	}
+}
+
+func testResumableConstructor(t *testing.T) {
+	// Verify it casts correctly
+	var opt TransformationOption
+	opt = RunAsyncWithResume(time.Second)
+	if opt == nil {
+		t.Fatalf("RunAsyncWithResume returned nil")
+	}
+	if opt.Type() != ResumableTransformation {
+		t.Fatalf("Type not set to ResumableTransformation")
+	}
+}
+
+func testResumeConstructor(t *testing.T) {
+	id := types.ResumeID("id")
+	// Verify it casts correctly
+	var opt TransformationOption
+	var err error
+	opt, err = ResumeOptionWithID(id, time.Second)
+	if err != nil {
+		t.Fatalf("Failed to create resume transfromation with ID: %s", err)
+	}
+	if opt.Type() != ResumableTransformation {
+		t.Fatalf("Type not set to ResumableTransformation")
+	}
+	casted := opt.(*ResumeOption)
+	gotID := casted.ResumeID()
+	if !reflect.DeepEqual(gotID, id) {
+		t.Fatalf("IDs do not match\nGot: %v\nWanted: %v", gotID, id)
+	}
+}
+
+func TestResourceSchemaSerializationDeserialization(t *testing.T) {
+	s3Filepath, err := filestore.NewEmptyFilepath(filestore.S3)
+	if err != nil {
+		t.Fatalf("Failed to create S3 filepath: %v", err)
+	}
+	if err := s3Filepath.ParseFilePath("s3://bucket/path/to/file"); err != nil {
+		t.Fatalf("Failed to parse S3 filepath: %v", err)
+	}
+
+	testCases := []struct {
+		name      string
+		schema    *ResourceSchema
+		expectErr bool
+	}{
+		{
+			name: "SQL Location",
+			schema: &ResourceSchema{
+				Entity:      "entity1",
+				Value:       "value1",
+				TS:          "timestamp1",
+				SourceTable: pl.NewSQLLocation("test_table"),
+			},
+			expectErr: false,
+		},
+		{
+			name: "FileStore Location",
+			schema: &ResourceSchema{
+				Entity:      "entity2",
+				Value:       "value2",
+				TS:          "timestamp2",
+				SourceTable: pl.NewFileLocation(s3Filepath),
+			},
+			expectErr: false,
+		},
+		{
+			name: "Catalog Location",
+			schema: &ResourceSchema{
+				Entity:      "entity3",
+				Value:       "value3",
+				TS:          "timestamp3",
+				SourceTable: pl.NewCatalogLocation("test_db", "test_table", "iceberg"),
+			},
+			expectErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := tc.schema.Serialize()
+			if (err != nil) != tc.expectErr {
+				t.Errorf("Marshal() error = %v, expectErr %v", err, tc.expectErr)
+				return
+			}
+
+			got := ResourceSchema{}
+			err = got.Deserialize(data)
+			if (err != nil) != tc.expectErr {
+				t.Errorf("Unmarshal() error = %v, expectErr %v", err, tc.expectErr)
+				return
+			}
+
+			assert.Equal(t, tc.schema.Entity, got.Entity)
+			assert.Equal(t, tc.schema.Value, got.Value)
+			assert.Equal(t, tc.schema.TS, got.TS)
+			assert.Equal(t, tc.schema.SourceTable.Location(), got.SourceTable.Location())
+			assert.Equal(t, tc.schema.SourceTable.Type(), got.SourceTable.Type())
+		})
+	}
+}
+
+func TestResourceSchemaValidation(t *testing.T) {
+	tests := []struct {
+		name      string
+		schema    *ResourceSchema
+		expectErr bool
+	}{
+		{
+			name: "Valid Schema with SQL Location",
+			schema: &ResourceSchema{
+				Entity:      "entity",
+				Value:       "value",
+				TS:          "timestamp",
+				SourceTable: pl.NewSQLLocation("test_table"),
+			},
+			expectErr: false,
+		},
+		{
+			name: "Invalid Schema missing Entity and Value",
+			schema: &ResourceSchema{
+				Entity:      "",
+				Value:       "",
+				TS:          "",
+				SourceTable: pl.NewSQLLocation("test_table"),
+			},
+			expectErr: true,
+		},
+		{
+			name: "Invalid Schema missing SourceTable location",
+			schema: &ResourceSchema{
+				Entity:      "entity",
+				Value:       "value",
+				TS:          "",
+				SourceTable: nil,
+			},
+			expectErr: true,
+		},
+		{
+			name: "Invalid Schema with empty SourceTable location",
+			schema: &ResourceSchema{
+				Entity:      "entity",
+				Value:       "value",
+				TS:          "",
+				SourceTable: pl.NewSQLLocation(""),
+			},
+			expectErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.schema.Validate()
+			if (err != nil) != tc.expectErr {
+				t.Errorf("Validate() error = %v, expectErr %v", err, tc.expectErr)
+				return
+			}
 		})
 	}
 }

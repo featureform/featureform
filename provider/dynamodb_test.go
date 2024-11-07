@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
@@ -7,7 +14,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-
 	vt "github.com/featureform/provider/types"
 )
 
@@ -313,6 +319,52 @@ func TestFailDeserializeV1(t *testing.T) {
 			found, err := serializer.Deserialize(test.vt, test.val)
 			if err == nil {
 				t.Fatalf("Succeeded to deserialize\nFound: %v\n", found)
+			}
+		})
+	}
+}
+
+func Test_exponentialBackoff(t *testing.T) {
+	maxTime := defaultDynamoTableTimeout
+
+	tests := []struct {
+		name        string
+		attempt     int
+		totalWaited time.Duration
+		wantWait    time.Duration
+		wantTotal   time.Duration
+	}{
+		{
+			name:        "first attempt, no prior wait",
+			attempt:     0,
+			totalWaited: 0,
+			wantWait:    1 * time.Second,
+			wantTotal:   1 * time.Second,
+		},
+		{
+			name:        "second attempt, after 1 second",
+			attempt:     1,
+			totalWaited: 1 * time.Second,
+			wantWait:    2 * time.Second,
+			wantTotal:   3 * time.Second,
+		},
+		{
+			name:        "exceeds default timeout",
+			attempt:     4,
+			totalWaited: maxTime - 1*time.Second,
+			wantWait:    1 * time.Second, // We have 1 second of "room" left before hitting the timeout
+			wantTotal:   maxTime,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotWait, gotTotal := exponentialBackoff(tt.attempt, tt.totalWaited)
+			if gotWait != tt.wantWait {
+				t.Errorf("exponentialBackoff() gotWait = %v, want %v", gotWait, tt.wantWait)
+			}
+			if gotTotal != tt.wantTotal {
+				t.Errorf("exponentialBackoff() gotTotal = %v, want %v", gotTotal, tt.wantTotal)
 			}
 		})
 	}

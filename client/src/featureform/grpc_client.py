@@ -1,13 +1,20 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import contextlib
 import logging
 import sys
+import time
+from dataclasses import dataclass, field
 from typing import Dict, Optional
 
 import grpc
-from dataclasses import dataclass, field
 from google.rpc import error_details_pb2, status_pb2
-
-logging.basicConfig(level=logging.DEBUG, filename="grpc_debug.log")
+from .logging import setup_logging
 
 
 @dataclass
@@ -41,7 +48,6 @@ class FFGrpcErrorDetails:
                     metadata=dict(error_info.metadata),
                 )
             else:
-                logging.debug("Unknown error detail type: %s", detail)
                 return None
 
 
@@ -57,6 +63,8 @@ class GrpcClient:
             grpc.StatusCode.ALREADY_EXISTS,
             grpc.StatusCode.INVALID_ARGUMENT,
         ]
+        setup_logging(debug)
+        self.logger = logging.getLogger(__name__)
 
     def streaming_wrapper(self, multi_threaded_rendezvous):
         try:
@@ -74,19 +82,36 @@ class GrpcClient:
 
     def __getattr__(self, name):
         attr = getattr(self._grpc_stub, name)
+        if callable(attr):
 
-        def wrapper(*args, **kwargs):
-            try:
-                # Use the stored metadata for the call
-                result = attr(*args, **kwargs)
-                # If result is a streaming call, wrap it.
-                if self.is_streaming_response(result):
-                    return self.streaming_wrapper(result)
-                return result
-            except grpc.RpcError as e:
-                self.handle_grpc_error(e)
+            def wrapper(*args, **kwargs):
+                try:
+                    self.logger.debug(
+                        f"Calling {name} with args: {args} and kwargs: {kwargs}"
+                    )
+                    start = time.perf_counter()
+                    start_call = time.perf_counter()
+                    # Use the stored metadata for the call
+                    result = attr(*args, **kwargs)
+                    # If result is a streaming call, wrap it.
+                    if self.is_streaming_response(result):
+                        return self.streaming_wrapper(result)
+                    end_call = time.perf_counter()
+                    self.logger.debug(
+                        f"grpc call to {name} took {end_call - start_call:.4f} seconds"
+                    )
+                    return result
+                except grpc.RpcError as e:
+                    self.handle_grpc_error(e)
+                finally:
+                    end = time.perf_counter()
+                    self.logger.debug(
+                        f"Total Call to {name} took {end - start:.4f} seconds"
+                    )
 
-        return wrapper
+            return wrapper
+        else:
+            return attr
 
     def handle_grpc_error(self, e: grpc.RpcError) -> None:
         ex = e if self.debug else None
@@ -108,7 +133,9 @@ class GrpcClient:
 
     def _handle_expected_error(self, e: Optional[grpc.RpcError]) -> None:
         if self.debug:
-            logging.debug("Processing expected gRPC error with details", exc_info=True)
+            self.logger.debug(
+                "Processing expected gRPC error with details", exc_info=True
+            )
 
         # With the introduction of new server errors, this extracts the details from the grpc error
         grpc_error_details = FFGrpcErrorDetails.from_grpc_error(e)
@@ -118,7 +145,7 @@ class GrpcClient:
                 f"{_format_metadata(grpc_error_details.metadata)}"
             )
             if self.debug:
-                logging.debug(detailed_message)
+                self.logger.debug(detailed_message)
             raise Exception(detailed_message) from (e if self.debug else None)
         raise e
 

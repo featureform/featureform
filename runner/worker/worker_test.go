@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package worker
 
@@ -8,14 +11,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/featureform/coordinator"
+	"testing"
+	"time"
+
+	"github.com/featureform/coordinator/spawner"
 	"github.com/featureform/metadata"
 	"github.com/featureform/runner"
 	"github.com/featureform/types"
 	"github.com/google/uuid"
 	clientv3 "go.etcd.io/etcd/client/v3"
-	"testing"
-	"time"
 )
 
 const mockFactoryName = "test"
@@ -369,7 +373,7 @@ func TestBasicUpdateRunner(t *testing.T) {
 	}
 	defer runner.UnregisterFactory(mockFactoryName)
 	config := runner.Config{}
-	etcdConfig := &coordinator.ETCDConfig{Endpoints: []string{"localhost:2379"}, Username: "root", Password: "secretpassword"}
+	etcdConfig := &spawner.ETCDConfig{Endpoints: []string{"localhost:2379"}, Username: "root", Password: "secretpassword"}
 	serializedETCD, err := etcdConfig.Serialize()
 	if err != nil {
 		t.Fatalf("Could not serialize etcd config")

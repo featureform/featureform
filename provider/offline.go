@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package provider
 
@@ -11,6 +14,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/sync/syncmap"
@@ -19,8 +23,11 @@ import (
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
+	fs "github.com/featureform/filestore"
 	"github.com/featureform/metadata"
+	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
+	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
@@ -90,7 +97,12 @@ func (id *ResourceID) FromFilestorePath(path string) error {
 	}
 	resourceParts := strings.Split(path[idx+len(featureformRootPathPart):], "/")
 	if len(resourceParts) < 3 {
-		return fferr.NewInternalError(fmt.Errorf("expected path %s to contain OfflineResourceType/Name/Variant", strings.Join(resourceParts, "/")))
+		return fferr.NewInternalError(
+			fmt.Errorf(
+				"expected path %s to contain OfflineResourceType/Name/Variant",
+				strings.Join(resourceParts, "/"),
+			),
+		)
 	}
 	switch resourceParts[0] {
 	case "Label":
@@ -151,10 +163,26 @@ type LagFeatureDef struct {
 }
 
 type TrainingSetDef struct {
-	ID          ResourceID
-	Label       ResourceID
-	Features    []ResourceID
-	LagFeatures []LagFeatureDef
+	ID                 ResourceID
+	Label              ResourceID
+	LabelSourceMapping SourceMapping
+	Features           []ResourceID
+	// **NOTE** The ProviderType and ProviderConfig fields in FeatureSourceMappings correspond
+	// the feature's source provider as the feature's provider will be the inference store.
+	// See getFeatureSourceMapping in coordinator/tasks/trainingset.go for more details.
+	FeatureSourceMappings   []SourceMapping
+	LagFeatures             []LagFeatureDef
+	ResourceSnowflakeConfig *metadata.ResourceSnowflakeConfig
+}
+
+type TrainingSetDefJSON struct {
+	ID                      ResourceID                        `json:"ID"`
+	Label                   ResourceID                        `json:"Label"`
+	LabelSourceMapping      SourceMappingJSON                 `json:"LabelSourceMapping"`
+	Features                []ResourceID                      `json:"Features"`
+	FeatureSourceMappings   []SourceMappingJSON               `json:"FeatureSourceMappings"`
+	LagFeatures             []LagFeatureDef                   `json:"LagFeatures"`
+	ResourceSnowflakeConfig *metadata.ResourceSnowflakeConfig `json:"ResourceSnowflakeConfig,omitempty"`
 }
 
 func (def *TrainingSetDef) check() error {
@@ -186,18 +214,39 @@ const (
 )
 
 type SourceMapping struct {
-	Template string
-	Source   string
+	Template            string
+	Source              string
+	ProviderType        pt.Type
+	ProviderConfig      pc.SerializedConfig
+	TimestampColumnName string
+	Location            pl.Location
+}
+
+type SourceMappingJSON struct {
+	Template            string              `json:"Template"`
+	Source              string              `json:"Source"`
+	ProviderType        pt.Type             `json:"ProviderType"`
+	ProviderConfig      pc.SerializedConfig `json:"ProviderConfig"`
+	TimestampColumnName string              `json:"TimestampColumnName"`
+	Location            json.RawMessage     `json:"Location,omitempty"`
 }
 
 type TransformationConfig struct {
-	Type          TransformationType
-	TargetTableID ResourceID
-	Query         string
-	Code          []byte
-	SourceMapping []SourceMapping
-	Args          metadata.TransformationArgs
-	ArgType       metadata.TransformationArgType
+	Type             TransformationType
+	TargetTableID    ResourceID
+	Query            string
+	Code             []byte
+	SourceMapping    []SourceMapping
+	Args             metadata.TransformationArgs
+	ArgType          metadata.TransformationArgType
+	MaxJobDuration   time.Duration
+	LastRunTimestamp time.Time
+	IsUpdate         bool
+	SparkFlags       pc.SparkFlags
+	// Make sure to update tempConfig in Unmarshal when adding fields
+	OutputLocationType      pl.LocationType
+	TableFormat             string
+	ResourceSnowflakeConfig *metadata.ResourceSnowflakeConfig
 }
 
 func (m *TransformationConfig) MarshalJSON() ([]byte, error) {
@@ -221,13 +270,17 @@ func (m *TransformationConfig) MarshalJSON() ([]byte, error) {
 
 func (m *TransformationConfig) UnmarshalJSON(data []byte) error {
 	type tempConfig struct {
-		Type          TransformationType
-		TargetTableID ResourceID
-		Query         string
-		Code          []byte
-		SourceMapping []SourceMapping
-		Args          map[string]interface{}
-		ArgType       metadata.TransformationArgType
+		Type             TransformationType
+		TargetTableID    ResourceID
+		Query            string
+		Code             []byte
+		SourceMapping    []SourceMapping
+		Args             map[string]interface{}
+		ArgType          metadata.TransformationArgType
+		MaxJobDuration   time.Duration
+		LastRunTimestamp time.Time
+		IsUpdate         bool
+		SparkFlags       pc.SparkFlags
 	}
 
 	var temp tempConfig
@@ -241,6 +294,10 @@ func (m *TransformationConfig) UnmarshalJSON(data []byte) error {
 	m.Query = temp.Query
 	m.Code = temp.Code
 	m.SourceMapping = temp.SourceMapping
+	m.MaxJobDuration = temp.MaxJobDuration
+	m.LastRunTimestamp = temp.LastRunTimestamp
+	m.IsUpdate = temp.IsUpdate
+	m.SparkFlags = temp.SparkFlags
 
 	err = m.decodeArgs(temp.ArgType, temp.Args)
 	if err != nil {
@@ -277,38 +334,232 @@ type TrainTestSplitDef struct {
 	RandomState        int
 }
 
-type MaterializationOptions interface {
-	Output() filestore.FileType
-	ShouldIncludeHeaders() bool
-	StoreType() pt.Type
+type MaterializationOptions struct {
+	Output                  filestore.FileType
+	ShouldIncludeHeaders    bool
+	MaxJobDuration          time.Duration
+	JobName                 string
+	ResourceSnowflakeConfig *metadata.ResourceSnowflakeConfig
+	Schema                  ResourceSchema
+	// If this is set, the provider is expected to copy
+	// the materialized table directly to this online store
+	// itself or fail with an error.
+	DirectCopyTo OnlineStore
+}
+
+type MaterializationOptionType string
+
+const (
+	// DirectCopyDynamo means that the provider is capable of copying its
+	// materialized table directly to DynamoDB.
+	NullMaterializationOptionType MaterializationOptionType = ""
+	DirectCopyDynamo              MaterializationOptionType = "DirectCopyDynamo"
+)
+
+func DirectCopyOptionType(store OnlineStore) MaterializationOptionType {
+	switch store.(type) {
+	case *dynamodbOnlineStore:
+		return DirectCopyDynamo
+	default:
+		return NullMaterializationOptionType
+	}
+}
+
+type TransformationOptionType string
+
+const (
+	// ResumableTransformation makes transformations run async and returns a parameter that can be used
+	// to resume it in the future.
+	ResumableTransformation TransformationOptionType = "ResumableTransformation"
+)
+
+type TransformationOptions []TransformationOption
+
+func (opts TransformationOptions) GetByType(t TransformationOptionType) TransformationOption {
+	for _, opt := range opts {
+		if opt.Type() == t {
+			return opt
+		}
+	}
+	return nil
+}
+
+type TransformationOption interface {
+	Type() TransformationOptionType
+}
+
+type ResumeOption struct {
+	// resumeID is used to resume a running transformation. It may have been set by the user in
+	// which case this should become a resume operation. Must use mutex when checking.
+	// Also wait for resumeIDChan to be closed before checking (or close manually if user sets it).
+	resumeID types.ResumeID
+	// used for accessing resumeID.
+	resumeIDMtx sync.RWMutex
+	// This channel should be closed when the associated async operation is complete.
+	finishedChan chan struct{}
+	// used when writing to the finished and err bools to make sure they aren't set twice.
+	finishedMtx sync.Mutex
+	// Use finishedMtx to access this bool.
+	finished bool
+	// The max amount of time that .Wait() will hang
+	maxWait time.Duration
+	// Make sure finishedChan is closed before checking this.
+	err error
+}
+
+func (opt *ResumeOption) Type() TransformationOptionType {
+	return ResumableTransformation
+}
+
+func (opt *ResumeOption) Wait() error {
+	select {
+	case <-opt.finishedChan:
+	case <-time.After(opt.maxWait):
+		return fmt.Errorf("Timed out after %s", opt.maxWait.String())
+	}
+	return opt.err
+}
+
+func (opt *ResumeOption) ResumeID() types.ResumeID {
+	opt.resumeIDMtx.RLock()
+	defer opt.resumeIDMtx.RUnlock()
+	return opt.resumeID
+}
+
+func (opt *ResumeOption) IsResumeIDSet() bool {
+	opt.resumeIDMtx.RLock()
+	defer opt.resumeIDMtx.RUnlock()
+	return opt.resumeID != types.NilResumeID
+}
+
+func (opt *ResumeOption) setResumeID(id types.ResumeID) error {
+	if id == types.NilResumeID {
+		return fferr.NewInternalErrorf("ResumeID cannot be an empty string")
+	}
+	opt.resumeIDMtx.Lock()
+	defer opt.resumeIDMtx.Unlock()
+	if opt.resumeID != types.NilResumeID {
+		return fferr.NewInternalErrorf("Setting resume ID that's already set. Old value: %v New Value: %v", opt.resumeID, id)
+	}
+	opt.resumeID = id
+	return nil
+}
+
+func (opt *ResumeOption) finishWithError(err error) error {
+	opt.finishedMtx.Lock()
+	defer opt.finishedMtx.Unlock()
+	if opt.finished {
+		return fferr.NewInternalErrorf("Finish called twice on option")
+	}
+	opt.finished = true
+	opt.err = err
+	close(opt.finishedChan)
+	return nil
+}
+
+func ResumeOptionWithID(id types.ResumeID, maxWait time.Duration) (*ResumeOption, error) {
+	opt := newResumeOption(maxWait)
+	if err := opt.setResumeID(id); err != nil {
+		return nil, err
+	}
+	return opt, nil
+
+}
+
+func RunAsyncWithResume(maxWait time.Duration) *ResumeOption {
+	return newResumeOption(maxWait)
+}
+
+func newResumeOption(maxWait time.Duration) *ResumeOption {
+	return &ResumeOption{
+		finishedChan: make(chan struct{}),
+		maxWait:      maxWait,
+	}
+}
+
+type ResourceOptionType string
+
+const (
+	SnowflakeDynamicTableResource ResourceOptionType = "SnowflakeDynamicTableResource"
+)
+
+type ResourceOption interface {
+	Type() ResourceOptionType
+}
+
+type ResourceSnowflakeConfigOption struct {
+	Config    *metadata.SnowflakeDynamicTableConfig
+	Warehouse string
+}
+
+func (opt *ResourceSnowflakeConfigOption) Type() ResourceOptionType {
+	return SnowflakeDynamicTableResource
 }
 
 type OfflineStore interface {
-	RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error)
-	RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error)
-	CreateTransformation(config TransformationConfig) error
-	GetTransformationTable(id ResourceID) (TransformationTable, error)
-	UpdateTransformation(config TransformationConfig) error
+	Provider
+	OfflineStoreCore
+	OfflineStoreDataset
+	OfflineStoreMaterialization
+	OfflineStoreTrainingSet
+	OfflineStoreBatchFeature
+}
+
+type OfflineStoreCore interface {
+	// TODO: move into Provider interface
+	Close() error
+	// ResourceLocation passes 'any' object because we currently don't have an interface for the Variant Objects
+	// TODO: Create an interface for Variant Objects
+	ResourceLocation(id ResourceID, resource any) (pl.Location, error)
+	Provider
+}
+
+type OfflineStoreDataset interface {
+	// CreatePrimaryTable is not used outside of the context of tests
 	CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error)
-	GetPrimaryTable(id ResourceID) (PrimaryTable, error)
+	RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error)
+	GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error)
+	SupportsTransformationOption(opt TransformationOptionType) (bool, error)
+	CreateTransformation(config TransformationConfig, opts ...TransformationOption) error
+	GetTransformationTable(id ResourceID) (TransformationTable, error)
+	UpdateTransformation(config TransformationConfig, opts ...TransformationOption) error
+}
+
+type OfflineStoreMaterialization interface {
 	CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error)
 	GetResourceTable(id ResourceID) (OfflineTable, error)
-	GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error)
-	CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error)
+	RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error)
+	CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error)
 	GetMaterialization(id MaterializationID) (Materialization, error)
-	UpdateMaterialization(id ResourceID) (Materialization, error)
+	UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error)
 	DeleteMaterialization(id MaterializationID) error
+	SupportsMaterializationOption(opt MaterializationOptionType) (bool, error)
+}
+
+type OfflineStoreTrainingSet interface {
 	CreateTrainingSet(TrainingSetDef) error
 	UpdateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
 	CreateTrainTestSplit(TrainTestSplitDef) (func() error, error)
 	GetTrainTestSplit(TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error)
-	Close() error
-	ResourceLocation(id ResourceID) (string, error)
-	Provider
+}
+
+type OfflineStoreBatchFeature interface {
+	GetBatchFeatures(tables []ResourceID) (BatchFeatureIterator, error)
 }
 
 type MaterializationID string
+
+func NewMaterializationID(id ResourceID) (MaterializationID, error) {
+	if err := id.check(Feature); err != nil {
+		return "", err
+	}
+	strID, err := ps.ResourceToMaterializationID(id.Type.String(), id.Name, id.Variant)
+	if err != nil {
+		return "", err
+	}
+	return MaterializationID(strID), nil
+}
 
 type TrainingSetIterator interface {
 	Next() bool
@@ -411,6 +662,10 @@ func (rec *ResourceRecord) SetEntity(entity interface{}) error {
 	return nil
 }
 
+func (rec ResourceRecord) Columns() []string {
+	return []string{"Entity", "Value", "TS"}
+}
+
 // This interface represents the contract for implementations that
 // write feature and label tables, which have a knowable schema.
 type OfflineTable interface {
@@ -438,26 +693,84 @@ type TransformationTable interface {
 	PrimaryTable
 }
 
+// Dataset is a common interface for primary and transformation
+// tables and means to unify the two interfaces into a common
+// interface that can be used throughout the codebase.
+type Dataset interface {
+	Write(GenericRecord) error
+	WriteBatch([]GenericRecord) error
+	Location() pl.Location
+	NumRows() (int64, error)
+	IterateSegment(n int64) (GenericTableIterator, error)
+	NumChunks() (int, error)
+	IterateChunk(idx int) (GenericTableIterator, error)
+}
+
 type ResourceSchema struct {
 	Entity      string
 	Value       string
 	TS          string
-	SourceTable string
+	SourceTable pl.Location
+}
+
+type ResourceSchemaJSON struct {
+	Entity       string          `json:"Entity"`
+	Value        string          `json:"Value"`
+	TS           string          `json:"TS"`
+	SourceTable  json.RawMessage `json:"SourceTable"`
+	LocationType pl.LocationType `json:"LocationType"`
 }
 
 func (schema *ResourceSchema) Serialize() ([]byte, error) {
-	config, err := json.Marshal(schema)
-	if err != nil {
-		return nil, fferr.NewInternalError(err)
+	var locationData string
+	var err error
+	if schema.SourceTable != nil {
+		locationData, err = schema.SourceTable.Serialize()
+		if err != nil {
+			return nil, fferr.NewInternalErrorf("failed to serialize SourceTable: %v", err)
+		}
 	}
-	return config, nil
+
+	data := ResourceSchemaJSON{
+		Entity:       schema.Entity,
+		Value:        schema.Value,
+		TS:           schema.TS,
+		SourceTable:  json.RawMessage(locationData),
+		LocationType: schema.SourceTable.Type(),
+	}
+
+	return json.Marshal(data)
 }
 
 func (schema *ResourceSchema) Deserialize(config []byte) error {
-	err := json.Unmarshal(config, schema)
+	var data ResourceSchemaJSON
+	err := json.Unmarshal(config, &data)
 	if err != nil {
-		return fferr.NewInternalError(err)
+		return fferr.NewInternalErrorf("failed to deserialize ResourceSchema: %v", err)
 	}
+
+	schema.Entity = data.Entity
+	schema.Value = data.Value
+	schema.TS = data.TS
+
+	var location pl.Location
+	switch data.LocationType {
+	case pl.SQLLocationType:
+		location = &pl.SQLLocation{}
+	case pl.FileStoreLocationType:
+		location = &pl.FileStoreLocation{}
+	case pl.CatalogLocationType:
+		location = &pl.CatalogLocation{}
+	default:
+		return fferr.NewInternalErrorf("unknown location type: %s", data.LocationType)
+	}
+
+	err = location.Deserialize(data.SourceTable)
+	if err != nil {
+		return fferr.NewInternalErrorf("failed to deserialize SourceTable: %v", err)
+	}
+	schema.SourceTable = location
+
 	return nil
 }
 
@@ -465,6 +778,23 @@ type TableSchema struct {
 	Columns []TableColumn
 	// The complete URL that points to the location of the data file
 	SourceTable string
+}
+
+func (r ResourceSchema) Validate() error {
+	unsetFields := make([]string, 0)
+	if r.Entity == "" {
+		unsetFields = append(unsetFields, "Entity")
+	}
+	if r.Value == "" {
+		unsetFields = append(unsetFields, "Value")
+	}
+	if r.SourceTable == nil || r.SourceTable.Location() == "" {
+		unsetFields = append(unsetFields, "SourceTable")
+	}
+	if len(unsetFields) > 0 {
+		return fferr.NewInvalidArgumentError(fmt.Errorf("missing required fields: %v", unsetFields))
+	}
+	return nil
 }
 
 type TableSchemaJSONWrapper struct {
@@ -587,7 +917,11 @@ func (schema *TableSchema) ToParquetRecords(records []GenericRecord) ([]any, err
 				reflectValue = reflect.ValueOf(v)
 			}
 			if !reflectValue.Type().AssignableTo(parquetField.Type()) {
-				return nil, fferr.NewInternalErrorf("writing invalid type to parquet record.\nFound %s\nexpected %s\n", reflectValue.Type().String(), parquetField.Type().String())
+				return nil, fferr.NewInternalErrorf(
+					"writing invalid type to parquet record.\nFound %s\nexpected %s\n",
+					reflectValue.Type().String(),
+					parquetField.Type().String(),
+				)
 			}
 			parquetField.Set(reflectValue)
 		}
@@ -613,8 +947,16 @@ type memoryOfflineStore struct {
 	BaseProvider
 }
 
+var memoryFactorySingleton Provider
+
 func memoryOfflineStoreFactory(serializedConfig pc.SerializedConfig) (Provider, error) {
-	return NewMemoryOfflineStore(), nil
+	// Add mutex
+	if memoryFactorySingleton == nil {
+		memoryFactorySingleton = NewMemoryOfflineStore()
+		return memoryFactorySingleton, nil
+	} else {
+		return memoryFactorySingleton, nil
+	}
 }
 
 func NewMemoryOfflineStore() *memoryOfflineStore {
@@ -633,27 +975,74 @@ func (store *memoryOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return store, nil
 }
 
-func (store *memoryOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
-	return nil, fferr.NewInternalError(fmt.Errorf("not implemented"))
+func (store *memoryOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (
+	OfflineTable,
+	error,
+) {
+	store.tables.Store(id, &memoryOfflineTable{})
+	return &memoryOfflineTable{}, nil
 }
 
-func (store *memoryOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
-	return nil, fferr.NewInternalError(fmt.Errorf("not implemented"))
+func (store *memoryOfflineStore) RegisterPrimaryFromSourceTable(
+	id ResourceID,
+	tableLocation pl.Location,
+) (PrimaryTable, error) {
+	if id.Name == "make" && id.Variant == "panic" {
+		panic("This is a panic")
+	}
+	store.tables.Store(id, &memoryPrimaryTable{})
+	return &memoryPrimaryTable{}, nil
 }
 
 func (store *memoryOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
-	return nil, fferr.NewInternalError(fmt.Errorf("primary table unsupported for this provider"))
+	store.tables.Store(id, &memoryPrimaryTable{})
+	return &memoryPrimaryTable{}, nil
 }
 
-func (store *memoryOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
-	return nil, fferr.NewInternalError(fmt.Errorf("primary table unsupported for this provider"))
+type memoryPrimaryTable struct {
 }
 
-func (store *memoryOfflineStore) CreateTransformation(config TransformationConfig) error {
-	return fferr.NewInternalError(fmt.Errorf("CreateTransformation unsupported for this provider"))
+func (m *memoryPrimaryTable) Write(record GenericRecord) error {
+	return nil
 }
 
-func (store *memoryOfflineStore) UpdateTransformation(config TransformationConfig) error {
+func (m *memoryPrimaryTable) WriteBatch(record []GenericRecord) error {
+	return nil
+}
+
+func (m *memoryPrimaryTable) GetName() string {
+	return "memoryTableName"
+}
+
+func (m *memoryPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
+	return nil, nil
+}
+
+func (m *memoryPrimaryTable) NumRows() (int64, error) {
+	return 0, nil
+}
+
+func (store *memoryOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
+	table, has := store.tables.Load(id)
+	if !has {
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
+	}
+	memoryTable := table.(*memoryPrimaryTable)
+	return memoryTable, nil
+}
+
+func (store *memoryOfflineStore) SupportsTransformationOption(opt TransformationOptionType) (bool, error) {
+	return false, nil
+}
+
+func (store *memoryOfflineStore) CreateTransformation(config TransformationConfig, opts ...TransformationOption) error {
+	if len(opts) > 0 {
+		return fferr.NewInternalErrorf("Memory store does not support transformation options")
+	}
+	return fferr.NewInternalErrorf("CreateTransformation unsupported for this provider")
+}
+
+func (store *memoryOfflineStore) UpdateTransformation(config TransformationConfig, opts ...TransformationOption) error {
 	return fferr.NewInternalError(fmt.Errorf("UpdateTransformation unsupported for this provider"))
 }
 
@@ -682,11 +1071,12 @@ func (store *memoryOfflineStore) getMemoryResourceTable(id ResourceID) (*memoryO
 	if !has {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
-	return table.(*memoryOfflineTable), nil
+	memTable := table.(*memoryOfflineTable)
+	return memTable, nil
 }
 
-func (store *memoryOfflineStore) ResourceLocation(id ResourceID) (string, error) {
-	return "", errors.New("ResourceLocation unsupported for this provider")
+func (store *memoryOfflineStore) ResourceLocation(id ResourceID, resource any) (pl.Location, error) {
+	return nil, errors.New("ResourceLocation unsupported for this provider")
 }
 
 // Used to implement sort.Interface for sorting.
@@ -708,7 +1098,10 @@ func (store *memoryOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFea
 	return nil, nil
 }
 
-func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
+func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (
+	Materialization,
+	error,
+) {
 	if id.Type != Feature {
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("only features can be materialized"))
 	}
@@ -717,12 +1110,14 @@ func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, options ..
 		return nil, err
 	}
 	var matData materializedRecords
-	table.entityMap.Range(func(key, value interface{}) bool {
-		records := value.([]ResourceRecord)
-		matRec := latestRecord(records)
-		matData = append(matData, matRec)
-		return true
-	})
+	table.entityMap.Range(
+		func(key, value interface{}) bool {
+			records := value.([]ResourceRecord)
+			matRec := latestRecord(records)
+			matData = append(matData, matRec)
+			return true
+		},
+	)
 	sort.Sort(matData)
 	// Might be used for testing
 	matId := MaterializationID(uuid.NewString())
@@ -735,6 +1130,10 @@ func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, options ..
 	return mat, nil
 }
 
+func (store *memoryOfflineStore) SupportsMaterializationOption(opt MaterializationOptionType) (bool, error) {
+	return false, nil
+}
+
 func (store *memoryOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
 	mat, has := store.materializations.Load(id)
 	if !has {
@@ -743,8 +1142,11 @@ func (store *memoryOfflineStore) GetMaterialization(id MaterializationID) (Mater
 	return mat.(Materialization), nil
 }
 
-func (store *memoryOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
-	return store.CreateMaterialization(id)
+func (store *memoryOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (
+	Materialization,
+	error,
+) {
+	return store.CreateMaterialization(id, MaterializationOptions{Output: fs.Parquet})
 }
 
 func (store *memoryOfflineStore) DeleteMaterialization(id MaterializationID) error {
@@ -821,7 +1223,11 @@ func (store *memoryOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (fu
 	return dropFunc, nil
 }
 
-func (store *memoryOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+func (store *memoryOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (
+	TrainingSetIterator,
+	TrainingSetIterator,
+	error,
+) {
 	// TODO properly implement this
 	trainingSetResourceId := ResourceID{
 		Name:    def.TrainingSetName,
@@ -903,10 +1309,12 @@ func newMemoryOfflineTable() *memoryOfflineTable {
 
 func (table *memoryOfflineTable) records() []ResourceRecord {
 	allRecs := make([]ResourceRecord, 0)
-	table.entityMap.Range(func(key, value interface{}) bool {
-		allRecs = append(allRecs, value.([]ResourceRecord)...)
-		return true
-	})
+	table.entityMap.Range(
+		func(key, value interface{}) bool {
+			allRecs = append(allRecs, value.([]ResourceRecord)...)
+			return true
+		},
+	)
 	return allRecs
 }
 
@@ -1049,7 +1457,10 @@ func checkTimestamp(rec ResourceRecord) ResourceRecord {
 type sanitization func(string) string
 
 func replaceSourceName(query string, mapping []SourceMapping, sanitize sanitization) (string, error) {
-	replacements := make([]string, len(mapping)*2) // It's times 2 because each replacement will be a pair; (original, replacedValue)
+	replacements := make(
+		[]string,
+		len(mapping)*2,
+	) // It's times 2 because each replacement will be a pair; (original, replacedValue)
 
 	for _, m := range mapping {
 		replacements = append(replacements, m.Template)

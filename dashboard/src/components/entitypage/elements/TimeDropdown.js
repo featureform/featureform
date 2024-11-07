@@ -1,9 +1,16 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import Box from '@mui/material/Box';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
-import React from 'react';
+import React, { useState } from 'react';
 import { connect } from 'react-redux';
 import { changeTime } from './ExponentialTimeSliderSlice.js';
 
@@ -14,7 +21,7 @@ const dropdownValues = [
 ];
 
 function ExponentialTimeSlider({ changeTime }) {
-  const [time, setTime] = React.useState(60);
+  const [time, setTime] = useState(60);
 
   const handleChange = (event) => {
     setTime(event.target.value);

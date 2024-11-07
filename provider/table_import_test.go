@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package provider
 
@@ -75,9 +78,11 @@ func TestImportableOnlineStore(t *testing.T) {
 		dynamoAccessKey := checkEnv("DYNAMO_ACCESS_KEY")
 		dynamoSecretKey := checkEnv("DYNAMO_SECRET_KEY")
 		dynamoConfig := &pc.DynamodbConfig{
-			Region:       checkEnv("DYNAMODB_REGION"),
-			AccessKey:    dynamoAccessKey,
-			SecretKey:    dynamoSecretKey,
+			Region: checkEnv("DYNAMODB_REGION"),
+			Credentials: pc.AWSStaticCredentials{
+				AccessKeyId: dynamoAccessKey,
+				SecretKey:   dynamoSecretKey,
+			},
 			ImportFromS3: true,
 		}
 		return dynamoConfig
@@ -90,9 +95,9 @@ func TestImportableOnlineStore(t *testing.T) {
 			Cluster: checkEnv("DATABRICKS_CLUSTER"),
 		}
 		fileStoreConfig := &pc.S3FileStoreConfig{
-			Credentials: pc.AWSCredentials{
-				AWSAccessKeyId: checkEnv("AWS_ACCESS_KEY_ID"),
-				AWSSecretKey:   checkEnv("AWS_SECRET_KEY"),
+			Credentials: pc.AWSStaticCredentials{
+				AccessKeyId: checkEnv("AWS_ACCESS_KEY_ID"),
+				SecretKey:   checkEnv("AWS_SECRET_KEY"),
 			},
 			BucketRegion: checkEnv("S3_BUCKET_REGION"),
 			BucketPath:   checkEnv("S3_BUCKET_PATH"),
@@ -188,9 +193,9 @@ func testImportTable(t *testing.T, offlineStore OfflineStore, importableOnlineSt
 		t.Fatal(err)
 	}
 
-	options := materializationTestOption{
-		storeType:  pt.SparkOffline,
-		outputType: fs.CSV,
+	options := MaterializationOptions{
+		Output:         fs.CSV,
+		MaxJobDuration: time.Hour * 2,
 	}
 
 	mat, err := offlineStore.CreateMaterialization(resourceID, options)

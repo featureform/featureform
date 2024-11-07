@@ -1,25 +1,18 @@
 # Unit tests, integration tests, and code coverage
-name: Testing  
+name: Testing
 on:
-  push:
-    branches:
-      - main
-      - release/*
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      run_job:
+        description: "The single job to run (e.g. go-tests, behave, pytest-e2e)"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.head_ref }}-testing
   cancel-in-progress: true
 
 env:
-  MEILISEARCH_PORT: 7700
-  MEILISEARCH_API_KEY: ""
-  REDISEARCH_INSECURE_PORT: 6380
-  REDIS_INSECURE_PORT: 6379
-  REDIS_SECURE_PORT: 6378
-  REDIS_PASSWORD: "password"
-  CASSANDRA_USER: "cassandra"
-  CASSANDRA_PASSWORD: "CASSANDRA"
   POSTGRES_USER: "username"
   POSTGRES_DB: "default"
   POSTGRES_PASSWORD: "password"
@@ -28,20 +21,14 @@ env:
   CLICKHOUSE_PASSWORD: "password"
   CLICKHOUSE_DB: "default"
   CLICKHOUSE_PORT: "9001"
-  ETCD_HOST: "localhost"
-  ETCD_PORT: 2379
-  REDSHIFT_PORT: 5439
-  REDSHIFT_DATABASE: dev
   SPARK_LOCAL_SCRIPT_PATH: scripts/spark/offline_store_spark_runner.py
   PYTHON_LOCAL_INIT_PATH: scripts/spark/python_packages.sh
-  PINECONE_PROJECT_ID: ${{ secrets.PINECONE_PROJECT_ID }}
-  PINECONE_ENVIRONMENT: ${{ secrets.PINECONE_ENVIRONMENT }}
-  PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
-  QDRANT_GRPC_HOST: "localhost:6334"
-
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
 
 jobs:
   go-tests:
+    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event.inputs.run_job == 'go-tests') }}
     name: Run Go Tests
     defaults:
       run:
@@ -50,12 +37,12 @@ jobs:
     timeout-minutes: 120
     environment: Integration testing
     services:
-#      redis-insecure:
-#        image: redis
-#        # Hard coded port because environment variables not currently
-#        # supported for use outside of 'steps'
-#        ports:
-#          - 6379:6379
+      #      redis-insecure:
+      #        image: redis
+      #        # Hard coded port because environment variables not currently
+      #        # supported for use outside of 'steps'
+      #        ports:
+      #          - 6379:6379
 
       cassandra:
         image: cassandra
@@ -87,32 +74,59 @@ jobs:
           CLICKHOUSE_USER: ${{ env.CLICKHOUSE_USER }}
           CLICKHOUSE_DB: ${{ env.CLICKHOUSE_DB }}
           CLICKHOUSE_PASSWORD: ${{ env.CLICKHOUSE_PASSWORD }}
-
-      qdrant:
-        image: qdrant/qdrant:v1.9.2
-        ports:
-          - 6334:6334
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-          cache: 'pip' # caching pip dependencies
+          python-version: "3.10"
+          cache: "pip" # caching pip dependencies
 
-      - name: Check directory
-        run: |
-          ls -la
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          aws-region: us-east-1
+
+      - name: Get AWS Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            ,testing/databricks
+            ,testing/azure
+            ,testing/snowflake
+            ,testing/dynamodb
+            ,testing/snowflake
+            ,testing/redshift
+            ,testing/snowflake
+            ,testing/emr
+            ,testing/s3
+            ,testing/bigquery
+            ,testing/gcs
+            ,testing/etcd
+            ,testing/redis
+            ,testing/meilisearch
+            ,testing/pinecone
+            ,testing/cassandra
+          parse-json-secrets: true
+
+      - name: Get BigQuery Credentials
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            BIGQUERY_CREDENTIALS_FILE, ${{ secrets.BIGQUERY_JSON_SECRET }}
+          parse-json-secrets: false
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: "1.21"
           check-latest: true
           cache-dependency-path: |
             go.sum
 
       - name: Install grpc_tools
-        run: pip install grpcio-tools build
+        run: pip install grpcio-tools==1.62.2 build mypy-protobuf
 
       - name: Install pyspark packages
         run: |
@@ -141,19 +155,18 @@ jobs:
           container port: 6379
           redis password: "password"
 
-      - name: create-json
-        id: create-json
+      - name: Create Firestore File
         uses: jsdaniell/create-json@1.1.2
         with:
           name: "./provider/firestore_credentials.json"
-          json: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
+          json: ${{ env.FIRESTORE_CREDENTIALS_FILE }}
 
-      - name: create-json
+      - name: Create BigQuery File
         id: create-json-2
         uses: jsdaniell/create-json@1.1.2
         with:
           name: "./provider/bigquery_credentials.json"
-          json: ${{ secrets.BIGQUERY_CREDENTIALS_FILE }}
+          json: ${{ env.BIGQUERY_CREDENTIALS_FILE }}
 
       - name: Check credentials location
         run: |
@@ -169,7 +182,6 @@ jobs:
           export PATH="$PATH:`pwd`/bin"
           etcd --version
           etcd --logger=zap &
-          
 
       - name: Run HDFS
         run: |
@@ -179,76 +191,39 @@ jobs:
           docker run -d -p 9864:9864 -p 9870:9870 -p 8088:8088 -p 9000:9000 -p 9866:9866 --hostname localhost ahmadnazeri/hadoop:latest
 
       - name: Integration Tests
-        run: go test -v -timeout 30m -parallel 10 -coverpkg=./... -coverprofile=./cover.out.tmp ./...
+        run: go test -timeout 100m -parallel 1000 -coverpkg=./... -coverprofile=./cover.out.tmp ./...
         env:
-          DYNAMO_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          DYNAMO_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-          DYNAMODB_REGION: "us-east-1"
           FIRESTORE_CRED: "firestore_credentials.json"
-          FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
-          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
-          AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
-          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
-          AZURE_BACKUP_STORAGE_PATH: "backup"
-          MONGODB_HOST: ${{ secrets.MONGODB_HOST }}
-          MONGODB_PORT: ${{ secrets.MONGODB_PORT }}
-          MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
-          MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
-          MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
-          SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
-          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-          SNOWFLAKE_ORG: ${{ secrets.SNOWFLAKE_ORG }}
-          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-          REDSHIFT_USERNAME: ${{ secrets.REDSHIFT_USERNAME }}
-          REDSHIFT_PASSWORD: ${{ secrets.REDSHIFT_PASSWORD }}
-          REDSHIFT_HOST: ${{ secrets.REDSHIFT_HOST }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-          AWS_EMR_CLUSTER_REGION: ${{ secrets.AWS_EMR_CLUSTER_REGION }}
-          AWS_EMR_CLUSTER_ID: ${{ secrets.AWS_EMR_CLUSTER_ID }}
-          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
-          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
-          BIGQUERY_PROJECT_ID: ${{ secrets.BIGQUERY_PROJECT_ID }}
-          BIGQUERY_DATASET_ID: ${{ secrets.BIGQUERY_DATASET_ID }}
           BIGQUERY_CREDENTIALS: "/home/runner/work/featureform/featureform/provider/bigquery_credentials.json"
           GCP_CREDENTIALS_FILE: "/home/runner/work/featureform/featureform/provider/bigquery_credentials.json"
-          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
-          MYSQL_USER: "root"
-          MYSQL_PASSWORD: "password"
-          MYSQL_DB: "mysql"
-          AZURE_CONTAINER_PATH: ${{ secrets.AZURE_CONTAINER_PATH }}
-          AZURE_CONNECTION_STRING: ${{ secrets.AZURE_CONNECTION_STRING }}
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
           MATERIALIZE_NO_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_no_ts.sql
           MATERIALIZE_WITH_TIMESTAMP_QUERY_PATH: /home/runner/work/featureform/featureform/provider/queries/materialize_ts.sql
-          ETCD_HOST: ${{ env.ETCD_HOST }}
-          ETCD_PORT: ${{ env.ETCD_PORT }}
           SPARK_LOCAL_SCRIPT_PATH: /home/runner/work/featureform/featureform/provider/scripts/spark/offline_store_spark_runner.py
           PYTHON_LOCAL_INIT_PATH: /home/runner/work/featureform/featureform/provider/scripts/spark/python_packages.sh
 
       - name: Print Clean Coverage
-        if: always()
+        if: ${{ !cancelled() }}
         run: |
           cat cover.out.tmp | grep -v "proto" | grep -v "main"  > cover.out
           go tool cover -html=cover.out -o cover.html
 
-      - name: Archive code coverage results (HTML)
-        if: always()
+      - uses: codecov/codecov-action@v2
+        if: ${{ !cancelled() }}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./cover.out
+          name: go-coverage
+          verbose: true
+
+      - name: Archive code coverage results
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v3
         with:
-          name: go-coverage-html
+          name: search-coverage-reports
           path: ./cover.html
 
-      - name: Archive code coverage results (cover.out)
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: go-coverage-out
-          path: ./cover.out
-
   client-deps:
+    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event.inputs.run_job == 'client-deps') }}
     name: Client Dependencies
     runs-on: ubuntu-latest
 
@@ -264,17 +239,29 @@ jobs:
         with:
           go-version: 1.21
 
-      - name: Install grpc_tools
-        run: pip install grpcio-tools==1.62.2 build
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Create and activate virtual environment
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install grpcio-tools==1.62.2 build mypy-protobuf
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
 
       - name: Setup Proto
-        run: ./gen_grpc.sh
+        run: |
+          source venv/bin/activate
+          ./gen_grpc.sh
 
       - name: Build Python Package
-        run: ./pip_update.sh --no-dash
+        run: |
+          source venv/bin/activate
+          ./pip_update.sh --no-dash
 
       - uses: actions/upload-artifact@v3
         with:
@@ -282,16 +269,66 @@ jobs:
           path: ./client
           retention-days: 1
 
-  client:
-    name: Test Client
+  client-ubuntu:
+    name: Test Ubuntu Client
     needs: client-deps
+    env:
+      FEATUREFORM_HOST: "http://localhost:7878"
+    runs-on: "ubuntu-latest"
+    if: ${{ (github.ref != 'refs/heads/main' && github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event.inputs.run_job == 'client-ubuntu') }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download Working Compiled Directories
+        uses: actions/download-artifact@v3
+        with:
+          name: client
+          path: ./client
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+
+      - name: Install pyspark packages
+        run: |
+          pip install -r provider/scripts/k8s/requirements.txt
+          pip install -r provider/scripts/spark/requirements.txt
+
+      - name: Install pytest
+        run: pip install -r pytest-requirements.txt
+
+      - name: Install pytest cov
+        run: pip install pytest-cov
+
+      - name: Install featureform
+        run: pip install client/dist/featureform_enterprise-0.0.0-py3-none-any.whl
+
+      - name: Run Tests
+        run: pytest -vvl -s --ignore ./tests/end_to_end/pytest --ignore provider/scripts/spark/integration_test_scripts
+
+      - name: Upload Coverage Report
+        uses: codecov/codecov-action@v2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          root_dir: ./
+          files: ./coverage.xml
+          name: client-coverage
+          verbose: true
+
+  client-all:
+    name: Test All Clients
+    needs: client-ubuntu
+    env:
+      FEATUREFORM_HOST: "http://localhost:7878"
     runs-on: ${{ matrix.os }}
+    if: ${{ (github.ref != 'refs/heads/main' && github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event.inputs.run_job == 'client-all') }}
     strategy:
       matrix:
         # macos-14 switched to M1 chips which broke some of our
         # dependencies. We're hard pinning to macOS-13 for now.
         os: [ubuntu-latest, macos-13, windows-latest]
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
         exclude:
           - os: windows-latest
             python-version: "3.11"
@@ -309,12 +346,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip' # caching pip dependencies
+          cache: "pip" # caching pip dependencies
 
       - uses: actions/setup-java@v3
         with:
-          java-version: '11'
-          distribution: 'temurin'
+          java-version: "11"
+          distribution: "temurin"
 
       - name: Install pyspark packages
         run: |
@@ -328,74 +365,480 @@ jobs:
         run: pip install pytest-cov
 
       - name: Install featureform
-        run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
+        run: pip install client/dist/featureform_enterprise-0.0.0-py3-none-any.whl
 
       - name: Run Tests
-        run: pytest -vv -s
+        run: pytest -vvl -s --ignore ./tests/end_to_end/pytest --ignore provider/scripts/spark/integration_test_scripts
 
-      - uses: actions/upload-artifact@v3
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
-        with:
-          name: client-coverage
-          path: ./coverage.xml
-          retention-days: 1
-
-  dashboard:
-    name: Test Dashboard
-    runs-on: ubuntu-latest
+  behave:
+    name: Run Non Auto Variant Behave Tests
+    timeout-minutes: 60
+    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event.inputs.run_job == 'behave') }}
+    env:
+      FEATUREFORM_DEBUG_LOGGING: "true"
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+      postgres:
+        image: featureformcom/postgres
+        ports:
+          - 5432:5432
     defaults:
       run:
-        working-directory: ./dashboard
-    steps:
-      - uses: actions/checkout@v2
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '16'
-
-      - name: Install Packages
-        run: npm install
-
-      - name: Install Jest
-        run: npm install jest
-
-      - name: Run Tests
-        run: ./node_modules/.bin/jest --coverage
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: dashboard-coverage
-          path: ./dashboard/coverage/clover.xml
-          retention-days: 1
-
-  codecov-upload:
-    name: Codecov Upload
-    needs: [client, go-tests, dashboard]
+        working-directory: ./
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v2
 
-      - name: Download Client Coverage
-        uses: actions/download-artifact@v3
+      - name: Set up Go
+        uses: actions/setup-go@v2
         with:
-          name: client-coverage
+          go-version: 1.21
 
-      - name: Download Go Coverage
-        uses: actions/download-artifact@v3
+      - uses: actions/setup-python@v4
         with:
-          name: go-coverage-out
+          python-version: "3.8"
 
-      - name: Download Go Coverage
-        uses: actions/download-artifact@v3
-        with:
-          name: dashboard-coverage
+      - name: Install grpc_tools
+        run: pip install grpcio-tools==1.62.2 build mypy-protobuf
 
-      - uses: codecov/codecov-action@v4
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          files: ./coverage.xml,./cover.out,./clover.xml
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          aws-region: us-east-1
+
+      - name: Get AWS Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            ,testing/databricks
+            ,testing/azure
+            ,testing/snowflake
+            ,testing/dynamodb
+            ,testing/snowflake
+            ,testing/redshift
+            ,testing/snowflake
+            ,testing/emr
+            ,testing/s3
+            ,testing/bigquery
+            ,testing/gcs
+            ,testing/etcd
+            ,testing/redis
+            ,testing/meilisearch
+            ,testing/pinecone
+            ,testing/cassandra
+          parse-json-secrets: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: featureform
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Container
+        run: docker run -d --name featureform -p 7878:7878 -p 80:80 -e FEATUREFORM_DEBUG_LOGGING=true -e FF_STATE_PROVIDER=etcd featureform
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - name: Build Python Package
+        run: ./pip_update.sh --no-dash
+
+      - name: Install Behave
+        working-directory: ./tests/end_to_end/
+        run: pip install -r requirements.txt
+
+      - name: Run Behavioral Tests without Autovariants
+        if: github.ref != 'refs/heads/main'
+        working-directory: ./tests/end_to_end/
         env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
+          FF_TIMESTAMP_VARIANT: "false"
+          FF_GET_EQUIVALENT_VARIANTS: "false"
+        run: behavex -t '~@wip' -t '~@long' -t '~@av' --no-capture --no-logcapture --no-capture-stderr --parallel-processes 5 --parallel-scheme scenario
 
+      - name: Run Behave Tests without Autovariants
+        if: github.ref == 'refs/heads/main'
+        working-directory: ./tests/end_to_end/
+        env:
+          FF_TIMESTAMP_VARIANT: "false"
+          FF_GET_EQUIVALENT_VARIANTS: "false"
+        run: behavex -t '~@wip' -t '~@av' --no-capture --no-logcapture --no-capture-stderr --parallel-processes 5 --parallel-scheme scenario
 
+      - name: Archive behave test results without Autovariants
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: behave-reports-without-av
+          path: ./tests/end_to_end/output/
+
+      - name: Users
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl -X POST http://localhost:80/data/users
+
+      - name: Providers
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl -X POST http://localhost:80/data/providers
+
+      - name: Entities
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl -X POST http://localhost:80/data/entities
+
+      - name: Sources
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl -X POST http://localhost:80/data/sources
+
+      - name: Features
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl -X POST http://localhost:80/data/features
+
+      - name: Labels
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl -X POST http://localhost:80/data/labels
+
+      - name: Training Sets
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl -X POST http://localhost:80/data/training-sets
+
+      - name: Docker Logs
+        if: ${{ !cancelled() }}
+        run: docker logs featureform >> featureform-non-av.log
+
+      - name: Upload Logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: featureform-non-av.log
+          path: ./featureform-non-av.log
+
+  behave-av:
+    name: Run Auto Variant Behave Tests
+    timeout-minutes: 120
+    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event.inputs.run_job == 'behave-av') }}
+    env:
+      FEATUREFORM_DEBUG_LOGGING: "true"
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+      postgres:
+        image: featureformcom/postgres
+        ports:
+          - 5432:5432
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.21
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools==1.62.2 build mypy-protobuf
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          aws-region: us-east-1
+
+      - name: Get AWS Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            ,testing/databricks
+            ,testing/azure
+            ,testing/snowflake
+            ,testing/dynamodb
+            ,testing/snowflake
+            ,testing/redshift
+            ,testing/snowflake
+            ,testing/emr
+            ,testing/s3
+            ,testing/bigquery
+            ,testing/gcs
+            ,testing/etcd
+            ,testing/redis
+            ,testing/meilisearch
+            ,testing/pinecone
+            ,testing/cassandra
+          parse-json-secrets: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: featureform
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Container
+        run: docker run -d --name featureform -p 7878:7878 -p 80:80 -e FEATUREFORM_DEBUG_LOGGING=true -e FF_STATE_PROVIDER=etcd featureform
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - name: Build Python Package
+        run: ./pip_update.sh --no-dash
+
+      - name: Install Behave
+        working-directory: ./tests/end_to_end/
+        run: pip install -r requirements.txt
+
+      - name: Run Behavioral Tests with Autovariants
+        if: github.ref != 'refs/heads/main'
+        working-directory: ./tests/end_to_end/
+        env:
+          FF_TIMESTAMP_VARIANT: "true"
+          FF_GET_EQUIVALENT_VARIANTS: "true"
+        run: behavex -t '~@wip' -t '~@long' -t '@av' --no-capture --no-logcapture --no-capture-stderr --parallel-processes 5 --parallel-scheme scenario
+
+      - name: Run Behavioral Tests with Autovariants
+        if: github.ref == 'refs/heads/main'
+        working-directory: ./tests/end_to_end/
+        env:
+          FF_TIMESTAMP_VARIANT: "true"
+          FF_GET_EQUIVALENT_VARIANTS: "true"
+        run: behavex -t '~@wip' -t '@av'  --no-capture --no-logcapture --no-capture-stderr --parallel-processes 5 --parallel-scheme scenario
+
+      - name: Archive behave test results with Autovariants
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: behave-reports-av
+          path: ./tests/end_to_end/output/
+
+      - name: Users
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl -X POST http://localhost:80/data/users
+
+      - name: Providers
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl -X POST http://localhost:80/data/providers
+
+      - name: Entities
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl -X POST http://localhost:80/data/entities
+
+      - name: Sources
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl -X POST http://localhost:80/data/sources
+
+      - name: Features
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl -X POST http://localhost:80/data/features
+
+      - name: Labels
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl -X POST http://localhost:80/data/labels
+
+      - name: Training Sets
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl -X POST http://localhost:80/data/training-sets
+
+      - name: Docker Logs
+        if: ${{ !cancelled() }}
+        run: docker logs featureform >> featureform-av.log
+
+      - name: Upload Logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: featureform-av.log
+          path: ./featureform-av.log
+
+  pytest-e2e:
+    name: Run End-to-End Tests (pytests)
+    timeout-minutes: 120
+    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event.inputs.run_job == 'pytest-e2e') }}
+    env:
+      FEATUREFORM_DEBUG_LOGGING: "true"
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+      postgres:
+        image: featureformcom/postgres
+        ports:
+          - 5432:5432
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.21
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+
+      - name: Install grpc_tools
+        run: pip install grpcio-tools==1.62.2 build mypy-protobuf
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          aws-region: us-east-1
+
+      - name: Get AWS Secrets
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            ,testing/databricks
+            ,testing/azure
+            ,testing/snowflake
+            ,testing/dynamodb
+            ,testing/snowflake
+            ,testing/redshift
+            ,testing/snowflake
+            ,testing/emr
+            ,testing/s3
+            ,testing/bigquery
+            ,testing/gcs
+            ,testing/etcd
+            ,testing/redis
+            ,testing/meilisearch
+            ,testing/pinecone
+            ,testing/cassandra
+          parse-json-secrets: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: featureform
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Container
+        run: docker run -d --name featureform -p 7878:7878 -p 80:80 -e FEATUREFORM_DEBUG_LOGGING=true -e FF_STATE_PROVIDER=etcd featureform
+
+      - name: Setup Proto
+        run: ./gen_grpc.sh
+
+      - name: Build Python Package
+        run: ./pip_update.sh --no-dash
+
+      - name: Install pytest
+        run: pip install -r pytest-requirements.txt
+
+      - name: Run End to End Pytests
+        working-directory: ./tests/end_to_end/pytest
+        env:
+          FF_TIMESTAMP_VARIANT: "true"
+          FF_GET_EQUIVALENT_VARIANTS: "true"
+          REDIS_HOST: "172.17.0.1"
+        run: pytest -vv -s -n 5 --no-cov
+
+      - name: Users
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl http://localhost:80/data/users
+
+      - name: Providers
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl http://localhost:80/data/providers
+
+      - name: Entities
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl http://localhost:80/data/entities
+
+      - name: Sources
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl http://localhost:80/data/sources
+
+      - name: Features
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl http://localhost:80/data/features
+
+      - name: Labels
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl http://localhost:80/data/labels
+
+      - name: Training Sets
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: curl http://localhost:80/data/training-sets
+
+      - name: Docker Logs
+        if: ${{ !cancelled() }}
+        run: docker logs featureform >> featureform-e2e-pytest.log
+
+      - name: Upload Logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: featureform-e2e-pytest.log
+          path: ./featureform-e2e-pytest.log

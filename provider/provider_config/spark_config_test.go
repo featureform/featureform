@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider_config
 
 import (
@@ -5,7 +12,7 @@ import (
 	"testing"
 
 	filestore "github.com/featureform/filestore"
-	ss "github.com/featureform/helpers/string_set"
+	ss "github.com/featureform/helpers/stringset"
 )
 
 func TestSparkConfigMutableFields(t *testing.T) {
@@ -19,21 +26,23 @@ func TestSparkConfigMutableFields(t *testing.T) {
 			arg: SparkConfig{
 				ExecutorType: EMR,
 				ExecutorConfig: &EMRConfig{
-					Credentials:   AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:   AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					ClusterRegion: "us-east-1",
 					ClusterName:   "featureform-clst",
 				},
 				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
-					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:  AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
 					BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 				},
 			},
 			expected: ss.StringSet{
-				"Executor.Credentials": true,
-				"Store.Credentials":    true,
+				"Executor.Credentials":   true,
+				"Executor.ClusterRegion": true,
+				"Executor.ClusterName":   true,
+				"Store.Credentials":      true,
 			},
 		},
 		{
@@ -89,13 +98,13 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 			a: SparkConfig{
 				ExecutorType: EMR,
 				ExecutorConfig: &EMRConfig{
-					Credentials:   AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:   AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					ClusterRegion: "us-east-1",
 					ClusterName:   "featureform-clst",
 				},
 				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
-					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:  AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
 					BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
@@ -104,13 +113,13 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 			b: SparkConfig{
 				ExecutorType: EMR,
 				ExecutorConfig: &EMRConfig{
-					Credentials:   AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:   AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					ClusterRegion: "us-east-1",
 					ClusterName:   "featureform-clst",
 				},
 				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
-					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:  AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
 					BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
@@ -121,13 +130,13 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 			a: SparkConfig{
 				ExecutorType: EMR,
 				ExecutorConfig: &EMRConfig{
-					Credentials:   AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:   AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					ClusterRegion: "us-east-1",
 					ClusterName:   "featureform-clst",
 				},
 				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
-					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:  AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
 					BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
@@ -136,13 +145,13 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 			b: SparkConfig{
 				ExecutorType: EMR,
 				ExecutorConfig: &EMRConfig{
-					Credentials:   AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:   AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					ClusterRegion: "us-west-2",
 					ClusterName:   "featureform-clst",
 				},
 				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
-					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:  AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					BucketRegion: "us-west-2",
 					BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
@@ -244,7 +253,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 				},
 				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
-					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:  AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
 					BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
@@ -258,7 +267,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 				},
 				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
-					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:  AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
 					BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
@@ -274,7 +283,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 				},
 				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
-					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:  AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
 					BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
@@ -288,7 +297,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 				},
 				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
-					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:  AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					BucketRegion: "us-west-2",
 					BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
@@ -302,13 +311,13 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 			a: SparkConfig{
 				ExecutorType: EMR,
 				ExecutorConfig: &EMRConfig{
-					Credentials:   AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:   AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					ClusterRegion: "us-east-1",
 					ClusterName:   "featureform-clst",
 				},
 				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
-					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:  AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
 					BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
@@ -325,7 +334,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 				},
 				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
-					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:  AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					BucketRegion: "us-west-2",
 					BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
@@ -336,13 +345,13 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 			a: SparkConfig{
 				ExecutorType: EMR,
 				ExecutorConfig: &EMRConfig{
-					Credentials:   AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:   AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					ClusterRegion: "us-east-1",
 					ClusterName:   "featureform-clst",
 				},
 				StoreType: filestore.S3,
 				StoreConfig: &S3FileStoreConfig{
-					Credentials:  AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:  AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					BucketRegion: "us-east-1",
 					BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
 					Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
@@ -351,7 +360,7 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 			b: SparkConfig{
 				ExecutorType: EMR,
 				ExecutorConfig: &EMRConfig{
-					Credentials:   AWSCredentials{AWSAccessKeyId: "aws-key", AWSSecretKey: "aws-secret"},
+					Credentials:   AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
 					ClusterRegion: "us-west-2",
 					ClusterName:   "featureform-clst",
 				},
@@ -380,5 +389,37 @@ func TestSparkConfigDifferingFields(t *testing.T) {
 
 		})
 	}
+}
 
+func TestSparkConfig_Serde(t *testing.T) {
+	credentials := AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"}
+	sparkConfig := SparkConfig{
+		ExecutorType: EMR,
+		ExecutorConfig: &EMRConfig{
+			Credentials:   credentials,
+			ClusterRegion: "us-east-1",
+			ClusterName:   "featureform-clst",
+		},
+		StoreType: filestore.S3,
+		StoreConfig: &S3FileStoreConfig{
+			Credentials:  credentials,
+			BucketRegion: "us-east-1",
+			BucketPath:   "bucket",
+			Path:         "path",
+		},
+		GlueConfig: &GlueConfig{Warehouse: "hello"},
+	}
+
+	serialized, err := sparkConfig.Serialize()
+	if err != nil {
+		t.Errorf("Failed to serialize SparkConfig: %v", err)
+		deserialized := SparkConfig{}
+		err := deserialized.Deserialize(serialized)
+		if err != nil {
+			t.Errorf("Failed to deserialize SparkConfig: %v", err)
+		}
+		if !reflect.DeepEqual(sparkConfig, deserialized) {
+			t.Errorf("Expected %v, but found %v", sparkConfig, deserialized)
+		}
+	}
 }

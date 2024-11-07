@@ -1,41 +1,25 @@
-import Container from '@mui/material/Container';
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import CssBaseline from '@mui/material/CssBaseline';
-import { makeStyles, ThemeProvider } from '@mui/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import React from 'react';
-import ResourcesAPI from '../src/api/resources';
+import MainContainer from '../src/components/app/MainContainer';
 import ReduxStore from '../src/components/redux/store';
 import ReduxWrapper from '../src/components/redux/wrapper';
-import SideNav from '../src/components/sideNav/SideNav';
-import TopBar from '../src/components/topbar/TopBar';
 import '../src/styles/base.css';
 import theme from '../src/styles/theme';
 
-const apiHandle = new ResourcesAPI();
-const useStyles = makeStyles(() => ({
-  pageContainer: {
-    height: '100%',
-    width: '100%',
-    top: '70px',
-    position: 'relative',
-  },
-}));
-
-export const MyApp = ({ Component, pageProps }) => {
-  const classes = useStyles();
+export const MyApp = ({ Component, pageProps: { ...pageProps } }) => {
   return (
     <React.StrictMode>
       <ReduxWrapper store={ReduxStore}>
         <ThemeWrapper>
-          <TopBar className={classes.topbar} api={apiHandle} />
-          <SideNav>
-            <Container
-              maxWidth='xl'
-              className={classes.root}
-              classes={{ maxWidthXl: classes.pageContainer }}
-            >
-              <Component {...pageProps} api={apiHandle} />
-            </Container>
-          </SideNav>
+          <MainContainer Component={Component} pageProps={pageProps} />
         </ThemeWrapper>
       </ReduxWrapper>
     </React.StrictMode>

@@ -1,0 +1,47 @@
+FROM golang:1.21-alpine
+WORKDIR /app
+
+COPY go.mod ./
+COPY go.sum ./
+
+COPY ./metadata/proto/metadata.proto ./metadata/proto/metadata.proto
+COPY ./scheduling/proto/scheduling.proto ./scheduling/proto/scheduling.proto
+COPY ./proto/ ./proto/
+RUN apk update && apk add protobuf-dev && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest && go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+ENV PATH /go/bin:$PATH
+RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto \
+    && protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./proto/serving.proto \
+    && protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./scheduling/proto/scheduling.proto
+
+COPY ./search_loader/main.go ./main.go
+COPY ./fferr ./fferr
+COPY ./ffsync ./ffsync
+COPY ./storage ./storage
+COPY ./schema ./schema
+COPY ./lib/ ./lib/
+COPY ./filestore/ ./filestore/
+COPY ./metadata/*.go ./metadata/
+COPY ./integrations/ ./integrations/
+COPY ./metadata/search/ ./metadata/search/
+COPY ./metadata/proto/ ./metadata/proto/
+COPY ./metadata/equivalence/ ./metadata/equivalence/
+COPY ./proto/ ./proto/
+COPY ./helpers/ ./helpers/
+COPY ./logging/ ./logging/
+COPY ./types ./types
+COPY ./provider/ ./provider/
+COPY ./provider/provider_config/ ./provider/provider_config/
+COPY ./provider/provider_type/ ./provider/provider_type/
+COPY ./config/ ./config/
+COPY ./scheduling ./scheduling
+COPY ./api/ ./api/
+
+RUN go build ./main.go
+
+FROM golang:1.21-alpine
+
+RUN apk update && apk add --no-cache curl
+
+COPY --from=0 ./app/main ./main
+
+ENTRYPOINT ["./main"]

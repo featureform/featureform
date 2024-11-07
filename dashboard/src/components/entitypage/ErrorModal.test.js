@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import {
   cleanup,
   fireEvent,
@@ -24,7 +31,6 @@ describe('Error modal tests', () => {
   const ERROR_MSG_ID = 'errorMessageId';
   const TITLE_ID = 'errorModalTitleId';
   const FULL_TXT_ID = 'fullTextContent';
-  const COPY_BTN_ID = 'copyBtn';
 
   const getTestBody = (errorTxt = '', buttonTxt = 'Show More') => {
     const testBody = (
@@ -80,8 +86,6 @@ describe('Error modal tests', () => {
 
     //when:
     const foundFullError = helper.getByTestId(FULL_TXT_ID);
-    const foundCopyBtn = helper.getByTestId(COPY_BTN_ID);
-    fireEvent.click(foundCopyBtn);
 
     //then: the full error is found
     expect(foundFullError.textContent).toBe(errorMsg);

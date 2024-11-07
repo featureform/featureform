@@ -1,3 +1,4 @@
+astor
 azure-core
 azure-storage-blob
 boto3
@@ -7,8 +8,11 @@ google-auth
 google-cloud-core
 google-cloud-storage
 pyspark
+pyiceberg
 pytest
+pytest-cov
 pytest-mock
+pytest-xdist
 python-dotenv
 s3transfer
 urllib3

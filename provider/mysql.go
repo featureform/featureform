@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
@@ -31,16 +38,25 @@ func mySqlOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	}
 	queries := mySQLQueries{}
 	queries.setVariableBinding(MySQLBindingStyle)
-	sgConfig := SQLOfflineStoreConfig{
-		Config:       config,
-		Driver:       pt.MySqlOffline.String(),
-		ProviderType: pt.MySqlOffline,
-		QueryImpl:    &queries,
+	connectionBuilder := func(database, schema string) (string, error) {
+		var hostPort = ""
+		if sc.Host != "" && sc.Port != "" {
+			hostPort = fmt.Sprintf("tcp(%s:%s)", sc.Host, sc.Port)
+		}
+
+		return fmt.Sprintf("%s:%s@%s/%s", sc.Username, sc.Password, hostPort, sc.Database), nil
 	}
-	if sc.Host != "" && sc.Port != "" {
-		sgConfig.ConnectionURL = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", sc.Username, sc.Password, sc.Host, sc.Port, sc.Database)
-	} else {
-		sgConfig.ConnectionURL = fmt.Sprintf("%s:%s@/%s", sc.Username, sc.Password, sc.Database)
+	connectionUrl, connBuilderErr := connectionBuilder(sc.Database, "")
+	if connBuilderErr != nil {
+		return nil, connBuilderErr
+	}
+	sgConfig := SQLOfflineStoreConfig{
+		Config:                  config,
+		ConnectionURL:           connectionUrl,
+		Driver:                  pt.MySqlOffline.String(),
+		ProviderType:            pt.MySqlOffline,
+		QueryImpl:               &queries,
+		ConnectionStringBuilder: connectionBuilder,
 	}
 	store, err := NewSQLOfflineStore(sgConfig)
 	if err != nil {
@@ -54,11 +70,11 @@ type mySQLQueries struct {
 }
 
 func (q mySQLQueries) tableExists() string {
-	return "SELECT COUNT(*) FROM pg_tables WHERE  table_name  = $1"
+	return "SELECT COUNT(*) FROM pg_tables WHERE  table_name  = $1 AND table_schema = CURRENT_SCHEMA()"
 }
 
 func (q mySQLQueries) viewExists() string {
-	return "SELECT COUNT(*) FROM information_schema.views WHERE table_name = ?"
+	return "SELECT COUNT(*) FROM information_schema.views WHERE table_name = ? AND table_schema = CURRENT_SCHEMA()"
 }
 
 func (q mySQLQueries) registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error {
@@ -72,7 +88,7 @@ func (q mySQLQueries) registerResources(db *sql.DB, tableName string, schema Res
 		return fferr.NewInternalError(err)
 	}
 	defer query.Close()
-	if _, err = query.Exec(tableName, schema.Entity, schema.Value, schema.TS, schema.SourceTable); err != nil {
+	if _, err = query.Exec(tableName, schema.Entity, schema.Value, schema.TS, schema.SourceTable.Location()); err != nil {
 		wrapped := fferr.NewExecutionError(pt.MySqlOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)
 		wrapped.AddDetail("entity", schema.Entity)
@@ -103,7 +119,7 @@ func (q mySQLQueries) materializationUpdate(db *sql.DB, tableName string, source
 }
 
 func (q mySQLQueries) materializationExists() string {
-	return "SELECT * FROM information_schema.tables	WHERE table_name = ? AND table_type = 'VIEW'"
+	return "SELECT * FROM information_schema.tables	WHERE table_name = ? AND table_type = 'VIEW' AND table_schema = CURRENT_SCHEMA()"
 }
 
 func (q mySQLQueries) determineColumnType(valueType types.ValueType) (string, error) {
@@ -249,11 +265,11 @@ func (q mySQLQueries) transformationUpdate(db *sql.DB, tableName string, query s
 }
 
 func (q mySQLQueries) transformationExists() string {
-	return "SELECT * FROM information_schema.tables	WHERE table_name = ? AND table_type = 'VIEW'"
+	return "SELECT * FROM information_schema.tables	WHERE table_name = ? AND table_type = 'VIEW' AND table_schema = CURRENT_SCHEMA()"
 }
 
 func (q mySQLQueries) getColumns(db *sql.DB, tableName string) ([]TableColumn, error) {
-	rows, err := db.Query("SELECT column_name FROM information_schema.columns WHERE table_name = ?", tableName)
+	rows, err := db.Query("SELECT column_name FROM information_schema.columns WHERE table_name = ? and table_schema = CURRENT_SCHEMA()", tableName)
 	if err != nil {
 		wrapped := fferr.NewExecutionError(pt.MySqlOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)

@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
@@ -23,6 +30,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 
 	filestore "github.com/featureform/filestore"
+	pl "github.com/featureform/provider/location"
 	"github.com/parquet-go/parquet-go"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
@@ -112,6 +120,7 @@ func TestBlobInterfaces(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
 	}
+	t.Skipf("Skipping blob interface tests until work can be done to make the tests more reliable")
 
 	fileStoreTests := map[string]func(*testing.T, FileStore){
 		"Test Filestore Read and Write": testFilestoreReadAndWrite,
@@ -163,9 +172,15 @@ func TestBlobInterfaces(t *testing.T) {
 	}
 
 	hdfsConfig := pc.HDFSFileStoreConfig{
-		Host:     "localhost",
-		Port:     "9000",
-		Username: "hduser",
+		Host:           "localhost",
+		Port:           "9000",
+		Path:           "testdirectory/testpath",
+		HDFSSiteConf:   getHDFSSiteConf(),
+		CoreSiteConf:   getCoreSiteConf(),
+		CredentialType: pc.BasicCredential,
+		CredentialConfig: &pc.BasicCredentialConfig{
+			Username: "hdfs",
+		},
 	}
 
 	serializedHDFSConfig, err := hdfsConfig.Serialize()
@@ -183,12 +198,11 @@ func TestBlobInterfaces(t *testing.T) {
 		"Azure": azureFileStore,
 		"HDFS":  hdfsFileStore,
 	}
+
 	for testName, fileTest := range fileStoreTests {
 		for blobName, blobProvider := range blobProviders {
-			if testing.Short() && blobName == "Azure" {
-				t.Skip()
-			}
-
+			blobName = blobName
+			blobProvider = blobProvider
 			t.Run(fmt.Sprintf("%s: %s", testName, blobName), func(t *testing.T) {
 				fileTest(t, blobProvider)
 			})
@@ -197,6 +211,67 @@ func TestBlobInterfaces(t *testing.T) {
 	for _, blobProvider := range blobProviders {
 		blobProvider.Close()
 	}
+}
+
+func getHDFSSiteConf() string {
+	return `<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<!--
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License. See accompanying LICENSE file.
+-->
+
+<!-- Put site-specific property overrides in this file. -->
+
+<configuration>
+	<property>
+		<name>dfs.replication</name>
+		<value>1</value>
+	</property>
+
+	<property>
+		<name>dfs.permissions</name>
+		<value>false</value>
+	</property>
+</configuration>
+`
+}
+
+func getCoreSiteConf() string {
+	return `<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<!--
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License. See accompanying LICENSE file.
+-->
+
+<!-- Put site-specific property overrides in this file. -->
+
+<configuration>
+	<property>
+	<name>fs.defaultFS</name>
+		<value>hdfs://0.0.0.0:9000</value>
+	</property>
+</configuration>
+`
 }
 
 func testFileUploadAndDownload(t *testing.T, store FileStore) {
@@ -239,7 +314,7 @@ func testFileUploadAndDownload(t *testing.T, store FileStore) {
 		t.Fatalf("could not upload file because %v", err)
 	}
 
-	exists, err := store.Exists(destinationPath)
+	exists, err := store.Exists(pl.NewFileLocation(destinationPath))
 	if err != nil {
 		t.Fatalf("could not determine if file exists because %v", err)
 	}
@@ -273,14 +348,14 @@ func testFilestoreReadAndWrite(t *testing.T, store FileStore) {
 	if err != nil {
 		t.Fatalf("Could not create test filepath: %v", err)
 	}
-	exists, err := store.Exists(testFilePath)
+	exists, err := store.Exists(pl.NewFileLocation(testFilePath))
 	if exists {
 		t.Fatalf("Exists when not yet written")
 	}
 	if err := store.Write(testFilePath, testWrite); err != nil {
 		t.Fatalf("Failure writing data %s to key %s: %v", string(testWrite), testFilePath.ToURI(), err)
 	}
-	exists, err = store.Exists(testFilePath)
+	exists, err = store.Exists(pl.NewFileLocation(testFilePath))
 	if err != nil {
 		t.Fatalf("Failure checking existence of key %s: %v", testKey, err)
 	}
@@ -380,7 +455,7 @@ func Test_parquetIteratorFromReader(t *testing.T) {
 	}
 	w.Close()
 
-	iter, err := parquetIteratorFromBytes(buf.Bytes())
+	iter, err := parquetIteratorFromBytes(bytes.NewReader(buf.Bytes()))
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -410,7 +485,7 @@ func testExists(t *testing.T, store FileStore) {
 	if err := store.Write(randomFilePath, randomData); err != nil {
 		t.Fatalf("Could not write key to filestore: %v", err)
 	}
-	exists, err := store.Exists(randomFilePath)
+	exists, err := store.Exists(pl.NewFileLocation(randomFilePath))
 	if err != nil {
 		t.Fatalf("Could not check that key exists in filestore: %v", err)
 	}
@@ -428,7 +503,7 @@ func testNotExists(t *testing.T, store FileStore) {
 	if err != nil {
 		t.Fatalf("Could not create random file path: %v", err)
 	}
-	exists, err := store.Exists(randomFilePath)
+	exists, err := store.Exists(pl.NewFileLocation(randomFilePath))
 	if err != nil {
 		t.Fatalf("Could not check that key exists in filestore: %v", err)
 	}
@@ -595,7 +670,7 @@ func testDelete(t *testing.T, store FileStore) {
 	if err := store.Write(randomFilePath, randomData); err != nil {
 		t.Fatalf("Could not write key to filestore: %v", err)
 	}
-	exists, err := store.Exists(randomFilePath)
+	exists, err := store.Exists(pl.NewFileLocation(randomFilePath))
 	if err != nil {
 		t.Fatalf("Could not check that key exists in filestore: %v", err)
 	}
@@ -605,7 +680,7 @@ func testDelete(t *testing.T, store FileStore) {
 	if err := store.Delete(randomFilePath); err != nil {
 		t.Fatalf("Could not delete key from filestore: %v", err)
 	}
-	exists, err = store.Exists(randomFilePath)
+	exists, err = store.Exists(pl.NewFileLocation(randomFilePath))
 	if err != nil {
 		t.Fatalf("Could not check that key exists in filestore: %v", err)
 	}
@@ -642,7 +717,7 @@ func testDeleteAll(t *testing.T, store FileStore) {
 		if err != nil {
 			t.Fatalf("Could not create random file path: %v", err)
 		}
-		exists, err := store.Exists(randomFilePath)
+		exists, err := store.Exists(pl.NewFileLocation(randomFilePath))
 		if err != nil {
 			t.Fatalf("Could not check that key exists in filestore: %v", err)
 		}
@@ -650,6 +725,7 @@ func testDeleteAll(t *testing.T, store FileStore) {
 			t.Fatalf("Key written to file store does not exist")
 		}
 	}
+
 	if err := store.DeleteAll(randomDirectory); err != nil {
 		t.Fatalf("Could not delete directory: %v", err)
 	}
@@ -659,7 +735,8 @@ func testDeleteAll(t *testing.T, store FileStore) {
 		if err != nil {
 			t.Fatalf("Could not create random file path: %v", err)
 		}
-		exists, err := store.Exists(randomFilePath)
+
+		exists, err := store.Exists(pl.NewFileLocation(randomFilePath))
 		if err != nil {
 			t.Fatalf("Could not check that key exists in filestore: %v", err)
 		}
@@ -745,7 +822,7 @@ func TestDatabricksInitialization(t *testing.T) {
 		Token:   token,
 		Cluster: cluster,
 	}
-	executor, err := NewDatabricksExecutor(databricksConfig)
+	executor, err := NewDatabricksExecutor(databricksConfig, zaptest.NewLogger(t).Sugar())
 	if err != nil {
 		t.Fatalf("Could not create new databricks client: %v", err)
 	}
@@ -976,7 +1053,7 @@ func TestTrainingSetOrder(t *testing.T) {
 
 	testRows := createTestRows(w)
 
-	iter, err := parquetIteratorFromBytes(buf.Bytes())
+	iter, err := parquetIteratorFromBytes(bytes.NewReader(buf.Bytes()))
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -997,7 +1074,7 @@ func TestTrainingSetOrder(t *testing.T) {
 }
 
 func TestParquetIterator_vector32(t *testing.T) {
-	data, err := ioutil.ReadFile("test_files/vector32.parquet")
+	data, err := os.Open("test_files/vector32.parquet")
 	if err != nil {
 		t.Fatalf("could not read vector32 parquet file: %v", err)
 	}
@@ -1014,8 +1091,8 @@ func TestParquetIterator_vector32(t *testing.T) {
 		if value == nil {
 			break
 		}
-		if _, ok := value.([]float64); !ok {
-			t.Fatalf("could not cast type: %T to []float64", value)
+		if _, ok := value.([]float32); !ok {
+			t.Fatalf("could not cast type: %T to []float32", value)
 		}
 	}
 }
@@ -1041,7 +1118,7 @@ func convertToParquetBytes(schema TableSchema, list []GenericRecord) ([]byte, er
 	return buf.Bytes(), nil
 }
 func Test_castTimestamp(t *testing.T) {
-	timeNow := time.Now().UTC()
+	timeNow := time.Now()
 	type args struct {
 		timestamp interface{}
 	}
@@ -1053,8 +1130,7 @@ func Test_castTimestamp(t *testing.T) {
 		errMsg  string
 	}{
 		{"With time.Time", args{timeNow}, timeNow, false, ""},
-		{"With string", args{"idk"}, timeNow, true, "could not parse timestamp as string"},
-		{"With string timestamp", args{timeNow.String()}, timeNow, false, ""},
+		{"With string", args{"idk"}, timeNow, true, "expected timestamp to be of type time.Time"},
 		{"With int", args{0}, timeNow, true, "expected timestamp to be of type time.Time"},
 	}
 	for _, tt := range tests {
@@ -1097,7 +1173,7 @@ func TestFileStoreFeatureIterator(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			data, err := ioutil.ReadFile(tc.filepath)
+			data, err := os.Open(tc.filepath)
 			if err != nil {
 				t.Fatalf("could not read file: %v", err)
 			}

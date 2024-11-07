@@ -1,74 +1,43 @@
-import SearchIcon from '@mui/icons-material/Search';
-import Container from '@mui/material/Container';
-import Grid from '@mui/material/Grid';
-import InputBase from '@mui/material/InputBase';
-import { createStyles, makeStyles } from '@mui/styles';
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
+import { TextField } from '@mui/material';
+import { styled } from '@mui/system';
 import { useRouter } from 'next/router';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { FEATUREFORM_DARK_GRAY, WHITE } from '../../styles/theme';
 
 const ENTER_KEY = 'Enter';
+const DEFAULT_FILL = FEATUREFORM_DARK_GRAY;
 
-const useStyles = makeStyles((theme) =>
-  createStyles({
-    search: {
-      display: 'flex',
-      flexDirection: 'row',
-      alignItems: 'center',
-      padding: '0px',
-      gap: '4px',
-      position: 'absolute',
-      width: '328px',
-      height: '36px',
-      left: `calc(50% - 328px/2)`,
-      background: `#FFFFFF`,
-      borderRadius: `28px`,
+const CustomTextField = styled(TextField)(() => ({
+  background: WHITE,
+  width: 350,
+  '& label': {
+    color: DEFAULT_FILL,
+  },
+  '& label.Mui-focused': {
+    color: DEFAULT_FILL,
+  },
+  '& .MuiOutlinedInput-root': {
+    color: DEFAULT_FILL,
+    borderColor: DEFAULT_FILL,
+    '& fieldset': {
+      borderColor: DEFAULT_FILL,
     },
-    border: {
-      border: `2px solid grey`,
-      borderRadius: 16,
-      '&:hover': {
-        border: `2px solid grey `,
-      },
-      color: '#000000',
+    '&.Mui-focused fieldset': {
+      borderColor: DEFAULT_FILL,
     },
-    inputRoot: {
-      borderRadius: 16,
-      background: 'transparent',
-      boxShadow: 'none',
-      transition: theme.transitions.create('width'),
-      width: '100%',
-      display: 'flex',
-      color: '#grey',
-    },
-    inputColor: {
-      color: '000000',
-    },
-    inputInputHome: {
-      paddingLeft: theme.spacing(4),
-      transition: theme.transitions.create('width'),
-      background: 'transparent',
-      boxShadow: 'none',
-      padding: theme.spacing(1, 0.75, 0.4, 0),
-      justifyContent: 'center',
-      display: 'flex',
-      alignSelf: 'flex-end',
-      color: '#000000',
-    },
-    inputTopBar: {
-      width: '100%',
-      transition: theme.transitions.create('width'),
-      background: 'transparent',
-      boxShadow: 'none',
-      alignSelf: 'center',
-      color: '#000000',
-    },
-  })
-);
+  },
+}));
 
-const SearchBar = ({ homePage }) => {
-  const classes = useStyles();
+const SearchBar = () => {
   const router = useRouter();
-  const [searchText, setSearchText] = React.useState('');
+  const [searchText, setSearchText] = useState('');
 
   function handleSearch(event) {
     event.preventDefault();
@@ -87,42 +56,33 @@ const SearchBar = ({ homePage }) => {
   }, [router.query]);
 
   return (
-    <div className={classes.search}>
-      <Grid container item justifyContent='center' direction='row'>
-        <Container className={classes.border}>
-          <InputBase
-            placeholder='Search...'
-            endAdornment={<SearchIcon />}
-            onChange={(event) => {
-              const rawText = event.target.value;
-              if (rawText === '') {
-                // user is deleting the text field. allow this and clear out state
-                setSearchText(rawText);
-                return;
-              }
-              const searchText = event.target.value ?? '';
-              if (searchText.trim()) {
-                setSearchText(searchText);
-              }
-            }}
-            value={searchText}
-            onKeyDown={(event) => {
-              if (event.key === ENTER_KEY && searchText) {
-                handleSearch(event);
-              }
-            }}
-            classes={{
-              root: classes.inputRoot,
-              input: homePage ? classes.inputInputHome : classes.inputTopBar,
-            }}
-            inputProps={{
-              'aria-label': 'search',
-              'data-testid': 'searchInputId',
-            }}
-          />
-        </Container>
-      </Grid>
-    </div>
+    <CustomTextField
+      size='small'
+      label='Search'
+      InputLabelProps={{ shrink: true }}
+      onChange={(event) => {
+        const rawText = event.target.value;
+        if (rawText === '') {
+          // user is deleting the text field. allow this and clear out state
+          setSearchText(rawText);
+          return;
+        }
+        const searchText = event.target.value ?? '';
+        if (searchText.trim()) {
+          setSearchText(searchText);
+        }
+      }}
+      value={searchText}
+      onKeyDown={(event) => {
+        if (event.key === ENTER_KEY && searchText) {
+          handleSearch(event);
+        }
+      }}
+      inputProps={{
+        'aria-label': 'search',
+        'data-testid': 'searchInputId',
+      }}
+    />
   );
 };
 

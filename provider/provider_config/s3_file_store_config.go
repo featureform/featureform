@@ -1,10 +1,18 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider_config
 
 import (
 	"encoding/json"
+
 	"github.com/featureform/fferr"
 
-	ss "github.com/featureform/helpers/string_set"
+	ss "github.com/featureform/helpers/stringset"
 )
 
 type S3FileStoreConfig struct {
@@ -18,11 +26,29 @@ type S3FileStoreConfig struct {
 	Endpoint string
 }
 
+type s3FileStoreConfigTemp struct {
+	BucketRegion string
+	BucketPath   string
+	Path         string
+	Credentials  json.RawMessage
+}
+
 func (s *S3FileStoreConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, s)
+	var temp s3FileStoreConfigTemp
+	if err := json.Unmarshal(config, &temp); err != nil {
+		return fferr.NewInternalError(err)
+	}
+
+	s.BucketPath = temp.BucketPath
+	s.BucketRegion = temp.BucketRegion
+	s.Path = temp.Path
+
+	creds, err := UnmarshalAWSCredentials(temp.Credentials)
 	if err != nil {
 		return fferr.NewInternalError(err)
 	}
+	s.Credentials = creds
+
 	return nil
 }
 
@@ -46,35 +72,4 @@ func (s S3FileStoreConfig) MutableFields() ss.StringSet {
 
 func (a S3FileStoreConfig) DifferingFields(b S3FileStoreConfig) (ss.StringSet, error) {
 	return differingFields(a, b)
-}
-
-type HDFSFileStoreConfig struct {
-	Host     string
-	Port     string
-	Path     string
-	Username string
-}
-
-func (s *HDFSFileStoreConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, s)
-	if err != nil {
-		return fferr.NewInternalError(err)
-	}
-	return nil
-}
-
-func (s *HDFSFileStoreConfig) Serialize() ([]byte, error) {
-	conf, err := json.Marshal(s)
-	if err != nil {
-		return nil, fferr.NewInternalError(err)
-	}
-	return conf, nil
-}
-
-func (s *HDFSFileStoreConfig) IsFileStoreConfig() bool {
-	return true
-}
-
-func (s HDFSFileStoreConfig) DifferingFields(b HDFSFileStoreConfig) (ss.StringSet, error) {
-	return differingFields(s, b)
 }

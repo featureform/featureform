@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import Container from '@mui/material/Container';
 import Paper from '@mui/material/Paper';
 import React, { useEffect } from 'react';
@@ -63,10 +70,13 @@ const EntityPage = ({
   let resourceType = Resource[Resource.pathToType[type]];
   const fetchEntity = props.fetch;
 
-  useEffect(async () => {
-    if (api && type && entity) {
-      await fetchEntity(api, type, entity);
-    }
+  useEffect(() => {
+    const getData = async () => {
+      if (api && type && entity) {
+        await fetchEntity(api, type, entity);
+      }
+    };
+    getData();
   }, [type, entity]);
 
   let body = <></>;

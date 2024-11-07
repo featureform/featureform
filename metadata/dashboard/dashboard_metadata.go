@@ -1,17 +1,23 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
-package main
+package dashboard_metadata
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
+	"strconv"
 	"strings"
+	"time"
 
-	filestore "github.com/featureform/filestore"
+	"github.com/featureform/fferr"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -20,15 +26,29 @@ import (
 	"github.com/featureform/proto"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
+	sc "github.com/featureform/scheduling"
 	"github.com/featureform/serving"
+	"github.com/featureform/storage"
+	"github.com/featureform/storage/query"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
 var SearchClient search.Searcher
+
+const (
+	Online       = "online"
+	Offline      = "offline"
+	File         = "file"
+	Connected    = "connected"
+	Disconnected = "disconnected"
+)
+
+const typeListLimit int = 8
+const serializedVersion string = "SerializedVersion"
+const serializedV1 string = "1"
 
 type StorageProvider interface {
 	GetResourceLookup() (metadata.ResourceLookup, error)
@@ -45,21 +65,18 @@ func (sp LocalStorageProvider) GetResourceLookup() (metadata.ResourceLookup, err
 type MetadataServer struct {
 	lookup          metadata.ResourceLookup
 	client          *metadata.Client
-	logger          *zap.SugaredLogger
-	StorageProvider StorageProvider
+	logger          logging.Logger
+	StorageProvider storage.MetadataStorage
 }
 
-func NewMetadataServer(logger *zap.SugaredLogger, client *metadata.Client, storageProvider *metadata.EtcdStorageProvider) (*MetadataServer, error) {
+func NewMetadataServer(logger logging.Logger, client *metadata.Client, storageProvider storage.MetadataStorage) (*MetadataServer, error) {
 	logger.Debug("Creating new metadata server")
-	lookup, err := storageProvider.GetResourceLookup()
-	if err != nil {
-		return nil, fmt.Errorf("could not configure storage provider: %v", err)
-	}
+
 	return &MetadataServer{
 		client:          client,
 		logger:          logger,
 		StorageProvider: storageProvider,
-		lookup:          lookup,
+		lookup:          &metadata.MemoryResourceLookup{Connection: storageProvider},
 	}, nil
 }
 
@@ -95,18 +112,6 @@ type LabelResource struct {
 	Variants       map[string]metadata.LabelVariantResource `json:"variants"`
 }
 
-type EntityResource struct {
-	Name         string                                           `json:"name"`
-	Type         string                                           `json:"type"`
-	Description  string                                           `json:"description"`
-	Features     map[string][]metadata.FeatureVariantResource     `json:"features"`
-	Labels       map[string][]metadata.LabelVariantResource       `json:"labels"`
-	TrainingSets map[string][]metadata.TrainingSetVariantResource `json:"training-sets"`
-	Status       string                                           `json:"status"`
-	Tags         metadata.Tags                                    `json:"tags"`
-	Properties   metadata.Properties                              `json:"properties"`
-}
-
 type UserResource struct {
 	Name         string                                           `json:"name"`
 	Type         string                                           `json:"type"`
@@ -127,23 +132,6 @@ type ModelResource struct {
 	Labels       map[string][]metadata.LabelVariantResource       `json:"labels"`
 	TrainingSets map[string][]metadata.TrainingSetVariantResource `json:"training-sets"`
 	Status       string                                           `json:"status"`
-	Tags         metadata.Tags                                    `json:"tags"`
-	Properties   metadata.Properties                              `json:"properties"`
-}
-
-type ProviderResource struct {
-	Name         string                                           `json:"name"`
-	Type         string                                           `json:"type"`
-	Description  string                                           `json:"description"`
-	ProviderType string                                           `json:"provider-type"`
-	Software     string                                           `json:"software"`
-	Team         string                                           `json:"team"`
-	Sources      map[string][]metadata.SourceVariantResource      `json:"sources"`
-	Features     map[string][]metadata.FeatureVariantResource     `json:"features"`
-	Labels       map[string][]metadata.LabelVariantResource       `json:"labels"`
-	TrainingSets map[string][]metadata.TrainingSetVariantResource `json:"training-sets"`
-	Status       string                                           `json:"status"`
-	Error        string                                           `json:"error"`
 	Tags         metadata.Tags                                    `json:"tags"`
 	Properties   metadata.Properties                              `json:"properties"`
 }
@@ -221,7 +209,7 @@ func (m *MetadataServer) readFromFeature(feature *metadata.Feature, deepCopy boo
 	variantMap := make(map[string]metadata.FeatureVariantResource)
 	variants, err := feature.FetchVariants(m.client, context.Background())
 	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "feature variants"}
+		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "feature variants"}
 		m.logger.Errorw(fetchError.Error(), "Internal Error", err)
 		return nil, fetchError
 	}
@@ -232,7 +220,7 @@ func (m *MetadataServer) readFromFeature(feature *metadata.Feature, deepCopy boo
 			ts, err := m.getTrainingSets(variant.TrainingSets())
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal Error", err)
-				return nil, &FetchError{StatusCode: 500, Type: "Cannot get information from training sets"}
+				return nil, &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information from training sets"}
 			}
 			featResource.TrainingSets = ts
 		}
@@ -246,7 +234,7 @@ func (m *MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet, 
 	variantMap := make(map[string]metadata.TrainingSetVariantResource)
 	variants, err := trainingSet.FetchVariants(m.client, context.Background())
 	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "training set variants"}
+		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "training set variants"}
 		m.logger.Errorw(fetchError.Error(), "Internal Error", err)
 		return nil, fetchError
 	}
@@ -257,7 +245,7 @@ func (m *MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet, 
 			f, err := m.getFeatures(variant.Features())
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal Error", err)
-				return nil, &FetchError{StatusCode: 500, Type: "Cannot get information from features"}
+				return nil, &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information from features"}
 			}
 			trainingResource.Features = f
 		}
@@ -271,7 +259,7 @@ func (m *MetadataServer) readFromSource(source *metadata.Source, deepCopy bool) 
 	variantMap := make(map[string]metadata.SourceVariantResource)
 	variants, err := source.FetchVariants(m.client, context.Background())
 	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "source variants"}
+		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "source variants"}
 		m.logger.Errorw(fetchError.Error(), "Internal Error", err)
 		return nil, fetchError
 	}
@@ -284,7 +272,7 @@ func (m *MetadataServer) readFromSource(source *metadata.Source, deepCopy bool) 
 				f, err := m.getFeatures(variant.Features())
 				if err != nil {
 					m.logger.Errorw(err.Error(), "Internal Error", err)
-					return &FetchError{StatusCode: 500, Type: "Cannot get information from features"}
+					return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information from features"}
 				}
 				sourceResource.Features = f
 				return nil
@@ -293,7 +281,7 @@ func (m *MetadataServer) readFromSource(source *metadata.Source, deepCopy bool) 
 				l, err := m.getLabels(variant.Labels())
 				if err != nil {
 					m.logger.Errorw(err.Error(), "Internal Error", err)
-					return &FetchError{StatusCode: 500, Type: "Cannot get information from labels"}
+					return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information from labels"}
 				}
 				sourceResource.Labels = l
 				return nil
@@ -302,7 +290,7 @@ func (m *MetadataServer) readFromSource(source *metadata.Source, deepCopy bool) 
 				ts, err := m.getTrainingSets(variant.TrainingSets())
 				if err != nil {
 					m.logger.Errorw(err.Error(), "Internal Error", err)
-					return &FetchError{StatusCode: 500, Type: "Cannot get information from training sets"}
+					return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information from training sets"}
 				}
 				sourceResource.TrainingSets = ts
 				return nil
@@ -321,7 +309,7 @@ func (m *MetadataServer) readFromLabel(label *metadata.Label, deepCopy bool) (ma
 	variantMap := make(map[string]metadata.LabelVariantResource)
 	variants, err := label.FetchVariants(m.client, context.Background())
 	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "label variants"}
+		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "label variants"}
 		m.logger.Errorw(fetchError.Error(), "Internal Error", err)
 		return nil, fetchError
 	}
@@ -331,7 +319,7 @@ func (m *MetadataServer) readFromLabel(label *metadata.Label, deepCopy bool) (ma
 			ts, err := m.getTrainingSets(variant.TrainingSets())
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal Error", err)
-				return nil, &FetchError{StatusCode: 500, Type: "Cannot get information from training sets"}
+				return nil, &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information from training sets"}
 			}
 			labelResource.TrainingSets = ts
 		}
@@ -345,7 +333,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 	case "features":
 		feature, err := m.client.GetFeature(context.Background(), c.Param("resource"))
 		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "feature"}
+			fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "feature"}
 			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
@@ -365,7 +353,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 	case "labels":
 		label, err := m.client.GetLabel(context.Background(), c.Param("resource"))
 		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "label"}
+			fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "label"}
 			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
@@ -385,7 +373,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 	case "training-sets":
 		trainingSet, err := m.client.GetTrainingSet(context.Background(), c.Param("resource"))
 		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "training set"}
+			fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "training set"}
 			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
@@ -405,7 +393,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 	case "sources":
 		source, err := m.client.GetSource(context.Background(), c.Param("resource"))
 		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "source"}
+			fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "source"}
 			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
@@ -425,12 +413,12 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 	case "entities":
 		entity, err := m.client.GetEntity(context.Background(), c.Param("resource"))
 		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "entity"}
+			fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "entity"}
 			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
-		entityResource := EntityResource{
+		entityResource := metadata.EntityResource{
 			Name:        entity.Name(),
 			Type:        "Entity",
 			Description: entity.Description(),
@@ -443,7 +431,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			f, err := m.getFeatures(entity.Features())
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: 500, Type: "feature"}
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "feature"}
 			}
 			entityResource.Features = f
 			return nil
@@ -452,7 +440,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			l, err := m.getLabels(entity.Labels())
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: 500, Type: "label"}
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "label"}
 			}
 			entityResource.Labels = l
 			return nil
@@ -461,7 +449,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			ts, err := m.getTrainingSets(entity.TrainingSets())
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: 500, Type: "training set"}
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "training set"}
 			}
 			entityResource.TrainingSets = ts
 			return nil
@@ -473,7 +461,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 	case "users":
 		user, err := m.client.GetUser(context.Background(), c.Param("resource"))
 		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "user"}
+			fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "user"}
 			m.logger.Errorw(err.Error(), "Metadata error", err)
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
@@ -490,7 +478,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			f, err := m.getFeatures(user.Features())
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: 500, Type: "feature"}
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "feature"}
 			}
 			userResource.Features = f
 			return nil
@@ -499,7 +487,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			l, err := m.getLabels(user.Labels())
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: 500, Type: "label"}
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "label"}
 			}
 			userResource.Labels = l
 			return nil
@@ -508,7 +496,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			ts, err := m.getTrainingSets(user.TrainingSets())
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: 500, Type: "training set"}
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "training set"}
 			}
 			userResource.TrainingSets = ts
 			return nil
@@ -517,7 +505,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			s, err := m.getSources(user.Sources())
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: 500, Type: "source"}
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "source"}
 			}
 			userResource.Sources = s
 			return nil
@@ -529,7 +517,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 	case "models":
 		model, err := m.client.GetModel(context.Background(), c.Param("resource"))
 		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "model"}
+			fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "model"}
 			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
@@ -547,7 +535,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			f, err := m.getFeatures(model.Features())
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: 500, Type: "feature"}
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "feature"}
 			}
 			modelResource.Features = f
 			return nil
@@ -556,7 +544,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			l, err := m.getLabels(model.Labels())
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: 500, Type: "label"}
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "label"}
 			}
 			modelResource.Labels = l
 			return nil
@@ -565,7 +553,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			ts, err := m.getTrainingSets(model.TrainingSets())
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: 500, Type: "training set"}
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "training set"}
 			}
 			modelResource.TrainingSets = ts
 			return nil
@@ -577,15 +565,15 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 	case "providers":
 		provider, err := m.client.GetProvider(context.Background(), c.Param("resource"))
 		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "provider"}
+			fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "provider"}
 			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
-		providerResource := &ProviderResource{
+		providerResource := &metadata.ProviderResource{
 			Name:         provider.Name(),
-			Type:         "Provider",
 			Description:  provider.Description(),
+			Type:         "Provider",
 			ProviderType: provider.Type(),
 			Software:     provider.Software(),
 			Team:         provider.Team(),
@@ -599,7 +587,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			f, err := m.getFeatures(provider.Features())
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: 500, Type: "feature"}
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "feature"}
 			}
 			providerResource.Features = f
 			return nil
@@ -608,7 +596,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			l, err := m.getLabels(provider.Labels())
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: 500, Type: "label"}
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "label"}
 			}
 			providerResource.Labels = l
 			return nil
@@ -617,7 +605,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			ts, err := m.getTrainingSets(provider.TrainingSets())
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: 500, Type: "training set"}
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "training set"}
 			}
 			providerResource.TrainingSets = ts
 			return nil
@@ -626,7 +614,7 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			s, err := m.getSources(provider.Sources())
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: 500, Type: "source"}
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "source"}
 			}
 			providerResource.Sources = s
 			return nil
@@ -638,239 +626,1348 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 	}
 }
 
-func (m *MetadataServer) GetMetadataList(c *gin.Context) {
+func GetMetadataResources(paginatedResources map[string]string, resourceType metadata.ResourceType) ([]metadata.Resource, error) {
+	mResources := make([]metadata.Resource, 0)
+	for _, currentResource := range paginatedResources {
+		var tmp metadata.EtcdRowTemp
+		err := json.Unmarshal([]byte(currentResource), &tmp)
+		if err != nil {
+			return nil, err
+		}
+		msg := metadata.EtcdRow{
+			ResourceType:      metadata.ResourceType(tmp.ResourceType),
+			StorageType:       tmp.StorageType,
+			Message:           tmp.Message,
+			SerializedVersion: tmp.SerializedVersion,
+		}
+		resource, _ := metadata.CreateEmptyResource(msg.ResourceType)
+		parsedResource, err := metadata.ParseResource(msg, resource)
+		if err != nil {
+			logging.GlobalLogger.Errorw("Error with parsing resources", "error", err)
+			return nil, err
+		}
+		if parsedResource.ID().Type == resourceType {
+			mResources = append(mResources, parsedResource)
+		}
+	}
+	return mResources, nil
+}
 
-	switch c.Param("type") {
-	case "features":
-		features, err := m.client.ListFeatures(context.Background())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "features"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		featureList := make([]FeatureResource, len(features))
-		for i, feature := range features {
-			variantList, fetchError := m.readFromFeature(feature, false)
-			if fetchError != nil {
-				m.logger.Errorw(fetchError.Error())
-				c.JSON(fetchError.StatusCode, fetchError.Error())
-				return
-			}
-			featureList[i] = FeatureResource{
-				AllVariants:    feature.Variants(),
-				Type:           "Feature",
-				DefaultVariant: feature.DefaultVariant(),
-				Name:           feature.Name(),
-				Variants:       variantList,
-			}
-		}
-		c.JSON(http.StatusOK, featureList)
-	case "training-sets":
-		trainingSets, err := m.client.ListTrainingSets(context.Background())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "training sets"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		trainingSetList := make([]TrainingSetResource, len(trainingSets))
-		for i, trainingSet := range trainingSets {
-			variantList, fetchError := m.readFromTrainingSet(trainingSet, false)
-			if fetchError != nil {
-				m.logger.Errorw(fetchError.Error())
-				c.JSON(fetchError.StatusCode, fetchError.Error())
-				return
-			}
-			trainingSetList[i] = TrainingSetResource{
-				AllVariants:    trainingSet.Variants(),
-				Type:           "TrainingSet",
-				DefaultVariant: trainingSet.DefaultVariant(),
-				Name:           trainingSet.Name(),
-				Variants:       variantList,
-			}
-		}
-		c.JSON(http.StatusOK, trainingSetList)
-	case "sources":
-		sources, err := m.client.ListSources(context.Background())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "sources"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		sourceList := make([]SourceResource, len(sources))
-		for i, source := range sources {
-			variantList, fetchError := m.readFromSource(source, false)
-			if fetchError != nil {
-				m.logger.Errorw(fetchError.Error())
-				c.JSON(fetchError.StatusCode, fetchError.Error())
-				return
-			}
-			sourceList[i] = SourceResource{
-				AllVariants:    source.Variants(),
-				Type:           "Source",
-				DefaultVariant: source.DefaultVariant(),
-				Name:           source.Name(),
-				Variants:       variantList,
-			}
-		}
-		c.JSON(http.StatusOK, sourceList)
-	case "labels":
-		labels, err := m.client.ListLabels(context.Background())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "labels"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		labelList := make([]LabelResource, len(labels))
+type GetMetadataListResp struct {
+	Count        int `json:"count"`
+	ResourceList any `json:"resourceList"`
+}
 
-		for i, label := range labels {
-			variantList, fetchError := m.readFromLabel(label, false)
-			if fetchError != nil {
-				m.logger.Errorw(fetchError.Error())
-				c.JSON(fetchError.StatusCode, fetchError.Error())
-				return
-			}
-			labelList[i] = LabelResource{
-				AllVariants:    label.Variants(),
-				Type:           "Label",
-				DefaultVariant: label.DefaultVariant(),
-				Name:           label.Name(),
-				Variants:       variantList,
-			}
-		}
-		c.JSON(http.StatusOK, labelList)
-	case "entities":
-		entities, err := m.client.ListEntities(context.Background())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "entities"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		entityList := make([]EntityResource, len(entities))
-		for i, entity := range entities {
-			entityList[i] = EntityResource{
-				Name:        entity.Name(),
-				Type:        "Entity",
-				Description: entity.Description(),
-				Status:      entity.Status().String(),
-				Tags:        entity.Tags(),
-				Properties:  entity.Properties(),
-			}
-		}
-		c.JSON(http.StatusOK, entityList)
+type GetFeatureVariantListResp struct {
+	Count int                               `json:"count"`
+	Data  []metadata.FeatureVariantResource `json:"data"`
+}
 
-	case "models":
-		models, err := m.client.ListModels(context.Background())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "models"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		modelList := make([]ModelResource, len(models))
-		for i, model := range models {
-			modelList[i] = ModelResource{
-				Name:        model.Name(),
-				Type:        "Model",
-				Description: model.Description(),
-				Status:      model.Status().String(),
-				Tags:        model.Tags(),
-				Properties:  model.Properties(),
-			}
-		}
-		c.JSON(http.StatusOK, modelList)
+type GetSourceVariantListResp struct {
+	Count int                              `json:"count"`
+	Data  []metadata.SourceVariantResource `json:"data"`
+}
 
-	case "users":
-		users, err := m.client.ListUsers(context.Background())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "users"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		userList := make([]UserResource, len(users))
-		for i, user := range users {
-			userList[i] = UserResource{
-				Name:       user.Name(),
-				Type:       "User",
-				Status:     user.Status().String(),
-				Tags:       user.Tags(),
-				Properties: user.Properties(),
-			}
-		}
-		c.JSON(http.StatusOK, userList)
+type GetLabelVariantListResp struct {
+	Count int                             `json:"count"`
+	Data  []metadata.LabelVariantResource `json:"data"`
+}
 
-	case "providers":
-		providers, err := m.client.ListProviders(context.Background())
-		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "providers"}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
-		providerList := make([]ProviderResource, len(providers))
-		for i, provider := range providers {
-			providerList[i] = ProviderResource{
-				Name:         provider.Name(),
-				Type:         "Provider",
-				Description:  provider.Description(),
-				Software:     provider.Software(),
-				Team:         provider.Team(),
-				ProviderType: provider.Type(),
-				Status:       provider.Status().String(),
-				Tags:         provider.Tags(),
-				Properties:   provider.Properties(),
-			}
-		}
-		c.JSON(http.StatusOK, providerList)
+type GetEntityListResp struct {
+	Count int                       `json:"count"`
+	Data  []metadata.EntityResource `json:"data"`
+}
 
-	default:
-		m.logger.Errorw("Not a valid data type", "Error", c.Param("type"))
-		fetchError := &FetchError{StatusCode: 400, Type: c.Param("type")}
+type GetProviderListResp struct {
+	Count int                         `json:"count"`
+	Data  []metadata.ProviderResource `json:"data"`
+}
+
+type GetTrainingSetVariantListResp struct {
+	Count int                                   `json:"count"`
+	Data  []metadata.TrainingSetVariantResource `json:"data"`
+}
+
+func (m *MetadataServer) getCountAndResources(resourceType metadata.ResourceType, pageSize, offset int, filterOpts ...query.Query) (int, []metadata.Resource, error) {
+	queryList := m.getResourceQuery(resourceType.String())
+	queryList = append(queryList, filterOpts...)
+	count, err := m.StorageProvider.Count(resourceType.String(), queryList...)
+	if err != nil {
+		m.logger.Errorw("Error getting count of query list", "error", err)
+		return 0, nil, err
+	}
+	pagination := query.Limit{
+		Limit:  pageSize,
+		Offset: offset * pageSize,
+	}
+	keySort := query.KeySort{Dir: query.Desc}
+	queryList = append(queryList, pagination, keySort)
+	m.logger.Debugw("Query list", "queryList", queryList)
+	paginatedResources, err := m.StorageProvider.List(resourceType.String(), queryList...)
+	if err != nil {
+		m.logger.Errorw("Error getting paginated resources", "query list", queryList, "error", err)
+		return 0, nil, err
+	}
+	m.logger.Debugw("Paginated resources", "paginatedResources", paginatedResources)
+	mResources, err := GetMetadataResources(paginatedResources, resourceType)
+	if err != nil {
+		m.logger.Errorw("Error getting metadata resources", "error", err)
+		return 0, nil, err
+	}
+	return count, mResources, nil
+}
+
+type FeatureVariantFilters struct {
+	SearchTxt string   `json:"SearchTxt"`
+	Owners    []string `json:"Owners"`
+	Statuses  []string `json:"Statuses"`
+	Tags      []string `json:"Tags"`
+	PageSize  int      `json:"pageSize"`
+	Offset    int      `json:"offset"`
+}
+
+func (m *MetadataServer) GetFeatureVariantResources(c *gin.Context) {
+	var filterBody FeatureVariantFilters
+	if bindErr := c.BindJSON(&filterBody); bindErr != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, bindErr, c, "Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 
+	filterOpts := m.buildFeatureVariantFilterOpts(filterBody)
+	resourceType := metadata.FEATURE_VARIANT
+
+	count, variantResources, err := m.getCountAndResources(resourceType, filterBody.PageSize, filterBody.Offset, filterOpts...)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "Failed to get count or list")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	//pull the provider name - type map
+	providerMap, mapErr := m.getProviderNameTypeMap()
+	if mapErr != nil {
+		// log but continue
+		m.logger.Errorf("an error occurred pulling the provider name - type map: %v", mapErr)
+	}
+
+	variantList := make([]metadata.FeatureVariantResource, len(variantResources))
+	for i, parsedVariant := range variantResources {
+		deserialized := parsedVariant.Proto()
+		featureVariant, ok := deserialized.(*pb.FeatureVariant)
+		if !ok {
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedVariant.ID().String())
+			continue
+		}
+		wrappedVariant := metadata.WrapProtoFeatureVariant(featureVariant)
+		shallowVariant := wrappedVariant.ToShallowMap()
+
+		//check in the providerMap association
+		providerType, mapOk := providerMap[shallowVariant.Provider]
+		if mapOk {
+			shallowVariant.ProviderType = providerType
+		}
+
+		variantList[i] = shallowVariant
+	}
+
+	resp := GetFeatureVariantListResp{
+		Count: count,
+		Data:  variantList,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+type SourceVariantFilters struct {
+	SearchTxt string   `json:"SearchTxt"`
+	Types     []string `json:"Types"`
+	Modes     []string `json:"Modes"`
+	Tags      []string `json:"Tags"`
+	Statuses  []string `json:"Statuses"`
+	Owners    []string `json:"Owners"`
+	PageSize  int      `json:"pageSize"`
+	Offset    int      `json:"offset"`
+}
+
+func (m *MetadataServer) GetSourceVariantResources(c *gin.Context) {
+	var filterBody SourceVariantFilters
+	if bindErr := c.BindJSON(&filterBody); bindErr != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, bindErr, c, "Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	filterOpts := m.buildSourceVariantFilterOpts(filterBody)
+	resourceType := metadata.SOURCE_VARIANT
+
+	count, variantResources, err := m.getCountAndResources(resourceType, filterBody.PageSize, filterBody.Offset, filterOpts...)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "Failed to get count or list")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	variantList := make([]metadata.SourceVariantResource, len(variantResources))
+	for i, parsedVariant := range variantResources {
+		deserialized := parsedVariant.Proto()
+		sourceVariant, ok := deserialized.(*pb.SourceVariant)
+		if !ok {
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedVariant.ID().String())
+			continue
+		}
+		wrappedVariant := metadata.WrapProtoSourceVariant(sourceVariant)
+		shallowVariant := wrappedVariant.ToShallowMap()
+		variantList[i] = shallowVariant
+	}
+	resp := GetSourceVariantListResp{
+		Count: count,
+		Data:  variantList,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+type LabelVariantFilters struct {
+	SearchTxt string   `json:"SearchTxt"`
+	Owners    []string `json:"Owners"`
+	Statuses  []string `json:"Statuses"`
+	Tags      []string `json:"Tags"`
+	PageSize  int      `json:"pageSize"`
+	Offset    int      `json:"offset"`
+}
+
+func (m *MetadataServer) GetLabelVariantResources(c *gin.Context) {
+	var filterBody LabelVariantFilters
+	if bindErr := c.BindJSON(&filterBody); bindErr != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, bindErr, c, "Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	filterOpts := m.buildLabelVariantFilterOpts(filterBody)
+	resourceType := metadata.LABEL_VARIANT
+
+	count, variantResources, err := m.getCountAndResources(resourceType, filterBody.PageSize, filterBody.Offset, filterOpts...)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "Failed to get count or list")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	//pull the provider name - type map
+	providerMap, mapErr := m.getProviderNameTypeMap()
+	if mapErr != nil {
+		// log but continue
+		m.logger.Errorf("an error occurred pulling the provider name - type map: %v", mapErr)
+	}
+
+	variantList := make([]metadata.LabelVariantResource, len(variantResources))
+	for i, parsedVariant := range variantResources {
+		deserialized := parsedVariant.Proto()
+		labelVariant, ok := deserialized.(*pb.LabelVariant)
+		if !ok {
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedVariant.ID().String())
+			continue
+		}
+		wrappedVariant := metadata.WrapProtoLabelVariant(labelVariant)
+		shallowVariant := wrappedVariant.ToShallowMap()
+
+		//check in the providerMap association
+		providerType, mapOk := providerMap[shallowVariant.Provider]
+		if mapOk {
+			shallowVariant.ProviderType = providerType
+		}
+
+		variantList[i] = shallowVariant
+	}
+
+	resp := GetLabelVariantListResp{
+		Count: count,
+		Data:  variantList,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+type EntityFilters struct {
+	SearchTxt string   `json:"SearchTxt"`
+	Owners    []string `json:"Owners"`
+	Statuses  []string `json:"Statuses"`
+	Tags      []string `json:"Tags"`
+	Labels    []string `json:"Labels"`
+	Features  []string `json:"Features"`
+	PageSize  int      `json:"pageSize"`
+	Offset    int      `json:"offset"`
+}
+
+func (m *MetadataServer) GetEntityResources(c *gin.Context) {
+	var filterBody EntityFilters
+	if bindErr := c.BindJSON(&filterBody); bindErr != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, bindErr, c, "Error binding the request body")
+		m.logger.Errorw(fetchError.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	filterOpts := m.buildEntityFilterOpts(filterBody)
+	resourceType := metadata.ENTITY
+
+	count, resources, err := m.getCountAndResources(resourceType, filterBody.PageSize, filterBody.Offset, filterOpts...)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "Failed to get count or list")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	resourceList := make([]metadata.EntityResource, len(resources))
+	for i, parsedResource := range resources {
+		deserialized := parsedResource.Proto()
+		entity, ok := deserialized.(*pb.Entity)
+		if !ok {
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedResource.ID().String())
+			continue
+		}
+		wrappedEntity := metadata.WrapProtoEntity(entity)
+		shallowEntity := wrappedEntity.ToShallowMap()
+
+		resourceList[i] = shallowEntity
+	}
+
+	resp := GetEntityListResp{
+		Count: count,
+		Data:  resourceList,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+type ProviderFilters struct {
+	SearchTxt    string   `json:"SearchTxt"`
+	ProviderType []string `json:"ProviderType"`
+	Status       []string `json:"Status"`
+	PageSize     int      `json:"pageSize"`
+	Offset       int      `json:"offset"`
+}
+
+func (m *MetadataServer) GetProviderResources(c *gin.Context) {
+	var filterBody ProviderFilters
+	if bindErr := c.BindJSON(&filterBody); bindErr != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, bindErr, c, "Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	filterOpts := m.buildProviderFilterOpts(filterBody)
+	resourceType := metadata.PROVIDER
+
+	count, resources, err := m.getCountAndResources(resourceType, filterBody.PageSize, filterBody.Offset, filterOpts...)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "Failed to get count or list")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	variantList := make([]metadata.ProviderResource, len(resources))
+	for i, parsedProvider := range resources {
+		deserialized := parsedProvider.Proto()
+		provider, ok := deserialized.(*pb.Provider)
+		if !ok {
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedProvider.ID().String())
+			continue
+		}
+		wrappedProvider := metadata.WrapProtoProvider(provider)
+		shallowProvider := wrappedProvider.ToShallowMap()
+
+		variantList[i] = shallowProvider
+	}
+
+	resp := GetProviderListResp{
+		Count: count,
+		Data:  variantList,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+type TrainingSetVariantFilters struct {
+	SearchTxt string   `json:"SearchTxt"`
+	Owners    []string `json:"Owners"`
+	Statuses  []string `json:"Statuses"`
+	Tags      []string `json:"Tags"`
+	Labels    []string `json:"Labels"`
+	Providers []string `json:"Providers"`
+	PageSize  int      `json:"pageSize"`
+	Offset    int      `json:"offset"`
+}
+
+func (m *MetadataServer) GetTrainingSetVariantResources(c *gin.Context) {
+	var filterBody TrainingSetVariantFilters
+	if bindErr := c.BindJSON(&filterBody); bindErr != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, bindErr, c, "Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	filterOpts := m.buildTrainingSetVariantFilterOpts(filterBody)
+	resourceType := metadata.TRAINING_SET_VARIANT
+
+	count, variantResources, err := m.getCountAndResources(resourceType, filterBody.PageSize, filterBody.Offset, filterOpts...)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "Failed to get count or list")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	variantList := make([]metadata.TrainingSetVariantResource, len(variantResources))
+	for i, parsedVariant := range variantResources {
+		deserialized := parsedVariant.Proto()
+		trainingSetVariant, ok := deserialized.(*pb.TrainingSetVariant)
+		if !ok {
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedVariant.ID().String())
+			continue
+		}
+		wrappedVariant := metadata.WrapProtoTrainingSetVariant(trainingSetVariant)
+		shallowVariant := wrappedVariant.ToShallowMap()
+		variantList[i] = shallowVariant
+	}
+
+	resp := GetTrainingSetVariantListResp{
+		Count: count,
+		Data:  variantList,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// helper function
+func convertToAny[T any](slice []T) []any {
+	converted := make([]any, len(slice))
+	for i, v := range slice {
+		converted[i] = v
+	}
+	return converted
+}
+
+func (m *MetadataServer) GetMetadataList(c *gin.Context) {
+	typeParam := c.Param("type")
+	pageSize, offset, err := m.parsePaginationParams(c)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "GetMetadataList"}
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	switch typeParam {
+	case "features":
+		m.getFeatureMetadataList(c, pageSize, offset)
+	case "training-sets":
+		m.getTrainingSetMetadataList(c, pageSize, offset)
+	case "sources":
+		m.getSourceMetadataList(c, pageSize, offset)
+	case "labels":
+		m.getLabelMetadataList(c, pageSize, offset)
+	case "entities":
+		m.getEntityMetadataList(c, pageSize, offset)
+	case "models":
+		m.getModelMetadataList(c, pageSize, offset)
+	case "users":
+		m.getUserMetadataList(c, pageSize, offset)
+	case "providers":
+		m.getProviderMetadataList(c, pageSize, offset)
+	default:
+		m.logger.Errorw("Not a valid data type", "Error", typeParam)
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: typeParam}
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+}
+
+func (m *MetadataServer) parsePaginationParams(c *gin.Context) (int, int, error) {
+	pageSize := 500 // default
+	offset := 0
+	pageSizeQuery := c.Query("pageSize")
+	offsetQuery := c.Query("offset")
+
+	if pageSizeQuery != "" && offsetQuery != "" {
+		ps, err := strconv.Atoi(pageSizeQuery)
+		if err != nil || ps <= 0 {
+			m.logger.Errorw("Invalid pageSize value:", ps, err)
+			return 0, 0, err
+		}
+		off, err := strconv.Atoi(offsetQuery)
+		if err != nil || off < 0 {
+			m.logger.Errorw("Invalid offset value:", off, err)
+			return 0, 0, err
+		}
+		pageSize = ps
+		offset = off
+	}
+	return pageSize, offset, nil
+}
+
+func (m *MetadataServer) getFeatureMetadataList(c *gin.Context, pageSize, offset int) {
+	resourceType := metadata.FEATURE
+	count, mResources, err := m.getCountAndResources(resourceType, pageSize, offset)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "getCountAndResources - Failed to get count or list")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	resourceList := make([]FeatureResource, len(mResources))
+	for i, parsedResource := range mResources {
+		deserialized := parsedResource.Proto()
+		feature, ok := deserialized.(*pb.Feature)
+		if !ok {
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedResource.ID().String())
+			continue
+		}
+		wrappedResource := metadata.WrapProtoFeature(feature)
+		variantList, fetchError := m.readFromFeature(wrappedResource, false)
+		if fetchError != nil {
+			m.logger.Errorw(fetchError.Error())
+			c.JSON(fetchError.StatusCode, fetchError.Error())
+			return
+		}
+		resourceList[i] = FeatureResource{
+			AllVariants:    wrappedResource.Variants(),
+			Type:           "Feature",
+			DefaultVariant: wrappedResource.DefaultVariant(),
+			Name:           wrappedResource.Name(),
+			Variants:       variantList,
+		}
+	}
+	resp := GetMetadataListResp{
+		Count:        count,
+		ResourceList: resourceList,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+func (m *MetadataServer) buildFeatureVariantFilterOpts(filterBody FeatureVariantFilters) []query.Query {
+	filterOpts := []query.Query{}
+	usingV1Filters := false
+
+	if filterBody.SearchTxt != "" {
+		m.logger.Debugw("buildFeatureFilterOpts - adding a search txt filter: ", filterBody.SearchTxt)
+		filterOpts = append(filterOpts, query.ValueLike{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "name"}},
+				Type: query.String,
+			},
+			Value: filterBody.SearchTxt,
+		})
+	}
+
+	if len(filterBody.Owners) > 0 {
+		m.logger.Debugw("buildFeatureFilterOpts - adding a feature owner filter: ", filterBody.Owners)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ValueIn{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "owner"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Owners),
+		})
+	}
+
+	if len(filterBody.Statuses) > 0 {
+		m.logger.Debugw("buildFeatureFilterOpts - adding a feature status filter: ", filterBody.Statuses)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ValueIn{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "status"}, {Key: "status"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Statuses),
+		})
+	}
+
+	if len(filterBody.Tags) > 0 {
+		m.logger.Debugw("buildFeatureFilterOpts - adding a tag list filter: ", filterBody.Tags)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ArrayContains{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "tags"}, {Key: "tag"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Tags),
+		})
+	}
+
+	if usingV1Filters {
+		m.logger.Debugw("GetMetadataList - Using v1 filters, adding SerializedVersion clause (=1)")
+		filterOpts = append(filterOpts, query.ValueEquals{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: serializedVersion}},
+				Type: query.String,
+			},
+			Value: serializedV1,
+		})
+	}
+	return filterOpts
+}
+
+func (m *MetadataServer) buildLabelVariantFilterOpts(filterBody LabelVariantFilters) []query.Query {
+	filterOpts := []query.Query{}
+	usingV1Filters := false
+
+	if filterBody.SearchTxt != "" {
+		m.logger.Debugw("buildLabelFilterOpts - adding a search txt filter: ", filterBody.SearchTxt)
+		filterOpts = append(filterOpts, query.ValueLike{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "name"}},
+				Type: query.String,
+			},
+			Value: filterBody.SearchTxt,
+		})
+	}
+
+	if len(filterBody.Owners) > 0 {
+		m.logger.Debugw("buildLabelFilterOpts - adding a label owner filter: ", filterBody.Owners)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ValueIn{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "owner"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Owners),
+		})
+	}
+
+	if len(filterBody.Statuses) > 0 {
+		m.logger.Debugw("buildLabelFilterOpts - adding a label status filter: ", filterBody.Statuses)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ValueIn{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "status"}, {Key: "status"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Statuses),
+		})
+	}
+
+	if len(filterBody.Tags) > 0 {
+		m.logger.Debugw("buildLabelFilterOpts - adding a tag list filter: ", filterBody.Tags)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ArrayContains{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "tags"}, {Key: "tag"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Tags),
+		})
+	}
+
+	if usingV1Filters {
+		m.logger.Debugw("GetMetadataList - Using v1 filters, adding SerializedVersion clause (=1)")
+		filterOpts = append(filterOpts, query.ValueEquals{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: serializedVersion}},
+				Type: query.String,
+			},
+			Value: serializedV1,
+		})
+	}
+	return filterOpts
+}
+
+func (m *MetadataServer) buildSourceVariantFilterOpts(filterBody SourceVariantFilters) []query.Query {
+	filterOpts := []query.Query{}
+	usingV1Filters := false
+
+	if filterBody.SearchTxt != "" {
+		m.logger.Debugw("buildSourceVariantFilterOpts - adding a search txt filter: ", filterBody.SearchTxt)
+		filterOpts = append(filterOpts, query.ValueLike{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "name"}},
+				Type: query.String,
+			},
+			Value: filterBody.SearchTxt,
+		})
+	}
+
+	if len(filterBody.Types) > 0 {
+		usingV1Filters = true
+		m.logger.Debugw("buildSourceVariantFilterOpts - adding a source type filter: ", filterBody.Modes)
+		datasetType := filterBody.Types[0] //only support 1 at a time for now
+
+		if datasetType == "Primary Table" {
+			filterOpts = append(filterOpts, query.ValueEquals{
+				Not: true,
+				Column: query.JSONColumn{
+					Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "primaryData"}},
+					Type: query.String,
+				},
+				Value: "NULL",
+			})
+		}
+
+		if datasetType == "SQL Transformation" {
+			filterOpts = append(filterOpts, query.ValueEquals{
+				Not: true,
+				Column: query.JSONColumn{
+					Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "transformation", IsJsonString: true}, {Key: "SQLTransformation", IsJsonString: true}},
+					Type: query.String,
+				},
+				Value: "NULL",
+			})
+		}
+
+		if datasetType == "Dataframe Transformation" {
+			filterOpts = append(filterOpts, query.ValueEquals{
+				Not: true,
+				Column: query.JSONColumn{
+					Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "transformation", IsJsonString: true}, {Key: "DFTransformation", IsJsonString: true}},
+					Type: query.String,
+				},
+				Value: "NULL",
+			})
+		}
+	}
+
+	if len(filterBody.Modes) > 0 {
+		m.logger.Debugw("buildSourceVariantFilterOpts - adding a source mode filter: ", filterBody.Modes)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ValueIn{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "mode"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Modes),
+		})
+	}
+
+	if len(filterBody.Statuses) > 0 {
+		m.logger.Debugw("buildSourceVariantFilterOpts - adding a source status filter: ", filterBody.Statuses)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ValueIn{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "status"}, {Key: "status"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Statuses),
+		})
+	}
+
+	if len(filterBody.Tags) > 0 {
+		m.logger.Debugw("buildSourceVariantFilterOpts - adding a tag list filter: ", filterBody.Tags)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ArrayContains{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "tags"}, {Key: "tag"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Tags),
+		})
+	}
+
+	if len(filterBody.Owners) > 0 {
+		m.logger.Debugw("buildSourceVariantFilterOpts - adding a feature owner filter: ", filterBody.Owners)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ValueIn{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "owner"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Owners),
+		})
+	}
+
+	if usingV1Filters {
+		m.logger.Debugw("GetMetadataList - Using v1 filters, adding SerializedVersion clause (=1)")
+		filterOpts = append(filterOpts, query.ValueEquals{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: serializedVersion}},
+				Type: query.String,
+			},
+			Value: serializedV1,
+		})
+	}
+	return filterOpts
+}
+
+func (m *MetadataServer) buildEntityFilterOpts(filterBody EntityFilters) []query.Query {
+	filterOpts := []query.Query{}
+	usingV1Filters := false
+
+	if filterBody.SearchTxt != "" {
+		m.logger.Debugw("buildEntityFilterOpts - adding a search txt filter: ", filterBody.SearchTxt)
+		filterOpts = append(filterOpts, query.ValueLike{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "name"}},
+				Type: query.String,
+			},
+			Value: filterBody.SearchTxt,
+		})
+	}
+
+	if len(filterBody.Statuses) > 0 {
+		m.logger.Debugw("buildEntityFilterOpts - adding a feature status filter: ", filterBody.Statuses)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ValueIn{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "status"}, {Key: "status"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Statuses),
+		})
+	}
+
+	if len(filterBody.Tags) > 0 {
+		m.logger.Debugw("buildEntityFilterOpts - adding a tag list filter: ", filterBody.Tags)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ArrayContains{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "tags"}, {Key: "tag"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Tags),
+		})
+	}
+
+	if len(filterBody.Labels) > 0 {
+		m.logger.Debugw("buildEntityFilterOpts - adding a label list filter: ", filterBody.Labels)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ObjectArrayContains{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "labels"}},
+				Type: query.Object,
+			},
+			Values:      convertToAny(filterBody.Labels),
+			SearchField: "name",
+		})
+	}
+
+	if len(filterBody.Features) > 0 {
+		m.logger.Debugw("buildEntityFilterOpts - adding a feature list filter: ", filterBody.Features)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ObjectArrayContains{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "features"}},
+				Type: query.Object,
+			},
+			Values:      convertToAny(filterBody.Features),
+			SearchField: "name",
+		})
+	}
+
+	if len(filterBody.Owners) > 0 {
+		m.logger.Debugw("buildEntityFilterOpts - adding a owner filter: ", filterBody.Owners)
+		filterOpts = append(filterOpts, query.ValueIn{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "owner"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Owners),
+		})
+	}
+
+	if usingV1Filters {
+		m.logger.Debugw("GetMetadataList - Using v1 filters, adding SerializedVersion clause (=1)")
+		filterOpts = append(filterOpts, query.ValueEquals{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: serializedVersion}},
+				Type: query.String,
+			},
+			Value: serializedV1,
+		})
+	}
+	return filterOpts
+}
+
+func (m *MetadataServer) buildTrainingSetVariantFilterOpts(filterBody TrainingSetVariantFilters) []query.Query {
+	filterOpts := []query.Query{}
+	usingV1Filters := false
+
+	if filterBody.SearchTxt != "" {
+		m.logger.Debugw("buildTrainingSetFilterOpts - adding a search txt filter: ", filterBody.SearchTxt)
+		filterOpts = append(filterOpts, query.ValueLike{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "name"}},
+				Type: query.String,
+			},
+			Value: filterBody.SearchTxt,
+		})
+	}
+
+	if len(filterBody.Owners) > 0 {
+		m.logger.Debugw("buildTrainingSetFilterOpts - adding a feature owner filter: ", filterBody.Owners)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ValueIn{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "owner"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Owners),
+		})
+	}
+
+	if len(filterBody.Statuses) > 0 {
+		m.logger.Debugw("buildTrainingSetFilterOpts - adding a feature status filter: ", filterBody.Statuses)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ValueIn{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "status"}, {Key: "status"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Statuses),
+		})
+	}
+
+	if len(filterBody.Tags) > 0 {
+		m.logger.Debugw("buildTrainingSetFilterOpts - adding a tag list filter: ", filterBody.Tags)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ArrayContains{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "tags"}, {Key: "tag"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Tags),
+		})
+	}
+
+	if len(filterBody.Labels) > 0 {
+		m.logger.Debugw("buildTrainingSetFilterOpts - adding a label list filter: ", filterBody.Labels)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ValueIn{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "label"}, {Key: "name"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Labels),
+		})
+	}
+
+	if len(filterBody.Providers) > 0 {
+		m.logger.Debugw("buildTrainingSetFilterOpts - adding a provider list filter: ", filterBody.Providers)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ValueIn{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "provider"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Providers),
+		})
+	}
+
+	if usingV1Filters {
+		m.logger.Debugw("GetMetadataList - Using v1 filters, adding SerializedVersion clause (=1)")
+		filterOpts = append(filterOpts, query.ValueEquals{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: serializedVersion}},
+				Type: query.String,
+			},
+			Value: serializedV1,
+		})
+	}
+	return filterOpts
+}
+
+func (m *MetadataServer) getTrainingSetMetadataList(c *gin.Context, pageSize, offset int) {
+	resourceType := metadata.TRAINING_SET
+	count, mResources, err := m.getCountAndResources(resourceType, pageSize, offset)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "getCountAndResources - Failed to get count or list")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	resourceList := make([]TrainingSetResource, len(mResources))
+	for i, parsedResource := range mResources {
+		deserialized := parsedResource.Proto()
+		trainingSet, ok := deserialized.(*pb.TrainingSet)
+		if !ok {
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedResource.ID().String())
+			continue
+		}
+		wrappedResource := metadata.WrapProtoTrainingSet(trainingSet)
+		variantList, fetchError := m.readFromTrainingSet(wrappedResource, false)
+		if fetchError != nil {
+			m.logger.Errorw(fetchError.Error())
+			c.JSON(fetchError.StatusCode, fetchError.Error())
+			return
+		}
+		resourceList[i] = TrainingSetResource{
+			AllVariants:    wrappedResource.Variants(),
+			Type:           "TrainingSet",
+			DefaultVariant: wrappedResource.DefaultVariant(),
+			Name:           wrappedResource.Name(),
+			Variants:       variantList,
+		}
+	}
+	resp := GetMetadataListResp{
+		Count:        count,
+		ResourceList: resourceList,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+func (m *MetadataServer) getSourceMetadataList(c *gin.Context, pageSize, offset int) {
+	resourceType := metadata.SOURCE
+	count, mResources, err := m.getCountAndResources(resourceType, pageSize, offset)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "getCountAndResources - Failed to get count or list")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	resourceList := make([]SourceResource, len(mResources))
+	for i, parsedResource := range mResources {
+		deserialized := parsedResource.Proto()
+		source, ok := deserialized.(*pb.Source)
+		if !ok {
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedResource.ID().String())
+			continue
+		}
+		wrappedResource := metadata.WrapProtoSource(source)
+		variantList, fetchError := m.readFromSource(wrappedResource, false)
+		if fetchError != nil {
+			m.logger.Errorw(fetchError.Error())
+			c.JSON(fetchError.StatusCode, fetchError.Error())
+			return
+		}
+		resourceList[i] = SourceResource{
+			AllVariants:    wrappedResource.Variants(),
+			Type:           "Source",
+			DefaultVariant: wrappedResource.DefaultVariant(),
+			Name:           wrappedResource.Name(),
+			Variants:       variantList,
+		}
+
+	}
+	resp := GetMetadataListResp{
+		Count:        count,
+		ResourceList: resourceList,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+func (m *MetadataServer) getLabelMetadataList(c *gin.Context, pageSize, offset int) {
+	resourceType := metadata.LABEL
+	count, mResources, err := m.getCountAndResources(resourceType, pageSize, offset)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "getCountAndResources - Failed to get count or list")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	resourceList := make([]LabelResource, len(mResources))
+	for i, parsedResource := range mResources {
+		deserialized := parsedResource.Proto()
+		label, ok := deserialized.(*pb.Label)
+		if !ok {
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedResource.ID().String())
+			continue
+		}
+		wrappedResource := metadata.WrapProtoLabel(label)
+		variantList, fetchError := m.readFromLabel(wrappedResource, false)
+		if fetchError != nil {
+			m.logger.Errorw(fetchError.Error())
+			c.JSON(fetchError.StatusCode, fetchError.Error())
+			return
+		}
+		resourceList[i] = LabelResource{
+			AllVariants:    wrappedResource.Variants(),
+			Type:           "Label",
+			DefaultVariant: wrappedResource.DefaultVariant(),
+			Name:           wrappedResource.Name(),
+			Variants:       variantList,
+		}
+	}
+	resp := GetMetadataListResp{
+		Count:        count,
+		ResourceList: resourceList,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+func (m *MetadataServer) getEntityMetadataList(c *gin.Context, pageSize, offset int) {
+	resourceType := metadata.ENTITY
+	count, mResources, err := m.getCountAndResources(resourceType, pageSize, offset)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "getCountAndResources - Failed to get count or list")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	resourceList := make([]metadata.EntityResource, len(mResources))
+	for i, parsedResource := range mResources {
+		deserialized := parsedResource.Proto()
+		entity, ok := deserialized.(*pb.Entity)
+		if !ok {
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedResource.ID().String())
+			continue
+		}
+		wrappedResource := metadata.WrapProtoEntity(entity)
+		resourceList[i] = metadata.EntityResource{
+			Name:        wrappedResource.Name(),
+			Type:        "Entity",
+			Description: wrappedResource.Description(),
+			Status:      wrappedResource.Status().String(),
+			Tags:        wrappedResource.Tags(),
+			Properties:  wrappedResource.Properties(),
+		}
+	}
+	resp := GetMetadataListResp{
+		Count:        count,
+		ResourceList: resourceList,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+func (m *MetadataServer) getModelMetadataList(c *gin.Context, pageSize, offset int) {
+	resourceType := metadata.MODEL
+	count, mResources, err := m.getCountAndResources(resourceType, pageSize, offset)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "getCountAndResources - Failed to get count or list")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	resourceList := make([]ModelResource, len(mResources))
+	for i, parsedResource := range mResources {
+		deserialized := parsedResource.Proto()
+		model, ok := deserialized.(*pb.Model)
+		if !ok {
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedResource.ID().String())
+			continue
+		}
+		wrappedResource := metadata.WrapProtoModel(model)
+		resourceList[i] = ModelResource{
+			Name:        wrappedResource.Name(),
+			Type:        "Model",
+			Description: wrappedResource.Description(),
+			Status:      wrappedResource.Status().String(),
+			Tags:        wrappedResource.Tags(),
+			Properties:  wrappedResource.Properties(),
+		}
+	}
+	resp := GetMetadataListResp{
+		Count:        count,
+		ResourceList: resourceList,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+func (m *MetadataServer) getUserMetadataList(c *gin.Context, pageSize, offset int) {
+	resourceType := metadata.USER
+	count, mResources, err := m.getCountAndResources(resourceType, pageSize, offset)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "getCountAndResources - Failed to get count or list")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	resourceList := make([]UserResource, len(mResources))
+	for i, parsedResource := range mResources {
+		deserialized := parsedResource.Proto()
+		user, ok := deserialized.(*pb.User)
+		if !ok {
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedResource.ID().String())
+			continue
+		}
+		wrappedResource := metadata.WrapProtoUser(user)
+		resourceList[i] = UserResource{
+			Name:       wrappedResource.Name(),
+			Type:       "User",
+			Status:     wrappedResource.Status().String(),
+			Tags:       wrappedResource.Tags(),
+			Properties: wrappedResource.Properties(),
+		}
+	}
+	resp := GetMetadataListResp{
+		Count:        count,
+		ResourceList: resourceList,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+func (m *MetadataServer) getProviderMetadataList(c *gin.Context, pageSize, offset int) {
+	var filterBody ProviderFilters
+	if err := c.BindJSON(&filterBody); err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "ProviderFilters - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	filterOpts := m.buildProviderFilterOpts(filterBody)
+	resourceType := metadata.PROVIDER
+	count, mResources, err := m.getCountAndResources(resourceType, pageSize, offset, filterOpts...)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "getCountAndResources - Failed to get count or list")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	resourceList := make([]metadata.ProviderResource, len(mResources))
+	for i, parsedResource := range mResources {
+		deserialized := parsedResource.Proto()
+		provider, ok := deserialized.(*pb.Provider)
+		if !ok {
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedResource.ID().String())
+			continue
+		}
+		wrappedResource := metadata.WrapProtoProvider(provider)
+
+		//log only, don't want to crash the response if a periphery record returns an error.
+		sources, sourcesErr := m.getSources(wrappedResource.Sources())
+		if sourcesErr != nil {
+			m.logger.Errorw("getSources() returned an error for:", "Provider", provider.Name, sourcesErr)
+		}
+		features, featuresErr := m.getFeatures(wrappedResource.Features())
+		if featuresErr != nil {
+			m.logger.Errorw("getFeatures() returned an error for:", "Provider", provider.Name, featuresErr)
+		}
+		labels, labelsErr := m.getLabels(wrappedResource.Labels())
+		if labelsErr != nil {
+			m.logger.Errorw("getLabels() returned an error for:", "Provider", provider.Name, labelsErr)
+		}
+		trainingSets, tsErr := m.getTrainingSets(wrappedResource.TrainingSets())
+		if tsErr != nil {
+			m.logger.Errorw("getTrainingSets() returned an error for:", "Provider", provider.Name, tsErr)
+		}
+
+		resourceList[i] = metadata.ProviderResource{
+			Name:         wrappedResource.Name(),
+			Description:  wrappedResource.Description(),
+			Type:         "Provider",
+			Software:     wrappedResource.Software(),
+			Team:         wrappedResource.Team(),
+			Sources:      sources,
+			Features:     features,
+			Labels:       labels,
+			TrainingSets: trainingSets,
+			ProviderType: wrappedResource.Type(),
+			Status:       wrappedResource.Status().String(),
+			Tags:         wrappedResource.Tags(),
+			Properties:   wrappedResource.Properties(),
+		}
+	}
+	resp := GetMetadataListResp{
+		Count:        count,
+		ResourceList: resourceList,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+func (m *MetadataServer) buildProviderFilterOpts(filterBody ProviderFilters) []query.Query {
+	filterOpts := []query.Query{}
+	usingV1Filters := false
+
+	if filterBody.SearchTxt != "" {
+		m.logger.Debugw("buildProviderFilterOpts - adding a search txt filter: ", filterBody.SearchTxt)
+		filterOpts = append(filterOpts, query.ValueLike{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "name"}},
+				Type: query.String,
+			},
+			Value: filterBody.SearchTxt,
+		})
+	}
+
+	if len(filterBody.ProviderType) > 0 {
+		usingV1Filters = true
+		var typeList []pt.Type
+		if slices.Contains(filterBody.ProviderType, Online) {
+			typeList = append(typeList, pt.GetOnlineTypes()...)
+		}
+
+		if slices.Contains(filterBody.ProviderType, Offline) {
+			typeList = append(typeList, pt.GetOfflineTypes()...)
+		}
+
+		if slices.Contains(filterBody.ProviderType, File) {
+			typeList = append(typeList, pt.GetFileTypes()...)
+		}
+
+		filterOpts = append(filterOpts, query.ValueIn{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "type"}},
+				Type: query.String,
+			},
+			Values: convertToAny(typeList),
+		})
+	}
+
+	if len(filterBody.Status) > 0 {
+		usingV1Filters = true
+		var statusList []string
+		if slices.Contains(filterBody.Status, Connected) {
+			statusList = append(statusList, pb.ResourceStatus_READY.String())
+		}
+		if slices.Contains(filterBody.Status, Disconnected) {
+			statusList = append(statusList, []string{pb.ResourceStatus_RUNNING.String(), pb.ResourceStatus_NO_STATUS.String(),
+				pb.ResourceStatus_PENDING.String(), pb.ResourceStatus_CREATED.String(), pb.ResourceStatus_FAILED.String()}...)
+		}
+
+		filterOpts = append(filterOpts, query.ValueIn{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "status"}, {Key: "status"}},
+				Type: query.String,
+			},
+			Values: convertToAny(statusList),
+		})
+	}
+
+	if usingV1Filters {
+		m.logger.Debugw("GetMetadataList - Using v1 filters, adding SerializedVersion clause (=1)")
+		filterOpts = append(filterOpts, query.ValueEquals{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: serializedVersion}},
+				Type: query.String,
+			},
+			Value: serializedV1,
+		})
+	}
+	return filterOpts
+}
+
+func (m *MetadataServer) FailRunningJobs(c *gin.Context) {
+	config := help.PSQLConfig{
+		Host:     help.GetEnv("PSQL_HOST", "localhost"),
+		Port:     help.GetEnv("PSQL_PORT", "5432"),
+		User:     help.GetEnv("PSQL_USER", "postgres"),
+		Password: help.GetEnv("PSQL_PASSWORD", "password"),
+		DBName:   help.GetEnv("PSQL_DB", "postgres"),
+		SSLMode:  help.GetEnv("PSQL_SSLMODE", "disable"),
+	}
+	db, err := help.NewPSQLPoolConnection(config)
+	if err != nil {
+		c.JSON(400, fmt.Sprintf("could not create database connection: %s", err.Error()))
+		return
+	}
+
+	connection, err := db.Acquire(context.Background())
+	if err != nil {
+		c.JSON(400, fferr.NewInternalError(fmt.Errorf("failed to acquire connection from the database pool: %w", err)))
+		return
+	}
+
+	err = connection.Ping(context.Background())
+	if err != nil {
+		c.JSON(400, fferr.NewInternalError(fmt.Errorf("failed to ping the database: %w", err)))
+		return
+	}
+	_, err = connection.Exec(context.Background(), "UPDATE ff_task_metadata SET value = jsonb_set(value::jsonb, '{status}', '4', false) WHERE key LIKE '/tasks/runs/metadata/%'  AND (value::jsonb ->> 'status')::int = 5;")
+	if err != nil {
+		c.JSON(400, fmt.Sprintf("failed to run query: %s", err.Error()))
+		return
+	}
+	c.JSON(200, "Status change complete")
 }
 
 func (m *MetadataServer) GetSearch(c *gin.Context) {
 	query, ok := c.GetQuery("q")
 	if !ok {
-		c.JSON(500, "Missing query")
+		c.JSON(http.StatusInternalServerError, "Missing query")
 	}
 
 	result, err := SearchClient.RunSearch(query)
 	if err != nil {
 		m.logger.Errorw("Failed to fetch resources", "error", err)
-		c.JSON(500, "Failed to fetch resources")
+		c.JSON(http.StatusInternalServerError, "Failed to fetch resources")
 		return
 	}
-	c.JSON(200, result)
+	c.JSON(http.StatusOK, result)
 }
 
 func (m *MetadataServer) GetVersionMap(c *gin.Context) {
 	versionMap := map[string]string{
 		"version": help.GetEnv("FEATUREFORM_VERSION", ""),
 	}
-	c.JSON(200, versionMap)
-}
-
-type ColumnStat struct {
-	Name              string   `json:"name"`
-	Type              string   `json:"type"`
-	StringCategories  []string `json:"string_categories"`
-	NumericCategories [][]int  `json:"numeric_categories"`
-	CategoryCounts    []int    `json:"categoryCounts"`
+	c.JSON(http.StatusOK, versionMap)
 }
 
 type SourceDataResponse struct {
-	Columns []string     `json:"columns"`
-	Rows    [][]string   `json:"rows"`
-	Stats   []ColumnStat `json:"stats"`
+	Columns []string   `json:"columns"`
+	Rows    [][]string `json:"rows"`
 }
 
 const MaxPreviewCols = 15
@@ -878,17 +1975,20 @@ const MaxPreviewCols = 15
 func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	name := c.Query("name")
 	variant := c.Query("variant")
-	var limit int64 = 150
-	response := SourceDataResponse{}
+
 	if name == "" || variant == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetSourceData - Could not find the name or variant query parameters"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetSourceData - Could not find the name or variant query parameters"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
+
+	var limit int64 = 150
+	response := SourceDataResponse{}
+
 	iter, err := m.getSourceDataIterator(name, variant, limit)
 	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: fmt.Sprintf("GetSourceData - %s", err.Error())}
+		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: fmt.Sprintf("GetSourceData - %s", err.Error())}
 		m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -897,7 +1997,7 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	for iter.Next() {
 		sRow, err := serving.SerializedSourceRow(iter.Values())
 		if err != nil {
-			fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData"}
+			fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "GetSourceData"}
 			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
@@ -922,176 +2022,13 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		}
 	}
 
-	//intentional
-	response.Stats = []ColumnStat{}
-
 	if err := iter.Err(); err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "GetSourceData"}
+		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "GetSourceData"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
-	c.JSON(200, response)
-}
-
-func (m *MetadataServer) GetFeatureFileStats(c *gin.Context) {
-	// feature name and variant
-	name := c.Query("name")
-	variant := c.Query("variant")
-	if name == "" || variant == "" {
-		fetchError := &FetchError{StatusCode: 400, Type: "GetFeatureFileStats - Could not find the name or variant query parameters"}
-		m.logger.Errorw(fetchError.Error(), "Metadata error")
-		c.JSON(fetchError.StatusCode, fetchError.Error())
-		return
-	}
-
-	nameVariant := metadata.NameVariant{Name: name, Variant: variant}
-	foundFeatureVariant, err := m.client.GetFeatureVariant(context.Background(), nameVariant)
-	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "Could not get feature variant from metadata"}
-		m.logger.Errorw(fetchError.Error(), "error", err.Error())
-		c.JSON(fetchError.StatusCode, fetchError.Error())
-		return
-	}
-
-	sourceNameVariant := metadata.NameVariant{Name: foundFeatureVariant.Source().Name, Variant: foundFeatureVariant.Source().Variant}
-	foundSourceVariant, err := m.client.GetSourceVariant(context.Background(), sourceNameVariant)
-	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "Could not get feature variant from metadata"}
-		m.logger.Errorw(fetchError.Error(), "error", err.Error())
-		c.JSON(fetchError.StatusCode, fetchError.Error())
-		return
-	}
-
-	foundProvider, err := foundSourceVariant.FetchProvider(m.client, context.TODO())
-	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "Could not fetch the provider"}
-		m.logger.Errorw(fetchError.Error(), "error", err.Error())
-		c.JSON(fetchError.StatusCode, fetchError.Error())
-		return
-	}
-
-	p, err := provider.Get(pt.Type(foundProvider.Type()), foundProvider.SerializedConfig())
-	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "Could not Get() the provider"}
-		m.logger.Errorw(fetchError.Error(), "error", err.Error())
-		c.JSON(fetchError.StatusCode, fetchError.Error())
-		return
-	}
-
-	sparkOfflineStore, ok := p.(*provider.SparkOfflineStore)
-	if !ok {
-		fetchError := &FetchError{StatusCode: 405, Type: "Metrics are not currently supported for this provider"}
-		m.logger.Errorw(fetchError.Error())
-		c.JSON(fetchError.StatusCode, fetchError.Error())
-		return
-	}
-
-	// Get list of files in the stats directory then return the third part file
-	// TODO: move this into provider_schema package
-	statsPath := fmt.Sprintf("featureform/Materialization/%s/%s/stats", name, variant)
-	statsDirectory, err := sparkOfflineStore.Store.CreateFilePath(statsPath, true)
-	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "Could not create filepath to the stats directory"}
-		m.logger.Errorw(fetchError.Error(), "error", err.Error())
-		c.JSON(fetchError.StatusCode, fetchError.Error())
-		return
-	}
-
-	statsFiles, err := sparkOfflineStore.Store.List(statsDirectory, filestore.JSON)
-	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "Could not list the stats directory"}
-		m.logger.Errorw(fetchError.Error(), "error", err.Error())
-		c.JSON(fetchError.StatusCode, fetchError.Error())
-		return
-	}
-
-	filepath, err := FindFileWithPrefix(statsFiles, "part-00000")
-	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "Could not find the stats file"}
-		m.logger.Errorw(fetchError.Error(), "error", err.Error())
-		c.JSON(fetchError.StatusCode, fetchError.Error())
-		return
-	}
-
-	file, err := sparkOfflineStore.Store.Read(filepath)
-	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "Reading from the file store path failed."}
-		m.logger.Errorw(fetchError.Error(), "error", err.Error())
-		c.JSON(fetchError.StatusCode, fetchError.Error())
-		return
-	}
-
-	response, err := ParseStatFile(file)
-	if err != nil {
-		fetchError := &FetchError{StatusCode: 500, Type: "Parsing the stats file failed."}
-		m.logger.Errorw(fetchError.Error(), "error", err.Error())
-		c.JSON(fetchError.StatusCode, fetchError.Error())
-		return
-	}
-
-	c.JSON(200, response)
-}
-
-func FindFileWithPrefix(fileList []filestore.Filepath, prefix string) (filestore.Filepath, error) {
-	for _, file := range fileList {
-		fileNameSplit := strings.Split(file.Key(), "/")
-		fileName := fileNameSplit[len(fileNameSplit)-1] // get the last element which is the file name
-		if strings.HasPrefix(fileName, prefix) {
-			return file, nil
-		}
-	}
-
-	return nil, fmt.Errorf("could not find the file prefix %s in the file list", prefix)
-}
-
-func ParseStatFile(file []byte) (SourceDataResponse, error) {
-	response := SourceDataResponse{}
-	var result map[string]interface{}
-	err := json.Unmarshal(file, &result)
-	if err != nil {
-		return response, err
-	}
-	//todox: change this to a proper struct
-	for _, column := range result["columns"].([]interface{}) {
-		response.Columns = append(response.Columns, column.(string))
-	}
-	for _, row := range result["rows"].([]interface{}) {
-		rowValues := []string{}
-		for _, element := range row.([]interface{}) {
-			rowValues = append(rowValues, element.(string))
-		}
-		response.Rows = append(response.Rows, rowValues)
-	}
-	for _, col := range result["stats"].([]interface{}) {
-		var catCounts []int
-		for _, categoryCount := range col.(map[string]interface{})["categoryCounts"].([]interface{}) {
-			catCounts = append(catCounts, int(categoryCount.(float64)))
-		}
-
-		stringCats := []string{}
-		for _, category := range col.(map[string]interface{})["string_categories"].([]interface{}) {
-			stringCats = append(stringCats, category.(string))
-		}
-
-		numCats := [][]int{}
-		for _, category := range col.(map[string]interface{})["numeric_categories"].([]interface{}) {
-			innerList := []int{}
-			for _, numInterface := range category.([]interface{}) {
-				innerList = append(innerList, int(numInterface.(float64)))
-			}
-			numCats = append(numCats, innerList)
-		}
-
-		response.Stats = append(response.Stats, ColumnStat{
-			Name:              col.(map[string]interface{})["name"].(string),
-			Type:              col.(map[string]interface{})["type"].(string),
-			StringCategories:  stringCats,
-			NumericCategories: numCats,
-			CategoryCounts:    catCounts,
-		})
-	}
-	return response, nil
+	c.JSON(http.StatusOK, response)
 }
 
 /*
@@ -1136,7 +2073,15 @@ func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64
 			primary = t.(provider.PrimaryTable)
 		}
 	} else {
-		primary, providerErr = store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary})
+		primaryNameVariant := metadata.NameVariant{
+			Name:    name,
+			Variant: variant,
+		}
+		source, err := m.client.GetSourceVariant(context.Background(), primaryNameVariant)
+		if err != nil {
+			return nil, err
+		}
+		primary, providerErr = store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary}, *source)
 	}
 	if providerErr != nil {
 		return nil, providerErr
@@ -1164,7 +2109,7 @@ func GetTagResult(param VariantResult) TagResult {
 	}
 }
 
-func (m *MetadataServer) GetTagError(code int, err error, c *gin.Context, resourceType string) *FetchError {
+func (m *MetadataServer) GetRequestError(code int, err error, c *gin.Context, resourceType string) *FetchError {
 	fetchError := &FetchError{StatusCode: code, Type: resourceType}
 	m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 	return fetchError
@@ -1172,8 +2117,9 @@ func (m *MetadataServer) GetTagError(code int, err error, c *gin.Context, resour
 
 func (m *MetadataServer) SetFoundVariantJSON(foundVariant VariantResult, err error, c *gin.Context, resourceType string) {
 	if err != nil {
-		fetchError := m.GetTagError(500, err, c, resourceType)
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, resourceType)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
 	}
 	c.JSON(http.StatusOK, GetTagResult(foundVariant))
 }
@@ -1187,7 +2133,7 @@ func (m *MetadataServer) GetTags(c *gin.Context) {
 	resourceType := c.Param("type")
 	var requestBody TagGetBody
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "GetTags - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "GetTags - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1218,6 +2164,210 @@ func (m *MetadataServer) GetTags(c *gin.Context) {
 		foundVariant, err := m.client.GetProvider(context.Background(), name)
 		m.SetFoundVariantJSON(foundVariant, err, c, resourceType)
 	}
+}
+
+type TypeList struct {
+	Name string `json:"name"`
+}
+
+type FetchTypeListParams struct {
+	ResourceType metadata.ResourceType
+	Columns      []query.Column
+	KeyName      string
+	OrderBy      string
+	Limit        int
+}
+
+func (m *MetadataServer) fetchTypeList(params FetchTypeListParams) ([]TypeList, error) {
+
+	m.logger.Debugw("Using v1 filters, adding SerializedVersion clause (=\"1\")")
+	queryOpts := []query.Query{
+		query.ValueSort{
+			Column: query.SQLColumn{Column: params.KeyName},
+			Dir:    query.Desc,
+		},
+		query.GroupBy{Name: params.KeyName},
+		query.ValueEquals{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: serializedVersion}},
+				Type: query.String,
+			},
+			Value: serializedV1,
+		},
+		query.Limit{Limit: params.Limit},
+	}
+
+	records, err := m.StorageProvider.ListColumn(params.ResourceType.String(), params.Columns, queryOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	results := []TypeList{}
+	for _, recordMap := range records {
+		name, ok := recordMap[params.KeyName].(string)
+		if !ok {
+			m.logger.Debugw("Failed to cast key name", params.KeyName, recordMap[params.KeyName], params.OrderBy, recordMap[params.OrderBy])
+			continue
+		}
+		name = strings.Trim(name, "\"")
+		results = append(results, TypeList{Name: name})
+	}
+
+	return results, nil
+}
+
+func (m *MetadataServer) GetTypeTags(c *gin.Context) {
+	resourceType := c.Param("type")
+
+	resourceTypeMap := map[string]metadata.ResourceType{
+		"features":      metadata.FEATURE,
+		"labels":        metadata.LABEL,
+		"training-sets": metadata.TRAINING_SET,
+		"sources":       metadata.SOURCE,
+		"entities":      metadata.ENTITY,
+		"users":         metadata.USER,
+		"models":        metadata.MODEL,
+		"providers":     metadata.PROVIDER,
+	}
+
+	rType, ok := resourceTypeMap[resourceType]
+	if !ok {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, errors.Errorf("Type param matches no types"), c, resourceType)
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	// setup 2 columns: tag, and total_count
+	// data will return in this format: [map[tag:"v1" total_count:1], map[tag:"testing" total_count:2], ...]
+	// each map represents a tabular "row"
+	tagKey, orderBy := "tag", "total_count"
+	columns := []query.Column{
+		query.SQLColumn{
+			Column: "(json_array_elements((VALUE::json->>'Message')::json->'tags'->'tag'))::text",
+			Alias:  tagKey,
+		},
+		query.SQLColumn{
+			Column: "COUNT(*)",
+			Alias:  orderBy,
+		},
+	}
+
+	params := FetchTypeListParams{
+		ResourceType: rType,
+		Columns:      columns,
+		KeyName:      tagKey,
+		OrderBy:      orderBy,
+		Limit:        typeListLimit,
+	}
+
+	results, err := m.fetchTypeList(params)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, err.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, results)
+}
+
+// could explore making a property fetch generic for all callers
+func (m *MetadataServer) GetTypeOwners(c *gin.Context) {
+	resourceType := c.Param("type")
+
+	resourceTypeMap := map[string]metadata.ResourceType{
+		"features":      metadata.FEATURE,
+		"labels":        metadata.LABEL,
+		"training-sets": metadata.TRAINING_SET,
+		"sources":       metadata.SOURCE,
+		"entities":      metadata.ENTITY,
+	}
+
+	rType, ok := resourceTypeMap[resourceType]
+	if !ok {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, errors.Errorf("Type param matches no types"), c, resourceType)
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	ownerKey, orderBy := "owner", "total_count"
+	columns := []query.Column{
+		query.SQLColumn{
+			Column: "(VALUE::JSON ->> 'Message')::JSON ->> 'owner'",
+			Alias:  ownerKey,
+		},
+		query.SQLColumn{
+			Column: "COUNT(*)",
+			Alias:  orderBy,
+		},
+	}
+
+	params := FetchTypeListParams{
+		ResourceType: rType,
+		Columns:      columns,
+		KeyName:      ownerKey,
+		OrderBy:      orderBy,
+		Limit:        typeListLimit,
+	}
+
+	results, err := m.fetchTypeList(params)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, err.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, results)
+}
+
+func (m *MetadataServer) getProviderNameTypeMap() (map[string]string, error) {
+	providerName, providerType := "provider_name", "provider_type"
+	columns := []query.Column{
+		query.SQLColumn{
+			Column: "(value::json->>'Message')::Json->>'name'",
+			Alias:  providerName,
+		},
+		query.SQLColumn{
+			Column: "(value::json->>'Message')::Json->>'type'",
+			Alias:  providerType,
+		},
+	}
+
+	queryOpts := []query.Query{
+		query.ValueEquals{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: serializedVersion}},
+				Type: query.String,
+			},
+			Value: serializedV1,
+		},
+	}
+
+	records, err := m.StorageProvider.ListColumn(metadata.PROVIDER.String(), columns, queryOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	results := map[string]string{}
+	for _, recordMap := range records {
+		nameString, nameOk := recordMap[providerName].(string)
+		if !nameOk {
+			m.logger.Debugw("Failed to cast provider name", providerName, recordMap[providerName], recordMap[providerType])
+			continue
+		}
+
+		typeString, typeOk := recordMap[providerType].(string)
+		if !typeOk {
+			m.logger.Debugw("Failed to cast provider type", providerName, recordMap[providerName], recordMap[providerType])
+			continue
+		}
+
+		if nameOk && typeOk {
+			nameString = strings.Trim(nameString, "\"")
+			typeString = strings.Trim(typeString, "\"")
+			results[nameString] = typeString
+		}
+	}
+	return results, nil
 }
 
 type TagPostBody struct {
@@ -1252,7 +2402,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	var requestBody TagPostBody
 	resourceTypeParam := c.Param("type")
 	if err := c.BindJSON(&requestBody); err != nil {
-		fetchError := m.GetTagError(500, err, c, "PostTags - Error binding the request body")
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "PostTags - Error binding the request body")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -1268,14 +2418,14 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	foundResource, err := m.lookup.Lookup(c, objID)
 
 	if err != nil {
-		fetchError := m.GetTagError(400, err, c, "PostTags - Error finding the resource with resourceID")
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "PostTags - Error finding the resource with resourceID")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 
 	replaceTags(resourceTypeParam, foundResource, &pb.Tags{Tag: requestBody.Tags})
 
-	m.lookup.Set(objID, foundResource)
+	m.lookup.Set(c, objID, foundResource)
 
 	updatedResource := search.ResourceDoc{
 		Name:    name,
@@ -1284,7 +2434,10 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 		Tags:    requestBody.Tags,
 	}
 	// Update search index for Meilisearch
-	SearchClient.Upsert(updatedResource)
+	err = SearchClient.Upsert(updatedResource)
+	if err != nil {
+		m.logger.Error(err.Error())
+	}
 
 	c.JSON(http.StatusOK, TagResult{
 		Name:    name,
@@ -1356,62 +2509,262 @@ func replaceTags(resourceTypeParam string, currentResource metadata.Resource, ne
 	return nil
 }
 
-func (m *MetadataServer) Start(port string) {
+type TaskRunListResponse struct {
+	TaskRunList []TaskRunItem `json:"list"`
+	Count       int           `json:"count"`
+}
+
+type TaskRunItem struct {
+	Task    sc.TaskMetadata    `json:"task"`
+	TaskRun sc.TaskRunMetadata `json:"taskRun"`
+}
+
+type PaginateRequest struct {
+	Status     string `json:"status"`
+	SearchText string `json:"searchtext"`
+	SortBy     string `json:"sortBy"`
+	PageSize   int    `json:"pageSize"`
+	Offset     int    `json:"offset"`
+}
+
+func (m MetadataServer) getResourceQuery(prefix string) []query.Query {
+	queryList := []query.Query{
+		query.KeyPrefix{Not: true, Prefix: prefix + "_VARIANT"},
+	}
+	return queryList
+}
+
+func (m MetadataServer) getTaskRunsQuery(requestBody PaginateRequest, isCount bool) []query.Query {
+	queryList := []query.Query{}
+
+	if requestBody.Status != "ALL" {
+		var statusList []any
+		switch requestBody.Status {
+		case "ACTIVE":
+			statusList = []any{pb.ResourceStatus_RUNNING}
+		case "COMPLETE":
+			statusList = []any{pb.ResourceStatus_CREATED, pb.ResourceStatus_READY, pb.ResourceStatus_FAILED}
+		default:
+			m.logger.Warnf("the request status (%s) did not match any cases", requestBody.Status)
+		}
+		if statusList != nil {
+			queryList = append(queryList, query.ValueIn{
+				Column: query.JSONColumn{
+					Path: []query.JSONPathStep{{Key: "status"}},
+					Type: query.Int,
+				},
+				Values: statusList,
+			})
+		}
+	}
+
+	if requestBody.SearchText != "" {
+		search := query.ValueLike{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "target", IsJsonString: true}, {Key: "name"}},
+				Type: query.String,
+			},
+			Value: requestBody.SearchText,
+		}
+		queryList = append(queryList, search)
+	}
+
+	if !isCount {
+		pagination := query.Limit{
+			Limit:  requestBody.PageSize,
+			Offset: requestBody.Offset * requestBody.PageSize,
+		}
+		queryList = append(queryList, pagination)
+
+		switch requestBody.SortBy {
+		case "DATE":
+			queryList = append(queryList, query.ValueSort{
+				Column: query.JSONColumn{
+					Path: []query.JSONPathStep{{Key: "startTime"}},
+					Type: query.Timestamp,
+				},
+				Dir: query.Desc,
+			})
+		case "STATUS":
+			queryList = append(queryList, query.ValueSort{
+				Column: query.JSONColumn{
+					Path: []query.JSONPathStep{{Key: "status"}},
+					Type: query.Int,
+				},
+				Dir: query.Desc,
+			})
+		case "RUN_ID":
+			queryList = append(queryList, query.ValueSort{
+				Column: query.JSONColumn{
+					Path: []query.JSONPathStep{{Key: "runId"}},
+					Type: query.Int,
+				},
+				Dir: query.Desc,
+			})
+		default:
+			queryList = append(queryList, query.ValueSort{
+				Column: query.JSONColumn{
+					Path: []query.JSONPathStep{{Key: "runId"}},
+					Type: query.Int,
+				},
+				Dir: query.Desc,
+			})
+		}
+	}
+	return queryList
+}
+
+func (m *MetadataServer) GetTaskRuns(c *gin.Context) {
+	var requestBody PaginateRequest
+
+	if err := c.BindJSON(&requestBody); err != nil {
+		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "GetTaskRuns - Error binding the request body")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	if requestBody.PageSize <= 0 {
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: fmt.Sprintf("GetTaskRuns - Error invalid pageSize value: %d", requestBody.PageSize)}
+		m.logger.Errorw(fetchError.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	if requestBody.Offset < 0 {
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: fmt.Sprintf("GetTaskRuns - Error invalid offset value: %d", requestBody.Offset)}
+		m.logger.Errorw(fetchError.Error(), "Metadata Error invalid offset value:", requestBody.Offset)
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	countQuery := m.getTaskRunsQuery(requestBody, true)
+	count, err := m.StorageProvider.Count(sc.TaskRunMetadataKey{}.String(), countQuery...)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "GetTaskRuns - Failed to get count")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	listQuery := m.getTaskRunsQuery(requestBody, false)
+	records, err := m.StorageProvider.List(sc.TaskRunMetadataKey{}.String(), listQuery...)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "GetTaskRuns - Failed to fetch task runs")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	var runs []sc.TaskRunMetadata
+	for _, record := range records {
+		taskRun := sc.TaskRunMetadata{}
+		err = taskRun.Unmarshal([]byte(record))
+		if err != nil {
+			fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "GetTaskRuns - Failed to fetch task runs")
+			c.JSON(fetchError.StatusCode, fetchError.Error())
+			return
+		}
+		runs = append(runs, taskRun)
+	}
+
+	taskRunItems := make([]TaskRunItem, 0)
+	for _, run := range runs {
+		task, err := m.client.Tasks.GetTaskByID(run.TaskId)
+		if err != nil {
+			fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "GetTaskRuns - Failed to fetch task")
+			c.JSON(fetchError.StatusCode, fetchError.Error())
+			return
+		}
+
+		taskRunItems = append(taskRunItems, TaskRunItem{Task: task, TaskRun: run})
+	}
+
+	c.JSON(http.StatusOK, TaskRunListResponse{TaskRunList: taskRunItems, Count: count})
+}
+
+type OtherRun struct {
+	ID        sc.TaskRunID `json:"runId"`
+	StartTime time.Time    `json:"startTime"`
+	Status    sc.Status    `json:"status"`
+	Link      string       `json:"link"`
+}
+
+type TaskRunDetailResponse struct {
+	TaskRun   sc.TaskRunMetadata `json:"taskRun"`
+	OtherRuns []OtherRun         `json:"otherRuns"`
+}
+
+func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
+	strTaskID := c.Param("taskId")
+	strTaskRunId := c.Param("taskRunId")
+
+	taskID, err := sc.ParseTaskID(strTaskID)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetTaskRunDetails - Could not find the taskRunId parameter"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	taskRunID, err := sc.ParseTaskRunID(strTaskRunId)
+	if err != nil {
+		fetchError := &FetchError{StatusCode: 400, Type: "GetTaskRunDetails - Could not convert the given taskRunId"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	runs, err := m.client.Tasks.GetRuns(taskID)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "GetTaskRuns - Failed to fetch task")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	var otherRuns []OtherRun
+	var selectedRun sc.TaskRunMetadata
+	for _, run := range runs {
+		if !run.ID.Equals(taskRunID) {
+			otherRuns = append(otherRuns, OtherRun{ID: run.ID, StartTime: run.StartTime, Status: run.Status, Link: ""})
+		} else {
+			selectedRun = run
+		}
+	}
+
+	resp := TaskRunDetailResponse{
+		TaskRun:   selectedRun,
+		OtherRuns: otherRuns,
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+func (m *MetadataServer) Start(port string, local bool) error {
 	router := gin.Default()
-	router.Use(cors.Default())
-	router.GET("/data/:type", m.GetMetadataList)
+	if local {
+		conf := cors.DefaultConfig()
+		conf.AllowHeaders = []string{"Authorization", "Content-Type,access-control-allow-origin, access-control-allow-headers"}
+		conf.AllowAllOrigins = true
+		router.Use(cors.New(conf))
+	} else {
+		router.Use(cors.Default())
+	}
+	router.POST("/data/:type", m.GetMetadataList)
+	router.GET("/data/failrunning", m.FailRunningJobs)
 	router.GET("/data/:type/:resource", m.GetMetadata)
 	router.GET("/data/search", m.GetSearch)
 	router.GET("/data/version", m.GetVersionMap)
 	router.GET("/data/sourcedata", m.GetSourceData)
-	router.GET("/data/filestatdata", m.GetFeatureFileStats)
 	router.POST("/data/:type/:resource/gettags", m.GetTags)
 	router.POST("/data/:type/:resource/tags", m.PostTags)
-	router.Run(port)
-}
+	router.POST("/data/taskruns", m.GetTaskRuns)
+	router.GET("/data/taskruns/taskrundetail/:taskId/:taskRunId", m.GetTaskRunDetails)
+	router.GET("/data/:type/prop/tags", m.GetTypeTags)
+	router.POST("/data/feature/variants", m.GetFeatureVariantResources)
+	router.POST("/data/label/variants", m.GetLabelVariantResources)
+	router.POST("/data/datasets/variants", m.GetSourceVariantResources)
+	router.POST("/data/training-sets/variants", m.GetTrainingSetVariantResources)
+	router.POST("/data/entities", m.GetEntityResources)
+	router.POST("/data/providers", m.GetProviderResources)
+	router.GET("/data/:type/prop/owners", m.GetTypeOwners)
 
-func main() {
-	logger := zap.NewExample().Sugar()
-	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
-	metadataPort := help.GetEnv("METADATA_PORT", "8080")
-	searchHost := help.GetEnv("MEILISEARCH_HOST", "localhost")
-	searchPort := help.GetEnv("MEILISEARCH_PORT", "7700")
-	searchEndpoint := fmt.Sprintf("http://%s:%s", searchHost, searchPort)
-	searchApiKey := help.GetEnv("MEILISEARCH_APIKEY", "xyz")
-	logger.Infof("Connecting to typesense at: %s\n", searchEndpoint)
-	sc, err := search.NewMeilisearch(&search.MeilisearchParams{
-		Host:   searchHost,
-		Port:   searchPort,
-		ApiKey: searchApiKey,
-	})
-	if err != nil {
-		logger.Panicw("Failed to create new meil search", err)
-	}
-
-	SearchClient = sc
-	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
-	logger.Infof("Looking for metadata at: %s\n", metadataAddress)
-	client, err := metadata.NewClient(metadataAddress, logging.WrapZapLogger(logger))
-	if err != nil {
-		logger.Panicw("Failed to connect", "error", err)
-	}
-
-	etcdHost := help.GetEnv("ETCD_HOST", "localhost")
-	etcdPort := help.GetEnv("ETCD_PORT", "2379")
-	storageProvider := metadata.EtcdStorageProvider{
-		Config: metadata.EtcdConfig{
-			Nodes: []metadata.EtcdNode{
-				{Host: etcdHost, Port: etcdPort},
-			},
-		},
-	}
-
-	metadataServer, err := NewMetadataServer(logger, client, &storageProvider)
-	if err != nil {
-		logger.Panicw("Failed to create server", "error", err)
-	}
-	metadataHTTPPort := help.GetEnv("METADATA_HTTP_PORT", "3001")
-	metadataServingPort := fmt.Sprintf(":%s", metadataHTTPPort)
-	logger.Infof("Serving HTTP Metadata on port: %s\n", metadataServingPort)
-	metadataServer.Start(metadataServingPort)
+	return router.Run(port)
 }

@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package health
 
 import (
@@ -6,7 +13,6 @@ import (
 	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
-	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 )
 
@@ -25,7 +31,7 @@ func (h *Health) CheckProvider(name string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	p, err := provider.Get(pt.Type(rec.Type()), pc.SerializedConfig(rec.SerializedConfig()))
+	p, err := provider.Get(pt.Type(rec.Type()), rec.SerializedConfig())
 	if err != nil {
 		h.handleError(err)
 		return false, err

@@ -1,11 +1,14 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import { cleanup, fireEvent, render } from '@testing-library/react';
-import Adapter from '@wojtekmaj/enzyme-adapter-react-17';
-import { configure } from 'enzyme';
 import 'jest-canvas-mock';
 import React from 'react';
 import { TagList } from '../src/components/resource-list/ResourceListView';
-
-configure({ adapter: new Adapter() });
 
 describe('Tag list test', () => {
   beforeEach(() => {

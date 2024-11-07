@@ -1,4 +1,4 @@
-FROM node:16-alpine AS base
+FROM node:18-alpine AS base
 
 # Build the dashboard directoy, only what is needed.
 FROM base AS deps
@@ -14,7 +14,7 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/dashboard/node_modules ./dashboard/node_modules
 COPY ./dashboard ./dashboard
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NEXT_TELEMETRY_DISABLED=1
 
 WORKDIR /app/dashboard
 RUN npm run build
@@ -22,8 +22,8 @@ RUN npm run build
 #Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app/dashboard
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/dashboard/public ./public
@@ -33,7 +33,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/dashboard/.next/static ./.next/st
 COPY --from=builder --chown=nextjs:nodejs /app/dashboard/out ./out
 
 # Build Go services
-FROM golang:1.21 as go-builder
+FROM golang:1.21 AS go-builder
 
 RUN apt update && \
     apt install -y protobuf-compiler
@@ -47,10 +47,15 @@ COPY go.sum ./
 RUN go mod download
 COPY ./filestore/ ./filestore/
 COPY ./health/ ./health/
+COPY integrations/ integrations/
 COPY fferr/ fferr/
+COPY ffsync/ ffsync/
+COPY scheduling/ scheduling/
+COPY schema/ schema/
+COPY storage/ storage/
 COPY api/ api/
-COPY helpers/ helpers/
 COPY lib/ lib/
+COPY helpers/ helpers/
 COPY metadata/ metadata/
 COPY metrics/ metrics/
 COPY proto/ proto/
@@ -66,12 +71,14 @@ COPY logging/ logging/
 
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./proto/serving.proto
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
+RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./scheduling/proto/scheduling.proto
+
 
 RUN mkdir execs
-RUN go build -o execs/api api/main.go
+RUN go build -o execs/api api/main/main.go
 RUN go build -o execs/metadata metadata/server/server.go
 RUN go build -o execs/coordinator coordinator/main/main.go
-RUN go build -o execs/dashboard_metadata metadata/dashboard/dashboard_metadata.go
+RUN go build -o execs/dashboard_metadata metadata/dashboard/main/main.go
 RUN go build -o execs/serving serving/main/main.go
 
 # Final image
@@ -84,8 +91,8 @@ RUN apt-get update && apt-get install -y supervisor
 RUN mkdir -p /var/lock/apache2 /var/run/apache2 /var/run/sshd /var/log/supervisor
 RUN apt-get install -y nginx --option=Dpkg::Options::=--force-confdef
 
-# Install Node 16 for internal dashboard server
-RUN curl -sL https://deb.nodesource.com/setup_16.x | sh
+# Install Node 18 for internal dashboard server
+RUN curl -sL https://deb.nodesource.com/setup_18.x | sh
 RUN apt-get update
 RUN apt-get install -y nodejs
 
@@ -99,6 +106,18 @@ RUN go mod download
 RUN ./build
 WORKDIR /app
 RUN ETCD_UNSUPPORTED_ARCH=arm64 ./etcd/bin/etcd --version
+
+# Install and initialize internal postgres for app state
+RUN apt-get update && apt-get install -y postgresql postgresql-contrib
+USER postgres
+RUN /etc/init.d/postgresql start && \
+    psql --command "ALTER USER postgres WITH PASSWORD 'password';"
+USER root
+
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Copy built dashboard
+COPY --from=runner /app/dashboard ./dashboard
 
 # Setup Spark
 ARG SPARK_FILEPATH=/app/provider/scripts/spark/offline_store_spark_runner.py
@@ -136,9 +155,16 @@ ENV SERVING_PORT="8082"
 ENV SERVING_HOST="0.0.0.0"
 ENV ETCD_ARCH=""
 ENV MEILI_LOG_LEVEL="WARN"
-ENV FF_GET_EQUIVALENT_VARIANTS="false"
+ENV FEATUREFORM_HOST="localhost"
+
+ENV FF_STATE_PROVIDER="psql"
+ENV USE_CLIENT_MODE="true"
+
+ENV RDS_HOST="host.docker.internal"
+
 EXPOSE 7878
 EXPOSE 80
+EXPOSE 5432
 
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 

@@ -1,0 +1,155 @@
+/* 
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+Copyright 2024 FeatureForm Inc.
+*/
+
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "metadata/proto/metadata.proto";
+
+option go_package = "github.com/featureform/scheduling/proto";
+
+package featureform.scheduling.proto;
+
+service Tasks {
+  rpc CreateTaskRun(CreateRunRequest) returns (RunID);
+  rpc SyncUnfinishedRuns(Empty) returns (Empty);
+  rpc GetTaskByID(TaskID) returns (TaskMetadata);
+  rpc GetRuns(TaskID) returns (stream TaskRunMetadata);
+  rpc GetRunMetadata(TaskRunID) returns (TaskRunMetadata);
+  rpc GetAllRuns(Empty) returns (stream TaskRunMetadata);
+  rpc GetUnfinishedRuns(Empty) returns (stream TaskRunMetadata);
+  rpc GetLatestRun(TaskID) returns (TaskRunMetadata);
+  rpc SetRunStatus(StatusUpdate) returns (Empty);
+  rpc SetRunResumeID(ResumeIDUpdate) returns (Empty);
+  rpc AddRunLog(Log) returns (Empty);
+  rpc SetRunEndTime(RunEndTimeUpdate) returns (Empty);
+  rpc WatchForCancel(TaskRunID) returns (featureform.serving.metadata.proto.ResourceStatus);
+}
+
+message TaskID {
+  string id = 1;
+}
+
+message RunID {
+  string id = 1;
+}
+
+message ResumeID {
+  string id = 1;
+}
+
+message TaskRunID {
+  RunID runID = 1;
+  TaskID taskID = 2;
+}
+
+message CreateRunRequest {
+  TaskID taskID = 1;
+  string name = 2;
+  oneof trigger {
+    OnApply apply = 4;
+    ScheduleTrigger schedule = 5;
+  }
+}
+
+message StatusUpdate {
+  RunID runID = 1;
+  TaskID taskID = 2;
+  featureform.serving.metadata.proto.ResourceStatus status = 3;
+}
+
+message ResumeIDUpdate {
+  RunID runID = 1;
+  TaskID taskID = 2;
+  ResumeID resumeID = 3;
+}
+
+message Log {
+  RunID runID = 1;
+  TaskID taskID = 2;
+  string log = 3;
+}
+
+message RunEndTimeUpdate {
+  RunID runID = 1;
+  TaskID taskID = 2;
+  google.protobuf.Timestamp end = 3;
+}
+
+message TaskMetadata {
+  TaskID id = 1;
+  string name = 2;
+  TaskType type = 3;
+  oneof target {
+    NameVariantTarget nameVariant = 4;
+    ProviderTarget provider = 5;
+  };
+  TargetType targetType = 6;
+  google.protobuf.Timestamp created = 7;
+}
+
+message ScheduleTrigger {
+  string name =1;
+  string schedule = 2;
+}
+
+message OnApply {
+  string name =1;
+}
+
+message NameVariantTarget {
+  featureform.serving.metadata.proto.ResourceID resourceID = 1;
+}
+
+message ProviderTarget {
+  string name = 1;
+}
+
+enum TargetType {
+  NAME_VARIANT = 0;
+  PROVIDER = 1;
+}
+
+enum TaskType {
+  RESOURCE_CREATION = 0;
+  HEALTH_CHECK = 1;
+  METRICS = 2;
+}
+
+enum TriggerType {
+  SCHEDULE = 0;
+  ON_APPLY = 1;
+}
+
+message TaskRunMetadata {
+  RunID runID = 1;
+  TaskID taskID = 2;
+  string name = 3;
+  oneof trigger {
+    OnApply apply = 4;
+    ScheduleTrigger schedule = 5;
+  }
+  TriggerType triggerType = 6;
+  oneof target {
+    NameVariantTarget nameVariant = 7;
+    ProviderTarget provider = 8;
+  };
+  TargetType targetType = 9;
+  google.protobuf.Timestamp  startTime = 10;
+  google.protobuf.Timestamp  endTime = 11;
+  repeated string logs = 12;
+  featureform.serving.metadata.proto.ResourceStatus status = 13;
+  RunID last_successful = 14;
+  ResumeID resumeID = 15;
+}
+
+message TaskRunList {
+  repeated TaskRunMetadata runs = 1;
+}
+
+message Empty {}

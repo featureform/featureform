@@ -1,54 +1,42 @@
-import { Container, Grid, Typography } from '@mui/material';
-import { makeStyles } from '@mui/styles';
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
+import { Box, Container, Grid, Typography } from '@mui/material';
+import { styled } from '@mui/system';
 import faker from 'faker';
 import React from 'react';
 import { Bar } from 'react-chartjs-2';
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    flexGrow: 1,
+const Root = styled(Box)(({ theme }) => ({
+  flexGrow: 1,
+  padding: theme.spacing(0),
+  backgroundColor: theme.palette.background.paper,
+  flexBasis: theme.spacing(0),
+  flexDirection: 'row',
+  '& > *': {
     padding: theme.spacing(0),
-    backgroundColor: theme.palette.background.paper,
-    flexBasis: theme.spacing(0),
-    flexDirection: 'row',
-    '& > *': {
-      padding: theme.spacing(0),
-    },
-  },
-  summaryData: {
-    padding: theme.spacing(0),
-  },
-  summaryItemDetail: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: theme.spacing(1),
-  },
-  actionItemDetail: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: theme.spacing(1),
-  },
-  errorBar: {
-    width: '50%',
-  },
-  summaryAddedDesc: {
-    paddingLeft: theme.spacing(1),
-  },
-  timeSlider: {
-    width: '20%',
-    transform: 'scale(0.9, 0.9)',
-  },
-  barGraph: {
-    maxWidth: '40em',
-  },
-  graph: {
-    height: '40em',
-    alignItems: 'center',
-    '& > *': {
-      height: '40em',
-    },
   },
 }));
+
+const ErrorBar = styled(Box)({
+  width: '50%',
+});
+
+const BarGraph = styled(Box)({
+  maxWidth: '40em',
+});
+
+const Graph = styled(Box)({
+  height: '40em',
+  alignItems: 'center',
+  '& > *': {
+    height: '40em',
+  },
+});
 
 const exampleStats = {
   Feature: {
@@ -111,15 +99,13 @@ export const data = {
 };
 
 const StatsDropdown = ({ type }) => {
-  const classes = useStyles();
-
   const stats = exampleStats[type];
 
   return (
-    <div className={classes.root}>
+    <Root>
       <Grid container spacing={0}>
         <Grid item xs={12} height='15em'>
-          <div className={classes.graph}>
+          <Graph>
             <Container minheight={'800px'}>
               {Object.keys(stats).map((key, i) => (
                 <Typography key={i} variant='body1'>
@@ -130,18 +116,14 @@ const StatsDropdown = ({ type }) => {
               <Typography variant='body1'>
                 <b>Error Stats:</b>
               </Typography>
-              <div className={classes.errorBar}>
-                <Bar
-                  options={options}
-                  data={data}
-                  className={classes.barGraph}
-                />
-              </div>
+              <ErrorBar>
+                <Bar options={options} data={data} className={BarGraph} />
+              </ErrorBar>
             </Container>
-          </div>
+          </Graph>
         </Grid>
       </Grid>
-    </div>
+    </Root>
   );
 };
 

@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package metrics
 
@@ -65,19 +68,19 @@ type TrainingDataObserver struct {
 func NewMetrics(name string) PromMetricsHandler {
 	var getFeatureCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: fmt.Sprintf("%s_counter", name), // metric name
-			Help: "Counter for feature serve requests, labeled by feature name, key and type",
+			Name: fmt.Sprintf("%srequests", name), // metric name
+			Help: "Counter for feature and training-set serve requests, labeled by name, variant and status",
 		},
-		[]string{"instance", "feature", "key", "status"}, // labels
+		[]string{"instance", "name", "variant", "status"}, // labels
 	)
 
 	var getFeatureLatency = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    fmt.Sprintf("%s_duration_seconds", name),
-			Help:    "Latency for feature serve requests, labeled by feature name, key and type",
+			Name:    fmt.Sprintf("%srequest_duration", name),
+			Help:    "Latency for feature and training-set serve requests, labeled by name, variant and status",
 			Buckets: prometheus.LinearBuckets(0.01, 0.05, 10),
 		},
-		[]string{"instance", "feature", "key", "status"}, //labels
+		[]string{"instance", "name", "variant", "status"}, //labels
 	)
 
 	prometheus.MustRegister(getFeatureCounter)
@@ -127,7 +130,7 @@ func (p PromMetricsHandler) ExposePort(port string) {
 func (p PromFeatureObserver) SetError() {
 	p.Status = string(ERROR)
 	p.Timer.ObserveDuration()
-	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, string(ERROR)).Inc()
+	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, p.Status).Inc()
 }
 
 func (p PromFeatureObserver) ServeRow() {
@@ -137,7 +140,7 @@ func (p PromFeatureObserver) ServeRow() {
 func (p PromFeatureObserver) Finish() {
 	p.Status = string(SUCCESS)
 	p.Timer.ObserveDuration()
-	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, string(SUCCESS)).Inc()
+	p.Count.WithLabelValues(p.Name, p.Feature, p.Key, p.Status).Inc()
 }
 
 func (p PromFeatureObserver) GetObservedRowCount() (int, error) {
@@ -159,7 +162,7 @@ func (p PromFeatureObserver) GetObservedErrorCount() (int, error) {
 func (p TrainingDataObserver) SetError() {
 	p.Status = string(ERROR)
 	p.Timer.ObserveDuration()
-	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, string(ERROR)).Inc()
+	p.Row_Count.WithLabelValues(p.Title, p.Name, p.Version, p.Status).Inc()
 }
 
 func (p TrainingDataObserver) ServeRow() {

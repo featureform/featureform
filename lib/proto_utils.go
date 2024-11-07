@@ -1,7 +1,14 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package lib
 
 import (
-	"fmt"
+	"github.com/featureform/fferr"
 	"github.com/repeale/fp-go"
 	"google.golang.org/protobuf/proto"
 )
@@ -28,7 +35,7 @@ func EqualProtoContents[T proto.Message](a, b []T) (bool, error) {
 	})(b)
 
 	if errors != nil {
-		return false, fmt.Errorf("errors marshaling proto messages: %v", errors)
+		return false, fferr.NewInternalErrorf("errors marshaling proto messages: %v", errors)
 	}
 
 	setA := ToSet[string](marshaledA)

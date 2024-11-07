@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import csv
 import os
 import shutil
@@ -143,7 +150,7 @@ def test_sanitize_location(location, expected_location):
 @pytest.mark.parametrize(
     "location,format",
     [
-        ("client/tests/test_files/input_files/transactions.csv", "csv"),
+        ("client/tests/test_files/input_files/input_transactions.csv", "csv"),
         ("client/tests/test_files/input_files/transactions.parquet", "parquet"),
     ],
 )

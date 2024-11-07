@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider_type
 
 type Type string
@@ -16,7 +23,6 @@ const (
 	BlobOnline      Type = "BLOB_ONLINE"
 	MongoDBOnline   Type = "MONGODB_ONLINE"
 	PineconeOnline  Type = "PINECONE_ONLINE"
-	QdrantOnline    Type = "QDRANT_ONLINE"
 
 	// Offline
 	MemoryOffline     Type = "MEMORY_OFFLINE"
@@ -48,7 +54,6 @@ var AllProviderTypes = []Type{
 	MemoryOffline,
 	MySqlOffline,
 	PineconeOnline,
-	QdrantOnline,
 	PostgresOffline,
 	ClickHouseOffline,
 	SnowflakeOffline,
@@ -61,4 +66,16 @@ var AllProviderTypes = []Type{
 	HDFS,
 	AZURE,
 	UNIT_TEST,
+}
+
+func GetOnlineTypes() []Type {
+	return []Type{LocalOnline, RedisOnline, CassandraOnline, FirestoreOnline, DynamoDBOnline, BlobOnline, MongoDBOnline, PineconeOnline}
+}
+
+func GetOfflineTypes() []Type {
+	return []Type{MemoryOffline, MySqlOffline, PostgresOffline, ClickHouseOffline, SnowflakeOffline, RedshiftOffline, SparkOffline, BigQueryOffline, K8sOffline}
+}
+
+func GetFileTypes() []Type {
+	return []Type{S3, GCS, HDFS, AZURE}
 }

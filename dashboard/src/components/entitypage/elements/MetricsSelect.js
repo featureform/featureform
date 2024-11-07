@@ -1,6 +1,13 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import { Box, FormControl, InputLabel, MenuItem, Select } from '@mui/material';
 import Typography from '@mui/material/Typography';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { connect } from 'react-redux';
 import MetricsAPI from '../../api/resources/Metrics.js';
 import {
@@ -26,7 +33,7 @@ function mapStateToProps(state) {
 }
 
 function MetricsSelect({ metricsSelect, modifyMetrics, fetchMetrics }) {
-  const [selection, setSelection] = React.useState('');
+  const [selection, setSelection] = useState('');
   const options = metricsSelect.resources ? metricsSelect.resources : {};
   const metrics = Object.keys(options);
   const metricsDesc =

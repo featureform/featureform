@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
@@ -10,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/araddon/dateparse"
 	"github.com/featureform/metadata"
 	"github.com/parquet-go/parquet-go"
 	"github.com/pkg/errors"
@@ -27,6 +33,7 @@ import (
 	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/logging"
+	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
 )
@@ -381,12 +388,9 @@ func (tbl *BlobOfflineTable) Write(ResourceRecord) error {
 }
 
 func (tbl *BlobOfflineTable) WriteBatch(records []ResourceRecord) error {
-	destination, err := filestore.NewEmptyFilepath(tbl.store.FilestoreType())
-	if err != nil {
-		return err
-	}
-	if err := destination.ParseFilePath(tbl.schema.SourceTable); err != nil {
-		return err
+	destination, isFilestoreLocation := tbl.schema.SourceTable.(*pl.FileStoreLocation)
+	if !isFilestoreLocation {
+		return fferr.NewInternalErrorf("source table is not a FileStoreLocation")
 	}
 	exists, err := tbl.store.Exists(destination)
 	if err != nil {
@@ -399,7 +403,7 @@ func (tbl *BlobOfflineTable) WriteBatch(records []ResourceRecord) error {
 		// we don't rely on the order of rows in the file for materializations; currently, we're
 		// counting on the implicit ordering of rows once these files are read into Spark and
 		// queried for materializations.
-		iter, err := tbl.store.Serve([]filestore.Filepath{destination})
+		iter, err := tbl.store.Serve([]filestore.Filepath{destination.Filepath()})
 		if err != nil {
 			return err
 		}
@@ -412,7 +416,7 @@ func (tbl *BlobOfflineTable) WriteBatch(records []ResourceRecord) error {
 	if err != nil {
 		return err
 	}
-	return tbl.store.Write(destination, data)
+	return tbl.store.Write(destination.Filepath(), data)
 }
 
 // TODO: Add unit tests for this method
@@ -491,7 +495,10 @@ func (tbl *BlobOfflineTable) writeRecordsToParquetBytes(records []ResourceRecord
 	return buf.Bytes(), nil
 }
 
-func (k8s *K8sOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
+func (k8s *K8sOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
+	if len(opts) > 0 {
+		return nil, fferr.NewInternalError(fmt.Errorf("K8s does not support resource options"))
+	}
 	return blobRegisterResourceFromSourceTable(id, schema, k8s.logger, k8s.store)
 }
 
@@ -504,7 +511,7 @@ func blobRegisterResourceFromSourceTable(id ResourceID, sourceSchema ResourceSch
 	if err != nil {
 		return nil, err
 	}
-	resourceExists, err := store.Exists(destination)
+	resourceExists, err := store.Exists(pl.NewFileLocation(destination))
 	if err != nil {
 		logger.Errorw("Error checking if resource exists", "error", err)
 		return nil, err
@@ -524,27 +531,21 @@ func blobRegisterResourceFromSourceTable(id ResourceID, sourceSchema ResourceSch
 	return &BlobOfflineTable{schema: sourceSchema, store: store}, nil
 }
 
-func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourcePath string) (PrimaryTable, error) {
-	return blobRegisterPrimary(id, sourcePath, k8s.logger, k8s.store)
+func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
+	fileStoreLocation, isFileStoreLocation := tableLocation.(*pl.FileStoreLocation)
+	if !isFileStoreLocation {
+		return nil, fferr.NewInternalError(fmt.Errorf("location is not a FileStoreLocation"))
+	}
+	return blobRegisterPrimary(id, *fileStoreLocation, k8s.logger, k8s.store)
 }
 
-func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
-	sourceFilePath, err := filestore.NewEmptyFilepath(store.FilestoreType())
-	if err != nil {
-		logger.Errorw("Could not create empty filepath", "error", err, "storeType", store.FilestoreType(), "sourcePath", sourcePath)
-		return nil, err
-	}
-	err = sourceFilePath.ParseFilePath(sourcePath)
-	if err != nil {
-		logger.Errorw("Could not parse full path", "error", err, "sourcePath", sourcePath)
-		return nil, err
-	}
-	storeExists, err := store.Exists(sourceFilePath)
+func blobRegisterPrimary(id ResourceID, location pl.FileStoreLocation, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
+	storeExists, err := store.Exists(&location)
 	if err != nil {
 		return nil, err
 	}
 	if !storeExists {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf(sourceFilePath.ToURI()))
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf(location.Location()))
 	}
 
 	filepath, err := store.CreateFilePath(id.ToFilestorePath(), false)
@@ -552,20 +553,21 @@ func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLo
 		return nil, err
 	}
 	logger.Infow("Checking if resource key exists", "key", filepath.Key())
-	primaryExists, err := store.Exists(filepath)
+	primaryFilePathLocation := pl.NewFileLocation(filepath)
+	primaryExists, err := store.Exists(primaryFilePathLocation)
 	if err != nil {
 		logger.Errorw("Error checking if primary exists", "error", err)
 		return nil, err
 	}
 	if primaryExists {
-		logger.Errorw("File already registered", "source", sourcePath)
-		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, fmt.Errorf(sourcePath))
+		logger.Errorw("File already registered", "source", location.Location())
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, fmt.Errorf(location.Location()))
 	}
-	logger.Debugw("Registering primary table", "id", id, "source", sourcePath)
+	logger.Debugw("Registering primary table", "id", id, "source", location.Location())
 	// TODO: determine how to handle the schema of the primary table; if it's a parquet file, we _could_
 	// read the file and infer a schema based; however, this wouldn't be possible for CSV files.
 	schema := TableSchema{
-		SourceTable: sourcePath,
+		SourceTable: location.Location(),
 	}
 	data, err := schema.Serialize()
 	if err != nil {
@@ -580,11 +582,18 @@ func blobRegisterPrimary(id ResourceID, sourcePath string, logger *zap.SugaredLo
 		return nil, err
 	}
 
-	logger.Debugw("Successfully registered primary table", "id", id, "source", sourcePath)
-	return &FileStorePrimaryTable{store, sourceFilePath, schema, false, id}, nil
+	logger.Debugw("Successfully registered primary table", "id", id, "source", location.Location())
+	return &FileStorePrimaryTable{store, location.Filepath(), schema, false, id}, nil
 }
 
-func (k8s *K8sOfflineStore) CreateTransformation(config TransformationConfig) error {
+func (store *K8sOfflineStore) SupportsTransformationOption(opt TransformationOptionType) (bool, error) {
+	return false, nil
+}
+
+func (k8s *K8sOfflineStore) CreateTransformation(config TransformationConfig, opts ...TransformationOption) error {
+	if len(opts) > 0 {
+		return fferr.NewInternalErrorf("K8s does not support transformation options")
+	}
 	return k8s.transformation(config, false)
 }
 
@@ -700,7 +709,7 @@ func (k8s *K8sOfflineStore) dfTransformation(config TransformationConfig, isUpda
 	if err != nil {
 		return err
 	}
-	exists, err := k8s.store.Exists(filepath)
+	exists, err := k8s.store.Exists(pl.NewFileLocation(filepath))
 	if err != nil {
 		k8s.logger.Errorw("Error checking if resource exists", "error", err)
 		return err
@@ -779,7 +788,7 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 	var filePath string
 	if fileType == "primary" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Primary}
-		fileTable, err := k8s.GetPrimaryTable(fileResourceId)
+		fileTable, err := k8s.GetPrimaryTable(fileResourceId, metadata.SourceVariant{}) // At the moment, we don't need the source variant
 		if err != nil {
 			k8s.logger.Errorw("Issue getting primary table", "id", fileResourceId, "error", err)
 			return "", err
@@ -802,7 +811,7 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 			k8s.logger.Errorw("Could not get newest blob", "location", fileResourcePath, "error", err)
 			return "", err
 		}
-		exists, err := k8s.store.Exists(exactFileResourcePath)
+		exists, err := k8s.store.Exists(pl.NewFileLocation(exactFileResourcePath))
 		if err != nil {
 			k8s.logger.Errorw("Issue getting transformation table", "id", fileResourceId)
 			return "", err
@@ -863,14 +872,17 @@ func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (Transformatio
 	return &FileStorePrimaryTable{k8s.store, transformationFilepath, TableSchema{}, true, id}, nil
 }
 
-func (k8s *K8sOfflineStore) UpdateTransformation(config TransformationConfig) error {
+func (k8s *K8sOfflineStore) UpdateTransformation(config TransformationConfig, opts ...TransformationOption) error {
+	if len(opts) > 0 {
+		return fferr.NewInternalErrorf("K8s does not support transformation options")
+	}
 	return k8s.transformation(config, true)
 }
 func (k8s *K8sOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
 	return nil, fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
-func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
+func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
 	return fileStoreGetPrimary(id, k8s.store, k8s.logger)
 }
 
@@ -890,11 +902,8 @@ func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogg
 	if err := schema.Deserialize(table); err != nil {
 		return nil, err
 	}
-	sourcePath, err := filestore.NewEmptyFilepath(store.FilestoreType())
+	sourcePath, err := store.ParseFilePath(schema.SourceTable)
 	if err != nil {
-		return nil, err
-	}
-	if err := sourcePath.ParseFilePath(schema.SourceTable); err != nil {
 		return nil, err
 	}
 	return &FileStorePrimaryTable{store, sourcePath, schema, false, id}, nil
@@ -913,7 +922,7 @@ func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.Sugar
 	if err != nil {
 		return nil, err
 	}
-	if exists, err := store.Exists(filepath); err != nil {
+	if exists, err := store.Exists(pl.NewFileLocation(filepath)); err != nil {
 		return nil, err
 	} else if !exists {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf(filepath.ToURI()))
@@ -928,12 +937,12 @@ func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.Sugar
 		return nil, err
 	}
 	if store.FilestoreType() == filestore.GCS {
-		src, err := completePrimarySourceTablePathForGCS(resourceSchema.SourceTable, store)
+		src, err := completePrimarySourceTablePathForGCS(resourceSchema.SourceTable.Location(), store)
 		if err != nil {
 			return nil, err
 		}
 		if src != nil {
-			resourceSchema.SourceTable = src.ToURI()
+			resourceSchema.SourceTable = pl.NewFileLocation(src)
 		}
 	}
 	logger.Debugw("Successfully fetched resource table", "id", id)
@@ -967,30 +976,34 @@ func completePrimarySourceTablePathForGCS(sourceTable string, store FileStore) (
 	return nil, nil
 }
 
-func (k8s *K8sOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
+func (k8s *K8sOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
 	return k8s.materialization(id, false)
+}
+
+func (store *K8sOfflineStore) SupportsMaterializationOption(opt MaterializationOptionType) (bool, error) {
+	return false, nil
 }
 
 func (k8s *K8sOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
 	return fileStoreGetMaterialization(id, k8s.store, k8s.logger)
 }
 
-func (k8s *K8sOfflineStore) ResourceLocation(id ResourceID) (string, error) {
+func (k8s *K8sOfflineStore) ResourceLocation(id ResourceID, resource any) (pl.Location, error) {
 	path, err := k8s.store.CreateFilePath(id.ToFilestorePath(), true)
 	if err != nil {
-		return "", errors.Wrap(err, "could not create dir path")
+		return nil, errors.Wrap(err, "could not create dir path")
 	}
 
 	newestFile, err := k8s.store.NewestFileOfType(path, filestore.Parquet)
 	if err != nil {
-		return "", errors.Wrap(err, "could not get newest file")
+		return nil, errors.Wrap(err, "could not get newest file")
 	}
 
 	newestDirPathDateTime, err := k8s.store.CreateFilePath(newestFile.KeyPrefix(), true)
 	if err != nil {
-		return "", fmt.Errorf("could not create directory path for k8s newest file: %v", err)
+		return nil, fmt.Errorf("could not create directory path for k8s newest file: %v", err)
 	}
-	return newestDirPathDateTime.ToURI(), nil
+	return pl.NewFileLocation(newestDirPathDateTime), nil
 }
 
 func fileStoreGetMaterialization(id MaterializationID, store FileStore, logger *zap.SugaredLogger) (Materialization, error) {
@@ -1164,26 +1177,10 @@ func (iter *FileStoreFeatureIterator) Next() bool {
 }
 
 func castToTimestamp(timestamp interface{}) (time.Time, error) {
-	switch timestamp.(type) {
-	case time.Time:
-		ts, ok := timestamp.(time.Time)
-		if !ok {
-			return time.UnixMilli(0).UTC(), fferr.NewDataTypeNotFoundErrorf(timestamp, "could not parse timestamp as time.Time")
-		}
-		return ts, nil
-	case string:
-		// TODO: this is a temporary fix for the timestamp issue
-		strForm, isString := timestamp.(string)
-		if !isString {
-			return time.UnixMilli(0).UTC(), fferr.NewDataTypeNotFoundErrorf(timestamp, "could not parse timestamp as string")
-		}
-		dt, err := dateparse.ParseIn(strForm, time.UTC)
-		if err != nil {
-			return time.UnixMilli(0).UTC(), fferr.NewDataTypeNotFoundErrorf(timestamp, "could not parse timestamp as string")
-		}
-		return dt, nil
-	default:
+	if ts, ok := timestamp.(time.Time); !ok {
 		return time.UnixMilli(0).UTC(), fferr.NewDataTypeNotFoundErrorf(timestamp, "expected timestamp to be of type time.Time")
+	} else {
+		return ts, nil
 	}
 }
 
@@ -1199,7 +1196,7 @@ func (iter *FileStoreFeatureIterator) Close() error {
 	return nil
 }
 
-func (k8s *K8sOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
+func (k8s *K8sOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
 	return k8s.materialization(id, true)
 }
 
@@ -1230,7 +1227,7 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		return nil, err
 	}
 	k8s.logger.Debugw("Running Materialization", "id", id, "destinationPath", destinationPath, "materializationNewestFile", materializationNewestFile)
-	materializationExists, err := k8s.store.Exists(materializationNewestFile)
+	materializationExists, err := k8s.store.Exists(pl.NewFileLocation(materializationNewestFile))
 	if err != nil {
 		k8s.logger.Errorw("Could not determine whether materialization exists", err)
 		return nil, err
@@ -1246,13 +1243,13 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 	if err != nil {
 		return nil, err
 	}
-	sourcePath, err := k8s.store.CreateFilePath(k8sResourceTable.schema.SourceTable, false)
-	if err != nil {
-		k8s.logger.Errorw("Could not create file path", "error", err, "sourceTable", k8sResourceTable.schema.SourceTable)
-		return nil, err
+	sourcePath, isFilestoreLocation := k8sResourceTable.schema.SourceTable.(*pl.FileStoreLocation)
+	if !isFilestoreLocation {
+		k8s.logger.Errorw("Source table is not a filestore location", "sourceTable", k8sResourceTable.schema.SourceTable)
+		return nil, fferr.NewInternalErrorf("source table is not a filestore location")
 	}
 	// get source path file type; note, it's possible it doesn't have it
-	newestSourcePath, err := k8s.store.NewestFileOfType(sourcePath, sourcePath.Ext())
+	newestSourcePath, err := k8s.store.NewestFileOfType(sourcePath.Filepath(), sourcePath.Filepath().Ext())
 	k8s.logger.Debugw("Retrieved newest source path", "sourcePath", sourcePath, "newestSourcePath", newestSourcePath)
 	if err != nil {
 		k8s.logger.Errorw("Could not determine newest source file for materialization", "sourcePath", sourcePath, "error", err)
@@ -1282,11 +1279,11 @@ func fileStoreDeleteMaterialization(id MaterializationID, store FileStore, logge
 	featureResourceKey := ps.ResourceToDirectoryPath(FeatureMaterialization.String(), s[1], s[2])
 	materializationPath, err := store.CreateFilePath(featureResourceKey, false)
 	if err != nil {
-		return fmt.Errorf("could not create file path for materialization %v: %w", id, err)
+		return err
 	}
-	exits, err := store.Exists(materializationPath)
+	exits, err := store.Exists(pl.NewFileLocation(materializationPath))
 	if err != nil {
-		return fmt.Errorf("could not check if materialization exists at path %s: %v", featureResourceKey, err)
+		return err
 	}
 	if !exits {
 		return fferr.NewDatasetNotFoundError(string(id), "", nil)
@@ -1337,7 +1334,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	if err != nil {
 		return err
 	}
-	trainingSetExists, err := k8s.store.Exists(trainingSetExactPath)
+	trainingSetExists, err := k8s.store.Exists(pl.NewFileLocation(trainingSetExactPath))
 	if err != nil {
 		k8s.logger.Errorw("Could not determine whether training set exists", err)
 		return err
@@ -1354,38 +1351,36 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 		k8s.logger.Errorw("Could not get schema of label in store", "id", def.Label, "error", err)
 		return err
 	}
-	labelPath := labelSchema.SourceTable
-	labelFilepath, err := k8s.store.CreateFilePath(labelPath, false)
-	if err != nil {
-		k8s.logger.Errorw("Could not create file path", "error", err, "labelPath", labelPath)
-		return err
+	labelPath, isFilestoreLocation := labelSchema.SourceTable.(*pl.FileStoreLocation)
+	if !isFilestoreLocation {
+		k8s.logger.Errorw("Label source table is not a filestore location", "sourceTable", labelSchema.SourceTable)
+		return fferr.NewInternalErrorf("label source table is not a filestore location")
 	}
-	latestLabelFile, err := k8s.store.NewestFileOfType(labelFilepath, labelFilepath.Ext())
+	latestLabelFile, err := k8s.store.NewestFileOfType(labelPath.Filepath(), labelPath.Filepath().Ext())
 	k8s.logger.Debugw("Latest label file", "labelPath", labelPath, "latestLabelFile", latestLabelFile)
 	if err != nil {
 		k8s.logger.Errorw("Could not get latest label file", "error", err)
 		return err
 	}
-	sourcePaths = append(sourcePaths, labelFilepath.ToURI())
+	sourcePaths = append(sourcePaths, labelPath.Filepath().ToURI())
 	for _, feature := range def.Features {
 		featureSchema, err := k8s.registeredResourceSchema(feature)
 		if err != nil {
 			k8s.logger.Errorw("Could not get schema of feature in store", "feature", feature, "error", err)
 			return err
 		}
-		featurePath := featureSchema.SourceTable
-		featureFilepath, err := k8s.store.CreateFilePath(featurePath, false)
-		if err != nil {
-			k8s.logger.Errorw("Could not create file path", "error", err, "featurePath", featurePath)
-			return err
+		featurePath, isFilestoreLocation := featureSchema.SourceTable.(*pl.FileStoreLocation)
+		if !isFilestoreLocation {
+			k8s.logger.Errorw("Feature source table is not a filestore location", "sourceTable", featureSchema.SourceTable)
+			return fferr.NewInternalErrorf("feature source table is not a filestore location")
 		}
-		latestFeatureFile, err := k8s.store.NewestFileOfType(featureFilepath, featureFilepath.Ext())
+		latestFeatureFile, err := k8s.store.NewestFileOfType(featurePath.Filepath(), featurePath.Filepath().Ext())
 		k8s.logger.Debugw("Latest feature file", "featurePath", featurePath, "latestFeatureFile", latestFeatureFile)
 		if err != nil {
 			k8s.logger.Errorw("Could not get latest feature file", "error", err)
 			return err
 		}
-		sourcePaths = append(sourcePaths, featureFilepath.ToURI())
+		sourcePaths = append(sourcePaths, featurePath.Filepath().ToURI())
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := k8s.query.trainingSetCreate(def, featureSchemas, labelSchema)
@@ -1430,7 +1425,7 @@ func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.Sugared
 		logger.Errorw("Could not create file path", "error", err)
 		return nil, err
 	}
-	trainingSetExists, err := store.Exists(filepath)
+	trainingSetExists, err := store.Exists(pl.NewFileLocation(filepath))
 	if !trainingSetExists {
 		return nil, fferr.NewTrainingSetNotFoundError(id.Name, id.Variant, fmt.Errorf(filepath.ToURI()))
 	}

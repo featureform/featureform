@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 Feature: Training Sets
 
   @wip
@@ -15,9 +22,9 @@ Feature: Training Sets
     When I create a "hosted" "insecure" client for "localhost:7878"
     And I generate a random variant name
     And I upload a "small" "csv" file to "s3"
-    And I register redis
+    And I get or register redis
     And I register "s3" filestore with bucket "featureform-spark-testing" and root path "behave"
-    And I register databricks
+    And I get or register databricks
     And I register the file
     Then I should be able to pull the file as a dataframe
     When I register a "DF" transformation named "first_transformation" from "transactions"

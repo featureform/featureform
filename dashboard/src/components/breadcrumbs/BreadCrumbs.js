@@ -1,29 +1,32 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import Breadcrumbs from '@mui/material/Breadcrumbs';
-import { makeStyles } from '@mui/styles';
+import { styled } from '@mui/system';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import React from 'react';
 
-const useStyles = makeStyles(() => ({
-  root: {
-    margin: 5,
-  },
-  ol: {
-    alignItems: 'inherit',
-  },
-  breadcrumbs: {
-    fontSize: 18,
-  },
-  separator: {
-    marginLeft: '0.2em',
-    marginRight: '0.2em',
-    alignItems: 'auto',
-  },
-}));
+const Root = styled('div')({
+  margin: 5,
+});
+
+const StyledBreadcrumbs = styled(Breadcrumbs)({
+  fontSize: 18,
+});
+
+const Separator = styled(NavigateNextIcon)({
+  marginLeft: '0.2em',
+  marginRight: '0.2em',
+  alignItems: 'auto',
+});
 
 const BreadCrumbs = () => {
-  const classes = useStyles();
   const { asPath } = useRouter();
   const sansQuery = asPath.split('?').shift();
   const path = sansQuery.split('/');
@@ -37,18 +40,14 @@ const BreadCrumbs = () => {
 
   const pathBuilder = (accumulator, currentValue) =>
     accumulator + '/' + currentValue;
+
   return (
-    <div className={classes.root}>
+    <Root>
       {path.length > 0 ? (
-        <Breadcrumbs
-          className={classes.breadcrumbs}
+        <StyledBreadcrumbs
           style={{ margin: '0.25em' }}
           aria-label='breadcrumb'
-          separator={<NavigateNextIcon fontSize='medium' />}
-          classes={{
-            separator: classes.separator,
-            ol: classes.ol,
-          }}
+          separator={<Separator fontSize='medium' />}
         >
           <Link href='/'>Home</Link>
           {path.map((ent, i) => (
@@ -63,11 +62,11 @@ const BreadCrumbs = () => {
               )}
             </Link>
           ))}
-        </Breadcrumbs>
+        </StyledBreadcrumbs>
       ) : (
         <div></div>
       )}
-    </div>
+    </Root>
   );
 };
 

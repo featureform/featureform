@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
@@ -9,7 +16,10 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"github.com/featureform/fferr"
+	"github.com/featureform/metadata"
+	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
+	ps "github.com/featureform/provider/provider_schema"
 	p_type "github.com/featureform/provider/provider_type"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
@@ -217,7 +227,7 @@ func (it *bqGenericTableIterator) Columns() []string {
 	var columns []string
 	// As the documentation for bigquery.Schema notes:
 	// > The schema of the table. In some scenarios it will only be available after the first call to Next(),
-	//   like when a call to Query.Read uses the jobs.query API for an optimized query path.
+	//  like when a call to Query.Read uses the jobs.query API for an optimized query path.
 	// Given this possibility, we should check if the schema is empty and if so, call Next() to populate it.
 	// Given Columns is only called to fetch the data sources columns list, we can safely call Next() here
 	// without concern for skipping a value in the iteration.
@@ -251,10 +261,10 @@ func (q defaultBQQueries) registerResources(client *bigquery.Client, tableName s
 	var query string
 	if timestamp {
 		query = fmt.Sprintf("CREATE VIEW `%s` AS SELECT `%s` as entity, `%s` as value, `%s` as ts, CURRENT_TIMESTAMP() as insert_ts FROM `%s`", q.getTableName(tableName),
-			schema.Entity, schema.Value, schema.TS, q.getTableName(schema.SourceTable))
+			schema.Entity, schema.Value, schema.TS, q.getTableName(schema.SourceTable.Location()))
 	} else {
 		query = fmt.Sprintf("CREATE VIEW `%s` AS SELECT `%s` as entity, `%s` as value, PARSE_TIMESTAMP('%%Y-%%m-%%d %%H:%%M:%%S +0000 UTC', '%s') as ts, CURRENT_TIMESTAMP() as insert_ts FROM `%s`", q.getTableName(tableName),
-			schema.Entity, schema.Value, time.UnixMilli(0).UTC(), q.getTableName(schema.SourceTable))
+			schema.Entity, schema.Value, time.UnixMilli(0).UTC(), q.getTableName(schema.SourceTable.Location()))
 	}
 
 	bqQ := client.Query(query)
@@ -815,7 +825,10 @@ func bigQueryOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	return store, nil
 }
 
-func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
+func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
+	if len(opts) > 0 {
+		return nil, fferr.NewInternalErrorf("BigQuery does not support resource options")
+	}
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}
@@ -848,7 +861,7 @@ func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sche
 	}, nil
 }
 
-func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
@@ -862,7 +875,7 @@ func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourc
 	if err != nil {
 		return nil, err
 	}
-	query := store.query.primaryTableRegister(tableName, sourceName)
+	query := store.query.primaryTableRegister(tableName, tableLocation.Location())
 
 	bqQ := store.client.Query(query)
 	job, err := bqQ.Run(store.query.getContext())
@@ -887,8 +900,15 @@ func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourc
 	}, nil
 }
 
-func (store *bqOfflineStore) CreateTransformation(config TransformationConfig) error {
-	name, err := store.createTransformationName(config.TargetTableID)
+func (store *bqOfflineStore) SupportsTransformationOption(opt TransformationOptionType) (bool, error) {
+	return false, nil
+}
+
+func (store *bqOfflineStore) CreateTransformation(config TransformationConfig, opts ...TransformationOption) error {
+	if len(opts) > 0 {
+		return fferr.NewInternalErrorf("BigQuery does not support transformation options")
+	}
+	name, err := store.getTransformationTableName(config.TargetTableID)
 	if err != nil {
 		return err
 	}
@@ -904,25 +924,15 @@ func (store *bqOfflineStore) CreateTransformation(config TransformationConfig) e
 	return err
 }
 
-func (store *bqOfflineStore) createTransformationName(id ResourceID) (string, error) {
-	switch id.Type {
-	case Transformation:
-		return GetPrimaryTableName(id)
-	case Label:
-		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Label"))
-	case Feature:
-		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Feature"))
-	case TrainingSet:
-		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Training Set"))
-	case Primary:
-		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Primary"))
-	default:
-		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type"))
+func (store *bqOfflineStore) getTransformationTableName(id ResourceID) (string, error) {
+	if err := id.check(Transformation); err != nil {
+		return "", fferr.NewInternalErrorf("resource type must be %s: received %s", Transformation.String(), id.Type.String())
 	}
+	return ps.ResourceToTableName("Transformation", id.Name, id.Variant)
 }
 
 func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	name, err := GetPrimaryTableName(id)
+	name, err := store.getTransformationTableName(id)
 	if err != nil {
 		return nil, err
 	}
@@ -957,8 +967,11 @@ func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (Transformati
 	}, nil
 }
 
-func (store *bqOfflineStore) UpdateTransformation(config TransformationConfig) error {
-	name, err := store.createTransformationName(config.TargetTableID)
+func (store *bqOfflineStore) UpdateTransformation(config TransformationConfig, opts ...TransformationOption) error {
+	if len(opts) > 0 {
+		return fferr.NewInternalErrorf("BigQuery does not support transformation options")
+	}
+	name, err := store.getTransformationTableName(config.TargetTableID)
 	if err != nil {
 		return err
 	}
@@ -993,7 +1006,7 @@ func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchem
 	return table, nil
 }
 
-func (store *bqOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
+func (store *bqOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
 	name, err := GetPrimaryTableName(id)
 	if err != nil {
 		return nil, err
@@ -1081,7 +1094,7 @@ func (store *bqOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFeature
 	return nil, fferr.NewInternalError(fmt.Errorf("batch features not implemented for this provider"))
 }
 
-func (store *bqOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
+func (store *bqOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("received %s; only features can be materialized", id.Type.String()))
 	}
@@ -1091,7 +1104,10 @@ func (store *bqOfflineStore) CreateMaterialization(id ResourceID, options ...Mat
 	}
 
 	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
-	matTableName := store.getMaterializationTableName(matID)
+	matTableName, err := store.getMaterializationTableName(id)
+	if err != nil {
+		return nil, err
+	}
 	materializeQry := store.query.materializationCreate(matTableName, resTable.name)
 
 	bqQ := store.client.Query(materializeQry)
@@ -1105,6 +1121,10 @@ func (store *bqOfflineStore) CreateMaterialization(id ResourceID, options ...Mat
 		tableName: matTableName,
 		query:     store.query,
 	}, nil
+}
+
+func (store *bqOfflineStore) SupportsMaterializationOption(opt MaterializationOptionType) (bool, error) {
+	return false, nil
 }
 
 func (store *bqOfflineStore) getbqResourceTable(id ResourceID) (*bqOfflineTable, error) {
@@ -1125,12 +1145,24 @@ func (store *bqOfflineStore) getbqResourceTable(id ResourceID) (*bqOfflineTable,
 	}, nil
 }
 
-func (store *bqOfflineStore) getMaterializationTableName(id MaterializationID) string {
-	return fmt.Sprintf("featureform_materialization_%s", id)
+func (store *bqOfflineStore) getMaterializationTableName(id ResourceID) (string, error) {
+	if err := id.check(Feature); err != nil {
+		return "", err
+	}
+	// NOTE: Given BiqQuery uses intermediate resource tables, the inbound resource ID will be Feature;
+	// however, the table must be named according to the FeatureMaterialization offline type.
+	return ps.ResourceToTableName(FeatureMaterialization.String(), id.Name, id.Variant)
 }
 
 func (store *bqOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
-	tableName := store.getMaterializationTableName(id)
+	name, variant, err := ps.MaterializationIDToResource(string(id))
+	if err != nil {
+		return nil, err
+	}
+	tableName, err := store.getMaterializationTableName(ResourceID{Name: name, Variant: variant, Type: Feature})
+	if err != nil {
+		return nil, err
+	}
 	getMatQry := store.query.materializationExists(tableName)
 
 	bqQry := store.client.Query(getMatQry)
@@ -1162,9 +1194,15 @@ func (store *bqOfflineStore) GetMaterialization(id MaterializationID) (Materiali
 	}, err
 }
 
-func (store *bqOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
-	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
-	tableName := store.getMaterializationTableName(matID)
+func (store *bqOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+	matID, err := NewMaterializationID(id)
+	if err != nil {
+		return nil, err
+	}
+	tableName, err := store.getMaterializationTableName(id)
+	if err != nil {
+		return nil, err
+	}
 	getMatQry := store.query.materializationExists(tableName)
 	resTable, err := store.getbqResourceTable(id)
 	if err != nil {
@@ -1199,7 +1237,14 @@ func (store *bqOfflineStore) UpdateMaterialization(id ResourceID) (Materializati
 }
 
 func (store *bqOfflineStore) DeleteMaterialization(id MaterializationID) error {
-	tableName := store.getMaterializationTableName(id)
+	name, variant, err := ps.MaterializationIDToResource(string(id))
+	if err != nil {
+		return err
+	}
+	tableName, err := store.getMaterializationTableName(ResourceID{Name: name, Variant: variant, Type: Feature})
+	if err != nil {
+		return err
+	}
 	if exists, err := store.materializationExists(id); err != nil {
 		return err
 	} else if !exists {
@@ -1218,7 +1263,14 @@ func (store *bqOfflineStore) DeleteMaterialization(id MaterializationID) error {
 }
 
 func (store *bqOfflineStore) materializationExists(id MaterializationID) (bool, error) {
-	tableName := store.getMaterializationTableName(id)
+	name, variant, err := ps.MaterializationIDToResource(string(id))
+	if err != nil {
+		return false, err
+	}
+	tableName, err := store.getMaterializationTableName(ResourceID{Name: name, Variant: variant, Type: Feature})
+	if err != nil {
+		return false, err
+	}
 	getMatQry := store.query.materializationExists(tableName)
 
 	bqQ := store.client.Query(getMatQry)
@@ -1322,24 +1374,19 @@ func (store *bqOfflineStore) CheckHealth() (bool, error) {
 	return false, fferr.NewInternalError(fmt.Errorf("provider health check not implemented"))
 }
 
-func (store *bqOfflineStore) ResourceLocation(id ResourceID) (string, error) {
+func (store *bqOfflineStore) ResourceLocation(id ResourceID, resource any) (pl.Location, error) {
 	if exists, err := store.tableExists(id); err != nil {
-		return "", err
+		return nil, err
 	} else if !exists {
-		return "", fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 
-	var tableName string
-	var err error
-	if id.check(Feature, Label) == nil {
-		tableName, err = store.getResourceTableName(id)
-	} else if id.check(TrainingSet) == nil {
-		tableName, err = store.getTrainingSetName(id)
-	} else if id.check(Primary) == nil || id.check(Transformation) == nil {
-		tableName, err = GetPrimaryTableName(id)
+	tableName, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
+	if err != nil {
+		return nil, err
 	}
 
-	return tableName, err
+	return pl.NewSQLLocation(tableName), err
 }
 
 type bqTrainingRowsIterator struct {
@@ -1418,15 +1465,7 @@ func (store *bqOfflineStore) Close() error {
 
 func (store *bqOfflineStore) tableExists(id ResourceID) (bool, error) {
 	var n []bigquery.Value
-	var tableName string
-	var err error
-	if id.check(Feature, Label) == nil {
-		tableName, err = store.getResourceTableName(id)
-	} else if id.check(TrainingSet) == nil {
-		tableName, err = store.getTrainingSetName(id)
-	} else if id.check(Primary) == nil || id.check(Transformation) == nil {
-		tableName, err = GetPrimaryTableName(id)
-	}
+	tableName, err := store.getTransformationTableName(id)
 	if err != nil {
 		return false, err
 	}
@@ -1496,21 +1535,12 @@ func (store *bqOfflineStore) createBigQueryPrimaryTableQuery(name string, schema
 }
 
 func (store *bqOfflineStore) getResourceTableName(id ResourceID) (string, error) {
-	if err := checkName(id); err != nil {
-		return "", err
-	}
-	var idType string
-	if id.Type == Feature {
-		idType = "feature"
-	} else {
-		idType = "label"
-	}
-	return fmt.Sprintf("featureform_resource_%s__%s__%s", idType, id.Name, id.Variant), nil
+	return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 }
 
 func (store *bqOfflineStore) getTrainingSetName(id ResourceID) (string, error) {
-	if err := checkName(id); err != nil {
+	if err := id.check(TrainingSet); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("featureform_trainingset__%s__%s", id.Name, id.Variant), nil
+	return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 }

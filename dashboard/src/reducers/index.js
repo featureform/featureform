@@ -1,6 +1,12 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import { combineReducers } from 'redux';
 import { breadCrumbsReducer } from '../components/breadcrumbs';
-import { connectionPageSliceReducer } from '../components/connectionpage';
 import { entityPageReducer } from '../components/entitypage';
 import {
   aggregateDropdownSliceReducer,
@@ -9,6 +15,8 @@ import {
 } from '../components/entitypage/elements';
 import { homePageReducer } from '../components/homepage';
 import {
+  currentFilterReducer,
+  currentPageReducer,
   resourceReducer,
   tagReducer,
   variantReducer,
@@ -25,6 +33,7 @@ export default combineReducers({
   searchResults: searchResultsReducer,
   timeRange: exponentialTimeSliderReducer,
   metricsSelect: metricsSelectSliceReducer,
-  connectionStatus: connectionPageSliceReducer,
   aggregates: aggregateDropdownSliceReducer,
+  currentPage: currentPageReducer,
+  currentFilter: currentFilterReducer,
 });

@@ -1,5 +1,13 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import {
   Alert,
+  Box,
   Paper,
   Slide,
   Snackbar,
@@ -12,16 +20,9 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import * as React from 'react';
-import Barchart from '../../components/charts/Barchart';
-import UniqueValues from '../../components/charts/UniqueValues';
+import React, { useState } from 'react';
 
-export default function SourceDialogTable({
-  stats = [],
-  columns = [],
-  rowList = [],
-  skipIndexList = [],
-}) {
+export default function SourceDialogTable({ columns = [], rowList = [] }) {
   const textEllipsis = {
     whiteSpace: 'nowrap',
     maxWidth: columns?.length > 1 ? '100%' : '500px',
@@ -30,7 +31,12 @@ export default function SourceDialogTable({
     cursor: 'pointer',
   };
 
-  const [open, setOpen] = React.useState(false);
+  const noRecords = {
+    textAlign: 'center',
+    marginTop: 10,
+  };
+
+  const [open, setOpen] = useState(false);
   const closeSnackBar = (_, reason) => {
     if (reason === 'clickaway') {
       return;
@@ -67,48 +73,16 @@ export default function SourceDialogTable({
             <TableRow>
               {columns?.map((col, i) => (
                 <React.Fragment key={i}>
-                  {!skipIndexList.includes(i) && (
-                    <TableCell
-                      key={col + i}
-                      data-testid={col + i}
-                      align={i === 0 ? 'left' : 'right'}
-                    >
-                      {`${col}`}
-                    </TableCell>
-                  )}
+                  <TableCell
+                    key={col + i}
+                    data-testid={col + i}
+                    align={i === 0 ? 'left' : 'right'}
+                  >
+                    {`${col}`}
+                  </TableCell>
                 </React.Fragment>
               ))}
             </TableRow>
-            {stats?.length ? (
-              <React.Fragment>
-                <TableRow>
-                  {stats?.map((statObj, index) => (
-                    <React.Fragment key={index}>
-                      {!skipIndexList.includes(index) && (
-                        <TableCell
-                          key={index}
-                          align={index === 0 ? 'left' : 'right'}
-                        >
-                          {['numeric', 'boolean'].includes(statObj.type) ? (
-                            <Barchart
-                              categories={
-                                statObj.type === 'boolean'
-                                  ? statObj.string_categories
-                                  : statObj.numeric_categories
-                              }
-                              categoryCounts={statObj.categoryCounts}
-                              type={statObj.type}
-                            />
-                          ) : (
-                            <UniqueValues count={statObj?.categoryCounts[0]} />
-                          )}
-                        </TableCell>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </TableRow>
-              </React.Fragment>
-            ) : null}
           </TableHead>
           <TableBody>
             {rowList?.map((currentRow, index) => (
@@ -119,23 +93,21 @@ export default function SourceDialogTable({
               >
                 {currentRow?.map((row, index) => (
                   <React.Fragment key={index}>
-                    {!skipIndexList.includes(index) && (
-                      <TableCell
-                        key={row + index}
-                        align={index === 0 ? 'left' : 'right'}
-                        sx={{ maxHeight: '50px' }}
-                      >
-                        <Tooltip title='Copy to Clipboard'>
-                          <Typography
-                            onClick={copyToClipBoard}
-                            fontSize={11.5}
-                            style={textEllipsis}
-                          >
-                            {`${row}`}
-                          </Typography>
-                        </Tooltip>
-                      </TableCell>
-                    )}
+                    <TableCell
+                      key={row + index}
+                      align={index === 0 ? 'left' : 'right'}
+                      sx={{ maxHeight: '50px' }}
+                    >
+                      <Tooltip title='Copy to Clipboard'>
+                        <Typography
+                          onClick={copyToClipBoard}
+                          fontSize={11.5}
+                          style={textEllipsis}
+                        >
+                          {`${row}`}
+                        </Typography>
+                      </Tooltip>
+                    </TableCell>
                   </React.Fragment>
                 ))}
               </TableRow>
@@ -143,6 +115,13 @@ export default function SourceDialogTable({
           </TableBody>
         </Table>
       </TableContainer>
+      {rowList?.length ? null : (
+        <Box>
+          <Typography style={noRecords} fontWeight={'bold'}>
+            No records to display
+          </Typography>
+        </Box>
+      )}
     </>
   );
 }

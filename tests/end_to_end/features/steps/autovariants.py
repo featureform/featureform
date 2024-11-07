@@ -1,7 +1,13 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import os
 import random
 
-import uuid
 import featureform as ff
 from behave import when, then
 
@@ -10,21 +16,20 @@ from behave import when, then
 def step_impl(context):
     os.environ["FF_GET_EQUIVALENT_VARIANTS"] = "true"
 
-    # Set the a unique variant prefix because we were running
-    # into an issue with behave tests running in parallel. This would
-    # cause the same variant to be generated for different tests.
-    context.unique_prefix = str(uuid.uuid4())[:5]
-    ff.set_variant_prefix(context.unique_prefix)
+    context.variant = ff.get_run()
 
 
 @then("I turn off autovariants")
 def step_impl(context):
     os.environ["FF_GET_EQUIVALENT_VARIANTS"] = "false"
 
+    context.variant = ff.get_run()
 
-@when("I register a transformation with auto variant")
-def step_impl(context):
+
+@when('I register "{transformation_name}" transformation with auto variant')
+def step_impl(context, transformation_name):
     @context.spark.df_transformation(
+        name=transformation_name,
         inputs=[context.transactions],
     )
     def some_transformation(df):
@@ -35,9 +40,12 @@ def step_impl(context):
     context.transformation = some_transformation
 
 
-@then("I should be able to reuse the same variant for the same transformation")
-def step_impl(context):
+@then(
+    'I should be able to reuse the same variant for the same "{transformation_name}" transformation'
+)
+def step_impl(context, transformation_name):
     @context.spark.df_transformation(
+        name=transformation_name,
         inputs=[context.transactions],
     )
     def some_transformation(df):
@@ -47,10 +55,10 @@ def step_impl(context):
     context.client.apply(asynchronous=False, verbose=True)
     context.new_transformation = some_transformation
 
-    assert (
-        context.new_transformation.name_variant()
-        == context.transformation.name_variant()
-    )
+    new_nv = context.new_transformation.name_variant()
+    old_nv = context.transformation.name_variant()
+
+    assert new_nv == old_nv, f"Expected: {new_nv} Got: {old_nv}"
 
 
 @then("I should be able to register a new auto variant transformation")
@@ -65,16 +73,15 @@ def step_impl(context):
     context.client.apply(asynchronous=False, verbose=True)
     context.new_transformation = some_transformation
 
-    assert (
-        context.new_transformation.name_variant()
-        != context.transformation.name_variant()
-    )
+    new_nv = context.new_transformation.name_variant()
+    old_nv = context.transformation.name_variant()
+    assert new_nv == old_nv, f"Expected: {old_nv} Got: {new_nv}"
 
 
 @then("I can get the transformation as df")
 def step_impl(context):
     df = context.client.dataframe(context.new_transformation)
-    assert len(df) > 0
+    assert len(df) > 0, f"Expected: > 0 Got: {len(df)}"
 
 
 @when("I register a transformation with user-provided variant")
@@ -93,9 +100,12 @@ def step_impl(context):
     context.transformation = some_transformation
 
 
-@then("I should be able to register a modified transformation with new auto variant")
-def step_impl(context):
+@then(
+    'I should be able to register a modified "{name}" transformation with new auto variant'
+)
+def step_impl(context, name):
     @context.spark.df_transformation(
+        name=name,
         inputs=[context.transactions],
     )
     def some_transformation(df):
@@ -108,14 +118,12 @@ def step_impl(context):
     context.client.apply(asynchronous=False, verbose=True)
     context.new_transformation = some_transformation
 
+    new_nv = context.new_transformation.name_variant()
+    old_nv = context.transformation.name_variant()
+    assert new_nv[0] == old_nv[0], f"Expected Name:  {old_nv[0]} Got: {new_nv[0]}"
     assert (
-        context.new_transformation.name_variant()[0]
-        == context.transformation.name_variant()[0]
-    )
-    assert (
-        context.new_transformation.name_variant()[1]
-        != context.transformation.name_variant()[1]
-    )
+        new_nv[1] != old_nv[1]
+    ), f"Expected different variant but got the same variant: {old_nv[1]}"
 
 
 @then("I should be able to register a source with user-defined variant")
@@ -132,4 +140,4 @@ def step_impl(context):
 @then("I can get the source as df")
 def step_impl(context):
     df = context.client.dataframe(context.new_source)
-    assert len(df) > 0
+    assert len(df) > 0, f"Expected: > 0 Got: {len(df)}"

@@ -1,6 +1,10 @@
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import inspect
 import os
 import random
@@ -13,14 +17,15 @@ import dill
 import math
 import numpy as np
 import pandas as pd
-
 from featureform.proto import serving_pb2, serving_pb2_grpc
 from . import GrpcClient, Model, TrainingSetVariant
-from .enums import FileFormat, ResourceType
+from .enums import FileFormat, DataResourceType
 from .register import FeatureColumnResource
 from .tls import insecure_channel, secure_channel
+
 from .train_test_split import TrainTestSplit
 from .version import check_up_to_date
+from .grpc_client import GrpcClient
 
 
 def check_feature_type(features):
@@ -58,7 +63,9 @@ class ServingClient:
     ```
     """
 
-    def __init__(self, host=None, local=False, insecure=False, cert_path=None):
+    def __init__(
+        self, host=None, local=False, insecure=False, cert_path=None, debug=False
+    ):
         # This line ensures that the warning is only raised if ServingClient is instantiated directly
         # TODO: Remove this check once ServingClient is deprecated
         is_instantiated_directed = inspect.stack()[1].function != "__init__"
@@ -78,12 +85,13 @@ class ServingClient:
                 "Local mode is not supported in this version. Use featureform <= 1.12.0 for localmode"
             )
 
-        self.impl = HostedClientImpl(host, insecure, cert_path)
+        self.impl = HostedClientImpl(host, insecure, cert_path, debug=debug)
 
     def training_set(
         self,
         name,
         variant="",
+        include_label_timestamp=False,
         model: Union[str, Model] = None,
     ) -> "Dataset":
         """Return an iterator that iterates through the specified training set.
@@ -107,7 +115,7 @@ class ServingClient:
         if isinstance(name, TrainingSetVariant):
             variant = name.variant
             name = name.name
-        return self.impl.training_set(name, variant, model)
+        return self.impl.training_set(name, variant, include_label_timestamp, model)
 
     def features(
         self, features, entities, model: Union[str, Model] = None, params: list = None
@@ -158,7 +166,7 @@ class ServingClient:
 
 
 class HostedClientImpl:
-    def __init__(self, host=None, insecure=False, cert_path=None):
+    def __init__(self, host=None, insecure=False, cert_path=None, debug=False):
         host = host or os.getenv("FEATUREFORM_HOST")
         if host is None:
             raise ValueError(
@@ -167,7 +175,12 @@ class HostedClientImpl:
             )
         check_up_to_date(False, "serving")
         self._channel = self._create_channel(host, insecure, cert_path)
-        self._stub = GrpcClient(serving_pb2_grpc.FeatureStub(self._channel))
+        self._stub = GrpcClient(
+            serving_pb2_grpc.FeatureStub(self._channel),
+            debug=debug,
+            insecure=insecure,
+            host=host,
+        )
 
     @staticmethod
     def _create_channel(host, insecure, cert_path):
@@ -176,7 +189,9 @@ class HostedClientImpl:
         else:
             return secure_channel(host, cert_path)
 
-    def training_set(self, name, variation, model: Union[str, Model] = None):
+    def training_set(
+        self, name, variation, include_label_timestamp, model: Union[str, Model] = None
+    ):
         training_set_stream = TrainingSetStream(self._stub, name, variation, model)
         return Dataset(training_set_stream)
 
@@ -253,9 +268,10 @@ class HostedClientImpl:
         req = serving_pb2.SourceDataRequest(id=id, limit=limit)
         resp = self._stub.SourceData(req)
         data = []
-        for rows in resp:
-            row = [getattr(r, r.WhichOneof("value")) for r in rows.rows]
-            data.append(row)
+        for batch in resp:
+            for rows in batch.rows:
+                row = [getattr(r, r.WhichOneof("value")) for r in rows.rows]
+                data.append(row)
         return data
 
     def _get_source_columns(self, name, variant):
@@ -275,7 +291,7 @@ class HostedClientImpl:
         resp = self._stub.Nearest(req)
         return resp.entities
 
-    def location(self, name: str, variant: str, resource_type: ResourceType) -> str:
+    def location(self, name: str, variant: str, resource_type: DataResourceType) -> str:
         req = serving_pb2.ResourceIdRequest()
         req.name = name
         req.variant = variant
@@ -301,12 +317,20 @@ class TrainingSetStream(Iterator):
         self._stub = stub
         self._req = req
         self._iter = stub.TrainingData(req)
+        self._buf = []
+        self._index = 0
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        return Row(next(self._iter))
+        if self._index >= len(self._buf):
+            self._buf = next(self._iter).rows
+            self._index = 0
+
+        row = Row(self._buf[self._index])
+        self._index += 1
+        return row
 
     def restart(self):
         self._iter = self._stub.TrainingData(self._req)
@@ -579,7 +603,7 @@ class Dataset:
             req = serving_pb2.ResourceIdRequest()
             req.name = self._stream.name
             req.variant = self._stream.version
-            req.type = ResourceType.TRAINING_DATA.value
+            req.type = DataResourceType.TRAINING_DATA.value
             resp = self._stream._stub.ResourceLocation(req)
 
             file_format = FileFormat.get_format(resp.location, default="parquet")
@@ -865,12 +889,20 @@ class FeatureSetIterator:
         self._stub = stub
         self._req = req
         self._iter = stub.BatchFeatureServe(req)
+        self._buf = []
+        self._index = 0
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        return FeatureSetRow(next(self._iter)).to_tuple()
+        if self._index >= len(self._buf):
+            self._buf = next(self._iter).rows
+            self._index = 0
+
+        row = FeatureSetRow(self._buf[self._index]).to_tuple()
+        self._index += 1
+        return row
 
     def restart(self):
         self._iter = self._stub.BatchFeatureServe(self._req)

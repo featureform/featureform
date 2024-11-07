@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package runner
 
@@ -11,7 +14,10 @@ import (
 	"sync"
 	"testing"
 
+	fs "github.com/featureform/filestore"
+	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
@@ -367,20 +373,25 @@ func (store *BrokenNumChunksOfflineStore) CreatePrimaryTable(id provider.Resourc
 	return nil, nil
 }
 
-func (store *BrokenNumChunksOfflineStore) GetPrimaryTable(id provider.ResourceID) (provider.PrimaryTable, error) {
+func (store *BrokenNumChunksOfflineStore) GetPrimaryTable(id provider.ResourceID, source metadata.SourceVariant) (provider.PrimaryTable, error) {
 	return nil, nil
 }
 
-func (store *BrokenNumChunksOfflineStore) RegisterResourceFromSourceTable(id provider.ResourceID, schema provider.ResourceSchema) (provider.OfflineTable, error) {
+func (store *BrokenNumChunksOfflineStore) RegisterResourceFromSourceTable(id provider.ResourceID, schema provider.ResourceSchema, opts ...provider.ResourceOption) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (store *BrokenNumChunksOfflineStore) RegisterPrimaryFromSourceTable(id provider.ResourceID, sourceName string) (provider.PrimaryTable, error) {
+func (store *BrokenNumChunksOfflineStore) RegisterPrimaryFromSourceTable(id provider.ResourceID, tableLocation pl.Location) (provider.PrimaryTable, error) {
 	return nil, nil
 }
-func (store *BrokenNumChunksOfflineStore) CreateTransformation(config provider.TransformationConfig) error {
+
+func (store *BrokenNumChunksOfflineStore) SupportsTransformationOption(opt provider.TransformationOptionType) (bool, error) {
+	return false, nil
+}
+
+func (store *BrokenNumChunksOfflineStore) CreateTransformation(config provider.TransformationConfig, opt ...provider.TransformationOption) error {
 	return nil
 }
-func (b BrokenNumChunksOfflineStore) UpdateTransformation(config provider.TransformationConfig) error {
+func (b BrokenNumChunksOfflineStore) UpdateTransformation(config provider.TransformationConfig, opts ...provider.TransformationOption) error {
 	return nil
 }
 
@@ -394,11 +405,16 @@ func (b BrokenNumChunksOfflineStore) CreateResourceTable(id provider.ResourceID,
 func (b BrokenNumChunksOfflineStore) GetResourceTable(id provider.ResourceID) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (b BrokenNumChunksOfflineStore) CreateMaterialization(id provider.ResourceID, options ...provider.MaterializationOptions) (provider.Materialization, error) {
+
+func (b BrokenNumChunksOfflineStore) CreateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (provider.Materialization, error) {
 	return nil, nil
 }
 
-func (b BrokenNumChunksOfflineStore) UpdateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+func (store BrokenNumChunksOfflineStore) SupportsMaterializationOption(opt provider.MaterializationOptionType) (bool, error) {
+	return false, nil
+}
+
+func (b BrokenNumChunksOfflineStore) UpdateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (provider.Materialization, error) {
 	return nil, nil
 }
 
@@ -436,8 +452,8 @@ func (b BrokenNumChunksOfflineStore) Close() error {
 	return nil
 }
 
-func (b BrokenNumChunksOfflineStore) ResourceLocation(id provider.ResourceID) (string, error) {
-	return "", nil
+func (b BrokenNumChunksOfflineStore) ResourceLocation(id provider.ResourceID, resource any) (pl.Location, error) {
+	return nil, nil
 }
 
 type BrokenGetTableOnlineStore struct {
@@ -681,21 +697,24 @@ func (m MockOfflineStore) CreatePrimaryTable(id provider.ResourceID, schema prov
 	return nil, nil
 }
 
-func (m MockOfflineStore) GetPrimaryTable(id provider.ResourceID) (provider.PrimaryTable, error) {
+func (m MockOfflineStore) GetPrimaryTable(id provider.ResourceID, source metadata.SourceVariant) (provider.PrimaryTable, error) {
 	return nil, nil
 }
 
-func (m MockOfflineStore) RegisterResourceFromSourceTable(id provider.ResourceID, schema provider.ResourceSchema) (provider.OfflineTable, error) {
+func (m MockOfflineStore) RegisterResourceFromSourceTable(id provider.ResourceID, schema provider.ResourceSchema, opts ...provider.ResourceOption) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (m MockOfflineStore) RegisterPrimaryFromSourceTable(id provider.ResourceID, sourceName string) (provider.PrimaryTable, error) {
+func (m MockOfflineStore) RegisterPrimaryFromSourceTable(id provider.ResourceID, tableLocation pl.Location) (provider.PrimaryTable, error) {
 	return nil, nil
 }
-func (m MockOfflineStore) CreateTransformation(config provider.TransformationConfig) error {
+func (m MockOfflineStore) SupportsTransformationOption(opt provider.TransformationOptionType) (bool, error) {
+	return false, nil
+}
+func (m MockOfflineStore) CreateTransformation(config provider.TransformationConfig, opt ...provider.TransformationOption) error {
 	return nil
 }
 
-func (m MockOfflineStore) UpdateTransformation(config provider.TransformationConfig) error {
+func (m MockOfflineStore) UpdateTransformation(config provider.TransformationConfig, opts ...provider.TransformationOption) error {
 	return nil
 }
 
@@ -703,7 +722,7 @@ func (m MockOfflineStore) GetTransformationTable(id provider.ResourceID) (provid
 	return nil, nil
 }
 
-func (m MockOfflineStore) UpdateMaterialization(id provider.ResourceID) (provider.Materialization, error) {
+func (m MockOfflineStore) UpdateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (provider.Materialization, error) {
 	return nil, nil
 }
 
@@ -715,8 +734,8 @@ func (m MockOfflineStore) Close() error {
 	return nil
 }
 
-func (m MockOfflineStore) ResourceLocation(id provider.ResourceID) (string, error) {
-	return "", nil
+func (m MockOfflineStore) ResourceLocation(id provider.ResourceID, resource any) (pl.Location, error) {
+	return nil, nil
 }
 
 func (m MockOfflineStore) CreateTrainTestSplit(def provider.TrainTestSplitDef) (func() error, error) {
@@ -784,8 +803,12 @@ func (m MockOfflineStore) GetResourceTable(id provider.ResourceID) (provider.Off
 	return MockOfflineTable{}, nil
 }
 
-func (m MockOfflineStore) CreateMaterialization(id provider.ResourceID, options ...provider.MaterializationOptions) (provider.Materialization, error) {
+func (m MockOfflineStore) CreateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (provider.Materialization, error) {
 	return MockMaterialization{}, nil
+}
+
+func (store MockOfflineStore) SupportsMaterializationOption(opt provider.MaterializationOptionType) (bool, error) {
+	return false, nil
 }
 
 func (m MockOfflineStore) GetMaterialization(id provider.MaterializationID) (provider.Materialization, error) {
@@ -879,7 +902,7 @@ func TestChunkRunnerFactory(t *testing.T) {
 	offline := NewMockOfflineStore()
 	online := NewMockOnlineStore()
 	resourceID := provider.ResourceID{
-		"test_name", "test_variant", provider.Feature,
+		Name: "test_name", Variant: "test_variant", Type: provider.Feature,
 	}
 	if _, err := online.CreateTable(resourceID.Name, resourceID.Variant, types.String); err != nil {
 		t.Fatalf("Failed to create online resource table: %v", err)
@@ -887,7 +910,7 @@ func TestChunkRunnerFactory(t *testing.T) {
 	if _, err := offline.CreateResourceTable(resourceID, provider.TableSchema{}); err != nil {
 		t.Fatalf("Failed to create offline resource table: %v", err)
 	}
-	materialization, err := offline.CreateMaterialization(resourceID)
+	materialization, err := offline.CreateMaterialization(resourceID, provider.MaterializationOptions{Output: fs.Parquet})
 	if err != nil {
 		t.Fatalf("Failed to create materialization: %v", err)
 	}

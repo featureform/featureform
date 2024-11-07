@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package runner
 
@@ -20,23 +23,6 @@ import (
 	"go.uber.org/zap"
 )
 
-type S3ImportMaterializationOption struct {
-	storeType  pt.Type
-	outputType filestore.FileType
-}
-
-func (o S3ImportMaterializationOption) Output() filestore.FileType {
-	return o.outputType
-}
-
-func (o S3ImportMaterializationOption) StoreType() pt.Type {
-	return o.storeType
-}
-
-func (o S3ImportMaterializationOption) ShouldIncludeHeaders() bool {
-	return false
-}
-
 type S3ImportDynamoDBRunner struct {
 	Online      provider.ImportableOnlineStore
 	Offline     provider.OfflineStore
@@ -45,6 +31,7 @@ type S3ImportDynamoDBRunner struct {
 	VType       vt.ValueType
 	IsUpdate    bool // Not currently useable
 	Logger      *zap.SugaredLogger
+	Options     provider.MaterializationOptions
 }
 
 func (r S3ImportDynamoDBRunner) Resource() metadata.ResourceID {
@@ -62,12 +49,7 @@ func (r S3ImportDynamoDBRunner) IsUpdateJob() bool {
 func (r S3ImportDynamoDBRunner) Run() (types.CompletionWatcher, error) {
 	r.Logger.Infow("Staring S3 import to DynamoDB materialization runner", "name", r.ID.Name, "variant", r.ID.Variant)
 
-	option := S3ImportMaterializationOption{
-		storeType:  pt.SparkOffline,
-		outputType: filestore.CSV,
-	}
-
-	mat, err := r.Offline.CreateMaterialization(r.ID, option)
+	mat, err := r.Offline.CreateMaterialization(r.ID, r.Options)
 	if err != nil {
 		r.Logger.Errorf("failed to create materialization: %v", err)
 		return nil, err
@@ -80,7 +62,7 @@ func (r S3ImportDynamoDBRunner) Run() (types.CompletionWatcher, error) {
 	}
 
 	// **NOTE:** Unlike ResourceID, which has methods to convert the name, variant and type of resource to and from a path,
-	//  MaterializationID is a string that is already in the form of `/Materialization/<name>/<variant>`. We currently need
+	// MaterializationID is a string that is already in the form of `/Materialization/<name>/<variant>`. We currently need
 	// to append `featureform/` to the materialization ID to get the source dir path, but this is not ideal. We should
 	// probably change the type of MaterializationID to be ResourceID.
 	sourceDirPath, err := sparkOffline.Store.CreateFilePath(fmt.Sprintf("featureform/%s", mat.ID()), true)
@@ -252,5 +234,6 @@ func S3ImportDynamoDBRunnerFactory(config Config) (types.Runner, error) {
 		VType:    runnerConfig.VType.ValueType,
 		IsUpdate: runnerConfig.IsUpdate,
 		Logger:   logging.NewLogger("s3importer").SugaredLogger,
+		Options:  runnerConfig.Options,
 	}, nil
 }

@@ -1,5 +1,12 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 package serving
@@ -7,29 +14,37 @@ package serving
 import (
 	"context"
 	"fmt"
-	"io"
-	"sync"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/scheduling"
+
+	"io"
+	"sync"
+
 	"go.uber.org/zap"
+)
+
+const (
+	DataBatchSize = 1024
 )
 
 type FeatureServer struct {
 	pb.UnimplementedFeatureServer
 	Metrics   metrics.MetricsHandler
 	Metadata  *metadata.Client
-	Logger    *zap.SugaredLogger
+	Logger    logging.Logger
 	Providers *sync.Map
 	Tables    *sync.Map
 	Features  *sync.Map
 }
 
-func NewFeatureServer(meta *metadata.Client, promMetrics metrics.MetricsHandler, logger *zap.SugaredLogger) (*FeatureServer, error) {
+func NewFeatureServer(meta *metadata.Client, promMetrics metrics.MetricsHandler, logger logging.Logger) (*FeatureServer, error) {
 	logger.Debug("Creating new training data server")
 	return &FeatureServer{
 		Metadata:  meta,
@@ -48,31 +63,6 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 	defer featureObserver.Finish()
 	logger := serv.Logger.With("Name", name, "Variant", variant)
 	logger.Info("Serving training data")
-	iter, err := serv.getTrainingSetIterator(name, variant)
-	if err != nil {
-		logger.Errorw("Failed to get training set iterator", "Error", err)
-		featureObserver.SetError()
-		return err
-	}
-	for iter.Next() {
-		sRow, err := serializedRow(iter.Features(), iter.Label())
-		if err != nil {
-			return err
-		}
-		if err := stream.Send(sRow); err != nil {
-			logger.Errorw("Failed to write to stream", "Error", err)
-			featureObserver.SetError()
-			return fferr.NewInternalError(err)
-		}
-		featureObserver.ServeRow()
-	}
-	if err := iter.Err(); err != nil {
-		logger.Errorw("Dataset error", "Error", err)
-		featureObserver.SetError()
-		return err
-	}
-
-	logger.Info("Creating model")
 	if model := req.GetModel(); model != nil {
 		trainingSets := []metadata.NameVariant{{Name: name, Variant: variant}}
 		err := serv.Metadata.CreateModel(stream.Context(), metadata.ModelDef{Name: model.GetName(), Trainingsets: trainingSets})
@@ -80,7 +70,47 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 			return err
 		}
 	}
-
+	iter, err := serv.getTrainingSetIterator(name, variant)
+	if err != nil {
+		logger.Errorw("Failed to get training set iterator", "Error", err)
+		featureObserver.SetError()
+		return err
+	}
+	rows := &pb.TrainingDataRows{Rows: make([]*pb.TrainingDataRow, 0, DataBatchSize)}
+	bufRows := 0
+	for iter.Next() {
+		sRow, err := serializedRow(iter.Features(), iter.Label())
+		if err != nil {
+			logger.Errorw("Failed to serialize row", "Error", err)
+			featureObserver.SetError()
+			return err
+		}
+		featureObserver.ServeRow()
+		rows.Rows = append(rows.Rows, sRow)
+		bufRows++
+		if bufRows == DataBatchSize {
+			if err := stream.Send(rows); err != nil {
+				logger.Errorw("Failed to write to training data stream", "Error", err)
+				featureObserver.SetError()
+				return fferr.NewInternalError(err)
+			}
+			// Reset buffer rather than allocating a new one.
+			rows.Rows = rows.Rows[:0]
+			bufRows = 0
+		}
+	}
+	if bufRows != 0 {
+		if err := stream.Send(rows); err != nil {
+			logger.Errorw("Failed to write to training data stream", "Error", err)
+			featureObserver.SetError()
+			return fferr.NewInternalError(err)
+		}
+	}
+	if err := iter.Err(); err != nil {
+		logger.Errorw("Training set iterator error", "Error", err)
+		featureObserver.SetError()
+		return err
+	}
 	return nil
 }
 
@@ -197,7 +227,7 @@ func (serv *FeatureServer) handleSplitDataRequest(splitContext *splitContext) er
 	case pb.RequestType_TEST:
 		thisIter = *splitContext.testIterator
 	default:
-		return fmt.Errorf("invalid request type")
+		return fferr.NewInternalErrorf("invalid train/test type: %T", splitContext.req.GetRequestType())
 	}
 
 	rows := 0
@@ -291,12 +321,28 @@ func (serv *FeatureServer) SourceData(req *pb.SourceDataRequest, stream pb.Featu
 		logger.Errorw("Failed to get source data iterator", "Error", err)
 		return err
 	}
+	rows := &pb.SourceDataRows{Rows: make([]*pb.SourceDataRow, 0, DataBatchSize)}
+	bufRows := 0
 	for iter.Next() {
 		sRow, err := SerializedSourceRow(iter.Values())
 		if err != nil {
+			logger.Errorw("Failed to serialize row", "Error", err)
 			return err
 		}
-		if err := stream.Send(sRow); err != nil {
+		rows.Rows = append(rows.Rows, sRow)
+		bufRows++
+		if bufRows == DataBatchSize {
+			if err := stream.Send(rows); err != nil {
+				logger.Errorw("Failed to write to source data stream", "Error", err)
+				return fferr.NewInternalError(err)
+			}
+			// Reset buffer rather than allocating a new one.
+			rows.Rows = rows.Rows[:0]
+			bufRows = 0
+		}
+	}
+	if bufRows != 0 {
+		if err := stream.Send(rows); err != nil {
 			logger.Errorw("Failed to write to source data stream", "Error", err)
 			return fferr.NewInternalError(err)
 		}
@@ -469,8 +515,7 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	if err != nil {
 		return nil, err
 	}
-	// TODO: Determine if we want to add a backoff here to wait for the source
-	if sv.Status() != metadata.READY {
+	if sv.Status() != scheduling.READY {
 		return nil, fferr.NewResourceNotReadyError(name, variant, "SOURCE_VARIANT", fmt.Errorf("current status: %s", sv.Status()))
 	}
 	providerEntry, err := sv.FetchProvider(serv.Metadata, ctx)
@@ -507,13 +552,16 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 		}
 	} else {
 		serv.Logger.Debugw("Getting primary table", "name", name, "variant", variant)
-		primary, providerErr = store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary})
+		primary, providerErr = store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary}, *sv)
 	}
 	if providerErr != nil {
 		serv.Logger.Errorw("Could not get primary table", "name", name, "variant", variant, "Error", providerErr)
-		return nil, providerErr
+		return nil, err
 	}
 	serv.Logger.Debugw("Getting source data iterator", "name", name, "variant", variant, "limit", limit)
+	if primary == nil {
+		return nil, fferr.NewInternalErrorf("primary table is nil for %s:%s", name, variant)
+	}
 	return primary.IterateSegment(limit)
 }
 
@@ -541,16 +589,16 @@ func (serv *FeatureServer) FeatureServe(ctx context.Context, req *pb.FeatureServ
 		entityMap[entity.GetName()] = entity.GetValues()
 	}
 
-	rows, err := serv.getFeatureRows(ctx, features, entityMap)
-	if err != nil {
-		return nil, err
-	}
-
 	if model := req.GetModel(); model != nil {
 		err := serv.addModel(ctx, model, features)
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	rows, err := serv.getFeatureRows(ctx, features, entityMap)
+	if err != nil {
+		return nil, err
 	}
 
 	return &pb.FeatureRow{
@@ -562,7 +610,76 @@ func (serv *FeatureServer) getNVCacheKey(name, variant string) string {
 	return fmt.Sprintf("%s:%s", name, variant)
 }
 
+func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant string, entityMap map[string]string) (*pb.Value, error) {
+	obs := serv.Metrics.BeginObservingOnlineServe(name, variant)
+	defer obs.Finish()
+	logger := serv.Logger.With("Name", name, "Variant", variant)
+	logger.Debug("Getting metadata")
+	meta, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{name, variant})
+	if err != nil {
+		logger.Errorw("metadata lookup failed", "Err", err)
+		obs.SetError()
+		return nil, err
+	}
+
+	var val interface{}
+	switch meta.Mode() {
+	case metadata.PRECOMPUTED, metadata.STREAMING:
+		entity, has := entityMap[meta.Entity()]
+		if !has {
+			logger.Errorw("Entity not found", "Entity", meta.Entity())
+			obs.SetError()
+			return nil, fmt.Errorf("No value for entity %s", meta.Entity())
+		}
+		providerEntry, err := meta.FetchProvider(serv.Metadata, ctx)
+		if err != nil {
+			logger.Errorw("fetching provider metadata failed", "Error", err)
+			obs.SetError()
+			return nil, err
+		}
+		p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
+		if err != nil {
+			logger.Errorw("failed to get provider", "Error", err)
+			obs.SetError()
+			return nil, err
+		}
+		store, err := p.AsOnlineStore()
+		if err != nil {
+			logger.Errorw("failed to use provider as onlinestore for feature", "Error", err)
+			obs.SetError()
+			// This means that the provider of the feature isn't an online store.
+			// That shouldn't be possible.
+			return nil, err
+		}
+		table, err := store.GetTable(name, variant)
+		if err != nil {
+			logger.Errorw("feature not found", "Error", err)
+			obs.SetError()
+			return nil, err
+		}
+		val, err = table.Get(entity)
+		if err != nil {
+			logger.Errorw("entity not found", "Error", err)
+			obs.SetError()
+			return nil, err
+		}
+	case metadata.CLIENT_COMPUTED:
+		val = meta.LocationFunction()
+	default:
+		return nil, fmt.Errorf("unknown computation mode %v", meta.Mode())
+	}
+	f, err := newValue(val)
+	if err != nil {
+		logger.Errorw("invalid feature type", "Error", err)
+		obs.SetError()
+		return nil, err
+	}
+	obs.ServeRow()
+	return f.Serialized(), nil
+}
+
 func (serv *FeatureServer) BatchFeatureServe(req *pb.BatchFeatureServeRequest, stream pb.Feature_BatchFeatureServeServer) error {
+	logger := serv.Logger
 	features := req.GetFeatures()
 	resourceIDList := make([]provider.ResourceID, len(features))
 	for i, feature := range features {
@@ -574,16 +691,34 @@ func (serv *FeatureServer) BatchFeatureServe(req *pb.BatchFeatureServeRequest, s
 	if err != nil {
 		return err
 	}
+
+	rows := &pb.BatchFeatureRows{Rows: make([]*pb.BatchFeatureRow, 0, DataBatchSize)}
+	bufRows := 0
 	for iter.Next() {
 		sRow, err := serializedBatchRow(iter.Entity(), iter.Features())
 		if err != nil {
 			return err
 		}
-		if err := stream.Send(sRow); err != nil {
+		rows.Rows = append(rows.Rows, sRow)
+		bufRows++
+		if bufRows == DataBatchSize {
+			if err := stream.Send(rows); err != nil {
+				logger.Errorw("Failed to write to batch feature stream", "Error", err)
+				return fferr.NewInternalError(err)
+			}
+			// Reset buffer rather than allocating a new one.
+			rows.Rows = rows.Rows[:0]
+			bufRows = 0
+		}
+	}
+	if bufRows != 0 {
+		if err := stream.Send(rows); err != nil {
+			logger.Errorw("Failed to write to batch feature stream", "Error", err)
 			return fferr.NewInternalError(err)
 		}
 	}
 	if err := iter.Err(); err != nil {
+		logger.Errorw("Failed to write to batch feature stream", "Error", err)
 		return err
 	}
 	return nil
@@ -691,6 +826,7 @@ func (serv *FeatureServer) GetResourceLocation(ctx context.Context, req *pb.Reso
 
 func (serv *FeatureServer) getOfflineResourceLocation(ctx context.Context, name, variant string, resourceType int32) (string, error) {
 	var providerEntry *metadata.Provider
+	var resource any
 	switch provider.OfflineResourceType(resourceType) {
 	case provider.Primary, provider.Transformation:
 		serv.Logger.Infow("Getting Source Variant Provider", "name", name, "variant", variant)
@@ -702,6 +838,7 @@ func (serv *FeatureServer) getOfflineResourceLocation(ctx context.Context, name,
 		if err != nil {
 			return "", err
 		}
+		resource = sv
 	case provider.TrainingSet:
 		serv.Logger.Infow("Getting Training Set Provider", "name", name, "variant", variant)
 		ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
@@ -712,6 +849,7 @@ func (serv *FeatureServer) getOfflineResourceLocation(ctx context.Context, name,
 		if err != nil {
 			return "", err
 		}
+		resource = ts
 	default:
 		return "", fferr.NewInvalidResourceTypeError(name, variant, fferr.ResourceType(metadata.ResourceType(resourceType).String()), fmt.Errorf("invalid resource type"))
 	}
@@ -725,11 +863,11 @@ func (serv *FeatureServer) getOfflineResourceLocation(ctx context.Context, name,
 	}
 
 	resourceID := provider.ResourceID{Name: name, Variant: variant, Type: provider.OfflineResourceType(resourceType)}
-	fileLocation, err := store.ResourceLocation(resourceID)
+	fileLocation, err := store.ResourceLocation(resourceID, resource)
 	if err != nil {
 		return "", err
 	}
-	return fileLocation, nil
+	return fileLocation.Location(), nil
 }
 
 func (serv *FeatureServer) getOnlineResourceLocation(ctx context.Context, name, variant string, resourceType int32) (string, error) {

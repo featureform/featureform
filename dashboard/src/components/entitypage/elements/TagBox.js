@@ -1,29 +1,37 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import AddBoxOutlinedIcon from '@mui/icons-material/AddBoxOutlined';
 import RemoveOutlinedIcon from '@mui/icons-material/RemoveOutlined';
-import { Box, Button, TextField } from '@mui/material';
-import Chip from '@mui/material/Chip';
-import Container from '@mui/material/Container';
-import Typography from '@mui/material/Typography';
-import { makeStyles } from '@mui/styles';
+import {
+  Box,
+  Button,
+  Chip,
+  Container,
+  TextField,
+  Typography,
+} from '@mui/material';
+import { styled } from '@mui/system';
 import React, { useEffect, useRef, useState } from 'react';
 import { useDataAPI } from '../../../hooks/dataAPI';
 
-const useStyles = makeStyles((theme) => ({
-  formControl: {
-    margin: theme.spacing(1),
-    minWidth: 120,
-  },
-  selectEmpty: {
-    marginTop: theme.spacing(2),
-  },
-  tagTopRow: {
-    minHeight: 60,
-    minWidth: 300,
-    display: 'flex',
-  },
-  chip: {
-    margin: theme.spacing(0.5),
-  },
+const StyledContainer = styled(Container)(({ theme }) => ({
+  margin: theme.spacing(1),
+  minWidth: 120,
+}));
+
+const TagTopRow = styled(Box)(() => ({
+  minHeight: 60,
+  minWidth: 300,
+  display: 'flex',
+}));
+
+const StyledChip = styled(Chip)(({ theme }) => ({
+  margin: theme.spacing(0.5),
 }));
 
 const TagBox = ({
@@ -34,17 +42,17 @@ const TagBox = ({
   title = '',
 }) => {
   const ENTER_KEY = 'Enter';
-  const classes = useStyles();
   const [tagName, setTagName] = useState('');
   const [tagList, setTagsList] = useState(tags);
   const [displayTextOpen, setDisplayTextOpen] = useState(false);
   const ref = useRef();
 
   const dataAPI = useDataAPI();
+
   async function handleNewTag(event) {
     event.preventDefault();
     if (tagName?.trim()) {
-      let updatedList = [...tagList.filter((t) => t != tagName), tagName];
+      let updatedList = [...tagList.filter((t) => t !== tagName), tagName];
       let data = await dataAPI.postTags(
         type,
         resourceName,
@@ -58,7 +66,7 @@ const TagBox = ({
   }
 
   async function handleDeleteTag(deleteTag = '') {
-    let updatedList = tagList.filter((tagName) => tagName != deleteTag);
+    let updatedList = tagList.filter((tagName) => tagName !== deleteTag);
     let data = await dataAPI.postTags(type, resourceName, variant, updatedList);
     if (data?.tags) {
       setTagsList(data.tags);
@@ -70,27 +78,30 @@ const TagBox = ({
     setTagName('');
   };
 
-  useEffect(async () => {
-    let data = await dataAPI.getTags(type, resourceName, variant);
-    let localTags = [...tagList];
-    if (
-      data?.tags &&
-      data.tags.sort().toString() !== localTags?.sort().toString()
-    ) {
-      if (ref?.current) {
-        setTagsList(data.tags);
+  useEffect(() => {
+    async function fetchData() {
+      let data = await dataAPI.getTags(type, resourceName, variant);
+      let localTags = [...tagList];
+      if (
+        data?.tags &&
+        data.tags.sort().toString() !== localTags?.sort().toString()
+      ) {
+        if (ref?.current) {
+          setTagsList(data.tags);
+        }
       }
     }
+    fetchData();
   }, [variant]);
 
   return (
-    <Container ref={ref} className={classes.attributeContainer}>
-      <Box className={classes.tagTopRow}>
+    <StyledContainer ref={ref}>
+      <TagTopRow>
         <Typography
           variant='h6'
           component='h5'
           gutterBottom
-          style={{ paddingTop: 10 }}
+          sx={{ paddingTop: 2 }}
         >
           {title}
           <Button
@@ -102,53 +113,50 @@ const TagBox = ({
             {displayTextOpen ? <RemoveOutlinedIcon /> : <AddBoxOutlinedIcon />}
           </Button>
         </Typography>
-        {displayTextOpen ? (
-          <>
-            <TextField
-              label='New Tag'
-              style={{ maxWidth: 160 }}
-              autoFocus
-              onChange={(event) => {
-                const rawText = event.target.value;
-                if (rawText === '') {
-                  setTagName(rawText);
-                  return;
-                }
-                const tagName = event.target.value ?? '';
-                if (tagName.trim()) {
-                  setTagName(tagName.trim());
-                }
-              }}
-              value={tagName}
-              onKeyDown={(event) => {
-                if (event.key === ENTER_KEY && setTagName) {
-                  handleNewTag(event);
-                  setTagName('');
-                }
-              }}
-              inputProps={{
-                'aria-label': 'search',
-                'data-testid': 'tagInputId',
-              }}
-            />
-          </>
-        ) : null}
-      </Box>
+        {displayTextOpen && (
+          <TextField
+            label='New Tag'
+            sx={{ maxWidth: 160 }}
+            autoFocus
+            onChange={(event) => {
+              const rawText = event.target.value;
+              if (rawText === '') {
+                setTagName(rawText);
+                return;
+              }
+              const tagName = event.target.value ?? '';
+              if (tagName.trim()) {
+                setTagName(tagName.trim());
+              }
+            }}
+            value={tagName}
+            onKeyDown={(event) => {
+              if (event.key === ENTER_KEY && tagName) {
+                handleNewTag(event);
+                setTagName('');
+              }
+            }}
+            inputProps={{
+              'aria-label': 'search',
+              'data-testid': 'tagInputId',
+            }}
+          />
+        )}
+      </TagTopRow>
 
       <Box>
         {tagList.map((tag) => (
-          <Chip
+          <StyledChip
             label={tag}
             key={tag}
             data-testid={tag + 'id'}
-            className={classes.chip}
-            style={{ marginTop: '10px' }}
+            sx={{ marginTop: 1 }}
             variant='outlined'
             onDelete={() => handleDeleteTag(tag)}
           />
         ))}
       </Box>
-    </Container>
+    </StyledContainer>
   );
 };
 

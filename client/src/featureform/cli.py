@@ -1,13 +1,14 @@
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
 
 import os
 import click
 import validators
 import urllib.request
-from flask import Flask
-
 
 from .client import Client
 from .deploy import (
@@ -174,17 +175,21 @@ def version():
     "--verbose", is_flag=True, help="Prints all errors at the end of an apply"
 )
 def apply(host, cert, insecure, files, dry_run, no_wait, verbose):
+    # The client must be initialized *before* the files are compiled and executed
+    # so the default owner can be registered ahead of any resources that require it.
+    client = Client(host=host, insecure=insecure, cert_path=cert, dry_run=dry_run)
     for file in files:
         if os.path.isfile(file):
             read_file(file)
         elif validators.url(file):
             read_url(file)
+        # In a directory, all files are applied in alphabetical order. Subdirectories are ignored.
+        elif os.path.isdir(file):
+            read_dir(file)
         else:
             raise ValueError(
-                f"Argument must be a path to a file or URL with a valid schema (http:// or https://): {file}"
+                f"Argument must be a path to a file, directory or URL with a valid schema (http:// or https://): {file}"
             )
-
-    client = Client(host=host, insecure=insecure, cert_path=cert, dry_run=dry_run)
     asynchronous = no_wait
     client.apply(asynchronous=asynchronous, verbose=verbose)
 
@@ -273,6 +278,13 @@ def read_url(url):
             exec_file(py, url)
     except Exception as e:
         raise ValueError(f"Could not apply the provided URL: {e}: {url}")
+
+
+def read_dir(directory):
+    for root, _, files in os.walk(directory):
+        files.sort()
+        for file in files:
+            read_file(os.path.join(root, file))
 
 
 def exec_file(file, name):

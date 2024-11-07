@@ -1,9 +1,16 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import os
 import random
 
 import requests
 import numpy as np
-from behave import *
+from behave import given, when, then, step
 import featureform as ff
 from collections import Counter
 
@@ -14,6 +21,9 @@ def step_impl(context):
     context.snowflake_password = os.getenv("SNOWFLAKE_PASSWORD", "")
     context.snowflake_account = os.getenv("SNOWFLAKE_ACCOUNT", "")
     context.snowflake_organization = os.getenv("SNOWFLAKE_ORG", "")
+    context.snowflake_external_volume = os.getenv("SNOWFLAKE_EXTERNAL_VOLUME", "")
+    context.snowflake_base_location = os.getenv("SNOWFLAKE_BASE_LOCATION", "")
+    context.snowflake_warehouse = os.getenv("SNOWFLAKE_WAREHOUSE", "")
 
     if context.snowflake_username == "":
         raise Exception("Snowflake username is not set")
@@ -23,6 +33,12 @@ def step_impl(context):
         raise Exception("Snowflake account is not set")
     if context.snowflake_organization == "":
         raise Exception("Snowflake organization is not set")
+    if context.snowflake_external_volume == "":
+        raise Exception("Snowflake external volume is not set")
+    if context.snowflake_base_location == "":
+        raise Exception("Snowflake base location is not set")
+    if context.snowflake_warehouse == "":
+        raise Exception("Snowflake warehouse is not set")
 
 
 @given("The Databricks env variables are available")
@@ -42,7 +58,7 @@ def step_impl(context):
 @given("The S3 env variables are available")
 def step_impl(context):
     context.s3_credentials = (
-        ff.AWSCredentials(
+        ff.AWSStaticCredentials(
             access_key=os.getenv("AWS_ACCESS_KEY_ID", ""),
             secret_key=os.getenv("AWS_SECRET_ACCESS_KEY", ""),
         ),
@@ -95,8 +111,34 @@ def step_impl(context):
         password=context.snowflake_password,
         account=context.snowflake_account,
         organization=context.snowflake_organization,
-        database="0884D0DD-468D-4C3A-8109-3C2BAAD72EF7",
+        database="DEMO2",
         schema="PUBLIC",
+        warehouse=context.snowflake_warehouse,
+        catalog=ff.SnowflakeCatalog(
+            external_volume=context.snowflake_external_volume,
+            base_location=context.snowflake_base_location,
+        ),
+    )
+    context.client.apply()
+
+
+@step('I register Snowflake with "{db_name}" database')
+def step_impl(context, db_name):
+    context.snowflake = ff.register_snowflake(
+        name=f"snowflake_{db_name}",
+        description="Offline store",
+        team="Featureform",
+        username=context.snowflake_username,
+        password=context.snowflake_password,
+        account=context.snowflake_account,
+        organization=context.snowflake_organization,
+        database=db_name,
+        schema="PUBLIC",
+        warehouse=context.snowflake_warehouse,
+        catalog=ff.SnowflakeCatalog(
+            external_volume=context.snowflake_external_volume,
+            base_location=context.snowflake_base_location,
+        ),
     )
     context.client.apply()
 
@@ -105,17 +147,82 @@ def step_impl(context):
 def step_impl(context):
     context.boolean_table = context.snowflake.register_table(
         name="boolean_table",
-        table="featureform_resource_feature__08b1cc23-18ce-4ae7-9ee0-d68216f19079__2e2a8e99-7a60-4e10-98e2-1d17e44ba476",
+        table="CICD_BOOLEAN_TABLE",
     )
     context.number_table = context.snowflake.register_table(
         name="number_table",
-        table="featureform_resource_feature__1926ce54-6d29-4094-a291-6f6516d84eed__b63c0ba7-23d8-437d-bbc9-bb0f2c821f0c",
+        table="CICD_NUMBER_TABLE",
     )
     context.string_table = context.snowflake.register_table(
         name="string_table",
-        table="featureform_materialization_string_feature",
+        table="CICD_STRING_TABLE",
     )
     context.client.apply()
+
+
+@step('I register the "{table_name}" table with Snowflake')
+def step_impl(context, table_name):
+    context.snowflake_table = context.snowflake.register_table(
+        name=f"snowflake_{table_name.lower()}",
+        table=table_name,
+    )
+    context.client.apply()
+
+
+@step(
+    'I serve the snowflake table with client dataframe with expected "{num_records}" records'
+)
+def step_impl(context, num_records):
+    expected_num_records = int(num_records)
+    df = context.client.dataframe(context.snowflake_table)
+    assert df is not None, "Dataframe is None"
+    assert len(df) > 0, "Dataframe is empty"
+    assert len(df.columns) > 0, "Dataframe has no columns"
+    assert (
+        len(df) == expected_num_records
+    ), f"Dataframe has incorrect number of rows; expected {expected_num_records}, got {len(df)}"
+
+
+@step(
+    'I can create spark "{transformation_type}" transformation with Snowflake table as source'
+)
+def step_impl(context, transformation_type):
+    if transformation_type == "sql":
+
+        @context.spark.sql_transformation(inputs=[context.snowflake_table])
+        def snowflake_transformation(table):
+            return "SELECT * FROM {{ table }}"
+
+    elif transformation_type == "df":
+
+        @context.spark.df_transformation(inputs=[context.snowflake_table])
+        def snowflake_transformation(df):
+            return df
+
+    context.client.apply()
+    context.transformation = snowflake_transformation
+
+
+@step("I can create sql transformation with FF_LAST_RUN_TIMESTAMP")
+def step_impl(context):
+    @context.snowflake.sql_transformation(inputs=[context.snowflake_table])
+    def variable_transformation(table):
+        return "SELECT CUSTOMERID FROM {{ table }} WHERE CAST(timestamp AS TIMESTAMP_NTZ(6)) > CAST(FF_LAST_RUN_TIMESTAMP AS TIMESTAMP_NTZ(6))"
+
+    context.client.apply()
+    context.transformation = variable_transformation
+
+
+@step("I can serve the transformation with client dataframe")
+def step_impl(context):
+    expected_num_records = 1048124
+    df = context.client.dataframe(context.transformation)
+    assert df is not None, "Dataframe is None"
+    assert len(df) > 0, "Dataframe is empty"
+    assert len(df.columns) > 0, "Dataframe has no columns"
+    assert (
+        len(df) == expected_num_records
+    ), f"Dataframe has incorrect number of rows; expected {expected_num_records}, got {len(df)}"
 
 
 @when('I register the "{data_source_size}" files from the database')
@@ -154,19 +261,18 @@ def step_impl(context, data_source_size):
 
 @then("I serve batch features for snowflake")
 def step_impl(context):
-    context.expected = [
-        ("a", ["", 343, "343"]),
-        ("b", [True, 546, "546"]),
-        ("c", [True, 7667, "7667"]),
-        ("d", [False, 32, "32"]),
-        ("e", [True, 53, "53"]),
-        ("f", ["", 64556, "64556"]),
-    ]
+    context.expected = {
+        "C9038530": [True, 1, "8/12/89"],
+        "C8437481": [False, 1, "19/3/78"],
+        "C6228537": [False, 2, "22/8/91"],
+        "C1124365": [True, 3, "10/1/84"],
+        "C2028517": [False, 1, "16/6/93"],
+    }
     context.iter = context.client.batch_features(
         [
-            ("boolean_feature", context.variant),
-            ("numerical_feature", context.variant),
-            ("string_feature", context.variant),
+            context.snowflake_user.boolean_feature,
+            context.snowflake_user.numerical_feature,
+            context.snowflake_user.string_feature,
         ]
     )
 
@@ -187,9 +293,9 @@ def step_impl(context):
     }
     context.iter = context.client.batch_features(
         [
-            ("transaction_feature", context.variant),
-            ("balance_feature", context.variant),
-            ("perc_feature", context.variant),
+            ("transaction_feature", ff.get_run()),
+            ("balance_feature", ff.get_run()),
+            ("perc_feature", ff.get_run()),
         ]
     )
 
@@ -214,19 +320,13 @@ def step_impl(context):
 def step_impl(context, provider):
     i = 0
     for entity, features in context.iter:
-        if provider == "snowflake":
-            if i >= len(context.expected):
-                break
-            assert entity == context.expected[i][0]
-            assert Counter(features) == Counter(context.expected[i][1])
-            i += 1
-        elif provider == "spark":
-            if i >= len(context.expected):
-                break
-            assert entity in context.expected
-            assert Counter(context.expected[entity]) == Counter(features)
-        else:
-            raise Exception("Provider not recognized", provider)
+        assert entity in context.expected
+        assert features == context.expected[entity]
+        i += 1
+    if i == 0:
+        raise Exception("No entities were found")
+    if i < len(context.expected):
+        raise Exception("Not all entities were found")
 
 
 @then("I can get a list containing the correct number of features")
@@ -257,6 +357,7 @@ def step_impl(context):
             type=ff.String,
         )
 
+    context.snowflake_user = SnowflakeUser
     context.client.apply()
 
 

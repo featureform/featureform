@@ -1,8 +1,19 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import dill
 import pytest
 
 from featureform import get_random_name
-from featureform.register import ColumnSourceRegistrar, OfflineSparkProvider, Registrar
+from featureform.register import (
+    ColumnSourceRegistrar,
+    OfflineSparkProvider,
+    Registrar,
+)
 from featureform.resources import (
     DFTransformation,
     Provider,
@@ -130,7 +141,12 @@ def test_sql_transformation_without_variant(sql, spark_provider):
 @pytest.mark.parametrize(
     "name,variant,inputs,transformation",
     [
-        ("test_input", "primary_dataset", "primary_dataset", "avg_user_transaction"),
+        (
+            "test_input",
+            "primary_source_sql_table",
+            "primary_source_sql_table",
+            "avg_user_transaction",
+        ),
         (
             "test_input",
             "df_transformation",
@@ -166,7 +182,10 @@ def test_df_transformation(
         name=name,
         variant=variant,
         definition=DFTransformation(
-            query=query, inputs=inputs, source_text=source_text
+            query=query,
+            inputs=inputs,
+            source_text=source_text,
+            canonical_func_text=decorator.canonical_func_text,
         ),
         owner="tester",
         provider="spark",

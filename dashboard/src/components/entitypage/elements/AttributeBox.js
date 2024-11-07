@@ -1,25 +1,24 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import Chip from '@mui/material/Chip';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
-import { makeStyles } from '@mui/styles';
+import { styled } from '@mui/system';
 import React from 'react';
 
-const useStyles = makeStyles((theme) => ({
-  formControl: {
-    margin: theme.spacing(1),
-    minWidth: 120,
-  },
-  selectEmpty: {
-    marginTop: theme.spacing(2),
-  },
-  attributeContainer: {
-    padding: theme.spacing(2),
-    borderRadius: '16px',
-    border: `1px solid ${theme.palette.border.main}`,
-  },
-  chip: {
-    margin: theme.spacing(0.5),
-  },
+const AttributeContainer = styled(Container)(({ theme }) => ({
+  padding: theme.spacing(2),
+  borderRadius: '16px',
+  border: `1px solid ${theme.palette.border.main}`,
+}));
+
+const StyledChip = styled(Chip)(({ theme }) => ({
+  margin: theme.spacing(0.5),
 }));
 
 /**
@@ -29,26 +28,19 @@ const useStyles = makeStyles((theme) => ({
  * @returns {Container}
  */
 const AttributeBox = ({ attributes, title }) => {
-  const classes = useStyles();
-
   return (
-    <Container className={classes.attributeContainer}>
+    <AttributeContainer>
       <Typography variant='h6' component='h5' gutterBottom>
         {title}
       </Typography>
       {attributes ? (
         attributes.map((attr) => (
-          <Chip
-            label={attr}
-            key={attr}
-            className={classes.chip}
-            variant='outlined'
-          />
+          <StyledChip label={attr} key={attr} variant='outlined' />
         ))
       ) : (
         <div></div>
       )}
-    </Container>
+    </AttributeContainer>
   );
 };
 

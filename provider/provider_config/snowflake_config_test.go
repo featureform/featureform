@@ -1,17 +1,27 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider_config
 
 import (
 	"reflect"
 	"testing"
 
-	ss "github.com/featureform/helpers/string_set"
+	ss "github.com/featureform/helpers/stringset"
 )
 
 func TestSnowflakeConfigMutableFields(t *testing.T) {
 	expected := ss.StringSet{
-		"Username": true,
-		"Password": true,
-		"Role":     true,
+		"Username":  true,
+		"Password":  true,
+		"Role":      true,
+		"Schema":    true,
+		"Database":  true,
+		"Warehouse": true,
 	}
 
 	config := SnowflakeConfig{
@@ -113,4 +123,64 @@ func TestSnowflakeConfigDifferingFields(t *testing.T) {
 		})
 	}
 
+}
+
+func TestSnowflakeConfigSerializationDeserialization(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   SnowflakeConfig
+		expected []byte
+	}{
+		{"No Catalog", SnowflakeConfig{
+			Username:       "featureformer",
+			Password:       "password",
+			AccountLocator: "xy12345.snowflakecomputing.com",
+			Organization:   "featureform",
+			Account:        "featureform-test",
+			Database:       "transactions_db",
+			Schema:         "fraud",
+			Warehouse:      "ff_wh_xs",
+			Role:           "sysadmin",
+			Catalog:        nil,
+		}, []byte(`{"Username":"featureformer","Password":"password","AccountLocator":"xy12345.snowflakecomputing.com","Organization":"featureform","Account":"featureform-test","Database":"transactions_db","Schema":"fraud","Warehouse":"ff_wh_xs","Role":"sysadmin","Catalog":null}`)},
+		{"With Catalog", SnowflakeConfig{
+			Username:       "featureformer",
+			Password:       "password",
+			AccountLocator: "xy12345.snowflakecomputing.com",
+			Organization:   "featureform",
+			Account:        "featureform-test",
+			Database:       "transactions_db",
+			Schema:         "fraud",
+			Warehouse:      "ff_wh_xs",
+			Role:           "sysadmin",
+			Catalog: &SnowflakeCatalogConfig{
+				ExternalVolume: "external_volume",
+				BaseLocation:   "base_location",
+				TableConfig: SnowflakeTableConfig{
+					TargetLag:   "target_lag",
+					RefreshMode: "refresh_mode",
+					Initialize:  "initialize",
+				},
+			},
+		}, []byte(`{"Username":"featureformer","Password":"password","AccountLocator":"xy12345.snowflakecomputing.com","Organization":"featureform","Account":"featureform-test","Database":"transactions_db","Schema":"fraud","Warehouse":"ff_wh_xs","Role":"sysadmin","Catalog":{"ExternalVolume":"external_volume","BaseLocation":"base_location","TableConfig":{"TargetLag":"target_lag","RefreshMode":"refresh_mode","Initialize":"initialize"}}}`)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actualSerialized := tt.config.Serialize()
+
+			if !reflect.DeepEqual(actualSerialized, tt.expected) {
+				t.Errorf("Expected %v, but instead found %v", tt.expected, actualSerialized)
+			}
+
+			var actualDeserialized SnowflakeConfig
+			err := actualDeserialized.Deserialize(tt.expected)
+			if err != nil {
+				t.Errorf("Failed to deserialize due to error: %v", err)
+			}
+			if !reflect.DeepEqual(tt.config, actualDeserialized) {
+				t.Errorf("Expected %v, but instead found %v", tt.config, actualDeserialized)
+			}
+		})
+	}
 }

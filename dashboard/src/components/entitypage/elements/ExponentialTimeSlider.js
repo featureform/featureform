@@ -1,13 +1,18 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import Slider from '@mui/material/Slider';
 import Typography from '@mui/material/Typography';
-import { makeStyles } from '@mui/styles';
-import React from 'react';
+import { styled } from '@mui/system';
+import React, { useState } from 'react';
 import { connect } from 'react-redux';
 import { changeTime } from './ExponentialTimeSliderSlice.js';
 
-const useStyles = makeStyles(() => ({
-  dateRangeView: {},
-}));
+const DateRangeView = styled('div')({});
 
 const minutesSince = [
   {
@@ -79,14 +84,12 @@ function numFormatter(value) {
   return value;
 }
 function ExponentialTimeSlider({ changeTime }) {
-  const classes = useStyles();
-
   function convToDateTime(value) {
     let d = new Date(Date.now() - 1000 * 60 * value);
 
     return d.toUTCString();
   }
-  const [value, setValue] = React.useState([175, 200]);
+  const [value, setValue] = useState([175, 200]);
 
   const handleChange = (event, newValue) => {
     setValue(newValue);
@@ -113,13 +116,13 @@ function ExponentialTimeSlider({ changeTime }) {
         onChangeCommitted={dispatchChange}
         valueLabelDisplay='auto'
       />
-      <div className={classes.dateRangeView}>
+      <DateRangeView>
         {scaleValues(value).map((value, i) => (
           <Typography key={i} variant='body2'>
             {convToDateTime(value)}
           </Typography>
         ))}
-      </div>
+      </DateRangeView>
     </div>
   );
 }

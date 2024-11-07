@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package provider
 
@@ -13,10 +16,14 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/featureform/config"
+	"github.com/featureform/provider/provider_type"
+
+	"github.com/stretchr/testify/assert"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	fs "github.com/featureform/filestore"
+	"github.com/featureform/metadata"
 	"go.uber.org/zap/zaptest"
 
 	"bytes"
@@ -34,6 +41,7 @@ import (
 
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
+	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
 	"github.com/featureform/provider/types"
@@ -99,8 +107,12 @@ func testCreateTrainingSet(store *SparkOfflineStore) error {
 	if err := uploadCSVTable(store.Store, path, exampleStructArray); err != nil {
 		return err
 	}
+	fp, err := store.Store.CreateFilePath(path, false)
+	if err != nil {
+		return err
+	}
+	testResourceSchema := ResourceSchema{"name", "age", "registered", pl.NewFileLocation(fp)}
 	testFeatureResource := sparkSafeRandomID(Feature)
-	testResourceSchema := ResourceSchema{"name", "age", "registered", path}
 	table, err := store.RegisterResourceFromSourceTable(testFeatureResource, testResourceSchema)
 	if err != nil {
 		return err
@@ -113,7 +125,7 @@ func testCreateTrainingSet(store *SparkOfflineStore) error {
 		return fmt.Errorf("Did not properly register table")
 	}
 	testLabelResource := sparkSafeRandomID(Label)
-	testLabelResourceSchema := ResourceSchema{"name", "winner", "registered", path}
+	testLabelResourceSchema := ResourceSchema{"name", "winner", "registered", pl.NewFileLocation(fp)}
 	labelTable, err := store.RegisterResourceFromSourceTable(testLabelResource, testLabelResourceSchema)
 	fetchedLabel, err := store.GetResourceTable(testLabelResource)
 	if err != nil {
@@ -180,10 +192,15 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 	if err := uploadCSVTable(store.Store, path, exampleStructArray); err != nil {
 		return err
 	}
+	fp, err := store.Store.CreateFilePath(path, false)
+	if err != nil {
+		return err
+	}
+	fpLocation := pl.NewFileLocation(fp)
 	testResourceName := "test_name_materialize"
 	testResourceVariant := uuid.New().String()
 	testResource := ResourceID{testResourceName, testResourceVariant, Feature}
-	testResourceSchema := ResourceSchema{"name", "age", "registered", path}
+	testResourceSchema := ResourceSchema{"name", "age", "registered", fpLocation}
 	table, err := store.RegisterResourceFromSourceTable(testResource, testResourceSchema)
 	if err != nil {
 		return err
@@ -195,8 +212,15 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 	if !reflect.DeepEqual(fetchedTable, table) {
 		return fmt.Errorf("Did not properly register table")
 	}
-	testResourceMaterializationID := MaterializationID(fmt.Sprintf("%s/%s/%s", FeatureMaterialization, testResourceName, testResourceVariant))
-	materialization, err := store.CreateMaterialization(testResource)
+	testResourceMaterializationID := MaterializationID(
+		fmt.Sprintf(
+			"%s/%s/%s",
+			FeatureMaterialization,
+			testResourceName,
+			testResourceVariant,
+		),
+	)
+	materialization, err := store.CreateMaterialization(testResource, MaterializationOptions{Output: fs.Parquet})
 	if err != nil {
 		return err
 	}
@@ -214,8 +238,17 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 		"John Smith_3": ResourceRecord{"John Smith_3", 38, time.UnixMilli(int64(8))},
 		"John Smith_4": ResourceRecord{"John Smith_4", 39, time.UnixMilli(int64(9))},
 	}
-	if fetchedMaterialization.ID() != MaterializationID(fmt.Sprintf("Materialization/%s/%s", testResourceName, testResourceVariant)) {
-		return fmt.Errorf("materialization id not correct, expected Materialization/test_name_materialize/test_variant, got %s", fetchedMaterialization.ID())
+	if fetchedMaterialization.ID() != MaterializationID(
+		fmt.Sprintf(
+			"Materialization/%s/%s",
+			testResourceName,
+			testResourceVariant,
+		),
+	) {
+		return fmt.Errorf(
+			"materialization id not correct, expected Materialization/test_name_materialize/test_variant, got %s",
+			fetchedMaterialization.ID(),
+		)
 	}
 	numRows, err := fetchedMaterialization.NumRows()
 	if err != nil {
@@ -238,7 +271,11 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 		iterations += 1
 	}
 	if iterations != numRowsFirst {
-		return fmt.Errorf("Feature iterator had wrong number of iterations. Expected %d, got %d", numRowsFirst, iterations)
+		return fmt.Errorf(
+			"Feature iterator had wrong number of iterations. Expected %d, got %d",
+			numRowsFirst,
+			iterations,
+		)
 	}
 	numRowsSecond := int64(3)
 	nextIterator, err := fetchedMaterialization.IterateSegment(numRowsFirst, numRowsFirst+numRowsSecond)
@@ -253,11 +290,19 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 		iterations += 1
 	}
 	if iterations != numRowsSecond {
-		return fmt.Errorf("Feature iterator had wrong number of iterations. Expected %d, got %d", numRowsSecond, iterations)
+		return fmt.Errorf(
+			"Feature iterator had wrong number of iterations. Expected %d, got %d",
+			numRowsSecond,
+			iterations,
+		)
 	}
 	for _, rec := range comparisonList {
 		if !reflect.DeepEqual(rec, correctMaterialization[rec.Entity]) {
-			return fmt.Errorf("Wrong materialization entry: %v does not equal %v", rec.Value, correctMaterialization[rec.Entity].Value)
+			return fmt.Errorf(
+				"Wrong materialization entry: %v does not equal %v",
+				rec.Value,
+				correctMaterialization[rec.Entity].Value,
+			)
 		}
 	}
 	return nil
@@ -286,9 +331,14 @@ func testRegisterResource(store *SparkOfflineStore) error {
 	if err := uploadCSVTable(store.Store, path, exampleStructArray); err != nil {
 		return err
 	}
+	fp, err := store.Store.CreateFilePath(path, false)
+	if err != nil {
+		return err
+	}
+	fpLocation := pl.NewFileLocation(fp)
 	resourceVariantName := uuid.New().String()
 	testResource := ResourceID{"test_name", resourceVariantName, Feature}
-	testResourceSchema := ResourceSchema{"name", "age", "registered", path}
+	testResourceSchema := ResourceSchema{"name", "age", "registered", fpLocation}
 	table, err := store.RegisterResourceFromSourceTable(testResource, testResourceSchema)
 	if err != nil {
 		return err
@@ -351,13 +401,17 @@ func testRegisterPrimary(store *SparkOfflineStore) error {
 	if err := uploadCSVTable(store.Store, path, exampleStructArray); err != nil {
 		return err
 	}
-	primaryVariantName := uuid.New().String()
-	testResource := ResourceID{"test_name", primaryVariantName, Primary}
-	table, err := store.RegisterPrimaryFromSourceTable(testResource, path)
+	fp, err := store.Store.CreateFilePath(path, false)
 	if err != nil {
 		return err
 	}
-	fetchedTable, err := store.GetPrimaryTable(testResource)
+	primaryVariantName := uuid.New().String()
+	testResource := ResourceID{"test_name", primaryVariantName, Primary}
+	table, err := store.RegisterPrimaryFromSourceTable(testResource, pl.NewFileLocation(fp))
+	if err != nil {
+		return err
+	}
+	fetchedTable, err := store.GetPrimaryTable(testResource, metadata.SourceVariant{})
 	if err != nil {
 		return err
 	}
@@ -405,7 +459,7 @@ func TestParquetUpload(t *testing.T) {
 	// if err != nil {
 	// 	t.Fatalf("could not get SparkOfflineStore: %s", err)
 	// }
-	databricksSparkOfflineStore := GetTestingBlobDatabricks(t)
+	databricksSparkOfflineStore := GetTestingS3Databricks(t)
 	sparkStores := map[string]*SparkOfflineStore{
 		// "EMR_SPARK_STORE":        emrSparkOfflineStore,
 		"DATABRICKS_SPARK_STORE": databricksSparkOfflineStore,
@@ -448,20 +502,24 @@ func TestParquetUpload(t *testing.T) {
 
 	}
 
-	t.Run("SPARK_STORE_FUNCTIONS", func(t *testing.T) {
-		for name, testFn := range testFns {
-			nameConst := name
-			testFnConst := testFn
-			for name, store := range sparkStores {
-				storeNameConst := name
-				storeConst := store
-				t.Run(fmt.Sprintf("%s_%s", nameConst, storeNameConst), func(t *testing.T) {
-					t.Parallel()
-					testFnConst(t, storeConst)
-				})
+	t.Run(
+		"SPARK_STORE_FUNCTIONS", func(t *testing.T) {
+			for name, testFn := range testFns {
+				nameConst := name
+				testFnConst := testFn
+				for name, store := range sparkStores {
+					storeNameConst := name
+					storeConst := store
+					t.Run(
+						fmt.Sprintf("%s_%s", nameConst, storeNameConst), func(t *testing.T) {
+							t.Parallel()
+							testFnConst(t, storeConst)
+						},
+					)
+				}
 			}
-		}
-	})
+		},
+	)
 
 }
 
@@ -498,15 +556,15 @@ func sparkTestCreateDuplicatePrimaryTable(t *testing.T, store *SparkOfflineStore
 	if err != nil {
 		t.Fatalf("could not create file path: %v", err)
 	}
-	_, err = store.RegisterPrimaryFromSourceTable(primaryID, filePath.ToURI())
+	_, err = store.RegisterPrimaryFromSourceTable(primaryID, pl.NewFileLocation(filePath))
 	if err != nil {
 		t.Fatalf("Could not register from Source Table: %s", err)
 	}
-	_, err = store.GetPrimaryTable(primaryID)
+	_, err = store.GetPrimaryTable(primaryID, metadata.SourceVariant{})
 	if err != nil {
 		t.Fatalf("Could not get primary table: %v", err)
 	}
-	_, err = store.RegisterPrimaryFromSourceTable(primaryID, filePath.ToURI())
+	_, err = store.RegisterPrimaryFromSourceTable(primaryID, pl.NewFileLocation(filePath))
 	if err == nil {
 		t.Fatalf("Successfully create duplicate tables")
 	}
@@ -527,11 +585,11 @@ func sparkTestCreatePrimaryFromSource(t *testing.T, store *SparkOfflineStore) {
 	if err != nil {
 		t.Fatalf("could not create file path: %v", err)
 	}
-	_, err = store.RegisterPrimaryFromSourceTable(primaryID, filePath.ToURI())
+	_, err = store.RegisterPrimaryFromSourceTable(primaryID, pl.NewFileLocation(filePath))
 	if err != nil {
 		t.Fatalf("Could not register from Source Table: %s", err)
 	}
-	_, err = store.GetPrimaryTable(primaryID)
+	_, err = store.GetPrimaryTable(primaryID, metadata.SourceVariant{})
 	if err != nil {
 		t.Fatalf("Could not get primary table: %v", err)
 	}
@@ -594,13 +652,15 @@ func sparkTestInvalidTrainingSetDefs(t *testing.T, store *SparkOfflineStore) {
 	for name, def := range invalidDefs {
 		nameConst := name
 		defConst := def
-		t.Run(nameConst, func(t *testing.T) {
-			t.Parallel()
-			time.Sleep(time.Second * 15)
-			if err := store.CreateTrainingSet(defConst); err == nil {
-				t.Fatalf("Succeeded to create invalid def")
-			}
-		})
+		t.Run(
+			nameConst, func(t *testing.T) {
+				t.Parallel()
+				time.Sleep(time.Second * 15)
+				if err := store.CreateTrainingSet(defConst); err == nil {
+					t.Fatalf("Succeeded to create invalid def")
+				}
+			},
+		)
 	}
 }
 
@@ -678,19 +738,30 @@ type simpleTestStruct struct {
 	Ts     int64
 }
 
-func registerRandomResourceGiveTablePath(id ResourceID, path string, store *SparkOfflineStore, table interface{}, timestamp bool) error {
+func registerRandomResourceGiveTablePath(
+	id ResourceID,
+	path string,
+	store *SparkOfflineStore,
+	table interface{},
+	timestamp bool,
+) error {
 	if err := uploadCSVTable(store.Store, path, table); err != nil {
 		return err
 	}
-	var schema ResourceSchema
-	if timestamp {
-		schema = ResourceSchema{"entity", "value", "ts", path}
-	} else {
-		schema = ResourceSchema{Entity: "entity", Value: "value", SourceTable: path}
-	}
-	_, err := store.RegisterResourceFromSourceTable(id, schema)
+	fp, err := store.Store.CreateFilePath(path, false)
 	if err != nil {
 		return err
+	}
+	fpLocation := pl.NewFileLocation(fp)
+	var schema ResourceSchema
+	if timestamp {
+		schema = ResourceSchema{"entity", "value", "ts", fpLocation}
+	} else {
+		schema = ResourceSchema{Entity: "entity", Value: "value", SourceTable: fpLocation}
+	}
+	_, regErr := store.RegisterResourceFromSourceTable(id, schema)
+	if regErr != nil {
+		return regErr
 	}
 	return nil
 }
@@ -700,14 +771,20 @@ func registerRandomResourceGiveTable(id ResourceID, store *SparkOfflineStore, ta
 	if err := uploadCSVTable(store.Store, randomSourceTablePath, table); err != nil {
 		return err
 	}
+	fp, err := store.Store.CreateFilePath(randomSourceTablePath, false)
+	if err != nil {
+		return err
+	}
+	fpLocation := pl.NewFileLocation(fp)
+
 	var schema ResourceSchema
 	if timestamp {
-		schema = ResourceSchema{"entity", "value", "ts", randomSourceTablePath}
+		schema = ResourceSchema{"entity", "value", "ts", fpLocation}
 	} else {
-		schema = ResourceSchema{Entity: "entity", Value: "value", SourceTable: randomSourceTablePath}
+		schema = ResourceSchema{Entity: "entity", Value: "value", SourceTable: fpLocation}
 	}
-	_, err := store.RegisterResourceFromSourceTable(id, schema)
-	if err != nil {
+	_, regErr := store.RegisterResourceFromSourceTable(id, schema)
+	if regErr != nil {
 		return err
 	}
 	return nil
@@ -721,10 +798,15 @@ func registerRandomResource(id ResourceID, store *SparkOfflineStore) error {
 	if err := uploadCSVTable(store.Store, randomSourceTablePath, randomSourceData); err != nil {
 		return err
 	}
-	schema := ResourceSchema{"entity", "value", "ts", randomSourceTablePath}
-	_, err := store.RegisterResourceFromSourceTable(id, schema)
+	fp, err := store.Store.CreateFilePath(randomSourceTablePath, false)
 	if err != nil {
 		return err
+	}
+	fpLocation := pl.NewFileLocation(fp)
+	schema := ResourceSchema{"entity", "value", "ts", fpLocation}
+	_, regErr := store.RegisterResourceFromSourceTable(id, schema)
+	if regErr != nil {
+		return regErr
 	}
 	return nil
 }
@@ -912,7 +994,7 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 		if err := registerRandomResourceGiveTable(id, store, test.WriteRecords, test.Timestamp); err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
-		mat, err := store.CreateMaterialization(id)
+		mat, err := store.CreateMaterialization(id, MaterializationOptions{Output: fs.Parquet})
 		if err != nil {
 			t.Fatalf("Failed to create materialization: %s", err)
 		}
@@ -930,11 +1012,13 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 	for name, test := range tests {
 		nameConst := name
 		testConst := test
-		t.Run(nameConst, func(t *testing.T) {
-			t.Parallel()
-			time.Sleep(time.Second * 15)
-			runTestCase(t, testConst)
-		})
+		t.Run(
+			nameConst, func(t *testing.T) {
+				t.Parallel()
+				time.Sleep(time.Second * 15)
+				runTestCase(t, testConst)
+			},
+		)
 	}
 
 }
@@ -943,14 +1027,14 @@ func sparkTestInvalidMaterialization(t *testing.T, store *SparkOfflineStore) {
 	if err := registerRandomResource(id, store); err != nil {
 		t.Fatalf("could not register random resource: %v", err)
 	}
-	if _, err := store.CreateMaterialization(id); err == nil {
+	if _, err := store.CreateMaterialization(id, MaterializationOptions{Output: fs.Parquet}); err == nil {
 		t.Fatalf("Succeeded in materializing label")
 	}
 }
 
 func sparkTestMaterializeUnknown(t *testing.T, store *SparkOfflineStore) {
 	id := sparkSafeRandomID(Feature)
-	if _, err := store.CreateMaterialization(id); err == nil {
+	if _, err := store.CreateMaterialization(id, MaterializationOptions{Output: fs.Parquet}); err == nil {
 		t.Fatalf("Succeeded in materializing uninitialized resource")
 	}
 }
@@ -1041,71 +1125,77 @@ func testSparkSQLTransformation(t *testing.T, store *SparkOfflineStore) {
 
 	for _, tt := range cases {
 		ttConst := tt
-		t.Run(ttConst.name, func(t *testing.T) {
-			t.Parallel()
-			time.Sleep(time.Second * 15)
-			//TODO need to create a source table for checking
-			err := store.CreateTransformation(ttConst.config)
-			if !ttConst.expectedFailure && err != nil {
-				t.Fatalf("could not create transformation '%v' because %s", ttConst.config, err)
-			}
-
-			sourceTable, err := store.GetPrimaryTable(ttConst.sourceID)
-			if !ttConst.expectedFailure && err != nil {
-				t.Fatalf("failed to get source table, %v,: %s", ttConst.sourceID, err)
-			}
-
-			transformationTable, err := store.GetTransformationTable(ttConst.config.TargetTableID)
-			if err != nil {
-				if ttConst.expectedFailure {
-					return
+		t.Run(
+			ttConst.name, func(t *testing.T) {
+				t.Parallel()
+				time.Sleep(time.Second * 15)
+				//TODO need to create a source table for checking
+				err := store.CreateTransformation(ttConst.config)
+				if !ttConst.expectedFailure && err != nil {
+					t.Fatalf("could not create transformation '%v' because %s", ttConst.config, err)
 				}
-				t.Fatalf("failed to get the transformation, %s", err)
-			}
 
-			sourceCount, err := sourceTable.NumRows()
-			transformationCount, err := transformationTable.NumRows()
-			if !ttConst.expectedFailure && sourceCount != transformationCount {
-				t.Fatalf("the source table and expected did not match: %v:%v", sourceCount, transformationCount)
-			}
+				sourceTable, err := store.GetPrimaryTable(ttConst.sourceID, metadata.SourceVariant{})
+				if !ttConst.expectedFailure && err != nil {
+					t.Fatalf("failed to get source table, %v,: %s", ttConst.sourceID, err)
+				}
 
-			// test transformation result rows are correct
-			sourcePath := ps.ResourceToDirectoryPath(ttConst.config.TargetTableID.Type.String(), ttConst.config.TargetTableID.Name, ttConst.config.TargetTableID.Variant)
+				transformationTable, err := store.GetTransformationTable(ttConst.config.TargetTableID)
+				if err != nil {
+					if ttConst.expectedFailure {
+						return
+					}
+					t.Fatalf("failed to get the transformation, %s", err)
+				}
 
-			updateConfig := TransformationConfig{
-				Type: SQLTransformation,
-				TargetTableID: ResourceID{
-					Name:    ttConst.config.TargetTableID.Name,
-					Type:    Transformation,
-					Variant: ttConst.config.TargetTableID.Variant,
-				},
-				Query: ttConst.config.Query,
-				SourceMapping: []SourceMapping{
-					SourceMapping{
-						Template: ttConst.config.SourceMapping[0].Template,
-						Source:   sourcePath,
+				sourceCount, err := sourceTable.NumRows()
+				transformationCount, err := transformationTable.NumRows()
+				if !ttConst.expectedFailure && sourceCount != transformationCount {
+					t.Fatalf("the source table and expected did not match: %v:%v", sourceCount, transformationCount)
+				}
+
+				// test transformation result rows are correct
+				sourcePath := ps.ResourceToDirectoryPath(
+					ttConst.config.TargetTableID.Type.String(),
+					ttConst.config.TargetTableID.Name,
+					ttConst.config.TargetTableID.Variant,
+				)
+
+				updateConfig := TransformationConfig{
+					Type: SQLTransformation,
+					TargetTableID: ResourceID{
+						Name:    ttConst.config.TargetTableID.Name,
+						Type:    Transformation,
+						Variant: ttConst.config.TargetTableID.Variant,
 					},
-				},
-			}
-
-			err = store.UpdateTransformation(updateConfig)
-			if !ttConst.expectedFailure && err != nil {
-				t.Fatalf("could not update transformation '%v' because %s", updateConfig, err)
-			}
-
-			updateTable, err := store.GetTransformationTable(updateConfig.TargetTableID)
-			if err != nil {
-				if ttConst.expectedFailure {
-					return
+					Query: ttConst.config.Query,
+					SourceMapping: []SourceMapping{
+						SourceMapping{
+							Template: ttConst.config.SourceMapping[0].Template,
+							Source:   sourcePath,
+						},
+					},
 				}
-				t.Fatalf("failed to get the updated transformation, %s", err)
-			}
 
-			updateCount, err := updateTable.NumRows()
-			if !ttConst.expectedFailure && updateCount != transformationCount {
-				t.Fatalf("the source table and expected did not match: %v:%v", updateCount, transformationCount)
-			}
-		})
+				err = store.UpdateTransformation(updateConfig)
+				if !ttConst.expectedFailure && err != nil {
+					t.Fatalf("could not update transformation '%v' because %s", updateConfig, err)
+				}
+
+				updateTable, err := store.GetTransformationTable(updateConfig.TargetTableID)
+				if err != nil {
+					if ttConst.expectedFailure {
+						return
+					}
+					t.Fatalf("failed to get the updated transformation, %s", err)
+				}
+
+				updateCount, err := updateTable.NumRows()
+				if !ttConst.expectedFailure && updateCount != transformationCount {
+					t.Fatalf("the source table and expected did not match: %v:%v", updateCount, transformationCount)
+				}
+			},
+		)
 	}
 }
 
@@ -1172,20 +1262,30 @@ func testUpdateQuery(t *testing.T, store *SparkOfflineStore) {
 
 	for _, tt := range cases {
 		ttConst := tt
-		t.Run(ttConst.name, func(t *testing.T) {
-			t.Parallel()
-			retreivedQuery, sources, err := store.updateQuery(ttConst.query, ttConst.sourceMap)
+		t.Run(
+			ttConst.name, func(t *testing.T) {
+				t.Parallel()
+				retreivedQuery, sources, err := store.updateQuery(ttConst.query, ttConst.sourceMap)
 
-			if !ttConst.expectedFailure && err != nil {
-				t.Fatalf("Could not replace the template query: %v", err)
-			}
-			if !ttConst.expectedFailure && !reflect.DeepEqual(retreivedQuery, ttConst.expectedQuery) {
-				t.Fatalf("updateQuery did not replace the query correctly. Expected \" %v \", got \" %v \".", ttConst.expectedQuery, retreivedQuery)
-			}
-			if !ttConst.expectedFailure && !reflect.DeepEqual(sources, ttConst.expectedSources) {
-				t.Fatalf("updateQuery did not get the correct sources. Expected \" %v \", got \" %v \".", ttConst.expectedSources, sources)
-			}
-		})
+				if !ttConst.expectedFailure && err != nil {
+					t.Fatalf("Could not replace the template query: %v", err)
+				}
+				if !ttConst.expectedFailure && !reflect.DeepEqual(retreivedQuery, ttConst.expectedQuery) {
+					t.Fatalf(
+						"updateQuery did not replace the query correctly. Expected \" %v \", got \" %v \".",
+						ttConst.expectedQuery,
+						retreivedQuery,
+					)
+				}
+				if !ttConst.expectedFailure && !reflect.DeepEqual(sources, ttConst.expectedSources) {
+					t.Fatalf(
+						"updateQuery did not get the correct sources. Expected \" %v \", got \" %v \".",
+						ttConst.expectedSources,
+						sources,
+					)
+				}
+			},
+		)
 	}
 }
 
@@ -1208,23 +1308,29 @@ func testGetTransformation(t *testing.T, store *SparkOfflineStore) {
 
 	for _, tt := range cases {
 		ttConst := tt
-		t.Run(ttConst.name, func(t *testing.T) {
-			t.Parallel()
-			time.Sleep(time.Second * 15)
-			table, err := store.GetTransformationTable(ttConst.id)
-			if err != nil {
-				t.Fatalf("Failed to get Transformation Table: %v", err)
-			}
+		t.Run(
+			ttConst.name, func(t *testing.T) {
+				t.Parallel()
+				time.Sleep(time.Second * 15)
+				table, err := store.GetTransformationTable(ttConst.id)
+				if err != nil {
+					t.Fatalf("Failed to get Transformation Table: %v", err)
+				}
 
-			caseNumRow, err := table.NumRows()
-			if err != nil {
-				t.Fatalf("Failed to get Transformation Table Num Rows: %v", err)
-			}
+				caseNumRow, err := table.NumRows()
+				if err != nil {
+					t.Fatalf("Failed to get Transformation Table Num Rows: %v", err)
+				}
 
-			if caseNumRow != ttConst.expectedRowCount {
-				t.Fatalf("Row count do not match. Expected \" %v \", got \" %v \".", ttConst.expectedRowCount, caseNumRow)
-			}
-		})
+				if caseNumRow != ttConst.expectedRowCount {
+					t.Fatalf(
+						"Row count do not match. Expected \" %v \", got \" %v \".",
+						ttConst.expectedRowCount,
+						caseNumRow,
+					)
+				}
+			},
+		)
 	}
 }
 
@@ -1263,18 +1369,24 @@ func testGetSourcePath(t *testing.T, store *SparkOfflineStore) {
 
 	for _, tt := range cases {
 		ttConst := tt
-		t.Run(ttConst.name, func(t *testing.T) {
-			t.Parallel()
-			time.Sleep(time.Second * 15)
-			actualPath, err := store.getSourcePath(ttConst.sourcePath)
-			if !ttConst.expectedFailure && err != nil {
-				t.Fatalf("getSourcePath could not get the path because %s.", err)
-			}
+		t.Run(
+			ttConst.name, func(t *testing.T) {
+				t.Parallel()
+				time.Sleep(time.Second * 15)
+				actualPath, err := store.getSourcePath(ttConst.sourcePath)
+				if !ttConst.expectedFailure && err != nil {
+					t.Fatalf("getSourcePath could not get the path because %s.", err)
+				}
 
-			if !ttConst.expectedFailure && !reflect.DeepEqual(ttConst.expectedPath, actualPath) {
-				t.Fatalf("getSourcePath could not find the expected path. Expected \"%s\", got \"%s\".", ttConst.expectedPath, actualPath)
-			}
-		})
+				if !ttConst.expectedFailure && !reflect.DeepEqual(ttConst.expectedPath, actualPath) {
+					t.Fatalf(
+						"getSourcePath could not find the expected path. Expected \"%s\", got \"%s\".",
+						ttConst.expectedPath,
+						actualPath,
+					)
+				}
+			},
+		)
 	}
 }
 
@@ -1283,41 +1395,58 @@ func testGetResourceInformationFromFilePath(t *testing.T, store *SparkOfflineSto
 		name         string
 		sourcePath   string
 		expectedInfo []string
+		expectedErr  bool
 	}{
 		{
 			"PrimaryPathSuccess",
 			"featureform_primary__test_name__test_variant",
-			[]string{"primary", "test_name", "test_variant"},
+			[]string{"Primary", "test_name", "test_variant"},
+			false,
 		},
 		{
 			"TransformationPathSuccess",
 			"featureform_transformation__028f6213-77a8-43bb-9d91-dd7e9ee96102__test_variant",
-			[]string{"transformation", "028f6213-77a8-43bb-9d91-dd7e9ee96102", "test_variant"},
+			[]string{"Transformation", "028f6213-77a8-43bb-9d91-dd7e9ee96102", "test_variant"},
+			false,
 		},
 		{
 			"IncorrectPrimaryPath",
 			"featureform_primary",
 			[]string{"", "", ""},
+			true,
 		},
 		{
 			"IncorrectTransformationPath",
 			"featureform_transformation__fake_028f6213",
 			[]string{"", "", ""},
+			true,
 		},
 	}
 
 	for _, tt := range cases {
 		ttConst := tt
-		t.Run(ttConst.name, func(t *testing.T) {
-			t.Parallel()
-			time.Sleep(time.Second * 15)
-			resourceType, resourceName, resourceVariant := store.getResourceInformationFromFilePath(ttConst.sourcePath)
-			resourceInfo := []string{resourceType, resourceName, resourceVariant}
+		t.Run(
+			ttConst.name, func(t *testing.T) {
+				t.Parallel()
+				time.Sleep(time.Second * 15)
+				resourceType, resourceName, resourceVariant, err := ps.TableNameToResource(ttConst.sourcePath)
+				if err != nil && !ttConst.expectedErr {
+					t.Fatalf("getSourcePath could not get the path because %s.", err)
+				}
+				if err == nil && ttConst.expectedErr {
+					t.Fatalf("getSourcePath should have failed but did not.")
+				}
+				resourceInfo := []string{resourceType, resourceName, resourceVariant}
 
-			if !reflect.DeepEqual(ttConst.expectedInfo, resourceInfo) {
-				t.Fatalf("getSourcePath could not find the expected path. Expected \"%s\", got \"%s\".", ttConst.expectedInfo, resourceInfo)
-			}
-		})
+				if !reflect.DeepEqual(ttConst.expectedInfo, resourceInfo) {
+					t.Fatalf(
+						"getSourcePath could not find the expected path. Expected \"%s\", got \"%s\".",
+						ttConst.expectedInfo,
+						resourceInfo,
+					)
+				}
+			},
+		)
 	}
 }
 
@@ -1358,7 +1487,7 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 				fmt.Sprintf("azure_connection_string=%s", azureStore.connectionString()),
 				"--credential",
 				fmt.Sprintf("azure_container_name=%s", azureStore.containerName()),
-				"--source",
+				"--sources",
 				"featureform-spark-testing/featureform/testprimary/testFile.csv",
 			},
 			false,
@@ -1378,21 +1507,33 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 
 	for _, tt := range cases {
 		ttConst := tt
-		t.Run(ttConst.name, func(t *testing.T) {
-			output, err := store.Store.CreateFilePath(ttConst.outputURI, false)
-			if err != nil {
-				t.Fatalf("could not create output path %s", err)
-			}
-			args, err := store.Executor.GetDFArgs(output, ttConst.code, ttConst.mapping, store.Store)
+		t.Run(
+			ttConst.name, func(t *testing.T) {
+				output, err := store.Store.CreateFilePath(ttConst.outputURI, false)
+				if err != nil {
+					t.Fatalf("could not create output path %s", err)
+				}
+				args, err := store.Executor.GetDFArgs(
+					pl.NewFileLocation(output),
+					ttConst.code,
+					ttConst.mapping,
+					store.Store,
+					make([]SourceMapping, 0),
+				)
 
-			if !ttConst.expectedFailure && err != nil {
-				t.Fatalf("could not get df args %s", err)
-			}
+				if !ttConst.expectedFailure && err != nil {
+					t.Fatalf("could not get df args %s", err)
+				}
 
-			if !ttConst.expectedFailure && !reflect.DeepEqual(ttConst.expectedArgs, args) {
-				t.Fatalf("getDFArgs could not generate the expected args. Expected \"%s\", got \"%s\".", ttConst.expectedArgs, args)
-			}
-		})
+				if !ttConst.expectedFailure && !reflect.DeepEqual(ttConst.expectedArgs, args) {
+					t.Fatalf(
+						"getDFArgs could not generate the expected args. Expected \"%s\", got \"%s\".",
+						ttConst.expectedArgs,
+						args,
+					)
+				}
+			},
+		)
 	}
 }
 
@@ -1458,36 +1599,38 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 
 	for _, tt := range cases {
 		ttConst := tt
-		t.Run(ttConst.name, func(t *testing.T) {
-			t.Parallel()
-			time.Sleep(time.Second * 15)
-			err := store.transformation(ttConst.config, false)
-			if err != nil {
-				if ttConst.expectedFailure {
-					return
+		t.Run(
+			ttConst.name, func(t *testing.T) {
+				t.Parallel()
+				time.Sleep(time.Second * 15)
+				err := store.transformation(ttConst.config, false, nil)
+				if err != nil {
+					if ttConst.expectedFailure {
+						return
+					}
+					t.Fatalf("could not run transformation %s", err)
 				}
-				t.Fatalf("could not run transformation %s", err)
-			}
 
-			sourceTable, err := store.GetPrimaryTable(ttConst.sourceID)
-			if !ttConst.expectedFailure && err != nil {
-				t.Fatalf("failed to get source table, %v,: %s", ttConst.sourceID, err)
-			}
-
-			transformationTable, err := store.GetTransformationTable(ttConst.config.TargetTableID)
-			if err != nil {
-				if ttConst.expectedFailure {
-					return
+				sourceTable, err := store.GetPrimaryTable(ttConst.sourceID, metadata.SourceVariant{})
+				if !ttConst.expectedFailure && err != nil {
+					t.Fatalf("failed to get source table, %v,: %s", ttConst.sourceID, err)
 				}
-				t.Fatalf("failed to get the transformation, %s", err)
-			}
 
-			sourceCount, err := sourceTable.NumRows()
-			transformationCount, err := transformationTable.NumRows()
-			if !ttConst.expectedFailure && sourceCount != transformationCount {
-				t.Fatalf("the source table and expected did not match: %v:%v", sourceCount, transformationCount)
-			}
-		})
+				transformationTable, err := store.GetTransformationTable(ttConst.config.TargetTableID)
+				if err != nil {
+					if ttConst.expectedFailure {
+						return
+					}
+					t.Fatalf("failed to get the transformation, %s", err)
+				}
+
+				sourceCount, err := sourceTable.NumRows()
+				transformationCount, err := transformationTable.NumRows()
+				if !ttConst.expectedFailure && sourceCount != transformationCount {
+					t.Fatalf("the source table and expected did not match: %v:%v", sourceCount, transformationCount)
+				}
+			},
+		)
 	}
 }
 
@@ -1497,14 +1640,14 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 // 		fmt.Println(err)
 // 	}
 // 	emrConf := EMRConfig{
-// 		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-// 		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+// 		AccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+// 		SecretKey:   os.Getenv("AWS_SECRET_KEY"),
 // 		ClusterRegion:  os.Getenv("AWS_EMR_CLUSTER_REGION"),
 // 		ClusterName:    os.Getenv("AWS_EMR_CLUSTER_ID"),
 // 	}
 // 	s3Conf := S3Config{
-// 		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-// 		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+// 		AccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+// 		SecretKey:   os.Getenv("AWS_SECRET_KEY"),
 // 		BucketRegion:   os.Getenv("S3_BUCKET_REGION"),
 // 		BucketPath:     os.Getenv("S3_BUCKET_PATH"),
 // 	}
@@ -1537,14 +1680,14 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 // 	}
 
 // 	emrConf := EMRConfig{
-// 		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-// 		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+// 		AccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+// 		SecretKey:   os.Getenv("AWS_SECRET_KEY"),
 // 		ClusterRegion:  os.Getenv("AWS_EMR_CLUSTER_REGION"),
 // 		ClusterName:    os.Getenv("AWS_EMR_CLUSTER_ID"),
 // 	}
 // 	s3Conf := S3Config{
-// 		AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-// 		AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+// 		AccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+// 		SecretKey:   os.Getenv("AWS_SECRET_KEY"),
 // 		BucketRegion:   os.Getenv("S3_BUCKET_REGION"),
 // 		BucketPath:     os.Getenv("S3_BUCKET_PATH"),
 // 	}
@@ -1568,8 +1711,8 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 
 // func TestEMRConfigDeserialize(t *testing.T) {
 // 	correctEMRConfig := EMRConfig{
-// 		AWSAccessKeyId: "",
-// 		AWSSecretKey:   "",
+// 		AccessKeyId: "",
+// 		SecretKey:   "",
 // 		ClusterRegion:  "us-east-1",
 // 		ClusterName:    "example",
 // 	}
@@ -1587,8 +1730,8 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 
 // func TestS3ConfigDeserialize(t *testing.T) {
 // 	correctSparkConfig := S3Config{
-// 		AWSAccessKeyId: "",
-// 		AWSSecretKey:   "",
+// 		AccessKeyId: "",
+// 		SecretKey:   "",
 // 		BucketRegion:   "us-east-1",
 // 		BucketPath:     "example",
 // 	}
@@ -1896,11 +2039,13 @@ func sparkTestTrainingSet(t *testing.T, store *SparkOfflineStore) {
 	for name, test := range tests {
 		nameConst := name
 		testConst := test
-		t.Run(nameConst, func(t *testing.T) {
-			t.Parallel()
-			time.Sleep(time.Second * 15)
-			runTestCase(t, testConst)
-		})
+		t.Run(
+			nameConst, func(t *testing.T) {
+				t.Parallel()
+				time.Sleep(time.Second * 15)
+				runTestCase(t, testConst)
+			},
+		)
 
 	}
 }
@@ -2191,11 +2336,21 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 	}
 	runTestCase := func(t *testing.T, test TestCase) {
 		id := sparkSafeRandomID(Feature)
-		randomPath := fmt.Sprintf("featureform/tests/source_table/%s/table.csv", strings.ReplaceAll(uuid.NewString(), "-", ""))
-		if err := registerRandomResourceGiveTablePath(id, randomPath, store, test.WriteRecords, test.Timestamp); err != nil {
+		randomPath := fmt.Sprintf(
+			"featureform/tests/source_table/%s/table.csv",
+			strings.ReplaceAll(uuid.NewString(), "-", ""),
+		)
+		if err := registerRandomResourceGiveTablePath(
+			id,
+			randomPath,
+			store,
+			test.WriteRecords,
+			test.Timestamp,
+		); err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
-		mat, err := store.CreateMaterialization(id)
+		opts := MaterializationOptions{Output: fs.Parquet}
+		mat, err := store.CreateMaterialization(id, opts)
 		if err != nil {
 			t.Fatalf("Failed to create materialization: %s", err)
 		}
@@ -2203,7 +2358,7 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 		if err := uploadCSVTable(store.Store, randomPath, test.UpdateRecords); err != nil {
 			t.Fatalf("Failed to overwrite source table with new records")
 		}
-		mat, err = store.UpdateMaterialization(id)
+		mat, err = store.UpdateMaterialization(id, opts)
 		if err != nil {
 			t.Fatalf("Failed to update materialization: %s", err)
 		}
@@ -2215,10 +2370,12 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 	for name, test := range tests {
 		nameConst := name
 		testConst := test
-		t.Run(nameConst, func(t *testing.T) {
-			t.Parallel()
-			runTestCase(t, testConst)
-		})
+		t.Run(
+			nameConst, func(t *testing.T) {
+				t.Parallel()
+				runTestCase(t, testConst)
+			},
+		)
 	}
 
 }
@@ -2471,13 +2628,25 @@ func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 			randomSourceTablePath := fmt.Sprintf("featureform/tests/source_tables/%s/table.csv", uuid.NewString())
 			featureSourceTables = append(featureSourceTables, randomSourceTablePath)
 			featureIDs[i] = id
-			if err := registerRandomResourceGiveTablePath(id, randomSourceTablePath, store, recs, test.Timestamp); err != nil {
+			if err := registerRandomResourceGiveTablePath(
+				id,
+				randomSourceTablePath,
+				store,
+				recs,
+				test.Timestamp,
+			); err != nil {
 				t.Fatalf("Failed to create table: %s", err)
 			}
 		}
 		labelID := sparkSafeRandomID(Label)
 		labelSourceTable := fmt.Sprintf("featureform/tests/source_tables/%s/table.csv", uuid.NewString())
-		if err := registerRandomResourceGiveTablePath(labelID, labelSourceTable, store, test.LabelRecords, test.Timestamp); err != nil {
+		if err := registerRandomResourceGiveTablePath(
+			labelID,
+			labelSourceTable,
+			store,
+			test.LabelRecords,
+			test.Timestamp,
+		); err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
 
@@ -2579,15 +2748,21 @@ func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 	for name, test := range tests {
 		nameConst := name
 		testConst := test
-		t.Run(nameConst, func(t *testing.T) {
-			t.Parallel()
-			runTestCase(t, testConst)
-		})
+		t.Run(
+			nameConst, func(t *testing.T) {
+				t.Parallel()
+				runTestCase(t, testConst)
+			},
+		)
 	}
 }
 
 func TestExecutors(t *testing.T) {
 	logger := zap.NewExample().Sugar()
+	base, err := newBaseExecutor()
+	if err != nil {
+		t.Fatalf("Failed to create base executor: %s", err)
+	}
 
 	testCases := []struct {
 		name             string
@@ -2608,29 +2783,32 @@ func TestExecutors(t *testing.T) {
 				deployMode:    "client",
 				pythonVersion: "3.7.16",
 				logger:        logger,
+				baseExecutor:  base,
 			},
 		},
 	}
 
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			executor, err := NewSparkExecutor(tt.executorType, tt.executorConfig, logger)
-			if err != nil {
-				t.Fatalf("Could not replace the template query: %v", err)
-			}
+		t.Run(
+			tt.name, func(t *testing.T) {
+				executor, err := NewSparkExecutor(tt.executorType, tt.executorConfig, logger)
+				if err != nil {
+					t.Fatalf("Could not replace the template query: %v", err)
+				}
 
-			if !reflect.DeepEqual(executor, tt.expectedExecutor) {
-				t.Fatalf("ReplaceSourceName did not replace the query correctly.")
-			}
-		})
+				if !reflect.DeepEqual(executor, tt.expectedExecutor) {
+					t.Fatalf("ReplaceSourceName did not replace the query correctly.")
+				}
+			},
+		)
 	}
 }
 
 func TestInitSparkS3(t *testing.T) {
 	config := pc.S3FileStoreConfig{
-		Credentials: pc.AWSCredentials{
-			AWSSecretKey:   "",
-			AWSAccessKeyId: "",
+		Credentials: pc.AWSStaticCredentials{
+			SecretKey:   "",
+			AccessKeyId: "",
 		},
 		BucketRegion: "abc",
 		BucketPath:   "abc",
@@ -2665,10 +2843,11 @@ func TestInitSparkAzure(t *testing.T) {
 
 func TestCreateLogS3FileStore(t *testing.T) {
 	type TestCase struct {
-		Region      string
-		LogLocation string
-		AccessKey   string
-		SecretKey   string
+		Region            string
+		LogLocation       string
+		AccessKey         string
+		SecretKey         string
+		UseServiceAccount bool
 	}
 
 	tests := map[string]TestCase{
@@ -2699,17 +2878,25 @@ func TestCreateLogS3FileStore(t *testing.T) {
 	}
 
 	runTestCase := func(t *testing.T, test TestCase) {
-		_, err := createLogS3FileStore(test.Region, test.LogLocation, test.AccessKey, test.SecretKey)
+		_, err := createLogS3FileStore(
+			test.Region,
+			test.LogLocation,
+			test.AccessKey,
+			test.SecretKey,
+			test.UseServiceAccount,
+		)
 		if err != nil {
 			t.Fatalf("could not create S3 Filestore: %v", err)
 		}
 	}
 
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			runTestCase(t, test)
-		})
+		t.Run(
+			name, func(t *testing.T) {
+				t.Parallel()
+				runTestCase(t, test)
+			},
+		)
 	}
 }
 
@@ -2728,7 +2915,7 @@ func TestEMRErrorMessages(t *testing.T) {
 	}
 
 	localScriptPath := &fs.LocalFilepath{}
-	if err := localScriptPath.SetKey("scripts/spark/tests/test_files/scripts/test_emr_error.py"); err != nil {
+	if err := localScriptPath.SetKey("scripts/spark/integration_test_scripts/test_emr_error.py"); err != nil {
 		t.Fatalf("could not set local script path: %v", err)
 	}
 	remoteScriptPath, err := s3.CreateFilePath("unit_tests/scripts/tests/test_emr_error.py", false)
@@ -2759,13 +2946,13 @@ func TestEMRErrorMessages(t *testing.T) {
 	args := []string{
 		"spark-submit",
 		"--deploy-mode",
-		"client",
+		"cluster",
 		remoteScriptPath.ToURI(),
 	}
 
 	runTestCase := func(t *testing.T, test TestCase) {
 		runArgs := append(args, test.ErrorMessage)
-		err := emr.RunSparkJob(runArgs, s3)
+		err := emr.RunSparkJob(runArgs, s3, SparkJobOptions{}, nil)
 		if err == nil {
 			t.Fatal("job did not failed as expected")
 		}
@@ -2780,26 +2967,32 @@ func TestEMRErrorMessages(t *testing.T) {
 		errorMessage := strings.Trim(scriptError[1], " ")
 
 		if !strings.Contains(errorMessage, test.ExpectedErrorMessage) {
-			t.Fatalf("did not get the expected error message: expected '%s' but got '%s'", test.ExpectedErrorMessage, errorMessage)
+			t.Fatalf(
+				"did not get the expected error message: expected '%s' but got '%s'",
+				test.ExpectedErrorMessage,
+				errorMessage,
+			)
 		}
 	}
 
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			runTestCase(t, test)
-		})
+		t.Run(
+			name, func(t *testing.T) {
+				t.Parallel()
+				runTestCase(t, test)
+			},
+		)
 	}
 }
 
 func createEMRAndS3(bucketName string) (SparkExecutor, SparkFileStore, error) {
-	awsAccessKeyId := helpers.GetEnv("AWS_ACCESS_KEY_ID", "")
-	awsSecretKey := helpers.GetEnv("AWS_SECRET_KEY", "")
+	AccessKeyId := helpers.GetEnv("AWS_ACCESS_KEY_ID", "")
+	SecretKey := helpers.GetEnv("AWS_SECRET_KEY", "")
 
 	bucketRegion := helpers.GetEnv("S3_BUCKET_REGION", "us-east-1")
 
 	s3Config := pc.S3FileStoreConfig{
-		Credentials:  pc.AWSCredentials{AWSAccessKeyId: awsAccessKeyId, AWSSecretKey: awsSecretKey},
+		Credentials:  pc.AWSStaticCredentials{AccessKeyId: AccessKeyId, SecretKey: SecretKey},
 		BucketRegion: bucketRegion,
 		BucketPath:   bucketName,
 		Path:         "unit_tests",
@@ -2818,12 +3011,11 @@ func createEMRAndS3(bucketName string) (SparkExecutor, SparkFileStore, error) {
 	emrClusterId := helpers.GetEnv("AWS_EMR_CLUSTER_ID", "")
 
 	emrConfig := pc.EMRConfig{
-		Credentials:   pc.AWSCredentials{AWSAccessKeyId: awsAccessKeyId, AWSSecretKey: awsSecretKey},
+		Credentials:   pc.AWSStaticCredentials{AccessKeyId: AccessKeyId, SecretKey: SecretKey},
 		ClusterRegion: emrRegion,
 		ClusterName:   emrClusterId,
 	}
-
-	logger := logging.NewLogger("spark-unit-tests")
+	logger := logging.NewLoggerWithLevel("spark-unit-tests", logging.DebugLevel)
 	emr, err := NewEMRExecutor(emrConfig, logger.SugaredLogger)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not create new EMR executor: %v", err)
@@ -2849,16 +3041,92 @@ func TestCreateSparkFileStore(t *testing.T) {
 		{"Invalid Config", args{"S3", Config{}}, nil, true},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := CreateSparkFileStore(fs.FileStoreType(tt.args.name), tt.args.config)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("CreateSparkFileStore() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CreateSparkFileStore() got = %v, want %v", got, tt.want)
-			}
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				got, err := CreateSparkFileStore(fs.FileStoreType(tt.args.name), nil, tt.args.config)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("CreateSparkFileStore() error = %v, wantErr %v", err, tt.wantErr)
+					return
+				}
+				if !reflect.DeepEqual(got, tt.want) {
+					t.Errorf("CreateSparkFileStore() got = %v, want %v", got, tt.want)
+				}
+			},
+		)
+	}
+}
+
+func TestLocalSparkS3GlueStore(t *testing.T) {
+	t.Skip("Need to get all env vars setup")
+	err := godotenv.Load("../.env")
+
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+	credentials := pc.AWSStaticCredentials{
+		AccessKeyId: helpers.GetEnv("AWS_ACCESS_KEY_ID", ""),
+		SecretKey:   helpers.GetEnv("AWS_SECRET_KEY", ""),
+	}
+
+	sparkConfig := &pc.SparkConfig{
+		ExecutorType: pc.EMR,
+		ExecutorConfig: &pc.EMRConfig{
+			Credentials:   credentials,
+			ClusterRegion: helpers.GetEnv("AWS_EMR_ICEBERG_CLUSTER_REGION", "us-east-1"),
+			ClusterName:   helpers.GetEnv("AWS_EMR_ICEBERG_CLUSTER_ID", ""),
+		},
+		StoreType: fs.S3,
+		StoreConfig: &pc.S3FileStoreConfig{
+			Credentials:  credentials,
+			BucketRegion: helpers.GetEnv("AWS_EMR_ICEBERG_CLUSTER_ID", "us-east-1"),
+			BucketPath:   "ali-aws-lake-house-iceberg-blog-demo",
+			Path:         "",
+		},
+		GlueConfig: &pc.GlueConfig{
+			Warehouse: helpers.GetEnv("AWS_GLUE_WAREHOUSE", ""),
+			Region:    helpers.GetEnv("AWS_GLUE_REGION", "us-east-1"),
+		},
+	}
+
+	sparkSerializedConfig, _ := sparkConfig.Serialize()
+	sparkProvider, err := Get("SPARK_OFFLINE", sparkSerializedConfig)
+	if err != nil {
+		t.Fatalf("Could not create spark provider: %s", err)
+	}
+	sparkStore, err := sparkProvider.AsOfflineStore()
+	if err != nil {
+		t.Fatalf("Could not convert spark provider to offline store: %s", err)
+	}
+
+	randomId := uuidWithoutDashes()
+	variant := fmt.Sprintf("version-%s", randomId)
+	resourceId := ResourceID{Name: "TEST_ICEBERG", Variant: variant, Type: Primary}
+	tbl, err := sparkStore.RegisterPrimaryFromSourceTable(
+		resourceId,
+		pl.NewCatalogLocation("ff", "transactions2", "iceberg"),
+	)
+	if err != nil {
+		t.Fatalf("Could not create table: %s", err)
+	}
+	t.Logf("Table created: %v", tbl)
+
+	err = sparkStore.CreateTransformation(
+		TransformationConfig{
+			Type:          SQLTransformation,
+			TargetTableID: ResourceID{Name: "code-sql-tf", Variant: variant},
+			Query:         "SELECT * FROM {{test_name.test_variant}}",
+			SourceMapping: []SourceMapping{
+				{
+					Template: "{{test_name.test_variant}}",
+					Source:   fmt.Sprintf("featureform_primary__%s__%s", resourceId.Name, resourceId.Variant),
+				},
+			},
+		},
+	)
+
+	if err != nil {
+		t.Fatalf("Could not create transformation: %s", err)
+
 	}
 }
 
@@ -2883,9 +3151,14 @@ func TestSparkFilestore(t *testing.T) {
 			ExpectedType:        "local",
 		},
 		{
-			name:                "S3 No Args",
-			store:               SparkS3FileStore{S3FileStore: &S3FileStore{}},
-			ExpectedConfig:      []string{"--spark_config", "\"fs.s3a.access.key=\"", "--spark_config", "\"fs.s3a.secret.key=\"", "--spark_config", "\"fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\"", "--spark_config", "\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\""},
+			name: "S3 Empty Args",
+			store: SparkS3FileStore{S3FileStore: &S3FileStore{
+				Credentials: pc.AWSStaticCredentials{
+					AccessKeyId: "",
+					SecretKey:   "",
+				},
+			}},
+			ExpectedConfig:      []string{"--spark_config", "\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\"", "--spark_config", "\"fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\"", "--spark_config", "\"fs.s3a.access.key=\"", "--spark_config", "\"fs.s3a.secret.key=\"", "--spark_config", "\"fs.s3a.endpoint=s3.amazonaws.com\""},
 			ExpectedCredentials: []string{"--credential", "\"aws_bucket_name=\"", "--credential", "\"aws_region=\"", "--credential", "\"aws_access_key_id=\"", "--credential", "\"aws_secret_access_key=\""},
 			ExpectedPackages:    []string{"--packages", "org.apache.spark:spark-hadoop-cloud_2.12:3.2.0", "--exclude-packages", "com.google.guava:guava"},
 			ExpectedType:        "s3",
@@ -2893,15 +3166,27 @@ func TestSparkFilestore(t *testing.T) {
 		{
 			name: "S3 With Args",
 			store: SparkS3FileStore{S3FileStore: &S3FileStore{
-				Credentials: pc.AWSCredentials{
-					AWSAccessKeyId: "access_key",
-					AWSSecretKey:   "secret_key",
+				Credentials: pc.AWSStaticCredentials{
+					AccessKeyId: "access_key",
+					SecretKey:   "secret_key",
 				},
 				BucketRegion: "us-east-1",
 				Path:         "path",
 			}},
-			ExpectedConfig:      []string{"--spark_config", "\"fs.s3a.access.key=access_key\"", "--spark_config", "\"fs.s3a.secret.key=secret_key\"", "--spark_config", "\"fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\"", "--spark_config", "\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\""},
+			ExpectedConfig:      []string{"--spark_config", "\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\"", "--spark_config", "\"fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\"", "--spark_config", "\"fs.s3a.access.key=access_key\"", "--spark_config", "\"fs.s3a.secret.key=secret_key\"", "--spark_config", "\"fs.s3a.endpoint=s3.us-east-1.amazonaws.com\""},
 			ExpectedCredentials: []string{"--credential", "\"aws_bucket_name=\"", "--credential", "\"aws_region=us-east-1\"", "--credential", "\"aws_access_key_id=access_key\"", "--credential", "\"aws_secret_access_key=secret_key\""},
+			ExpectedPackages:    []string{"--packages", "org.apache.spark:spark-hadoop-cloud_2.12:3.2.0", "--exclude-packages", "com.google.guava:guava"},
+			ExpectedType:        "s3",
+		},
+		{
+			name: "S3 With Assume Role Credentials",
+			store: SparkS3FileStore{S3FileStore: &S3FileStore{
+				Credentials:  pc.AWSAssumeRoleCredentials{},
+				BucketRegion: "us-east-1",
+				Path:         "path",
+			}},
+			ExpectedConfig:      []string{"--spark_config", "\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\""},
+			ExpectedCredentials: []string{"--credential", "\"aws_bucket_name=\"", "--credential", "\"aws_region=us-east-1\"", "--credential", "\"use_service_account=true\""},
 			ExpectedPackages:    []string{"--packages", "org.apache.spark:spark-hadoop-cloud_2.12:3.2.0", "--exclude-packages", "com.google.guava:guava"},
 			ExpectedType:        "s3",
 		},
@@ -2959,22 +3244,91 @@ func TestSparkFilestore(t *testing.T) {
 			ExpectedPackages:    []string{},
 			ExpectedType:        "hdfs",
 		},
+		{
+			name: "S3 Glue Without Args",
+			store: SparkGlueS3FileStore{
+				GlueConfig: &pc.GlueConfig{
+					Warehouse:   "s3://bucket/warehouse",
+					Region:      "us-east-3",
+					TableFormat: pc.Iceberg,
+				},
+				GlueClient: nil,
+				Logger:     logging.WrapZapLogger(zap.NewExample().Sugar()),
+				SparkS3FileStore: SparkS3FileStore{
+					S3FileStore: &S3FileStore{
+						Credentials: pc.AWSStaticCredentials{
+							AccessKeyId: "access_key",
+							SecretKey:   "secret_key",
+						},
+						BucketRegion: "us-east-1",
+						Path:         "path",
+					},
+				},
+			},
+			ExpectedConfig: []string{
+				"--spark_config", "\"fs.s3a.access.key=access_key\"",
+				"--spark_config", "\"fs.s3a.secret.key=secret_key\"",
+				"--spark_config", "\"fs.s3a.endpoint=s3.us-east-1.amazonaws.com\"",
+				"--spark_config", "\"fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\"",
+				"--spark_config", "\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\"",
+				// Glue and Iceberg specific configurations
+				"--spark_config", "spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
+				"--spark_config", "spark.sql.catalog.ff_catalog.io-impl=org.apache.iceberg.aws.s3.S3FileIO",
+				"--spark_config", "spark.sql.catalog.ff_catalog.region=us-east-3",
+				"--spark_config", "spark.sql.catalog.ff_catalog=org.apache.iceberg.spark.SparkCatalog",
+				"--spark_config", "spark.sql.catalog.ff_catalog.catalog-impl=org.apache.iceberg.aws.glue.GlueCatalog",
+				"--spark_config", "spark.sql.catalog.ff_catalog.warehouse=s3://bucket/warehouse",
+			},
+			ExpectedCredentials: []string{
+				"--credential", "\"aws_bucket_name=\"", // Assuming missing Bucket value should include actual bucket name here
+				"--credential", "\"aws_region=us-east-1\"",
+				"--credential", "\"aws_access_key_id=access_key\"",
+				"--credential", "\"aws_secret_access_key=secret_key\"",
+			},
+			ExpectedPackages: []string{
+				"--packages", "org.apache.spark:spark-hadoop-cloud_2.12:3.2.0,org.apache.iceberg:iceberg-spark-runtime-3.4_2.12:1.4.2",
+				"--exclude-packages", "com.google.guava:guava",
+			},
+			ExpectedType: "s3",
+		},
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			if !reflect.DeepEqual(tt.store.SparkConfig(), tt.ExpectedConfig) {
-				t.Errorf("SparkFileStore.SparkConfig() = %#v, want %#v", tt.store.SparkConfig(), tt.ExpectedConfig)
-			}
-			if !reflect.DeepEqual(tt.store.CredentialsConfig(), tt.ExpectedCredentials) {
-				t.Errorf("SparkFileStore.CredentialsConfig() = %#v, want %#v", tt.store.CredentialsConfig(), tt.ExpectedCredentials)
-			}
-			if !reflect.DeepEqual(tt.store.Packages(), tt.ExpectedPackages) {
-				t.Errorf("SparkFileStore.Packages() = %#v, want %#v", tt.store.Packages(), tt.ExpectedPackages)
-			}
-			if tt.store.Type() != tt.ExpectedType {
-				t.Errorf("SparkFileStore.Type() = %v, want %v", tt.store.Type(), tt.ExpectedType)
-			}
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				assert.ElementsMatchf(
+					t,
+					tt.store.SparkConfig(),
+					tt.ExpectedConfig,
+					"SparkFileStore.SparkConfig() = %#v, want %#v",
+					tt.store.SparkConfig(),
+					tt.ExpectedConfig,
+				)
+				assert.ElementsMatchf(
+					t,
+					tt.store.CredentialsConfig(),
+					tt.ExpectedCredentials,
+					"SparkFileStore.CredentialsConfig() = %#v, want %#v",
+					tt.store.CredentialsConfig(),
+					tt.ExpectedCredentials,
+				)
+				assert.ElementsMatchf(
+					t,
+					tt.store.Packages(),
+					tt.ExpectedPackages,
+					"SparkFileStore.Packages() = %#v, want %#v",
+					tt.store.Packages(),
+					tt.ExpectedPackages,
+				)
+				assert.Equalf(
+					t,
+					tt.store.Type(),
+					tt.ExpectedType,
+					"SparkFileStore.Type() = %v, want %v",
+					tt.store.Type(),
+					tt.ExpectedType,
+				)
+			},
+		)
 	}
 }
 
@@ -3011,27 +3365,35 @@ func TestSparkGenericExecutor_getYarnCommand(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &SparkGenericExecutor{
-				master:        tt.fields.master,
-				deployMode:    tt.fields.deployMode,
-				pythonVersion: tt.fields.pythonVersion,
-				coreSite:      tt.fields.coreSite,
-				yarnSite:      tt.fields.yarnSite,
-				logger:        tt.fields.logger,
-			}
-			got, err := s.getYarnCommand(tt.args.args)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("getYarnCommand() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			// Uses regex to see if everything matches except the filepath since its generated
-			re := regexp.MustCompile(tt.want)
-			matches := re.FindStringSubmatch(got)
-			if len(matches) == 3 {
-				t.Errorf("getYarnCommand() got = %v, want %v", got, tt.want)
-			}
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+
+				base, err := newBaseExecutor()
+				if err != nil {
+					t.Fatalf("failed to create base executor: %v", err)
+				}
+				s := &SparkGenericExecutor{
+					master:        tt.fields.master,
+					deployMode:    tt.fields.deployMode,
+					pythonVersion: tt.fields.pythonVersion,
+					coreSite:      tt.fields.coreSite,
+					yarnSite:      tt.fields.yarnSite,
+					logger:        tt.fields.logger,
+					baseExecutor:  base,
+				}
+				got, err := s.getYarnCommand(tt.args.args)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("getYarnCommand() error = %v, wantErr %v", err, tt.wantErr)
+					return
+				}
+				// Uses regex to see if everything matches except the filepath since its generated
+				re := regexp.MustCompile(tt.want)
+				matches := re.FindStringSubmatch(got)
+				if len(matches) == 3 {
+					t.Errorf("getYarnCommand() got = %v, want %v", got, tt.want)
+				}
+			},
+		)
 	}
 }
 
@@ -3043,9 +3405,9 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 		JobType    JobType
 	}
 	type DFArgs struct {
-		OutputURI string
-		Code      string
-		Sources   []string
+		DestPath string
+		Code     string
+		Sources  []string
 	}
 
 	wd, err := os.Getwd()
@@ -3062,6 +3424,12 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 	store := SparkLocalFileStore{
 		LocalFileStore: localFileStore,
 	}
+
+	base, err := newBaseExecutor()
+	if err != nil {
+		t.Fatalf("failed to create base executor: %v", err)
+	}
+
 	testCases := []struct {
 		name                  string
 		executor              SparkExecutor
@@ -3074,9 +3442,10 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 		{
 			name: "Generic",
 			executor: &SparkGenericExecutor{
-				master:     "yarn",
-				deployMode: "cluster",
-				logger:     zaptest.NewLogger(t).Sugar(),
+				master:       "yarn",
+				deployMode:   "cluster",
+				logger:       zaptest.NewLogger(t).Sugar(),
+				baseExecutor: base,
 			},
 			SubmitArgs: SubmitArgs{
 				DestPath:   "path/to/dest",
@@ -3085,13 +3454,13 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 				JobType:    Materialize,
 			},
 			DFArgs: DFArgs{
-				OutputURI: "path/to/output",
-				Code:      "code",
-				Sources:   []string{"source1", "source2"},
+				DestPath: "path/to/dest",
+				Code:     "code",
+				Sources:  []string{"source1", "source2"},
 			},
 			ExpectedPythonFileURI: nil,
-			ExpectedSubmitArgs:    []string{"spark-submit", "--deploy-mode", "cluster", "--master", "yarn", config.GetSparkLocalScriptPath(), "sql", "--output_uri", "file:///path/to/dest", "--sql_query", "'SELECT * FROM table'", "--job_type", "'Materialization'", "--store_type", "local", "--source_list", "source1", "source2"},
-			ExpectedDFArgs:        []string{"spark-submit", "--deploy-mode", "cluster", "--master", "yarn", config.GetSparkLocalScriptPath(), "df", "--output_uri", "file:///path/to/output", "--code", "code", "--store_type", "local", "--source", "source1", "source2"},
+			ExpectedSubmitArgs:    []string{"spark-submit", "--deploy-mode", "cluster", "--master", "yarn", base.files.LocalScriptPath, "sql", "--output", "{\"outputLocation\":\"file:///path/to/dest\",\"locationType\":\"filestore\"}", "--sql_query", "'SELECT * FROM table'", "--job_type", "'Materialization'", "--store_type", "local", "--sources", "source1", "source2"},
+			ExpectedDFArgs:        []string{"spark-submit", "--deploy-mode", "cluster", "--master", "yarn", base.files.LocalScriptPath, "df", "--output", "{\"outputLocation\":\"file:///path/to/dest\",\"locationType\":\"filestore\"}", "--code", "code", "--store_type", "local", "--sources", "source1", "source2"},
 		},
 		// {
 		// 	name:     "Databricks",
@@ -3108,7 +3477,7 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 		// 		Sources:   []string{"source1", "source2"},
 		// 	},
 		// 	ExpectedPythonFileURI: "/featureform/scripts/spark/offline_store_spark_runner.py",
-		// 	ExpectedSubmitArgs:    []string{"sql", "--output_uri", "path/to/dest", "--sql_query", "SELECT * FROM table", "--job_type", "Materialization", "--store_type", "local", "--source_list", "source1", "source2"},
+		// 	ExpectedSubmitArgs:    []string{"sql", "--output_uri", "path/to/dest", "--sql_query", "SELECT * FROM table", "--job_type", "Materialization", "--store_type", "local", "--sources", "source1", "source2"},
 		// 	ExpectedDFArgs:        []string{"df", "--output_uri", "path/to/output", "--code", "code", "--store_type", "local", "--source", "source1", "source2"},
 		// },
 		// {
@@ -3128,171 +3497,61 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 		// 		Sources:   []string{"source1", "source2"},
 		// 	},
 		// 	ExpectedPythonFileURI: "",
-		// 	ExpectedSubmitArgs:    []string{"spark-submit", "--deploy-mode", "client", "/featureform/scripts/spark/offline_store_spark_runner.py", "sql", "--output_uri", "/path/to/dest", "--sql_query", "SELECT * FROM table", "--job_type", "Materialization", "--store_type", "local", "--source_list", "source1", "source2"},
+		// 	ExpectedSubmitArgs:    []string{"spark-submit", "--deploy-mode", "client", "/featureform/scripts/spark/offline_store_spark_runner.py", "sql", "--output_uri", "/path/to/dest", "--sql_query", "SELECT * FROM table", "--job_type", "Materialization", "--store_type", "local", "--sources", "source1", "source2"},
 		// 	ExpectedDFArgs:        []string{"spark-submit", "--deploy-mode", "client", "/featureform/scripts/spark/offline_store_spark_runner.py", "df", "--output_uri", "/path/to/output", "--code", "code", "--store_type", "local", "--source", "source1", "source2"},
 		// },
 	}
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			pythonURI, err := tt.executor.PythonFileURI(store)
-			if err != nil {
-				t.Errorf("SparkExecutor.PythonFileURI() = %#v, want %#v", err, nil)
-			}
-			if !reflect.DeepEqual(pythonURI, tt.ExpectedPythonFileURI) {
-				t.Errorf("SparkExecutor.PythonFileURI() = %#v, want %#v", pythonURI, tt.ExpectedPythonFileURI)
-			}
-			destination, err := store.CreateFilePath(tt.SubmitArgs.DestPath, true)
-			if err != nil {
-				t.Errorf("SparkExecutor.CreateFilePath() = %#v, want %#v", err, nil)
-			}
-			submitArgs, err := tt.executor.SparkSubmitArgs(destination, tt.SubmitArgs.Query, tt.SubmitArgs.SourceList, tt.SubmitArgs.JobType, store)
-			if err != nil {
-				t.Errorf("SparkExecutor.SparkSubmitArgs() = %#v, want %#v", err, nil)
-			}
-			if !reflect.DeepEqual(submitArgs, tt.ExpectedSubmitArgs) {
-				t.Errorf("SparkExecutor.SubmitArgs() = %#v, want %#v", submitArgs, tt.ExpectedSubmitArgs)
-			}
-			output, err := store.CreateFilePath(tt.DFArgs.OutputURI, true)
-			if err != nil {
-				t.Errorf("SparkExecutor.CreateFilePath() = %#v, want %#v", err, nil)
-			}
-			dfArgs, err := tt.executor.GetDFArgs(output, tt.DFArgs.Code, tt.DFArgs.Sources, store)
-			if err != nil {
-				t.Errorf("SparkExecutor.GetDFArgs() = %#v, want %#v", err, nil)
-			}
-			if !reflect.DeepEqual(dfArgs, tt.ExpectedDFArgs) {
-				t.Errorf("SparkExecutor.GetDFArgs() = %#v, want %#v", dfArgs, tt.ExpectedDFArgs)
-			}
-		})
-	}
-}
-
-func TestSparkOfflineStore_getResourceInformationFromFilePath(t *testing.T) {
-	type fields struct {
-		Executor     SparkExecutor
-		Store        SparkFileStore
-		Logger       *zap.SugaredLogger
-		query        *defaultPythonOfflineQueries
-		BaseProvider BaseProvider
-	}
-	type args struct {
-		path string
-	}
-	tests := []struct {
-		name                string
-		fields              fields
-		args                args
-		expectedFileType    string
-		expectedFileName    string
-		expectedFileVariant string
-	}{
-		{
-			"Short S3",
-			fields{},
-			args{"s3://bucket/featureform/Feature/t_name/t_variant/"},
-			"feature",
-			"t_name",
-			"t_variant",
-		},
-		{
-			"Long S3",
-			fields{},
-			args{"s3://bucket/user_prefix/featureform/Label/t_name/t_variant/"},
-			"label",
-			"t_name",
-			"t_variant",
-		},
-		{
-			"Short S3a",
-			fields{},
-			args{"s3a://bucket/featureform/Transformation/t_name/t_variant/"},
-			"transformation",
-			"t_name",
-			"t_variant",
-		},
-		{
-			"Long S3a",
-			fields{},
-			args{"s3a://bucket/user_prefix/directory/featureform/Transformation/t_name/t_variant/"},
-			"transformation",
-			"t_name",
-			"t_variant",
-		},
-		{
-			"Short hdfs",
-			fields{},
-			args{"hdfs://bucket/path/to/file"},
-			"",
-			"",
-			"",
-		},
-		{
-			"Long hdfs",
-			fields{},
-			args{"hdfs://bucket/long/path/to/file"},
-			"path",
-			"to",
-			"file",
-		},
-		{
-			"Featureform Path Short",
-			fields{},
-			args{"featureform/something"},
-			"",
-			"",
-			"",
-		},
-		{
-			"Featureform Path Long",
-			fields{},
-			args{"featureform/long/path/to/file"},
-			"long",
-			"path",
-			"to",
-		},
-		{
-			"Featureform__ Path Short",
-			fields{},
-			args{"featureform_"},
-			"",
-			"",
-			"",
-		},
-		{
-			"Featureform__ Path Long",
-			fields{},
-			args{"featureform__long__path__to"},
-			"_long",
-			"path",
-			"to",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			spark := &SparkOfflineStore{
-				Executor:     tt.fields.Executor,
-				Store:        tt.fields.Store,
-				Logger:       tt.fields.Logger,
-				query:        tt.fields.query,
-				BaseProvider: tt.fields.BaseProvider,
-			}
-			fileType, fileName, fileVariant := spark.getResourceInformationFromFilePath(tt.args.path)
-			if fileType != tt.expectedFileType {
-				t.Errorf("getResourceInformationFromFilePath() fileType = %v, want %v", fileType, tt.expectedFileType)
-			}
-			if fileName != tt.expectedFileName {
-				t.Errorf("getResourceInformationFromFilePath() fileName = %v, want %v", fileName, tt.expectedFileName)
-			}
-			if fileVariant != tt.expectedFileVariant {
-				t.Errorf("getResourceInformationFromFilePath() fileName = %v, want %v", fileName, tt.expectedFileVariant)
-			}
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				pythonURI, err := tt.executor.PythonFileURI(store)
+				if err != nil {
+					t.Errorf("SparkExecutor.PythonFileURI() = %#v, want %#v", err, nil)
+				}
+				if !reflect.DeepEqual(pythonURI, tt.ExpectedPythonFileURI) {
+					t.Errorf("SparkExecutor.PythonFileURI() = %#v, want %#v", pythonURI, tt.ExpectedPythonFileURI)
+				}
+				destination, err := store.CreateFilePath(tt.SubmitArgs.DestPath, true)
+				if err != nil {
+					t.Errorf("SparkExecutor.CreateFilePath() = %#v, want %#v", err, nil)
+				}
+				submitArgs, err := tt.executor.SparkSubmitArgs(
+					pl.NewFileLocation(destination),
+					tt.SubmitArgs.Query,
+					tt.SubmitArgs.SourceList,
+					tt.SubmitArgs.JobType,
+					store,
+					make([]SourceMapping, 0),
+				)
+				if err != nil {
+					t.Errorf("SparkExecutor.SparkSubmitArgs() = %#v, want %#v", err, nil)
+				}
+				if !reflect.DeepEqual(submitArgs, tt.ExpectedSubmitArgs) {
+					t.Errorf("SparkExecutor.SubmitArgs() = %#v, want %#v", submitArgs, tt.ExpectedSubmitArgs)
+				}
+				output, err := store.CreateFilePath(tt.DFArgs.DestPath, true)
+				if err != nil {
+					t.Errorf("SparkExecutor.CreateFilePath() = %#v, want %#v", err, nil)
+				}
+				dfArgs, err := tt.executor.GetDFArgs(
+					pl.NewFileLocation(output),
+					tt.DFArgs.Code,
+					tt.DFArgs.Sources,
+					store,
+					make([]SourceMapping, 0),
+				)
+				if err != nil {
+					t.Errorf("SparkExecutor.GetDFArgs() = %#v, want %#v", err, nil)
+				}
+				if !reflect.DeepEqual(dfArgs, tt.ExpectedDFArgs) {
+					t.Errorf("SparkExecutor.GetDFArgs() = %#v, want %#v", dfArgs, tt.ExpectedDFArgs)
+				}
+			},
+		)
 	}
 }
 
 func TestDatabricksSubmitParams(t *testing.T) {
-	executor := &DatabricksExecutor{}
-
 	testCases := []struct {
 		name                 string
 		argsList             []string
@@ -3325,12 +3584,14 @@ func TestDatabricksSubmitParams(t *testing.T) {
 	}
 
 	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			actual := executor.exceedsSubmitParamsTotalByteLimit(tt.argsList, tt.query, tt.sourceList)
-			if actual != tt.shouldExceedAPILimit {
-				t.Fatalf("Expected %v, got %v", tt.shouldExceedAPILimit, actual)
-			}
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				actual := exceedsSubmitParamsTotalByteLimit(tt.argsList, tt.query, tt.sourceList)
+				if actual != tt.shouldExceedAPILimit {
+					t.Fatalf("Expected %v, got %v", tt.shouldExceedAPILimit, actual)
+				}
+			},
+		)
 	}
 }
 
@@ -3363,9 +3624,9 @@ func TestNewSparkFileStores(t *testing.T) {
 	}
 
 	s3StoreConfig := pc.S3FileStoreConfig{
-		Credentials: pc.AWSCredentials{
-			AWSSecretKey:   "",
-			AWSAccessKeyId: "",
+		Credentials: pc.AWSStaticCredentials{
+			SecretKey:   "",
+			AccessKeyId: "",
 		},
 		BucketRegion: "abc",
 		BucketPath:   "abc",
@@ -3409,9 +3670,12 @@ func TestNewSparkFileStores(t *testing.T) {
 	}
 
 	hdfsStoreConfig := pc.HDFSFileStoreConfig{
-		Host:     "localhost",
-		Port:     "9000",
-		Username: "hduser",
+		Host:           "localhost",
+		Port:           "9000",
+		CredentialType: pc.BasicCredential,
+		CredentialConfig: &pc.BasicCredentialConfig{
+			Username: "hduser",
+		},
 	}
 	hdfsStoreConfigSerialized, err := hdfsStoreConfig.Serialize()
 	if err != nil {
@@ -3423,6 +3687,35 @@ func TestNewSparkFileStores(t *testing.T) {
 	}
 }
 
+func TestEmrResumeID(t *testing.T) {
+	t.Run("Invalid IDs", func(t *testing.T) {
+		tests := []emrResumeID{
+			{},
+			{ClusterID: "abc"},
+			{StepID: "abc"},
+		}
+		for _, test := range tests {
+			id, err := test.Marshal()
+			if err == nil {
+				t.Fatalf("Succeeded to marshal %v into %s", test, id)
+			}
+		}
+	})
+
+	validID := emrResumeID{ClusterID: "a", StepID: "b"}
+	resumeID, err := validID.Marshal()
+	if err != nil {
+		t.Fatalf("Failed to marshal %v: %s", validID, err)
+	}
+	parsedID, err := deserializeEMRResumeID(resumeID)
+	if err != nil {
+		t.Fatalf("Failed to deserialize %v: %s", validID, err)
+	}
+	if validID != *parsedID {
+		t.Fatalf("IDs don't match %v %v", validID, *parsedID)
+	}
+}
+
 func randomStringNBytes(size int, t *testing.T) string {
 	randomBytes := make([]byte, size)
 	_, err := rand.Read(randomBytes)
@@ -3430,4 +3723,520 @@ func randomStringNBytes(size int, t *testing.T) string {
 		t.Fatalf("Error generating random bytes: %v", err)
 	}
 	return base64.StdEncoding.EncodeToString(randomBytes)
+}
+
+func TestSuiteSparkExecutorTransforms(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping spark executor integration tests")
+	}
+	t.Parallel()
+	bucketName := helpers.GetEnv("S3_BUCKET_PATH", "")
+	emr, s3, err := createEMRAndS3(bucketName)
+	if err != nil {
+		t.Fatalf("Failed to create EMR and S3: %s", err)
+	}
+	testInfra := []struct {
+		Executor  SparkExecutor
+		FileStore SparkFileStore
+	}{
+		{emr, s3},
+	}
+	testSuite := map[string]struct {
+		fn func(*testing.T, SparkExecutor, SparkFileStore)
+	}{
+		"TestResume":           {fn: testRunAndResume},
+		"TestReadWriteIceberg": {fn: createIcebergIntegrationTest().Run},
+		// TODO fix this
+		// "TestReadWriteDelta": {fn: testReadWriteDelta},
+		"TestReadWriteDynamo": {fn: createDynamoIntegrationTest().Run},
+		"TestFeatureQuery":    {fn: createFeatureQueryTest().Run},
+		// TODO handle non-TS duplicates
+		"TestMaterialize": {fn: createMaterializeTest().Run},
+		"TestKafka":       {fn: createKafkaTest().Run},
+	}
+
+	for _, infra := range testInfra {
+		// If we don't do this, we run into bugs due to how t.Parallel works
+		constInfra := infra
+		for name, test := range testSuite {
+			// If we don't do this, we run into bugs due to how t.Parallel works
+			constTest := test
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				constTest.fn(t, constInfra.Executor, constInfra.FileStore)
+			})
+		}
+	}
+}
+
+func testRunAndResume(t *testing.T, executor SparkExecutor, sfs SparkFileStore) {
+	localScriptPath := &fs.LocalFilepath{}
+	if err := localScriptPath.SetKey("scripts/spark/integration_test_scripts/test_noop_5sec.py"); err != nil {
+		t.Fatalf("could not set local script path: %v", err)
+	}
+	remoteScriptPath, err := sfs.CreateFilePath("unit_tests/scripts/tests/test_noop_5sec.py", false)
+	if err != nil {
+		t.Fatalf("could not create remote script path: %v", err)
+	}
+	if err := readAndUploadFile(localScriptPath, remoteScriptPath, sfs); err != nil {
+		t.Fatalf("could not upload '%s' to '%s': %v", localScriptPath.ToURI(), remoteScriptPath.ToURI(), err)
+	}
+
+	args := []string{
+		"spark-submit",
+		"--deploy-mode",
+		"client",
+		remoteScriptPath.ToURI(),
+	}
+
+	maxWait := time.Hour * 2
+	jobOpts := SparkJobOptions{MaxJobDuration: maxWait, JobName: "testRunAndResume"}
+
+	// First test them async
+	t.Run("Resume running task", func(t *testing.T) {
+		t.Parallel()
+		asyncOpt := RunAsyncWithResume(maxWait)
+		if err := executor.RunSparkJob(args, sfs, jobOpts, []TransformationOption{asyncOpt}); err != nil {
+			t.Fatalf("Failed to run no-op with resume: %s", err)
+		}
+		resumeOpt, err := ResumeOptionWithID(asyncOpt.ResumeID(), maxWait)
+		if err != nil {
+			t.Fatalf("Failed to create resume option: %s", err)
+		}
+		if err := executor.RunSparkJob(args, sfs, jobOpts, []TransformationOption{resumeOpt}); err != nil {
+			t.Fatalf("Failed to run no-op with resume: %s", err)
+		}
+		fmt.Println("Waiting for resume opt")
+		if err := resumeOpt.Wait(); err != nil {
+			t.Fatalf("ResumeOpt failed with resume: %s", err)
+		}
+		fmt.Println("Waiting for async opt")
+		if err := asyncOpt.Wait(); err != nil {
+			t.Fatalf("AsyncOpt failed with resume: %s", err)
+		}
+	})
+
+	t.Run("Resume finished task", func(t *testing.T) {
+		t.Parallel()
+		asyncOpt := RunAsyncWithResume(maxWait)
+		if err := executor.RunSparkJob(args, sfs, jobOpts, []TransformationOption{asyncOpt}); err != nil {
+			t.Fatalf("Failed to run no-op with resume: %s", err)
+		}
+		// Finish the task first, resume after
+		fmt.Println("waiting for async opt")
+		if err := asyncOpt.Wait(); err != nil {
+			t.Fatalf("AsyncOpt failed with resume: %s", err)
+		}
+		resumeOpt, err := ResumeOptionWithID(asyncOpt.ResumeID(), maxWait)
+		if err != nil {
+			t.Fatalf("Failed to create resume option: %s", err)
+		}
+		if err := executor.RunSparkJob(args, sfs, jobOpts, []TransformationOption{resumeOpt}); err != nil {
+			t.Fatalf("Failed to run no-op with resume: %s", err)
+		}
+		fmt.Println("waiting for resume opt")
+		if err := resumeOpt.Wait(); err != nil {
+			t.Fatalf("ResumeOpt failed with resume: %s", err)
+		}
+	})
+}
+
+// A spark integration test runs a pyspark scripts and allows you to import our main
+// runner script to run against. It expects the files to be under:
+// provider/scripts/spark/integration_test_scripts
+type sparkIntegrationTest struct {
+	// JobName will be the jobs name in Spark
+	JobName string
+	// File will be the file name under provider/scripts/spar/integration_test_scripts
+	// that will be run. Look under that directory to see some examples.
+	File string
+	// TestConfigs should include all sparkConfigs except for the one that includes
+	// the actual pyspark script and the deploy mode.
+	TestConfigs sparkConfigs
+	// DeployMode is how the spark test should be run.
+	DeployMode types.SparkDeployMode
+}
+
+func (test sparkIntegrationTest) Run(t *testing.T, executor SparkExecutor, sfs SparkFileStore) {
+	// This allows us to write all scripts to different areas. The format should be safe for SparkFileStore.
+	safeTimeString := time.Now().Format("2006-01-02_15-04-05")
+	// UUID is added to deal with race conditions where two tests run in parallel.
+	remoteScriptDir := fmt.Sprintf("unit_tests/scripts/tests/%s/%s/", safeTimeString, uuid.NewString())
+
+	deleteRemotePath := func(path filestore.Filepath) {
+		if err := sfs.Delete(path); err != nil {
+			// Since this function is defered, we shouldn't use t.
+			// The test may complete before this runs.
+			fmt.Printf("Failed to delete remote path %s\n%s", path.ToURI(), err)
+		}
+	}
+
+	localTestPathStr := fmt.Sprintf("scripts/spark/integration_test_scripts/%s", test.File)
+	localTestPath := &fs.LocalFilepath{}
+	if err := localTestPath.SetKey(localTestPathStr); err != nil {
+		t.Fatalf("could not set local test path: %v", err)
+	}
+	remoteTestPathStr := fmt.Sprintf("%s%s", remoteScriptDir, test.File)
+	remoteTestPath, err := sfs.CreateFilePath(remoteTestPathStr, false)
+	if err != nil {
+		t.Errorf("could not create remote test path: %s", err)
+	}
+	if err := readAndUploadFile(localTestPath, remoteTestPath, sfs); err != nil {
+		t.Fatalf("could not upload '%s' to '%s': %v", localTestPath.ToURI(), remoteTestPath.ToURI(), err)
+	}
+	t.Logf("Wrote from %s to %s", localTestPath.ToURI(), remoteTestPath.ToURI())
+	defer deleteRemotePath(remoteTestPath)
+
+	localRunnerPathStr := "scripts/spark/offline_store_spark_runner.py"
+	localRunnerPath := &fs.LocalFilepath{}
+	if err := localRunnerPath.SetKey(localRunnerPathStr); err != nil {
+		t.Fatalf("could not set local path: %v", err)
+	}
+	remoteRunnerPathStr := fmt.Sprintf("%soffline_store_spark_runner.py", remoteScriptDir)
+	remoteRunnerPath, err := sfs.CreateFilePath(remoteRunnerPathStr, false)
+	if err != nil {
+		t.Errorf("could not create remote runner path: %s", err)
+	}
+	if err := readAndUploadFile(localRunnerPath, remoteRunnerPath, sfs); err != nil {
+		t.Fatalf("could not upload '%s' to '%s': %v", localRunnerPath.ToURI(), remoteRunnerPath.ToURI(), err)
+	}
+	t.Logf("Wrote from %s to %s", localRunnerPath.ToURI(), remoteRunnerPath.ToURI())
+	defer deleteRemotePath(remoteRunnerPath)
+
+	baseConfigs := sparkConfigs{
+		sparkDeployFlag{
+			Mode: test.DeployMode,
+		},
+		sparkIncludePyScript{
+			Path: remoteRunnerPath,
+		},
+	}
+	configs := append(baseConfigs, test.TestConfigs...)
+	// The sql and --output are residual from how the runner used to work and should be removed.
+	cmd := configs.CompileCommand(remoteTestPath, "sql", "--output", "{}")
+
+	maxWait := time.Hour * 2
+	jobOpts := SparkJobOptions{MaxJobDuration: maxWait, JobName: test.JobName}
+	asyncOpt := RunAsyncWithResume(maxWait)
+	if err := executor.RunSparkJob(cmd, sfs, jobOpts, []TransformationOption{asyncOpt}); err != nil {
+		t.Fatalf("Failed to run no-op with resume: %s", err)
+	}
+	t.Logf("Waiting for async opt")
+	if err := asyncOpt.Wait(); err != nil {
+		t.Fatalf("AsyncOpt failed with resume: %s", err)
+	}
+}
+
+func createIcebergIntegrationTest() sparkIntegrationTest {
+	bucketRegion := helpers.GetEnv("S3_BUCKET_REGION", "us-east-1")
+	accessKey := helpers.GetEnv("AWS_ACCESS_KEY", "")
+	secretKey := helpers.GetEnv("AWS_SECRET_KEY", "")
+	bucket := helpers.GetEnv("S3_BUCKET_NAME", "")
+	configs := sparkConfigs{
+		sparkGlueFlags{
+			fileStoreType:   types.S3Type,
+			tableFormatType: types.IcebergType,
+			// This test assumes that the glue catalog and S3 bucket are in the same region, but that
+			// doesn't have to be true.
+			Region: bucketRegion,
+			// TODO make this a secret so we can get from env.
+			Warehouse: "s3://ali-aws-lake-house-iceberg-blog-demo/demo2/",
+		},
+		sparkS3Flags{
+			AccessKey: accessKey,
+			SecretKey: secretKey,
+			Region:    bucketRegion,
+			Bucket:    bucket,
+		},
+		sparkIcebergFlags{},
+	}
+	return sparkIntegrationTest{
+		JobName:     "IcebergIntegrationTest",
+		File:        "test_iceberg.py",
+		TestConfigs: configs,
+		DeployMode:  types.SparkClusterDeployMode,
+	}
+}
+
+// TODO figure this out
+// func testReadWriteDelta(t *testing.T, executor SparkExecutor, sfs SparkFileStore) {
+// 	localScriptPath := &fs.LocalFilepath{}
+// 	// This allows us to write all scripts to different areas. The format is safe for S3.
+// 	safeTimeString := time.Now().Format("2006-01-02_15-04-05")
+// 	remoteScriptDir := fmt.Sprintf("unit_tests/scripts/tests/%s/", safeTimeString)
+// 	if err := localScriptPath.SetKey("scripts/spark/integration_test_scripts/test_delta.py"); err != nil {
+// 		t.Fatalf("could not set local script path: %v", err)
+// 	}
+// 	remoteScriptPath, err := sfs.CreateFilePath(fmt.Sprintf("%stest_delta.py", remoteScriptDir), false)
+// 	if err != nil {
+// 		t.Fatalf("could not create remote script path: %v", err)
+// 	}
+// 	if err := readAndUploadFile(localScriptPath, remoteScriptPath, sfs); err != nil {
+// 		t.Fatalf("could not upload '%s' to '%s': %v", localScriptPath.ToURI(), remoteScriptPath.ToURI(), err)
+// 	}
+//
+// 	localRunnerPath := &fs.LocalFilepath{}
+// 	if err := localRunnerPath.SetKey("scripts/spark/offline_store_spark_runner.py"); err != nil {
+// 		t.Fatalf("could not set local script path: %v", err)
+// 	}
+// 	remoteRunnerPath, err := sfs.CreateFilePath(fmt.Sprintf("%soffline_store_spark_runner.py", remoteScriptDir), false)
+// 	if err != nil {
+// 		t.Fatalf("could not create remote script path: %v", err)
+// 	}
+// 	if err := readAndUploadFile(localRunnerPath, remoteRunnerPath, sfs); err != nil {
+// 		t.Fatalf("could not upload '%s' to '%s': %v", localRunnerPath.ToURI(), remoteRunnerPath.ToURI(), err)
+// 	}
+//
+// 	bucketRegion := helpers.GetEnv("S3_BUCKET_REGION", "us-east-1")
+// 	accessKey := helpers.GetEnv("AWS_ACCESS_KEY", "")
+// 	secretKey := helpers.GetEnv("AWS_SECRET_KEY", "")
+// 	bucket := helpers.GetEnv("S3_BUCKET_NAME", "")
+// 	configs := sparkConfigs{
+// 		sparkGlueFlags{
+// 			fileStoreType:   types.S3Type,
+// 			tableFormatType: types.DeltaType,
+// 			Region:    "us-east-1",
+// 			Warehouse: "s3://emr-delta-poc/",
+// 		},
+// 		sparkDeployFlag{
+// 			Mode: types.SparkClientDeployMode,
+// 		},
+// 		sparkS3Flags{
+// 			AccessKey: accessKey,
+// 			SecretKey: secretKey,
+// 			Region:    bucketRegion,
+// 			Bucket:    bucket,
+// 		},
+// 		sparkDeltaFlags{},
+// 		sparkIncludePyScript{
+// 			Path: remoteRunnerPath,
+// 		},
+// 	}
+//
+// 	cmd := configs.CompileCommand(remoteScriptPath, "sql", "--output", "{}")
+//
+// 	maxWait := time.Minute * 10
+// 	jobOpts := SparkJobOptions{MaxJobDuration: maxWait, JobName: "deltaTest"}
+// 	asyncOpt := RunAsyncWithResume(maxWait)
+// 	if err := executor.RunSparkJob(cmd, sfs, jobOpts, []TransformationOption{asyncOpt}); err != nil {
+// 		t.Fatalf("Failed to run no-op with resume: %s", err)
+// 	}
+// 	fmt.Println("Waiting for async opt")
+// 	if err := asyncOpt.Wait(); err != nil {
+// 		t.Fatalf("AsyncOpt failed with resume: %s", err)
+// 	}
+// }
+
+func createDynamoIntegrationTest() sparkIntegrationTest {
+	accessKey := helpers.GetEnv("AWS_ACCESS_KEY_ID", "")
+	secretKey := helpers.GetEnv("AWS_SECRET_KEY", "")
+	dynamoRegion := "us-east-1"
+	configs := sparkConfigs{
+		sparkDynamoFlags{
+			Region:    dynamoRegion,
+			AccessKey: accessKey,
+			SecretKey: secretKey,
+		},
+		sparkHighMemoryFlags{},
+	}
+	return sparkIntegrationTest{
+		JobName:     "DynamodbIntegrationTest",
+		File:        "test_dynamodb.py",
+		TestConfigs: configs,
+		DeployMode:  types.SparkClusterDeployMode,
+	}
+}
+
+func createFeatureQueryTest() sparkIntegrationTest {
+	return sparkIntegrationTest{
+		JobName:     "FeatureQueryTest",
+		File:        "test_feature_query.py",
+		TestConfigs: sparkConfigs{},
+		DeployMode:  types.SparkClusterDeployMode,
+	}
+}
+
+func createMaterializeTest() sparkIntegrationTest {
+	bucketRegion := helpers.GetEnv("S3_BUCKET_REGION", "us-east-1")
+	// TODO add this to secrets
+	dynamoRegion := "us-east-1"
+	accessKey := helpers.GetEnv("AWS_ACCESS_KEY_ID", "")
+	secretKey := helpers.GetEnv("AWS_SECRET_KEY", "")
+	bucket := helpers.GetEnv("S3_BUCKET_NAME", "")
+	configs := sparkConfigs{
+		sparkDynamoFlags{
+			Region:    dynamoRegion,
+			AccessKey: accessKey,
+			SecretKey: secretKey,
+		},
+		sparkGlueFlags{
+			fileStoreType:   types.S3Type,
+			tableFormatType: types.IcebergType,
+			// This test assumes that the glue catalog and S3 bucket are in the same region, but that
+			// doesn't have to be true.
+			Region: bucketRegion,
+			// TODO add this to secrets
+			Warehouse: "s3://ali-aws-lake-house-iceberg-blog-demo/demo2/",
+		},
+		sparkS3Flags{
+			AccessKey: accessKey,
+			SecretKey: secretKey,
+			Region:    bucketRegion,
+			Bucket:    bucket,
+		},
+		sparkIcebergFlags{},
+		sparkHighMemoryFlags{},
+	}
+	return sparkIntegrationTest{
+		JobName:     "MaterializeTest",
+		File:        "test_materialize.py",
+		TestConfigs: configs,
+		DeployMode:  types.SparkClusterDeployMode,
+	}
+}
+
+func createKafkaTest() sparkIntegrationTest {
+	configs := sparkConfigs{
+		sparkKafkaFlags{},
+	}
+	return sparkIntegrationTest{
+		JobName:     "KafkaTest",
+		File:        "test_kafka.py",
+		TestConfigs: configs,
+		DeployMode:  types.SparkClusterDeployMode,
+	}
+}
+
+func TestCreateSourceInfo(t *testing.T) {
+	logger := zap.NewExample().Sugar()
+
+	// Set up the local file path
+	fp := filestore.LocalFilepath{}
+	err := fp.SetKey("/path/to/data")
+	if err != nil {
+		t.Fatalf("could not set local file path: %v", err)
+	}
+
+	// Serialize the SparkConfig
+	sc := pc.SparkConfig{
+		ExecutorType: pc.EMR,
+		ExecutorConfig: &pc.EMRConfig{
+			Credentials:   pc.AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
+			ClusterRegion: "us-east-1",
+			ClusterName:   "featureform-clst",
+		},
+		StoreType: filestore.S3,
+		StoreConfig: &pc.S3FileStoreConfig{
+			Credentials:  pc.AWSStaticCredentials{AccessKeyId: "aws-key", SecretKey: "aws-secret"},
+			BucketRegion: "us-east-1",
+			BucketPath:   "https://featureform.s3.us-east-1.amazonaws.com/transactions",
+			Path:         "https://featureform.s3.us-east-1.amazonaws.com/transactions",
+		},
+		GlueConfig: &pc.GlueConfig{
+			Warehouse:   "s3://featureform/warehouse",
+			Database:    "featureform",
+			Region:      "us-east-1",
+			TableFormat: pc.Iceberg,
+		},
+	}
+	scSerialized, err := sc.Serialize()
+	if err != nil {
+		t.Fatalf("could not serialize spark config: %v", err)
+	}
+
+	// Define test cases
+	testCases := []struct {
+		name        string
+		mappings    []SourceMapping
+		expected    []pysparkSourceInfo
+		expectError bool
+	}{
+		{
+			name: "Valid SparkOffline SourceMapping",
+			mappings: []SourceMapping{
+				{
+					ProviderType:        provider_type.SparkOffline,
+					ProviderConfig:      scSerialized,
+					Location:            pl.NewFileLocation(&fp),
+					TimestampColumnName: "event_time",
+				},
+			},
+			expected: []pysparkSourceInfo{
+				{
+					Location:            "//path/to/data",
+					LocationType:        "filestore",
+					Provider:            provider_type.SparkOffline,
+					TableFormat:         "", // Adjust if necessary
+					FileType:            "", // Adjust if necessary
+					IsDir:               false,
+					Database:            "",
+					Schema:              "",
+					AwsAssumeRoleArn:    "", // Adjust if necessary
+					TimestampColumnName: "event_time",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Unsupported ProviderType",
+			mappings: []SourceMapping{
+				{
+					ProviderType: "UnsupportedProvider",
+					Location:     pl.NewFileLocation(&fp),
+				},
+			},
+			expected:    nil,
+			expectError: true,
+		},
+		{
+			name: "Different SparkOffline SourceMappings",
+			mappings: []SourceMapping{
+				{
+					ProviderType:   provider_type.SparkOffline,
+					ProviderConfig: scSerialized,
+					Location:       pl.NewCatalogLocation("database", "table", "schema"),
+				},
+				{
+					ProviderType:   provider_type.SparkOffline,
+					ProviderConfig: scSerialized,
+					Location:       pl.NewFileLocation(&fp),
+				},
+			},
+			expected: []pysparkSourceInfo{
+				{
+					Location:     "database.table",
+					LocationType: "catalog",
+					Provider:     provider_type.SparkOffline,
+					TableFormat:  "schema",
+					// Other fields set to zero values or adjusted as needed
+				},
+				{
+					Location:     "//path/to/data",
+					LocationType: "filestore",
+					Provider:     provider_type.SparkOffline,
+					// Other fields set to zero values or adjusted as needed
+				},
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			sources, err := createSourceInfo(tc.mappings, logger)
+
+			if tc.expectError {
+				assert.Error(t, err)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, len(tc.expected), len(sources), "Expected %d sources, got %d", len(tc.expected), len(sources))
+
+			for i, expected := range tc.expected {
+				actual := sources[i]
+				assert.Equal(t, expected, actual, "Source %d does not match expected value", i)
+			}
+		})
+	}
 }

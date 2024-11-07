@@ -1,12 +1,23 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package scheduling
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/featureform/ffsync"
 )
 
 func TestSerializeTaskMetadata(t *testing.T) {
+	id1 := ffsync.Uint64OrderedId(1)
 	testCases := []struct {
 		name       string
 		task       TaskMetadata
@@ -15,7 +26,7 @@ func TestSerializeTaskMetadata(t *testing.T) {
 		{
 			name: "WithProviderTarget",
 			task: TaskMetadata{
-				ID:       1,
+				ID:       TaskID(id1),
 				Name:     "provider_task",
 				TaskType: HealthCheck,
 				Target: Provider{
@@ -24,12 +35,12 @@ func TestSerializeTaskMetadata(t *testing.T) {
 				TargetType:  ProviderTarget,
 				DateCreated: time.Now().Truncate(0).UTC(),
 			},
-			targettype: "Provider",
+			targettype: ProviderTarget,
 		},
 		{
 			name: "WithNameVariantTarget",
 			task: TaskMetadata{
-				ID:       1,
+				ID:       TaskID(id1),
 				Name:     "nv_task",
 				TaskType: ResourceCreation,
 				Target: NameVariant{
@@ -39,7 +50,7 @@ func TestSerializeTaskMetadata(t *testing.T) {
 				TargetType:  NameVariantTarget,
 				DateCreated: time.Now().Truncate(0).UTC(),
 			},
-			targettype: "NameVariant",
+			targettype: NameVariantTarget,
 		},
 	}
 
@@ -73,7 +84,7 @@ func TestIncorrectTaskMetadata(t *testing.T) {
 		{
 			name: "NameVariantProviderTarget",
 			task: TaskMetadata{
-				ID:       1,
+				ID:       TaskID(ffsync.Uint64OrderedId(1)),
 				Name:     "nv_task",
 				TaskType: ResourceCreation,
 				Target: NameVariant{
@@ -87,7 +98,7 @@ func TestIncorrectTaskMetadata(t *testing.T) {
 		{
 			name: "NoTarget",
 			task: TaskMetadata{
-				ID:          1,
+				ID:          TaskID(ffsync.Uint64OrderedId(1)),
 				Name:        "nv_task",
 				TaskType:    ResourceCreation,
 				Target:      nil,
@@ -200,6 +211,75 @@ func TestTarget(t *testing.T) {
 			err := response.Unmarshal(currTest.inputfile)
 			if err == nil {
 				t.Fatalf(currTest.errMsg)
+			}
+		})
+	}
+}
+
+func TestTaskID(t *testing.T) {
+	id1 := NewIntTaskID(1)
+	id2 := NewIntTaskID(2)
+	id3 := NewIntTaskID(1)
+
+	taskMap := map[TaskID]int{}
+	taskMap[id1] = 1
+	taskMap[id2] = 2
+	taskMap[id3] = 3
+	fmt.Printf("%v\n", taskMap)
+}
+
+func Test_wrapTaskMetadataProto(t *testing.T) {
+	id := ffsync.Uint64OrderedId(1)
+	tests := []struct {
+		name    string
+		task    TaskMetadata
+		wantErr bool
+	}{
+		{
+			"Resource Creation Name Variant",
+			TaskMetadata{
+				ID:         TaskID(id),
+				Name:       "Some Name",
+				TaskType:   ResourceCreation,
+				TargetType: NameVariantTarget,
+				Target: NameVariant{
+					Name:         "name",
+					Variant:      "Variant",
+					ResourceType: "FEATURE",
+				},
+				DateCreated: time.Now().UTC(),
+			},
+			false,
+		},
+		{
+			"Provider",
+			TaskMetadata{
+				ID:         TaskID(id),
+				Name:       "Some Name",
+				TaskType:   HealthCheck,
+				TargetType: ProviderTarget,
+				Target: Provider{
+					Name: "my provider",
+				},
+				DateCreated: time.Now().UTC(),
+			},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			proto, err := tt.task.ToProto()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("wrapTaskMetadataProto() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			got, err := WrapProtoTaskMetadata(proto)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("wrapProtoTaskMetadata() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(tt.task, got) {
+				t.Errorf("wrapTaskMetadataProto() \ngiven = %#v \n  got = %#v", tt.task, got)
 			}
 		})
 	}

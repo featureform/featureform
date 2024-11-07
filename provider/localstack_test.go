@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
@@ -6,8 +13,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 )
@@ -34,7 +41,7 @@ func setupLocalstack() {
 
 	// Pull the LocalStack Docker image
 	imageName := "localstack/localstack"
-	out, err := cli.ImagePull(ctx, imageName, types.ImagePullOptions{})
+	out, err := cli.ImagePull(ctx, imageName, image.PullOptions{})
 	if err != nil {
 		panic(err)
 	}
@@ -62,7 +69,7 @@ func setupLocalstack() {
 	}
 
 	// Start the LocalStack container
-	if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+	if err := cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
 		panic(err)
 	}
 
@@ -85,7 +92,7 @@ func teardownLocalstack() {
 	}
 
 	// Remove the LocalStack container
-	removeOptions := types.ContainerRemoveOptions{
+	removeOptions := container.RemoveOptions{
 		RemoveVolumes: true, // Remove associated volumes
 		Force:         true, // Force removal if necessary
 	}

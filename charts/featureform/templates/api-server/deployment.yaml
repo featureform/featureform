@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -20,6 +27,9 @@ spec:
         timestamp: {{ now | quote }}
       {{ end }}
     spec:
+      imagePullSecrets:
+        - name: {{ .Values.k8sImagePullSecret }}
+      serviceAccountName: {{ .Values.api.serviceAccount }}
       containers:
         - image: "{{ .Values.repository }}/{{ .Values.api.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.pullPolicy }}
@@ -38,10 +48,44 @@ spec:
               value: {{ .Values.serving.host }}
             - name: SERVING_PORT
               value: {{ .Values.serving.port | quote }}
+            - name: ETCD_HOST
+              value: {{ .Values.etcd.host }}
+            - name: ETCD_PORT
+              value: {{ .Values.etcd.port | quote }}
+            - name: ETCD_USERNAME
+              value: {{ .Values.etcd.username }}
+            - name: ETCD_PASSWORD
+              value: {{ .Values.etcd.password }}
+            - name: FF_STATE_PROVIDER
+              value: {{ .Values.stateProvider | quote }}
             - name: POD_IP
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+            - name: PSQL_HOST
+              value: {{ .Values.psql.host | quote }}
+            - name: PSQL_PORT
+              value: {{ .Values.psql.port | quote }}
+            - name: PSQL_DB
+              value: {{ .Values.psql.db | quote }}
+            - name: PSQL_SSLMODE
+              value: {{ .Values.psql.sslmode | quote }}
+          {{ if eq .Values.stateProvider "psql" }}
+            - name: PSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: psql-secret-literal
+                  key: user
+            - name: PSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: psql-secret-literal
+                  key: password
+          {{ end }}
+            - name: API_STATUS_PORT
+              value: {{ .Values.api.statusPort | quote }}
+            - name: IMAGE_VERSION
+              value: {{ .Values.versionOverride | default .Chart.AppVersion }}
           livenessProbe:
             httpGet:
               path: /_ah/

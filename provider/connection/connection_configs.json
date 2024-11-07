@@ -13,11 +13,6 @@
     "URL": "url",
     "ApiKey": "api_key"
   },
-  "QdrantConfig": {
-    "GrpcHost": "xyz-example.eu-central.aws.cloud.qdrant.io:6334",
-    "ApiKey": "api_key",
-    "UseTls": false
-  },
   "GCSFileStoreConfig": {
     "BucketName": "bucket_name",
     "BucketPath": "bucket_path",
@@ -37,8 +32,9 @@
   },
   "S3StoreConfig": {
     "Credentials": {
-      "AWSAccessKeyId": "id",
-      "AWSSecretKey": "key"
+      "AccessKeyId": "id",
+      "SecretKey": "key",
+      "Type": "AWS_STATIC_CREDENTIALS"
     },
     "BucketRegion": "bucket_region",
     "BucketPath": "bucket_path",
@@ -77,8 +73,11 @@
   },
   "DynamodbConfig": {
     "Region": "region",
-    "AccessKey": "access_key",
-    "SecretKey": "secret_key",
+    "Credentials": {
+      "AccessKeyId": "id",
+      "SecretKey": "key",
+      "Type": "AWS_STATIC_CREDENTIALS"
+    },
     "ImportFromS3": false
   },
   "MongoDBConfig": {
@@ -98,7 +97,29 @@
     "Schema": "schema",
     "Database": "",
     "Warehouse": "warehouse",
-    "Role": "role"
+    "Role": "role",
+    "Catalog": null
+  },
+  "SnowflakeConfigDynamicTables": {
+    "Username": "username",
+    "Password": "password",
+    "Organization": "organization",
+    "AccountLocator": "",
+    "Account": "account",
+    "Schema": "schema",
+    "Database": "",
+    "Warehouse": "warehouse",
+    "Role": "role",
+    "Catalog": {
+      "ExternalVolume": "sf_ext_vol",
+      "BaseLocation": "dynamic_tables",
+      "TableFormat": "iceberg",
+      "TableConfig": {
+        "TargetLag": "DOWNSTREAM",
+        "RefreshMode": "AUTO",
+        "Initialize": "ON_CREATE"
+      }
+    }
   },
   "MysqlConfig": {
     "Host": "host",

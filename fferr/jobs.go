@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package fferr
 
 import (
@@ -90,7 +97,39 @@ func NewResourceFailedError(resourceName, resourceVariant string, resourceType R
 	}
 }
 
+func NewResourceFailedErrorf(resourceName, resourceVariant string, resourceType ResourceType, format string, a ...any) *ResourceFailedError {
+	err := fmt.Errorf(format, a...)
+	return NewResourceFailedError(resourceName, resourceVariant, resourceType, err)
+}
+
 type ResourceFailedError struct {
+	baseError
+}
+
+func NewDependencyFailedErrorf(format string, a ...any) *DependencyFailedError {
+	err := fmt.Errorf(format, a...)
+	baseError := newBaseError(err, DEPENDENCY_FAILED, codes.Internal)
+
+	return &DependencyFailedError{
+		baseError,
+	}
+}
+
+type DependencyFailedError struct {
+	baseError
+}
+
+func NewTaskRunFailedError(taskId string, runId string, err error) *TaskRunFailedError {
+	baseError := newBaseError(err, TASK_RUN_FAILED, codes.Internal)
+	baseError.AddDetail("task_id", taskId)
+	baseError.AddDetail("run_id", runId)
+
+	return &TaskRunFailedError{
+		baseError,
+	}
+}
+
+type TaskRunFailedError struct {
 	baseError
 }
 
@@ -108,4 +147,18 @@ func NewJobAlreadyExistsError(key string, err error) *JobAlreadyExistsError {
 
 type JobAlreadyExistsError struct {
 	baseError
+}
+
+type InvalidJobTargetError struct {
+	baseError
+}
+
+func NewInvalidJobTargetError(target interface{}) *InvalidJobTargetError {
+	err := fmt.Errorf("invalid target for task")
+	baseError := newBaseError(err, INVALID_JOB_TARGET, codes.Internal)
+	baseError.AddDetail("type", fmt.Sprintf("%T", target))
+
+	return &InvalidJobTargetError{
+		baseError,
+	}
 }

@@ -1,11 +1,19 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package main
 
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	help "github.com/featureform/helpers"
 	client "go.etcd.io/etcd/client/v3"
-	"testing"
 )
 
 func TestReadETCD(t *testing.T) {

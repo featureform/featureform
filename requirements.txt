@@ -44,3 +44,4 @@ tomli==2.0.1
 urllib3==1.26.19
 watchdog==2.2.1
 zipp==3.19.1
+mypy-protobuf==3.6.0

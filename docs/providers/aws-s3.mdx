@@ -12,7 +12,7 @@ import featureform as ff
 
 s3 = ff.register_s3(
     name="s3-quickstart",
-    credentials=ff.AWSCredentials(...),
+    credentials=ff.AWSStaticCredentials(...),
     bucket_name="bucket_name",
     bucket_region=<bucket_region>,
     path="path/to/store/featureform_files/in/",

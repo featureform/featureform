@@ -1,8 +1,18 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
 	"fmt"
 
+	"github.com/featureform/filestore"
+	"github.com/featureform/metadata"
+	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
@@ -174,23 +184,27 @@ func (MockPrimaryTable) WriteBatch([]GenericRecord) error {
 	return nil
 }
 
-func (M MockUnitTestOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
+func (M MockUnitTestOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
 	return MockPrimaryTable{}, nil
 }
 
-func (M MockUnitTestOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
+func (M MockUnitTestOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
 	return nil, nil
 }
 
-func (M MockUnitTestOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+func (M MockUnitTestOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, stableLocation pl.Location) (PrimaryTable, error) {
 	return nil, nil
 }
 
-func (M MockUnitTestOfflineStore) CreateTransformation(config TransformationConfig) error {
+func (M MockUnitTestOfflineStore) SupportsTransformationOption(opt TransformationOptionType) (bool, error) {
+	return false, nil
+}
+
+func (M MockUnitTestOfflineStore) CreateTransformation(config TransformationConfig, opts ...TransformationOption) error {
 	return nil
 }
 
-func (M MockUnitTestOfflineStore) UpdateTransformation(config TransformationConfig) error {
+func (M MockUnitTestOfflineStore) UpdateTransformation(config TransformationConfig, opt ...TransformationOption) error {
 	return nil
 }
 
@@ -198,7 +212,7 @@ func (M MockUnitTestOfflineStore) GetTransformationTable(id ResourceID) (Transfo
 	return nil, nil
 }
 
-func (M MockUnitTestOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
+func (M MockUnitTestOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
 	return nil, nil
 }
 
@@ -214,8 +228,14 @@ func (M MockUnitTestOfflineStore) CheckHealth() (bool, error) {
 	return false, fmt.Errorf("provider health check not implemented")
 }
 
-func (M MockUnitTestOfflineStore) ResourceLocation(id ResourceID) (string, error) {
-	return id.ToFilestorePath(), nil
+func (M MockUnitTestOfflineStore) ResourceLocation(id ResourceID, resource any) (pl.Location, error) {
+	path := id.ToFilestorePath()
+	filePath, err := filestore.NewEmptyFilepath(filestore.FileSystem)
+	if err != nil {
+		return nil, err
+	}
+	filePath.ParseFilePath(path)
+	return pl.NewFileLocation(filePath), nil
 }
 
 type MockMaterialization struct{}
@@ -250,8 +270,12 @@ func (m MockMaterialization) IterateSegment(begin, end int64) (FeatureIterator, 
 	return MockIterator{}, nil
 }
 
-func (m MockUnitTestOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
+func (m MockUnitTestOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
 	return MockMaterialization{}, nil
+}
+
+func (M MockUnitTestOfflineStore) SupportsMaterializationOption(opt MaterializationOptionType) (bool, error) {
+	return false, nil
 }
 
 func (m MockMaterialization) NumChunks() (int, error) {

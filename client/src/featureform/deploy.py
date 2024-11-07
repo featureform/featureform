@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import os
 import platform
 import warnings
@@ -92,7 +99,7 @@ class DockerDeployment(Deployment):
             quickstart_deployment.append(
                 DOCKER_CONFIG(
                     name="quickstart-clickhouse",
-                    image="featureformcom/clickhouse-server",
+                    image="clickhouse/clickhouse-server",
                     port={"9000/tcp": 9000, "8123/tcp": 8123},
                     detach_mode=True,
                     env={},

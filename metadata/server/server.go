@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package main
 
@@ -9,37 +12,36 @@ import (
 	"os"
 
 	"github.com/featureform/logging"
-	"github.com/featureform/metadata/search"
-
-	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
+	"github.com/featureform/metadata/search"
+	"github.com/featureform/scheduling"
+
+	"github.com/featureform/helpers"
 )
 
 func main() {
-
-	etcdHost := help.GetEnv("ETCD_HOST", "localhost")
-	etcdPort := help.GetEnv("ETCD_PORT", "2379")
 	logger := logging.NewLogger("metadata")
-	addr := help.GetEnv("METADATA_PORT", "8080")
-	enableSearch := help.GetEnv("ENABLE_SEARCH", "true")
-	storageProvider := metadata.EtcdStorageProvider{
-		metadata.EtcdConfig{
-			Nodes: []metadata.EtcdNode{
-				{etcdHost, etcdPort},
-			},
-		},
+	addr := helpers.GetEnv("METADATA_PORT", "8080")
+	enableSearch := helpers.GetEnv("ENABLE_SEARCH", "true")
+
+	managerType := helpers.GetEnv("FF_STATE_PROVIDER", string(scheduling.ETCDMetadataManager))
+
+	manager, err := scheduling.NewTaskMetadataManagerFromEnv(scheduling.TaskMetadataManagerType(managerType))
+	if err != nil {
+		panic(err.Error())
 	}
+
 	config := &metadata.Config{
-		Logger:          logger,
-		Address:         fmt.Sprintf(":%s", addr),
-		StorageProvider: storageProvider,
+		Logger:      logger,
+		Address:     fmt.Sprintf(":%s", addr),
+		TaskManager: manager,
 	}
 	if enableSearch == "true" {
 		logger.Infow("Connecting to search", "host", os.Getenv("MEILISEARCH_HOST"), "port", os.Getenv("MEILISEARCH_PORT"))
 		config.SearchParams = &search.MeilisearchParams{
-			Port:   help.GetEnv("MEILISEARCH_PORT", "7700"),
-			Host:   help.GetEnv("MEILISEARCH_HOST", "localhost"),
-			ApiKey: help.GetEnv("MEILISEARCH_APIKEY", ""),
+			Port:   helpers.GetEnv("MEILISEARCH_PORT", "7700"),
+			Host:   helpers.GetEnv("MEILISEARCH_HOST", "localhost"),
+			ApiKey: helpers.GetEnv("MEILISEARCH_APIKEY", ""),
 		}
 	}
 	server, err := metadata.NewMetadataServer(config)

@@ -1,15 +1,19 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package kubernetes
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/google/uuid"
 	batchv1 "k8s.io/api/batch/v1"
 	watch "k8s.io/apimachinery/pkg/watch"
-	"testing"
 )
 
 func NewMockKubernetesRunner(config KubernetesRunnerConfig) (CronRunner, error) {

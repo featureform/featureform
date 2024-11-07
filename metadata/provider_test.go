@@ -1,9 +1,18 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package metadata
 
 import (
 	"encoding/json"
 	"io/ioutil"
 	"testing"
+
+	"github.com/featureform/provider/retriever"
 
 	fs "github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
@@ -174,6 +183,7 @@ func TestProviderConfigUpdates(t *testing.T) {
 				testRedisConfigUpdates(t, c.providerType, c.valid)
 			case pt.SnowflakeOffline:
 				testSnowflakeConfigUpdates(t, c.providerType, c.valid)
+				testSnowflakeConfigWithCatalogUpdates(t, c.providerType, c.valid)
 			case pt.RedshiftOffline:
 				testRedshiftConfigUpdates(t, c.providerType, c.valid)
 			case pt.K8sOffline:
@@ -269,8 +279,7 @@ func testDynamoConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 	configA := pc.DynamodbConfig{
 		Prefix:       prefix,
 		Region:       region,
-		AccessKey:    accessKey,
-		SecretKey:    secretKey,
+		Credentials:  pc.AWSStaticCredentials{AccessKeyId: accessKey, SecretKey: secretKey},
 		ImportFromS3: importFromS3,
 	}
 	a := configA.Serialized()
@@ -286,8 +295,7 @@ func testDynamoConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 	configB := pc.DynamodbConfig{
 		Prefix:       prefix,
 		Region:       region,
-		AccessKey:    accessKey,
-		SecretKey:    secretKey,
+		Credentials:  pc.AWSStaticCredentials{AccessKeyId: accessKey, SecretKey: secretKey},
 		ImportFromS3: importFromS3,
 	}
 	b := configB.Serialized()
@@ -382,7 +390,7 @@ func testMySqlConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 		Host:     host,
 		Port:     port,
 		Username: username,
-		Password: password,
+		Password: retriever.NewStaticValue[string](password),
 		Database: database,
 	}
 	a := configA.Serialize()
@@ -400,7 +408,7 @@ func testMySqlConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 		Host:     host,
 		Port:     port,
 		Username: username,
-		Password: password,
+		Password: retriever.NewStaticValue[string](password),
 		Database: database,
 	}
 	b := configB.Serialize()
@@ -458,7 +466,7 @@ func testPostgresConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 		Host:     host,
 		Port:     port,
 		Username: username,
-		Password: password,
+		Password: retriever.NewStaticValue[string](password),
 		Database: database,
 	}
 	a := configA.Serialize()
@@ -476,7 +484,7 @@ func testPostgresConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 		Host:     host,
 		Port:     port,
 		Username: username,
-		Password: password,
+		Password: retriever.NewStaticValue[string](password),
 		Database: database,
 	}
 	b := configB.Serialize()
@@ -562,6 +570,71 @@ func testSnowflakeConfigUpdates(t *testing.T, providerType pt.Type, valid bool) 
 		Schema:         schema,
 		Warehouse:      warehouse,
 		Role:           role,
+	}
+	b := configB.Serialize()
+
+	actual, err := isValidSnowflakeConfigUpdate(a, b)
+	assertConfigUpdateResult(t, valid, actual, err, providerType)
+}
+
+func testSnowflakeConfigWithCatalogUpdates(t *testing.T, providerType pt.Type, valid bool) {
+	username := "featureformer"
+	password := "password"
+	accountLocator := "xy12345.snowflakecomputing.com"
+	organization := "featureform"
+	account := "featureform-test"
+	database := "transactions_db"
+	schema := "fraud"
+	warehouse := "ff_wh_xs"
+	role := "sysadmin"
+	catalog := &pc.SnowflakeCatalogConfig{
+		ExternalVolume: "external",
+		BaseLocation:   "base",
+		TableConfig: pc.SnowflakeTableConfig{
+			TargetLag:   "1 days",
+			RefreshMode: "AUTO",
+			Initialize:  "ON_CREATE",
+		},
+	}
+
+	configA := pc.SnowflakeConfig{
+		Username:       username,
+		Password:       password,
+		AccountLocator: accountLocator,
+		Organization:   organization,
+		Account:        account,
+		Database:       database,
+		Schema:         schema,
+		Warehouse:      warehouse,
+		Role:           role,
+		Catalog:        catalog,
+	}
+	a := configA.Serialize()
+
+	if valid {
+		username += updateSuffix
+		password += updateSuffix
+		role += updateSuffix
+	} else {
+		account += updateSuffix
+		organization += updateSuffix
+		accountLocator = "za54321.snowflakecomputing.com"
+		database += updateSuffix
+		schema += updateSuffix
+		warehouse += updateSuffix
+	}
+
+	configB := pc.SnowflakeConfig{
+		Username:       username,
+		Password:       password,
+		AccountLocator: accountLocator,
+		Organization:   organization,
+		Account:        account,
+		Database:       database,
+		Schema:         schema,
+		Warehouse:      warehouse,
+		Role:           role,
+		Catalog:        catalog,
 	}
 	b := configB.Serialize()
 
@@ -675,13 +748,13 @@ func testSparkConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 	configA := pc.SparkConfig{
 		ExecutorType: pc.EMR,
 		ExecutorConfig: &pc.EMRConfig{
-			Credentials:   pc.AWSCredentials{AWSAccessKeyId: awsAccessKeyId, AWSSecretKey: awSSecretKey},
+			Credentials:   pc.AWSStaticCredentials{AccessKeyId: awsAccessKeyId, SecretKey: awSSecretKey},
 			ClusterRegion: clusterRegion,
 			ClusterName:   clusterName,
 		},
 		StoreType: fs.S3,
 		StoreConfig: &pc.S3FileStoreConfig{
-			Credentials:  pc.AWSCredentials{AWSAccessKeyId: awsAccessKeyId, AWSSecretKey: awSSecretKey},
+			Credentials:  pc.AWSStaticCredentials{AccessKeyId: awsAccessKeyId, SecretKey: awSSecretKey},
 			BucketRegion: bucketRegion,
 			BucketPath:   bucketPath,
 			Path:         path,
@@ -703,13 +776,13 @@ func testSparkConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 	configB := pc.SparkConfig{
 		ExecutorType: pc.EMR,
 		ExecutorConfig: &pc.EMRConfig{
-			Credentials:   pc.AWSCredentials{AWSAccessKeyId: awsAccessKeyId, AWSSecretKey: awSSecretKey},
+			Credentials:   pc.AWSStaticCredentials{AccessKeyId: awsAccessKeyId, SecretKey: awSSecretKey},
 			ClusterRegion: clusterRegion,
 			ClusterName:   clusterName,
 		},
 		StoreType: fs.S3,
 		StoreConfig: &pc.S3FileStoreConfig{
-			Credentials:  pc.AWSCredentials{AWSAccessKeyId: awsAccessKeyId, AWSSecretKey: awSSecretKey},
+			Credentials:  pc.AWSStaticCredentials{AccessKeyId: awsAccessKeyId, SecretKey: awSSecretKey},
 			BucketRegion: bucketRegion,
 			BucketPath:   bucketPath,
 			Path:         path,

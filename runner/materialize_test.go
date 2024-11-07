@@ -1,15 +1,22 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package runner
 
 import (
 	"strconv"
 	"testing"
+	"time"
 
+	"github.com/featureform/filestore"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	pl "github.com/featureform/provider/location"
+	pt "github.com/featureform/provider/provider_type"
 	vt "github.com/featureform/provider/types"
 	"github.com/featureform/types"
 	"github.com/google/uuid"
@@ -104,7 +111,7 @@ func createMaterialization(
 	if err := table.WriteBatch(records); err != nil {
 		t.Fatalf("Failed to write batch: %s", err)
 	}
-	mat, err := store.CreateMaterialization(id)
+	mat, err := store.CreateMaterialization(id, provider.MaterializationOptions{ShouldIncludeHeaders: true, MaxJobDuration: time.Duration(10) * time.Minute})
 	if err != nil {
 		t.Fatalf("Failed to create materialization: %s", err)
 	}
@@ -200,5 +207,61 @@ func TestWatcherMultiplex(t *testing.T) {
 	}
 	if result := multiplex.String(); len(result) == 0 {
 		t.Fatalf("Failed to return multiplexer string")
+	}
+}
+
+// TODO: (Erik) Improve on this test
+func TestMaterializedRunnerConfigSerde(t *testing.T) {
+	tests := []struct {
+		name      string
+		config    MaterializedRunnerConfig
+		expectErr bool
+	}{
+		{
+			name: "Valid config",
+			config: MaterializedRunnerConfig{
+				OnlineType:    pt.RedisOnline,
+				OfflineType:   pt.SnowflakeOffline,
+				OnlineConfig:  []byte("{}"),
+				OfflineConfig: []byte("{}"),
+				ResourceID:    provider.ResourceID{Name: "name", Variant: "variant", Type: provider.Feature},
+				VType:         vt.ValueTypeJSONWrapper{ValueType: vt.UInt64},
+				Cloud:         LocalMaterializeRunner,
+				Options: provider.MaterializationOptions{
+					Output:               filestore.Parquet,
+					ShouldIncludeHeaders: true,
+					MaxJobDuration:       time.Duration(10) * time.Minute,
+					JobName:              "job",
+					ResourceSnowflakeConfig: &metadata.ResourceSnowflakeConfig{
+						DynamicTableConfig: &metadata.SnowflakeDynamicTableConfig{
+							ExternalVolume: "volume",
+							BaseLocation:   "location",
+							TargetLag:      "1 hours",
+							RefreshMode:    metadata.AutoRefresh,
+							Initialize:     metadata.InitializeOnCreate,
+						},
+					},
+					Schema: provider.ResourceSchema{
+						Entity:      "entity",
+						Value:       "value",
+						TS:          "ts",
+						SourceTable: pl.NewSQLLocation("table"),
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			data, err := test.config.Serialize()
+			if err != nil {
+				t.Fatalf("Failed to serialize config: %v", err)
+			}
+			config := MaterializedRunnerConfig{}
+			if err := config.Deserialize(data); (err != nil) != test.expectErr {
+				t.Fatalf("Failed to deserialize config: %v", err)
+			}
+		})
 	}
 }

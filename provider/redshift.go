@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
@@ -46,6 +53,17 @@ func redshiftOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		Driver:        "postgres",
 		ProviderType:  pt.RedshiftOffline,
 		QueryImpl:     &queries,
+		ConnectionStringBuilder: func(database, schema string) (string, error) {
+			redshiftDb := database
+			if redshiftDb == "" {
+				redshiftDb = sc.Database
+			}
+			sch := schema
+			if schema == "" {
+				sch = "public"
+			}
+			return fmt.Sprintf("sslmode=%s user=%v password=%s host=%v port=%v dbname=%v search_path=%v", sslMode, sc.Username, sc.Password, sc.Host, sc.Port, redshiftDb, sch), nil
+		},
 	}
 
 	store, err := NewSQLOfflineStore(sgConfig)
@@ -71,10 +89,10 @@ func (q redshiftSQLQueries) registerResources(db *sql.DB, tableName string, sche
 	var query string
 	if timestamp {
 		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, %s as ts FROM %s", sanitize(tableName),
-			sanitize(schema.Entity), sanitize(schema.Value), sanitize(schema.TS), sanitize(schema.SourceTable))
+			sanitize(schema.Entity), sanitize(schema.Value), sanitize(schema.TS), sanitize(schema.SourceTable.Location()))
 	} else {
 		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, to_timestamp('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMPTZ as ts FROM %s", sanitize(tableName),
-			sanitize(schema.Entity), sanitize(schema.Value), time.UnixMilli(0).UTC(), sanitize(schema.SourceTable))
+			sanitize(schema.Entity), sanitize(schema.Value), time.UnixMilli(0).UTC(), sanitize(schema.SourceTable.Location()))
 	}
 	if _, err := db.Exec(query); err != nil {
 		wrapped := fferr.NewExecutionError(pt.RedshiftOffline.String(), err)

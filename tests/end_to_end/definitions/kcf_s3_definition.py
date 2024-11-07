@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import os
 from datetime import timedelta
 
@@ -49,9 +56,9 @@ redis = ff.register_redis(
     description="A Redis deployment we created for the Featureform quickstart",
 )
 
-aws_creds = ff.AWSCredentials(
-    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", None),
-    aws_secret_access_key=os.getenv("AWS_SECRET_KEY", None),
+aws_creds = ff.AWSStaticCredentials(
+    access_key_id=os.getenv("AWS_ACCESS_KEY_ID", None),
+    secret_access_key=os.getenv("AWS_SECRET_KEY", None),
 )
 
 s3 = ff.register_s3(
@@ -65,7 +72,9 @@ s3 = ff.register_s3(
 k8s = ff.register_k8s(
     name=f"k8s_s3_{VERSION}",
     store=s3,
-    docker_image=os.getenv("K8S_RUNNER_BASE_IMAGE", "featureformcom/k8s_runner:latest"),
+    docker_image=os.getenv(
+        "K8S_RUNNER_BASE_IMAGE", "featureformenterprise/k8s_runner:latest"
+    ),
 )
 
 ice_cream = k8s.register_file(

@@ -1,4 +1,12 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import os
+
 import pytest
 
 from featureform.register import (
@@ -9,8 +17,13 @@ from featureform.register import (
     OfflineK8sProvider,
     Registrar,
 )
-
-from featureform.resources import AWSCredentials, GCPCredentials, SparkCredentials
+from featureform.resources import (
+    AWSStaticCredentials,
+    GCPCredentials,
+    GlueCatalog,
+    SparkCredentials,
+    BasicCredentials,
+)
 
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
@@ -65,22 +78,6 @@ def test_register_weaviate():
 
 
 @pytest.mark.local
-def test_register_qdrant():
-    reg = Registrar()
-    result = reg.register_qdrant(
-        name="quickstart",
-        grpc_host="host",
-        api_key="<API KEY>",
-        use_tls=False,
-        description="desc",
-        team="team",
-        tags=[],
-        properties={},
-    )
-    assert isinstance(result, OnlineProvider)
-
-
-@pytest.mark.local
 def test_register_blob_store():
     reg = Registrar()
     result = reg.register_blob_store(
@@ -99,7 +96,7 @@ def test_register_blob_store():
 
 @pytest.mark.local
 def test_register_s3():
-    fake_creds = AWSCredentials("id", "secret")
+    fake_creds = AWSStaticCredentials("id", "secret")
     reg = Registrar()
     result = reg.register_s3(
         name="quickstart",
@@ -141,8 +138,10 @@ def test_register_hdfs():
         name="name",
         host="host",
         port="1",
-        username="user",
         path="/path",
+        hdfs_site_file="provider/connection/site_file.xml",
+        core_site_file="provider/connection/site_file.xml",
+        credentials=BasicCredentials("asdf"),
         description="description",
         team="team",
         tags=[],
@@ -192,7 +191,7 @@ def test_register_cassandra():
 @pytest.mark.local
 def test_register_dynamodb():
     reg = Registrar()
-    fake_creds = AWSCredentials("id", "secret")
+    fake_creds = AWSStaticCredentials("id", "secret")
     result = reg.register_dynamodb(
         name="name",
         description="description",
@@ -348,7 +347,7 @@ def test_register_spark():
         python_version="3.8",
     )
 
-    aws_creds = AWSCredentials(
+    aws_creds = AWSStaticCredentials(
         access_key="id",
         secret_key="key",
     )
@@ -372,9 +371,47 @@ def test_register_spark():
 
 
 @pytest.mark.local
+def test_register_spark_catalog():
+    reg = Registrar()
+    spark_credentials = SparkCredentials(
+        master="local",
+        deploy_mode="client",
+        python_version="3.8",
+    )
+
+    aws_creds = AWSStaticCredentials(
+        access_key="id",
+        secret_key="key",
+    )
+
+    s3 = reg.register_s3(
+        name="quickstart",
+        credentials=aws_creds,
+        bucket_name="path",
+        bucket_region="/region",
+        path="/path",
+    )
+
+    glue_catalog = GlueCatalog(
+        warehouse="warehouse", database="featureform_db", region="us-east-1"
+    )
+
+    result = reg.register_spark(
+        name="name",
+        executor=spark_credentials,
+        filestore=s3,
+        team="team",
+        catalog=glue_catalog,
+        tags=[],
+        properties={},
+    )
+    assert isinstance(result, OfflineSparkProvider)
+
+
+@pytest.mark.local
 def test_register_k8s():
     reg = Registrar()
-    aws_creds = AWSCredentials(
+    aws_creds = AWSStaticCredentials(
         access_key="id",
         secret_key="key",
     )

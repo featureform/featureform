@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
@@ -29,26 +36,26 @@ func TestMultipleFileParquetIterator(t *testing.T) {
 			{Name: "str", ValueType: types.String},
 			{Name: "bool", ValueType: types.Bool},
 			{Name: "ts", ValueType: types.Timestamp},
-			{Name: "fltvec", ValueType: types.VectorType{types.Float64, 3, false}},
+			{Name: "fltvec", ValueType: types.VectorType{types.Float32, 3, false}},
 		},
 	}
 
 	allRecords := []GenericRecord{
 		[]interface{}{nil, 1, 1.1, "test string", true, time.UnixMilli(0).UTC(), nil},
-		[]interface{}{"b", nil, 1.2, "second string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"c", 3, nil, "third string", true, time.UnixMilli(0).UTC(), []float64{0, 0, 0}},
-		[]interface{}{"d", -4, 1.4, nil, false, time.UnixMilli(0).UTC(), []float64{-1, -2, -3}},
-		[]interface{}{"e", 5, 1.5, "fifth string", nil, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"f", 6, 1.6, "sixth string", false, nil, []float64{1, 2, 3}},
-		[]interface{}{"g", 7, 1.7, "seventh string", true, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"h", 8, 1.8, "eighth string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"i", 9, 1.9, "ninth string", true, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"j", 10, 2.0, "tenth string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"k", 11, 2.1, "eleventh string", true, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"l", 12, 2.2, "twelfth string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"m", 13, 2.3, "thirteenth string", true, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"n", 14, 2.4, "fourteenth string", false, time.UnixMilli(0).UTC(), []float64{1, 2, 3}},
-		[]interface{}{"o", 15, 2.5, "fifteenth string", true, time.UnixMilli(0).UTC(), []float64{1.0, 2.0, 3.0}},
+		[]interface{}{"b", nil, 1.2, "second string", false, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"c", 3, nil, "third string", true, time.UnixMilli(0).UTC(), []float32{0, 0, 0}},
+		[]interface{}{"d", -4, 1.4, nil, false, time.UnixMilli(0).UTC(), []float32{-1, -2, -3}},
+		[]interface{}{"e", 5, 1.5, "fifth string", nil, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"f", 6, 1.6, "sixth string", false, nil, []float32{1, 2, 3}},
+		[]interface{}{"g", 7, 1.7, "seventh string", true, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"h", 8, 1.8, "eighth string", false, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"i", 9, 1.9, "ninth string", true, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"j", 10, 2.0, "tenth string", false, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"k", 11, 2.1, "eleventh string", true, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"l", 12, 2.2, "twelfth string", false, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"m", 13, 2.3, "thirteenth string", true, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"n", 14, 2.4, "fourteenth string", false, time.UnixMilli(0).UTC(), []float32{1, 2, 3}},
+		[]interface{}{"o", 15, 2.5, "fifteenth string", true, time.UnixMilli(0).UTC(), []float32{1.0, 2.0, 3.0}},
 	}
 
 	schema := tableSchema.AsParquetSchema()
@@ -146,6 +153,131 @@ func TestMultipleFileParquetIterator(t *testing.T) {
 				if !reflect.DeepEqual(records[i], test.Expected[i]) {
 					t.Fatalf("Index %d: expected %#v, got %#v", i, test.Expected[i], records[i])
 				}
+			}
+		})
+	}
+}
+
+func TestParseFloatVec(t *testing.T) {
+	type ParseFloatTestCase struct {
+		Name     string
+		TestCase map[string]interface{}
+		Expected []float32
+	}
+
+	simpleList := []interface{}{
+		map[string]interface{}{
+			"element": 1.0,
+		},
+		map[string]interface{}{
+			"element": 2.0,
+		},
+		map[string]interface{}{
+			"element": 3.0,
+		},
+	}
+	typedList := []interface{}{
+		map[string]interface{}{
+			"element": float32(1.0),
+		},
+		map[string]interface{}{
+			"element": float64(2.0),
+		},
+		map[string]interface{}{
+			"element": int(3),
+		},
+		map[string]interface{}{
+			"element": int32(4),
+		},
+		map[string]interface{}{
+			"element": int64(5),
+		},
+		map[string]interface{}{
+			"element": "6",
+		},
+	}
+	tests := []ParseFloatTestCase{
+		{
+			Name:     "Empty list",
+			TestCase: map[string]interface{}{"list": []interface{}{}},
+			Expected: []float32{},
+		},
+		{
+			Name:     "Simple list",
+			TestCase: map[string]interface{}{"list": simpleList},
+			Expected: []float32{1.0, 2.0, 3.0},
+		},
+		{
+			Name:     "Typed list",
+			TestCase: map[string]interface{}{"list": typedList},
+			Expected: []float32{1.0, 2.0, 3.0, 4.0, 5.0, 6.0},
+		},
+		{
+			Name: "Dense vector",
+			TestCase: map[string]interface{}{
+				"indices": nil,
+				"type":    1,
+				"size":    nil,
+				"values":  map[string]interface{}{"list": simpleList},
+			},
+			Expected: []float32{1.0, 2.0, 3.0},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			vec, err := parseFloatVec(test.TestCase)
+			if err != nil {
+				t.Fatalf("Failed to parse %v\nError: %s\n", test.TestCase, err)
+			}
+			if !reflect.DeepEqual(test.Expected, vec) {
+				t.Fatalf("Parsed wrong value\nFound: %#v\neExpected: %#v\n", vec, test.Expected)
+			}
+		})
+	}
+	type FailParseFloatTestCase struct {
+		Name     string
+		TestCase map[string]interface{}
+	}
+	fails := []FailParseFloatTestCase{
+		{
+			Name:     "Empty",
+			TestCase: map[string]interface{}{},
+		},
+		{
+			Name:     "Nil list",
+			TestCase: map[string]interface{}{"list": nil},
+		},
+		{
+			Name: "Malformed vector no type",
+			TestCase: map[string]interface{}{
+				"indices": nil,
+				"size":    nil,
+				"values":  simpleList,
+			},
+		},
+		{
+			Name: "Malformed vector no size",
+			TestCase: map[string]interface{}{
+				"indices": nil,
+				"type":    1,
+				"values":  simpleList,
+			},
+		},
+		{
+			Name: "Sparse vector",
+			TestCase: map[string]interface{}{
+				"indices": []interface{}{1, 4, 8},
+				"type":    1,
+				"size":    10,
+				"values":  simpleList,
+			},
+		},
+	}
+	for _, fail := range fails {
+		t.Run(fail.Name, func(t *testing.T) {
+			vec, err := parseFloatVec(fail.TestCase)
+			if err == nil {
+				t.Fatalf("Suceeded to parse %v as %v", fail.TestCase, vec)
 			}
 		})
 	}

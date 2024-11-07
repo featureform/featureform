@@ -1,9 +1,19 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package fferr
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/rotisserie/eris"
 
 	pb "github.com/featureform/metadata/proto"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
@@ -166,6 +176,65 @@ func TestNewErrorEmptyInner(t *testing.T) {
 			err := setErrorType(baseError, tt.errorType)
 			if !reflect.DeepEqual(tt.err.Error(), err.Error()) {
 				t.Errorf("Error() = %v, want %v", tt.err.Error(), err.Error())
+			}
+		})
+	}
+}
+
+func TestFromErr(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected string
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: "",
+		},
+		{
+			name: "already a GRPCError",
+			err: &baseError{
+				code:      codes.Internal,
+				errorType: "Reason",
+				GenericError: GenericError{
+					msg: "Message",
+					err: eris.New("mock grpc error"),
+				},
+			},
+			expected: "Reason: Message\n",
+		},
+		{
+			name:     "regular error",
+			err:      errors.New("regular error"),
+			expected: "Internal Error: regular error\n", // Assuming NewInternalError wraps any non-GRPC, non-status errors into a MockGRPCError
+		},
+		{
+			name:     "status error without details",
+			err:      status.Error(codes.Internal, "status error without details"),
+			expected: "Internal Error: status error without details\n", // Assuming NewInternalError is used for errors without details
+		},
+		{
+			name: "status error with ErrorInfo detail",
+			err: func() error {
+				st := status.New(codes.Internal, "invalid argument")
+				detail, _ := st.WithDetails(&errdetails.ErrorInfo{
+					Reason:   "Reason",
+					Metadata: map[string]string{"detail": "more info"},
+				})
+				return detail.Err()
+			}(),
+			expected: "Reason: \nDetails:\n*detail: more info\n", // Assuming the error message is handled differently for detailed status errors
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			grpcError := FromErr(tt.err)
+			if grpcError == nil && tt.expected != "" {
+				t.Errorf("Expected non-nil GRPCError for %v", tt.name)
+			} else if grpcError != nil && grpcError.Error() != tt.expected {
+				t.Errorf("FromErr(%v) = %v, want %v", tt.name, grpcError.Error(), tt.expected)
 			}
 		})
 	}

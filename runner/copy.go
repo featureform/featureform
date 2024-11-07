@@ -1,6 +1,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package runner
 
@@ -8,6 +11,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+
+	"github.com/featureform/logging"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
@@ -58,6 +63,7 @@ func (m *MaterializedChunkRunner) IsUpdateJob() bool {
 }
 
 func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
+	logger := logging.NewLogger("Copy_to_Online")
 	done := make(chan interface{})
 	jobWatcher := &SyncWatcher{
 		ResultSync:  &ResultSync{},
@@ -93,33 +99,41 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		batchTable, supportsBatch := m.Table.(provider.BatchOnlineTable)
 		var setterFn func()
 		if supportsBatch {
+			logger.Debugw("using batch table", "table", m.Table)
+			maxBatch, err := batchTable.MaxBatchSize()
+			if maxBatch <= 0 {
+				logger.Errorf("max batch size must be greater than 0")
+				jobWatcher.EndWatch(fferr.NewInternalErrorf("Max batch size must be greater than 0"))
+				return
+			}
 			setterFn = func() {
 				defer wg.Done()
-				maxBatch, err := batchTable.MaxBatchSize()
 				if err != nil {
 					select {
 					case errCh <- err:
+						logger.Debugw("error getting max batch size", "error", err)
 					default:
 					}
 					return
 				}
 				buffer := make([]provider.SetItem, 0, maxBatch)
 				for record := range ch {
+					buffer = append(buffer, provider.SetItem{record.Entity, record.Value})
 					if len(buffer) == maxBatch {
 						if err := batchTable.BatchSet(buffer); err != nil {
+							logger.Errorf("error setting batch: %v", err)
 							select {
 							case errCh <- err:
 							default:
 							}
 						}
 						buffer = buffer[:0]
-					} else {
-						buffer = append(buffer, provider.SetItem{record.Entity, record.Value})
 					}
 				}
 				// Clear the buffer
 				if len(buffer) != 0 {
 					if err := batchTable.BatchSet(buffer); err != nil {
+						logger.Errorf("error setting batch: %v", err)
 						select {
 						case errCh <- err:
 						default:
@@ -141,7 +155,7 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 				}
 			}
 		}
-		// Create a set goroutines that can wait for the inference store to response asynchronously
+		// Create a set of goroutines that can wait for the inference store to respond asynchronously
 		for idx := 0; idx < workerPoolSize; idx++ {
 			go setterFn()
 		}
@@ -149,6 +163,7 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		for it.Next() {
 			select {
 			case chanErr = <-errCh:
+				logger.Errorf("error setting value: %v", chanErr)
 			case ch <- it.Value():
 			default:
 			}

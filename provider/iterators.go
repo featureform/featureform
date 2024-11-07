@@ -1,7 +1,13 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
-	"bytes"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -86,7 +92,17 @@ func (p *parquetIterator) Next() bool {
 
 // parseFloatVec parses a generic float array that is received via a parquet file. It shows up in the form:
 // map[list:[map[element: 1] map[element:2] map[element:3]]]
-func parseFloatVec(val map[string]interface{}) ([]float64, error) {
+// Though, sometimes when people are using Databricks they tend to get VectorUDT types.
+// In that situation its:
+// map[indices: , type: , values: list:[map[element: 1] map[element:2] map[element:3]]]
+func parseFloatVec(val map[string]interface{}) ([]float32, error) {
+	if _, ok := val["indices"]; ok {
+		unwrapped, err := unwrapVectorUDT(val)
+		if err != nil {
+			return nil, err
+		}
+		val = unwrapped
+	}
 	list, ok := val["list"]
 	if !ok {
 		return nil, fferr.NewDataTypeNotFoundErrorf(val, "expected to find field 'list' when parsing float vector")
@@ -96,7 +112,7 @@ func parseFloatVec(val map[string]interface{}) ([]float64, error) {
 	if !ok {
 		return nil, fferr.NewDataTypeNotFoundErrorf(list, "failed to cast to []interface{} when parsing float vector")
 	}
-	vec := make([]float64, len(elementsSlice))
+	vec := make([]float32, len(elementsSlice))
 	for i, e := range elementsSlice {
 		// To access the 'element' field, which holds the float value,
 		// we need to cast it to map[string]interface{}
@@ -107,26 +123,50 @@ func parseFloatVec(val map[string]interface{}) ([]float64, error) {
 
 		switch casted := m["element"].(type) {
 		case float32:
-			vec[i] = float64(casted)
-		case float64:
 			vec[i] = casted
+		case float64:
+			vec[i] = float32(casted)
 		case int:
-			vec[i] = float64(casted)
+			vec[i] = float32(casted)
 		case int32:
-			vec[i] = float64(casted)
+			vec[i] = float32(casted)
 		case int64:
-			vec[i] = float64(casted)
+			vec[i] = float32(casted)
 		case string:
 			parsedVec, err := strconv.ParseFloat(casted, 32)
 			if err != nil {
 				return nil, fferr.NewDataTypeNotFoundErrorf(casted, "unexpected type in parquet vector list when parsing float vector")
 			}
-			vec[i] = parsedVec
+			vec[i] = float32(parsedVec)
 		default:
 			return nil, fferr.NewDataTypeNotFoundErrorf(casted, "unexpected type in parquet vector list when parsing float vector")
 		}
 	}
 	return vec, nil
+}
+
+func unwrapVectorUDT(val map[string]interface{}) (map[string]interface{}, error) {
+	expKeys := []string{"indices", "type", "size", "values"}
+	for _, key := range expKeys {
+		if _, has := val[key]; !has {
+			return val, nil
+		}
+	}
+	if val["indices"] != nil {
+		// VectorUDT supports spare vectors. We don't have a parser for them yet.
+		return nil, fferr.NewInternalErrorf("SpareVectors not supported")
+	}
+	vec := val["values"]
+	if vec == nil {
+		// Unsure what this type is, lets let it ride
+		return val, nil
+	}
+	if dict, ok := vec.(map[string]interface{}); ok {
+		return dict, nil
+	} else {
+		// Unsure what this type is, lets let it ride
+		return val, nil
+	}
 }
 
 func (p *parquetIterator) Values() GenericRecord {
@@ -153,9 +193,8 @@ func (p *parquetIterator) Close() error {
 	return nil
 }
 
-func newParquetIterator(b []byte, limit int64) (GenericTableIterator, error) {
-	file := bytes.NewReader(b)
-	reader := parquet.NewReader(file)
+func newParquetIterator(src io.ReaderAt, limit int64) (GenericTableIterator, error) {
+	reader := parquet.NewReader(src)
 	if limit == -1 {
 		limit = math.MaxInt64
 	}
@@ -197,13 +236,13 @@ func (p *multipleFileParquetIterator) Next() bool {
 	if p.idx >= p.limit {
 		return false
 	}
-	b, err := p.store.Read(p.files[p.fileIdx])
+	src, err := p.store.ReaderAt(p.files[p.fileIdx])
 	if err != nil {
 		p.err = err
 		return false
 	}
 	updatedLimit := p.limit - p.idx
-	iterator, err := newParquetIterator(b, updatedLimit)
+	iterator, err := newParquetIterator(src, updatedLimit)
 	if err != nil {
 		p.err = err
 		return false
@@ -250,11 +289,11 @@ func newMultipleFileParquetIterator(files []filestore.Filepath, store FileStore,
 	if limit == -1 {
 		limit = math.MaxInt64
 	}
-	b, err := store.Read(files[0])
+	src, err := store.ReaderAt(files[0])
 	if err != nil {
 		return nil, err
 	}
-	iterator, err := newParquetIterator(b, limit)
+	iterator, err := newParquetIterator(src, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -284,11 +323,11 @@ type ParquetIteratorMultipleFiles struct {
 }
 
 func parquetIteratorOverMultipleFiles(fileParts []filestore.Filepath, store FileStore) (Iterator, error) {
-	b, err := store.Read(fileParts[0])
+	src, err := store.ReaderAt(fileParts[0])
 	if err != nil {
 		return nil, err
 	}
-	iterator, err := parquetIteratorFromBytes(b)
+	iterator, err := parquetIteratorFromBytes(src)
 	if err != nil {
 		return nil, err
 	}
@@ -320,11 +359,11 @@ func (p *ParquetIteratorMultipleFiles) Next() (map[string]interface{}, error) {
 			return nil, nil
 		}
 		p.currentIndex += 1
-		b, err := p.store.Read(p.fileList[p.currentIndex])
+		src, err := p.store.ReaderAt(p.fileList[p.currentIndex])
 		if err != nil {
 			return nil, err
 		}
-		iterator, err := parquetIteratorFromBytes(b)
+		iterator, err := parquetIteratorFromBytes(src)
 		if err != nil {
 			return nil, err
 		}
@@ -391,9 +430,8 @@ func (p *ParquetIterator) LabelColumn() string {
 	return p.labelColumn
 }
 
-func getParquetNumRows(b []byte) (int64, error) {
-	file := bytes.NewReader(b)
-	r := parquet.NewReader(file)
+func getParquetNumRows(src io.ReaderAt) (int64, error) {
+	r := parquet.NewReader(src)
 	return r.NumRows(), nil
 }
 
@@ -433,9 +471,8 @@ func (s *parquetSchema) setColumn(colType columnType, name string) {
 	}
 }
 
-func parquetIteratorFromBytes(b []byte) (Iterator, error) {
-	file := bytes.NewReader(b)
-	r := parquet.NewReader(file)
+func parquetIteratorFromBytes(src io.ReaderAt) (Iterator, error) {
+	r := parquet.NewReader(src)
 	schema := parquetSchema{}
 	schema.parseParquetColumnName(r)
 	return &ParquetIterator{
@@ -507,8 +544,8 @@ func (c *csvIterator) ParseRow(row []string) GenericRecord {
 	return records
 }
 
-func newCSVIterator(b []byte, limit int64) (GenericTableIterator, error) {
-	reader := csv.NewReader(bytes.NewReader(b))
+func newCSVIterator(src io.Reader, limit int64) (GenericTableIterator, error) {
+	reader := csv.NewReader(src)
 	headers, err := reader.Read()
 	if err != nil {
 		return nil, fferr.NewInternalError(err)

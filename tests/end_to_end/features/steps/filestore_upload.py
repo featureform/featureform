@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 from behave import *
 from azure.identity import DefaultAzureCredential, AzureCliCredential
 from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
@@ -194,7 +201,7 @@ def step_impl(context, filesize, filetype, storage_provider):
             connection_string, "test", local_file_name, upload_file_path, filetype
         )
     elif storage_provider == "s3":
-        context.cloud_file_path = f"s3://featureform-spark-testing/{upload_file_path}"
+        context.cloud_file_path = f"s3a://featureform-spark-testing/{upload_file_path}"
         upload_to_aws(
             "featureform-spark-testing", local_file_name, upload_file_path, filetype
         )

@@ -1,6 +1,10 @@
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+/* 
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+Copyright 2024 FeatureForm Inc.
+ */
 
 syntax = "proto3";
 
@@ -9,14 +13,14 @@ option go_package = "github.com/featureform/proto";
 package featureform.serving.proto;
 
 service Feature {
-  rpc TrainingData(TrainingDataRequest) returns (stream TrainingDataRow) {}
+  rpc TrainingData(TrainingDataRequest) returns (stream TrainingDataRows) {}
   rpc TrainTestSplit(stream TrainTestSplitRequest) returns (stream BatchTrainTestSplitResponse) {}
   rpc TrainingDataColumns(TrainingDataColumnsRequest) returns (TrainingColumns) {}
   rpc FeatureServe(FeatureServeRequest) returns (FeatureRow) {}
-  rpc SourceData(SourceDataRequest) returns (stream SourceDataRow) {}
+  rpc SourceData(SourceDataRequest) returns (stream SourceDataRows) {}
   rpc SourceColumns(SourceColumnRequest) returns (SourceDataColumns) {}
   rpc Nearest(NearestRequest) returns (NearestResponse) {}
-  rpc BatchFeatureServe(BatchFeatureServeRequest) returns (stream BatchFeatureRow) {}
+  rpc BatchFeatureServe(BatchFeatureServeRequest) returns (stream BatchFeatureRows) {}
   rpc GetResourceLocation(ResourceIdRequest) returns (ResourceLocation) {}
 }
 
@@ -32,6 +36,10 @@ message TrainingDataRequest {
 message TrainingDataID {
   string name = 1;
   string version = 2;
+}
+
+message TrainingDataRows {
+  repeated TrainingDataRow rows = 1;
 }
 
 message TrainingDataRow {
@@ -58,6 +66,10 @@ message ValueList {
 
 message BatchFeatureServeRequest {
   repeated FeatureID features = 1;
+}
+
+message BatchFeatureRows {
+  repeated BatchFeatureRow rows = 1;
 }
 
 message BatchFeatureRow {
@@ -107,6 +119,10 @@ message SourceDataRequest {
 
 message SourceColumnRequest {
   SourceID id = 1;
+}
+
+message SourceDataRows {
+  repeated SourceDataRow rows = 1;
 }
 
 message SourceDataRow {
@@ -174,8 +190,4 @@ message BatchTrainTestSplitResponse {
     bool initialized = 3;
     TrainingDataRows data = 4;
   }
-}
-
-message TrainingDataRows {
-  repeated TrainingDataRow rows = 1;
 }

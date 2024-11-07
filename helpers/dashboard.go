@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package helpers
 
 import (
@@ -11,6 +18,7 @@ var ResourceTypeToResourceURLMap = map[string]string{
 	"SOURCE_VARIANT":       "sources",
 	"LABEL_VARIANT":        "labels",
 	"TRAINING_SET_VARIANT": "training-sets",
+	"PROVIDER":             "providers",
 	// TODO add others here
 }
 

@@ -1,11 +1,16 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package search
 
 import (
 	"fmt"
+
+	"regexp"
 	"strings"
 	"time"
 
@@ -18,6 +23,8 @@ type Searcher interface {
 	RunSearch(q string) ([]ResourceDoc, error)
 	DeleteAll() error
 }
+
+type NewMeilisearchFunc func(params *MeilisearchParams) (Searcher, error)
 
 type MeilisearchParams struct {
 	Host   string
@@ -117,8 +124,10 @@ func (s Search) initializeCollection() error {
 }
 
 func (s Search) Upsert(doc ResourceDoc) error {
+	rgx := regexp.MustCompile(`[@.\s]`)
+	documentId := rgx.ReplaceAllString(fmt.Sprintf("%s__%s__%s", doc.Type, doc.Name, doc.Variant), "_")
 	document := map[string]interface{}{
-		"ID":      strings.ReplaceAll(fmt.Sprintf("%s__%s__%s", doc.Type, doc.Name, doc.Variant), " ", ""),
+		"ID":      documentId,
 		"Parsed":  strings.ReplaceAll(fmt.Sprintf("%s__%s__%s", doc.Type, doc.Name, doc.Variant), "_", " "),
 		"Name":    doc.Name,
 		"Type":    doc.Type,

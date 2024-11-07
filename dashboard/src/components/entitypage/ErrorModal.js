@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { Alert, Slide, Snackbar, Tooltip, Typography } from '@mui/material';
@@ -6,15 +13,15 @@ import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import IconButton from '@mui/material/IconButton';
-import * as React from 'react';
+import React, { useState } from 'react';
 
 export const ERROR_MSG_MAX = 200;
 
 export default function ErrorModal({ errorTxt = '', buttonTxt = '' }) {
-  const [open, setOpen] = React.useState(false);
-  const [isShowMore] = React.useState(errorTxt.length > ERROR_MSG_MAX);
-  const [truncated] = React.useState(errorTxt.substring(0, ERROR_MSG_MAX));
-  const [openSnack, setOpenSnack] = React.useState(false);
+  const [open, setOpen] = useState(false);
+  const [isShowMore] = useState(errorTxt.length > ERROR_MSG_MAX);
+  const [truncated] = useState(errorTxt.substring(0, ERROR_MSG_MAX));
+  const [openSnack, setOpenSnack] = useState(false);
 
   const closeSnackBar = (_, reason) => {
     if (reason === 'clickaway') {
@@ -25,7 +32,7 @@ export default function ErrorModal({ errorTxt = '', buttonTxt = '' }) {
 
   const copyToClipBoard = (error = '') => {
     if (error) {
-      navigator?.clipboard?.writeText(error);
+      navigator.clipboard.writeText(error);
       setOpenSnack(true);
     }
   };
@@ -73,7 +80,6 @@ export default function ErrorModal({ errorTxt = '', buttonTxt = '' }) {
 
       <Dialog
         fullWidth={true}
-        maxWidth={'xl'}
         open={open}
         onClose={handleClose}
         aria-labelledby='dialog-title'
@@ -84,7 +90,6 @@ export default function ErrorModal({ errorTxt = '', buttonTxt = '' }) {
           <Tooltip title='Copy to Clipboard'>
             <Button
               role='none'
-              data-testid='copyBtn'
               onClick={() => copyToClipBoard(errorTxt)}
               fontSize={11.5}
             >
@@ -100,7 +105,11 @@ export default function ErrorModal({ errorTxt = '', buttonTxt = '' }) {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          <Typography variant='body1' data-testid='fullTextContent'>
+          <Typography
+            variant='body1'
+            data-testid='fullTextContent'
+            style={{ whiteSpace: 'pre-line', color: 'red' }}
+          >
             {errorTxt}
           </Typography>
         </DialogContent>

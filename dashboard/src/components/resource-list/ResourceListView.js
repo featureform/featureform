@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -5,12 +12,8 @@ import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
 import Rating from '@mui/material/Rating';
 import Typography from '@mui/material/Typography';
-import { makeStyles, ThemeProvider } from '@mui/styles';
-import MaterialTable, {
-  MTableBody,
-  MTableHeader,
-  MTableToolbar,
-} from 'material-table';
+import { styled, ThemeProvider } from '@mui/system';
+import { DataGrid } from '@mui/x-data-grid';
 import { useRouter } from 'next/router';
 import PropTypes from 'prop-types';
 import React, { useEffect } from 'react';
@@ -27,63 +30,42 @@ SyntaxHighlighter.registerLanguage('python', python);
 SyntaxHighlighter.registerLanguage('sql', sql);
 SyntaxHighlighter.registerLanguage('json', json);
 
-const useStyles = makeStyles(() => ({
-  root: {
-    background: 'rgba(255, 255, 255, 0.5)',
-    border: `2px solid ${theme.palette.border.main}`,
+const RootContainer = styled(Container)(({ theme }) => ({
+  background: 'rgba(255, 255, 255, 0.5)',
+  border: `2px solid ${theme.palette.border.main}`,
+  borderRadius: 16,
+  '& > *': {
     borderRadius: 16,
-    '& > *': {
-      borderRadius: 16,
-    },
   },
-  noDataPage: {
-    '& > *': {
-      padding: theme.spacing(1),
-    },
+}));
+
+const NoDataPage = styled('div')(({ theme }) => ({
+  '& > *': {
+    padding: theme.spacing(1),
   },
-  table: {
-    borderRadius: 16,
-    background: 'rgba(255, 255, 255, 1)',
-    border: `2px solid ${theme.palette.border.main}`,
-  },
-  usageIcon: {
-    color: 'red',
-  },
-  variantTableContainer: {
-    marginLeft: theme.spacing(4),
-    marginRight: theme.spacing(4),
-  },
-  variantTable: {
-    background: 'rgba(255, 255, 255, 1)',
-    border: `2px solid ${theme.palette.border.main}`,
-  },
-  detailPanel: {
-    padding: theme.spacing(4),
-  },
-  config: {
-    width: '100%',
-  },
-  detailButton: {
-    margin: theme.spacing(1),
-  },
-  tag: {
-    margin: theme.spacing(0.1),
-  },
-  tableBody: {
-    border: `2px solid ${theme.palette.border.main}`,
-    background: '#FFFFFF',
-    color: '#FFFFFF',
-    opacity: 1,
-  },
-  providerColumn: {},
-  providerLogo: {
-    maxWidth: '6em',
-    maxHeight: '2.5em',
-  },
-  tableToolbar: {
-    paddingTop: theme.spacing(3),
-    paddingBottom: theme.spacing(1),
-  },
+}));
+
+const UsageIcon = styled(Rating)({
+  color: 'red',
+});
+
+const VariantTableContainer = styled('div')(({ theme }) => ({
+  marginLeft: theme.spacing(4),
+  marginRight: theme.spacing(4),
+}));
+
+const Tag = styled(Chip)(({ theme }) => ({
+  margin: theme.spacing(0.1),
+}));
+
+const ProviderLogo = styled('img')({
+  maxWidth: '6em',
+  maxHeight: '2.5em',
+});
+
+const TableToolbar = styled('div')(({ theme }) => ({
+  paddingTop: theme.spacing(3),
+  paddingBottom: theme.spacing(1),
 }));
 
 export function filterMissingDefaults(row = {}) {
@@ -115,124 +97,116 @@ export const ResourceListView = ({
 }) => {
   const columnFormats = {
     default: [
-      { title: 'Name', field: 'name' },
-      { title: 'Description', field: 'description' },
+      { field: 'name', headerName: 'Name', flex: 1 },
+      { field: 'description', headerName: 'Description', flex: 2 },
     ],
     Model: [
-      { title: 'Name', field: 'name' },
-      { title: 'Description', field: 'description' },
+      { field: 'name', headerName: 'Name', flex: 1 },
+      { field: 'description', headerName: 'Description', flex: 2 },
     ],
     default_tags: [
-      { title: 'Name', field: 'name' },
-      { title: 'Description', field: 'description' },
+      { field: 'name', headerName: 'Name', flex: 1 },
+      { field: 'description', headerName: 'Description', flex: 2 },
       {
-        title: 'Tags',
         field: 'tags',
-        render: (row) => (
+        headerName: 'Tags',
+        flex: 1,
+        renderCell: (params) => (
           <TagList
             activeTags={activeTags}
-            tags={row.tags}
-            tagClass={classes.tag}
+            tags={params.row.tags}
+            tagClass={Tag}
             toggleTag={toggleTag}
           />
         ),
       },
     ],
     Feature: [
-      { title: 'Name', field: 'name' },
-      { title: 'Description', field: 'description' },
+      { field: 'name', headerName: 'Name', flex: 1 },
+      { field: 'description', headerName: 'Description', flex: 2 },
       {
-        title: 'Type',
         field: 'data-type',
+        headerName: 'Type',
+        flex: 1,
       },
       {
-        title: 'Default Variant',
-        field: 'variants',
-        render: (row) => (
-          <Typography variant='body1'>{row['default-variant']}</Typography>
-        ),
+        field: 'default-variant',
+        headerName: 'Latest Variant',
+        flex: 1,
       },
     ],
     Provider: [
-      { title: 'Name', field: 'name' },
-      { title: 'Description', field: 'description' },
-      { title: 'Type', field: 'type' },
+      { field: 'name', headerName: 'Name', flex: 1 },
+      { field: 'description', headerName: 'Description', flex: 2 },
+      { field: 'type', headerName: 'Type', flex: 1 },
       {
-        title: 'Software',
         field: 'software',
-        render: (row) => (
-          <div className={classes.providerColumn}>
+        headerName: 'Software',
+        flex: 1,
+        renderCell: (params) => (
+          <div className={ProviderLogo}>
             <img
-              alt={row.software}
-              className={classes.providerLogo}
-              src={providerLogos[row.software.toUpperCase()]}
+              alt={params.row.software}
+              src={
+                providerLogos[params.row.software?.toUpperCase()] ??
+                providerLogos['LOCALMODE']
+              }
             />
           </div>
         ),
       },
     ],
     'Data Source': [
-      { title: 'Name', field: 'name' },
-      { title: 'Description', field: 'description' },
-      { title: 'Type', field: 'type' },
+      { field: 'name', headerName: 'Name', flex: 1 },
+      { field: 'description', headerName: 'Description', flex: 2 },
+      { field: 'type', headerName: 'Type', flex: 1 },
     ],
-    User: [{ title: 'Name', field: 'name' }],
+    User: [{ field: 'name', headerName: 'Name', flex: 1 }],
     Entity: [
-      { title: 'Name', field: 'name' },
+      { field: 'name', headerName: 'Name', flex: 1 },
       {
-        title: 'Description',
         field: 'description',
+        headerName: 'Description',
+        flex: 2,
       },
     ],
     Transformation: [
-      { title: 'Name', field: 'name' },
-      { title: 'Description', field: 'description' },
+      { field: 'name', headerName: 'Name', flex: 1 },
+      { field: 'description', headerName: 'Description', flex: 2 },
       {
-        title: 'Tags',
         field: 'tags',
-        render: (row) => (
+        headerName: 'Tags',
+        flex: 1,
+        renderCell: (params) => (
           <TagList
             activeTags={activeTags}
-            tags={row.tags}
-            tagClass={classes.tag}
+            tags={params.row.tags}
+            tagClass={Tag}
             toggleTag={toggleTag}
           />
         ),
       },
       {
-        title: 'Default Variant',
-        field: 'variants',
-        render: (row) => (
-          <Typography variant='body1'>
-            {rowVariants.find((v) => v.name === row.name)['default-variant']}
-          </Typography>
-        ),
+        field: 'default-variant',
+        headerName: 'Latest Variant',
+        flex: 1,
       },
     ],
   };
-  const classes = useStyles();
-  let router = useRouter();
+
+  const router = useRouter();
   const initialLoad = resources == null && !loading;
   const initRes = resources || [];
-  const noVariants = !Resource[type].hasVariants;
-  const tableRef = React.useRef();
 
   useEffect(() => {
     // reset search text between type changes
-    if (tableRef?.current) {
-      tableRef.current.dataManager?.changeSearchText('');
-      tableRef.current.setState({ searchText: '' });
-      tableRef.current.setState(tableRef.current.dataManager.getRenderState());
-    }
+    return;
   }, [type]);
 
-  // MaterialTable can't handle immutable object, we have to make a copy
-  // https://github.com/mbrn/material-table/issues/666
   let mutableRes = deepCopy(initRes);
   mutableRes = mutableRes.filter(filterMissingDefaults);
 
   function detailRedirect(event, data) {
-    //this is a main column redirect, use the default variant if applicable
     event.stopPropagation();
     const base = Resource[type].urlPathResource(data.name);
     const defaultVariant = data?.['default-variant'];
@@ -256,146 +230,53 @@ export const ResourceListView = ({
     return pageSize;
   }
 
-  let rowVariants = {};
   let mainTableSize = getPageSizeProp(mutableRes?.length);
 
   return (
-    <div>
-      <ThemeProvider theme={theme}>
-        <MaterialTable
-          {...(!noVariants
-            ? {
-                detailPanel: (row) => {
-                  return (
-                    <VariantTable
-                      suppressHydrationWarning
-                      name={row.name}
-                      row={row}
-                      type={type}
-                      setVariant={setVariant}
-                      pageSizeProp={getPageSizeProp(row?.variants?.length)}
-                    />
-                  );
-                },
-              }
-            : {})}
-          className={classes.table}
-          title={
-            <Typography variant='h4'>
-              <b>{Resource[type].typePlural}</b>
-            </Typography>
-          }
+    <ThemeProvider theme={theme}>
+      <RootContainer maxWidth='xl'>
+        <Typography variant='h4'>
+          <b>{Resource[type].typePlural}</b>
+        </Typography>
+        <DataGrid
+          rows={mutableRes.map((row) => {
+            let rowData = { id: row.name };
+            if (!row.variants) {
+              return { ...rowData, ...row };
+            }
+            let rowVariant = activeVariants[row.name] || row['default-variant'];
+            return {
+              ...rowData,
+              ...row.variants[rowVariant],
+              'default-variant': row['default-variant'],
+              variants: Object.values(row.variants),
+            };
+          })}
           columns={
             Object.keys(columnFormats).includes(title)
               ? columnFormats[title]
               : columnFormats['default']
           }
-          data={mutableRes.map((row) => {
-            //mapping each row to have the same object format
-            //whether or not resource type has variants
-            //Expected format for resource without variants: {"name": <name>, "description": <description> }
-            //Expected format for resource with variants:
-            ///    {
-            //  "default-variant": <default variant>
-            // ...data pertaining to active variant (default variant by default)
-            //  "variants": <data for all variants> (used in variant dropdown view)
-            //}
-            let rowData = {};
-            if (!row.variants) {
-              for (const [key, data] of Object.entries(row)) {
-                rowData[key] = data;
-              }
-              return rowData;
-            }
-            let rowVariant;
-            if (!activeVariants[row.name]) {
-              rowVariant = row['default-variant'];
-            } else {
-              rowVariant = activeVariants[row.name];
-            }
-            if (row?.variants && row.variants[rowVariant]) {
-              for (const [key, data] of Object.entries(
-                row.variants[rowVariant]
-              )) {
-                rowData[key] = data;
-              }
-            }
-            let variantList = [];
-            Object.values(row.variants).forEach((variantValue) => {
-              variantList.push(variantValue);
-            });
-            rowData['variants'] = variantList;
-            rowData['default-variant'] = row['default-variant'];
-            return rowData;
-          })}
-          isLoading={initialLoad || loading || failed}
-          onRowClick={detailRedirect}
+          pageSize={mainTableSize}
+          rowsPerPageOptions={[5, 10, 20]}
+          loading={initialLoad || loading || failed}
+          onRowClick={(params) => detailRedirect(params.event, params.row)}
           components={{
-            Container: (props) => (
-              <Container maxWidth='xl' className={classes.root} {...props} />
-            ),
-            Body: (props) => (
-              <MTableBody
-                style={{ borderRadius: 16 }}
-                className={classes.tableBody}
-                {...props}
-              />
-            ),
-            Header: (props) => (
-              <MTableHeader className={classes.tableBody} {...props} />
-            ),
-            Toolbar: (props) => (
-              <div className={classes.tableToolbar}>
-                <MTableToolbar {...props} />
-              </div>
-            ),
+            Toolbar: TableToolbar,
+            NoRowsOverlay: () => <NoDataMessage type={type} />,
           }}
-          options={{
-            pageSize: mainTableSize,
-            emptyRowsWhenPaging: true,
-            loadingType: 'overlay',
-            search: true,
-            draggable: false,
-            headerStyle: {
-              backgroundColor: '#FFFFFF',
-              color: theme.palette.primary.main,
-              marginLeft: 3,
-            },
-            rowStyle: {
-              opacity: 1,
-              borderRadius: 16,
-            },
-          }}
-          tableRef={tableRef}
-          {...(!(initialLoad || loading || failed)
-            ? {
-                localization: {
-                  body: {
-                    emptyDataSourceMessage: (
-                      <NoDataMessage type={type} tableRef={tableRef} />
-                    ),
-                  },
-                },
-              }
-            : {})}
         />
-      </ThemeProvider>
-    </div>
+      </RootContainer>
+    </ThemeProvider>
   );
 };
 
-export const TagList = ({
-  activeTags = {},
-  tags = [],
-  tagClass,
-  toggleTag,
-}) => (
-  <Grid data-testid='tagContainerId' container direction='row'>
+export const TagList = ({ activeTags = {}, tags = [], toggleTag }) => (
+  <Grid container direction='row' data-testid='tagContainerId'>
     {tags.map((tag, index) => (
-      <Chip
+      <Tag
         key={tag}
         data-testid={`${tag}-${index}`}
-        className={tagClass}
         color={activeTags[tag] ? 'secondary' : 'default'}
         onClick={(event) => {
           toggleTag(tag);
@@ -414,10 +295,9 @@ export const VariantTable = ({
   type,
   row,
   pageSizeProp = 5,
-  emptyRowsProp = false,
 }) => {
-  const classes = useStyles();
-  let router = useRouter();
+  const router = useRouter();
+
   function variantChangeRedirect(event, data) {
     event.stopPropagation();
     setVariant(type, name, data.variant);
@@ -425,77 +305,33 @@ export const VariantTable = ({
     router.push(`${base}?variant=${data.variant}`);
   }
 
-  let myVariants = [];
-  row.variants.forEach((variant) => {
-    myVariants.push({
-      variant: variant.variant,
-      description: variant.description,
-    });
-  });
+  const myVariants = row.variants.map((variant) => ({
+    id: variant.variant,
+    variant: variant.variant,
+    description: variant.description,
+  }));
 
-  const MAX_ROW_SHOW = 5;
-  const ROW_HEIGHT = 5;
   return (
-    <div className={classes.variantTableContainer}>
+    <VariantTableContainer>
       <ThemeProvider theme={theme}>
-        <MaterialTable
-          className={classes.variantTable}
-          title={
-            <Typography variant='h6'>
-              <b></b>
-            </Typography>
-          }
-          onRowClick={variantChangeRedirect}
-          components={{
-            Container: (props) => (
-              <Container
-                maxWidth='xl'
-                className={classes.variantTable}
-                {...props}
-              />
-            ),
-            Body: (props) => (
-              <MTableBody
-                style={{ borderRadius: 16 }}
-                className={classes.tableBody}
-                {...props}
-              />
-            ),
-            Header: (props) => (
-              <MTableHeader className={classes.tableBody} {...props} />
-            ),
-            Toolbar: (props) => (
-              <div className={classes.tableToolbar}>
-                <MTableToolbar {...props} />
-              </div>
-            ),
-          }}
+        <DataGrid
+          rows={myVariants}
           columns={[
-            { title: 'Variants', field: 'variant' },
-            { title: 'Description', field: 'description' },
+            { field: 'variant', headerName: 'Variants', flex: 1 },
+            { field: 'description', headerName: 'Description', flex: 2 },
           ]}
-          data={myVariants}
-          options={{
-            pageSize: pageSizeProp,
-            emptyRowsWhenPaging: emptyRowsProp,
-            search: true,
-            maxHeight: `${MAX_ROW_SHOW * ROW_HEIGHT}em`,
-            toolbar: false,
-            draggable: false,
-            headerStyle: {
-              backgroundColor: '#FFFFFF',
-              color: theme.palette.primary.main,
-              marginLeft: 3,
-            },
-            rowStyle: {
-              opacity: 1,
-              borderRadius: 16,
-              height: `${ROW_HEIGHT}em`,
-            },
+          pageSize={pageSizeProp}
+          rowsPerPageOptions={[5, 10, 20]}
+          onRowClick={(params) =>
+            variantChangeRedirect(params.event, params.row)
+          }
+          autoHeight
+          components={{
+            Toolbar: TableToolbar,
           }}
         />
       </ThemeProvider>
-    </div>
+    </VariantTableContainer>
   );
 };
 
@@ -527,11 +363,8 @@ function IconContainer(props) {
 }
 
 export const UsageTab = () => {
-  const classes = useStyles();
-
   return (
-    <Rating
-      className={classes.usageIcon}
+    <UsageIcon
       name='read-only'
       value={2}
       IconContainerComponent={IconContainer}
@@ -540,38 +373,31 @@ export const UsageTab = () => {
   );
 };
 
-const NoDataMessage = ({ type, tableRef }) => {
-  const classes = useStyles();
+const NoDataMessage = ({ type }) => {
   function redirect() {
-    window.location.href =
-      'https://docs.featureform.com/getting-started/overview';
+    const url = 'https://docs.featureform.com/getting-started/overview';
+    const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+    if (newWindow) newWindow.opener = null;
   }
-  let searchText = tableRef?.current?.state?.searchText;
   return (
-    <>
-      <Container data-testid='noDataContainerId'>
-        <div className={classes.noDataPage}>
-          {searchText ? (
-            <Typography variant='h4'>No search results!</Typography>
-          ) : (
-            <>
-              <Typography variant='h4'>
-                No {Resource[type].typePlural} Registered
-              </Typography>
-              <Typography variant='body1'>
-                There are no visible {type.toLowerCase()}s in your organization.
-              </Typography>
-            </>
-          )}
-          <Typography vairant='body1'>
-            Check out our docs for step by step instructions to create one.
+    <Container data-testid='noDataContainerId'>
+      <NoDataPage>
+        <>
+          <Typography variant='h4'>
+            No {Resource[type].typePlural} Registered
           </Typography>
-          <Button variant='outlined' onClick={redirect}>
-            FeatureForm Docs
-          </Button>
-        </div>
-      </Container>
-    </>
+          <Typography variant='body1'>
+            There are no visible {type.toLowerCase()}s in your organization.
+          </Typography>
+        </>
+        <Typography variant='body1'>
+          Check out our docs for step by step instructions to create one.
+        </Typography>
+        <Button variant='outlined' onClick={redirect}>
+          FeatureForm Docs
+        </Button>
+      </NoDataPage>
+    </Container>
   );
 };
 

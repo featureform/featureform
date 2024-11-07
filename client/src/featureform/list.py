@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 from featureform.proto import metadata_pb2
 from .format import *
 
@@ -12,7 +19,9 @@ def list_name(stub, resource_type):
     res = sorted(
         [
             received
-            for received in stub_list_functions[resource_type](metadata_pb2.Empty())
+            for received in stub_list_functions[resource_type](
+                metadata_pb2.ListRequest()
+            )
         ],
         key=lambda x: x.name,
     )
@@ -27,7 +36,9 @@ def list_name_status(stub, resource_type):
     res = sorted(
         [
             received
-            for received in stub_list_functions[resource_type](metadata_pb2.Empty())
+            for received in stub_list_functions[resource_type](
+                metadata_pb2.ListRequest()
+            )
         ],
         key=lambda x: x.name,
     )
@@ -42,7 +53,9 @@ def list_name_status_desc(stub, resource_type):
     res = sorted(
         [
             received
-            for received in stub_list_functions[resource_type](metadata_pb2.Empty())
+            for received in stub_list_functions[resource_type](
+                metadata_pb2.ListRequest()
+            )
         ],
         key=lambda x: x.name,
     )
@@ -65,14 +78,18 @@ def list_name_variant_status(stub, resource_type):
     res = sorted(
         [
             received
-            for received in stub_list_functions[resource_type][0](metadata_pb2.Empty())
+            for received in stub_list_functions[resource_type][0](
+                metadata_pb2.ListRequest()
+            )
         ],
         key=lambda x: x.name,
     )
     for f in res:
         for v in f.variants:
+
             searchNameVariant = metadata_pb2.NameVariant(name=f.name, variant=v)
-            for x in stub_list_functions[resource_type][1](iter([searchNameVariant])):
+            req = metadata_pb2.NameVariantRequest(name_variant=searchNameVariant)
+            for x in stub_list_functions[resource_type][1](iter([req])):
                 if x.variant == f.default_variant:
                     format_rows(
                         f.name,
@@ -99,14 +116,17 @@ def list_name_variant_status_desc(stub, resource_type):
     res = sorted(
         [
             received
-            for received in stub_list_functions[resource_type][0](metadata_pb2.Empty())
+            for received in stub_list_functions[resource_type][0](
+                metadata_pb2.ListRequest()
+            )
         ],
         key=lambda x: x.name,
     )
     for f in res:
         for v in f.variants:
             searchNameVariant = metadata_pb2.NameVariant(name=f.name, variant=v)
-            for x in stub_list_functions[resource_type][1](iter([searchNameVariant])):
+            req = metadata_pb2.NameVariantRequest(name_variant=searchNameVariant)
+            for x in stub_list_functions[resource_type][1](iter([req])):
                 if x.variant == f.default_variant:
                     format_rows(
                         f.name,

@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
@@ -6,8 +13,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
+	"os/exec"
+	"regexp"
 	"strings"
+	"sync"
 
 	re "github.com/avast/retry-go/v4"
 
@@ -15,16 +26,19 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/ratelimit"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	awsv2cfg "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
+	awsv2creds "github.com/aws/aws-sdk-go-v2/credentials"
 	s3v2 "github.com/aws/aws-sdk-go-v2/service/s3"
-	hdfs "github.com/colinmarc/hdfs/v2"
 	"github.com/featureform/fferr"
 	filestore "github.com/featureform/filestore"
+	"github.com/featureform/helpers"
 	pc "github.com/featureform/provider/provider_config"
+	"github.com/google/uuid"
 
-	"io/fs"
+	"path/filepath"
 	"time"
 
+	pl "github.com/featureform/provider/location"
+	pt "github.com/featureform/provider/provider_type"
 	"gocloud.dev/blob"
 	"gocloud.dev/blob/azureblob"
 	"gocloud.dev/blob/gcsblob"
@@ -39,22 +53,73 @@ const (
 )
 
 type FileStore interface {
-	Write(key filestore.Filepath, data []byte) error
+	// Read Operations
+	Open(key filestore.Filepath) (File, error)
+	ReaderAt(key filestore.Filepath) (io.ReaderAt, error)
 	Read(key filestore.Filepath) ([]byte, error)
-	Serve(keys []filestore.Filepath) (Iterator, error)
-	Exists(key filestore.Filepath) (bool, error)
-	Delete(key filestore.Filepath) error
-	DeleteAll(dir filestore.Filepath) error
+	Exists(location pl.Location) (bool, error)
 	NewestFileOfType(prefix filestore.Filepath, fileType filestore.FileType) (filestore.Filepath, error)
 	List(dirPath filestore.Filepath, fileType filestore.FileType) ([]filestore.Filepath, error)
 	NumRows(key filestore.Filepath) (int64, error)
-	Close() error
-	Upload(sourcePath filestore.Filepath, destPath filestore.Filepath) error
 	Download(sourcePath filestore.Filepath, destPath filestore.Filepath) error
-	FilestoreType() filestore.FileStoreType
+	Serve(keys []filestore.Filepath) (Iterator, error)
+
+	// Write Operations
+	Write(key filestore.Filepath, data []byte) error
+	Delete(key filestore.Filepath) error
+	DeleteAll(dir filestore.Filepath) error
+	Upload(sourcePath filestore.Filepath, destPath filestore.Filepath) error
+
+	// Utility Operations
 	AddEnvVars(envVars map[string]string) map[string]string
+	Close() error
+	FilestoreType() filestore.FileStoreType
+	ParseFilePath(path string) (filestore.Filepath, error)
 	// CreateFilePath creates a new filepath object with the bucket and scheme from a Key
 	CreateFilePath(key string, isDirectory bool) (filestore.Filepath, error)
+}
+
+type File interface {
+	io.ReadSeeker
+	Size() int64
+}
+
+type blobAdapter struct {
+	bucket *blob.Bucket
+	key    string
+	mu     *sync.Mutex
+}
+
+func newBlobAdapter(bucket *blob.Bucket, key string) *blobAdapter {
+	return &blobAdapter{
+		bucket: bucket,
+		key:    key,
+		mu:     &sync.Mutex{},
+	}
+}
+
+func (r *blobAdapter) ReadAt(p []byte, off int64) (n int, err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	ctx := context.TODO()
+	reader, err := r.bucket.NewRangeReader(ctx, r.key, off, int64(len(p)), nil)
+	if err != nil {
+		return 0, err
+	}
+	defer reader.Close()
+
+	return io.ReadFull(reader, p)
+}
+
+func (r *blobAdapter) Size() int64 {
+	ctx := context.TODO()
+	reader, err := r.bucket.NewReader(ctx, r.key, nil)
+	if err != nil {
+		fmt.Printf("Unable to open file: %s", r.key)
+		return 0
+	}
+	return reader.Size()
 }
 
 type Iterator interface {
@@ -258,19 +323,32 @@ func NewS3FileStore(config Config) (FileStore, error) {
 		return nil, wrapped
 	}
 
-	args := []func(*awsv2cfg.LoadOptions) error{
+	opts := []func(*awsv2cfg.LoadOptions) error{
 		awsv2cfg.WithRegion(s3StoreConfig.BucketRegion),
-		awsv2cfg.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s3StoreConfig.Credentials.AWSAccessKeyId, s3StoreConfig.Credentials.AWSSecretKey, "")),
 		awsv2cfg.WithRetryer(func() aws.Retryer {
 			return retry.AddWithMaxBackoffDelay(retry.NewStandard(func(o *retry.StandardOptions) {
 				o.RateLimiter = ratelimit.None
 			}), defaultS3Timeout)
 		}),
 	}
+	// If the user provides pc.AWSAssumeRoleCredentials, we will use the default credentials provider chain
+	// to get the credentials stored on the pod. This is only possible if an IAM for Service Accounts has been
+	// correctly configured on the EMR cluster and the K8s pod(s). See the following link for more information:
+	// https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
+	if staticCreds, ok := s3StoreConfig.Credentials.(pc.AWSStaticCredentials); ok {
+		opts = append(opts, awsv2cfg.WithCredentialsProvider(
+			awsv2creds.NewStaticCredentialsProvider(
+				staticCreds.AccessKeyId,
+				staticCreds.SecretKey,
+				"",
+			),
+		),
+		)
+	}
 	// If we are using a custom endpoint, such as when running localstack, we should point at it. We'd never set this when
 	// directly accessing DynamoDB on AWS.
 	if s3StoreConfig.Endpoint != "" {
-		args = append(args,
+		opts = append(opts,
 			awsv2cfg.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(func(service, region string, opts ...interface{}) (aws.Endpoint, error) {
 				return aws.Endpoint{
 					URL:           s3StoreConfig.Endpoint,
@@ -278,19 +356,13 @@ func NewS3FileStore(config Config) (FileStore, error) {
 				}, nil
 			})))
 	}
-
-	cfg, err := awsv2cfg.LoadDefaultConfig(context.TODO(),
-		awsv2cfg.WithCredentialsProvider(credentials.StaticCredentialsProvider{
-			Value: aws.Credentials{
-				AccessKeyID: s3StoreConfig.Credentials.AWSAccessKeyId, SecretAccessKey: s3StoreConfig.Credentials.AWSSecretKey,
-			},
-		}))
+	cfg, err := awsv2cfg.LoadDefaultConfig(context.TODO(), opts...)
 	if err != nil {
-		wrapped := fferr.NewExecutionError(string(filestore.S3), err)
+		wrapped := fferr.NewConnectionError(pt.SparkOffline.String(), err)
 		wrapped.AddDetail("bucket_name", trimmedBucket)
 		return nil, wrapped
 	}
-	cfg.Region = s3StoreConfig.BucketRegion
+
 	clientV2 := s3v2.NewFromConfig(cfg)
 	bucket, err := s3blob.OpenBucketV2(context.TODO(), clientV2, trimmedBucket, nil)
 	if err != nil {
@@ -342,22 +414,14 @@ func (s3 *S3FileStore) FilestoreType() filestore.FileStoreType {
 }
 
 func (s3 *S3FileStore) AddEnvVars(envVars map[string]string) map[string]string {
+	if staticCreds, ok := s3.Credentials.(pc.AWSStaticCredentials); ok {
+		envVars["AWS_ACCESS_KEY_ID"] = staticCreds.AccessKeyId
+		envVars["AWS_SECRET_KEY"] = staticCreds.SecretKey
+	}
 	envVars["BLOB_STORE_TYPE"] = "s3"
-	envVars["AWS_ACCESS_KEY_ID"] = s3.Credentials.AWSAccessKeyId
-	envVars["AWS_SECRET_KEY"] = s3.Credentials.AWSSecretKey
 	envVars["S3_BUCKET_REGION"] = s3.BucketRegion
 	envVars["S3_BUCKET_NAME"] = s3.Bucket
 	return envVars
-}
-
-func (s3 *S3FileStore) Read(path filestore.Filepath) ([]byte, error) {
-	data, err := s3.bucket.ReadAll(context.TODO(), path.Key())
-	if err != nil {
-		wrapped := fferr.NewExecutionError(string(filestore.S3), err)
-		wrapped.AddDetail("uri", path.ToURI())
-		return nil, wrapped
-	}
-	return data, nil
 }
 
 type GCSFileStore struct {
@@ -480,345 +544,22 @@ func NewGCSFileStore(config Config) (FileStore, error) {
 	}, nil
 }
 
-func NewHDFSFileStore(config Config) (FileStore, error) {
-	HDFSConfig := pc.HDFSFileStoreConfig{}
-
-	err := HDFSConfig.Deserialize(pc.SerializedConfig(config))
-	if err != nil {
-		return nil, err
-	}
-
-	address := fmt.Sprintf("%s:%s", HDFSConfig.Host, HDFSConfig.Port)
-	var username string
-	if HDFSConfig.Username == "" {
-		username = "hduser"
-	} else {
-		username = HDFSConfig.Username
-	}
-
-	ops := hdfs.ClientOptions{
-		Addresses:           []string{address},
-		User:                username,
-		UseDatanodeHostname: true,
-	}
-	client, err := hdfs.NewClient(ops)
-	if err != nil {
-		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
-		wrapped.AddDetail("host", HDFSConfig.Host)
-		wrapped.AddDetail("port", HDFSConfig.Port)
-		return nil, wrapped
-	}
-
-	return &HDFSFileStore{
-		Client: client,
-		Path:   HDFSConfig.Path,
-		Host:   address, // authority (e.g. <host>:<port>)
-	}, nil
-}
-
-type HDFSFileStore struct {
-	Client *hdfs.Client
-	Host   string
-	Path   string
-}
-
-func (fs *HDFSFileStore) alreadyExistsError(err error) bool {
-	return strings.Contains(err.Error(), "file already exists")
-}
-
-func (fs *HDFSFileStore) doesNotExistsError(err error) bool {
-	return strings.Contains(err.Error(), "file does not exist")
-}
-
-func (fs *HDFSFileStore) removeFile(path filestore.Filepath) (*hdfs.FileWriter, error) {
-	if err := fs.Client.Remove(path.Key()); err != nil && fs.doesNotExistsError(err) {
-		return fs.getFile(path)
-	} else if err != nil {
-		wrapped := fferr.NewExecutionError(string(filestore.HDFS), fmt.Errorf("could not remove file: %v", err))
-		wrapped.AddDetail("uri", path.ToURI())
-		return nil, wrapped
-	}
-	return fs.getFile(path)
-}
-
-func (fs *HDFSFileStore) getFile(path filestore.Filepath) (*hdfs.FileWriter, error) {
-	if w, err := fs.Client.Create(path.Key()); err != nil && fs.alreadyExistsError(err) {
-		return fs.removeFile(path)
-	} else if err != nil {
-		wrapped := fferr.NewExecutionError(string(filestore.HDFS), fmt.Errorf("could not get file: %v", err))
-		wrapped.AddDetail("uri", path.ToURI())
-		return nil, wrapped
-	} else {
-		return w, nil
-	}
-}
-
-func (fs *HDFSFileStore) isFile(key string) bool {
-	parsedPath := strings.Split(key, "/")
-	return len(parsedPath) == 1
-}
-
-func (fs *HDFSFileStore) getFileWriter(path filestore.Filepath) (*hdfs.FileWriter, error) {
-	if w, err := fs.getFile(path); err != nil {
-		return nil, err
-	} else {
-		return w, nil
-	}
-}
-
-func (fs *HDFSFileStore) createFile(path filestore.Filepath) (*hdfs.FileWriter, error) {
-	err := fs.Client.MkdirAll(path.KeyPrefix(), os.ModeDir)
-	if err != nil {
-		wrapped := fferr.NewInternalError(err)
-		wrapped.AddDetail("uri", path.ToURI())
-		return nil, wrapped
-	}
-	return fs.getFileWriter(path)
-}
-
-func (fs *HDFSFileStore) Write(path filestore.Filepath, data []byte) error {
-	file, err := fs.createFile(path)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	_, err = file.Write(data)
-	if err != nil {
-		wrapped := fferr.NewInternalError(err)
-		wrapped.AddDetail("uri", path.ToURI())
-		return wrapped
-	}
-	if err := file.Flush(); err != nil {
-		wrapped := fferr.NewInternalError(err)
-		wrapped.AddDetail("uri", path.ToURI())
-		return wrapped
-	}
-	return nil
-}
-
-func (fs *HDFSFileStore) Read(path filestore.Filepath) ([]byte, error) {
-	file, err := fs.Client.ReadFile(path.Key())
-	if err != nil {
-		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
-		wrapped.AddDetail("uri", path.ToURI())
-		return nil, wrapped
-	}
-	return file, nil
-}
-
-func (fs *HDFSFileStore) ServeDirectory(files []filestore.Filepath) (Iterator, error) {
-	// assume file type is parquet
-	return parquetIteratorOverMultipleFiles(files, fs)
-}
-
-func (fs *HDFSFileStore) Serve(files []filestore.Filepath) (Iterator, error) {
-	if len(files) == 0 {
-		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("no files to serve"))
-	}
-	if len(files) > 1 {
-		return fs.ServeDirectory(files)
-	}
-	file := files[0]
-	b, err := fs.Client.ReadFile(file.Key())
-	if err != nil {
-		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
-		wrapped.AddDetail("uri", file.ToURI())
-		return nil, wrapped
-	}
-	switch file.Ext() {
-	case filestore.Parquet:
-		return parquetIteratorFromBytes(b)
-	case filestore.CSV:
-		return nil, fferr.NewInternalError(fmt.Errorf("CSV reader not implemented"))
-	default:
-		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("unsupported file type: %s", file.Ext()))
-	}
-}
-
-func (fs *HDFSFileStore) Exists(path filestore.Filepath) (bool, error) {
-	_, err := fs.Client.Stat(path.Key())
-	if err != nil && strings.Contains(err.Error(), "file does not exist") {
-		return false, nil
-	} else if err != nil {
-		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
-		wrapped.AddDetail("uri", path.ToURI())
-		return false, wrapped
-	}
-	return true, nil
-}
-
-func (fs *HDFSFileStore) Delete(path filestore.Filepath) error {
-	if err := fs.Client.Remove(path.Key()); err != nil {
-		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
-		wrapped.AddDetail("uri", path.ToURI())
-		return wrapped
-	}
-	return nil
-}
-
-func (fs *HDFSFileStore) deleteFile(file os.FileInfo, dir filestore.Filepath) error {
-	if file.IsDir() {
-		err := fs.DeleteAll(dir)
-		if err != nil {
-			return err
-		}
-	} else {
-		err := fs.Delete(dir)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (fs *HDFSFileStore) DeleteAll(dir filestore.Filepath) error {
-	files, err := fs.Client.ReadDir(dir.Key())
-	if err != nil {
-		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
-		wrapped.AddDetail("uri", dir.ToURI())
-		return wrapped
-	}
-	for _, file := range files {
-		filePath, err := fs.CreateFilePath(fmt.Sprintf("%s/%s", dir.Key(), file.Name()), false)
-		if err != nil {
-			return err
-		}
-		if err := fs.deleteFile(file, filePath); err != nil {
-			return err
-		}
-	}
-	if err := fs.Client.Remove(dir.Key()); err != nil {
-		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
-		wrapped.AddDetail("uri", dir.ToURI())
-		return wrapped
-	}
-	return nil
-}
-
-func (fs *HDFSFileStore) isPartialPath(prefix, path string) bool {
-	return strings.Contains(prefix, path)
-}
-
-func (fs *HDFSFileStore) containsPrefix(prefix, path string) bool {
-	return strings.Contains(path, prefix)
-}
-
-func (fs *HDFSFileStore) isMoreRecentFile(newFileTime, oldFileTime time.Time, fileType filestore.FileType, path string) bool {
-	return (newFileTime.After(oldFileTime) || newFileTime.Equal(oldFileTime)) && fileType.Matches(path)
-}
-
-func (hdfs *HDFSFileStore) NewestFileOfType(rootpath filestore.Filepath, fileType filestore.FileType) (filestore.Filepath, error) {
-	var lastModTime time.Time
-	var lastModName string
-	err := hdfs.Client.Walk("/", func(path string, info fs.FileInfo, err error) error {
-		if hdfs.isPartialPath(rootpath.Key(), path) {
-			return nil
-		}
-		if hdfs.containsPrefix(rootpath.Key(), path) && hdfs.isMoreRecentFile(info.ModTime(), lastModTime, fileType, path) {
-			lastModTime = info.ModTime()
-			lastModName = strings.TrimPrefix(path, "/")
-		}
-		return nil
-	})
-	if err != nil {
-		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
-		wrapped.AddDetail("uri", rootpath.ToURI())
-		wrapped.AddDetail("file_type", string(fileType))
-		return nil, wrapped
-	}
-	if lastModName == "" {
-		return nil, fferr.NewDatasetNotFoundError("", "", fmt.Errorf("no files of type %s found in %s", string(fileType), rootpath.Key()))
-	}
-
-	filepath, err := hdfs.CreateFilePath(lastModName, false)
-	if err != nil {
-		return nil, err
-	}
-
-	return filepath, nil
-}
-
-func (fs *HDFSFileStore) List(dirPath filestore.Filepath, fileType filestore.FileType) ([]filestore.Filepath, error) {
-	return nil, fferr.NewInternalError(fmt.Errorf("not implemented"))
-}
-
-func (fs *HDFSFileStore) NumRows(path filestore.Filepath) (int64, error) {
-	file, err := fs.Read(path)
-	if err != nil {
-		return 0, err
-	}
-	rows, err := getParquetNumRows(file)
-	if err != nil {
-		return 0, err
-	}
-	return rows, nil
-}
-
-func (fs *HDFSFileStore) Close() error {
-	if err := fs.Client.Close(); err != nil {
-		return fferr.NewExecutionError(string(filestore.HDFS), err)
-	}
-	return nil
-}
-
-func (fs *HDFSFileStore) Upload(sourcePath filestore.Filepath, destPath filestore.Filepath) error {
-	if err := fs.Client.CopyToRemote(sourcePath.Key(), destPath.Key()); err != nil {
-		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
-		wrapped.AddDetail("source_uri", sourcePath.ToURI())
-		wrapped.AddDetail("dest_uri", destPath.ToURI())
-		return wrapped
-	}
-	return nil
-}
-
-func (fs *HDFSFileStore) Download(sourcePath filestore.Filepath, destPath filestore.Filepath) error {
-	if err := fs.Client.CopyToLocal(sourcePath.Key(), destPath.Key()); err != nil {
-		wrapped := fferr.NewExecutionError(string(filestore.HDFS), err)
-		wrapped.AddDetail("source_uri", sourcePath.ToURI())
-		wrapped.AddDetail("dest_uri", destPath.ToURI())
-		return wrapped
-	}
-	return nil
-}
-
-func (fs *HDFSFileStore) AsAzureStore() *AzureFileStore {
-	return nil
-}
-
-func (fs *HDFSFileStore) FilestoreType() filestore.FileStoreType {
-	return filestore.HDFS
-}
-
-func (fs *HDFSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
-	panic("HDFS Filestore is not supported for K8s at the moment.")
-}
-
-func (fs *HDFSFileStore) CreateFilePath(key string, isDirectory bool) (filestore.Filepath, error) {
-	fp := filestore.HDFSFilepath{}
-	if err := fp.SetScheme(filestore.HDFSPrefix); err != nil {
-		return nil, err
-	}
-
-	fullKey := fmt.Sprintf("/%s", strings.TrimPrefix(key, "/"))
-	if fs.Path != "" {
-		fullKey = fmt.Sprintf("/%s/%s", strings.TrimPrefix(fs.Path, "/"), strings.TrimPrefix(key, "/"))
-	}
-	if err := fp.SetKey(fullKey); err != nil {
-		return nil, err
-	}
-	fp.SetIsDir(isDirectory)
-	err := fp.Validate()
-	if err != nil {
-		return nil, err
-	}
-	return &fp, nil
-}
-
 type genericFileStore struct {
 	bucket    *blob.Bucket
 	path      filestore.Filepath
 	storeType filestore.FileStoreType
+}
+
+func (store *genericFileStore) ParseFilePath(path string) (filestore.Filepath, error) {
+	fp, err := filestore.NewEmptyFilepath(store.FilestoreType())
+	if err != nil {
+		return nil, err
+	}
+	err = fp.ParseFilePath(path)
+	if err != nil {
+		return nil, err
+	}
+	return fp, nil
 }
 
 // TODO: deprecate this in favor of List
@@ -961,7 +702,7 @@ func (store *genericFileStore) Write(path filestore.Filepath, data []byte) error
 			if errRetr != nil {
 				return errRetr
 			} else if !bytes.Equal(blob, data) {
-				return fmt.Errorf("blob read from bucket does not match blob written to bucket")
+				return fferr.NewInternalError(fmt.Errorf("blob read from bucket does not match blob written to bucket"))
 			}
 			fmt.Printf("Read (%d) bytes from bucket (%s) after write\n", len(blob), path.Key())
 			return nil
@@ -977,6 +718,20 @@ func (store *genericFileStore) Write(path filestore.Filepath, data []byte) error
 		return wrapped
 	}
 	return nil
+}
+
+func (store *genericFileStore) Open(path filestore.Filepath) (File, error) {
+	reader, err := store.bucket.NewReader(context.TODO(), path.Key(), nil)
+	if err != nil {
+		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
+		wrapped.AddDetail("uri", path.ToURI())
+		return nil, wrapped
+	}
+	return reader, nil
+}
+
+func (store *genericFileStore) ReaderAt(path filestore.Filepath) (io.ReaderAt, error) {
+	return newBlobAdapter(store.bucket, path.Key()), nil
 }
 
 func (store *genericFileStore) Read(path filestore.Filepath) ([]byte, error) {
@@ -1013,6 +768,48 @@ func (store *genericFileStore) Upload(sourcePath filestore.Filepath, destPath fi
 	}
 
 	return nil
+}
+
+func (store *genericFileStore) Serve(files []filestore.Filepath) (Iterator, error) {
+	if len(files) > 1 {
+		return store.ServeDirectory(files)
+	} else {
+		return store.ServeFile(files[0])
+	}
+}
+
+func (store *genericFileStore) NumRows(path filestore.Filepath) (int64, error) {
+	reader, err := store.ReaderAt(path)
+	if err != nil {
+		return 0, err
+	}
+	switch path.Ext() {
+	case filestore.Parquet:
+		return getParquetNumRows(reader)
+	default:
+		return 0, fmt.Errorf("unsupported file type")
+	}
+}
+
+func (store *genericFileStore) CreateFilePath(key string, isDirectory bool) (filestore.Filepath, error) {
+	fp := filestore.FilePath{}
+	if store.FilestoreType() != filestore.FileSystem {
+		return nil, fmt.Errorf("filestore type: %v; use store-specific implementation instead", store.FilestoreType())
+	}
+	if err := fp.SetScheme(filestore.FileSystemPrefix); err != nil {
+		return nil, err
+	}
+	if err := fp.SetBucket(store.path.Bucket()); err != nil {
+		return nil, err
+	}
+	if err := fp.SetKey(key); err != nil {
+		return nil, err
+	}
+	if err := fp.Validate(); err != nil {
+		return nil, err
+	}
+	fp.SetIsDir(isDirectory)
+	return &fp, nil
 }
 
 func (store *genericFileStore) Download(sourcePath filestore.Filepath, destPath filestore.Filepath) error {
@@ -1060,7 +857,12 @@ func (store *genericFileStore) AddEnvVars(envVars map[string]string) map[string]
 // * If the iterator returns the `EOF` error upon the first iteration, the "key" doesn't exist
 // * If the iterator returns a non-`EOF` error, the "key" may or may not exist; however, we have to address the error
 // * If neither the `EOF` nor non-`EOF` error is returned, the "key" exists and we break from the loop to avoid unnecessary iteration
-func (store *genericFileStore) Exists(path filestore.Filepath) (bool, error) {
+func (store *genericFileStore) Exists(location pl.Location) (bool, error) {
+	fileStoreLocation, isFileStoreLocation := location.(*pl.FileStoreLocation)
+	if !isFileStoreLocation {
+		return false, fferr.NewInvalidArgumentErrorf("location is not a filestore.Filepath")
+	}
+	path := fileStoreLocation.Filepath()
 	iter := store.bucket.List(&blob.ListOptions{Prefix: path.Key()})
 	_, err := iter.Next(context.Background())
 	if err == io.EOF {
@@ -1091,7 +893,7 @@ func (store *genericFileStore) Close() error {
 }
 
 func (store *genericFileStore) ServeFile(path filestore.Filepath) (Iterator, error) {
-	b, err := store.bucket.ReadAll(context.TODO(), path.Key())
+	src, err := store.Read(path)
 	if err != nil {
 		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
 		wrapped.AddDetail("uri", path.ToURI())
@@ -1099,7 +901,7 @@ func (store *genericFileStore) ServeFile(path filestore.Filepath) (Iterator, err
 	}
 	switch path.Ext() {
 	case filestore.Parquet:
-		return parquetIteratorFromBytes(b)
+		return parquetIteratorFromBytes(bytes.NewReader(src))
 	case filestore.CSV:
 		return nil, fferr.NewInternalError(fmt.Errorf("csv iterator not implemented"))
 	default:
@@ -1107,49 +909,550 @@ func (store *genericFileStore) ServeFile(path filestore.Filepath) (Iterator, err
 	}
 }
 
-func (store *genericFileStore) Serve(files []filestore.Filepath) (Iterator, error) {
-	if len(files) > 1 {
-		return store.ServeDirectory(files)
-	} else {
-		return store.ServeFile(files[0])
-	}
-}
+func NewHDFSFileStore(config Config) (FileStore, error) {
+	// Unfortunately, we couldn't use the kerberos package because of issues with encryption type with a client.
+	// In order to work around it, we decided to use the kinit and hdfs cli as a work around.
 
-func (store *genericFileStore) NumRows(path filestore.Filepath) (int64, error) {
-	b, err := store.bucket.ReadAll(context.TODO(), path.Key())
+	HDFSConfig := pc.HDFSFileStoreConfig{}
+
+	err := HDFSConfig.Deserialize(pc.SerializedConfig(config))
 	if err != nil {
-		wrapped := fferr.NewExecutionError(string(store.FilestoreType()), err)
-		wrapped.AddDetail("uri", path.ToURI())
-		return 0, wrapped
+		return nil, fmt.Errorf("could not deserialize config: %v", err)
 	}
-	switch path.Ext() {
-	case filestore.Parquet:
-		return getParquetNumRows(b)
+
+	var username string = "hduser"
+	address := fmt.Sprintf("%s:%s", HDFSConfig.Host, HDFSConfig.Port)
+
+	switch HDFSConfig.CredentialType {
+	case pc.BasicCredential:
+		credentials, ok := HDFSConfig.CredentialConfig.(*pc.BasicCredentialConfig)
+		if !ok {
+			return nil, fmt.Errorf("could not convert credential config to basic credential config")
+		}
+
+		if credentials.Username != "" {
+			username = credentials.Username
+		}
+
+	case pc.KerberosCredential:
+		credentials, ok := HDFSConfig.CredentialConfig.(*pc.KerberosCredentialConfig)
+		if !ok {
+			return nil, fmt.Errorf("could not convert credential config to kerberos credential config")
+		}
+
+		if credentials.Username != "" {
+			username = credentials.Username
+		}
+
+		// Potential race condition here if multiple runs are trying to run at the same time
+		if credentials.Krb5Conf == "" {
+			return nil, fmt.Errorf("krb5.conf cannot be empty when using Kerberos Credentials")
+		}
+		krb5ConfFilePath := helpers.GetEnv("KRB5_CONF_FILE_PATH", "/etc/krb5.conf")
+		err = writeToFile(krb5ConfFilePath, credentials.Krb5Conf)
+		if err != nil {
+			return nil, fmt.Errorf("could not write krb5.conf: %v", err)
+		}
+
+		err = runKinitCommand(credentials.Username, credentials.Password)
+		if err != nil {
+			return nil, fmt.Errorf("could not run kinit command: %v", err)
+		}
+
 	default:
-		wrapped := fferr.NewInvalidArgumentError(fmt.Errorf("unsupported file type"))
-		wrapped.AddDetail("uri", path.ToURI())
-		wrapped.AddDetail("file_type", string(path.Ext()))
-		return 0, wrapped
+		return nil, fmt.Errorf("unknown credential type: %v", HDFSConfig.CredentialType)
+	}
+
+	// Potential race condition here if multiple runs are trying to run at the same time
+	if HDFSConfig.HDFSSiteConf != "" {
+		hdfsSiteFilePath := helpers.GetEnv("HDFS_SITE_FILE_PATH", "/usr/local/hadoop/etc/hadoop/hdfs-site.xml")
+		err = writeToFile(hdfsSiteFilePath, HDFSConfig.HDFSSiteConf)
+		if err != nil {
+			return nil, fmt.Errorf("could not write hdfs-site.xml: %v", err)
+		}
+	}
+
+	// Potential race condition here if multiple runs are trying to run at the same time
+	if HDFSConfig.CoreSiteConf != "" {
+		coreSiteFilePath := helpers.GetEnv("CORE_SITE_FILE_PATH", "/usr/local/hadoop/etc/hadoop/core-site.xml")
+		err = writeToFile(coreSiteFilePath, HDFSConfig.CoreSiteConf)
+		if err != nil {
+			return nil, fmt.Errorf("could not write core-site.xml: %v", err)
+		}
+	}
+
+	return &HDFSFileStore{
+		Username: username,
+		Host:     address,
+		Path:     HDFSConfig.Path,
+	}, nil
+}
+
+func runKinitCommand(username, password string) error {
+	kinitPath := "/usr/bin/kinit"
+
+	// Create the kinit command
+	cmd := exec.Command(kinitPath, username)
+
+	// Start the command and provide the password as input
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return fferr.NewConnectionError(pt.HDFS.String(), err)
+	}
+	go func() {
+		defer stdin.Close()
+		_, err := bytes.NewBufferString(password).WriteTo(stdin)
+		if err != nil {
+			return
+		}
+	}()
+
+	// Execute the kinit command
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fferr.NewConnectionError(pt.HDFS.String(), fmt.Errorf("could not connect to Kerberos: %v, %s", err, output))
+	}
+	return nil
+}
+
+func writeToFile(filename, data string) error {
+	// Extract the directory path from the file path
+	dirPath := filepath.Dir(filename)
+
+	// Create the entire path to the directory (including parent directories)
+	err := os.MkdirAll(dirPath, 0777)
+	if err != nil {
+		return fferr.NewInternalError(err)
+	}
+	file, err := os.Create(filename)
+	if err != nil {
+		return fferr.NewInternalError(err)
+	}
+	defer file.Close()
+
+	if _, err = file.WriteString(data); err != nil {
+		return fferr.NewInternalError(err)
+	}
+	return nil
+}
+
+type HDFSFileStore struct {
+	Username     string
+	Password     string
+	Host         string
+	Krb5sConf    []byte
+	HDFSSiteConf []byte
+	Path         string
+}
+
+func (fs *HDFSFileStore) ParseFilePath(path string) (filestore.Filepath, error) {
+	fp, err := filestore.NewEmptyFilepath(filestore.HDFS)
+	if err != nil {
+		return nil, err
+	}
+	err = fp.ParseFilePath(path)
+	if err != nil {
+		return nil, err
+	}
+	return fp, nil
+}
+
+func (fs *HDFSFileStore) Write(key filestore.Filepath, data []byte) error {
+	uniqueID := uuid.New().String()
+	filePath := fmt.Sprintf("/tmp/%s/%s", uniqueID, strings.TrimLeft(key.Key(), "/"))
+
+	localFilePath, err := filestore.NewEmptyFilepath(filestore.FileSystem)
+	if err != nil {
+		return err
+	}
+	if err = localFilePath.SetKey(filePath); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(localFilePath.KeyPrefix(), 0777); err != nil {
+		wrapped := fferr.NewInternalError(err)
+		wrapped.AddDetail("local_file_path", localFilePath.Key())
+		return wrapped
+	}
+
+	localFile, err := os.Create(localFilePath.Key())
+	if err != nil {
+		wrapped := fferr.NewInternalError(err)
+		wrapped.AddDetail("local_file_path", localFilePath.Key())
+		return wrapped
+	}
+	defer localFile.Close()
+
+	_, err = localFile.Write(data)
+	if err != nil {
+		wrapped := fferr.NewInternalError(err)
+		wrapped.AddDetail("local_file_path", localFilePath.Key())
+		return wrapped
+	}
+
+	err = fs.Upload(localFilePath, key)
+	if err != nil {
+		return err
+	}
+
+	err = fs.deleteLocalFile(localFilePath)
+	if err != nil {
+		wrapped := fferr.NewInternalError(err)
+		wrapped.AddDetail("local_file_path", localFilePath.Key())
+		return wrapped
+	}
+	return nil
+}
+
+func (fs *HDFSFileStore) Writer(key string) (*blob.Writer, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (fs *HDFSFileStore) Open(key filestore.Filepath) (File, error) {
+	return fs.bytesReader(key)
+}
+
+func (fs *HDFSFileStore) ReaderAt(key filestore.Filepath) (io.ReaderAt, error) {
+	return fs.bytesReader(key)
+}
+
+func (fs *HDFSFileStore) bytesReader(key filestore.Filepath) (*bytes.Reader, error) {
+	// This is quite wasteful and slow compared to the other file stores, because it
+	// reads everything into memory.
+	byteSlice, err := fs.Read(key)
+	if err != nil {
+		return nil, err
+	}
+	return bytes.NewReader(byteSlice), nil
+}
+
+func (fs *HDFSFileStore) Read(key filestore.Filepath) ([]byte, error) {
+	uniqueID := uuid.New().String()
+	filePath := fmt.Sprintf("/tmp/%s/%s", uniqueID, strings.TrimLeft(key.Key(), "/"))
+
+	localFilePath, err := filestore.NewEmptyFilepath(filestore.FileSystem)
+	if err != nil {
+		return nil, fmt.Errorf("could not create local file path: %v", err)
+	}
+	if err = localFilePath.SetKey(filePath); err != nil {
+		return nil, fmt.Errorf("could not set local file path: %v", err)
+	}
+	if err := os.MkdirAll(localFilePath.KeyPrefix(), 0777); err != nil {
+		return nil, fmt.Errorf("could not create local directories '%s': %v", localFilePath.KeyPrefix(), err)
+	}
+
+	command := []string{"dfs", "-get", key.Key(), localFilePath.Key()}
+	_, err = executeCommand(command)
+	if err != nil {
+		return nil, fmt.Errorf("could not copy from hdfs '%s' to local '%s': %v", key, localFilePath.Key(), err)
+	}
+
+	// Read the file or directory from the local filesystem
+	data, err := ioutil.ReadFile(localFilePath.Key())
+	if err != nil {
+		return nil, fmt.Errorf("could not read local file '%s': %v", localFilePath.Key(), err)
+	}
+
+	err = fs.deleteLocalFile(localFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("could not delete local file '%s' after reading from HDFS: %v", localFilePath.Key(), err)
+	}
+
+	return data, nil
+}
+
+func (fs *HDFSFileStore) ServeDirectory(files []filestore.Filepath) (Iterator, error) {
+	return parquetIteratorOverMultipleFiles(files, fs)
+}
+
+func (fs *HDFSFileStore) Serve(files []filestore.Filepath) (Iterator, error) {
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no files to serve")
+	}
+	if len(files) > 1 {
+		return fs.ServeDirectory(files)
+	}
+
+	file := files[0]
+	b, err := fs.Read(file)
+	if err != nil {
+		return nil, fmt.Errorf("could not read file: %w", err)
+	}
+	switch file.Ext() {
+	case "parquet":
+		return parquetIteratorFromBytes(bytes.NewReader(b))
+	case "csv":
+		return nil, fmt.Errorf("could not find CSV reader")
+	default:
+		return nil, fmt.Errorf("unsupported file type")
 	}
 }
 
-func (store *genericFileStore) CreateFilePath(key string, isDirectory bool) (filestore.Filepath, error) {
-	fp := filestore.FilePath{}
-	if store.FilestoreType() != filestore.FileSystem {
-		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("filestore type: %v; use store-specific implementation instead", store.FilestoreType()))
+func (fs *HDFSFileStore) Exists(location pl.Location) (bool, error) {
+	fileStoreLocation, isFileStoreLocation := location.(*pl.FileStoreLocation)
+	if !isFileStoreLocation {
+		return false, fferr.NewInvalidArgumentErrorf("location is not a filestore.Filepath")
 	}
-	if err := fp.SetScheme(filestore.FileSystemPrefix); err != nil {
+	path := fileStoreLocation.Filepath()
+	lsCommand := []string{"dfs", "-ls", path.Key()}
+	_, err := executeCommand(lsCommand)
+	if err != nil && strings.Contains(err.Error(), "No such file or directory") {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (fs *HDFSFileStore) Delete(key filestore.Filepath) error {
+	rmCommand := []string{"dfs", "-rm", key.Key()}
+	_, err := executeCommand(rmCommand)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (fs *HDFSFileStore) DeleteAll(dir filestore.Filepath) error {
+	deleteDirectoryCommand := []string{"dfs", "-rm", "-r", dir.Key()}
+
+	_, err := executeCommand(deleteDirectoryCommand)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (fs *HDFSFileStore) isPartialPath(prefix, path string) bool {
+	// TODO: Might need to reimplement this method with filestore.FilePath
+	return strings.Contains(prefix, path)
+}
+
+func (fs *HDFSFileStore) containsPrefix(prefix, path string) bool {
+	// TODO: Might need to reimplement this method with filestore.FilePath
+	return strings.Contains(path, prefix)
+}
+
+func (hdfs *HDFSFileStore) NewestFileOfType(rootpath filestore.Filepath, fileType filestore.FileType) (filestore.Filepath, error) {
+	output, err := executeCommand([]string{"dfs", "-ls", "-R", rootpath.Key()})
+	if err != nil && strings.Contains(err.Error(), "No such file or directory") {
+		return nil, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("could not find the files: %v", err)
+	}
+
+	latestFile := hdfs.getLatestFile(output, fileType)
+
+	fileExtension := filepath.Ext(latestFile)
+	isParquetDirectory := fileType == filestore.Parquet && fileExtension == ""
+	if hdfs.containsPrefix(rootpath.Key(), latestFile) && (fileType.Matches(latestFile) || isParquetDirectory) {
+		latestFilePath, err := filestore.NewEmptyFilepath(hdfs.FilestoreType())
+		if err != nil {
+			return nil, err
+		}
+		fullLatestPath := fmt.Sprintf("%s/%s", filestore.HDFSPrefix, latestFile)
+		err = latestFilePath.ParseFilePath(fullLatestPath)
+		if err != nil {
+			return nil, err
+		}
+		return latestFilePath, nil
+	}
+
+	return nil, fmt.Errorf("could not find the file with extension '%s' in the directory '%s'", fileType, rootpath.Key())
+}
+
+func (hdfs *HDFSFileStore) getLatestFile(output string, fileType filestore.FileType) string {
+	// Based on the output of the dfs -ls -R, the fields are as follows below. We want to pull
+	// the latest modified file from the output.
+
+	// TODO: add unit tests for it
+	const (
+		PERMISSIONS = iota
+		REPLICATION = iota
+		OWNER       = iota
+		GROUP       = iota
+		FILESIZE    = iota
+		MOD_DATE    = iota
+		MOD_TIME    = iota
+		NAME        = iota
+	)
+
+	var latestFile string
+	var latestModTime time.Time
+
+	lines := strings.Split(string(output), "\n")
+
+	for _, line := range lines {
+		parts := strings.Fields(line)
+		re := regexp.MustCompile(`^-[rwxs-]{9}$`)
+		if len(parts) >= 7 && re.MatchString(parts[PERMISSIONS]) && (fileType.Matches(parts[NAME])) {
+			modifiedTime, err := hdfs.getModifiedTime(parts[NAME])
+			if err != nil {
+				continue
+			}
+			if modifiedTime.After(latestModTime) {
+				latestModTime = modifiedTime
+				latestFile = parts[NAME]
+			}
+		}
+	}
+	return latestFile
+}
+
+func (hdfs *HDFSFileStore) getModifiedTime(path string) (time.Time, error) {
+	// TODO: reimplement with filestore.FilePath
+	output, err := executeCommand([]string{"dfs", "-stat", "featureform --%y", path})
+	if err != nil {
+		fmt.Printf("could not get stats on the file '%s': %v", path, err)
+		return time.Time{}, err
+	}
+
+	regex := regexp.MustCompile("featureform --")
+	match := regex.FindString(output)
+	findIdx := strings.Index(output, match)
+	if findIdx == -1 {
+		return time.Time{}, fmt.Errorf("could not index pattern in output '%s'", output)
+	}
+
+	modifiedTime := strings.TrimRight(output[findIdx+len(match):], "\n\r\t ")
+	parsedModifiedTime, err := time.Parse("2006-01-02 15:04:05", modifiedTime)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("could not parse modified time '%s': %v", modifiedTime, err)
+	}
+
+	return parsedModifiedTime, nil
+}
+
+func (fs *HDFSFileStore) NumRows(key filestore.Filepath) (int64, error) {
+	file, err := fs.Read(key)
+	if err != nil {
+		return 0, err
+	}
+	rows, err := getParquetNumRows(bytes.NewReader(file))
+	if err != nil {
+		return 0, err
+	}
+	return rows, nil
+}
+
+func (fs *HDFSFileStore) Close() error {
+	return nil
+}
+
+func (fs *HDFSFileStore) Upload(sourcePath filestore.Filepath, destPath filestore.Filepath) error {
+	directoriesToCreate := destPath.KeyPrefix()
+	createHDFSDirectoriesCommand := []string{"dfs", "-mkdir", "-p", directoriesToCreate}
+	_, err := executeCommand(createHDFSDirectoriesCommand)
+	if err != nil {
+		return err
+	}
+
+	copyCommand := []string{"dfs", "-put", "-f", sourcePath.Key(), destPath.Key()}
+	_, err = executeCommand(copyCommand)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (fs *HDFSFileStore) Download(sourcePath filestore.Filepath, destPath filestore.Filepath) error {
+	err := os.MkdirAll(destPath.KeyPrefix(), 0777)
+	if err != nil {
+		return fferr.NewInternalError(err)
+	}
+
+	copyCommand := []string{"dfs", "-get", sourcePath.Key(), destPath.Key()}
+	_, err = executeCommand(copyCommand)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (fs *HDFSFileStore) AsAzureStore() *AzureFileStore {
+	return nil
+}
+
+func (fs *HDFSFileStore) FilestoreType() filestore.FileStoreType {
+	return filestore.HDFS
+}
+
+func (fs *HDFSFileStore) AddEnvVars(envVars map[string]string) map[string]string {
+	panic("HDFS Filestore is not supported for K8s at the moment.")
+}
+
+func (fs *HDFSFileStore) deleteLocalFile(file filestore.Filepath) error {
+	err := os.RemoveAll(file.Key())
+	if err != nil {
+		return fferr.NewInternalError(err)
+	}
+	return nil
+}
+
+func (fs *HDFSFileStore) CreateFilePath(key string, isDirectory bool) (filestore.Filepath, error) {
+	fp := filestore.HDFSFilepath{}
+	if err := fp.SetScheme(filestore.HDFSPrefix); err != nil {
 		return nil, err
 	}
-	if err := fp.SetBucket(store.path.Bucket()); err != nil {
-		return nil, err
+
+	fullKey := fmt.Sprintf("/%s", strings.TrimPrefix(key, "/"))
+	if fs.Path != "" {
+		fullKey = fmt.Sprintf("/%s/%s", strings.TrimPrefix(fs.Path, "/"), strings.TrimPrefix(key, "/"))
 	}
-	if err := fp.SetKey(key); err != nil {
+	if err := fp.SetKey(fullKey); err != nil {
 		return nil, err
 	}
 	fp.SetIsDir(isDirectory)
-	if err := fp.Validate(); err != nil {
+	err := fp.Validate()
+	if err != nil {
 		return nil, err
 	}
 	return &fp, nil
+}
+
+func (fs *HDFSFileStore) List(dirPath filestore.Filepath, fileType filestore.FileType) ([]filestore.Filepath, error) {
+	output, err := executeCommand([]string{"dfs", "-ls", "-t", dirPath.Key()})
+	if err != nil {
+		return nil, err
+	}
+
+	// use regex to parse the output to get 'Found %d items' index
+	pattern := `Found \d+ items`
+	regex := regexp.MustCompile(pattern)
+	match := regex.FindString(output)
+	findIdx := strings.Index(output, match)
+
+	if findIdx == -1 {
+		return nil, fmt.Errorf("could not find files in directory '%s'", dirPath.Key())
+	}
+
+	rows := strings.Split(output[findIdx+len(match):], "\n")
+	fileNames := []filestore.Filepath{}
+	for _, row := range rows {
+		if len(row) == 0 {
+			continue
+		}
+		columns := strings.Split(row, " ")
+		filename := columns[len(columns)-1]
+
+		filePath, err := fs.CreateFilePath(filename, false)
+		if err != nil {
+			return nil, fmt.Errorf("could not create file path '%s': %v", filename, err)
+		}
+		fileNames = append(fileNames, filePath)
+	}
+
+	return fileNames, nil
+}
+
+func executeCommand(command []string) (string, error) {
+	HDFSPath := "/usr/local/hadoop/bin/hdfs"
+	cmd := exec.Command(HDFSPath, command...)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fferr.NewExecutionError(pt.HDFS.String(), fmt.Errorf("could not execute command: %v, %s", err, output))
+	}
+	return string(output), nil
 }

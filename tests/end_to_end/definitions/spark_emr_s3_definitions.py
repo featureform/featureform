@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import os
 from datetime import timedelta
 
@@ -48,9 +55,9 @@ redis = ff.register_redis(
     description="A Redis deployment we created for the Featureform quickstart",
 )
 
-aws_creds = ff.AWSCredentials(
-    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID", None),
-    aws_secret_access_key=os.getenv("AWS_SECRET_KEY", None),
+aws_creds = ff.AWSStaticCredentials(
+    access_key_id=os.getenv("AWS_ACCESS_KEY_ID", None),
+    secret_access_key=os.getenv("AWS_SECRET_KEY", None),
 )
 
 emr = ff.EMRCredentials(

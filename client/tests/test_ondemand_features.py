@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 import dill
 import time
 
@@ -24,7 +31,7 @@ def test_ondemand_feature_decorator_class():
     decorator_2 = OnDemandFeatureVariant(owner=owner, name=name, variant="default")
 
     assert decorator.name_variant() == (name, "default")
-    assert decorator.type() == "ondemand_feature"
+    assert decorator.get_resource_type() == ff.ResourceType.ONDEMAND_FEATURE
     assert decorator.get_status() == ResourceStatus.READY
     assert decorator.is_ready() is True
     assert decorator == decorator_2

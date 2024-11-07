@@ -1,17 +1,22 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package runner
 
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"go.uber.org/zap"
 
 	cfg "github.com/featureform/config"
 	"github.com/featureform/fferr"
+	"github.com/featureform/filestore"
 	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/logging"
@@ -23,7 +28,7 @@ import (
 	"github.com/featureform/types"
 )
 
-var WORKER_IMAGE string = helpers.GetEnv("WORKER_IMAGE", "featureformcom/worker:latest")
+var WORKER_IMAGE string = helpers.GetEnv("WORKER_IMAGE", "featureformenterprise/worker:latest")
 
 type JobCloud string
 
@@ -40,6 +45,7 @@ type MaterializeRunner struct {
 	IsUpdate bool
 	Cloud    JobCloud
 	Logger   *zap.SugaredLogger
+	Options  provider.MaterializationOptions
 }
 
 func (m MaterializeRunner) Resource() metadata.ResourceID {
@@ -95,14 +101,13 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	m.Logger.Infow("Starting Materialization Runner", "name", m.ID.Name, "variant", m.ID.Variant)
 	var materialization provider.Materialization
 	var err error
-
 	// offline
 	if m.IsUpdate {
 		m.Logger.Infow("Updating Materialization", "name", m.ID.Name, "variant", m.ID.Variant)
-		materialization, err = m.Offline.UpdateMaterialization(m.ID)
+		materialization, err = m.Offline.UpdateMaterialization(m.ID, m.Options)
 	} else {
 		m.Logger.Infow("Creating Materialization", "name", m.ID.Name, "variant", m.ID.Variant)
-		materialization, err = m.Offline.CreateMaterialization(m.ID)
+		materialization, err = m.Offline.CreateMaterialization(m.ID, m.Options)
 	}
 	if err != nil {
 		return nil, err
@@ -124,7 +129,7 @@ func (m MaterializeRunner) MaterializeToOnline(materialization provider.Material
 		m.Logger.Infow("Creating Index", "name", m.ID.Name, "variant", m.ID.Variant)
 		vectorStore, ok := m.Online.(provider.VectorStore)
 		if !ok {
-			return nil, fferr.NewInternalError(fmt.Errorf("cannot create index on non-vector store: %s", m.Online.Type().String()))
+			return nil, fferr.NewInternalErrorf("cannot create index on non-vector store: %s", m.Online.Type().String())
 		}
 		// TODO handle exists error
 		_, err := vectorStore.CreateIndex(m.ID.Name, m.ID.Variant, vectorType)
@@ -246,21 +251,95 @@ type MaterializedRunnerConfig struct {
 	VType         vt.ValueTypeJSONWrapper
 	Cloud         JobCloud
 	IsUpdate      bool
+	Options       provider.MaterializationOptions
+}
+
+type MaterializedRunnerConfigJSON struct {
+	OnlineType    pt.Type                    `json:"OnlineType"`
+	OfflineType   pt.Type                    `json:"OfflineType"`
+	OnlineConfig  pc.SerializedConfig        `json:"OnlineConfig"`
+	OfflineConfig pc.SerializedConfig        `json:"OfflineConfig"`
+	ResourceID    provider.ResourceID        `json:"ResourceID"`
+	VType         vt.ValueTypeJSONWrapper    `json:"VType"`
+	Cloud         JobCloud                   `json:"Cloud"`
+	IsUpdate      bool                       `json:"IsUpdate"`
+	Options       MaterializationOptionsJSON `json:"Options"`
+}
+
+type MaterializationOptionsJSON struct {
+	Output                  filestore.FileType                `json:"Output"`
+	ShouldIncludeHeaders    bool                              `json:"ShouldIncludeHeaders"`
+	MaxJobDuration          time.Duration                     `json:"MaxJobDuration"`
+	JobName                 string                            `json:"JobName"`
+	ResourceSnowflakeConfig *metadata.ResourceSnowflakeConfig `json:"ResourceSnowflakeConfig,omitempty"`
+	Schema                  json.RawMessage                   `json:"Schema"`
 }
 
 func (m *MaterializedRunnerConfig) Serialize() (Config, error) {
-	config, err := json.Marshal(m)
+	schemaBytes, err := m.Options.Schema.Serialize()
 	if err != nil {
-		return nil, fferr.NewInternalError(err)
+		return nil, fmt.Errorf("failed to serialize Schema in MaterializationOptions: %v", err)
 	}
-	return config, nil
+
+	data := MaterializedRunnerConfigJSON{
+		OnlineType:    m.OnlineType,
+		OfflineType:   m.OfflineType,
+		OnlineConfig:  m.OnlineConfig,
+		OfflineConfig: m.OfflineConfig,
+		ResourceID:    m.ResourceID,
+		VType:         m.VType,
+		Cloud:         m.Cloud,
+		IsUpdate:      m.IsUpdate,
+		Options: MaterializationOptionsJSON{
+			Output:                  m.Options.Output,
+			ShouldIncludeHeaders:    m.Options.ShouldIncludeHeaders,
+			MaxJobDuration:          m.Options.MaxJobDuration,
+			JobName:                 m.Options.JobName,
+			ResourceSnowflakeConfig: m.Options.ResourceSnowflakeConfig,
+			Schema:                  json.RawMessage(schemaBytes),
+		},
+	}
+
+	configBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize MaterializedRunnerConfig: %v", err)
+	}
+
+	return configBytes, nil
 }
 
-func (m *MaterializedRunnerConfig) Deserialize(config Config) error {
-	err := json.Unmarshal(config, m)
+func (config *MaterializedRunnerConfig) Deserialize(data []byte) error {
+	var intermediate MaterializedRunnerConfigJSON
+	err := json.Unmarshal(data, &intermediate)
 	if err != nil {
-		return fferr.NewInternalError(err)
+		return fmt.Errorf("failed to deserialize MaterializedRunnerConfig: %v", err)
 	}
+
+	config.OnlineType = intermediate.OnlineType
+	config.OfflineType = intermediate.OfflineType
+	config.OnlineConfig = intermediate.OnlineConfig
+	config.OfflineConfig = intermediate.OfflineConfig
+	config.ResourceID = intermediate.ResourceID
+	config.VType = intermediate.VType
+	config.Cloud = intermediate.Cloud
+	config.IsUpdate = intermediate.IsUpdate
+
+	options := provider.MaterializationOptions{}
+	options.Output = intermediate.Options.Output
+	options.ShouldIncludeHeaders = intermediate.Options.ShouldIncludeHeaders
+	options.MaxJobDuration = intermediate.Options.MaxJobDuration
+	options.JobName = intermediate.Options.JobName
+	options.ResourceSnowflakeConfig = intermediate.Options.ResourceSnowflakeConfig
+
+	var schema provider.ResourceSchema
+	err = schema.Deserialize(intermediate.Options.Schema)
+	if err != nil {
+		return fmt.Errorf("failed to deserialize Schema in MaterializationOptions: %v", err)
+	}
+	options.Schema = schema
+
+	config.Options = options
+
 	return nil
 }
 
@@ -296,5 +375,6 @@ func MaterializeRunnerFactory(config Config) (types.Runner, error) {
 		IsUpdate: runnerConfig.IsUpdate,
 		Cloud:    runnerConfig.Cloud,
 		Logger:   logging.NewLogger("materializer").SugaredLogger,
+		Options:  runnerConfig.Options,
 	}, nil
 }

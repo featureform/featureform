@@ -1,6 +1,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 # docker build -f ./runner/Dockerfile . -t worker in /serving
 # docker tag worker:latest featureformcom/worker:latest
 # docker push featureformcom/worker:latest
@@ -10,30 +11,38 @@ WORKDIR /app
 
 COPY go.mod ./
 COPY go.sum ./
-#RUN go mod download
+# RUN go mod download
 
 COPY ./metadata/proto/metadata.proto ./metadata/proto/metadata.proto
+COPY ./scheduling/proto/scheduling.proto ./scheduling/proto/scheduling.proto
+COPY ./proto/ ./proto/
 ENV PATH /go/bin:$PATH
 RUN apt update && \
-    apt install -y protobuf-compiler
+  apt install -y protobuf-compiler
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
+RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto \
+  && protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./proto/serving.proto \
+  && protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./scheduling/proto/scheduling.proto
 
 COPY ./fferr ./fferr
+COPY ./ffsync ./ffsync
+COPY ./storage ./storage
+COPY ./scheduling ./scheduling
+COPY ./schema ./schema
 COPY ./lib/ ./lib/
 COPY ./filestore/ ./filestore/
 COPY runner/*.go ./runner/
 COPY runner/worker/*.go ./runner/worker/
-COPY coordinator/*.go ./coordinator/
+COPY coordinator/ ./coordinator/
+COPY integrations ./integrations/
 COPY helpers/ ./helpers/
 COPY lib/ ./lib/
 COPY config/ ./config/
 COPY logging/ ./logging/
 COPY types/ ./types/
 COPY kubernetes/ ./kubernetes/
-COPY metadata/*.go ./metadata/
-COPY metadata/search/* ./metadata/search/
+COPY ./metadata ./metadata
 COPY ./provider/ ./provider/
 COPY runner/worker/main/main.go ./runner/worker/main/main.go
 
@@ -66,7 +75,12 @@ RUN wget https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connecto
 
 ENV ENV="/root/.bashrc"
 ENV PYENV_ROOT="/.pyenv"
-ENV PATH="$PYENV_ROOT/bin:$PATH"
+
+## Setting Java Path
+ENV HADOOP_HOME=/usr/local/hadoop
+ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+
+ENV PATH="$PATH:$HADOOP_HOME/bin:$JAVA_HOME/bin:$PYENV_ROOT/bin"
 RUN echo "PATH=${PATH}" > "${ENV}"
 
 RUN curl https://pyenv.run | bash
@@ -74,16 +88,18 @@ RUN curl https://pyenv.run | bash
 COPY ./provider/scripts/spark/requirements.txt /app/provider/scripts/spark/requirements.txt
 # Install Python versions
 
-ARG TESTING
-RUN if [ "$TESTING" = "True" ]; then \
-  pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
-  else \
-  pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-  pyenv install 3.8.16 && pyenv global 3.8.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-  pyenv install 3.9.16 && pyenv global 3.9.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-  pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
-  pyenv install 3.11.2 && pyenv global 3.11.2 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
-  fi
+# TODO: (Sterling) Add a better solution to this
+#ARG TESTING
+#RUN if [ "$TESTING" = "True" ]; then \
+#  pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
+#  else \
+#  pyenv install 3.7.16 && pyenv global 3.7.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+#  pyenv install 3.8.16 && pyenv global 3.8.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+#  pyenv install 3.9.16 && pyenv global 3.9.16 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+#  pyenv install 3.10.10 && pyenv global 3.10.10 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt && \
+#  pyenv install 3.11.2 && pyenv global 3.11.2 && pyenv exec pip install --upgrade pip && pyenv exec pip install -r /app/provider/scripts/spark/requirements.txt ; \
+#  fi
+
 
 ENV SPARK_SCRIPT_PATH="/app/provider/scripts/spark/offline_store_spark_runner.py"
 ENV PYTHON_INIT_PATH="/app/provider/scripts/spark/python_packages.sh"
@@ -105,5 +121,15 @@ RUN cat $SPARK_SCRIPT_PATH | md5sum \
   | awk '{print $1}' \
   | xargs echo -n > /app/provider/scripts/spark/offline_store_spark_runner_md5.txt
 
+
+# Install Kinit & HDFS Client for HDFSKerberosFilestore
+## Installing Kinit
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y krb5-user
+
+## Installing Hadoop
+RUN wget https://downloads.apache.org/hadoop/common/hadoop-3.3.5/hadoop-3.3.5.tar.gz && \
+  tar xfz hadoop-3.3.5.tar.gz && \
+  mv hadoop-3.3.5 $HADOOP_HOME && \
+  rm hadoop-3.3.5.tar.gz
 
 CMD [ "./worker" ]

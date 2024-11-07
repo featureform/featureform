@@ -1,11 +1,15 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
 
 package metadata
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,10 +18,15 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	clientv3 "go.etcd.io/etcd/client/v3"
+
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/provider/types"
-	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -90,7 +99,7 @@ func Test_EtcdResourceLookup_Set(t *testing.T) {
 			lookup := EtcdResourceLookup{
 				Connection: store,
 			}
-			if err := lookup.Set(tt.args.id, tt.args.res); (err != nil) != tt.wantErr {
+			if err := lookup.Set(context.TODO(), tt.args.id, tt.args.res); (err != nil) != tt.wantErr {
 				t.Fatalf("Set() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
@@ -117,7 +126,7 @@ func Test_EtcdResourceLookup_Set(t *testing.T) {
 			if err := json.Unmarshal(value, &msg); err != nil {
 				log.Fatalln("Failed To Parse Resource", err)
 			}
-			if err := proto.Unmarshal(msg.Message, resource.Proto()); err != nil {
+			if err := protojson.Unmarshal([]byte(msg.Message), resource.Proto()); err != nil {
 				log.Fatalln("Failed to parse:", err)
 			}
 			if !proto.Equal(args1.res.Proto(), resource.Proto()) {
@@ -140,7 +149,7 @@ func Test_EtcdResourceLookup_Lookup(t *testing.T) {
 		Created: tspb.Now(),
 	}}
 
-	args1 := ResourceID{Name: "test2", Type: FEATURE}
+	args1 := ResourceID{Name: "featureVariant", Type: FEATURE_VARIANT}
 
 	type fields struct {
 		Etcd EtcdConfig
@@ -165,16 +174,17 @@ func Test_EtcdResourceLookup_Lookup(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Could not create new etcd client: %v", err)
 		}
-		p, _ := proto.Marshal(doWant.Proto())
+		p, _ := ToJsonString(doWant.Proto())
 		msg := EtcdRow{
-			ResourceType: args1.Type,
-			Message:      p,
-			StorageType:  RESOURCE,
+			ResourceType:      args1.Type,
+			Message:           p,
+			StorageType:       RESOURCE,
+			SerializedVersion: 1,
 		}
 
 		strmsg, err := json.Marshal(msg)
 		if err != nil {
-			t.Fatalf("Could not marshall string message: %v", err)
+			t.Fatalf("Could not marshal string message: %v", err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 		_, err = newclient.Put(ctx, createKey(args1), string(strmsg))
@@ -195,12 +205,11 @@ func Test_EtcdResourceLookup_Lookup(t *testing.T) {
 				Connection: store,
 			}
 			got, err := lookup.Lookup(ctx, tt.args.id)
-
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Lookup() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if proto.Equal(got.Proto(), tt.want.Proto()) {
+			if !(proto.Equal(got.Proto(), tt.want.Proto()) || tt.wantErr) {
 				t.Fatalf("Lookup() got = %v, want %v", got.Proto(), tt.want.Proto())
 			}
 		})
@@ -257,11 +266,12 @@ func Test_EtcdResourceLookup_Has(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Could not connect to client: %v", err)
 			}
-			p, _ := proto.Marshal(doWant.Proto())
+			p, _ := ToJsonString(doWant.Proto())
 			msg := EtcdRow{
-				ResourceType: tt.args.id.Type,
-				Message:      p,
-				StorageType:  RESOURCE,
+				ResourceType:      tt.args.id.Type,
+				Message:           p,
+				StorageType:       RESOURCE,
+				SerializedVersion: 1,
 			}
 
 			strmsg, err := json.Marshal(msg)
@@ -286,7 +296,7 @@ func Test_EtcdResourceLookup_Has(t *testing.T) {
 			lookup := EtcdResourceLookup{
 				Connection: store,
 			}
-			got, err := lookup.Has(tt.args.id)
+			got, err := lookup.Has(context.TODO(), tt.args.id)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Has() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -344,11 +354,12 @@ func Test_EtcdResourceLookup_ListForType(t *testing.T) {
 		t.Fatalf("Could not create new client: %v", err)
 	}
 	for _, res := range featureResources {
-		p, _ := proto.Marshal(res.Proto())
+		p, _ := ToJsonString(res.Proto())
 		msg := EtcdRow{
-			ResourceType: res.ID().Type,
-			Message:      p,
-			StorageType:  RESOURCE,
+			ResourceType:      res.ID().Type,
+			Message:           p,
+			StorageType:       RESOURCE,
+			SerializedVersion: 1,
 		}
 		strmsg, err := json.Marshal(msg)
 		if err != nil {
@@ -374,7 +385,7 @@ func Test_EtcdResourceLookup_ListForType(t *testing.T) {
 			lookup := EtcdResourceLookup{
 				Connection: store,
 			}
-			got, err := lookup.ListForType(tt.args.t)
+			got, err := lookup.ListForType(context.TODO(), tt.args.t)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("ListForType() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -430,11 +441,12 @@ func Test_EtcdResourceLookup_List(t *testing.T) {
 		{"Successful List", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, featureResources, false},
 	}
 	for _, res := range featureResources {
-		p, _ := proto.Marshal(res.Proto())
+		p, _ := ToJsonString(res.Proto())
 		msg := EtcdRow{
-			ResourceType: res.ID().Type,
-			Message:      p,
-			StorageType:  RESOURCE,
+			ResourceType:      res.ID().Type,
+			Message:           p,
+			StorageType:       RESOURCE,
+			SerializedVersion: 1,
 		}
 		strmsg, err := json.Marshal(msg)
 		if err != nil {
@@ -460,7 +472,7 @@ func Test_EtcdResourceLookup_List(t *testing.T) {
 			lookup := EtcdResourceLookup{
 				Connection: store,
 			}
-			got, err := lookup.List()
+			got, err := lookup.List(context.TODO())
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("List() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -531,11 +543,12 @@ func Test_EtcdResourceLookup_Submap(t *testing.T) {
 		{"Successful Submap", fields{EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}}, args{ids: ids}, resources, false},
 	}
 	for _, res := range featureResources {
-		p, _ := proto.Marshal(res.Proto())
+		p, _ := ToJsonString(res.Proto())
 		msg := EtcdRow{
-			ResourceType: res.ID().Type,
-			Message:      p,
-			StorageType:  RESOURCE,
+			ResourceType:      res.ID().Type,
+			Message:           p,
+			StorageType:       RESOURCE,
+			SerializedVersion: 1,
 		}
 		strmsg, err := json.Marshal(msg)
 		if err != nil {
@@ -563,13 +576,13 @@ func Test_EtcdResourceLookup_Submap(t *testing.T) {
 				Connection: store,
 			}
 
-			got, err := lookup.Submap(tt.args.ids)
+			got, err := lookup.Submap(context.TODO(), tt.args.ids)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Submap() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			elem, err := got.List()
+			elem, err := got.List(context.TODO())
 			if err != nil {
 				t.Fatalf("Could not get list from submap: %v", err)
 			}
@@ -622,7 +635,7 @@ func Test_EtcdResourceLookup_findResourceType(t *testing.T) {
 		{"Test User", fields{}, args{USER}, &userResource{&pb.User{}}, false},
 		{"Test Entity", fields{}, args{ENTITY}, &entityResource{&pb.Entity{}}, false},
 		{"Test Provider", fields{}, args{PROVIDER}, &providerResource{&pb.Provider{}}, false},
-		{"Test Source", fields{}, args{SOURCE}, &SourceResource{&pb.Source{}}, false},
+		{"Test Source", fields{}, args{SOURCE}, &sourceResource{&pb.Source{}}, false},
 		{"Test Source Variant", fields{}, args{SOURCE_VARIANT}, &sourceVariantResource{&pb.SourceVariant{}}, false},
 		{"Test Training Set", fields{}, args{TRAINING_SET}, &trainingSetResource{&pb.TrainingSet{}}, false},
 		{"Test Training Set Variant", fields{}, args{TRAINING_SET_VARIANT}, &trainingSetVariantResource{&pb.TrainingSetVariant{}}, false},
@@ -836,45 +849,121 @@ func TestEtcdConfig_ParseResource(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	type fields struct {
-		Host string
-		Port string
-	}
 	type args struct {
 		res     EtcdRow
 		resType Resource
 	}
+	doWant := &featureVariantResource{&pb.FeatureVariant{
+		Name:    "featureVariant",
+		Type:    types.Float32.ToProto(),
+		Created: tspb.Now(),
+	}}
+	doWantProto, _ := proto.Marshal(doWant.Proto())
+	doWantString := base64.StdEncoding.EncodeToString(doWantProto)
+	doWantJson, _ := ToJsonString(doWant.Proto())
 	tests := []struct {
 		name    string
-		fields  fields
 		args    args
 		want    Resource
 		wantErr bool
 	}{
-		{"Test Invalid Type", fields{Host: "", Port: ""}, args{EtcdRow{StorageType: JOB}, &featureResource{}}, nil, true},
-		{"Test Nil Message", fields{Host: "", Port: ""}, args{EtcdRow{StorageType: RESOURCE, Message: nil}, &featureResource{}}, nil, true},
-		{"Test Failed Message", fields{Host: "", Port: ""}, args{EtcdRow{StorageType: RESOURCE}, &featureResource{}}, nil, true},
-		{"Test Failed Resource", fields{Host: "", Port: ""}, args{EtcdRow{StorageType: RESOURCE, Message: []byte("test")}, &featureResource{&pb.Feature{}}}, nil, true},
+		{"Test Invalid Type", args{EtcdRow{StorageType: JOB, SerializedVersion: 1}, &featureResource{&pb.Feature{}}}, nil, true},
+		{"Test Nil Message", args{EtcdRow{StorageType: RESOURCE, Message: "", SerializedVersion: 1}, &featureResource{&pb.Feature{}}}, nil, true},
+		{"Test Failed Message", args{EtcdRow{StorageType: RESOURCE, SerializedVersion: 1}, &featureResource{&pb.Feature{}}}, nil, true},
+		{"Test Failed Resource", args{EtcdRow{StorageType: RESOURCE, Message: "{name: test}", SerializedVersion: 1}, &featureResource{&pb.Feature{}}}, nil, true},
+		{"Test Proto Serialize", args{EtcdRow{StorageType: RESOURCE, Message: doWantString, SerializedVersion: 0}, doWant}, doWant, false},
+		{"Test Json Serialize", args{EtcdRow{StorageType: RESOURCE, Message: doWantJson, SerializedVersion: 1}, doWant}, doWant, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := EtcdConfig{[]EtcdNode{{Host: "localhost", Port: "2379"}}}
-			client, err := config.InitClient()
-			store := EtcdStorage{
-				Client: client,
-			}
-			if err != nil && !tt.wantErr {
-				t.Errorf("ParseResource() could not initialize client: %v", err)
-			} else if err != nil && tt.wantErr {
-				return
-			}
-			got, err := store.ParseResource(tt.args.res, tt.args.resType)
+			got, err := ParseResource(tt.args.res, tt.args.resType)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("ParseResource() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("ParseResource() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResource_ParseResource(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	recordV0 := `{"ResourceType":8,"StorageType":"Resource","Message":"ChNxdWlja3N0YXJ0LXBvc3RncmVzGhBQT1NUR1JFU19PRkZMSU5FIghwb3N0Z3JlczKNAXs` +
+		`iSG9zdCI6ICJxdWlja3N0YXJ0LXBvc3RncmVzIiwgIlBvcnQiOiAiNTQzMiIsICJVc2VybmFtZSI6ICJwb3N0Z3JlcyIsICJQYXNzd29yZCI6ICJwYXNzd29yZCIsICJEYXRh` +
+		`YmFzZSI6ICJwb3N0Z3JlcyIsICJTU0xNb2RlIjogImRpc2FibGUifToCCANCIwoMdHJhbnNhY3Rpb25zEhMyMDI0LTA4LTAxdDE2LTA3LTI1YgQKAnYwagA="}`
+	recordV1 := `{"ResourceType":8,"StorageType":"Resource","Message":"{\"name\":\"v1-quickstart-postgres\",\"type\":\"POSTGRES_OFFLINE\",` +
+		`\"software\":\"postgres\",\"serializedConfig\":\"eyJIb3N0IjogInF1aWNrc3RhcnQtcG9zdGdyZXMiLCAiUG9ydCI6ICI1NDMyIiwgIlVzZXJuYW1lIjog` +
+		`InBvc3RncmVzIiwgIlBhc3N3b3JkIjogInBhc3N3b3JkIiwgIkRhdGFiYXNlIjogInBvc3RncmVzIiwgIlNTTE1vZGUiOiAiZGlzYWJsZSJ9\",` +
+		`\"status\":{\"status\":\"READY\"},\"sources\":[{\"name\":\"transactions\",\"variant\":\"2024-08-02t17-50-06\"}],\` +
+		`"tags\":{\"tag\":[\"v1\"]},\"properties\":{}}","SerializedVersion":1}`
+
+	testCases := []struct {
+		name              string
+		serializedVersion int
+		record            string
+		providerProto     *pb.Provider
+		expectedResource  Resource
+	}{
+		{
+			name:              "Version 0 (encoded proto)",
+			serializedVersion: 0,
+			record:            recordV0,
+			providerProto:     &pb.Provider{},
+			expectedResource: &providerResource{&pb.Provider{
+				Name:     "quickstart-postgres",
+				Type:     "POSTGRES_OFFLINE",
+				Software: "postgres",
+				SerializedConfig: []uint8(
+					`{"Host": "quickstart-postgres", "Port": "5432", ` +
+						`"Username": "postgres", "Password": "password", ` +
+						`"Database": "postgres", "SSLMode": "disable"}`,
+				),
+				Tags:       &pb.Tags{Tag: []string{"v0"}},
+				Properties: &pb.Properties{},
+				Status:     &pb.ResourceStatus{Status: pb.ResourceStatus_READY},
+				Sources:    []*pb.NameVariant{{Name: "transactions", Variant: "2024-08-01t16-07-25"}},
+			}}},
+		{
+			name:              "Version 1 (JSON)",
+			serializedVersion: 1,
+			record:            recordV1,
+			providerProto:     &pb.Provider{},
+			expectedResource: &providerResource{&pb.Provider{
+				Name:     "v1-quickstart-postgres",
+				Type:     "POSTGRES_OFFLINE",
+				Software: "postgres",
+				SerializedConfig: []uint8(
+					`{"Host": "quickstart-postgres", "Port": "5432", ` +
+						`"Username": "postgres", "Password": "password", ` +
+						`"Database": "postgres", "SSLMode": "disable"}`,
+				),
+				Tags:       &pb.Tags{Tag: []string{"v1"}},
+				Properties: &pb.Properties{},
+				Status:     &pb.ResourceStatus{Status: pb.ResourceStatus_READY},
+				Sources:    []*pb.NameVariant{{Name: "transactions", Variant: "2024-08-02t17-50-06"}},
+			}}},
+	}
+
+	for _, currTest := range testCases {
+		t.Run(currTest.name, func(t *testing.T) {
+			var etcdRow EtcdRow
+			if err := json.Unmarshal([]byte(currTest.record), &etcdRow); err != nil {
+				t.Fatalf("The test setup unmarshal failed: %v", err)
+			}
+
+			result, err := ParseResource(etcdRow, &providerResource{currTest.providerProto})
+			if err != nil {
+				t.Errorf("Failed ParseResource with the following error: %v", err)
+			}
+
+			if diff := cmp.Diff(currTest.expectedResource.Proto(), result.Proto(), cmpopts.IgnoreUnexported(
+				pb.Provider{}, pb.ResourceStatus{}, pb.NameVariant{}, pb.Tags{}, pb.Properties{})); diff != "" {
+				t.Errorf("Parse resource mismatch! Version: (%d) (-want +got):\n%v", currTest.serializedVersion, diff)
 			}
 		})
 	}

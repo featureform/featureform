@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package main
 
 import (
@@ -5,6 +12,10 @@ import (
 	"time"
 
 	"github.com/featureform/coordinator"
+
+	"github.com/featureform/scheduling"
+
+	"github.com/featureform/coordinator/spawner"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -19,6 +30,7 @@ func main() {
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")
 	metadataUrl := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	useK8sRunner := help.GetEnv("K8S_RUNNER_ENABLE", "false")
+	managerType := help.GetEnv("FF_STATE_PROVIDER", "ETCD")
 	fmt.Printf("connecting to etcd: %s\n", etcdUrl)
 	fmt.Printf("connecting to metadata: %s\n", metadataUrl)
 	etcdConfig := clientv3.Config{
@@ -27,11 +39,12 @@ func main() {
 		Password:    help.GetEnv("ETCD_PASSWORD", "secretpassword"),
 		DialTimeout: time.Second * 1,
 	}
+
 	cli, err := clientv3.New(etcdConfig)
 	if err != nil {
-		panic(err)
+		fmt.Println("Failed to connect to ETCD. Continuing...")
 	}
-	fmt.Println("connected to etcd")
+
 	defer func(cli *clientv3.Client) {
 		err := cli.Close()
 		if err != nil {
@@ -40,28 +53,51 @@ func main() {
 	}(cli)
 	logger := logging.NewLogger("coordinator")
 	defer logger.Sync()
-	logger.Debug("Connected to ETCD")
 	client, err := metadata.NewClient(metadataUrl, logger)
 	if err != nil {
 		logger.Errorw("Failed to connect: %v", err)
 		panic(err)
 	}
 	logger.Debug("Connected to Metadata")
-	var spawner coordinator.JobSpawner
+	var spawnerInstance spawner.JobSpawner
 	if useK8sRunner == "false" {
-		spawner = &coordinator.MemoryJobSpawner{}
+		spawnerInstance = &spawner.MemoryJobSpawner{}
 	} else {
-		spawner = &coordinator.KubernetesJobSpawner{EtcdConfig: etcdConfig}
+		spawnerInstance = &spawner.KubernetesJobSpawner{EtcdConfig: etcdConfig}
 	}
-	coord, err := coordinator.NewCoordinator(client, logger.SugaredLogger, cli, spawner)
+
+	manager, err := scheduling.NewTaskMetadataManagerFromEnv(scheduling.TaskMetadataManagerType(managerType))
 	if err != nil {
-		logger.Errorw("Failed to set up coordinator: %v", err)
-		panic(err)
+		panic(err.Error())
 	}
-	logger.Debug("Begin Job Watch")
-	if err := coord.WatchForNewJobs(); err != nil {
-		logger.Errorw(err.Error())
-		panic(err)
-		return
+
+	config := coordinator.SchedulerConfig{
+		TaskPollInterval: func() time.Duration {
+			interval, err := time.ParseDuration(help.GetEnv("TASK_POLL_INTERVAL", "1s"))
+			if err != nil {
+				panic(err.Error())
+			}
+			return interval
+		}(),
+		TaskStatusSyncInterval: func() time.Duration {
+			interval, err := time.ParseDuration(help.GetEnv("TASK_STATUS_SYNC_INTERVAL", "1h"))
+			if err != nil {
+				panic(err.Error())
+			}
+			return interval
+		}(),
+		DependencyPollInterval: func() time.Duration {
+			interval, err := time.ParseDuration(help.GetEnv("TASK_DEPENDENCY_POLL_INTERVAL", "1s"))
+			if err != nil {
+				panic(err.Error())
+			}
+			return interval
+		}(),
+	}
+
+	scheduler := coordinator.NewScheduler(client, logger, spawnerInstance, manager.Storage.Locker, config)
+	err = scheduler.Start()
+	if err != nil {
+		panic(err.Error())
 	}
 }

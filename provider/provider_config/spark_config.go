@@ -1,27 +1,33 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider_config
 
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/featureform/fferr"
 
 	fs "github.com/featureform/filestore"
-	ss "github.com/featureform/helpers/string_set"
+	ss "github.com/featureform/helpers/stringset"
 	"github.com/mitchellh/mapstructure"
 )
 
 type SparkExecutorType string
+type TableFormat string
 
 const (
 	EMR          SparkExecutorType = "EMR"
 	Databricks   SparkExecutorType = "DATABRICKS"
 	SparkGeneric SparkExecutorType = "SPARK"
+	Iceberg      TableFormat       = "iceberg"
+	DeltaLake    TableFormat       = "delta"
 )
-
-type AWSCredentials struct {
-	AWSAccessKeyId string
-	AWSSecretKey   string
-}
 
 type GCPCredentials struct {
 	ProjectId string
@@ -40,18 +46,87 @@ type SparkFileStoreConfig interface {
 	IsFileStoreConfig() bool
 }
 
+type GlueConfig struct {
+	Database      string
+	Warehouse     string
+	Region        string
+	AssumeRoleArn string
+	TableFormat   TableFormat
+}
+
+type SparkFlags struct {
+	SparkParams     map[string]string `json:"SparkParams"`
+	WriteOptions    map[string]string `json:"WriteOptions"`
+	TableProperties map[string]string `json:"TableProperties"`
+}
+
 type SparkConfig struct {
 	ExecutorType   SparkExecutorType
 	ExecutorConfig SparkExecutorConfig
 	StoreType      fs.FileStoreType
 	StoreConfig    SparkFileStoreConfig
+	GlueConfig     *GlueConfig // GlueConfig is optional
+}
+
+type sparkConfigTemp struct {
+	ExecutorType   SparkExecutorType
+	ExecutorConfig json.RawMessage
+	StoreType      fs.FileStoreType
+	StoreConfig    json.RawMessage
+	GlueConfig     *GlueConfig
 }
 
 func (s *SparkConfig) Deserialize(config SerializedConfig) error {
-	err := json.Unmarshal(config, s)
+	temp := sparkConfigTemp{}
+	err := json.Unmarshal(config, &temp)
 	if err != nil {
 		return err
 	}
+
+	s.ExecutorType = temp.ExecutorType
+	s.StoreType = temp.StoreType
+	s.GlueConfig = temp.GlueConfig
+
+	execData, err := json.Marshal(temp.ExecutorConfig)
+	if err != nil {
+		return fferr.NewInternalError(err)
+	}
+
+	switch s.ExecutorType {
+	case EMR:
+		s.ExecutorConfig = &EMRConfig{}
+	case Databricks:
+		s.ExecutorConfig = &DatabricksConfig{}
+	case SparkGeneric:
+		s.ExecutorConfig = &SparkGenericConfig{}
+	default:
+	}
+
+	if err := s.ExecutorConfig.Deserialize(execData); err != nil {
+		return err
+	}
+
+	storeData, err := json.Marshal(temp.StoreConfig)
+	if err != nil {
+		return fferr.NewInternalError(err)
+	}
+
+	switch s.StoreType {
+	case fs.Azure:
+		s.StoreConfig = &AzureFileStoreConfig{}
+	case fs.S3:
+		s.StoreConfig = &S3FileStoreConfig{}
+	case fs.GCS:
+		s.StoreConfig = &GCSFileStoreConfig{}
+	case fs.HDFS:
+		s.StoreConfig = &HDFSFileStoreConfig{}
+	default:
+	}
+
+	if err := s.StoreConfig.Deserialize(storeData); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -69,6 +144,7 @@ func (s *SparkConfig) UnmarshalJSON(data []byte) error {
 		ExecutorConfig map[string]interface{}
 		StoreType      fs.FileStoreType
 		StoreConfig    map[string]interface{}
+		GlueConfig     *GlueConfig
 	}
 
 	var temp tempConfig
@@ -79,6 +155,7 @@ func (s *SparkConfig) UnmarshalJSON(data []byte) error {
 
 	s.ExecutorType = temp.ExecutorType
 	s.StoreType = temp.StoreType
+	s.GlueConfig = temp.GlueConfig
 
 	err = s.decodeExecutor(temp.ExecutorType, temp.ExecutorConfig)
 	if err != nil {
@@ -88,6 +165,13 @@ func (s *SparkConfig) UnmarshalJSON(data []byte) error {
 	err = s.decodeFileStore(temp.StoreType, temp.StoreConfig)
 	if err != nil {
 		return err
+	}
+
+	if temp.GlueConfig != nil {
+		err = s.decodeGlueConfig(temp.GlueConfig)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -116,6 +200,8 @@ func (s SparkConfig) MutableFields() ss.StringSet {
 		storeFields = s.StoreConfig.(*S3FileStoreConfig).MutableFields()
 	case fs.GCS:
 		storeFields = s.StoreConfig.(*GCSFileStoreConfig).MutableFields()
+	case fs.HDFS:
+		storeFields = s.StoreConfig.(*HDFSFileStoreConfig).MutableFields()
 	default:
 		storeFields = ss.StringSet{}
 	}
@@ -138,11 +224,23 @@ func (a SparkConfig) DifferingFields(b SparkConfig) (ss.StringSet, error) {
 	var err error
 
 	if a.ExecutorType != b.ExecutorType {
-		return result, fferr.NewInternalError(fmt.Errorf("executor config mismatch: a = %v; b = %v", a.ExecutorType, b.ExecutorType))
+		return result, fferr.NewInternalError(
+			fmt.Errorf(
+				"executor config mismatch: a = %v; b = %v",
+				a.ExecutorType,
+				b.ExecutorType,
+			),
+		)
 	}
 
 	if a.StoreType != b.StoreType {
-		return result, fferr.NewInternalError(fmt.Errorf("store config mismatch: a = %v; b = %v", a.StoreType, b.StoreType))
+		return result, fferr.NewInternalError(
+			fmt.Errorf(
+				"store config mismatch: a = %v; b = %v",
+				a.StoreType,
+				b.StoreType,
+			),
+		)
 	}
 
 	switch a.ExecutorType {
@@ -188,6 +286,10 @@ func (a SparkConfig) DifferingFields(b SparkConfig) (ss.StringSet, error) {
 	return result, err
 }
 
+func (a SparkConfig) UsesCatalog() bool {
+	return a.GlueConfig != nil
+}
+
 func (s *SparkConfig) decodeExecutor(executorType SparkExecutorType, configMap map[string]interface{}) error {
 	var executorConfig SparkExecutorConfig
 	switch executorType {
@@ -198,7 +300,10 @@ func (s *SparkConfig) decodeExecutor(executorType SparkExecutorType, configMap m
 	case SparkGeneric:
 		executorConfig = &SparkGenericConfig{}
 	default:
-		return fferr.NewProviderConfigError("Spark", fmt.Errorf("the executor type '%s' is not supported ", executorType))
+		return fferr.NewProviderConfigError(
+			"Spark",
+			fmt.Errorf("the executor type '%s' is not supported ", executorType),
+		)
 	}
 
 	err := mapstructure.Decode(configMap, executorConfig)
@@ -221,7 +326,10 @@ func (s *SparkConfig) decodeFileStore(fileStoreType fs.FileStoreType, configMap 
 	case fs.GCS:
 		fileStoreConfig = &GCSFileStoreConfig{}
 	default:
-		return fferr.NewProviderConfigError("Spark", fmt.Errorf("the file store type '%s' is not supported ", fileStoreType))
+		return fferr.NewProviderConfigError(
+			"Spark",
+			fmt.Errorf("the file store type '%s' is not supported ", fileStoreType),
+		)
 	}
 
 	err := mapstructure.Decode(configMap, fileStoreConfig)
@@ -229,6 +337,16 @@ func (s *SparkConfig) decodeFileStore(fileStoreType fs.FileStoreType, configMap 
 		return fferr.NewInternalError(err)
 	}
 	s.StoreConfig = fileStoreConfig
+	return nil
+}
+
+func (s *SparkConfig) decodeGlueConfig(configMap *GlueConfig) error {
+	var glueConfig GlueConfig
+	err := mapstructure.Decode(configMap, &glueConfig)
+	if err != nil {
+		return fferr.NewInternalError(err)
+	}
+	s.GlueConfig = &glueConfig
 	return nil
 }
 

@@ -1,11 +1,19 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
+	"os"
+	"testing"
+
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/joho/godotenv"
-	"os"
-	"testing"
 )
 
 func GetTestingDynamoDB(t *testing.T) OnlineStore {
@@ -21,12 +29,16 @@ func GetTestingDynamoDB(t *testing.T) OnlineStore {
 	if !ok {
 		t.Fatalf("missing DYNAMO_SECRET_KEY variable")
 	}
+	awsCreds := pc.AWSStaticCredentials{
+		AccessKeyId: dynamoAccessKey,
+		SecretKey:   dynamoSecretKey,
+	}
 	endpoint := os.Getenv("DYNAMO_ENDPOINT")
 	dynamoConfig := &pc.DynamodbConfig{
-		Region:    "us-east-1",
-		AccessKey: dynamoAccessKey,
-		SecretKey: dynamoSecretKey,
-		Endpoint:  endpoint,
+		Credentials:        awsCreds,
+		Region:             "us-east-1",
+		Endpoint:           endpoint,
+		StronglyConsistent: true,
 	}
 
 	store, err := GetOnlineStore(pt.DynamoDBOnline, dynamoConfig.Serialized())

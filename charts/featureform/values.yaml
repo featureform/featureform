@@ -1,3 +1,10 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 # Default values for featureform.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
@@ -8,7 +15,7 @@ hostname: "localhost"
 # Override chart version. This value correlates to the docker image tags
 versionOverride: "0.0.0"
 
-repository: "featureformcom"
+repository: "featureformenterprise"
 
 # Global pull policy
 pullPolicy: "Always"
@@ -32,7 +39,22 @@ nginx:
   # on the cluster
   enabled: true
 
-# If true, will restart pods on update even if no changes have been made
+grpcIngressPort: 7878
+httpIngressPort: 80
+
+slackApiToken: ""
+
+slackApiChannel: ""
+
+k8sImagePullSecret: "regcred"
+
+# Storage Provider for the backend state. One of [etcd, psql, memory]
+stateProvider: "psql"
+
+# base url for the dashboard (used for constructing callback url)
+dashboardUrl: ""
+
+# If true, restarts pods on update even if no changes have been made
 restartOnUpdate: false
 
 logging:
@@ -47,6 +69,7 @@ debug: false
 
 # These values override the values in the 3rd party ETCD chart
 etcd:
+  enabled: true
   fullnameOverride: featureform-etcd
   auth:
     rbac:
@@ -56,8 +79,27 @@ etcd:
   replicaCount: 3
   extraEnvVarsCM: etcd-upgrade-configmap
   removeMemberOnContainerTermination: false
+
   host: featureform-etcd
   port: 2379
+  username: "root"
+  password: "secretpassword"
+
+psql:
+  user: "postgres"
+  password: "password"
+  host: "localhost"
+  port: 5432
+  db: "postgres"
+  sslmode: "disable"
+  # If true, automatically creates a secret stored in templates/secrets/postgres.yaml.
+  # If false, does not apply the template. The template can be created manually
+  createSecret: false
+
+# search loader job
+searchjob:
+  image:
+    name: "search-loader"
 
 # These values override the values in the 3rd party meilisearch chart
 meilisearch:
@@ -71,14 +113,6 @@ prometheus:
   replicaCount: 1
   image: prom/prometheus
 
-# Ensure AWS Load Balancer idle timeout doesn't default to 60 seconds,
-# which cannot support longer running operations
-ingress-nginx:
-  controller:
-    service:
-      annotations:
-        service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "4000"
-
 # Configuration for the API server
 api:
   replicaCount: 1
@@ -86,12 +120,15 @@ api:
     name: api-server
 
   port: 7878
+  statusPort: 8443
 
   autoscaling:
     enabled: false
     minReplicas: 1
     maxReplicas: 100
     targetCPUUtilizationPercentage: 80
+
+  serviceAccount: "ff-api-sa"
 
 # Configuration for the coordinator server
 coordinator:
@@ -116,6 +153,18 @@ coordinator:
     targetCPUUtilizationPercentage: 80
     targetMemoryUtilizationPercentage: 80
 
+  serviceAccount: "ff-coordinator-sa"
+
+  execution:
+    # The maximum amount of time FeatureForm will wait for a Spark job to complete
+    # before timing out and cancelling the job. This value should be valid duration
+    # string, e.g. "1h30m" See documentation for time.ParseDuration for more info:
+    # https://pkg.go.dev/time#ParseDuration
+    maxJobDuration: "48h"
+    taskPollInterval: "1m"
+    taskStatusSyncInterval: "1h"
+    taskDependencyPollInterval: "1m"
+
 # Configuration for the Dashboard frontend
 dashboard:
   replicaCount: 1
@@ -133,6 +182,8 @@ dashboard:
 
 # Configuration for the Dashboard Backend
 dashboardmetadata:
+  disableCors: false
+
   replicaCount: 1
 
   image:
@@ -153,6 +204,8 @@ dashboardmetadata:
     requests:
       cpu: 1.0
 
+  serviceAccount: "ff-dashboard-metadata-sa"
+
 # Configuration for the Feature Serving Server
 serving:
   replicaCount: 1
@@ -172,6 +225,8 @@ serving:
     minReplicas: 1
     maxReplicas: 100
     targetCPUUtilizationPercentage: 80
+
+  serviceAccount: "ff-feature-serving-sa"
 
 # Configuration for the Metadata Server
 metadata:
@@ -210,3 +265,16 @@ loki-stack:
     enabled: false
   grafana:
     enabled: true
+
+# Ensure AWS Load Balancer idle timeout doesn't default to 60 seconds,
+# which cannot support longer running operations
+ingress-nginx:
+  controller:
+    service:
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "4000"
+
+# Configuration for the Datadog agent
+datadog:
+  enabled: false
+  namespace: "featureform"

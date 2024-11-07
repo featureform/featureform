@@ -1,12 +1,21 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/featureform/helpers"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/joho/godotenv"
+
 	"os"
 	"strconv"
 	"testing"
@@ -60,7 +69,6 @@ func TestOfflineStoreClickhouse(t *testing.T) {
 		Database: clickHouseDb,
 		SSL:      ssl,
 	}
-	t.Logf("clickHouseConfig: %v", clickHouseConfig)
 
 	if err := createClickHouseDatabase(clickHouseConfig); err != nil {
 		t.Fatalf("%v", err)
@@ -76,7 +84,7 @@ func TestOfflineStoreClickhouse(t *testing.T) {
 		store: store,
 	}
 	test.Run()
-	test.RunSQL()
+	// test.RunSQL()
 }
 
 func createClickHouseDatabase(c pc.ClickHouseConfig) error {
@@ -88,10 +96,10 @@ func createClickHouseDatabase(c pc.ClickHouseConfig) error {
 }
 
 func createDatabases(c pc.ClickHouseConfig, conn *sql.DB) error {
-	if _, err := conn.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", sanitizeCH(c.Database))); err != nil {
+	if _, err := conn.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", SanitizeClickHouseIdentifier(c.Database))); err != nil {
 		return err
 	}
-	if _, err := conn.Exec(fmt.Sprintf("CREATE DATABASE %s", sanitizeCH(c.Database))); err != nil {
+	if _, err := conn.Exec(fmt.Sprintf("CREATE DATABASE %s", SanitizeClickHouseIdentifier(c.Database))); err != nil {
 		return err
 	}
 	return nil

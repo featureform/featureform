@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
@@ -7,6 +14,7 @@ import (
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
+	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
@@ -62,7 +70,7 @@ func (store OnlineFileStore) tableExists(feature, variant string) (bool, error) 
 	if err := filepath.ParseFilePath(tableKey); err != nil {
 		return false, err
 	}
-	return store.Exists(&filepath)
+	return store.Exists(pl.NewFileLocation(&filepath))
 }
 
 func (store OnlineFileStore) readTableValue(feature, variant string) (types.ValueType, error) {
@@ -189,7 +197,7 @@ func (table OnlineFileStoreTable) getEntityValue(feature, variant, entity string
 	if err := filepath.ParseFilePath(entityValueKey); err != nil {
 		return nil, err
 	}
-	exists, err := table.store.Exists(&filepath)
+	exists, err := table.store.Exists(pl.NewFileLocation(&filepath))
 	if err != nil {
 		return nil, err
 	}

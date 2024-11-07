@@ -9,4 +9,4 @@ spec:
     - logs:
         selector:
           - app=nginx
-        namespace: '{{repl Namespace }}'
+        namespace: "{{repl Namespace }}"

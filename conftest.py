@@ -1,31 +1,34 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
+import datetime
 import os
-import sys
-import stat
-import shutil
 import platform
-from tempfile import NamedTemporaryFile
-import urllib
+import shutil
+import sys
 
 import dill
-import pytest
-import datetime
 import pandas as pd
 import psutil
+import pytest
 
 sys.path.insert(0, "client/src/")
 
 collect_ignore = ["embeddinghub"]
-
 
 import featureform as ff
 from featureform.register import (
     Registrar,
     OfflineSparkProvider,
     ColumnSourceRegistrar,
-    MultiFeatureColumnResource,
 )
 from featureform.resources import (
-    AWSCredentials,
+    AWSStaticCredentials,
+    FileStore,
     GCPCredentials,
     AzureFileStoreConfig,
     DatabricksCredentials,
@@ -35,7 +38,6 @@ from featureform.resources import (
     SparkCredentials,
     Provider,
     PrimaryData,
-    Location,
     SQLTransformation,
     DFTransformation,
     SQLTable,
@@ -49,7 +51,6 @@ from featureform.deploy import (
     DOCKER_CONFIG,
     DockerDeployment,
 )
-
 
 real_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(real_path)
@@ -121,11 +122,27 @@ def ff_registrar():
 
 
 @pytest.fixture(scope="module")
-def primary_dataset(ff_registrar):
+def primary_source_sql_table(ff_registrar):
     src = SourceVariantResource(
         name="primary",
         variant="default",
-        definition=PrimaryData(location=SQLTable("tableName")),
+        definition=PrimaryData(location=SQLTable(name="tableName")),
+        owner="tester",
+        provider="spark",
+        description="doc string",
+        tags=[],
+        properties={},
+    )
+    colum_src = ColumnSourceRegistrar(ff_registrar, src)
+    return [colum_src]
+
+
+@pytest.fixture(scope="module")
+def primary_source_file_store(ff_registrar):
+    src = SourceVariantResource(
+        name="primary",
+        variant="default",
+        definition=PrimaryData(location=FileStore(path_uri="path")),
         owner="tester",
         provider="spark",
         description="doc string",
@@ -184,7 +201,7 @@ def df_transformation_src(
 
 @pytest.fixture(scope="module")
 def aws_credentials():
-    return AWSCredentials("id", "secret")
+    return AWSStaticCredentials("id", "secret")
 
 
 @pytest.fixture(scope="module")
@@ -486,9 +503,9 @@ def gcp_credentials():
 
 
 @pytest.fixture(scope="module")
-def multi_feature(primary_dataset, features_dataframe):
+def multi_feature(primary_source_sql_table, features_dataframe):
     return ff.MultiFeature(
-        dataset=primary_dataset[0],
+        dataset=primary_source_sql_table[0],
         df=features_dataframe,
         entity_column="entity",
         timestamp_column="ts",

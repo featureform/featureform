@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package provider
 
 import (
@@ -14,7 +21,10 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/featureform/fferr"
+	"github.com/featureform/metadata"
+	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
+	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
 )
@@ -38,7 +48,7 @@ const (
 )
 
 // ClickHouse needs backticks for table names, not quotes
-func sanitizeCH(ident string) string {
+func SanitizeClickHouseIdentifier(ident string) string {
 	s := strings.ReplaceAll(ident, string([]byte{0}), "")
 	return "`" + s + "`"
 }
@@ -48,23 +58,14 @@ type clickHouseOfflineStore struct {
 }
 
 func (store *clickHouseOfflineStore) getResourceTableName(id ResourceID) (string, error) {
-	if err := checkName(id); err != nil {
-		return "", err
-	}
-	var idType string
-	if id.Type == Feature {
-		idType = "feature"
-	} else {
-		idType = "label"
-	}
-	return fmt.Sprintf("featureform_resource_%s__%s__%s", idType, id.Name, id.Variant), nil
+	return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 }
 
 func (store *clickHouseOfflineStore) getTrainingSetName(id ResourceID) (string, error) {
-	if err := checkName(id); err != nil {
+	if err := id.check(TrainingSet); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("featureform_trainingset__%s__%s", id.Name, id.Variant), nil
+	return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 }
 
 func (store *clickHouseOfflineStore) tableExists(id ResourceID) (bool, error) {
@@ -98,21 +99,11 @@ func (store *clickHouseOfflineStore) tableExists(id ResourceID) (bool, error) {
 	return false, nil
 }
 
-func (store *clickHouseOfflineStore) createTransformationName(id ResourceID) (string, error) {
-	switch id.Type {
-	case Transformation:
-		return GetPrimaryTableName(id)
-	case Label:
-		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Label"))
-	case Feature:
-		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Feature"))
-	case TrainingSet:
-		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Training Set"))
-	case Primary:
-		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type: Primary"))
-	default:
-		return "", fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("invalid transformation type"))
+func (store *clickHouseOfflineStore) getTransformationTableName(id ResourceID) (string, error) {
+	if err := id.check(Transformation); err != nil {
+		return "", fferr.NewInternalErrorf("resource type must be %s: received %s", Transformation.String(), id.Type.String())
 	}
+	return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 }
 
 func (store *clickHouseOfflineStore) createsqlPrimaryTableQuery(name string, schema TableSchema) (string, error) {
@@ -194,11 +185,18 @@ func (store *clickHouseOfflineStore) getsqlResourceTable(id ResourceID) (*clickh
 }
 
 func (store *clickHouseOfflineStore) materializationExists(id MaterializationID) (bool, error) {
-	tableName := store.getMaterializationTableName(id)
+	name, variant, err := ps.MaterializationIDToResource(string(id))
+	if err != nil {
+		return false, err
+	}
+	tableName, err := store.getMaterializationTableName(ResourceID{name, variant, Feature})
+	if err != nil {
+		return false, err
+	}
 	getMatQry := store.query.materializationExists()
 	n := -1
-	err := store.db.QueryRow(getMatQry, tableName).Scan(&n)
-	if err != nil {
+	execErr := store.db.QueryRow(getMatQry, tableName).Scan(&n)
+	if execErr != nil {
 		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)
 		return false, wrapped
@@ -209,8 +207,13 @@ func (store *clickHouseOfflineStore) materializationExists(id MaterializationID)
 	return true, nil
 }
 
-func (store *clickHouseOfflineStore) getMaterializationTableName(id MaterializationID) string {
-	return fmt.Sprintf("featureform_materialization_%s", id)
+func (store *clickHouseOfflineStore) getMaterializationTableName(id ResourceID) (string, error) {
+	if err := id.check(Feature); err != nil {
+		return "", err
+	}
+	// NOTE: Given Clickhouse uses intermediate resource tables, the inbound resource ID will be Feature;
+	// however, the table must be named according to the FeatureMaterialization offline type.
+	return ps.ResourceToTableName(FeatureMaterialization.String(), id.Name, id.Variant)
 }
 
 func clickhouseOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
@@ -230,18 +233,25 @@ func NewClickHouseOfflineStore(config pc.SerializedConfig) (*clickHouseOfflineSt
 	if cc.SSL {
 		t = &tls.Config{}
 	}
-	db := clickhouse.OpenDB(&clickhouse.Options{
-		Addr: []string{fmt.Sprintf("%s:%d", cc.Host, cc.Port)},
-		Auth: clickhouse.Auth{
-			Database: cc.Database,
-			Username: cc.Username,
-			Password: cc.Password,
-		},
-		Settings: clickhouse.Settings{
-			"final": "1",
-		},
-		TLS: t,
-	})
+	getDbFunc := func(database, schema string) (*sql.DB, error) {
+		clickhouseDb := database
+		if database != "" {
+			clickhouseDb = cc.Database
+		}
+		return clickhouse.OpenDB(&clickhouse.Options{
+			Addr: []string{fmt.Sprintf("%s:%d", cc.Host, cc.Port)},
+			Auth: clickhouse.Auth{
+				Database: clickhouseDb,
+				Username: cc.Username,
+				Password: cc.Password,
+			},
+			Settings: clickhouse.Settings{
+				"final": "1",
+			},
+			TLS: t,
+		}), nil
+	}
+
 	queries := clickhouseSQLQueries{}
 	// numeric and should work
 	queries.setVariableBinding(PostgresBindingStyle)
@@ -250,6 +260,10 @@ func NewClickHouseOfflineStore(config pc.SerializedConfig) (*clickHouseOfflineSt
 		Driver:       "clickhouse",
 		ProviderType: pt.ClickHouseOffline,
 		QueryImpl:    &queries,
+	}
+	db, getDbErr := getDbFunc(cc.Database, "") // clickhouse doesn't have a notion of schema
+	if getDbErr != nil {
+		return nil, fferr.NewConnectionError("failed to establish connection to ClickHouse: %v", getDbErr)
 	}
 	//we bypass NewSQLOfflineStore as we want to estalish our connection using non dsn syntax
 	return &clickHouseOfflineStore{sqlOfflineStore{
@@ -260,6 +274,7 @@ func NewClickHouseOfflineStore(config pc.SerializedConfig) (*clickHouseOfflineSt
 			ProviderType:   pt.ClickHouseOffline,
 			ProviderConfig: config,
 		},
+		getDb: getDbFunc,
 	}}, nil
 }
 
@@ -271,7 +286,7 @@ type clickhouseOfflineTable struct {
 
 func (table *clickhouseOfflineTable) Write(rec ResourceRecord) error {
 	rec = checkTimestamp(rec)
-	tb := sanitizeCH(table.name)
+	tb := SanitizeClickHouseIdentifier(table.name)
 	if err := rec.check(); err != nil {
 		return err
 	}
@@ -287,7 +302,7 @@ func (table *clickhouseOfflineTable) Write(rec ResourceRecord) error {
 const batchSize = 10000
 
 func (table *clickhouseOfflineTable) WriteBatch(recs []ResourceRecord) error {
-	tb := sanitizeCH(table.name)
+	tb := SanitizeClickHouseIdentifier(table.name)
 	scope, err := table.db.Begin()
 	if err != nil {
 		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
@@ -349,7 +364,7 @@ type clickhousePrimaryTable struct {
 }
 
 func (table *clickhousePrimaryTable) Write(rec GenericRecord) error {
-	tb := sanitizeCH(table.name)
+	tb := SanitizeClickHouseIdentifier(table.name)
 	columns := table.getColumnNameString()
 	placeholder := table.query.createValuePlaceholderString(table.schema.Columns)
 	upsertQuery := fmt.Sprintf(""+
@@ -364,7 +379,7 @@ func (table *clickhousePrimaryTable) Write(rec GenericRecord) error {
 }
 
 func (table *clickhousePrimaryTable) WriteBatch(recs []GenericRecord) error {
-	tb := sanitizeCH(table.name)
+	tb := SanitizeClickHouseIdentifier(table.name)
 	columns := table.getColumnNameString()
 	scope, err := table.db.Begin()
 	if err != nil {
@@ -427,14 +442,14 @@ func (table *clickhousePrimaryTable) IterateSegment(n int64) (GenericTableIterat
 	ecolumnNames := make([]string, 0)
 	for _, col := range columns {
 		columnNames = append(columnNames, col.Name)
-		ecolumnNames = append(ecolumnNames, sanitizeCH(col.Name))
+		ecolumnNames = append(ecolumnNames, SanitizeClickHouseIdentifier(col.Name))
 	}
 	names := strings.Join(ecolumnNames[:], ", ")
 	var query string
 	if n == -1 {
-		query = fmt.Sprintf("SELECT %s FROM %s", names, sanitizeCH(table.name))
+		query = fmt.Sprintf("SELECT %s FROM %s", names, SanitizeClickHouseIdentifier(table.name))
 	} else {
-		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", names, sanitizeCH(table.name), n)
+		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", names, SanitizeClickHouseIdentifier(table.name), n)
 	}
 	rows, err := table.db.Query(query)
 	if err != nil {
@@ -475,7 +490,7 @@ func (table *clickhousePrimaryTable) getValueColumnTypes(tb string) ([]interface
 
 func (table clickhousePrimaryTable) NumRows() (int64, error) {
 	n := int64(0)
-	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitizeCH(table.name))
+	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", SanitizeClickHouseIdentifier(table.name))
 	rows := table.db.QueryRow(query)
 
 	err := rows.Scan(&n)
@@ -557,7 +572,10 @@ func (it *clickHouseTableIterator) Close() error {
 	return nil
 }
 
-func (store *clickHouseOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema) (OfflineTable, error) {
+func (store *clickHouseOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
+	if len(opts) > 0 {
+		return nil, fferr.NewInternalErrorf("ClickHouse does not support resource options")
+	}
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}
@@ -604,7 +622,7 @@ func (store *clickHouseOfflineStore) CheckHealth() (bool, error) {
 	return true, nil
 }
 
-func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, sourceName string) (PrimaryTable, error) {
+func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
@@ -617,11 +635,11 @@ func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceI
 	if err != nil {
 		return nil, err
 	}
-	query := store.query.primaryTableRegister(tableName, sourceName)
+	query := store.query.primaryTableRegister(tableName, tableLocation.Location())
 	if _, err := store.db.Exec(query); err != nil {
 		wrapped := fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 		wrapped.AddDetail("table_name", tableName)
-		wrapped.AddDetail("source_name", sourceName)
+		wrapped.AddDetail("source_name", tableLocation.Location())
 		return nil, wrapped
 	}
 
@@ -638,8 +656,15 @@ func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceI
 	}, nil
 }
 
-func (store *clickHouseOfflineStore) CreateTransformation(config TransformationConfig) error {
-	name, err := store.createTransformationName(config.TargetTableID)
+func (store *clickHouseOfflineStore) SupportsTransformationOption(opt TransformationOptionType) (bool, error) {
+	return false, nil
+}
+
+func (store *clickHouseOfflineStore) CreateTransformation(config TransformationConfig, opts ...TransformationOption) error {
+	if len(opts) > 0 {
+		return fferr.NewInternalErrorf("ClickHouse does not support transformation options")
+	}
+	name, err := store.getTransformationTableName(config.TargetTableID)
 	if err != nil {
 		return err
 	}
@@ -656,7 +681,7 @@ func (store *clickHouseOfflineStore) CreateTransformation(config TransformationC
 
 func (store *clickHouseOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
 	n := -1
-	name, err := GetPrimaryTableName(id)
+	name, err := store.getTransformationTableName(id)
 	if err != nil {
 		return nil, err
 	}
@@ -680,8 +705,11 @@ func (store *clickHouseOfflineStore) GetTransformationTable(id ResourceID) (Tran
 	}, nil
 }
 
-func (store *clickHouseOfflineStore) UpdateTransformation(config TransformationConfig) error {
-	name, err := store.createTransformationName(config.TargetTableID)
+func (store *clickHouseOfflineStore) UpdateTransformation(config TransformationConfig, opts ...TransformationOption) error {
+	if len(opts) > 0 {
+		return fferr.NewInternalErrorf("ClickHouse does not support transformation options")
+	}
+	name, err := store.getTransformationTableName(config.TargetTableID)
 	if err != nil {
 		return err
 	}
@@ -715,7 +743,7 @@ func (store *clickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema Ta
 	return table, nil
 }
 
-func (store *clickHouseOfflineStore) GetPrimaryTable(id ResourceID) (PrimaryTable, error) {
+func (store *clickHouseOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
 	name, err := GetPrimaryTableName(id)
 	if err != nil {
 		return nil, err
@@ -781,11 +809,21 @@ func (store *clickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFe
 	joinTables := ""
 	featureColumns := ""
 	var matIDs []string
-	tableName0 := sanitizeCH(store.getMaterializationTableName(MaterializationID(fmt.Sprintf("%s__%s", ids[0].Name, ids[0].Variant))))
+	tableName0, err := store.getMaterializationTableName(ids[0])
+	if err != nil {
+		return nil, err
+	}
 	for i, tableID := range ids {
-		matID := MaterializationID(fmt.Sprintf("%s__%s", tableID.Name, tableID.Variant))
+		matID, err := NewMaterializationID(tableID)
+		if err != nil {
+			return nil, err
+		}
 		matIDs = append(matIDs, string(matID))
-		matTableName := sanitizeCH(store.getMaterializationTableName(matID))
+		matTableName, err := store.getMaterializationTableName(tableID)
+		if err != nil {
+			return nil, err
+		}
+		matTableName = SanitizeClickHouseIdentifier(matTableName)
 
 		if i > 0 {
 			joinTables += "FULL OUTER JOIN "
@@ -808,7 +846,7 @@ func (store *clickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFe
 	joinedTableName := store.getJoinedMaterializationTableName(strings.Join(matIDs, "_"))
 	createQuery := ""
 	if len(ids) == 1 {
-		createQuery = fmt.Sprintf("CREATE VIEW `%s` AS SELECT %s AS entity %s FROM %s", joinedTableName, asEntity, withFeatures, tableName0)
+		createQuery = fmt.Sprintf("CREATE VIEW `%s` AS SELECT %s AS entity %s FROM %s", joinedTableName, asEntity, withFeatures, SanitizeClickHouseIdentifier(tableName0))
 	} else {
 		createQuery = fmt.Sprintf("CREATE VIEW `%s` AS SELECT COALESCE(%s) AS entity %s FROM %s", joinedTableName, asEntity, withFeatures, joinTables)
 	}
@@ -835,12 +873,12 @@ func (store *clickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFe
 	store.db.Query(dropQuery)
 	columnNames := make([]string, 0)
 	for _, col := range columns {
-		columnNames = append(columnNames, sanitizeCH(col.Name))
+		columnNames = append(columnNames, SanitizeClickHouseIdentifier(col.Name))
 	}
 	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query, store.Type()), nil
 }
 
-func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, options ...MaterializationOptions) (Materialization, error) {
+func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
 	if id.Type != Feature {
 		return nil, fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), fmt.Errorf("only features can be materialized"))
 	}
@@ -850,7 +888,10 @@ func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, option
 	}
 
 	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
-	matTableName := store.getMaterializationTableName(matID)
+	matTableName, err := store.getMaterializationTableName(id)
+	if err != nil {
+		return nil, err
+	}
 	materializeQueries := store.query.materializationCreate(matTableName, resTable.name)
 	for _, materializeQry := range materializeQueries {
 		_, err = store.db.Exec(materializeQry)
@@ -869,14 +910,24 @@ func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, option
 	}, nil
 }
 
-func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+func (store *clickHouseOfflineStore) SupportsMaterializationOption(opt MaterializationOptionType) (bool, error) {
+	return false, nil
+}
 
-	tableName := store.getMaterializationTableName(id)
+func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+	name, variant, err := ps.MaterializationIDToResource(string(id))
+	if err != nil {
+		return nil, err
+	}
+	tableName, err := store.getMaterializationTableName(ResourceID{name, variant, Feature})
+	if err != nil {
+		return nil, err
+	}
 
 	getMatQry := store.query.materializationExists()
 	n := -1
-	err := store.db.QueryRow(getMatQry, tableName).Scan(&n)
-	if err != nil {
+	execErr := store.db.QueryRow(getMatQry, tableName).Scan(&n)
+	if execErr != nil {
 		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)
 		return nil, wrapped
@@ -892,9 +943,15 @@ func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (M
 	}, err
 }
 
-func (store *clickHouseOfflineStore) UpdateMaterialization(id ResourceID) (Materialization, error) {
-	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
-	tableName := store.getMaterializationTableName(matID)
+func (store *clickHouseOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+	matID, err := NewMaterializationID(id)
+	if err != nil {
+		return nil, err
+	}
+	tableName, err := store.getMaterializationTableName(id)
+	if err != nil {
+		return nil, err
+	}
 	getMatQry := store.query.materializationExists()
 	resTable, err := store.getsqlResourceTable(id)
 	if err != nil {
@@ -922,7 +979,14 @@ func (store *clickHouseOfflineStore) UpdateMaterialization(id ResourceID) (Mater
 }
 
 func (store *clickHouseOfflineStore) DeleteMaterialization(id MaterializationID) error {
-	tableName := store.getMaterializationTableName(id)
+	name, variant, err := ps.MaterializationIDToResource(string(id))
+	if err != nil {
+		return err
+	}
+	tableName, err := store.getMaterializationTableName(ResourceID{name, variant, Feature})
+	if err != nil {
+		return err
+	}
 	if exists, err := store.materializationExists(id); err != nil {
 		return err
 	} else if !exists {
@@ -999,7 +1063,7 @@ func (store *clickHouseOfflineStore) prepareTrainingSetQuery(id ResourceID) (*Tr
 	}
 	features := make([]string, 0)
 	for _, name := range columnNames {
-		features = append(features, sanitizeCH(name.Name))
+		features = append(features, SanitizeClickHouseIdentifier(name.Name))
 	}
 	columns := strings.Join(features, ", ")
 
@@ -1048,7 +1112,7 @@ func (store *clickHouseOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef)
 
 	// Calculate the number of test rows based on the testSize parameter
 	var totalRows int
-	err = store.db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitizeCH(prep.TrainingSetName))).Scan(&totalRows)
+	err = store.db.QueryRow(fmt.Sprintf("SELECT COUNT(*) FROM %s", SanitizeClickHouseIdentifier(prep.TrainingSetName))).Scan(&totalRows)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get table size: %v", err)
 	}
@@ -1060,10 +1124,10 @@ func (store *clickHouseOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef)
 			SELECT *, IF(row_number() OVER (%s) <= %d, 1, 0) AS is_test
 			FROM %s
     	`,
-		sanitizeCH(trainTestSplitTableName),
+		SanitizeClickHouseIdentifier(trainTestSplitTableName),
 		orderByClause,
 		testRows,
-		sanitizeCH(prep.TrainingSetName),
+		SanitizeClickHouseIdentifier(prep.TrainingSetName),
 	)
 
 	if _, err := store.db.Exec(createViewQuery); err != nil {
@@ -1072,11 +1136,10 @@ func (store *clickHouseOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef)
 
 	// return callback to drop view
 	dropFunc := func() error {
-		dropQuery := fmt.Sprintf("DROP VIEW if exists %s", sanitizeCH(trainTestSplitTableName))
+		dropQuery := fmt.Sprintf("DROP VIEW if exists %s", SanitizeClickHouseIdentifier(trainTestSplitTableName))
 		_, err := store.db.Exec(dropQuery)
 		if err != nil {
 			return fmt.Errorf("could not drop test split: %v", err)
-
 		}
 		return nil
 	}
@@ -1097,7 +1160,7 @@ func (store *clickHouseOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (T
 		return nil, nil, err
 	}
 	trainTestSplitTableName := store.getTrainTestSplitTableName(prep.TrainingSetName, def)
-	train, test := store.query.trainingRowSplitSelect(prep.Columns, sanitizeCH(trainTestSplitTableName))
+	train, test := store.query.trainingRowSplitSelect(prep.Columns, SanitizeClickHouseIdentifier(trainTestSplitTableName))
 
 	fmt.Printf("Training Set Query: %s\n", train)
 	fmt.Printf("Test Set Query: %s\n", test)
@@ -1121,6 +1184,21 @@ func (store *clickHouseOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (T
 
 }
 
+func (store *clickHouseOfflineStore) ResourceLocation(id ResourceID, resource any) (pl.Location, error) {
+	if exists, err := store.tableExistsForResourceId(id); err != nil {
+		return nil, err
+	} else if !exists {
+		return nil, fmt.Errorf("table does not exist: %v", id)
+	}
+
+	tableName, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
+	if err != nil {
+		return nil, err
+	}
+
+	return pl.NewSQLLocation(tableName), err
+}
+
 func (store *clickHouseOfflineStore) Close() error {
 	return store.db.Close()
 }
@@ -1138,12 +1216,12 @@ func (q clickhouseSQLQueries) viewExists() string {
 }
 
 func (q clickhouseSQLQueries) primaryTableCreate(name string, columnString string) string {
-	return fmt.Sprintf("CREATE TABLE %s ( %s ) ENGINE=MergeTree ORDER BY ()", sanitizeCH(name), columnString)
+	return fmt.Sprintf("CREATE TABLE %s ( %s ) ENGINE=MergeTree ORDER BY ()", SanitizeClickHouseIdentifier(name), columnString)
 }
 
 func (q clickhouseSQLQueries) trainingRowSelect(columns string, trainingSetName string) string {
 	// ensures random order - table is ordered by _row which is inserted at insert time
-	return fmt.Sprintf("SELECT * EXCEPT _row FROM (SELECT %s FROM %s ORDER BY _row ASC)", columns, sanitizeCH(trainingSetName))
+	return fmt.Sprintf("SELECT * EXCEPT _row FROM (SELECT %s FROM %s ORDER BY _row ASC)", columns, SanitizeClickHouseIdentifier(trainingSetName))
 }
 
 func (q clickhouseSQLQueries) trainingRowSplitSelect(columns string, trainingSetSplitName string) (string, string) {
@@ -1156,11 +1234,11 @@ func (q clickhouseSQLQueries) trainingRowSplitSelect(columns string, trainingSet
 func (q clickhouseSQLQueries) registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error {
 	var query string
 	if timestamp {
-		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, %s as ts FROM %s", sanitizeCH(tableName),
-			sanitizeCH(schema.Entity), sanitizeCH(schema.Value), sanitizeCH(schema.TS), sanitizeCH(schema.SourceTable))
+		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, %s as ts FROM %s", SanitizeClickHouseIdentifier(tableName),
+			SanitizeClickHouseIdentifier(schema.Entity), SanitizeClickHouseIdentifier(schema.Value), SanitizeClickHouseIdentifier(schema.TS), SanitizeClickHouseIdentifier(schema.SourceTable.Location()))
 	} else {
-		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, toDateTime64(0, 9) AS ts FROM %s", sanitizeCH(tableName),
-			sanitizeCH(schema.Entity), sanitizeCH(schema.Value), sanitizeCH(schema.SourceTable))
+		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, toDateTime64(0, 9) AS ts FROM %s", SanitizeClickHouseIdentifier(tableName),
+			SanitizeClickHouseIdentifier(schema.Entity), SanitizeClickHouseIdentifier(schema.Value), SanitizeClickHouseIdentifier(schema.SourceTable.Location()))
 	}
 	fmt.Printf("Resource creation query: %s\n", query)
 	if _, err := db.Exec(query); err != nil {
@@ -1172,13 +1250,13 @@ func (q clickhouseSQLQueries) registerResources(db *sql.DB, tableName string, sc
 }
 
 func (q clickhouseSQLQueries) primaryTableRegister(tableName string, sourceName string) string {
-	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM %s", sanitizeCH(tableName), sourceName)
+	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM %s", SanitizeClickHouseIdentifier(tableName), sourceName)
 }
 
 func (q clickhouseSQLQueries) materializationCreate(tableName string, sourceName string) []string {
-	return []string{fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY (entity, ts) SETTINGS allow_nullable_key=1 EMPTY AS SELECT * FROM %s", sanitizeCH(tableName), sanitizeCH(sourceName)),
-		fmt.Sprintf("ALTER TABLE %s ADD COLUMN row_number UInt64;", sanitizeCH(tableName)),
-		fmt.Sprintf("INSERT INTO %s SELECT entity, value, tis AS ts, row_number() OVER () AS row_number FROM (SELECT entity, max(ts) AS tis, argMax(value, ts) AS value FROM %s GROUP BY entity ORDER BY entity ASC, value ASC);", sanitizeCH(tableName), sanitizeCH(sourceName)),
+	return []string{fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY (entity, ts) SETTINGS allow_nullable_key=1 EMPTY AS SELECT * FROM %s", SanitizeClickHouseIdentifier(tableName), SanitizeClickHouseIdentifier(sourceName)),
+		fmt.Sprintf("ALTER TABLE %s ADD COLUMN row_number UInt64;", SanitizeClickHouseIdentifier(tableName)),
+		fmt.Sprintf("INSERT INTO %s SELECT entity, value, tis AS ts, row_number() OVER () AS row_number FROM (SELECT entity, max(ts) AS tis, argMax(value, ts) AS value FROM %s GROUP BY entity ORDER BY entity ASC, value ASC);", SanitizeClickHouseIdentifier(tableName), SanitizeClickHouseIdentifier(sourceName)),
 	}
 }
 
@@ -1186,25 +1264,25 @@ func (q clickhouseSQLQueries) materializationUpdate(db *sql.DB, tableName string
 	// create a new table
 	currentTime := time.Now()
 	epochMilliseconds := currentTime.UnixNano() / int64(time.Millisecond)
-	if _, err := db.Exec(fmt.Sprintf("CREATE TABLE %s AS %s", sanitizeCH(fmt.Sprintf("%s_%d", tableName, epochMilliseconds)), sanitizeCH(tableName))); err != nil {
+	if _, err := db.Exec(fmt.Sprintf("CREATE TABLE %s AS %s", SanitizeClickHouseIdentifier(fmt.Sprintf("%s_%d", tableName, epochMilliseconds)), SanitizeClickHouseIdentifier(tableName))); err != nil {
 		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)
 		wrapped.AddDetail("source_name", sourceName)
 		return wrapped
 	}
-	if _, err := db.Exec(fmt.Sprintf("INSERT INTO %s SELECT entity, value, tis AS ts, row_number() OVER () AS row_number FROM (SELECT entity, max(ts) AS tis, argMax(value, ts) AS value FROM %s GROUP BY entity ORDER BY entity ASC, value ASC);", sanitizeCH(fmt.Sprintf("%s_%d", tableName, epochMilliseconds)), sanitizeCH(sourceName))); err != nil {
+	if _, err := db.Exec(fmt.Sprintf("INSERT INTO %s SELECT entity, value, tis AS ts, row_number() OVER () AS row_number FROM (SELECT entity, max(ts) AS tis, argMax(value, ts) AS value FROM %s GROUP BY entity ORDER BY entity ASC, value ASC);", SanitizeClickHouseIdentifier(fmt.Sprintf("%s_%d", tableName, epochMilliseconds)), SanitizeClickHouseIdentifier(sourceName))); err != nil {
 		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)
 		wrapped.AddDetail("source_name", sourceName)
 		return wrapped
 	}
-	if _, err := db.Exec(fmt.Sprintf("EXCHANGE TABLES %s AND %s", sanitizeCH(fmt.Sprintf("%s_%d", tableName, epochMilliseconds)), sanitizeCH(tableName))); err != nil {
+	if _, err := db.Exec(fmt.Sprintf("EXCHANGE TABLES %s AND %s", SanitizeClickHouseIdentifier(fmt.Sprintf("%s_%d", tableName, epochMilliseconds)), SanitizeClickHouseIdentifier(tableName))); err != nil {
 		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)
 		wrapped.AddDetail("source_name", sourceName)
 		return wrapped
 	}
-	if _, err := db.Exec(fmt.Sprintf("DROP TABLE %s", sanitizeCH(fmt.Sprintf("%s_%d", tableName, epochMilliseconds)))); err != nil {
+	if _, err := db.Exec(fmt.Sprintf("DROP TABLE %s", SanitizeClickHouseIdentifier(fmt.Sprintf("%s_%d", tableName, epochMilliseconds)))); err != nil {
 		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)
 		wrapped.AddDetail("source_name", sourceName)
@@ -1257,7 +1335,7 @@ func (q clickhouseSQLQueries) determineColumnType(valueType types.ValueType) (st
 
 func (q clickhouseSQLQueries) newSQLOfflineTable(name string, columnType string) string {
 	// currently we allow nullable keys and use a ReplacingMergeTree to handle updates. We may wish to remove ts from the ordering key and remove nullable keys
-	return fmt.Sprintf("CREATE TABLE %s (entity String, value Nullable(%s), ts DateTime64(9)) ENGINE = ReplacingMergeTree ORDER BY (entity, ts) SETTINGS allow_nullable_key=1", sanitizeCH(name), columnType)
+	return fmt.Sprintf("CREATE TABLE %s (entity String, value Nullable(%s), ts DateTime64(9)) ENGINE = ReplacingMergeTree ORDER BY (entity, ts) SETTINGS allow_nullable_key=1", SanitizeClickHouseIdentifier(name), columnType)
 }
 
 func (q clickhouseSQLQueries) writeUpdate(table string) string {
@@ -1294,7 +1372,7 @@ func buildTrainingSelect(store *sqlOfflineStore, def TrainingSetDef, tableName s
 		if err != nil {
 			return "", err
 		}
-		santizedName := sanitizeCH(tableName)
+		santizedName := SanitizeClickHouseIdentifier(tableName)
 		tableJoinAlias := fmt.Sprintf("t%d", i)
 		columns = append(columns, fmt.Sprintf("%s.value AS %s", tableJoinAlias, santizedName))
 		query = fmt.Sprintf("%s ASOF LEFT JOIN (SELECT entity, value, ts FROM %s) AS %s ON (%s.entity = l.entity) AND (%s.ts <= l.ts)",
@@ -1302,7 +1380,7 @@ func buildTrainingSelect(store *sqlOfflineStore, def TrainingSetDef, tableName s
 	}
 	columnStr := strings.Join(columns, ", ")
 	// rand gives us a UInt32 to ensure random order
-	query = fmt.Sprintf("SELECT %s, l.value as label, rand() as _row FROM %s AS l %s", columnStr, sanitizeCH(labelName), query)
+	query = fmt.Sprintf("SELECT %s, l.value as label, rand() as _row FROM %s AS l %s", columnStr, SanitizeClickHouseIdentifier(labelName), query)
 	return query, nil
 }
 
@@ -1313,14 +1391,14 @@ func (q clickhouseSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Train
 	}
 	if !isUpdate {
 		// use a 2-step EMPTY create so ClickHouse Cloud compatible
-		createQuery := fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY _row EMPTY AS (%s)", sanitizeCH(tableName), query)
+		createQuery := fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY _row EMPTY AS (%s)", SanitizeClickHouseIdentifier(tableName), query)
 		if _, err := store.db.Exec(createQuery); err != nil {
 			wrapped := fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), def.ID.Name, def.ID.Variant, fferr.TRAINING_SET_VARIANT, err)
 			wrapped.AddDetail("table_name", tableName)
 			wrapped.AddDetail("label_name", labelName)
 			return wrapped
 		}
-		insertQuery := fmt.Sprintf("INSERT INTO %s %s", sanitizeCH(tableName), query)
+		insertQuery := fmt.Sprintf("INSERT INTO %s %s", SanitizeClickHouseIdentifier(tableName), query)
 		if _, err := store.db.Exec(insertQuery); err != nil {
 			wrapped := fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), def.ID.Name, def.ID.Variant, fferr.TRAINING_SET_VARIANT, err)
 			wrapped.AddDetail("table_name", tableName)
@@ -1328,7 +1406,7 @@ func (q clickhouseSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Train
 			return wrapped
 		}
 	} else {
-		tempName := sanitizeCH(fmt.Sprintf("tmp_%s", tableName))
+		tempName := SanitizeClickHouseIdentifier(fmt.Sprintf("tmp_%s", tableName))
 		createQuery := fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY _row EMPTY AS (%s)", tempName, query)
 		if _, err := store.db.Exec(createQuery); err != nil {
 			wrapped := fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), def.ID.Name, def.ID.Variant, fferr.TRAINING_SET_VARIANT, err)
@@ -1343,7 +1421,7 @@ func (q clickhouseSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Train
 			wrapped.AddDetail("label_name", labelName)
 			return wrapped
 		}
-		if _, err := store.db.Exec(fmt.Sprintf("EXCHANGE TABLES %s AND %s", sanitizeCH(tableName), tempName)); err != nil {
+		if _, err := store.db.Exec(fmt.Sprintf("EXCHANGE TABLES %s AND %s", SanitizeClickHouseIdentifier(tableName), tempName)); err != nil {
 			wrapped := fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), def.ID.Name, def.ID.Variant, fferr.TRAINING_SET_VARIANT, err)
 			wrapped.AddDetail("table_name", tableName)
 			wrapped.AddDetail("label_name", labelName)
@@ -1441,14 +1519,14 @@ func (q clickhouseSQLQueries) transformationCreate(name string, query string) []
 	// 2-step with EMPTY for ClickHouse Cloud support. Transformations are just another table.
 	return []string{
 		fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY tuple() EMPTY AS %s;",
-			sanitizeCH(name), query),
-		fmt.Sprintf(" INSERT INTO %s %s;", sanitizeCH(name), query),
+			SanitizeClickHouseIdentifier(name), query),
+		fmt.Sprintf(" INSERT INTO %s %s;", SanitizeClickHouseIdentifier(name), query),
 	}
 }
 
 func (q clickhouseSQLQueries) transformationUpdate(db *sql.DB, tableName string, query string) error {
 	// to update we just rebuild the whole transformation switching atomically using EXCHANGE TABLES
-	tempName := sanitizeCH(fmt.Sprintf("tmp_%s", tableName))
+	tempName := SanitizeClickHouseIdentifier(fmt.Sprintf("tmp_%s", tableName))
 	createQuery := fmt.Sprintf("CREATE TABLE %s ENGINE = MergeTree ORDER BY tuple() EMPTY AS %s", tempName, query)
 	if _, err := db.Exec(createQuery); err != nil {
 		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
@@ -1461,7 +1539,7 @@ func (q clickhouseSQLQueries) transformationUpdate(db *sql.DB, tableName string,
 		wrapped.AddDetail("table_name", tableName)
 		return wrapped
 	}
-	exchangeTableQuery := fmt.Sprintf("EXCHANGE TABLES %s AND %s", tempName, sanitizeCH(tableName))
+	exchangeTableQuery := fmt.Sprintf("EXCHANGE TABLES %s AND %s", tempName, SanitizeClickHouseIdentifier(tableName))
 	if _, err := db.Exec(exchangeTableQuery); err != nil {
 		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)
@@ -1503,12 +1581,12 @@ func (q clickhouseSQLQueries) getColumns(db *sql.DB, tableName string) ([]TableC
 }
 
 func (q clickhouseSQLQueries) materializationDrop(tableName string) string {
-	return fmt.Sprintf("DROP TABLE %s", sanitizeCH(tableName))
+	return fmt.Sprintf("DROP TABLE %s", SanitizeClickHouseIdentifier(tableName))
 }
 
 func (q clickhouseSQLQueries) materializationIterateSegment(tableName string) string {
 	bind := q.newVariableBindingIterator()
-	return fmt.Sprintf("SELECT entity, value, ts FROM (SELECT * FROM %s WHERE row_number>%s AND row_number<=%s) t1", sanitizeCH(tableName), bind.Next(), bind.Next())
+	return fmt.Sprintf("SELECT entity, value, ts FROM (SELECT * FROM %s WHERE row_number>%s AND row_number<=%s) t1", SanitizeClickHouseIdentifier(tableName), bind.Next(), bind.Next())
 }
 
 type clickHouseMaterialization struct {
@@ -1524,7 +1602,7 @@ func (mat *clickHouseMaterialization) ID() MaterializationID {
 
 func (mat *clickHouseMaterialization) NumRows() (int64, error) {
 	var n interface{}
-	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitizeCH(mat.tableName))
+	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", SanitizeClickHouseIdentifier(mat.tableName))
 	rows := mat.db.QueryRow(query)
 	err := rows.Scan(&n)
 	if err != nil {

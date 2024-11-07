@@ -1,5 +1,12 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 package serving
@@ -14,12 +21,12 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/featureform/scheduling"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 	grpcmeta "google.golang.org/grpc/metadata"
 
@@ -455,7 +462,7 @@ type onlineTestContext struct {
 
 func (ctx *onlineTestContext) Create(t *testing.T) *FeatureServer {
 	var addr string
-	ctx.metaServ, addr = startMetadata()
+	ctx.metaServ, addr = startMetadata(t)
 	providerType := uuid.NewString()
 	if ctx.FactoryFn != nil {
 		if err := provider.RegisterFactory(pt.Type(providerType), ctx.FactoryFn); err != nil {
@@ -469,7 +476,7 @@ func (ctx *onlineTestContext) Create(t *testing.T) *FeatureServer {
 			t.Fatalf("Failed to create metadata entries: %s", err)
 		}
 	}
-	logger := zaptest.NewLogger(t).Sugar()
+	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
 	serv, err := NewFeatureServer(meta, metrics.NewMetrics(randomMetricsId()), logger)
 	if err != nil {
 		t.Fatalf("Failed to create feature server: %s", err)
@@ -540,14 +547,15 @@ func onlineStoreNoTables(cfg pc.SerializedConfig) (provider.Provider, error) {
 	return store, nil
 }
 
-func startMetadata() (*metadata.MetadataServer, string) {
-	logger, err := zap.NewDevelopment()
+func startMetadata(t *testing.T) (*metadata.MetadataServer, string) {
+	manager, err := scheduling.NewMemoryTaskMetadataManager()
+	logger := zaptest.NewLogger(t)
 	if err != nil {
 		panic(err)
 	}
 	config := &metadata.Config{
-		Logger:          logging.WrapZapLogger(logger.Sugar()),
-		StorageProvider: metadata.LocalStorageProvider{},
+		Logger:      logging.WrapZapLogger(logger.Sugar()),
+		TaskManager: manager,
 	}
 	serv, err := metadata.NewMetadataServer(config)
 	if err != nil {
@@ -1114,21 +1122,21 @@ func TestOnDemandFeatureServe(t *testing.T) {
 }
 
 type mockTrainingStream struct {
-	RowChan    chan *pb.TrainingDataRow
+	RowChan    chan *pb.TrainingDataRows
 	ShouldFail bool
 }
 
 func newMockTrainingStream() *mockTrainingStream {
 	return &mockTrainingStream{
-		RowChan: make(chan *pb.TrainingDataRow),
+		RowChan: make(chan *pb.TrainingDataRows),
 	}
 }
 
-func (stream *mockTrainingStream) Send(row *pb.TrainingDataRow) error {
+func (stream *mockTrainingStream) Send(rows *pb.TrainingDataRows) error {
 	if stream.ShouldFail {
 		return fmt.Errorf("Mock Failure")
 	}
-	stream.RowChan <- row
+	stream.RowChan <- rows
 	return nil
 }
 
@@ -1189,14 +1197,16 @@ func TestSimpleTrainingSetServe(t *testing.T) {
 	moreVals := true
 	for moreVals {
 		select {
-		case row := <-stream.RowChan:
-			if len(row.Features) != 1 {
-				t.Fatalf("Row has too many features: %v", row)
+		case rows := <-stream.RowChan:
+			for _, row := range rows.Rows {
+				if len(row.Features) != 1 {
+					t.Fatalf("Row has too many features: %v", row)
+				}
+				actualRows[Row{
+					Feature: unwrapVal(row.Features[0]),
+					Label:   unwrapVal(row.Label),
+				}] = true
 			}
-			actualRows[Row{
-				Feature: unwrapVal(row.Features[0]),
-				Label:   unwrapVal(row.Label),
-			}] = true
 		case err := <-errChan:
 			if err != nil {
 				t.Fatalf("Failed to get training data: %s", err)
@@ -1406,14 +1416,16 @@ func TestSimpleModelRegistrationTrainingSetServe(t *testing.T) {
 	moreVals := true
 	for moreVals {
 		select {
-		case row := <-stream.RowChan:
-			if len(row.Features) != 1 {
-				t.Fatalf("Row has too many features: %v", row)
+		case rows := <-stream.RowChan:
+			for _, row := range rows.Rows {
+				if len(row.Features) != 1 {
+					t.Fatalf("Row has too many features: %v", row)
+				}
+				actualRows[Row{
+					Feature: unwrapVal(row.Features[0]),
+					Label:   unwrapVal(row.Label),
+				}] = true
 			}
-			actualRows[Row{
-				Feature: unwrapVal(row.Features[0]),
-				Label:   unwrapVal(row.Label),
-			}] = true
 		case err := <-errChan:
 			if err != nil {
 				t.Fatalf("Failed to get training data: %s", err)

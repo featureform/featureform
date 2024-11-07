@@ -1,0 +1,74 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
+import '@testing-library/jest-dom/extend-expect';
+import { cleanup, render } from '@testing-library/react';
+import React from 'react';
+import LabelVariantTable from './LabelVariantTable';
+import { label_test_response } from './test_data';
+
+const mockData = label_test_response;
+
+const dataApiMock = {
+  getLabelVariants: jest.fn().mockResolvedValue(mockData),
+  getTypeTags: jest.fn().mockResolvedValue([]),
+  getTypeOwners: jest.fn().mockResolvedValue([]),
+};
+
+jest.mock('../../../hooks/dataAPI', () => ({
+  useDataAPI: () => {
+    return dataApiMock;
+  },
+}));
+
+describe('Label Variant Table Tests', () => {
+  beforeEach(() => {});
+
+  afterEach(() => {
+    jest.clearAllMocks();
+    cleanup();
+  });
+
+  test('The label variant table renders the feature names OK', async () => {
+    //given:
+    const helper = render(<LabelVariantTable />);
+
+    //when:
+    const firstVariant = await helper.findByText('avg_transactions_OK');
+    const secondVariant = await helper.findByText('example');
+
+    // expect:
+    expect(firstVariant).toBeInTheDocument();
+    expect(secondVariant).toBeInTheDocument();
+  });
+
+  test('The table renders the status names OK', async () => {
+    //given:
+    const helper = render(<LabelVariantTable />);
+
+    //when:
+    const failedStatus = await helper.findByText('FAILED');
+    const readyStatus = await helper.findByText('READY');
+
+    // expect:
+    expect(failedStatus).toBeInTheDocument();
+    expect(readyStatus).toBeInTheDocument();
+  });
+
+  test('The table renders the tag names correctly', async () => {
+    //given:
+    const helper = render(<LabelVariantTable />);
+
+    //when:
+    const recordTags1 = await helper.findByText('testing');
+    const recordTags2 = await helper.findByText('v1, exam1');
+
+    // expect:
+    expect(recordTags1).toBeInTheDocument();
+    expect(recordTags2).toBeInTheDocument();
+  });
+});

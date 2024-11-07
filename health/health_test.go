@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2024 FeatureForm Inc.
+//
+
 package health
 
 import (
@@ -9,6 +16,10 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/featureform/provider/retriever"
+
+	"github.com/featureform/scheduling"
 
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
@@ -166,10 +177,11 @@ func TestHealth_Check(t *testing.T) {
 }
 
 func initMetadataServer(t *testing.T) (*metadata.MetadataServer, string) {
+	manager, err := scheduling.NewMemoryTaskMetadataManager()
 	logger := zaptest.NewLogger(t).Sugar()
 	config := &metadata.Config{
-		Logger:          logging.WrapZapLogger(logger),
-		StorageProvider: metadata.LocalStorageProvider{},
+		Logger:      logging.WrapZapLogger(logger),
+		TaskManager: manager,
 	}
 	server, err := metadata.NewMetadataServer(config)
 	if err != nil {
@@ -223,9 +235,9 @@ func initSpark(t *testing.T, executorType pc.SparkExecutorType, storeType fs.Fil
 		}
 	case pc.EMR:
 		executorConfig = &pc.EMRConfig{
-			Credentials: pc.AWSCredentials{
-				AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-				AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+			Credentials: pc.AWSStaticCredentials{
+				AccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+				SecretKey:   os.Getenv("AWS_SECRET_KEY"),
 			},
 			ClusterRegion: os.Getenv("AWS_EMR_CLUSTER_REGION"),
 			ClusterName:   os.Getenv("AWS_EMR_CLUSTER_ID"),
@@ -238,9 +250,9 @@ func initSpark(t *testing.T, executorType pc.SparkExecutorType, storeType fs.Fil
 	switch storeType {
 	case fs.S3:
 		fileStoreConfig = &pc.S3FileStoreConfig{
-			Credentials: pc.AWSCredentials{
-				AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
-				AWSSecretKey:   os.Getenv("AWS_SECRET_KEY"),
+			Credentials: pc.AWSStaticCredentials{
+				AccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"),
+				SecretKey:   os.Getenv("AWS_SECRET_KEY"),
 			},
 			BucketRegion: os.Getenv("S3_BUCKET_REGION"),
 			BucketPath:   os.Getenv("S3_BUCKET_PATH"),
@@ -310,7 +322,7 @@ func initProvider(t *testing.T, providerType pt.Type, executorType pc.SparkExecu
 			Port:     "5432",
 			Database: db,
 			Username: user,
-			Password: password,
+			Password: retriever.NewStaticValue[string](password),
 			SSLMode:  "disable",
 		}
 		return postgresConfig.Serialize()
@@ -356,9 +368,11 @@ func initProvider(t *testing.T, providerType pt.Type, executorType pc.SparkExecu
 		region := checkEnv("DYNAMODB_REGION")
 
 		dynamodbConfig := pc.DynamodbConfig{
-			AccessKey: key,
-			SecretKey: secret,
-			Region:    region,
+			Credentials: pc.AWSStaticCredentials{
+				AccessKeyId: key,
+				SecretKey:   secret,
+			},
+			Region: region,
 		}
 
 		return dynamodbConfig.Serialized()
@@ -457,7 +471,7 @@ func testUnsuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *
 			}
 		case pc.EMR:
 			failureConfig.ExecutorConfig = &pc.EMRConfig{
-				Credentials:   pc.AWSCredentials{},
+				Credentials:   pc.AWSStaticCredentials{},
 				ClusterRegion: "invalid",
 				ClusterName:   "invalid",
 			}
@@ -472,7 +486,7 @@ func testUnsuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *
 			}
 		case fs.S3:
 			failureConfig.StoreConfig = &pc.S3FileStoreConfig{
-				Credentials:  pc.AWSCredentials{},
+				Credentials:  pc.AWSStaticCredentials{},
 				BucketRegion: "invalid",
 				BucketPath:   "invalid",
 				Path:         "invalid",
@@ -485,7 +499,9 @@ func testUnsuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *
 		if err := failureConfig.Deserialize(def.SerializedConfig); err != nil {
 			t.Fatalf("Failed to deserialize config: %s", err)
 		}
-		failureConfig.AccessKey = "invalid"
+		awsStaticCreds := failureConfig.Credentials.(pc.AWSStaticCredentials)
+		awsStaticCreds.AccessKeyId = "invalid"
+		failureConfig.Credentials = awsStaticCreds
 		def.SerializedConfig = failureConfig.Serialized()
 		def.Name = "dynamodb-failure"
 	case pt.SnowflakeOffline:

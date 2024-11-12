@@ -1,0 +1,20 @@
+{{ if .Values.argo.rollouts.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: featureform-prometheus-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: featureform-prometheus-server
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: featureform-prometheus-deployment
+    scaleDown: onsuccess
+  strategy:
+    blueGreen:
+      activeService: featureform-prometheus-service
+      autoPromotionEnabled: false
+{{ end }}

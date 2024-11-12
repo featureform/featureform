@@ -1,0 +1,20 @@
+{{ if .Values.argo.rollouts.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: featureform-dashboard-metadata
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: featureform-dashboard-metadata
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: featureform-dashboard-metadata
+    scaleDown: onsuccess
+  strategy:
+    blueGreen:
+      activeService: featureform-dashboard-metadata
+      autoPromotionEnabled: false
+{{ end }}

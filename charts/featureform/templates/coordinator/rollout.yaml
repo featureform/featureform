@@ -1,0 +1,20 @@
+{{ if .Values.argo.rollouts.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: featureform-coordinator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: featureform-coordinator
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: featureform-coordinator
+    scaleDown: onsuccess
+  strategy:
+    blueGreen:
+      activeService: featureform-coordinator
+      autoPromotionEnabled: false
+{{ end }}

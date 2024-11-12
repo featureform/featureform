@@ -20,16 +20,25 @@ repository: "featureformenterprise"
 # Global pull policy
 pullPolicy: "Always"
 
-# If a public certificate should be generated automatically through lets encrypt and used
-publicCert: false
+cert:
+  # If a public certificate should be generated automatically through lets encrypt and used
+  publicCert: false
 
-# Will automatically create a self-signed cert that can be used if enabled
-selfSignedCert: true
+  # Will automatically create a self-signed cert that can be used if enabled
+  selfSignedCert: true
 
-# Note: If post publicCert and selfSignedCert are disabled, an existing certificate will need to be supplied
+  # Whether to use the prod letsencrypt endpoint or the staging. The production endpoint returns
+  # certificates that are trusted be well-known Certificate Authorities, however they have a low
+  # request limit (approximately 5 / week at the time of writing). During testing of infrastructure,
+  # this might be too low, so they also have a staging endpoint, with a much higher limit, but
+  # by default they're not trusted by any well-known CA (but you can add the certs manually).
+  # See https://letsencrypt.org/docs/staging-environment/
+  letsencryptProd: true
 
-# Name of the certificate
-tlsSecretName: "featureform-ca-secret"
+  # Note: If post publicCert and selfSignedCert are disabled, an existing certificate will need to be supplied
+
+  # Name of the certificate
+  tlsSecretName: "featureform-ca-secret"
 
 # If enabled, will run jobs on individual pods instead of in a coordinator thread
 k8sRunnerEnable: false

@@ -15,12 +15,16 @@ metadata:
     nginx.ingress.kubernetes.io/backend-protocol: HTTP
     nginx.ingress.kubernetes.io/proxy-body-size: 64ms
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    cert-manager.io/issuer: letsencrypt-prod
+    cert-manager.io/issuer: letsencrypt
     {{ if eq .Values.embeddedIngress.enabled false }}
     kots.io/exclude: "true"
     {{ end }}
   name: http-ingress
 spec:
+  tls:
+    - hosts:
+        -  {{ .Values.hostname }}
+      secretName: {{ .Values.cert.tlsSecretName }}
   defaultBackend:
     service:
       name: featureform-dashboard
@@ -65,6 +69,3 @@ spec:
                 name: featureform-dashboard
                 port:
                   number: 80
-
-
-

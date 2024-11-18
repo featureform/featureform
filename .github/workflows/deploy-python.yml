@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 18
           cache: "npm"
           cache-dependency-path: dashboard/package-lock.json
 
@@ -30,13 +30,17 @@ jobs:
         working-directory: ./dashboard
 
       - name: Install grpc_tools
-        run: pip install grpcio-tools==1.62.2
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install grpcio-tools==1.62.2 build mypy-protobuf
 
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
 
       - name: Install Build Deps
         run: |
+          source venv/bin/activate
           pip install build
           pip install twine
 
@@ -44,4 +48,6 @@ jobs:
         run: sed -i -e 's/0.0.0/${{ inputs.version }}/g' ./client/setup.cfg
 
       - name: Package and Upload
-        run: ./gen_pypi.sh
+        run: |
+          source venv/bin/activate
+          ./gen_pypi.sh

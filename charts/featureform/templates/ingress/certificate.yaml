@@ -5,15 +5,15 @@
 #  Copyright 2024 FeatureForm Inc.
 #
 
-{{ if .Values.publicCert }}
+{{ if .Values.cert.publicCert }}
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ .Release.Name }}-featureform-prod
+  name: {{ .Release.Name }}-featureform
 spec:
-  secretName: featureform-ca-secret
+  secretName: {{ .Values.cert.tlsSecretName }}
   issuerRef:
-    name: letsencrypt-prod
+    name: letsencrypt
   dnsNames:
     - {{ .Values.hostname }}
 {{ end }}

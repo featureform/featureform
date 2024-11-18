@@ -5,14 +5,19 @@
 #  Copyright 2024 FeatureForm Inc.
 #
 
-{{ if .Values.publicCert }}
+{{ if .Values.cert.publicCert }}
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: letsencrypt-prod
+  name: letsencrypt
 spec:
   acme:
-    server: https://acme-v02.api.letsencrypt.org/directory
+    server: {{
+              ternary
+              "https://acme-v02.api.letsencrypt.org/directory"
+              "https://acme-staging-v02.api.letsencrypt.org/directory"
+              .Values.cert.letsencryptProd
+            }}
     email: sterling@featureform.com
     privateKeySecretRef:
       name: account-key-prod

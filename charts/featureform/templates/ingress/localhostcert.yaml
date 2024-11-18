@@ -5,22 +5,22 @@
 #  Copyright 2024 FeatureForm Inc.
 #
 
-{{ if .Values.selfSignedCert }}
+{{ if .Values.cert.selfSignedCert }}
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: letsencrypt-prod
+  name: letsencrypt
 spec:
   selfSigned: {}
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: featureform-ca-cert
+  name: {{ .Values.cert.tlsSecretName }}
 spec:
   secretName: featureform-ca
   dnsNames:
     - {{ .Values.hostname }}
   issuerRef:
-    name: letsencrypt-prod
+    name: letsencrypt
 {{ end }}

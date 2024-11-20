@@ -74,7 +74,7 @@ logging:
 embeddedIngress:
   enabled: false
 
-debug: false
+debug: true
 
 # These values override the values in the 3rd party ETCD chart
 etcd:

@@ -11,4 +11,4 @@ metadata:
   name: etcd-upgrade-configmap
 data:
   ETCD_INITIAL_CLUSTER_STATE:
-    { { ternary "new" "existing" .Release.IsInstall | quote } }
+    {{ ternary "new" "existing" .Release.IsInstall | quote }}

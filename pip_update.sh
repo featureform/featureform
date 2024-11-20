@@ -20,7 +20,6 @@ do
 done
 
 pip3 uninstall featureform -y
-pip3 uninstall featureform-enterprise -y
 rm -r client/dist/*
 
 

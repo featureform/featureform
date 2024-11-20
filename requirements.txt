@@ -26,7 +26,7 @@ mkdocstrings==0.20.0
 mkdocstrings-python==0.8.3
 packaging==23.0
 pluggy==1.0.0
-protobuf==4.21.12
+protobuf<5.0dev
 Pygments==2.15.0
 pymdown-extensions==10.0
 pyproject_hooks==1.0.0

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/featureform/helpers"
+	"github.com/jonboulle/clockwork"
 )
 
 func TestETCDLocker(t *testing.T) {
@@ -38,10 +39,13 @@ func TestETCDLocker(t *testing.T) {
 		t.Fatalf("Failed to create ETCD locker: %v", err)
 	}
 
+	clock := clockwork.NewFakeClock()
+	locker.(*etcdLocker).clock = clock
+
 	test := LockerTest{
 		t:          t,
 		locker:     locker,
 		lockerType: "etcd",
 	}
-	test.Run()
+	test.Run(clock)
 }

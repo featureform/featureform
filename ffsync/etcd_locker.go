@@ -9,7 +9,7 @@ package ffsync
 
 import (
 	"context"
-	"fmt"
+	"github.com/jonboulle/clockwork"
 	"time"
 
 	"github.com/featureform/fferr"
@@ -45,7 +45,7 @@ func NewETCDLocker(config helpers.ETCDConfig) (Locker, error) {
 		Password:  config.Password,
 	})
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("failed to create etcd client: %w", err))
+		return nil, fferr.NewInternalErrorf("failed to create etcd client: %w", err)
 	}
 
 	ctx := context.Background()
@@ -54,6 +54,7 @@ func NewETCDLocker(config helpers.ETCDConfig) (Locker, error) {
 		client: client,
 		ctx:    ctx,
 		logger: logging.NewLogger("ffsync.etcdLocker"),
+		clock:  clockwork.NewRealClock(),
 	}, nil
 }
 
@@ -61,15 +62,32 @@ type etcdLocker struct {
 	client *clientv3.Client
 	ctx    context.Context
 	logger logging.Logger
+	clock  clockwork.Clock
+}
+
+func validateKey(key Key) (*etcdKey, error) {
+	if key == nil {
+		return nil, fferr.NewInternalErrorf("cannot unlock a nil key")
+	}
+	if key.Key() == "" {
+		return nil, fferr.NewUnlockEmptyKeyError()
+	}
+
+	etcdKey, ok := key.(etcdKey)
+	if !ok {
+		return nil, fferr.NewInternalErrorf("key is not an etcd key: %v", key.Key())
+	}
+
+	return &etcdKey, nil
 }
 
 func (m *etcdLocker) cancelableWaitTime(key string) error {
-	startTime := time.Now()
+	startTime := m.clock.Now()
 	for {
 		if hasExceededWaitTime(startTime) {
 			return fferr.NewExceededWaitTimeError("etcd", key)
 		}
-		time.Sleep(100 * time.Millisecond)
+		m.clock.Sleep(100 * time.Millisecond)
 	}
 }
 
@@ -87,7 +105,7 @@ func (m *etcdLocker) blockingLock(ctx context.Context, lockMutex *concurrency.Mu
 	logger.Debug("Attempting to lock mutex")
 	if err := lockMutex.Lock(m.ctx); err != nil {
 		logger.Error("Failed to lock key, because of error", "error", err.Error())
-		return fferr.NewInternalError(fmt.Errorf("failed to lock key %s: %w", key, err))
+		return fferr.NewInternalErrorf("failed to lock key %s: %w", key, err)
 	}
 	return nil
 }
@@ -103,7 +121,7 @@ func (m *etcdLocker) nonBlockingLock(ctx context.Context, lockMutex *concurrency
 			return fferr.NewKeyAlreadyLockedError(key, lockMutex.Key(), nil)
 		} else {
 			logger.Errorw("Failed to lock key", "error", err, "key", key, "lock_id", lockMutex.Key())
-			return fferr.NewInternalError(fmt.Errorf("failed to lock key %s: %w", key, err))
+			return fferr.NewInternalErrorf("failed to lock key %s: %w", key, err)
 		}
 	}
 	return nil
@@ -118,14 +136,14 @@ func (m *etcdLocker) Lock(ctx context.Context, key string, wait bool) (Key, erro
 		return nil, fferr.NewLockEmptyKeyError()
 	}
 
-	lease, err := m.client.Grant(ctx, ValidTimePeriod.Duration().Milliseconds())
+	lease, err := m.client.Grant(ctx, validTimePeriod.Duration().Milliseconds())
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("failed to grant lease: %w", err))
+		return nil, fferr.NewInternalErrorf("failed to grant lease: %w", err)
 	}
 
 	leaseKeepAliveChan, err := m.client.KeepAlive(ctx, lease.ID)
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("failed to keep alive lease: %w", err))
+		return nil, fferr.NewInternalErrorf("failed to keep alive lease: %w", err)
 	}
 
 	go func() {
@@ -141,7 +159,7 @@ func (m *etcdLocker) Lock(ctx context.Context, key string, wait bool) (Key, erro
 
 	session, err := concurrency.NewSession(m.client, concurrency.WithLease(lease.ID))
 	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("failed to create session: %w", err))
+		return nil, fferr.NewInternalErrorf("failed to create session: %w", err)
 	}
 
 	lockMutex := concurrency.NewMutex(session, "key/"+key)
@@ -170,22 +188,15 @@ func (m *etcdLocker) Unlock(ctx context.Context, key Key) error {
 	logger := m.logger.With("key", key.Key(), "request_id", ctx.Value("request_id"))
 	logger.Debug("Unlocking key")
 
-	if key == nil {
-		return fferr.NewInternalError(fmt.Errorf("cannot unlock a nil key"))
-	}
-	if key.Key() == "" {
-		return fferr.NewUnlockEmptyKeyError()
-	}
-
-	etcdKey, ok := key.(etcdKey)
-	if !ok {
-		return fferr.NewInternalError(fmt.Errorf("key is not an etcd key: %v", key.Key()))
+	etcdKey, err := validateKey(key)
+	if err != nil {
+		return err
 	}
 
 	logger.Debug("Attempting to unlock mutex")
 	if err := etcdKey.lockMutex.Unlock(m.ctx); err != nil {
 		logger.Error("Failed to unlock key, because of error", "error", err.Error())
-		return fferr.NewInternalError(fmt.Errorf("failed to unlock key %s: %w", key.Key(), err))
+		return fferr.NewInternalErrorf("failed to unlock key %s: %w", key.Key(), err)
 	}
 
 	m.client.Revoke(m.ctx, etcdKey.lease.ID)

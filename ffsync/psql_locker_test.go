@@ -10,6 +10,7 @@ package ffsync
 import (
 	"context"
 	"fmt"
+	"github.com/jonboulle/clockwork"
 	"testing"
 
 	"github.com/featureform/helpers"
@@ -51,6 +52,9 @@ func TestPSQLLocker(t *testing.T) {
 		t.Fatalf("Failed to create PSQL locker: %v", err)
 	}
 
+	clock := clockwork.NewFakeClock()
+	locker.(*psqlLocker).clock = clock
+
 	// clean up
 	defer func() {
 		rLocker := locker.(*psqlLocker)
@@ -68,5 +72,5 @@ func TestPSQLLocker(t *testing.T) {
 		locker:     locker,
 		lockerType: "psql",
 	}
-	test.Run()
+	test.Run(clock)
 }

@@ -10,6 +10,7 @@ package ffsync
 import (
 	"context"
 	"fmt"
+	"github.com/jonboulle/clockwork"
 	"strings"
 	"sync"
 	"time"
@@ -42,6 +43,7 @@ func NewMemoryLocker() (memoryLocker, error) {
 		lockedItems: &sync.Map{},
 		mutex:       &sync.Mutex{},
 		logger:      logging.NewLogger("ffsync.memoryLocker"),
+		clock:       clockwork.NewRealClock(),
 	}, nil
 }
 
@@ -49,6 +51,7 @@ type memoryLocker struct {
 	lockedItems *sync.Map
 	mutex       *sync.Mutex
 	logger      logging.Logger
+	clock       clockwork.Clock
 }
 
 func (m *memoryLocker) checkLock(ctx context.Context, key string) error {
@@ -72,7 +75,7 @@ func (m *memoryLocker) checkLock(ctx context.Context, key string) error {
 	logger.Debug("Fetching key item ", key)
 	if lockInfo, ok := m.lockedItems.Load(key); ok {
 		keyLock := lockInfo.(LockInformation)
-		if time.Since(keyLock.Date) < ValidTimePeriod.Duration() {
+		if m.clock.Since(keyLock.Date) < validTimePeriod.Duration() {
 			logger.Debugw("failed to lock a living key ", "currentKey", key, "living key", keyLock.Key)
 			return fferr.NewKeyAlreadyLockedError(key, keyLock.ID, nil)
 		}
@@ -83,7 +86,7 @@ func (m *memoryLocker) checkLock(ctx context.Context, key string) error {
 func (m *memoryLocker) attemptLock(ctx context.Context, key string, wait bool) error {
 	logger := ctx.Value(memoryLoggerKey).(*zap.SugaredLogger)
 	logger.Debug("Attempting to lock key")
-	startTime := time.Now()
+	startTime := m.clock.Now()
 
 	// Unlock the mutex so we can lock it in the loop
 	m.mutex.Unlock()
@@ -101,7 +104,7 @@ func (m *memoryLocker) attemptLock(ctx context.Context, key string, wait bool) e
 		} else if err != nil && fferr.IsKeyAlreadyLockedError(err) && wait == true {
 			// Unlock so that other threads can attempt to lock
 			m.mutex.Unlock()
-			time.Sleep(100 * time.Millisecond)
+			m.clock.Sleep(100 * time.Millisecond)
 		} else {
 			return err
 		}
@@ -131,7 +134,7 @@ func (m *memoryLocker) Lock(ctx context.Context, key string, wait bool) (Key, er
 	lock := LockInformation{
 		ID:   id,
 		Key:  key,
-		Date: time.Now().UTC(),
+		Date: m.clock.Now().UTC(),
 	}
 
 	logger.Debugw("Storing Key", "id", lock.ID)
@@ -175,7 +178,7 @@ func (m *memoryLocker) hasPrefixLocked(key string) (string, bool) {
 }
 
 func (m *memoryLocker) updateLockTime(key *memoryKey) {
-	ticker := time.NewTicker(UpdateSleepTime.Duration())
+	ticker := m.clock.NewTicker(updateSleepTime.Duration())
 	defer ticker.Stop()
 
 	for {
@@ -183,7 +186,7 @@ func (m *memoryLocker) updateLockTime(key *memoryKey) {
 		case <-key.Done:
 			// Received signal to stop
 			return
-		case <-ticker.C:
+		case <-ticker.Chan():
 			// Continue updating lock time
 			// We need to check if the key still exists because it could have been deleted
 			lockInfo, ok := m.lockedItems.Load(key.key)
@@ -198,7 +201,7 @@ func (m *memoryLocker) updateLockTime(key *memoryKey) {
 				return
 			}
 			if lock.ID == key.id {
-				lock.Date = time.Now().UTC()
+				lock.Date = m.clock.Now().UTC()
 				// Update lock time
 				m.lockedItems.Store(key.key, lock)
 			}

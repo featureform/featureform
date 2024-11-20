@@ -10,6 +10,7 @@ package ffsync
 import (
 	"context"
 	"fmt"
+	"github.com/jonboulle/clockwork"
 	"time"
 
 	"github.com/featureform/logging"
@@ -25,8 +26,6 @@ import (
 const key_length = 2048
 const tickerFailedUpdateLimit = 5
 const psqlLoggerKey = "psqlLogger"
-
-var lock_expiration_time = ValidTimePeriod.AsPSQLString()
 
 type psqlKey struct {
 	id   string
@@ -72,6 +71,7 @@ func NewPSQLLocker(config helpers.PSQLConfig) (Locker, error) {
 		tableName:  tableName,
 		connection: connection,
 		logger:     logging.NewLogger("ffsync.psqlLocker"),
+		clock:      clockwork.NewRealClock(),
 	}, nil
 }
 
@@ -80,11 +80,12 @@ type psqlLocker struct {
 	tableName  string
 	connection *pgxpool.Conn
 	logger     logging.Logger
+	clock      clockwork.Clock
 }
 
 func (l *psqlLocker) runLockQuery(key string, id string) error {
 	lockQuery := l.lockQuery()
-	if r, err := l.db.Exec(context.Background(), lockQuery, id, key); err != nil {
+	if r, err := l.db.Exec(context.Background(), lockQuery, id, key, l.clock.Now().Add(validTimePeriod.Duration()), l.clock.Now()); err != nil {
 		return fferr.NewInternalError(fmt.Errorf("failed to lock key %s: %v", key, err))
 	} else if r.RowsAffected() == 0 {
 		return fferr.NewKeyAlreadyLockedError(key, id, nil)
@@ -95,7 +96,7 @@ func (l *psqlLocker) runLockQuery(key string, id string) error {
 func (l *psqlLocker) attemptLock(ctx context.Context, key string, id string, wait bool) error {
 	logger := ctx.Value(psqlLoggerKey).(*zap.SugaredLogger)
 	logger.Debug("Attempting to lock key")
-	startTime := time.Now()
+	startTime := l.clock.Now()
 	for {
 		if hasExceededWaitTime(startTime) {
 			return fferr.NewExceededWaitTimeError("psql", key)
@@ -104,7 +105,7 @@ func (l *psqlLocker) attemptLock(ctx context.Context, key string, id string, wai
 		if err := l.runLockQuery(key, id); err == nil {
 			return nil
 		} else if err != nil && fferr.IsKeyAlreadyLockedError(err) && wait == true {
-			time.Sleep(100 * time.Millisecond)
+			l.clock.Sleep(100 * time.Millisecond)
 		} else {
 			logger.Errorw("Failed to lock key", "error", err.Error())
 			return err
@@ -136,15 +137,18 @@ func (l *psqlLocker) Lock(ctx context.Context, key string, wait bool) (Key, erro
 	}
 
 	logger.Debug("Starting lock expiration update")
-	go l.updateLockTime(&lockKey)
+	go l.updateLockTime(ctx, &lockKey)
 
 	logger.Debug("Successfully locked key")
 	return lockKey, nil
 }
 
-func (l *psqlLocker) updateLockTime(key *psqlKey) {
-	ticker := time.NewTicker(UpdateSleepTime.Duration())
+func (l *psqlLocker) updateLockTime(ctx context.Context, key *psqlKey) {
+	logger := ctx.Value(psqlLoggerKey).(*zap.SugaredLogger)
+	ticker := l.clock.NewTicker(updateSleepTime.Duration())
 	defer ticker.Stop()
+
+	logger.Debug("Lock time extender thread started")
 
 	// Keep track of failed updates and will return if it exceeds the limit
 	failedUpdatesInARow := 0
@@ -152,15 +156,17 @@ func (l *psqlLocker) updateLockTime(key *psqlKey) {
 	for {
 		select {
 		case <-key.done:
+			logger.Debug("Lock time extender received signal to stop")
 			// Received signal to stop
 			return
-		case <-ticker.C:
+		case <-ticker.Chan():
 			// Continue updating lock time
 			// We need to check if the key still exists because it could have been deleted
 			updateQueryTime := l.updateLockExpirationQuery()
-			r, err := l.db.Exec(context.Background(), updateQueryTime, key.id, key.key)
+			r, err := l.db.Exec(context.Background(), updateQueryTime, key.id, key.key, l.clock.Now().Add(validTimePeriod.Duration()))
 			if err != nil {
 				failedUpdatesInARow++
+				logger.Errorw("Failed to extend lock time", "error", err.Error(), "failedUpdatesInARow", failedUpdatesInARow)
 				if failedUpdatesInARow >= tickerFailedUpdateLimit {
 					return
 				}
@@ -216,12 +222,12 @@ func (l *psqlLocker) Close() {
 // SQL Queries
 func createTableQuery(tableName string) string {
 	tableName = helpers.SanitizePostgres(tableName)
-	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (owner VARCHAR(255), key VARCHAR(%d) NOT NULL, expiration TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP + INTERVAL '%s', PRIMARY KEY (key));", tableName, key_length, lock_expiration_time)
+	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (owner VARCHAR(255), key VARCHAR(%d) NOT NULL, expiration TIMESTAMP NOT NULL, PRIMARY KEY (key));", tableName, key_length)
 }
 
 func (l *psqlLocker) lockQuery() string {
 	tableName := helpers.SanitizePostgres(l.tableName)
-	return fmt.Sprintf("INSERT INTO %s (owner, key, expiration) VALUES ($1, $2, NOW() + INTERVAL '%s') ON CONFLICT (key) DO UPDATE SET owner = EXCLUDED.owner, expiration = NOW() + INTERVAL '%s' WHERE %s.expiration < NOW();", tableName, lock_expiration_time, lock_expiration_time, tableName)
+	return fmt.Sprintf("INSERT INTO %s (owner, key, expiration) VALUES ($1, $2, $3) ON CONFLICT (key) DO UPDATE SET owner = EXCLUDED.owner, expiration = $3 WHERE %s.expiration < $4;", tableName, tableName)
 }
 
 func (l *psqlLocker) unlockQuery() string {
@@ -231,5 +237,5 @@ func (l *psqlLocker) unlockQuery() string {
 
 func (l *psqlLocker) updateLockExpirationQuery() string {
 	tableName := helpers.SanitizePostgres(l.tableName)
-	return fmt.Sprintf("UPDATE %s SET expiration = CURRENT_TIMESTAMP + INTERVAL '%s' WHERE owner = $1 AND key = $2 FOR UPDATE", tableName, lock_expiration_time)
+	return fmt.Sprintf("UPDATE %s SET expiration = $3 WHERE owner = $1 AND key = $2", tableName)
 }

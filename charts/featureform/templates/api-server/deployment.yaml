@@ -40,6 +40,8 @@ spec:
           env:
             - name: API_PORT
               value: {{ .Values.api.port | quote }}
+            - name: FEATUREFORM_DEBUG_LOGGING
+              value: {{ .Values.debug | quote }}
             - name: METADATA_HOST
               value: {{ .Values.metadata.host }}
             - name: METADATA_PORT

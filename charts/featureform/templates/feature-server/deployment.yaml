@@ -57,6 +57,8 @@ spec:
             - containerPort: {{ .Values.serving.port }}
             - containerPort: {{ .Values.prometheus.port }}
           env:
+            - name: FEATUREFORM_DEBUG_LOGGING
+              value: {{ .Values.debug | quote }}
             - name: SERVING_PORT
               value: {{ .Values.serving.port | quote }}
             - name: METRICS_PORT

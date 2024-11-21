@@ -396,6 +396,7 @@ func TestSnowflakeConfigConnectionString(t *testing.T) {
 		Schema         string
 		Role           string
 		Warehouse      string
+		SessionParams  map[string]string
 	}
 	tests := []struct {
 		name    string
@@ -453,10 +454,16 @@ func TestSnowflakeConfigConnectionString(t *testing.T) {
 			true,
 		},
 		{
-			"Neither Current Or Legacy",
+			"Neither Current Nor Legacy",
 			fields{Username: "u", Password: "p", Database: "d", Schema: "s"},
 			"",
 			true,
+		},
+		{
+			"Has Session Params",
+			fields{Username: "u", Password: "p", Account: "account", Organization: "org", Database: "d", Schema: "s", SessionParams: map[string]string{"query_tag": "t"}},
+			"u:p@org-account/d/s?query_tag=t",
+			false,
 		},
 	}
 	for _, tt := range tests {
@@ -471,6 +478,7 @@ func TestSnowflakeConfigConnectionString(t *testing.T) {
 				Schema:         tt.fields.Schema,
 				Role:           tt.fields.Role,
 				Warehouse:      tt.fields.Warehouse,
+				SessionParams:  tt.fields.SessionParams,
 			}
 			got, err := sf.ConnectionString(tt.fields.Database, tt.fields.Schema)
 			if (err != nil) != tt.wantErr {
@@ -486,20 +494,22 @@ func TestSnowflakeConfigConnectionString(t *testing.T) {
 
 func TestSnowflakeDeserializeCurrentCredentials(t *testing.T) {
 	expected := pc.SnowflakeConfig{
-		Username:     "username",
-		Password:     "password",
-		Organization: "org",
-		Account:      "account",
-		Database:     "database",
-		Schema:       "schema",
+		Username:      "username",
+		Password:      "password",
+		Organization:  "org",
+		Account:       "account",
+		Database:      "database",
+		Schema:        "schema",
+		SessionParams: map[string]string{"query_tag": "t"},
 	}
-	credentialsMap := make(map[string]string)
+	credentialsMap := make(map[string]interface{})
 	credentialsMap["Username"] = expected.Username
 	credentialsMap["Password"] = expected.Password
 	credentialsMap["Organization"] = expected.Organization
 	credentialsMap["Account"] = expected.Account
 	credentialsMap["Database"] = expected.Database
 	credentialsMap["Schema"] = expected.Schema
+	credentialsMap["SessionParams"] = expected.SessionParams
 	b, err := json.Marshal(credentialsMap)
 	if err != nil {
 		t.Fatalf("could not marshal test data: %s", err.Error())

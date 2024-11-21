@@ -15,7 +15,7 @@ from pyiceberg.table import Table
 from typeguard import typechecked
 
 from .constants import NO_RECORD_LIMIT
-from .enums import FileFormat, DataResourceType
+from .enums import FileFormat, DataResourceType, RefreshMode, Initialize
 from .proto import metadata_pb2 as pb
 from .register import (
     FeatureColumnResource,
@@ -879,6 +879,7 @@ class Client(ResourceClient, ServingClient):
             role=deserialized_config["Role"],
             organization=deserialized_config["Organization"],
             catalog=catalog,
+            session_params=deserialized_config["SessionParams"]
         )
 
         offline_provider = self.__create_provider(

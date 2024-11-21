@@ -10,6 +10,7 @@ package provider_config
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/provider/provider_type"
@@ -38,9 +39,10 @@ type SnowflakeConfig struct {
 	Account        string
 	Database       string
 	Schema         string
-	Warehouse      string `snowflake:"warehouse"`
-	Role           string `snowflake:"role"`
+	Warehouse      string
+	Role           string
 	Catalog        *SnowflakeCatalogConfig
+	SessionParams  map[string]string
 }
 
 func (sf *SnowflakeConfig) Deserialize(config SerializedConfig) error {
@@ -61,13 +63,13 @@ func (sf *SnowflakeConfig) Serialize() []byte {
 
 func (sf SnowflakeConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
-		"Username":  true,
-		"Password":  true,
-		"Role":      true,
-		"Schema":    true,
-		"Database":  true,
-		"Warehouse": true,
-		// TODO: (Erik) consider the implications of allowing the catalog config to be mutable
+		"Username":      true,
+		"Password":      true,
+		"Role":          true,
+		"Schema":        true,
+		"Database":      true,
+		"Warehouse":     true,
+		"SessionParams": true,
 	}
 }
 
@@ -116,14 +118,18 @@ const emptyParameters = "?"
 func (sf *SnowflakeConfig) getConnectionParameters() (string, error) {
 	base := emptyParameters
 
-	// Adds all fields with a snowflake tag on the struct to the connection string
 	iter, err := sr.NewStructIterator(*sf)
 	if err != nil {
 		return "", err
 	}
 	for iter.Next() {
-		if tag := iter.Tag("snowflake"); tag != "" {
-			base = sf.addParameter(base, tag, iter.Value())
+		switch iter.Key() {
+		case "Warehouse", "Role":
+			base = sf.addParameter(base, strings.ToLower(iter.Key()), iter.Value())
+		case "SessionParams":
+			for key, val := range sf.SessionParams {
+				base = sf.addParameter(base, key, val)
+			}
 		}
 	}
 

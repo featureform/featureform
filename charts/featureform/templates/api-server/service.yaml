@@ -14,11 +14,11 @@ metadata:
 spec:
   ports:
     - name: grpc-port
-      port: { { .Values.api.port } }
+      port: {{ .Values.api.port }}
       protocol: TCP
       targetPort: 7878
     - name: status-port
-      port: { { .Values.api.statusPort } }
+      port: {{ .Values.api.statusPort }}
       protocol: TCP
       targetPort: 8443
   type: ClusterIP

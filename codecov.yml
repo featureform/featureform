@@ -1,4 +1,4 @@
-github_checks: true
+github_checks: false
 codecov:
   branch: main
   require_ci_to_pass: true

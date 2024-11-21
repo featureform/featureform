@@ -33,6 +33,10 @@ client/src/featureform/proto/
 iris.csv
 provider/scripts/spark/tests/test_files/output
 
+# Logs from running single executable (e.g. `go run main/main.go > logs.txt 2> err_logs.txt`)
+err_logs.txt
+logs.txt
+
 # End to End Tests output
 tests/end_to_end/feature.txt 
 tests/end_to_end/version.txt

@@ -58,6 +58,8 @@ spec:
               value: {{ .Values.etcd.password }}
             - name: FF_STATE_PROVIDER
               value: {{ .Values.stateProvider | quote }}
+            - name: FEATUREFORM_DEBUG_LOGGING
+              value: {{ .Values.debug | quote }}
             - name: FEATUREFORM_HOST
               value: {{ .Values.hostname | quote }}
             - name: PSQL_HOST

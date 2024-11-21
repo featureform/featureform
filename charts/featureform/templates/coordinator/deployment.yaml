@@ -47,6 +47,8 @@ spec:
               value: {{ .Values.etcd.username }}
             - name: ETCD_PASSWORD
               value: {{ .Values.etcd.password | quote }}
+            - name: FEATUREFORM_DEBUG_LOGGING
+              value: {{ .Values.debug | quote }}
             - name: METADATA_PORT
               value: {{ .Values.metadata.port | quote }}
             - name: METADATA_HOST

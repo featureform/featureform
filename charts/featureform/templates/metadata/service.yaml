@@ -12,7 +12,7 @@ metadata:
 spec:
   ports:
     - name: grpc
-      port: { { .Values.metadata.port } }
+      port: {{ .Values.metadata.port }}
       protocol: TCP
       targetPort: 8080
   selector:

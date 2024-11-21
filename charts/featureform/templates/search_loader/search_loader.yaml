@@ -13,7 +13,7 @@ spec:
   template:
     spec:
       imagePullSecrets:
-        - name: { { .Values.k8sImagePullSecret } }
+        - name: {{ .Values.k8sImagePullSecret }}
       restartPolicy: Never
       containers:
         - name: loader
@@ -29,12 +29,12 @@ spec:
               ./main
           env:
             - name: METADATA_HOST
-              value: { { .Values.metadata.host } }
+              value: {{ .Values.metadata.host }}
             - name: METADATA_PORT
-              value: { { .Values.metadata.port | quote } }
+              value: {{ .Values.metadata.port | quote }}
             - name: MEILISEARCH_HOST
-              value: { { .Values.meilisearch.host } }
+              value: {{ .Values.meilisearch.host }}
             - name: MEILISEARCH_PORT
-              value: { { .Values.meilisearch.port | quote } }
+              value: {{ .Values.meilisearch.port | quote }}
             - name: MEILISEARCH_APIKEY
-              value: { { .Values.meilisearch.apikey | quote } }
+              value: {{ .Values.meilisearch.apikey | quote }}

@@ -18,5 +18,5 @@ spec:
     app: featureform-prometheus-server
   type: ClusterIP
   ports:
-    - port: { { .Values.prometheus.port } }
+    - port: {{ .Values.prometheus.port }}
       targetPort: 9090

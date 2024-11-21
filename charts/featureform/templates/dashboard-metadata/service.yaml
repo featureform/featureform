@@ -14,7 +14,7 @@ spec:
   selector:
     app: featureform-dashboard-metadata
   ports:
-    - port: { { .Values.dashboardmetadata.port } }
+    - port: {{ .Values.dashboardmetadata.port }}
       targetPort: 3001
       protocol: TCP
       name: http

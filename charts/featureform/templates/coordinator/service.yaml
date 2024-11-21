@@ -12,7 +12,7 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - port: { { .Values.coordinator.port } }
+    - port: {{ .Values.coordinator.port }}
       targetPort: http
       protocol: TCP
       name: http

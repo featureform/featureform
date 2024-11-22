@@ -47,6 +47,8 @@ spec:
               value: {{ .Values.meilisearch.host }}
             - name: MEILISEARCH_APIKEY
               value: {{ .Values.meilisearch.apikey | quote }}
+            - name: FEATUREFORM_DEBUG_LOGGING
+              value: {{ .Values.debug | quote }}
             - name: FEATUREFORM_VERSION
               value: {{ .Values.versionOverride | default .Chart.AppVersion}}
             - name: ETCD_HOST

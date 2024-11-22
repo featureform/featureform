@@ -39,3 +39,5 @@ spec:
                 configMapKeyRef:
                   key: REACT_APP_API_URL
                   name: featureform-env
+            - name: FEATUREFORM_DEBUG_LOGGING
+              value: {{ .Values.debug | quote }}

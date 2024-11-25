@@ -49,6 +49,14 @@ func (e *Executor) RunTask(tid scheduling.TaskID, rid scheduling.TaskRunID) erro
 		logger.Errorw("Unable to lock task", "err", err)
 		return err
 	}
+
+	defer func() {
+		if err := unlockTask(); err != nil {
+			logger.Errorw("Failed to unlock task", "error", err)
+		}
+		logger.Debug("Unlocked task")
+	}()
+
 	logger.Debug("Checking if run is lockable")
 	unlockRun, err := e.locker.LockRun(rid, false)
 	if _, ok := err.(*fferr.KeyAlreadyLockedError); ok {
@@ -61,12 +69,10 @@ func (e *Executor) RunTask(tid scheduling.TaskID, rid scheduling.TaskRunID) erro
 	logger.Info("Starting task run")
 
 	defer func() {
-		if err := unlockTask(); err != nil {
-			logger.Errorw("Failed to unlock task", "error", err)
-		}
 		if err := unlockRun(); err != nil {
 			logger.Errorw("Failed to unlock run", "error", err)
 		}
+		logger.Debug("Unlocked run")
 	}()
 
 	logger.Info("Fetching run metadata")

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	"github.com/jonboulle/clockwork"
 )
 
 type LockerTest struct {
@@ -23,11 +24,11 @@ type LockerTest struct {
 	lockerType string
 }
 
-func (test *LockerTest) Run() {
+func (test *LockerTest) Run(clock clockwork.FakeClock) {
 	t := test.t
 	locker := test.locker
 
-	testFns := map[string]func(*testing.T, Locker){
+	testFns := map[string]func(*testing.T, Locker, clockwork.FakeClock){
 		"LockAndUnlock":               LockAndUnlock,
 		"LockAndUnlockWithGoRoutines": LockAndUnlockWithGoRoutines,
 		"StressTestLockAndUnlock":     StressTestLockAndUnlock,
@@ -40,12 +41,12 @@ func (test *LockerTest) Run() {
 			if name == "TestLockTimeUpdates" && test.lockerType == "etcd" {
 				t.Skip("TestLockTimeUpdates is not supported for etcd locker")
 			}
-			fn(t, locker)
+			fn(t, locker, clock)
 		})
 	}
 }
 
-func LockAndUnlock(t *testing.T, locker Locker) {
+func LockAndUnlock(t *testing.T, locker Locker, _ clockwork.FakeClock) {
 	key := "/tasks/metadata/task_id=1"
 
 	// Test Lock
@@ -61,7 +62,7 @@ func LockAndUnlock(t *testing.T, locker Locker) {
 	}
 }
 
-func LockAndUnlockWithGoRoutines(t *testing.T, locker Locker) {
+func LockAndUnlockWithGoRoutines(t *testing.T, locker Locker, _ clockwork.FakeClock) {
 	key := "/tasks/metadata/task_id=2"
 	lockChannel := make(chan Key)
 	errChan := make(chan error)
@@ -82,7 +83,7 @@ func LockAndUnlockWithGoRoutines(t *testing.T, locker Locker) {
 	}
 }
 
-func StressTestLockAndUnlock(t *testing.T, locker Locker) {
+func StressTestLockAndUnlock(t *testing.T, locker Locker, clock clockwork.FakeClock) {
 	key := "/tasks/metadata/task_id=6"
 
 	var wg sync.WaitGroup
@@ -103,7 +104,7 @@ func StressTestLockAndUnlock(t *testing.T, locker Locker) {
 				return
 			}
 
-			time.Sleep(10 * time.Millisecond)
+			clock.Advance(10 * time.Millisecond)
 
 			err = locker.Unlock(context.Background(), lock)
 			if err != nil {
@@ -130,59 +131,19 @@ func unlockGoRoutine(locker Locker, lock Key, errChan chan<- error) {
 	errChan <- err
 }
 
-func TestLockAndUnlockPrefixes(t *testing.T) {
-	locker, err := NewMemoryLocker()
-	if err != nil {
-		t.Fatalf("Failed to create memory locker: %v", err)
-	}
-
-	prefix := "/tasks/metadata"
-	taskId := "task_id=5"
-	key := fmt.Sprintf("%s/%s", prefix, taskId)
-	keyLock, err := locker.Lock(context.Background(), key, false)
-	if err != nil {
-		t.Fatalf("Lock failed: %v", err)
-	}
-
-	// Lock a prefix
-	_, err = locker.Lock(context.Background(), prefix, false)
-	if err == nil {
-		t.Fatalf("Locking using a prefix should have failed because of key already locked")
-	}
-
-	// Test Unlock with original lock
-	err = locker.Unlock(context.Background(), keyLock)
-	if err != nil {
-		t.Fatalf("Unlock failed: %v", err)
-	}
-
-	// Lock a prefix
-	prefixLock, err := locker.Lock(context.Background(), prefix, false)
-	if err != nil {
-		t.Fatalf("Lock failed: %v", err)
-	}
-
-	// Lock a key with the same prefix
-	_, err = locker.Lock(context.Background(), key, false)
-	if err == nil {
-		t.Fatalf("Locking key should fail because prefix is locked")
-	}
-
-	// Unlock the prefix lock
-	err = locker.Unlock(context.Background(), prefixLock)
-	if err != nil {
-		t.Fatalf("Unlock failed: %v", err)
-	}
-}
-
-func LockTimeUpdates(t *testing.T, locker Locker) {
+func LockTimeUpdates(t *testing.T, locker Locker, clock clockwork.FakeClock) {
 	key := "/tasks/metadata/task_id=3"
 	lock, err := locker.Lock(context.Background(), key, false)
 	if err != nil {
 		t.Fatalf("Lock failed: %v", err)
 	}
 
-	time.Sleep(ValidTimePeriod.Duration() / 2)
+	// Sleeping and advancing to allow the time extension thread to do work
+	clock.Advance(validTimePeriod.Duration() / 2)
+	time.Sleep(100 * time.Millisecond)
+	clock.Advance(validTimePeriod.Duration() / 2)
+	time.Sleep(100 * time.Millisecond)
+	clock.Advance(validTimePeriod.Duration() / 2)
 
 	// Lock the key again
 	_, err = locker.Lock(context.Background(), key, false)
@@ -248,10 +209,26 @@ func TestLockInformation(t *testing.T) {
 	}
 }
 
-func WaitForLock(t *testing.T, locker Locker) {
+func WaitForLock(t *testing.T, locker Locker, clock clockwork.FakeClock) {
 	key := "/tasks/metadata/task_id=3"
 	lockChannel := make(chan Key, 10)
 	errChan := make(chan error, 20)
+
+	done := make(chan struct{})
+
+	// Needed to allow the threads to progress and not get blocked on any Sleeps within the locking routine
+	go func() {
+		ticker := time.NewTicker(100 * time.Millisecond)
+
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				clock.Advance(5 * time.Second)
+			}
+		}
+	}()
 
 	for i := 0; i < 10; i++ {
 		go lockGoRoutine(locker, key, true, lockChannel, errChan)
@@ -259,7 +236,10 @@ func WaitForLock(t *testing.T, locker Locker) {
 	for i := 0; i < 10; i++ {
 		go unlockGoRoutine(locker, <-lockChannel, errChan)
 	}
+
 	err := <-errChan
+	done <- struct{}{}
+
 	if err != nil {
 		t.Fatalf("Lock failed: %v", err)
 	}

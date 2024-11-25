@@ -38,20 +38,19 @@ func (t lockDuration) AsPSQLString() string {
 }
 
 var (
-	// UpdateSleepTime is used to sleep between each update.
-	// Best to keep it less than half of ValidTimePeriod.
-	UpdateSleepTime = lockDuration{2 * time.Second}
-	ValidTimePeriod = lockDuration{1 * time.Minute}
+	// updateSleepTime is used to sleep between each update.
+	// Best to keep it less than half of validTimePeriod.
+	updateSleepTime = lockDuration{2 * time.Second}
+	validTimePeriod = lockDuration{1 * time.Minute}
 
-	// MaxWaitTime is the limit for how long a thread should block to wait for a key to be free.
+	// maxWaitTime is the limit for how long a thread should block to wait for a key to be free.
 	// For long-running locks, waiting should not be used and should periodically check the lock status
 	// at a larger interval
-	//MaxWaitTime = 5 * time.Minute
-	MaxWaitTime = 5 * time.Minute
+	maxWaitTime = 5 * time.Minute
 )
 
 func hasExceededWaitTime(start time.Time) bool {
-	if time.Now().Sub(start) > MaxWaitTime {
+	if time.Now().Sub(start) > maxWaitTime {
 		return true
 	}
 	return false

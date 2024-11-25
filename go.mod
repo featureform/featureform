@@ -158,6 +158,7 @@ require (
 	github.com/docker/go-connections v0.4.0
 	github.com/go-pg/pg/v9 v9.1.0
 	github.com/google/go-cmp v0.6.0
+	github.com/jonboulle/clockwork v0.4.0
 	github.com/ory/dockertest/v3 v3.6.5
 )
 

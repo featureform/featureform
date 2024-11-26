@@ -13,6 +13,7 @@ package provider
 
 import (
 	"fmt"
+	"github.com/featureform/secrets"
 
 	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
@@ -97,7 +98,15 @@ func RegisterFactory(t pt.Type, f Factory) error {
 func Get(t pt.Type, config pc.SerializedConfig) (Provider, error) {
 	f, has := factories[t]
 	if !has {
-		return nil, fferr.NewInternalError(fmt.Errorf("no provider of type: %s", t))
+		return nil, fferr.NewInternalErrorf("no provider of type: %s", t)
 	}
 	return f(config)
+}
+
+func GetWithSecretsManager(t pt.Type, config pc.SerializedConfig, secretsManager secrets.Manager) (Provider, error) {
+	// TODO: This is a temporary solution to incrementally migrate to the new secrets manager.
+	if t == pt.PostgresOffline {
+		return postgresOfflineStoreFactoryWithSecretsManager(config, secretsManager)
+	}
+	return Get(t, config)
 }

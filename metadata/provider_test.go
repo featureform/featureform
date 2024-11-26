@@ -9,10 +9,9 @@ package metadata
 
 import (
 	"encoding/json"
+	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"testing"
-
-	"github.com/featureform/provider/retriever"
 
 	fs "github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
@@ -390,10 +389,11 @@ func testMySqlConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 		Host:     host,
 		Port:     port,
 		Username: username,
-		Password: retriever.NewStaticValue[string](password),
+		Password: password,
 		Database: database,
 	}
-	a := configA.Serialize()
+	a, err := configA.Serialize()
+	assert.NoError(t, err)
 
 	if valid {
 		username += updateSuffix
@@ -408,10 +408,11 @@ func testMySqlConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 		Host:     host,
 		Port:     port,
 		Username: username,
-		Password: retriever.NewStaticValue[string](password),
+		Password: password,
 		Database: database,
 	}
-	b := configB.Serialize()
+	b, err := configB.Serialize()
+	assert.NoError(t, err)
 
 	actual, err := isValidPostgresConfigUpdate(a, b)
 	assertConfigUpdateResult(t, valid, actual, err, providerType)
@@ -466,10 +467,11 @@ func testPostgresConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 		Host:     host,
 		Port:     port,
 		Username: username,
-		Password: retriever.NewStaticValue[string](password),
+		Password: password,
 		Database: database,
 	}
-	a := configA.Serialize()
+	a, err := configA.Serialize()
+	assert.NoError(t, err)
 
 	if valid {
 		username += updateSuffix
@@ -484,10 +486,11 @@ func testPostgresConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 		Host:     host,
 		Port:     port,
 		Username: username,
-		Password: retriever.NewStaticValue[string](password),
+		Password: password,
 		Database: database,
 	}
-	b := configB.Serialize()
+	b, err := configB.Serialize()
+	assert.NoError(t, err)
 
 	actual, err := isValidPostgresConfigUpdate(a, b)
 	assertConfigUpdateResult(t, valid, actual, err, providerType)

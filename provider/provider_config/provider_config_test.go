@@ -13,8 +13,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/featureform/provider/retriever"
-
 	fs "github.com/featureform/filestore"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/stretchr/testify/assert"
@@ -265,7 +263,7 @@ func TestPostgres(t *testing.T) {
 		Host:     config["Host"].(string),
 		Port:     config["Port"].(string),
 		Username: config["Username"].(string),
-		Password: retriever.NewStaticValue[string](config["Password"].(string)),
+		Password: config["Password"].(string),
 		Database: config["Database"].(string),
 	}
 

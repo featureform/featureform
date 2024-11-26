@@ -9,10 +9,10 @@ package metadata
 
 import (
 	"context"
+	pc "github.com/featureform/provider/provider_config"
 	"io"
 
 	pb "github.com/featureform/metadata/proto"
-	pc "github.com/featureform/provider/provider_config"
 	grpc "google.golang.org/grpc"
 )
 

@@ -14,8 +14,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/featureform/provider/retriever"
-
 	"github.com/joho/godotenv"
 	"github.com/lib/pq"
 
@@ -139,7 +137,8 @@ func TestPostgresSchemas(t *testing.T) {
 		t.Fatalf("could not retrieve Postgres config: %v", err)
 	}
 
-	store, err := GetOfflineStore(pt.PostgresOffline, postgresConfig.Serialize())
+	serialize, err := postgresConfig.Serialize()
+	store, err := GetOfflineStore(pt.PostgresOffline, serialize)
 	if err != nil {
 		t.Fatalf("could not initialize store: %s\n", err)
 	}
@@ -222,7 +221,7 @@ func getPostgresConfig(t *testing.T, dbName string) (pc.PostgresConfig, error) {
 		Port:     "5432",
 		Database: dbName,
 		Username: user,
-		Password: retriever.NewStaticValue[string](password),
+		Password: password,
 		SSLMode:  "disable",
 	}
 

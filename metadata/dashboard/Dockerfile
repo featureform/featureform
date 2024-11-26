@@ -32,6 +32,7 @@ COPY ./lib/ ./lib/
 COPY ./filestore/ ./filestore/
 COPY ./metadata/*.go ./metadata/
 COPY ./helpers/ ./helpers/
+COPY ./secrets/ ./secrets/
 COPY ./integrations/ ./integrations/
 COPY ./lib/ ./lib/
 COPY ./metrics/ ./metrics/

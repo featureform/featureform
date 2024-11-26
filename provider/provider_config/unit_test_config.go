@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 
 	"github.com/featureform/fferr"
-
 	ss "github.com/featureform/helpers/stringset"
 )
 

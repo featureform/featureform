@@ -12,12 +12,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"net"
 	"os"
 	"strings"
 	"testing"
-
-	"github.com/featureform/provider/retriever"
 
 	"github.com/featureform/scheduling"
 
@@ -322,10 +321,12 @@ func initProvider(t *testing.T, providerType pt.Type, executorType pc.SparkExecu
 			Port:     "5432",
 			Database: db,
 			Username: user,
-			Password: retriever.NewStaticValue[string](password),
+			Password: password,
 			SSLMode:  "disable",
 		}
-		return postgresConfig.Serialize()
+		serialize, err := postgresConfig.Serialize()
+		assert.NoError(t, err)
+		return serialize
 	case pt.RedshiftOffline:
 		host := checkEnv("REDSHIFT_HOST")
 		port := checkEnv("REDSHIFT_PORT")
@@ -403,7 +404,7 @@ func testSuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *He
 		t.Fatalf("Failed to create provider: %s", err)
 	}
 	t.Run(string(def.Name), func(t *testing.T) {
-		isHealthy, err := health.CheckProvider(def.Name)
+		isHealthy, err := health.CheckProvider(def.Name, metadata.NewSecretsManagerFromClient(*client))
 		if err != nil {
 			t.Fatalf("Failed to check provider health: %s", err)
 		}
@@ -429,8 +430,11 @@ func testUnsuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *
 			t.Fatalf("Failed to deserialize config: %s", err)
 		}
 		failureConfig.SSLMode = "require"
-		def.SerializedConfig = failureConfig.Serialize()
+		var err error
+		def.SerializedConfig, err = failureConfig.Serialize()
 		def.Name = "postgres-failure"
+
+		assert.NoError(t, err)
 	//case pt.RedshiftOffline:
 	//	failureConfig := pc.RedshiftConfig{
 	//		Host: "invalid",
@@ -519,7 +523,7 @@ func testUnsuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *
 		t.Fatalf("Failed to create provider: %s", err)
 	}
 	t.Run(string(def.Name), func(t *testing.T) {
-		isHealthy, err := health.CheckProvider(def.Name)
+		isHealthy, err := health.CheckProvider(def.Name, metadata.NewSecretsManagerFromClient(*client))
 		if err == nil {
 			t.Fatalf("(%s) Expected error but received none", def.Type)
 		}

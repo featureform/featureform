@@ -17,6 +17,7 @@ from featureform.resources import (
     FirestoreConfig,
     RedisConfig,
     PineconeConfig,
+    SparkFlags,
     WeaviateConfig,
     GCSFileStoreConfig,
     GCPCredentials,
@@ -328,3 +329,45 @@ def test_k8sconfig():
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config
+
+
+def test_spark_config_serde():
+    # serde means serialize deserialize
+    spark_config = SparkConfig(
+        executor_type="databricks",
+        executor_config={"cluster_id": "1234"},
+        store_type="s3",
+        store_config={"bucket": "test_bucket"},
+    )
+
+    spark_config_json = spark_config.serialize()
+    spark_config_reconstructed = SparkConfig.deserialize(spark_config_json)
+
+    assert spark_config == spark_config_reconstructed
+
+
+def test_backwards_compatability_serde():
+    spark_config = SparkConfig(
+        executor_type="databricks",
+        executor_config={"cluster_id": "1234"},
+        store_type="s3",
+        store_config={"bucket": "test_bucket"},
+    )
+
+    # previous json did not include the spark config
+    spark_config_json = """
+        {
+            "ExecutorType": "databricks",
+            "StoreType": "s3",
+            "ExecutorConfig": {
+                "cluster_id": "1234"
+            },
+            "StoreConfig": {
+                "bucket": "test_bucket"
+            }
+        }
+        """
+
+    json_bytes = spark_config_json.encode("utf-8")
+    spark_config_reconstructed = SparkConfig.deserialize(json_bytes)
+    assert spark_config == spark_config_reconstructed

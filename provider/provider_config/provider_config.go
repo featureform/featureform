@@ -11,6 +11,7 @@ import (
 	ss "github.com/featureform/helpers/stringset"
 	si "github.com/featureform/helpers/struct_iterator"
 	sm "github.com/featureform/helpers/struct_map"
+	"github.com/featureform/secrets"
 )
 
 type FileStoreConfig interface {
@@ -45,4 +46,8 @@ func differingFields(a, b interface{}) (ss.StringSet, error) {
 	}
 
 	return diff, nil
+}
+
+type ResolvableConfig interface {
+	ResolveValues(secretsManagers secrets.Manager) error
 }

@@ -8,11 +8,9 @@
 package provider_config
 
 import (
+	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
-
-	"github.com/featureform/provider/retriever"
-	"github.com/stretchr/testify/assert"
 
 	ss "github.com/featureform/helpers/stringset"
 )
@@ -29,7 +27,7 @@ func TestPostgresConfigMutableFields(t *testing.T) {
 		Host:     "0.0.0.0",
 		Port:     "5432",
 		Username: "postgres",
-		Password: retriever.NewStaticValue[string]("password"),
+		Password: "password",
 		Database: "postgres",
 		SSLMode:  "disable",
 	}
@@ -56,7 +54,7 @@ func TestPostgresConfigDifferingFields(t *testing.T) {
 				Host:     "0.0.0.0",
 				Port:     "5432",
 				Username: "postgres",
-				Password: retriever.NewStaticValue[string]("password"),
+				Password: "password",
 				Database: "postgres",
 				SSLMode:  "disable",
 			},
@@ -64,7 +62,7 @@ func TestPostgresConfigDifferingFields(t *testing.T) {
 				Host:     "0.0.0.0",
 				Port:     "5432",
 				Username: "postgres",
-				Password: retriever.NewStaticValue[string]("password"),
+				Password: "password",
 				Database: "postgres",
 				SSLMode:  "disable",
 			},
@@ -74,7 +72,7 @@ func TestPostgresConfigDifferingFields(t *testing.T) {
 				Host:     "0.0.0.0",
 				Port:     "5432",
 				Username: "postgres",
-				Password: retriever.NewStaticValue[string]("password"),
+				Password: "password",
 				Database: "postgres",
 				SSLMode:  "disable",
 			},
@@ -82,7 +80,7 @@ func TestPostgresConfigDifferingFields(t *testing.T) {
 				Host:     "127.0.0.1",
 				Port:     "5432",
 				Username: "root",
-				Password: retriever.NewStaticValue[string]("password"),
+				Password: "password",
 				Database: "transaction",
 				SSLMode:  "require",
 			},
@@ -124,34 +122,12 @@ func TestPostgresConfig_Serde_BackwardsCmp(t *testing.T) {
 		Host:     "localhost",
 		Port:     "5432",
 		Username: "user",
-		Password: retriever.NewStaticValue[string]("password"),
+		Password: "password",
 		Database: "testdb",
 		Schema:   "public",
 		SSLMode:  "disable",
 	}
 
 	// Compare original and deserialized configs
-	assert.Equal(t, expectedConfig, &deserializedConfig)
-}
-
-func TestPostgresConfig_Serde_MissingPassword(t *testing.T) {
-	serializedConfig := []byte(`{"Host":"localhost","Port":"5432","Username":"user","Database":"testdb","SSLMode":"disable"}`)
-
-	var deserializedConfig PostgresConfig
-	err := deserializedConfig.Deserialize(serializedConfig)
-	if err != nil {
-		t.Fatalf("Failed to deserialize config: %v", err)
-	}
-
-	expectedConfig := &PostgresConfig{
-		Host:     "localhost",
-		Port:     "5432",
-		Username: "user",
-		Password: retriever.NewStaticValue[string](""),
-		Database: "testdb",
-		Schema:   "public",
-		SSLMode:  "disable",
-	}
-
 	assert.Equal(t, expectedConfig, &deserializedConfig)
 }

@@ -10,6 +10,7 @@ package provider
 import (
 	"database/sql"
 	"fmt"
+	"github.com/featureform/secrets"
 	"strings"
 	"time"
 
@@ -31,24 +32,31 @@ const (
 	pgTimestamp postgresColumnType = "timestamp with time zone"
 )
 
-func postgresOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
+func postgresOfflineStoreWithSecretManager(config pc.SerializedConfig, secretsManager secrets.Manager) (Provider, error) {
 	sc := pc.PostgresConfig{}
-	if err := sc.Deserialize(config); err != nil {
-		return nil, err
+
+	// Handle deserialization based on whether secrets manager is provided
+	if secretsManager != nil {
+		if err := sc.DeserializeAndResolve(config, secretsManager); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := sc.Deserialize(config); err != nil {
+			return nil, err
+		}
 	}
 
-	// We are doing this to support older versions of
-	// featureform that did not have the sslmode field
-	// on the client side.
-	sslMode := sc.SSLMode
-	if sslMode == "" {
-		sslMode = "disable"
+	// Support older versions without sslmode field
+	if sc.SSLMode == "" {
+		sc.SSLMode = "disable"
 	}
 
+	// Configure and create store
 	queries := postgresSQLQueries{}
 	queries.setVariableBinding(PostgresBindingStyle)
 	connectionUrlBuilder := PostgresConnectionBuilderFunc(sc)
 	connUrl, _ := connectionUrlBuilder(sc.Database, sc.Schema)
+
 	sgConfig := SQLOfflineStoreConfig{
 		Config:                  config,
 		ConnectionURL:           connUrl,
@@ -59,11 +67,16 @@ func postgresOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		useDbConnectionCache:    true,
 	}
 
-	store, err := NewSQLOfflineStore(sgConfig)
-	if err != nil {
-		return nil, err
-	}
-	return store, nil
+	return NewSQLOfflineStore(sgConfig)
+}
+
+// Wrapper functions to maintain backward compatibility if needed
+func postgresOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
+	return postgresOfflineStoreWithSecretManager(config, nil)
+}
+
+func postgresOfflineStoreFactoryWithSecretsManager(config pc.SerializedConfig, secretsManager secrets.Manager) (Provider, error) {
+	return postgresOfflineStoreWithSecretManager(config, secretsManager)
 }
 
 type postgresSQLQueries struct {

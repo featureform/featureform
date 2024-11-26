@@ -965,7 +965,7 @@ func (serv *MetadataServer) checkProviderHealth(ctx context.Context, providerNam
 	var status *pb.ResourceStatus
 	logger := logging.GetLoggerFromContext(ctx)
 	logger.Infow("Checking provider health")
-	isHealthy, err := serv.health.CheckProvider(providerName)
+	isHealthy, err := serv.health.CheckProvider(providerName, &metadata.SecretsManagerFromClient{Client: *serv.client})
 	if err != nil || !isHealthy {
 		logger.Errorw("Provider health check failed", "error", err)
 

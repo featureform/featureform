@@ -462,16 +462,7 @@ class Client(ResourceClient, ServingClient):
 
         provider = self.__get_provider(name)
         config = provider.serialized_config
-        deserialized_config = json.loads(config.decode("utf-8"))
-
-        postgres_config = PostgresConfig(
-            host=deserialized_config["Host"],
-            port=deserialized_config["Port"],
-            database=deserialized_config["Database"],
-            user=deserialized_config["Username"],
-            password=deserialized_config["Password"],
-            sslmode=deserialized_config["SSLMode"],
-        )
+        postgres_config = PostgresConfig.deserialize(config)
 
         offline_provider = self.__create_provider(
             provider.name,
@@ -1273,6 +1264,13 @@ class Client(ResourceClient, ServingClient):
             config=hdfs_config,
             store_type=hdfs_config.type(),
         )
+
+    @staticmethod
+    def remote_env():
+        """
+        Allows secrets to be used from the remote environment
+        """
+        return EnvironmentSecretManager()
 
     @staticmethod
     def _validate_host(host):

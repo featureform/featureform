@@ -9,19 +9,13 @@ import ast
 import inspect
 import os
 import warnings
-from abc import ABC
 from collections.abc import Iterable
 from datetime import timedelta
-from typing import Callable, Dict, List, Optional, Tuple, Union
-
-import dill
+from typing import List, Optional, Union
 
 import pandas as pd
-from dataclasses import dataclass, field
-from typeguard import typechecked
 
-from . import feature_flag
-from .exceptions import InvalidSQLQuery
+from .enums import ResourceType
 from .get import *
 from .grpc_client import GrpcClient
 from .list import *
@@ -31,10 +25,9 @@ from .resources import *
 from .search import search
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
-from .types import pd_to_ff_datatype, VectorType
+from .types import VectorType, pd_to_ff_datatype
 from .variant_names_generator import get_current_timestamp_variant
 from .variant_names_generator import get_random_name
-from .enums import ResourceType
 
 NameVariant = Tuple[str, str]
 
@@ -84,6 +77,10 @@ class OfflineProvider:
 
     def name(self) -> str:
         return self.__provider.name
+
+    # for testing
+    def _provider(self):
+        return self.__provider
 
     def __eq__(self, __value: object) -> bool:
         assert isinstance(__value, OfflineProvider)
@@ -3476,7 +3473,7 @@ class Registrar:
         name: str,
         host: str,
         user: str,
-        password: str,
+        password: Union[str, Secret],
         database: str,
         port: str = "5432",
         description: str = "",
@@ -3484,7 +3481,7 @@ class Registrar:
         sslmode: str = "disable",
         tags: List[str] = [],
         properties: dict = {},
-    ):
+    ) -> OfflineSQLProvider:
         """Register a Postgres provider.
 
         **Examples**:

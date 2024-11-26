@@ -10,6 +10,7 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"github.com/featureform/secrets"
 	"io"
 	"os"
 	"reflect"
@@ -3082,4 +3083,24 @@ func getResourceSnowflakeConfig(getter resourceSnowflakeConfigGetter) (*Resource
 	}
 
 	return resConfig, nil
+}
+
+// TODO (ff): This is a temporary solution to get the secrets manager client and avoid cyclic imports.
+// We should refactor this by moving metadata client into its own package
+type SecretsManagerFromClient struct {
+	Client Client
+}
+
+func NewSecretsManagerFromClient(client Client) *SecretsManagerFromClient {
+	return &SecretsManagerFromClient{
+		Client: client,
+	}
+}
+
+func (s *SecretsManagerFromClient) GetSecretProvider(providerName string) (secrets.Provider, error) {
+	pr, err := s.Client.GetProvider(context.Background(), providerName)
+	if err != nil {
+		return nil, err
+	}
+	return pr, nil
 }

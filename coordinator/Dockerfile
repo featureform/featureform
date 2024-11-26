@@ -34,6 +34,7 @@ COPY ./coordinator/ ./coordinator/
 COPY ./provider/ ./provider/
 COPY ./config/ ./config/
 COPY ./helpers/ ./helpers/
+COPY ./secrets/ ./secrets/
 COPY ./logging/ ./logging/
 COPY ./metadata/ ./metadata/
 COPY ./runner/ ./runner/

@@ -77,9 +77,13 @@ func (t *SourceTask) Run() error {
 	if err != nil {
 		return err
 	}
-	p, err := provider.Get(pt.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
-	if err != nil {
-		return err
+	p, providerErr := provider.GetWithSecretsManager(
+		pt.Type(sourceProvider.Type()),
+		sourceProvider.SerializedConfig(),
+		metadata.NewSecretsManagerFromClient(*t.metadata),
+	)
+	if providerErr != nil {
+		return providerErr
 	}
 	sourceStore, err := p.AsOfflineStore()
 	if err != nil {

@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-streamer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: python-streamer
+  template:
+    metadata:
+      labels:
+        app: python-streamer
+    spec:
+      containers:
+      - name: python-streamer
+        image: localhost/python-streamer:stable
+        ports:
+        - containerPort: 8085

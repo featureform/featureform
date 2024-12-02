@@ -9,6 +9,10 @@ import os
 import click
 import validators
 import urllib.request
+import pyarrow.flight as flight
+import pyarrow as pa
+import sys
+
 
 from .client import Client
 from .deploy import (
@@ -154,6 +158,35 @@ def version():
 
     print(output)
 
+
+@cli.command()
+@click.argument("table_name", required=True)
+def stream(table_name):
+    # todo: cheating a bit here, but it's only a POC
+    print(f"What is the table name? {table_name}")
+    server_address = "grpc://localhost:8085"
+
+
+    print(f"Connecting to Flight server at {server_address}")
+    fetch_data_and_print(server_address, table_name)
+
+def fetch_data_and_print(server_address, table_name):
+    """
+    Fetch data from the python-streamer
+    """
+    client = flight.connect(server_address)
+    ticket = flight.Ticket(table_name.encode("utf-8"))
+    reader = client.do_get(ticket)
+
+    schema = reader.schema
+    print("Schema:")
+    print(schema)
+
+    # convert to pandas
+    df = reader.read_pandas()
+    print("\nTO PANDAS:")
+    print(df)
+    print(f"\nTotal rows fetched: {len(df)}")
 
 @cli.command()
 @click.argument("files", required=True, nargs=-1)

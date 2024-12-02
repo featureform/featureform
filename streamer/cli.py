@@ -2,6 +2,8 @@ import pyarrow.flight as flight
 import pyarrow as pa
 import sys
 
+# todo: this file is meant for quicker iteration testing. 
+
 def fetch_data_and_print(server_address, table_name):
     """
     Fetch data from the python-streamer

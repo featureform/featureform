@@ -674,7 +674,7 @@ const EntityPageView = ({
                   </div>
                 ) : null}
                 {metadata['is-on-demand'] !== true &&
-                  !['provider', 'entity', 'user'].includes(
+                  !['provider', 'entity', 'user', 'model'].includes(
                     metadata['type']?.toLowerCase()
                   ) && (
                     <Button

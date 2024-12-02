@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package goproxy;
+
+option go_package = "github.com/featureform/streamer_proxy/proto";
+
+
+service GoProxy {
+  rpc StreamData (StreamRequest) returns (Empty);
+}
+
+
+
+message StreamRequest {
+  string table_name = 1;
+}
+
+message Empty {}
+

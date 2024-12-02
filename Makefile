@@ -312,6 +312,7 @@ gen_grpc:						## Generates GRPC Dependencies
 	python3 -m grpc_tools.protoc -I ./client/src --python_out=./client/src/ --mypy_out=./client/src --grpc_python_out=./client/src/ ./client/src/featureform/proto/metadata.proto
 
 	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./scheduling/proto/scheduling.proto
+	protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative     ./streamer_proxy/proto/streamer_proxy.proto
 
 update_python: gen_grpc 				## Updates the python package locally
 	pip3 install pytest

@@ -1,5 +1,4 @@
 import pyarrow.flight as flight
-import pyarrow as pa
 import sys
 
 # todo: this file is meant for quicker iteration testing. 

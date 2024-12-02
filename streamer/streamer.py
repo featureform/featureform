@@ -1,5 +1,4 @@
 import os
-import pyarrow as pa
 import pyarrow.csv as csv
 from pyarrow.flight import FlightServerBase, RecordBatchStream
 

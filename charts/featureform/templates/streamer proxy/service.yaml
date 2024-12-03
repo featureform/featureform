@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-proxy
+spec:
+  selector:
+    app: go-proxy
+  ports:
+  - name: grpc
+    protocol: TCP
+    port: 8087
+    targetPort: 8087
+  type: ClusterIP

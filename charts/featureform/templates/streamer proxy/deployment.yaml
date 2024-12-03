@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: go-proxy
+  template:
+    metadata:
+      labels:
+        app: go-proxy
+    spec:
+      containers:
+      - name: go-proxy
+        image: localhost/go-proxy:stable
+        ports:
+        - containerPort: 8087

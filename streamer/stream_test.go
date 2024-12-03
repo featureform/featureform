@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/apache/arrow/go/v15/arrow/flight"
+	pb "github.com/featureform/streamer_proxy/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -113,4 +114,45 @@ func TestStreamData_Short(t *testing.T) {
 		}
 	}
 	fmt.Println("total rowCount is:", rowCount)
+}
+
+func TestStreamData_FromGoProxy(t *testing.T) {
+	serverAddress := "localhost:8087" // the go-proxy address (NOT the same as the python-streamer)
+	tableName := "table_data_short"
+	insecureCreds := grpc.WithTransportCredentials(insecure.NewCredentials())
+
+	// Initial gRPC connection
+	conn, err := grpc.NewClient(serverAddress, insecureCreds)
+	if err != nil {
+		log.Fatalf("Failed to connect to Go Proxy: %v", err)
+	}
+	defer conn.Close()
+
+	client := pb.NewGoProxyClient(conn)
+
+	stream, err := client.StreamData(context.TODO(), &pb.StreamRequest{
+		TableName: tableName,
+	})
+
+	if err != nil {
+		t.Fatalf("Call to stream data failed: %v", err)
+	}
+
+	//run through the stream bytes
+	for {
+		batch, err := stream.Recv()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Fatalf("Error receiving bytes: %v", err)
+		}
+
+		// every client can be arrow flight agnostic or use the lib as needed!
+		log.Println("Received pb.RecordBatch")
+		log.Printf("Header: %v\n", batch.GetDataHeader())
+		log.Printf("Body: %v\n", batch.GetDataBody())
+		log.Printf("AppMeta: %v\n", batch.GetAppMetadata())
+	}
+
 }

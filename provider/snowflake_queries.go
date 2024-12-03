@@ -96,7 +96,7 @@ func (q snowflakeSQLQueries) resourceTableAsQuery(schema ResourceSchema, hasTime
 
 	// NOTE: We need to use TableLocation() here to get the correct table name as we cannot assume the table
 	// is in the same database/schema as the current context.
-	sb.WriteString(fmt.Sprintf("FROM TABLE('%s')", sqlLoc.TableLocation()))
+	sb.WriteString(fmt.Sprintf("FROM TABLE('%s')", SanitizeSnowflakeIdentifier(sqlLoc.TableLocation())))
 
 	return sb.String(), nil
 }

@@ -3309,6 +3309,7 @@ class Registrar:
         tags: List[str] = [],
         properties: dict = {},
         catalog: Optional[SnowflakeCatalog] = None,
+        session_params: Optional[Dict[str, str]] = None
     ):
         """Register a Snowflake provider using legacy credentials.
 
@@ -3352,6 +3353,7 @@ class Registrar:
             warehouse=warehouse,
             role=role,
             catalog=catalog,
+            session_params=session_params,
         )
         provider = Provider(
             name=name,

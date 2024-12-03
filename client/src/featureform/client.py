@@ -879,7 +879,7 @@ class Client(ResourceClient, ServingClient):
             role=deserialized_config["Role"],
             organization=deserialized_config["Organization"],
             catalog=catalog,
-            session_params=deserialized_config["SessionParams"]
+            session_params=deserialized_config["SessionParams"],
         )
 
         offline_provider = self.__create_provider(
@@ -994,6 +994,28 @@ class Client(ResourceClient, ServingClient):
         config = provider.serialized_config
         deserialized_config = json.loads(config.decode("utf-8"))
 
+        catalog = None
+        if deserialized_config["Catalog"]:
+            catalog = SnowflakeCatalog(
+                external_volume=deserialized_config["Catalog"]["ExternalVolume"],
+                base_location=deserialized_config["Catalog"]["BaseLocation"],
+                table_config=SnowflakeDynamicTableConfig(
+                    target_lag=deserialized_config["Catalog"]["TableConfig"][
+                        "TargetLag"
+                    ],
+                    # While RefreshMode and Initialize are stored as protos in SQLTransformation,
+                    # provider configs are stored as serialized JSON strings; given this, we set
+                    # the string representation here given this is the value the backend actually
+                    # expects and uses.
+                    refresh_mode=RefreshMode.from_string(
+                        deserialized_config["Catalog"]["TableConfig"]["RefreshMode"]
+                    ),
+                    initialize=Initialize.from_string(
+                        deserialized_config["Catalog"]["TableConfig"]["Initialize"]
+                    ),
+                ),
+            )
+
         legacy_snowflake_config = SnowflakeConfig(
             account_locator=deserialized_config["AccountLocator"],
             warehouse=deserialized_config["Warehouse"],
@@ -1002,6 +1024,8 @@ class Client(ResourceClient, ServingClient):
             username=deserialized_config["Username"],
             password=deserialized_config["Password"],
             role=deserialized_config["Role"],
+            catalog=catalog,
+            session_params=deserialized_config["SessionParams"],
         )
 
         offline_provider = self.__create_provider(

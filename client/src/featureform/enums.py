@@ -13,7 +13,7 @@ from os import path
 from fnmatch import fnmatch
 
 
-class ScalarType(Enum):
+class ScalarType(str, Enum):
     """
     ScalarType is an enum of all the scalar types supported by Featureform.
 

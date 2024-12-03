@@ -21,6 +21,7 @@ import dill
 import grpc
 from google.protobuf.duration_pb2 import Duration
 from google.rpc import error_details_pb2
+import warnings
 
 from . import feature_flag
 from .enums import *
@@ -1094,8 +1095,17 @@ class SnowflakeConfig:
     warehouse: str = ""
     role: str = ""
     catalog: Optional[SnowflakeCatalog] = None
+    session_params: Optional[Dict[str, str]] = None
 
     def __post_init__(self):
+
+        if self.session_params:
+            for key, _ in self.session_params.items():
+                if not SnowflakeSessionParamKey.validate_key(key):
+                    warnings.warn(
+                        f"Invalid key '{key}' in session_params. This key will be ignored in the Snowflake session."
+                    )
+
         if self.__has_legacy_credentials() and self.__has_current_credentials():
             raise ValueError(
                 "Cannot create configure Snowflake with both current and legacy credentials"
@@ -1135,6 +1145,7 @@ class SnowflakeConfig:
             "Warehouse": self.warehouse,
             "Role": self.role,
             "Catalog": self.catalog.config() if self.catalog is not None else None,
+            "SessionParams": self.session_params,
         }
         return bytes(json.dumps(config), "utf-8")
 
@@ -1166,6 +1177,7 @@ class SnowflakeConfig:
             and self.warehouse == __value.warehouse
             and self.role == __value.role
             and is_catalog_equal
+            and self.session_params == __value.session_params
         )
 
 

@@ -634,6 +634,10 @@ func (mat *sqlMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
 	return genericIterateChunk(mat, defaultRowsPerChunk, idx)
 }
 
+func (mat *sqlMaterialization) Location() pl.Location {
+	return mat.location
+}
+
 type sqlFeatureIterator struct {
 	rows         *sql.Rows
 	err          error
@@ -662,7 +666,7 @@ func (iter *sqlFeatureIterator) Next() bool {
 	var rec ResourceRecord
 	var entity interface{}
 	var value interface{}
-	var ts time.Time
+	var ts *time.Time
 	if err := iter.rows.Scan(&entity, &value, &ts); err != nil {
 		iter.rows.Close()
 		iter.err = fferr.NewExecutionError(iter.providerType.String(), err)
@@ -673,7 +677,9 @@ func (iter *sqlFeatureIterator) Next() bool {
 		return false
 	}
 	rec.Value = iter.query.castTableItemType(value, iter.columnType)
-	rec.TS = ts.UTC()
+	if ts != nil {
+		rec.TS = ts.UTC()
+	}
 	iter.currentValue = rec
 	return true
 }
@@ -1052,10 +1058,12 @@ func (store *sqlOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 }
 
 func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+	// TODO: (Erik) convert to use logger
 	fmt.Printf("Getting Training Set: %v\n", id)
 	if err := id.check(TrainingSet); err != nil {
 		return nil, err
 	}
+	// TODO: (Erik) convert to use logger
 	fmt.Printf("Checking if Training Set exists: %v\n", id)
 	if exists, err := store.tableExistsForResourceId(id); err != nil {
 		return nil, err
@@ -1076,6 +1084,7 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 	}
 	columns := strings.Join(features[:], ", ")
 	trainingSetQry := store.query.trainingRowSelect(columns, trainingSetName)
+	// TODO: (Erik) convert to use logger
 	fmt.Printf("Training Set Query: %s\n", trainingSetQry)
 	rows, err := store.db.Query(trainingSetQry)
 	if err != nil {
@@ -1418,6 +1427,10 @@ func (table *sqlOfflineTable) WriteBatch(recs []ResourceRecord) error {
 		}
 	}
 	return nil
+}
+
+func (table *sqlOfflineTable) Location() pl.Location {
+	return pl.NewSQLLocation(table.name)
 }
 
 func (table *sqlOfflineTable) resourceExists(rec ResourceRecord) (bool, error) {

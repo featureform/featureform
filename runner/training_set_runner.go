@@ -82,6 +82,7 @@ func (c *TrainingSetRunnerConfig) Serialize() ([]byte, error) {
 			ProviderType:        sourceMapping.ProviderType,
 			ProviderConfig:      sourceMapping.ProviderConfig,
 			TimestampColumnName: sourceMapping.TimestampColumnName,
+			Columns:             sourceMapping.Columns,
 		}
 
 		if sourceMapping.Location != nil {
@@ -147,6 +148,7 @@ func (c *TrainingSetRunnerConfig) Deserialize(config []byte) error {
 			ProviderType:        sourceMappingJSON.ProviderType,
 			ProviderConfig:      sourceMappingJSON.ProviderConfig,
 			TimestampColumnName: sourceMappingJSON.TimestampColumnName,
+			Columns:             sourceMappingJSON.Columns,
 		}
 
 		if sourceMappingJSON.Location != nil {

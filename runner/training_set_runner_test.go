@@ -9,6 +9,7 @@ package runner
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/featureform/metadata"
@@ -219,7 +220,6 @@ func TestTrainingSetFactory(t *testing.T) {
 	}
 }
 
-// TODO: (Erik) improve and expand on this test
 func TestTrainingSetRunnerConfigSerde(t *testing.T) {
 	tests := []struct {
 		name string
@@ -234,24 +234,34 @@ func TestTrainingSetRunnerConfigSerde(t *testing.T) {
 					ID:    provider.ResourceID{Name: "ts", Variant: "ts-variant", Type: provider.TrainingSet},
 					Label: provider.ResourceID{Name: "lbl", Variant: "lbl-variant", Type: provider.Label},
 					LabelSourceMapping: provider.SourceMapping{
-						Template:            "SELECT * FROM table",
-						Source:              "table",
+						Template:            "SELECT * FROM label_table",
+						Source:              "label_table",
 						ProviderType:        pt.SnowflakeOffline,
 						ProviderConfig:      []byte(`{"account":"account","password":"password","role":"role","warehouse":"warehouse","database":"database","schema":"schema"}`),
 						TimestampColumnName: "ts",
-						Location:            pl.NewSQLLocation("table"),
+						Location:            pl.NewSQLLocation("label_table"),
+						Columns: metadata.ResourceVariantColumns{
+							Entity: "lbl_entity_id",
+							Value:  "lbl_value",
+							TS:     "lbl_ts",
+						},
 					},
 					Features: []provider.ResourceID{
 						{Name: "f1", Variant: "f1-variant", Type: provider.Feature},
 					},
 					FeatureSourceMappings: []provider.SourceMapping{
 						{
-							Template:            "SELECT * FROM table",
-							Source:              "table",
+							Template:            "SELECT * FROM feature_table",
+							Source:              "feature_table",
 							ProviderType:        pt.SnowflakeOffline,
 							ProviderConfig:      []byte(`{"account":"account","password":"password","role":"role","warehouse":"warehouse","database":"database","schema":"schema"}`),
-							TimestampColumnName: "ts",
-							Location:            pl.NewSQLLocation("table"),
+							TimestampColumnName: "ft_measured_at",
+							Location:            pl.NewSQLLocation("feature_table"),
+							Columns: metadata.ResourceVariantColumns{
+								Entity: "ft_entity_id",
+								Value:  "ft_value",
+								TS:     "ft_measured_at",
+							},
 						},
 					},
 				},
@@ -273,6 +283,9 @@ func TestTrainingSetRunnerConfigSerde(t *testing.T) {
 				t.Fatalf("failed to deserialize config: %v", err)
 			}
 
+			if !reflect.DeepEqual(tt.cfg, deserialized) {
+				t.Fatalf("expected %v, got %v", tt.cfg, deserialized)
+			}
 		})
 	}
 }

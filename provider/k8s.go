@@ -419,6 +419,10 @@ func (tbl *BlobOfflineTable) WriteBatch(records []ResourceRecord) error {
 	return tbl.store.Write(destination.Filepath(), data)
 }
 
+func (table *BlobOfflineTable) Location() pl.Location {
+	return nil
+}
+
 // TODO: Add unit tests for this method
 func (tbl *BlobOfflineTable) append(iter Iterator, newRecords []ResourceRecord) ([]ResourceRecord, error) {
 	records := make([]ResourceRecord, 0)
@@ -1125,6 +1129,10 @@ func (mat FileStoreMaterialization) IterateChunk(idx int) (FeatureIterator, erro
 		iter:   iter,
 		maxIdx: -1,
 	}, nil
+}
+
+func (mat FileStoreMaterialization) Location() pl.Location {
+	return nil
 }
 
 type FileStoreFeatureIterator struct {

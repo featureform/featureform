@@ -17,6 +17,8 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
+
+	tsq "github.com/featureform/provider/tsquery"
 	snowflake "github.com/snowflakedb/gosnowflake"
 )
 
@@ -314,12 +316,11 @@ func (sf *snowflakeOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	if err != nil {
 		return err
 	}
-	snowflakeQueries := sf.sqlOfflineStore.query.(*snowflakeSQLQueries)
-	trainingSetAsQuery, err := snowflakeQueries.trainingSetCreateAsQuery(def)
+	ts, err := sf.buildTrainingSetQuery(def)
 	if err != nil {
 		return err
 	}
-	query, err := snowflakeQueries.dynamicIcebergTableCreate(tableName, trainingSetAsQuery, *resConfig)
+	query, err := sf.sfQueries.dynamicIcebergTableCreate(tableName, ts, *resConfig)
 	if err != nil {
 		sf.logger.Errorw("Failed to create dynamic iceberg table query", "error", err)
 		return err
@@ -362,4 +363,53 @@ func (sf snowflakeOfflineStore) handleErr(wrapped fferr.Error, execErr error) er
 		wrapped.AddDetail("session_id", sessionID)
 	}
 	return wrapped
+}
+
+func (sf snowflakeOfflineStore) buildTrainingSetQuery(def TrainingSetDef) (string, error) {
+	sf.logger.Debugw("Building training set query...", "def", def)
+	params, err := sf.adaptTsDefToBuilderParams(def)
+	if err != nil {
+		return "", err
+	}
+	sf.logger.Debugw("Training set builder params", "params", params)
+	ts := tsq.NewTrainingSet(params)
+	return ts.CompileSQL()
+}
+
+// **NOTE:** As the name suggests, this method is adapts the TrainingSetDef to the BuilderParams to avoid
+// using TrainingSetDef directly in the tsquery package, which would create a circular dependency. In the future,
+// we should move TrainingSetDef to the provider/types package to avoid this issue.
+func (sf snowflakeOfflineStore) adaptTsDefToBuilderParams(def TrainingSetDef) (tsq.BuilderParams, error) {
+	lblCols := def.LabelSourceMapping.Columns
+	lblLoc, isSQLLocation := def.LabelSourceMapping.Location.(*pl.SQLLocation)
+	if !isSQLLocation {
+		return tsq.BuilderParams{}, fferr.NewInternalErrorf("label location is not an SQL location")
+	}
+	lblTableName := SanitizeSnowflakeIdentifier(lblLoc.TableLocation())
+
+	ftCols := make([]metadata.ResourceVariantColumns, len(def.FeatureSourceMappings))
+	ftTableNames := make([]string, len(def.FeatureSourceMappings))
+	ftNameVariants := make([]metadata.ResourceID, len(def.FeatureSourceMappings))
+
+	for i, ft := range def.FeatureSourceMappings {
+		ftCols[i] = ft.Columns
+		ftLoc, isSQLLocation := ft.Location.(*pl.SQLLocation)
+		if !isSQLLocation {
+			return tsq.BuilderParams{}, fferr.NewInternalErrorf("feature location is not an SQL location")
+		}
+		ftTableNames[i] = SanitizeSnowflakeIdentifier(ftLoc.TableLocation())
+		id := def.Features[i]
+		ftNameVariants[i] = metadata.ResourceID{
+			Name:    id.Name,
+			Variant: id.Variant,
+			Type:    metadata.FEATURE_VARIANT,
+		}
+	}
+	return tsq.BuilderParams{
+		LabelColumns:           lblCols,
+		SanitizedLabelTable:    lblTableName,
+		FeatureColumns:         ftCols,
+		SanitizedFeatureTables: ftTableNames,
+		FeatureNameVariants:    ftNameVariants,
+	}, nil
 }

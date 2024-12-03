@@ -322,3 +322,47 @@ class Initialize(Enum):
             raise ValueError(f"Initialize value not supported: {value}")
         except AttributeError:
             raise ValueError(f"Initialize value required: received {value}")
+
+
+class SnowflakeSessionParamKey(Enum):
+    ABORT_DETACHED_QUERY = "abort_detached_query"
+    AUTOCOMMIT = "autocommit"
+    BINARY_INPUT_FORMAT = "binary_input_format"
+    BINARY_OUTPUT_FORMAT = "binary_output_format"
+    DATE_INPUT_FORMAT = "date_input_format"
+    DATE_OUTPUT_FORMAT = "date_output_format"
+    ERROR_ON_NONDETERMINISTIC_MERGE = "error_on_nondeterministic_merge"
+    ERROR_ON_NONDETERMINISTIC_UPDATE = "error_on_nondeterministic_update"
+    GEOGRAPHY_OUTPUT_FORMAT = "geography_output_format"
+    HYBRID_TABLE_LOCK_TIMEOUT = "hybrid_table_lock_timeout"
+    JSON_INDENT = "json_indent"
+    LOG_LEVEL = "log_level"
+    LOCK_TIMEOUT = "lock_timeout"
+    QUERY_TAG = "query_tag"
+    ROWS_PER_RESULTSET = "rows_per_resultset"
+    S3_STAGE_VPCE_DNS_NAME = "s3_stage_vpce_dns_name"
+    SEARCH_PATH = "search_path"
+    SIMULATED_DATA_SHARING_CONSUMER = "simulated_data_sharing_consumer"
+    STATEMENT_TIMEOUT_IN_SECONDS = "statement_timeout_in_seconds"
+    STRICT_JSON_OUTPUT = "strict_json_output"
+    TIMESTAMP_DAY_IS_ALWAYS_24H = "timestamp_day_is_always_24h"
+    TIMESTAMP_INPUT_FORMAT = "timestamp_input_format"
+    TIMESTAMP_LTZ_OUTPUT_FORMAT = "timestamp_ltz_output_format"
+    TIMESTAMP_NTZ_OUTPUT_FORMAT = "timestamp_ntz_output_format"
+    TIMESTAMP_OUTPUT_FORMAT = "timestamp_output_format"
+    TIMESTAMP_TYPE_MAPPING = "timestamp_type_mapping"
+    TIMESTAMP_TZ_OUTPUT_FORMAT = "timestamp_tz_output_format"
+    TIMEZONE = "timezone"
+    TIME_INPUT_FORMAT = "time_input_format"
+    TIME_OUTPUT_FORMAT = "time_output_format"
+    TRACE_LEVEL = "trace_level"
+    TRANSACTION_DEFAULT_ISOLATION_LEVEL = "transaction_default_isolation_level"
+    TWO_DIGIT_CENTURY_START = "two_digit_century_start"
+    UNSUPPORTED_DDL_ACTION = "unsupported_ddl_action"
+    USE_CACHED_RESULT = "use_cached_result"
+    WEEK_OF_YEAR_POLICY = "week_of_year_policy"
+    WEEK_START = "week_start"
+
+    @classmethod
+    def validate_key(cls, key: str) -> bool:
+        return key.lower() in cls._value2member_map_

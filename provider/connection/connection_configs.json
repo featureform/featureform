@@ -98,7 +98,8 @@
     "Database": "",
     "Warehouse": "warehouse",
     "Role": "role",
-    "Catalog": null
+    "Catalog": null,
+    "SessionParams": null
   },
   "SnowflakeConfigDynamicTables": {
     "Username": "username",
@@ -119,7 +120,8 @@
         "RefreshMode": "AUTO",
         "Initialize": "ON_CREATE"
       }
-    }
+    },
+    "SessionParams": null
   },
   "MysqlConfig": {
     "Host": "host",

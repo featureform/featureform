@@ -16,12 +16,13 @@ import (
 
 func TestSnowflakeConfigMutableFields(t *testing.T) {
 	expected := ss.StringSet{
-		"Username":  true,
-		"Password":  true,
-		"Role":      true,
-		"Schema":    true,
-		"Database":  true,
-		"Warehouse": true,
+		"Username":      true,
+		"Password":      true,
+		"Role":          true,
+		"Schema":        true,
+		"Database":      true,
+		"Warehouse":     true,
+		"SessionParams": true,
 	}
 
 	config := SnowflakeConfig{
@@ -88,6 +89,7 @@ func TestSnowflakeConfigDifferingFields(t *testing.T) {
 				Schema:         "fraud",
 				Warehouse:      "ff_wh_xs",
 				Role:           "sysadmin",
+				SessionParams:  map[string]string{"query_tag": "featureform"},
 			},
 			b: SnowflakeConfig{
 				Username:       "fformer2",
@@ -99,12 +101,14 @@ func TestSnowflakeConfigDifferingFields(t *testing.T) {
 				Schema:         "fraud",
 				Warehouse:      "ff_wh_xs",
 				Role:           "featureformerrole",
+				SessionParams:  map[string]string{"query_tag": "ff"},
 			},
 		}, ss.StringSet{
-			"Username": true,
-			"Password": true,
-			"Role":     true,
-			"Database": true,
+			"Username":      true,
+			"Password":      true,
+			"Role":          true,
+			"Database":      true,
+			"SessionParams": true,
 		}},
 	}
 
@@ -142,7 +146,7 @@ func TestSnowflakeConfigSerializationDeserialization(t *testing.T) {
 			Warehouse:      "ff_wh_xs",
 			Role:           "sysadmin",
 			Catalog:        nil,
-		}, []byte(`{"Username":"featureformer","Password":"password","AccountLocator":"xy12345.snowflakecomputing.com","Organization":"featureform","Account":"featureform-test","Database":"transactions_db","Schema":"fraud","Warehouse":"ff_wh_xs","Role":"sysadmin","Catalog":null}`)},
+		}, []byte(`{"Username":"featureformer","Password":"password","AccountLocator":"xy12345.snowflakecomputing.com","Organization":"featureform","Account":"featureform-test","Database":"transactions_db","Schema":"fraud","Warehouse":"ff_wh_xs","Role":"sysadmin","Catalog":null,"SessionParams":null}`)},
 		{"With Catalog", SnowflakeConfig{
 			Username:       "featureformer",
 			Password:       "password",
@@ -162,7 +166,28 @@ func TestSnowflakeConfigSerializationDeserialization(t *testing.T) {
 					Initialize:  "initialize",
 				},
 			},
-		}, []byte(`{"Username":"featureformer","Password":"password","AccountLocator":"xy12345.snowflakecomputing.com","Organization":"featureform","Account":"featureform-test","Database":"transactions_db","Schema":"fraud","Warehouse":"ff_wh_xs","Role":"sysadmin","Catalog":{"ExternalVolume":"external_volume","BaseLocation":"base_location","TableConfig":{"TargetLag":"target_lag","RefreshMode":"refresh_mode","Initialize":"initialize"}}}`)},
+		}, []byte(`{"Username":"featureformer","Password":"password","AccountLocator":"xy12345.snowflakecomputing.com","Organization":"featureform","Account":"featureform-test","Database":"transactions_db","Schema":"fraud","Warehouse":"ff_wh_xs","Role":"sysadmin","Catalog":{"ExternalVolume":"external_volume","BaseLocation":"base_location","TableConfig":{"TargetLag":"target_lag","RefreshMode":"refresh_mode","Initialize":"initialize"}},"SessionParams":null}`)},
+		{"With Catalog And Session Params", SnowflakeConfig{
+			Username:       "featureformer",
+			Password:       "password",
+			AccountLocator: "xy12345.snowflakecomputing.com",
+			Organization:   "featureform",
+			Account:        "featureform-test",
+			Database:       "transactions_db",
+			Schema:         "fraud",
+			Warehouse:      "ff_wh_xs",
+			Role:           "sysadmin",
+			Catalog: &SnowflakeCatalogConfig{
+				ExternalVolume: "external_volume",
+				BaseLocation:   "base_location",
+				TableConfig: SnowflakeTableConfig{
+					TargetLag:   "target_lag",
+					RefreshMode: "refresh_mode",
+					Initialize:  "initialize",
+				},
+			},
+			SessionParams: map[string]string{"query_tag": "featureform"},
+		}, []byte(`{"Username":"featureformer","Password":"password","AccountLocator":"xy12345.snowflakecomputing.com","Organization":"featureform","Account":"featureform-test","Database":"transactions_db","Schema":"fraud","Warehouse":"ff_wh_xs","Role":"sysadmin","Catalog":{"ExternalVolume":"external_volume","BaseLocation":"base_location","TableConfig":{"TargetLag":"target_lag","RefreshMode":"refresh_mode","Initialize":"initialize"}},"SessionParams":{"query_tag":"featureform"}}`)},
 	}
 
 	for _, tt := range tests {

@@ -7,7 +7,7 @@ class StreamerService(FlightServerBase):
         location = "grpc://0.0.0.0:8085"
         super(StreamerService, self).__init__(location)
 
-    def do_get(self, context, ticket):
+    def do_get(self, _, ticket):
         table_name = ticket.ticket.decode("utf-8")
         table = self.load_table_from_iceberg(table_name)
 

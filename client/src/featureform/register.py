@@ -3309,7 +3309,7 @@ class Registrar:
         tags: List[str] = [],
         properties: dict = {},
         catalog: Optional[SnowflakeCatalog] = None,
-        session_params: Optional[Dict[str, str]] = None
+        session_params: Optional[Dict[str, str]] = None,
     ):
         """Register a Snowflake provider using legacy credentials.
 
@@ -3323,6 +3323,17 @@ class Registrar:
             database="snowflake",
             schema="PUBLIC",
             description="A Snowflake deployment we created for the Featureform quickstart"
+            warehouse="featureform_warehouse",
+            catalog=ff.SnowflakeCatalog(
+                external_volume="sf_ext_volume",
+                base_location="iceberg_tables",
+                table_config=ff.SnowflakeDynamicTableConfig(
+                    target_lag='1 days',
+                    refresh_mode=ff.RefreshMode.INCREMENTAL,
+                    initialize=ff.Initialize.ON_CREATE,
+                ),
+            )
+            session_params={ "query_tag": "featureform" }
         )
         ```
 
@@ -3337,6 +3348,8 @@ class Registrar:
             role (str): (Mutable) Specifies the role to use by default for accessing Snowflake objects in the client session
             description (str): (Mutable) Description of Snowflake provider to be registered
             team (str): (Mutable) Name of team
+            catalog (SnowflakeCatalog): Catalog configuration and default dynamic table configuration
+            session_params (Dict[str, str]): (Mutable) Session parameters to set for the Snowflake session
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
             properties (dict): (Mutable) Optional grouping mechanism for resources
 
@@ -3384,7 +3397,7 @@ class Registrar:
         tags: List[str] = [],
         properties: dict = {},
         catalog: Optional[SnowflakeCatalog] = None,
-        session_params: Optional[Dict[str, str]] = None
+        session_params: Optional[Dict[str, str]] = None,
     ):
         """Register a Snowflake provider.
 
@@ -3399,6 +3412,17 @@ class Registrar:
             database="snowflake",
             schema="PUBLIC",
             description="A Snowflake deployment we created for the Featureform quickstart"
+            warehouse="featureform_warehouse",
+            catalog=ff.SnowflakeCatalog(
+                external_volume="sf_ext_volume",
+                base_location="iceberg_tables",
+                table_config=ff.SnowflakeDynamicTableConfig(
+                    target_lag='1 days',
+                    refresh_mode=ff.RefreshMode.INCREMENTAL,
+                    initialize=ff.Initialize.ON_CREATE,
+                ),
+            )
+            session_params={ "query_tag": "featureform" }
         )
         ```
 
@@ -3414,6 +3438,8 @@ class Registrar:
             role (str): (Mutable) Specifies the role to use by default for accessing Snowflake objects in the client session
             description (str): (Mutable) Description of Snowflake provider to be registered
             team (str): (Mutable) Name of team
+            catalog (SnowflakeCatalog): Catalog configuration and default dynamic table configuration
+            session_params (Dict[str, str]): (Mutable) Session parameters to set for the Snowflake session
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
             properties (dict): (Mutable) Optional grouping mechanism for resources
 

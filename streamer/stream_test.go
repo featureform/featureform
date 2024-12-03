@@ -118,7 +118,7 @@ func TestStreamData_Short(t *testing.T) {
 
 func TestStreamData_FromGoProxy(t *testing.T) {
 	serverAddress := "localhost:8087" // the go-proxy address (NOT the same as the python-streamer)
-	tableName := "table_data_short"
+	tableName := "table_data_long"
 	insecureCreds := grpc.WithTransportCredentials(insecure.NewCredentials())
 
 	// Initial gRPC connection
@@ -139,6 +139,7 @@ func TestStreamData_FromGoProxy(t *testing.T) {
 	}
 
 	//run through the stream bytes
+	readCount := 0
 	for {
 		batch, err := stream.Recv()
 		if err != nil {
@@ -147,12 +148,14 @@ func TestStreamData_FromGoProxy(t *testing.T) {
 			}
 			t.Fatalf("Error receiving bytes: %v", err)
 		}
-
+		readCount++
 		// every client can be arrow flight agnostic or use the lib as needed!
 		log.Println("Received pb.RecordBatch")
 		log.Printf("Header: %v\n", batch.GetDataHeader())
 		log.Printf("Body: %v\n", batch.GetDataBody())
 		log.Printf("AppMeta: %v\n", batch.GetAppMetadata())
 	}
+
+	log.Println("Total passes: ", readCount)
 
 }

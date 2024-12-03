@@ -17,7 +17,7 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
-	_ "github.com/snowflakedb/gosnowflake"
+	snowflake "github.com/snowflakedb/gosnowflake"
 )
 
 // sqlColumnType is used to specify the column type of a resource value.
@@ -103,8 +103,9 @@ func (sf *snowflakeOfflineStore) CreateTransformation(config TransformationConfi
 	}
 	sf.logger.Debugw("Creating Dynamic Iceberg Table for source", "query", query)
 	if _, err := sf.sqlOfflineStore.db.Exec(query); err != nil {
+		wrapped := fferr.NewResourceExecutionError(pt.SnowflakeOffline.String(), config.TargetTableID.Name, config.TargetTableID.Variant, fferr.ResourceType(config.TargetTableID.Type.String()), err)
 		sf.logger.Errorw("Failed to create dynamic iceberg table", "error", err)
-		return fferr.NewResourceExecutionError(pt.SnowflakeOffline.String(), config.TargetTableID.Name, config.TargetTableID.Variant, fferr.ResourceType(config.TargetTableID.Type.String()), err)
+		return sf.handleErr(wrapped, err)
 	}
 	return nil
 }
@@ -173,8 +174,9 @@ func (sf *snowflakeOfflineStore) RegisterResourceFromSourceTable(id ResourceID, 
 	}
 	sf.logger.Debugw("Creating Dynamic Iceberg Table for label variant", "query", query)
 	if _, err := sf.sqlOfflineStore.db.Exec(query); err != nil {
+		wrapped := fferr.NewResourceExecutionError(pt.SnowflakeOffline.String(), id.Name, id.Variant, fferr.LABEL_VARIANT, err)
 		sf.logger.Errorw("Failed to create dynamic iceberg table", "error", err)
-		return nil, fferr.NewResourceExecutionError(pt.SnowflakeOffline.String(), id.Name, id.Variant, fferr.LABEL_VARIANT, err)
+		return nil, sf.handleErr(wrapped, err)
 	}
 	return &snowflakeOfflineTable{
 		sqlOfflineTable: sqlOfflineTable{
@@ -245,6 +247,13 @@ func (sf *snowflakeOfflineStore) CreateMaterialization(id ResourceID, opts Mater
 		sf.logger.Errorw("Failed to merge dynamic table config", "error", err)
 		return nil, err
 	}
+
+	// It seems that Snowflake can mistakenly choose a full refresh for a query that's compliant
+	// with an incremental refresh, and given our materialization query has been written to be
+	// incremental, we're hardcoding INCREMENTAL here to avoid the issue where our materialization
+	// tables update fully.
+	resConfig.DynamicTableConfig.RefreshMode = metadata.IncrementalRefresh
+
 	sf.logger.Debugw(("Dynamic Table Config after Merge with Snowflake Config"), "config", resConfig)
 	tableName, err := ps.ResourceToTableName(FeatureMaterialization.String(), id.Name, id.Variant)
 	if err != nil {
@@ -266,8 +275,9 @@ func (sf *snowflakeOfflineStore) CreateMaterialization(id ResourceID, opts Mater
 	}
 	sf.logger.Debugw("Creating Dynamic Iceberg Table for materialization", "query", query)
 	if _, err := sf.sqlOfflineStore.db.Exec(query); err != nil {
+		wrapped := fferr.NewResourceExecutionError(pt.SnowflakeOffline.String(), id.Name, id.Variant, fferr.FEATURE_MATERIALIZATION, err)
 		sf.logger.Errorw("Failed to create dynamic iceberg table", "error", err)
-		return nil, fferr.NewResourceExecutionError(pt.SnowflakeOffline.String(), id.Name, id.Variant, fferr.FEATURE_MATERIALIZATION, err)
+		return nil, sf.handleErr(wrapped, err)
 	}
 	return &sqlMaterialization{
 		id:           MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant)),
@@ -316,8 +326,9 @@ func (sf *snowflakeOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	}
 	sf.logger.Debugw("Creating Dynamic Iceberg Table for training set", "query", query)
 	if _, err := sf.sqlOfflineStore.db.Exec(query); err != nil {
+		wrapped := fferr.NewResourceExecutionError(pt.SnowflakeOffline.String(), def.ID.Name, def.ID.Variant, fferr.TRAINING_SET_VARIANT, err)
 		sf.logger.Errorw("Failed to create dynamic iceberg table", "error", err)
-		return fferr.NewResourceExecutionError(pt.SnowflakeOffline.String(), def.ID.Name, def.ID.Variant, fferr.TRAINING_SET_VARIANT, err)
+		return sf.handleErr(wrapped, err)
 	}
 	return nil
 }
@@ -332,4 +343,23 @@ func (sf *snowflakeOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 // DO NOT REMOVE THIS METHOD.
 func (sf *snowflakeOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return sf, nil
+}
+
+// handleErr attempts to add the Snowflake query and session IDs to a wrapped error to aid
+// in further debugging in the Snowflake UI; note that handleErr will not fail even if the
+// returned error isn't an instance of gosnowflake.SnowflakeError or if the query to get
+// the session ID fails.
+func (sf snowflakeOfflineStore) handleErr(wrapped fferr.Error, execErr error) error {
+	sfErr, isSnowflakeErr := execErr.(*snowflake.SnowflakeError)
+	if isSnowflakeErr {
+		wrapped.AddDetail("query_id", sfErr.QueryID)
+	}
+	var sessionID string
+	r := sf.db.QueryRow("SELECT CURRENT_SESSION()")
+	if err := r.Scan(&sessionID); err != nil {
+		sf.logger.Errorf("failed to query session ID for err: %v", err)
+	} else {
+		wrapped.AddDetail("session_id", sessionID)
+	}
+	return wrapped
 }

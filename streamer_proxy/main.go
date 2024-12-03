@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"io"
 	"log"
 	"net"
 
 	"github.com/apache/arrow/go/v14/arrow/flight"
 	pb "github.com/featureform/streamer_proxy/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // gRPC service implementation for Go Proxy
@@ -18,36 +20,51 @@ type GoProxyServer struct {
 }
 
 // StreamData is the gRPC method exposed to internal services
-func (gps *GoProxyServer) StreamData(ctx context.Context, req *pb.StreamRequest) (*pb.Empty, error) {
+func (gps *GoProxyServer) StreamData(req *pb.StreamRequest, stream pb.GoProxy_StreamDataServer) error {
 	// Connect to the Python Streamer
 	ticket := &flight.Ticket{
 		Ticket: []byte(req.TableName),
 	}
-	stream, err := gps.flightClient.DoGet(ctx, ticket)
+	flightStream, err := gps.flightClient.DoGet(context.TODO(), ticket)
 	if err != nil {
 		log.Printf("Failed to fetch data from Python Streamer: %v\n", err)
-		return nil, err
+		return err
 	}
 
-	// Handle the received data stream
+	// get the received data stream and pass it through to caller
 	for {
-		record, err := stream.Recv()
+		flightData, err := flightStream.Recv()
 		if err != nil {
+			if err == io.EOF {
+				log.Println("Reached the end")
+				break
+			}
 			log.Printf("End of stream or error: %v\n", err)
 			break
 		}
-		log.Printf("Received data: %v\n", record)
+		log.Printf("Proxy forward flight data. DataHeader: \n%v \nDataBody \nsize: %d bytes\n",
+			flightData.GetDataHeader(), len(flightData.GetDataBody()))
+
+		// forward the record todo: might need to include the flight descriptor
+		err = stream.SendMsg(&pb.RecordBatch{
+			DataHeader:  flightData.GetDataHeader(),
+			DataBody:    flightData.GetDataBody(),
+			AppMetadata: flightData.GetAppMetadata(),
+		})
+		if err != nil {
+			log.Printf("Failed to send data back to client caller: %v/\n", err)
+			return err
+		}
 	}
 
-	// todox: or we could refactor to just pass back the raw response
-	// and let the client caller handle the processsing.
-	// can also pass in a closure to process items with and store the results locally
-	return &pb.Empty{}, nil
+	return nil
 }
 
 // NewGoProxyServer initializes the proxy server with a connection to the Python Streamer
 func NewGoProxyServer(streamerAddr string) (*GoProxyServer, error) {
-	client, err := flight.NewClientWithMiddleware(streamerAddr, nil, nil)
+	insecureCreds := grpc.WithTransportCredentials(insecure.NewCredentials())
+	options := []grpc.DialOption{insecureCreds}
+	client, err := flight.NewClientWithMiddleware(streamerAddr, nil, nil, options...)
 	if err != nil {
 		return nil, err
 	}
@@ -57,8 +74,10 @@ func NewGoProxyServer(streamerAddr string) (*GoProxyServer, error) {
 	}, nil
 }
 
+// note: we can alternatively make this a flight server as well, but all clients would then need flight specific libs
+// keeping it as a standard gRPC reponse means anyone can call the data.
 func main() {
-	streamerAddr := "grpc://python-streamer:8085"
+	streamerAddr := "python-streamer:8085"
 
 	server, err := NewGoProxyServer(streamerAddr)
 	println(server)
@@ -74,7 +93,7 @@ func main() {
 	// start the server
 	grpcServer := grpc.NewServer()
 	pb.RegisterGoProxyServer(grpcServer, server)
-	log.Println("Go Proxy is running on port 8080")
+	log.Println("Go Proxy is running on port 8087")
 	if err := grpcServer.Serve(listener); err != nil {
 		log.Fatalf("Failed to serve gRPC server: %v\n", err)
 	}

@@ -6,14 +6,19 @@ option go_package = "github.com/featureform/streamer_proxy/proto";
 
 
 service GoProxy {
-  rpc StreamData (StreamRequest) returns (Empty);
+  rpc StreamData (StreamRequest) returns (stream RecordBatch);
 }
 
 
-
+// todo: we'll probably add more inputs, but keeping it basic for now
 message StreamRequest {
   string table_name = 1;
 }
 
-message Empty {}
+message RecordBatch {
+  //todo: add flight descriptor? might not be needed.
+  bytes app_metadata = 1;
+  bytes data_header = 2;
+  bytes data_body = 3;
+}
 

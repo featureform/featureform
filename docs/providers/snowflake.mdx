@@ -68,6 +68,8 @@ Featureform's Snowflake integration leverages [dynamic Apache Iceberg™ tables]
 
 This requires users to [create an external volume](https://docs.snowflake.com/en/user-guide/tables-iceberg-configure-external-volume) _prior to_ registering Snowflake as a provider. See the repo [`terraforming-snowflake-external-volumes`](https://github.com/featureform/terraforming-snowflake-external-volumes) for an example of creating an external volume backed by an AWS S3 bucket using Terraform.
 
+Additionally, users _may_ have to manually [enable change tracking](https://docs.snowflake.com/en/user-guide/dynamic-tables-create#enable-change-tracking) on source tables for incremental refreshes to work.
+
 The name of the external volume, as well as a folder name in the bucket (i.e. `base_location`), is required to instantiate `ff.SnowflakeCatalog`. Currently, the only option for catalog is to use [Snowflake as the Iceberg catalog](https://docs.snowflake.com/en/user-guide/tables-iceberg#label-tables-iceberg-catalog-options).
 
 Additionally, users can set "provider-level" values for [target lag and refresh mode](https://docs.snowflake.com/en/user-guide/dynamic-tables-refresh) that will be used by all resources (i.e. SQL transformations, features, labels and training sets) _unless otherwise specified at the resource level_.

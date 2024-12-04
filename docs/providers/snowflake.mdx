@@ -3,30 +3,6 @@ title: "Snowflake"
 description: "Featureform supports [Snowflake](https://www.snowflake.com/) as an Offline Store."
 ---
 
-## Implementation
-
-### Primary Sources
-
-#### Tables
-
-Table sources are used directly via a view. Featureform will never write to a primary source.
-
-#### Files
-
-Files are copied into a Snowflake table via a Kubernetes Job kicked off by our coordinator. If scheduling is set, the table will atomically be re-copied over.
-
-### Transformation Sources
-
-SQL transformations are used to create a view. By default, those views are materialized and updated according to the schedule parameter. Deprecated transformations are converted to un-materialized views to save storage space.
-
-### Offline to Inference Store Materialization
-
-When a feature is registered, Featureform creates an internal transformation to get the newest value of every feature and its associated entity. A Kubernetes job is then kicked off to sync this up with the Inference store.
-
-### Training Set Generation
-
-Every registered feature and label is associated with a view table. That view contains three columns, the entity, value, and timestamp. When a training set is registered, it is created as a materialized view via a JOIN on the corresponding label and feature views.
-
 ## Configuration
 
 First we have to add a declarative Snowflake configuration in Python.
@@ -38,14 +14,23 @@ import featureform as ff
 
 ff.register_snowflake(
     name = "snowflake_docs",
-    description = "Example inference store",
-    team = "Featureform",
+    description = "Example offline store",
     username = snowflake_username,
     password = snowflake_password,
     account = snowflake_account,
     organization = snowflake_org,
     database = snowflake_database,
     schema = snowflake_schema,
+    warehouse = snowflake_wh,
+    catalog = ff.SnowflakeCatalog(
+        external_volume = snowflake_external_volume,
+        base_location = snowflake_base_location,
+        table_config=ff.SnowflakeDynamicTableConfig(
+            target_lag='1 days',
+            refresh_mode=ff.RefreshMode.INCREMENTAL,
+            initialize=ff.Initialize.ON_CREATE,
+        ),
+    )
 )
 ```
 
@@ -58,15 +43,44 @@ import featureform as ff
 
 ff.register_snowflake_legacy(
     name = "snowflake_docs",
-    description = "Example inference store",
-    team = "Featureform",
+    description = "Example offline store",
     username = snowflake_username,
     password =  snowflake_password,
     account_locator = snowflake_account_locator,
     database = snowflake_database,
     schema = snowflake_schema,
+    warehouse = snowflake_wh,
+    catalog = ff.SnowflakeCatalog(
+        external_volume = snowflake_external_volume,
+        base_location = snowflake_base_location,
+        table_config=ff.SnowflakeDynamicTableConfig(
+            target_lag='1 days',
+            refresh_mode=ff.RefreshMode.INCREMENTAL,
+            initialize=ff.Initialize.ON_CREATE,
+        ),
+    )
 )
 ```
+
+### Dynamic Apache Iceberg™ Tables
+
+Featureform's Snowflake integration leverages [dynamic Apache Iceberg™ tables](https://docs.snowflake.com/en/user-guide/dynamic-tables-create-iceberg) to offer automated data transformation pipelines from SQL transformations to training sets.
+
+This requires users to [create an external volume](https://docs.snowflake.com/en/user-guide/tables-iceberg-configure-external-volume) _prior to_ registering Snowflake as a provider. See the repo [`terraforming-snowflake-external-volumes`](https://github.com/featureform/terraforming-snowflake-external-volumes) for an example of creating an external volume backed by an AWS S3 bucket using Terraform.
+
+Additionally, users _may_ have to manually [enable change tracking](https://docs.snowflake.com/en/user-guide/dynamic-tables-create#enable-change-tracking) on source tables for incremental refreshes to work.
+
+The name of the external volume, as well as a folder name in the bucket (i.e. `base_location`), is required to instantiate `ff.SnowflakeCatalog`. Currently, the only option for catalog is to use [Snowflake as the Iceberg catalog](https://docs.snowflake.com/en/user-guide/tables-iceberg#label-tables-iceberg-catalog-options).
+
+Additionally, users can set "provider-level" values for [target lag and refresh mode](https://docs.snowflake.com/en/user-guide/dynamic-tables-refresh) that will be used by all resources (i.e. SQL transformations, features, labels and training sets) _unless otherwise specified at the resource level_.
+
+### Session Parameters
+
+Users may optionally add [session parameters](https://docs.snowflake.com/en/sql-reference/parameters#session-parameters) when configuring Snowflake as an offline store. The parameters will be used when Featureform creates a connection with Snowflake.
+
+For example, providing a value for `query_tag` at configuration ensures all queries issues by Featureform will have the value of `query_tag` applied to them, which will be visible in the Snowflake UI.
+
+### Applying
 
 Once our config file is complete, we can apply it to our Featureform deployment
 
@@ -78,6 +92,8 @@ We can re-verify that the provider is created by checking the [Providers tab of 
 
 ### Mutable Configuration Fields
 
+Many of the values provided at the time of registration can be changed if users want to re-apply the same Python file (e.g. `snowflake_config.py`) again with different values. The following list of configurations fields are mutable:
+
 * `description`
 
 * `username`
@@ -85,3 +101,31 @@ We can re-verify that the provider is created by checking the [Providers tab of 
 * `password`
 
 * `role`
+
+* `warehouse`
+
+* `database`
+
+* `schema`
+
+* `session_params`
+
+## Implementation
+
+### Datasets
+
+#### Primary Datasets
+
+Primary datasets (i.e. tables) are read-only and are only used as inputs in transformations, features and/or labels.
+
+### Transformation Sources
+
+SQL transformations are used to create a dynamic Apache Iceberg™ table. The refresh mode (i.e. full or incremental) depends on the user-defined SQL query, so users should be aware of query expressions, keywords, etc. that might prevent incremental refreshes.
+
+### Offline to Inference Store Materialization
+
+When a feature is registered, Featureform creates an internal transformation to get the newest value of every feature and its associated entity. A Kubernetes job is then kicked off to sync this up with the inference store.
+
+### Training Set Generation
+
+Training set are created from one or more features and a label. Label are registered separately as a dynamic table to ensure the latest label values are used in the training set. When users define a timestamp column for a feature and label combination, Featureform uses Snowflake's [`ASOF JOIN`](https://docs.snowflake.com/en/sql-reference/constructs/asof-join) to combine feature values with their labels.

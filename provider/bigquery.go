@@ -648,6 +648,10 @@ func (mat *bqMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
 	return genericIterateChunk(mat, defaultRowsPerChunk, idx)
 }
 
+func (mat *bqMaterialization) Location() pl.Location {
+	return pl.NewSQLLocation(mat.tableName)
+}
+
 type bqFeatureIterator struct {
 	iter         *bigquery.RowIterator
 	currentValue ResourceRecord
@@ -767,6 +771,10 @@ func (table *bqOfflineTable) WriteBatch(recs []ResourceRecord) error {
 		}
 	}
 	return nil
+}
+
+func (table *bqOfflineTable) Location() pl.Location {
+	return pl.NewSQLLocation(table.name)
 }
 
 type bqOfflineStore struct {

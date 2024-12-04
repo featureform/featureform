@@ -20,7 +20,8 @@ class StreamerService(FlightServerBase):
             raise FileNotFoundError(f"Table {table_name} not found at path: {csv_path}")
 
         # use pyarrow.csv to read the CSV file into an Arrow Table
-        table = csv.read_csv(csv_path)
+        # but load in smaller chunks (2mb in this case)
+        table = csv.read_csv(csv_path, read_options=csv.ReadOptions(block_size=2 * 1024 * 1024)) #2 mb chunks
         return table
 
 if __name__ == "__main__":

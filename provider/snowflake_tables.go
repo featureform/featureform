@@ -102,3 +102,7 @@ func (tbl snowflakeOfflineTable) WriteBatch(records []ResourceRecord) error {
 	}
 	return nil
 }
+
+func (tbl *snowflakeOfflineTable) Location() pl.Location {
+	return tbl.location
+}

@@ -39,3 +39,10 @@ type offlineMaterializationSqlStoreTester interface {
 	OfflineStoreDataset
 	OfflineStoreMaterialization
 }
+
+type offlineTrainingSetSqlStoreTester interface {
+	offlineSqlStoreCoreTester
+	OfflineStoreDataset
+	OfflineStoreMaterialization
+	OfflineStoreTrainingSet
+}

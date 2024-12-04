@@ -120,76 +120,9 @@ func (q snowflakeSQLQueries) materializationCreateAsQuery(entity, value, ts, tab
 	return sb.String()
 }
 
-func (q snowflakeSQLQueries) trainingSetCreateAsQuery(def TrainingSetDef) (string, error) {
-	var cteClauses []string
-	var joinClauses []string
-	var selectFieldsCte []string
-	var selectFields []string
-	var partitionFields []string
-
-	labelLocation, isSQLLocation := def.LabelSourceMapping.Location.(*pl.SQLLocation)
-	if !isSQLLocation {
-		return "", fferr.NewInvalidArgumentErrorf("label source location is not an SQL location")
-	}
-
-	// Label CTE
-	labelCTE := fmt.Sprintf(`label_cte AS (
-		SELECT entity AS e, value AS label, ts AS time
-		FROM %s
-	)`, SanitizeSnowflakeIdentifier(labelLocation.TableLocation()))
-	cteClauses = append(cteClauses, labelCTE)
-
-	// Feature CTE(s) and JOIN(s)
-	for i, feature := range def.FeatureSourceMappings {
-		featureLocation, isSQLLocation := feature.Location.(*pl.SQLLocation)
-		if !isSQLLocation {
-			return "", fferr.NewInvalidArgumentErrorf("label source location is not an SQL location")
-		}
-		cteName := fmt.Sprintf("feature_%d_cte", i+1)
-		cte := fmt.Sprintf(`%s AS (
-			SELECT entity, value AS %s, ts
-			FROM %s
-		)`, cteName, sanitize(featureLocation.GetTable()), SanitizeSnowflakeIdentifier(featureLocation.TableLocation()))
-
-		cteClauses = append(cteClauses, cte)
-
-		joinClause := fmt.Sprintf(`LEFT JOIN %s f%d ON f%d.entity = l.e AND f%d.ts <= l.time`, cteName, i+1, i+1, i+1)
-		joinClauses = append(joinClauses, joinClause)
-
-		selectField := sanitize(featureLocation.GetTable())
-
-		selectFields = append(selectFields, selectField)
-		selectFieldsCte = append(selectFieldsCte, fmt.Sprintf("f%d.%s", i+1, selectField))
-		partitionFields = append(partitionFields, fmt.Sprintf("f%d.%s", i+1, sanitize(featureLocation.GetTable())))
-	}
-
-	ctePart := strings.Join(cteClauses, ",\n")
-	joinPart := strings.Join(joinClauses, "\n")
-	selectCtePart := strings.Join(selectFieldsCte, ", ")
-	selectPart := strings.Join(selectFields, ", ")
-
-	partitionByClause := "l.e, l.label, l.time"
-	if len(partitionFields) > 0 {
-		partitionByClause = "l.e, l.label, l.time, " + strings.Join(partitionFields, ", ")
-	}
-
-	query := fmt.Sprintf(`
-		WITH %s,
-		combined_cte AS (
-			SELECT l.e,
-			       l.label,
-			       l.time,
-			       %s,
-			       ROW_NUMBER() OVER (PARTITION BY %s ORDER BY l.time DESC) AS rn
-			FROM label_cte l
-			%s
-		)
-		SELECT %s, label
-		FROM combined_cte
-		WHERE rn = 1
-	`, ctePart, selectCtePart, partitionByClause, joinPart, selectPart)
-
-	return query, nil
+func (q snowflakeSQLQueries) dropTableQuery(loc pl.SQLLocation) string {
+	obj := loc.TableLocation()
+	return fmt.Sprintf("DROP TABLE %s", SanitizeSqlLocation(obj))
 }
 
 func SanitizeSnowflakeIdentifier(obj pl.FullyQualifiedObject) string {

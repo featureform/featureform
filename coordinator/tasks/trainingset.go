@@ -214,6 +214,14 @@ func (t *TrainingSetTask) getLabelSourceMapping(label *metadata.LabelVariant) (p
 		ProviderType:   pt.Type(labelProvider.Type()),
 		ProviderConfig: labelProvider.SerializedConfig(),
 		Location:       labelLocation,
+		// Given a label will always be created as a resource table, which uses stable naming conventions for columns,
+		// we can hardcode the column names here. **NOTE**: if we used label.LocationColumns() here, we would get
+		// the column names from the source table, and not the resource table.
+		Columns: metadata.ResourceVariantColumns{
+			Entity: "entity",
+			Value:  "value",
+			TS:     "ts",
+		},
 	}, nil
 }
 
@@ -233,11 +241,19 @@ func (t *TrainingSetTask) getFeatureSourceMapping(feature *metadata.FeatureVaria
 	if err != nil {
 		return provider.SourceMapping{}, err
 	}
+	locCols := feature.LocationColumns()
+	cols, isResourceCols := locCols.(metadata.ResourceVariantColumns)
+	if !isResourceCols {
+		t.logger.Errorf("expected ResourceVariantColumns, got %T", locCols)
+		return provider.SourceMapping{}, fferr.NewInternalErrorf("expected ResourceVariantColumns, got %T", locCols)
+	}
+	t.logger.Debugw("Feature resource variant columns", "columns", cols)
 	return provider.SourceMapping{
 		Source:         featureSource,
 		ProviderType:   pt.Type(sourceProvider.Type()),
 		ProviderConfig: sourceProvider.SerializedConfig(),
 		Location:       featureLocation,
+		Columns:        cols,
 	}, nil
 }
 
@@ -300,19 +316,48 @@ func (t *TrainingSetTask) getResourceLocation(provider *metadata.Provider, table
 	return location, err
 }
 
-func (t *TrainingSetTask) getFeatureSourceTableName(provder *metadata.Provider, feature *metadata.FeatureVariant) (string, error) {
+func (t *TrainingSetTask) getFeatureSourceTableName(p *metadata.Provider, feature *metadata.FeatureVariant) (string, error) {
 	var resourceType provider.OfflineResourceType
-	switch pt.Type(provder.Type()) {
+	switch pt.Type(p.Type()) {
 	case pt.SnowflakeOffline:
-		// NOTE: Previously, we created resource tables for features prior to materialization; given these table were purely intermediaries between
-		// transformations and materializations, and given the additional cost associated with Dynamic Iceberg Tables in Snowflake, we've removed these
-		// resources tables in favor of directly materializing features.
-		resourceType = provider.FeatureMaterialization
+		return t.getSourceTableNameForSnowflake(feature)
 	case pt.MemoryOffline, pt.MySqlOffline, pt.PostgresOffline, pt.ClickHouseOffline, pt.RedshiftOffline, pt.SparkOffline, pt.BigQueryOffline, pt.K8sOffline:
 		resourceType = provider.Feature
 	default:
-		return "", fferr.NewInternalErrorf("unsupported provider type: %s", provder.Type())
+		t.logger.Errorw("unsupported provider type", "type", p.Type())
+		return "", fferr.NewInternalErrorf("unsupported provider type: %s", p.Type())
 	}
 
 	return ps.ResourceToTableName(resourceType.String(), feature.Name(), feature.Variant())
+}
+
+// getSourceTableNameForSnowflake returns the fully qualified table name for a feature's source variant.
+// **NOTE:** In the past, we used the feature materialization as the source of a feature for a training set;
+// however, this was incorrect because that data set will only ever have one row per entity, and in many cases,
+// we need all rows for a given entity to correctly create a training set. Therefore, we now use the source variant
+// as the source of a feature and allow the training set query to determine how to handle the source data based on
+// the presence/absence of timestamps in both the features and label.
+func (t *TrainingSetTask) getSourceTableNameForSnowflake(feature *metadata.FeatureVariant) (string, error) {
+	sourceNv := feature.Source()
+	sv, err := t.metadata.GetSourceVariant(context.TODO(), sourceNv)
+	if err != nil {
+		t.logger.Errorw("could not get source variant", "name_variant", sourceNv, "err", err)
+		return "", err
+	}
+	if sv.IsPrimaryData() {
+		loc, err := sv.GetPrimaryLocation()
+		if err != nil {
+			t.logger.Errorw("could not get primary location", "source", sv.Definition(), "err", err)
+			return "", err
+		}
+		return loc.Location(), nil
+	} else if sv.IsTransformation() {
+		loc, err := sv.GetTransformationLocation()
+		if err != nil {
+			return "", err
+		}
+		return loc.Location(), nil
+	} else {
+		return "", fferr.NewInternalErrorf("unsupported source type: %T", sv.Definition())
+	}
 }

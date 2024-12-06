@@ -104,6 +104,9 @@ psql:
   # If true, automatically creates a secret stored in templates/secrets/postgres.yaml.
   # If false, does not apply the template. The template can be created manually
   createSecret: false
+  migration:
+    image:
+      name: db-migration-up
 
 # search loader job
 searchjob:

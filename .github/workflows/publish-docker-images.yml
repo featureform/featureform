@@ -1,4 +1,4 @@
-name: Update Helm
+name: Publish Docker Images
 on:
   workflow_dispatch:
     inputs:

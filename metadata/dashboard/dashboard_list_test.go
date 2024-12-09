@@ -880,3 +880,39 @@ func TestGetTrainingSetVariant(t *testing.T) {
 	assert.Equal(t, metadata.Tags{"dummyTag"}, resp.Data[0].Tags)
 	assert.Len(t, mockStore.Opts, expectedQueryOpts)
 }
+
+func TestGetSearch_MissingQuery(t *testing.T) {
+	locker, err := ffsync.NewMemoryLocker()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	mstorage, err := ss.NewMemoryStorageImplementation()
+	if err != nil {
+		panic(err.Error())
+	}
+
+	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+	storage := ss.MetadataStorage{
+		Locker:          &locker,
+		Storage:         &mstorage,
+		SkipListLocking: true,
+		Logger:          logger,
+	}
+	client := &metadata.Client{}
+	serv := MetadataServer{
+		client:          client,
+		logger:          logger,
+		StorageProvider: storage,
+	}
+
+	mockRecorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(mockRecorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	c.Set("q", "")
+	serv.GetSearch(c)
+
+	var data string
+	_ = json.Unmarshal(mockRecorder.Body.Bytes(), &data)
+	assert.Equal(t, http.StatusInternalServerError, mockRecorder.Code)
+	assert.Contains(t, "Missing query", data)
+}

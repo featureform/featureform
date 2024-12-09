@@ -2052,6 +2052,7 @@ func (m *MetadataServer) GetSearch(c *gin.Context) {
 	query, ok := c.GetQuery("q")
 	if !ok {
 		c.JSON(http.StatusInternalServerError, "Missing query")
+		return
 	}
 
 	result, err := SearchClient.RunSearch(query)

@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iceberg-streamer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iceberg-streamer
+  template:
+    metadata:
+      labels:
+        app: iceberg-streamer
+    spec:
+      containers:
+      - name: iceberg-streamer
+        image: localhost/iceberg-streamer:stable
+        ports:
+        - containerPort: 8085
+
+# need to include env variables:
+# PYICEBERG_CATALOG__DEFAULT__URI=s3
+# PYICEBERG_CATALOG__DEFAULT__S3__ACCESS_KEY_ID
+# PYICEBERG_CATALOG__DEFAULT__S3__SECRET_ACCESS_KEY

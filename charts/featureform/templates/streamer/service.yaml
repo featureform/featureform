@@ -1,0 +1,20 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: iceberg-streamer
+spec:
+  selector:
+    app: iceberg-streamer
+  ports:
+  - name: grpc
+    protocol: TCP
+    port: {{ .Values.icebergStreamer.port }}
+    targetPort: 8085
+  type: ClusterIP

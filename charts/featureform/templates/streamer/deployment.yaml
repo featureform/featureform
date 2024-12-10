@@ -1,9 +1,18 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: iceberg-streamer
 spec:
-  replicas: 1
+  {{- if not .Values.icebergStreamer.autoscaling.enabled }}
+  replicas: {{ .Values.icebergStreamer.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       app: iceberg-streamer
@@ -11,14 +20,23 @@ spec:
     metadata:
       labels:
         app: iceberg-streamer
+      {{ if .Values.restartOnUpdate }}
+      annotations:
+        timestamp: {{ now | quote }}
+      {{ end }}
     spec:
+      imagePullSecrets:
+        - name: {{ .Values.k8sImagePullSecret }}
       containers:
       - name: iceberg-streamer
-        image: localhost/iceberg-streamer:stable
+        image: "{{ .Values.repository | default .Values.repository }}/{{ .Values.icebergStreamer.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.pullPolicy }}
         ports:
         - containerPort: 8085
-
-# need to include env variables:
-# PYICEBERG_CATALOG__DEFAULT__URI=s3
-# PYICEBERG_CATALOG__DEFAULT__S3__ACCESS_KEY_ID
-# PYICEBERG_CATALOG__DEFAULT__S3__SECRET_ACCESS_KEY
+        env:
+          - name: PYICEBERG_CATALOG__DEFAULT__URI
+            value: {{ .Values.icebergStreamer.default_uri | quote }}
+          - name: PYICEBERG_CATALOG__DEFAULT__S3__ACCESS_KEY_ID
+            value: {{ .Values.icebergStreamer.awsAccessKeyId | quote }}
+          - name: PYICEBERG_CATALOG__DEFAULT__S3__SECRET_ACCESS_KEY
+            value: {{ .Values.icebergStreamer.awsSecretAccessKey | quote }}

@@ -54,6 +54,10 @@ func (m *MaterializedFeaturesNumChunksBroken) Close() error {
 	return nil
 }
 
+func (m MaterializedFeaturesNumChunksBroken) Location() pl.Location {
+	return nil
+}
+
 type MaterializedFeaturesIterateBroken struct {
 	id provider.MaterializationID
 }
@@ -78,6 +82,10 @@ func (m *MaterializedFeaturesIterateBroken) IterateChunk(idx int) (provider.Feat
 	return nil, errors.New("cannot create feature iterator")
 }
 
+func (m *MaterializedFeaturesIterateBroken) Location() pl.Location {
+	return nil
+}
+
 type MaterializedFeaturesIterateRunBroken struct {
 	id provider.MaterializationID
 }
@@ -99,6 +107,10 @@ func (m *MaterializedFeaturesIterateRunBroken) NumChunks() (int, error) {
 }
 func (m *MaterializedFeaturesIterateRunBroken) IterateChunk(idx int) (provider.FeatureIterator, error) {
 	return &BrokenFeatureIterator{}, nil
+}
+
+func (m *MaterializedFeaturesIterateRunBroken) Location() pl.Location {
+	return nil
 }
 
 type MockOnlineTable struct {
@@ -841,6 +853,10 @@ func (m MockOfflineTable) WriteBatch([]provider.ResourceRecord) error {
 	return nil
 }
 
+func (m MockOfflineTable) Location() pl.Location {
+	return nil
+}
+
 type MockMaterialization struct{}
 
 func (m MockMaterialization) ID() provider.MaterializationID {
@@ -861,6 +877,10 @@ func (m MockMaterialization) NumChunks() (int, error) {
 
 func (m MockMaterialization) IterateChunk(idx int) (provider.FeatureIterator, error) {
 	return MockIterator{}, nil
+}
+
+func (m MockMaterialization) Location() pl.Location {
+	return nil
 }
 
 type MockIterator struct{}

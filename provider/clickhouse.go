@@ -356,6 +356,10 @@ func (table *clickhouseOfflineTable) WriteBatch(recs []ResourceRecord) error {
 	return nil
 }
 
+func (table *clickhouseOfflineTable) Location() pl.Location {
+	return pl.NewSQLLocation(table.name)
+}
+
 type clickhousePrimaryTable struct {
 	db     *sql.DB
 	name   string
@@ -1647,6 +1651,10 @@ func (mat *clickHouseMaterialization) NumChunks() (int, error) {
 
 func (mat *clickHouseMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
 	return genericIterateChunk(mat, defaultRowsPerChunk, idx)
+}
+
+func (mat *clickHouseMaterialization) Location() pl.Location {
+	return pl.NewSQLLocation(mat.tableName)
 }
 
 func newClickHouseFeatureIterator(rows *sql.Rows, columnType interface{}, query OfflineTableQueries) FeatureIterator {

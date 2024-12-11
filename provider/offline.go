@@ -220,15 +220,17 @@ type SourceMapping struct {
 	ProviderConfig      pc.SerializedConfig
 	TimestampColumnName string
 	Location            pl.Location
+	Columns             metadata.ResourceVariantColumns
 }
 
 type SourceMappingJSON struct {
-	Template            string              `json:"Template"`
-	Source              string              `json:"Source"`
-	ProviderType        pt.Type             `json:"ProviderType"`
-	ProviderConfig      pc.SerializedConfig `json:"ProviderConfig"`
-	TimestampColumnName string              `json:"TimestampColumnName"`
-	Location            json.RawMessage     `json:"Location,omitempty"`
+	Template            string                          `json:"Template"`
+	Source              string                          `json:"Source"`
+	ProviderType        pt.Type                         `json:"ProviderType"`
+	ProviderConfig      pc.SerializedConfig             `json:"ProviderConfig"`
+	TimestampColumnName string                          `json:"TimestampColumnName"`
+	Location            json.RawMessage                 `json:"Location,omitempty"`
+	Columns             metadata.ResourceVariantColumns `json:"Columns"`
 }
 
 type TransformationConfig struct {
@@ -582,6 +584,7 @@ type Materialization interface {
 	IterateSegment(begin, end int64) (FeatureIterator, error)
 	NumChunks() (int, error)
 	IterateChunk(idx int) (FeatureIterator, error)
+	Location() pl.Location
 }
 
 type Chunks interface {
@@ -671,6 +674,7 @@ func (rec ResourceRecord) Columns() []string {
 type OfflineTable interface {
 	Write(ResourceRecord) error
 	WriteBatch([]ResourceRecord) error
+	Location() pl.Location
 }
 
 // The "primary" in the name here might be misleading.
@@ -1374,6 +1378,10 @@ func (table *memoryOfflineTable) WriteBatch(recs []ResourceRecord) error {
 	return nil
 }
 
+func (table *memoryOfflineTable) Location() pl.Location {
+	return nil
+}
+
 // Used in runner/copy_test.go
 type MemoryMaterialization struct {
 	Id           MaterializationID
@@ -1409,6 +1417,10 @@ func (mat *MemoryMaterialization) IterateChunk(idx int) (FeatureIterator, error)
 		mat.RowsPerChunk = defaultRowsPerChunk
 	}
 	return genericIterateChunk(mat, mat.RowsPerChunk, idx)
+}
+
+func (mat *MemoryMaterialization) Location() pl.Location {
+	return nil
 }
 
 type memoryFeatureIterator struct {

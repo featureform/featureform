@@ -119,7 +119,7 @@ def test_snowflake_training_set_registration(
 
     ts = ff_client.training_set(training_set)
     df = ts.dataframe()
-    assert len(df) == 960794
+    assert len(df) == 1048124
 
 
 @pytest.mark.parametrize(

@@ -286,6 +286,10 @@ func (m MockMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
 	return MockIterator{}, nil
 }
 
+func (m MockMaterialization) Location() pl.Location {
+	return nil
+}
+
 type MockOfflineTable struct{}
 
 func (m MockOfflineTable) Write(ResourceRecord) error {
@@ -293,6 +297,10 @@ func (m MockOfflineTable) Write(ResourceRecord) error {
 }
 
 func (m MockOfflineTable) WriteBatch([]ResourceRecord) error {
+	return nil
+}
+
+func (table MockOfflineTable) Location() pl.Location {
 	return nil
 }
 

@@ -6,10 +6,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY ./streamer/requirements.txt /app/
-COPY ./streamer/iceberg_streamer.py /app/
-
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip
+RUN pip install boto3 pyarrow 'pyiceberg[glue]'
 
 COPY . /app
 

@@ -28,5 +28,8 @@ spec:
             - name: GOOSE_DRIVER
               value: postgres
             - name: GOOSE_DBSTRING
-              value: postgres://{{ .Values.psql.user }}:{{ .Values.psql.password }}@{{ .Values.psql.host }}:{{ .Values.psql.port }}/{{ .Values.psql.db }}
+              valueFrom:
+                secretKeyRef:
+                  name: psql-secret-literal
+                  key: connection-string
 {{ end }}

@@ -18,7 +18,7 @@ def test_do_get_invalid_ticket_format(ticket_input, streamer_service):
     invalid_ticket.ticket.decode.return_value = ticket_input
 
     with pytest.raises(ValueError, match="Invalid JSON format in ticket"):
-        streamer_service.do_get(None, invalid_ticket)
+        streamer_service.do_get("default", invalid_ticket)
 
 @pytest.mark.local
 @pytest.mark.parametrize("ticket_input", [
@@ -32,7 +32,7 @@ def test_do_get_empty_namespace_or_table(ticket_input, streamer_service):
     invalid_ticket.ticket.decode.return_value = ticket_input
 
     with pytest.raises(Exception, match="Missing 'namespace' or 'table' in JSON"):
-        streamer_service.do_get(None, invalid_ticket)
+        streamer_service.do_get("default", invalid_ticket)
 
 @patch("os.getenv", side_effect=lambda key, default=None: None if key == "PYICEBERG_CATALOG__DEFAULT__URI" else default)
 def test_load_data_missing_catalog_uri(_, streamer_service):
@@ -60,8 +60,8 @@ def test_do_get_success_fires_correct_params(_, mock_load_catalog, streamer_serv
     flight_ticket.ticket.decode.return_value = '{"namespace": "my_namespace", "table": "my_table"}'
 
     # fire the request
-    response = streamer_service.do_get(None, flight_ticket)
+    response = streamer_service.do_get("default", flight_ticket)
 
     assert isinstance(response, pa.flight.RecordBatchStream)
-    mock_load_catalog.assert_called_once_with(None, **{"type": "glue", "s3.region": "us-east-1"})
+    mock_load_catalog.assert_called_once_with("default", **{"type": "glue", "s3.region": "us-east-1"})
     mock_catalog.load_table.assert_called_once_with(("my_namespace", "my_table"))

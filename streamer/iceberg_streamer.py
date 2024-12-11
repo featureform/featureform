@@ -41,7 +41,7 @@ class StreamerService(FlightServerBase):
         logger.info(f"Catalog URI:{catalog_uri}")
         logger.info(f"Loading table: {namespace}.{table_name}")
         # todo: update passed in catalog
-        catalog = load_catalog(None, **{"type": "glue", "s3.region": aws_region})
+        catalog = load_catalog("default", **{"type": "glue", "s3.region": aws_region})
         iceberg_table = catalog.load_table((namespace, table_name))
 
         scan = iceberg_table.scan() # todo: upper limit param? or keep tight scope for now?

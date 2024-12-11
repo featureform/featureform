@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 import re
 import pyarrow as pa
-from iceberg_streamer import StreamerService, logger
+from iceberg_streamer import StreamerService
 
 @pytest.fixture(scope="module")
 def streamer_service():

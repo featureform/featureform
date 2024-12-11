@@ -30,7 +30,7 @@ spec:
       containers:
       - name: iceberg-streamer
         image: "{{ .Values.repository | default .Values.repository }}/{{ .Values.icebergStreamer.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.pullPolicy }}
+        imagePullPolicy: {{ .Values.pullPolicy }}
         ports:
         - containerPort: 8085
         env:
@@ -40,3 +40,12 @@ spec:
             value: {{ .Values.icebergStreamer.awsAccessKeyId | quote }}
           - name: PYICEBERG_CATALOG__DEFAULT__S3__SECRET_ACCESS_KEY
             value: {{ .Values.icebergStreamer.awsSecretAccessKey | quote }}
+          # todo: for debugs
+          - name: AWS_ACCESS_KEY_ID
+            value: {{ .Values.icebergStreamer.awsAccessKeyId | quote }}
+          - name: AWS_SECRET_ACCESS_KEY
+            value: {{ .Values.icebergStreamer.awsSecretAccessKey | quote }}
+          - name: AWS_DEFAULT_REGION
+            value: {{ .Values.icebergStreamer.awsRegion | quote }}
+          - name: PYTHONUNBUFFERED
+            value: {{ 1 | quote }}

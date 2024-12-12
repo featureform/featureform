@@ -22,7 +22,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: db-migration-up
-          image: "{{ .Values.repository | default .Values.repository }}/{{ .Values.psql.migration.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
+          image: "{{ .Values.repository }}/{{ .Values.psql.migration.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.pullPolicy }}
           env:
             - name: GOOSE_DRIVER

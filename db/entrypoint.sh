@@ -10,7 +10,7 @@ fi
 
 echo "Starting database migration..."
 
-if [ -z "${MIGRATION_VERSION}" ]; then
+if [ -z "${MIGRATION_VERSION:-}" ]; then
   echo "No specific version specified, migrating to latest version"
   ./goose up -dir ./migrations
 else

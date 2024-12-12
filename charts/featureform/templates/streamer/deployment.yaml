@@ -33,19 +33,3 @@ spec:
         imagePullPolicy: {{ .Values.pullPolicy }}
         ports:
         - containerPort: 8085
-        env:
-          - name: PYICEBERG_CATALOG__DEFAULT__URI
-            value: {{ .Values.icebergStreamer.default_uri | quote }}
-          - name: PYICEBERG_CATALOG__DEFAULT__S3__ACCESS_KEY_ID
-            value: {{ .Values.icebergStreamer.awsAccessKeyId | quote }}
-          - name: PYICEBERG_CATALOG__DEFAULT__S3__SECRET_ACCESS_KEY
-            value: {{ .Values.icebergStreamer.awsSecretAccessKey | quote }}
-          # todo: for debugs
-          - name: AWS_ACCESS_KEY_ID
-            value: {{ .Values.icebergStreamer.awsAccessKeyId | quote }}
-          - name: AWS_SECRET_ACCESS_KEY
-            value: {{ .Values.icebergStreamer.awsSecretAccessKey | quote }}
-          - name: AWS_DEFAULT_REGION
-            value: {{ .Values.icebergStreamer.awsRegion | quote }}
-          - name: PYTHONUNBUFFERED
-            value: {{ 1 | quote }}

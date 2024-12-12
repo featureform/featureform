@@ -21,31 +21,42 @@ class StreamerService(FlightServerBase):
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON format in ticket: {ticket_json}") from e
 
-        catalog = request_data.get("catalog")
+        catalog = request_data.get("catalog", "default")
         namespace = request_data.get("namespace")
         table = request_data.get("table")
-        if not catalog or not namespace or not table:
-            raise ValueError(f"Missing 'catalog', 'namespace' or 'table' in JSON: {request_data}")
+        access_key = request_data.get("s3.access-key-id")
+        secret_key = request_data.get("s3.secret-access-key")
+        region = request_data.get("s3.region", "us-east-1")
 
-        record_batch_reader = self.load_data_from_iceberg_table(catalog, namespace, table)
+        if not all([namespace, table, access_key, secret_key]):
+            raise ValueError(f"Missing required fields in JSON: {request_data}")
+
+        requestDict = {
+            "catalog": catalog,
+            "namespace": namespace,
+            "table": table,
+            "s3.access-key-id": access_key,
+            "s3.secret-access-key": secret_key,
+            "s3.region": region,
+        }
+
+        record_batch_reader = self.load_data_from_iceberg_table(requestDict)
         return RecordBatchStream(record_batch_reader)
 
-    def load_data_from_iceberg_table(self, catalog, namespace, table_name):
-        aws_region = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
-        os.environ["AWS_DEFAULT_REGION"] = aws_region  # set for boto
+    def load_data_from_iceberg_table(self, requestDict):
+        logger.info(f'Loading table: {requestDict["namespace"]}.{requestDict["table"]}')
+        
+        catalog = load_catalog(requestDict["catalog"], **{"type": "glue",
+                                           "s3.region": requestDict["s3.region"], 
+                                           "s3.access-key-id": requestDict["s3.access-key-id"],
+                                            "s3.secret-access-key": requestDict["s3.secret-access-key"]})
+        
+        iceberg_table = catalog.load_table((requestDict["namespace"], requestDict["table"]))
+        scan = iceberg_table.scan()
 
-        catalog_uri = os.getenv('PYICEBERG_CATALOG__DEFAULT__URI')
-        logger.debug(f"load_data_from_iceberg_table(): Catalog URI {catalog_uri}")
-        if not catalog_uri:
-            raise EnvironmentError("Environment variable 'PYICEBERG_CATALOG__DEFAULT__URI' is not set.")
+        # return the record reader
+        return scan.to_arrow_batch_reader()  
 
-        logger.info(f"Catalog URI:{catalog_uri}")
-        logger.info(f"Loading table: {namespace}.{table_name}")
-        catalog = load_catalog(catalog, **{"type": "glue", "s3.region": aws_region})
-        iceberg_table = catalog.load_table((namespace, table_name))
-
-        scan = iceberg_table.scan() # todo: upper limit param? or keep tight scope for now?
-        return scan.to_arrow_batch_reader()  # return the record reader
 
 if __name__ == "__main__":
     logger.info(f"Starting the streamer client service on port {port}...")

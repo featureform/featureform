@@ -1,8 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
-import re
 import pyarrow as pa
-from iceberg_streamer import StreamerService, logger
+from iceberg_streamer import StreamerService
 
 @pytest.fixture(scope="module")
 def streamer_service():
@@ -21,20 +20,26 @@ def test_do_get_invalid_ticket_format(ticket_input, streamer_service):
         streamer_service.do_get("default", invalid_ticket)
 
 @pytest.mark.local
-@pytest.mark.parametrize("ticket_input", [
-    '{}',
-    '{"myKey": "myValue"}',
-    '{"namespace": "my_namespace", "table": "", "client.access-key-id": "", "client.secret-access-key": ""}',
-    '{"namespace": "", "table": "my_table", "client.access-key-id": "", "client.secret-access-key": ""}',
-    '{"namespace": "", "table": "", "client.access-key-id": "my_key", "client.secret-access-key": ""}',
-    '{"namespace": "", "table": "", "client.access-key-id": "", "client.secret-access-key": "my_secret"}',
-])
-def test_do_get_empty_namespace_or_table(ticket_input, streamer_service):
+@pytest.mark.parametrize(
+    "ticket_input, expectedError",
+    [
+        ('{}', "Missing required request fields: namespace, table, client.access-key-id, client.secret-access-key, client.region"),
+        ('{"namespace": "my_namespace"}', "Missing required request fields: table, client.access-key-id, client.secret-access-key, client.region"),
+        ('{"namespace": "my_namespace", "table": "my_table"}', "Missing required request fields: client.access-key-id, client.secret-access-key, client.region"),
+        ('{"namespace": "my_namespace", "table": "my_table"}', "Missing required request fields: client.access-key-id, client.secret-access-key, client.region"),
+        ('{"namespace": "my_namespace", "table": "my_table", "client.access-key-id": "my_key"}', "Missing required request fields: client.secret-access-key, client.region"),
+        ('{"namespace": "my_namespace", "table": "my_table", "client.access-key-id": "my_key", "client.secret-access-key": "my_access"}', "Missing required request fields: client.region"),
+    ],
+)
+def test_do_get_missing_fields(ticket_input, expectedError, streamer_service):
     invalid_ticket = MagicMock()
     invalid_ticket.ticket.decode.return_value = ticket_input
 
-    with pytest.raises(Exception, match="Missing required fields in JSON:"):
-        streamer_service.do_get("default", invalid_ticket)
+    with pytest.raises(ValueError, match=expectedError):
+        streamer_service.do_get(None, invalid_ticket)
+
+
+
 
 @patch("iceberg_streamer.load_catalog")
 @patch("os.getenv", side_effect=lambda key, default=None: "test-uri" if key == "PYICEBERG_CATALOG__DEFAULT__URI" else default)
@@ -61,3 +66,5 @@ def test_do_get_success_fires_correct_params(_, mock_load_catalog, streamer_serv
     assert isinstance(response, pa.flight.RecordBatchStream)
     mock_load_catalog.assert_called_once_with("my_catalog", **{"type": "glue", "client.region": "my_region", "client.access-key-id": "my_key", "client.secret-access-key": "my_access" })
     mock_catalog.load_table.assert_called_once_with(("my_namespace", "my_table"))
+
+

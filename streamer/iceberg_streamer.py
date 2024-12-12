@@ -21,24 +21,19 @@ class StreamerService(FlightServerBase):
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON format in ticket: {ticket_json}") from e
 
-        catalog = request_data.get("catalog", "default")
-        namespace = request_data.get("namespace")
-        table = request_data.get("table")
-        access_key = request_data.get("client.access-key-id")
-        secret_key = request_data.get("client.secret-access-key")
-        region = request_data.get("client.region", "us-east-1")
-
-        if not all([namespace, table, access_key, secret_key]):
-            raise ValueError(f"Missing required fields in JSON: {request_data}")
-
         requestDict = {
-            "catalog": catalog,
-            "namespace": namespace,
-            "table": table,
-            "client.access-key-id": access_key,
-            "client.secret-access-key": secret_key,
-            "client.region": region,
+            "catalog": request_data.get("catalog", "default"),
+            "namespace": request_data.get("namespace"),
+            "table": request_data.get("table"),
+            "client.access-key-id": request_data.get("client.access-key-id"),
+            "client.secret-access-key": request_data.get("client.secret-access-key"),
+            "client.region": request_data.get("client.region"),
         }
+
+        required_fields = ["namespace", "table", "client.access-key-id", "client.secret-access-key", "client.region"]
+        missing_fields = [field for field in required_fields if not requestDict.get(field)]
+        if missing_fields:
+            raise ValueError(f"Missing required request fields: {', '.join(missing_fields)}")
 
         record_batch_reader = self.load_data_from_iceberg_table(requestDict)
         return RecordBatchStream(record_batch_reader)

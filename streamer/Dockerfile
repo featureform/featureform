@@ -9,7 +9,7 @@ WORKDIR /app
 RUN pip install --upgrade pip
 RUN pip install boto3 pyarrow 'pyiceberg[glue]'
 
-COPY . /app
+COPY ./streamer/ /app
 
 EXPOSE 8085
 

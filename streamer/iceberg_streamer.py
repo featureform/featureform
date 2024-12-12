@@ -21,15 +21,16 @@ class StreamerService(FlightServerBase):
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON format in ticket: {ticket_json}") from e
 
+        catalog = request_data.get("catalog")
         namespace = request_data.get("namespace")
         table = request_data.get("table")
-        if not namespace or not table:
-            raise ValueError(f"Missing 'namespace' or 'table' in JSON: {request_data}")
+        if not catalog or not namespace or not table:
+            raise ValueError(f"Missing 'catalog', 'namespace' or 'table' in JSON: {request_data}")
 
-        record_batch_reader = self.load_data_from_iceberg_table(namespace, table)
+        record_batch_reader = self.load_data_from_iceberg_table(catalog, namespace, table)
         return RecordBatchStream(record_batch_reader)
 
-    def load_data_from_iceberg_table(self, namespace, table_name):
+    def load_data_from_iceberg_table(self, catalog, namespace, table_name):
         aws_region = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
         os.environ["AWS_DEFAULT_REGION"] = aws_region  # set for boto
 
@@ -40,8 +41,7 @@ class StreamerService(FlightServerBase):
 
         logger.info(f"Catalog URI:{catalog_uri}")
         logger.info(f"Loading table: {namespace}.{table_name}")
-        # todo: update passed in catalog
-        catalog = load_catalog("default", **{"type": "glue", "s3.region": aws_region})
+        catalog = load_catalog("catalog", **{"type": "glue", "s3.region": aws_region})
         iceberg_table = catalog.load_table((namespace, table_name))
 
         scan = iceberg_table.scan() # todo: upper limit param? or keep tight scope for now?

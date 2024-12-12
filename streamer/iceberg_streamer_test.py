@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 import pyarrow as pa
 from iceberg_streamer import StreamerService
+import json
 
 @pytest.fixture(scope="module")
 def streamer_service():
@@ -57,14 +58,26 @@ def test_do_get_success_fires_correct_params(_, mock_load_catalog, streamer_serv
     mock_catalog.load_table.return_value = mock_table
     mock_load_catalog.return_value = mock_catalog
 
+    ticket_data = {
+        "catalog": "my_catalog",
+        "namespace": "my_namespace",
+        "table": "my_table",
+        "client.region": "my_region",
+        "client.access-key-id": "my_key",
+        "client.secret-access-key": "my_access",
+    }
+
     flight_ticket = MagicMock()
-    flight_ticket.ticket.decode.return_value = '{"catalog": "my_catalog", "namespace": "my_namespace", "table": "my_table", "client.region": "my_region", "client.access-key-id": "my_key", "client.secret-access-key": "my_access"}'
+    flight_ticket.ticket.decode.return_value = json.dumps(ticket_data)
 
     # fire the request
     response = streamer_service.do_get("default", flight_ticket)
 
     assert isinstance(response, pa.flight.RecordBatchStream)
-    mock_load_catalog.assert_called_once_with("my_catalog", **{"type": "glue", "client.region": "my_region", "client.access-key-id": "my_key", "client.secret-access-key": "my_access" })
+    mock_load_catalog.assert_called_once_with(
+        "my_catalog", 
+        **{"type": "glue", "client.region": "my_region", "client.access-key-id": "my_key", "client.secret-access-key": "my_access" }
+    )
     mock_catalog.load_table.assert_called_once_with(("my_namespace", "my_table"))
 
 

@@ -24,10 +24,10 @@ def test_do_get_invalid_ticket_format(ticket_input, streamer_service):
 @pytest.mark.parametrize("ticket_input", [
     '{}',
     '{"myKey": "myValue"}',
-    '{"namespace": "my_namespace", "table": "", "s3.access-key-id": "", "s3.secret-access-key": ""}',
-    '{"namespace": "", "table": "my_table", "s3.access-key-id": "", "s3.secret-access-key": ""}',
-    '{"namespace": "", "table": "", "s3.access-key-id": "my_key", "s3.secret-access-key": ""}',
-    '{"namespace": "", "table": "", "s3.access-key-id": "", "s3.secret-access-key": "my_secret"}',
+    '{"namespace": "my_namespace", "table": "", "client.access-key-id": "", "client.secret-access-key": ""}',
+    '{"namespace": "", "table": "my_table", "client.access-key-id": "", "client.secret-access-key": ""}',
+    '{"namespace": "", "table": "", "client.access-key-id": "my_key", "client.secret-access-key": ""}',
+    '{"namespace": "", "table": "", "client.access-key-id": "", "client.secret-access-key": "my_secret"}',
 ])
 def test_do_get_empty_namespace_or_table(ticket_input, streamer_service):
     invalid_ticket = MagicMock()
@@ -53,11 +53,11 @@ def test_do_get_success_fires_correct_params(_, mock_load_catalog, streamer_serv
     mock_load_catalog.return_value = mock_catalog
 
     flight_ticket = MagicMock()
-    flight_ticket.ticket.decode.return_value = '{"catalog": "my_catalog", "namespace": "my_namespace", "table": "my_table", "s3.region": "my_region", "s3.access-key-id": "my_key", "s3.secret-access-key": "my_access"}'
+    flight_ticket.ticket.decode.return_value = '{"catalog": "my_catalog", "namespace": "my_namespace", "table": "my_table", "client.region": "my_region", "client.access-key-id": "my_key", "client.secret-access-key": "my_access"}'
 
     # fire the request
     response = streamer_service.do_get("default", flight_ticket)
 
     assert isinstance(response, pa.flight.RecordBatchStream)
-    mock_load_catalog.assert_called_once_with("my_catalog", **{"type": "glue", "s3.region": "my_region", "s3.access-key-id": "my_key", "s3.secret-access-key": "my_access" })
+    mock_load_catalog.assert_called_once_with("my_catalog", **{"type": "glue", "client.region": "my_region", "client.access-key-id": "my_key", "client.secret-access-key": "my_access" })
     mock_catalog.load_table.assert_called_once_with(("my_namespace", "my_table"))

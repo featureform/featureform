@@ -24,9 +24,9 @@ class StreamerService(FlightServerBase):
         catalog = request_data.get("catalog", "default")
         namespace = request_data.get("namespace")
         table = request_data.get("table")
-        access_key = request_data.get("s3.access-key-id")
-        secret_key = request_data.get("s3.secret-access-key")
-        region = request_data.get("s3.region", "us-east-1")
+        access_key = request_data.get("client.access-key-id")
+        secret_key = request_data.get("client.secret-access-key")
+        region = request_data.get("client.region", "us-east-1")
 
         if not all([namespace, table, access_key, secret_key]):
             raise ValueError(f"Missing required fields in JSON: {request_data}")
@@ -35,9 +35,9 @@ class StreamerService(FlightServerBase):
             "catalog": catalog,
             "namespace": namespace,
             "table": table,
-            "s3.access-key-id": access_key,
-            "s3.secret-access-key": secret_key,
-            "s3.region": region,
+            "client.access-key-id": access_key,
+            "client.secret-access-key": secret_key,
+            "client.region": region,
         }
 
         record_batch_reader = self.load_data_from_iceberg_table(requestDict)
@@ -47,9 +47,9 @@ class StreamerService(FlightServerBase):
         logger.info(f'Loading table: {requestDict["namespace"]}.{requestDict["table"]}')
         
         catalog = load_catalog(requestDict["catalog"], **{"type": "glue",
-                                           "s3.region": requestDict["s3.region"], 
-                                           "s3.access-key-id": requestDict["s3.access-key-id"],
-                                            "s3.secret-access-key": requestDict["s3.secret-access-key"]})
+                                           "client.region": requestDict["client.region"], 
+                                           "client.access-key-id": requestDict["client.access-key-id"],
+                                            "client.secret-access-key": requestDict["client.secret-access-key"]})
         
         iceberg_table = catalog.load_table((requestDict["namespace"], requestDict["table"]))
         scan = iceberg_table.scan()

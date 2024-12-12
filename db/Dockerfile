@@ -11,7 +11,8 @@ ENV GOOSE_DBSTRING='postgres://postgres:password@localhost:5432/postgres?sslmode
 
 WORKDIR /db
 
-COPY --from=builder ./app/goose ./
-COPY ./migrations ./migrations
+COPY --from=builder ./app/goose ./goose
+COPY ./db/entrypoint.sh ./entrypoint.sh
+COPY ./db/migrations ./migrations
 
-ENTRYPOINT ["./goose", "up", "-dir", "./migrations"]
+ENTRYPOINT ["./entrypoint.sh"]

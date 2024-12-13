@@ -35,7 +35,7 @@ def test_do_get_invalid_ticket_format(ticket_input, streamer_service):
 
 @pytest.mark.local
 @pytest.mark.parametrize(
-    "ticket_input, expectedError",
+    "ticket_input, expected_error",
     [
         (
             "{}",
@@ -63,17 +63,17 @@ def test_do_get_invalid_ticket_format(ticket_input, streamer_service):
         ),
     ],
 )
-def test_do_get_missing_fields(ticket_input, expectedError, streamer_service):
+def test_do_get_missing_fields(ticket_input, expected_error, streamer_service):
     invalid_ticket = MagicMock()
     invalid_ticket.ticket.decode.return_value = ticket_input
 
-    with pytest.raises(ValueError, match=expectedError):
+    with pytest.raises(ValueError, match=expected_error):
         streamer_service.do_get(None, invalid_ticket)
 
 
 @pytest.mark.local
 @pytest.mark.parametrize(
-    "limit_input, expectedError",
+    "limit_input, expected_error",
     [
         (
             "PTY",
@@ -89,7 +89,7 @@ def test_do_get_missing_fields(ticket_input, expectedError, streamer_service):
         ),
     ],
 )
-def test_do_get_limit_inputs(limit_input, expectedError, streamer_service):
+def test_do_get_limit_inputs(limit_input, expected_error, streamer_service):
     ticket_data = {
         "catalog": "my_catalog",
         "namespace": "my_namespace",
@@ -103,7 +103,7 @@ def test_do_get_limit_inputs(limit_input, expectedError, streamer_service):
     invalid_ticket = MagicMock()
     invalid_ticket.ticket.decode.return_value = json.dumps(ticket_data)
 
-    with pytest.raises(ValueError, match=expectedError):
+    with pytest.raises(ValueError, match=expected_error):
         streamer_service.do_get(None, invalid_ticket)
 
 

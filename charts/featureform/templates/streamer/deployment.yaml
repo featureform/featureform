@@ -1,0 +1,35 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iceberg-streamer
+spec:
+  {{- if not .Values.icebergStreamer.autoscaling.enabled }}
+  replicas: {{ .Values.icebergStreamer.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: iceberg-streamer
+  template:
+    metadata:
+      labels:
+        app: iceberg-streamer
+      {{ if .Values.restartOnUpdate }}
+      annotations:
+        timestamp: {{ now | quote }}
+      {{ end }}
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.k8sImagePullSecret }}
+      containers:
+      - name: iceberg-streamer
+        image: "{{ .Values.repository | default .Values.repository }}/{{ .Values.icebergStreamer.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.pullPolicy }}
+        ports:
+        - containerPort: 8085

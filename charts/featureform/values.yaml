@@ -287,3 +287,17 @@ ingress-nginx:
 datadog:
   enabled: false
   namespace: "featureform"
+
+# Configuration for iceberg streamer
+icebergStreamer:
+  port: 8085
+  image:
+    name: iceberg-streamer
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+  default_uri: ""
+  awsAccessKeyId: ""
+  awsSecretAccessKey: ""

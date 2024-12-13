@@ -14,7 +14,11 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/featureform/logging"
+	"go.uber.org/zap"
+	"google.golang.org/api/iterator"
 
 	"google.golang.org/grpc/status"
 
@@ -34,6 +38,7 @@ func (t firestoreTableKey) String() string {
 type firestoreOnlineStore struct {
 	client     *firestore.Client
 	collection *firestore.CollectionRef
+	logger     *zap.SugaredLogger
 	BaseProvider
 }
 
@@ -71,9 +76,14 @@ func NewFirestoreOnlineStore(options *pc.FirestoreConfig) (*firestoreOnlineStore
 	if err != nil {
 		return nil, fferr.NewExecutionError(pt.FirestoreOnline.String(), err)
 	}
+
+	logger := logging.NewLogger("firestore")
+
 	return &firestoreOnlineStore{
 		firestoreClient,
-		firestoreCollection, BaseProvider{
+		firestoreCollection,
+		logger.SugaredLogger,
+		BaseProvider{
 			ProviderType:   pt.FirestoreOnline,
 			ProviderConfig: options.Serialize(),
 		},
@@ -180,7 +190,13 @@ func (store *firestoreOnlineStore) DeleteTable(feature, variant string) error {
 }
 
 func (store *firestoreOnlineStore) CheckHealth() (bool, error) {
-	return false, fferr.NewInternalError(fmt.Errorf("provider health check not implemented"))
+	_, err := store.client.Collections(context.TODO()).Next()
+	if err != nil && !errors.Is(err, iterator.Done) {
+		store.logger.Error("Health check failed, unable to connect to firestore")
+		return false, fferr.NewExecutionError(pt.FirestoreOnline.String(), err)
+	}
+	store.logger.Info("Health check successful")
+	return true, nil
 }
 
 func (table firestoreOnlineTable) Set(entity string, value interface{}) error {

@@ -46,7 +46,14 @@ func (h *Health) CheckProvider(name string) (bool, error) {
 
 func (h *Health) IsSupportedProvider(t pt.Type) bool {
 	switch t {
-	case pt.RedisOnline, pt.DynamoDBOnline, pt.PostgresOffline, pt.SnowflakeOffline, pt.ClickHouseOffline, pt.SparkOffline, pt.RedshiftOffline:
+	case pt.RedisOnline,
+		pt.DynamoDBOnline,
+		pt.PostgresOffline,
+		pt.SnowflakeOffline,
+		pt.ClickHouseOffline,
+		pt.SparkOffline,
+		pt.RedshiftOffline,
+		pt.FirestoreOnline:
 		return true
 	default:
 		return false

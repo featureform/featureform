@@ -108,13 +108,7 @@ def test_do_get_limit_inputs(limit_input, expected_error, streamer_service):
 
 
 @patch("iceberg_streamer.load_catalog")
-@patch(
-    "os.getenv",
-    side_effect=lambda key, default=None: (
-        "test-uri" if key == "PYICEBERG_CATALOG__DEFAULT__URI" else default
-    ),
-)
-def test_do_get_success_fires_correct_params(_, mock_load_catalog, streamer_service):
+def test_do_get_success_fires_correct_params(mock_load_catalog, streamer_service):
     mock_catalog = MagicMock()
     mock_table = MagicMock()
 

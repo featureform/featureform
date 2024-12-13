@@ -35,6 +35,7 @@ class StreamerService(FlightServerBase):
             "client.access-key-id": request_data.get("client.access-key-id"),
             "client.secret-access-key": request_data.get("client.secret-access-key"),
             "client.region": request_data.get("client.region"),
+            "limit": request_data.get("limit"),
         }
 
         required_fields = [
@@ -51,6 +52,14 @@ class StreamerService(FlightServerBase):
             raise ValueError(
                 f"Missing required request fields: {', '.join(missing_fields)}"
             )
+
+        # validate the limit
+        limit = request_data.get("limit")
+        if limit is not None:
+            if not isinstance(limit, int) or limit <= 0:
+                raise ValueError(
+                    f"Invalid 'limit' value: {limit}. Must be a positive integer value."
+                )
 
         record_batch_reader = self.load_data_from_iceberg_table(requestDict)
         return RecordBatchStream(record_batch_reader)
@@ -81,7 +90,8 @@ class StreamerService(FlightServerBase):
             raise
 
         # return the record reader
-        scan = iceberg_table.scan()
+        limit = requestDict["limit"]
+        scan = iceberg_table.scan(limit=limit)
         return scan.to_arrow_batch_reader()
 
 

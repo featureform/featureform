@@ -71,6 +71,42 @@ def test_do_get_missing_fields(ticket_input, expectedError, streamer_service):
         streamer_service.do_get(None, invalid_ticket)
 
 
+@pytest.mark.local
+@pytest.mark.parametrize(
+    "limit_input, expectedError",
+    [
+        (
+            "PTY",
+            "Invalid 'limit' value: PTY. Must be a positive integer value.",
+        ),
+        (
+            0,
+            "Invalid 'limit' value: 0. Must be a positive integer value.",
+        ),
+        (
+            -1988,
+            "Invalid 'limit' value: -1988. Must be a positive integer value.",
+        ),
+    ],
+)
+def test_do_get_limit_inputs(limit_input, expectedError, streamer_service):
+    ticket_data = {
+        "catalog": "my_catalog",
+        "namespace": "my_namespace",
+        "table": "my_table",
+        "client.region": "my_region",
+        "client.access-key-id": "my_key",
+        "client.secret-access-key": "my_access",
+        "limit": limit_input,
+    }
+
+    invalid_ticket = MagicMock()
+    invalid_ticket.ticket.decode.return_value = json.dumps(ticket_data)
+
+    with pytest.raises(ValueError, match=expectedError):
+        streamer_service.do_get(None, invalid_ticket)
+
+
 @patch("iceberg_streamer.load_catalog")
 @patch(
     "os.getenv",
@@ -97,12 +133,13 @@ def test_do_get_success_fires_correct_params(_, mock_load_catalog, streamer_serv
     mock_load_catalog.return_value = mock_catalog
 
     ticket_data = {
-        "catalog": "my_catalog",
+        "catalog": "my_catalog",  # optional
         "namespace": "my_namespace",
         "table": "my_table",
         "client.region": "my_region",
         "client.access-key-id": "my_key",
         "client.secret-access-key": "my_access",
+        "limit": 1,  # optional
     }
 
     flight_ticket = MagicMock()

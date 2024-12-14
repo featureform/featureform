@@ -28,6 +28,7 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"time"
 )
 
 // The serializer versions. If adding a new one make sure to add to the serializers map variable
@@ -50,22 +51,75 @@ func (ser firestoreSerializerV0) Deserialize(t vt.ValueType, value interface{}) 
 	// For conversions, see https://pkg.go.dev/cloud.google.com/go/firestore@v1.15.0#DocumentSnapshot.DataTo
 	switch t {
 	case vt.Int:
-		return int(value.(int64)), nil
+		if v, ok := value.(int64); ok {
+			return int(v), nil
+		} else {
+			return nil, fmt.Errorf("expected int64 value but got %T", value)
+		}
 	case vt.Int8:
-		return int8(value.(int64)), nil
+		if v, ok := value.(int64); ok {
+			return int8(v), nil
+		} else {
+			return nil, fmt.Errorf("expected int64 value but got %T", value)
+		}
 	case vt.Int16:
-		return int16(value.(int64)), nil
+		if v, ok := value.(int64); ok {
+			return int16(v), nil
+		} else {
+			return nil, fmt.Errorf("expected int64 value but got %T", value)
+		}
 	case vt.Int32:
-		return int32(value.(int64)), nil
+		if v, ok := value.(int64); ok {
+			return int32(v), nil
+		} else {
+			return nil, fmt.Errorf("expected int64 value but got %T", value)
+		}
 	case vt.Int64:
-		return value.(int64), nil
+		if v, ok := value.(int64); ok {
+			return v, nil
+		} else {
+			return nil, fmt.Errorf("expected int64 value but got %T", value)
+		}
 	case vt.Float32:
-		return float32(value.(float64)), nil
+		if v, ok := value.(float64); ok {
+			return float32(v), nil
+		} else {
+			return nil, fmt.Errorf("expected float64 value but got %T", value)
+		}
 	case vt.Float64:
-		return value.(float64), nil
-	case vt.NilType, vt.Bool, vt.String, vt.Timestamp:
-		// These are all converted to the same types we use by the client
-		return value, nil
+		if v, ok := value.(float64); ok {
+			return v, nil
+		} else {
+			return nil, fmt.Errorf("expected float64 value but got %T", value)
+		}
+	case vt.NilType:
+		if value != nil {
+			return nil, fmt.Errorf("expected nil value but got %T", value)
+		}
+	case vt.Bool:
+		if v, ok := value.(bool); ok {
+			return v, nil
+		} else {
+			return nil, fmt.Errorf("expected bool value but got %T", value)
+		}
+	case vt.String:
+		if v, ok := value.(string); ok {
+			return v, nil
+		} else {
+			return nil, fmt.Errorf("expected string value but got %T", value)
+		}
+	case vt.Timestamp:
+		if v, ok := value.(time.Time); ok {
+			return v, nil
+		} else {
+			return nil, fmt.Errorf("expected timestamp value but got %T", value)
+		}
+	case vt.Datetime:
+		if v, ok := value.(time.Time); ok {
+			return v, nil
+		} else {
+			return nil, fmt.Errorf("expected datetime value but got %T", value)
+		}
 	default:
 		err := fferr.NewInternalErrorf("Unsupported casting value %v of type %T into %v", value, value, t)
 		err.AddDetail("version", ser.Version().String())

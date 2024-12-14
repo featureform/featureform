@@ -12,23 +12,22 @@
 package provider
 
 import (
+	"cloud.google.com/go/firestore"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/featureform/logging"
-	se "github.com/featureform/provider/serialization"
-	"go.uber.org/zap"
-	"google.golang.org/api/iterator"
-	"google.golang.org/grpc/status"
-
-	"cloud.google.com/go/firestore"
 	"github.com/featureform/fferr"
+	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	se "github.com/featureform/provider/serialization"
 	vt "github.com/featureform/provider/types"
+	"go.uber.org/zap"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // The serializer versions. If adding a new one make sure to add to the serializers map variable
@@ -251,16 +250,13 @@ func (store *firestoreOnlineStore) CheckHealth() (bool, error) {
 }
 
 func (table firestoreOnlineTable) Set(entity string, value interface{}) error {
-	serializedValue, err := table.serializer.Serialize(table.valueType, value)
+	// Set is just a special case of batch writing.
+	err := table.BatchSet([]SetItem{{
+		Entity: entity,
+		Value:  value,
+	}})
 
 	if err != nil {
-		table.logger.Error("Error serializing value", "entity", entity, "value", value, "err", err)
-		return err
-	}
-
-	if _, err := table.document.Set(context.TODO(), map[string]interface{}{
-		entity: serializedValue,
-	}, firestore.MergeAll); err != nil {
 		wrapped := fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), table.key.Feature, table.key.Variant, fferr.ENTITY, err)
 		wrapped.AddDetail("entity", entity)
 		return wrapped
@@ -280,14 +276,31 @@ func (table firestoreOnlineTable) Get(entity string) (interface{}, error) {
 		return nil, fferr.NewEntityNotFoundError(table.key.Feature, table.key.Variant, entity, err)
 	}
 
-	switch table.valueType {
-	case types.Int:
-		var intVal int64 = value.(int64)
-		return int(intVal), nil
-	case types.Float32:
-		var floatVal float64 = value.(float64)
-		return float32(floatVal), nil
-	}
+	return table.serializer.Deserialize(table.valueType, value)
+}
 
-	return value, nil
+// maxFirestoreBatchSize is the max amount of items that can be written to Firestore at once.
+const maxFirestoreBatchSize = 500
+
+func (table firestoreOnlineTable) MaxBatchSize() (int, error) { return maxFirestoreBatchSize, nil }
+
+func (table firestoreOnlineTable) BatchSet(items []SetItem) error {
+	if len(items) > maxFirestoreBatchSize {
+		return fferr.NewInternalErrorf(
+			"Cannot batch write %d items.\nMax: %d\n", len(items), maxFirestoreBatchSize)
+	}
+	serialized := make(map[string]interface{})
+	for _, item := range items {
+		serializedValue, err := table.serializer.Serialize(table.valueType, item.Value)
+		if err != nil {
+			table.logger.Error("Error serializing value", "entity", item.Entity, "value", item.Value, "err", err)
+			return err
+		}
+		serialized[item.Entity] = serializedValue
+	}
+	_, err := table.document.Set(context.TODO(), serialized, firestore.MergeAll)
+	if err != nil {
+		return err
+	}
+	return nil
 }

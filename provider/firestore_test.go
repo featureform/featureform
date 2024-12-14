@@ -20,7 +20,6 @@ import (
 )
 
 func TestOnlineStoreFirestore(t *testing.T) {
-	t.Skip("This is erroring @erik")
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)
@@ -56,8 +55,9 @@ func TestOnlineStoreFirestore(t *testing.T) {
 	}
 
 	test := OnlineStoreTest{
-		t:     t,
-		store: store,
+		t:         t,
+		store:     store,
+		testBatch: true,
 	}
 	test.Run()
 }

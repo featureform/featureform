@@ -20,7 +20,7 @@ func (v SerializeVersion) String() string {
 	return strconv.Itoa(int(v))
 }
 
-// Serializer provides methods to serialize and deserialize values into DynamoDB columns
+// Serializer provides methods to serialize and deserialize values.
 type Serializer[T any] interface {
 	Version() SerializeVersion
 	Serialize(t vt.ValueType, value any) (T, error)

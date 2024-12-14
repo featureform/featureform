@@ -96,7 +96,7 @@ type dynamodbOnlineTable struct {
 type dynamodbMetadataEntry struct {
 	Tablename string `dynamodbav:"Tablename"`
 	Valuetype string `dynamodbav:"ValueType"`
-	Version   int    `dynamodbav:"se.SerializeVersion"`
+	Version   int    `dynamodbav:"SerializeVersion"`
 }
 
 // ToTableMetadata converts a dynamodb entry from the Metadata table to a struct
@@ -238,7 +238,7 @@ func (store *dynamodbOnlineStore) updateMetadataTable(tablename string, valueTyp
 			":valtype": &types.AttributeValueMemberS{
 				Value: vt.SerializeType(valueType),
 			},
-			":se.SerializeVersion": &types.AttributeValueMemberN{
+			":serializeVersion": &types.AttributeValueMemberN{
 				Value: fmt.Sprintf("%d", version),
 			},
 		},
@@ -248,7 +248,7 @@ func (store *dynamodbOnlineStore) updateMetadataTable(tablename string, valueTyp
 				Value: tablename,
 			},
 		},
-		UpdateExpression: aws.String("set ValueType = :valtype, se.SerializeVersion = :SerializeVersion"),
+		UpdateExpression: aws.String("set ValueType = :valtype, SerializeVersion = :serializeVersion"),
 	}
 	_, err := store.client.UpdateItem(context.TODO(), input)
 	if err != nil {

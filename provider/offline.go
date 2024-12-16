@@ -205,12 +205,12 @@ func (def *TrainingSetDef) check() error {
 	return nil
 }
 
-type TransformationType int
+type TransformationType string
 
 const (
-	NoTransformationType TransformationType = iota
-	SQLTransformation
-	DFTransformation
+	NoTransformationType TransformationType = "NilTransformationType"
+	SQLTransformation TransformationType = "SQLTransformationType"
+	DFTransformation TransformationType = "DFTransformationType"
 )
 
 type SourceMapping struct {

@@ -33,13 +33,47 @@ import (
 )
 
 type SparkFileStore interface {
-	// TODO deprecate both of these.
+	// TODO deprecate these three and use SparkConfigs() instead
 	SparkConfig() []string
 	CredentialsConfig() []string
 	Packages() []string
-	Type() string // s3, azure_blob_store, google_cloud_storage, hdfs, local
+
+	Type() SparkFileStoreType
 	SparkConfigs() sparkConfigs
 	FileStore
+}
+
+type SparkFileStoreType string
+
+func (t SparkFileStoreType) String() string {
+	return string(t)
+}
+
+const (
+	SFS_S3 SparkFileStoreType = "s3"
+	SFS_AZURE_BLOB SparkFileStoreType = "azure_blob_store"
+	SFS_GCS SparkFileStoreType = "google_cloud_storage"
+	SFS_HDFS SparkFileStoreType = "hdfs"
+	SFS_LOCAL SparkFileStoreType = "local"
+)
+
+type SparkFileStoreV2 interface {
+	CreateFilePath(key string, isDirectory bool) (filestore.Filepath, error)
+	Write(key filestore.Filepath, data []byte) error
+	Read(key filestore.Filepath) ([]byte, error)
+	Delete(key filestore.Filepath) error
+	Close() error
+	SparkConfigs() sparkConfigs
+
+	Exists(location pl.Location) (bool, error)
+	// Seems like one of these could be deprecated or we need clarity on the diff
+	Type() SparkFileStoreType
+	FilestoreType() filestore.FileStoreType
+
+	// TODO deprecate these three and use SparkConfigs() instead
+	// SparkConfig() []string
+	// CredentialsConfig() []string
+	// Packages() []string
 }
 
 type SparkFileStoreFactory func(config Config) (SparkFileStore, error)
@@ -93,51 +127,6 @@ func NewSparkS3FileStore(config Config) (SparkFileStore, error) {
 	return &SparkS3FileStore{s3}, nil
 }
 
-func (s3 SparkS3FileStore) SparkConfig() []string {
-	sparkCfg := []string{
-		"--spark_config",
-		"\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\"",
-	}
-
-	// If we're using a service account, we don't need to provide credentials
-	// or stipulate the credentials provider
-	if staticCreds, ok := s3.Credentials.(pc.AWSStaticCredentials); ok {
-		sparkCfg = append(sparkCfg, []string{
-			"--spark_config",
-			"\"fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\"",
-			"--spark_config",
-			fmt.Sprintf("\"fs.s3a.access.key=%s\"", staticCreds.AccessKeyId),
-			"--spark_config",
-			fmt.Sprintf("\"fs.s3a.secret.key=%s\"", staticCreds.SecretKey),
-		}...)
-
-		if s3.BucketRegion != "" {
-			sparkCfg = append(sparkCfg, []string{
-				"--spark_config",
-				fmt.Sprintf("\"fs.s3a.endpoint=s3.%s.amazonaws.com\"", s3.BucketRegion),
-			}...)
-		} else {
-			// If the region is not provided, we default to us-east-1
-			// This is the default behavior of the Hadoop S3A
-			// <property>
-			// <name>fs.s3a.endpoint</name>
-			// <description>AWS S3 endpoint to connect to. An up-to-date list is
-			// 	provided in the AWS Documentation: regions and endpoints. Without this
-			// 	property, the standard region (s3.amazonaws.com) is assumed.
-			// </description>
-			// </property>
-			// For more information:
-			// https://hadoop.apache.org/docs/stable/hadoop-aws/tools/hadoop-aws/index.html#General_S3A_Client_configuration
-			sparkCfg = append(sparkCfg, []string{
-				"--spark_config",
-				"\"fs.s3a.endpoint=s3.amazonaws.com\"",
-			}...)
-		}
-	}
-
-	return sparkCfg
-}
-
 func (s3 SparkS3FileStore) SparkConfigs() sparkConfigs {
 	accessKey, secretKey := "", ""
 	if staticCreds, ok := s3.Credentials.(pc.AWSStaticCredentials); ok {
@@ -154,42 +143,9 @@ func (s3 SparkS3FileStore) SparkConfigs() sparkConfigs {
 	}
 }
 
-func (s3 SparkS3FileStore) CredentialsConfig() []string {
-	credsCfg := []string{
-		"--credential",
-		fmt.Sprintf("\"aws_bucket_name=%s\"", s3.Bucket),
-		"--credential",
-		fmt.Sprintf("\"aws_region=%s\"", s3.BucketRegion),
-	}
 
-	if staticCreds, ok := s3.Credentials.(pc.AWSStaticCredentials); ok {
-		credsCfg = append(credsCfg, []string{
-			"--credential",
-			fmt.Sprintf("\"aws_access_key_id=%s\"", staticCreds.AccessKeyId),
-			"--credential",
-			fmt.Sprintf("\"aws_secret_access_key=%s\"", staticCreds.SecretKey),
-		}...)
-	} else {
-		credsCfg = append(credsCfg, []string{
-			"--credential",
-			"\"use_service_account=true\"",
-		}...)
-	}
-
-	return credsCfg
-}
-
-func (s3 SparkS3FileStore) Packages() []string {
-	return []string{
-		"--packages",
-		"org.apache.spark:spark-hadoop-cloud_2.12:3.2.0",
-		"--exclude-packages",
-		"com.google.guava:guava",
-	}
-}
-
-func (s3 SparkS3FileStore) Type() string {
-	return "s3"
+func (s3 SparkS3FileStore) Type() SparkFileStoreType {
+	return SFS_S3
 }
 
 // SparkGlueS3FileStore is a SparkFileStore that uses Glue as the catalog for Iceberg tables
@@ -280,49 +236,6 @@ func (glueS3 SparkGlueS3FileStore) Exists(location pl.Location) (bool, error) {
 	}
 }
 
-func (glueS3 SparkGlueS3FileStore) SparkConfig() []string {
-	s3Configs := glueS3.SparkS3FileStore.SparkConfig()
-
-	// ff_catalog is the spark session name for the glue catalog
-	if glueS3.GlueConfig == nil {
-		glueS3.Logger.Error("Glue config is nil")
-		return s3Configs
-	}
-
-	glueConfigs := make([]string, 0)
-
-	switch glueS3.GlueConfig.TableFormat {
-	case pc.Iceberg:
-		glueConfigs = []string{
-			"--spark_config",
-			"spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
-			"--spark_config",
-			"spark.sql.catalog.ff_catalog.io-impl=org.apache.iceberg.aws.s3.S3FileIO",
-			"--spark_config",
-			fmt.Sprintf("spark.sql.catalog.ff_catalog.region=%s", glueS3.GlueConfig.Region),
-			"--spark_config",
-			"spark.sql.catalog.ff_catalog=org.apache.iceberg.spark.SparkCatalog",
-			"--spark_config",
-			"spark.sql.catalog.ff_catalog.catalog-impl=org.apache.iceberg.aws.glue.GlueCatalog",
-			"--spark_config",
-			fmt.Sprintf("spark.sql.catalog.ff_catalog.warehouse=%s", glueS3.GlueConfig.Warehouse),
-		}
-	case pc.DeltaLake:
-		glueConfigs = []string{
-			"--spark_config",
-			"spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension",
-			"--spark_config",
-			"spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog",
-			"--spark_config",
-			"spark.hadoop.hive.metastore.client.factory.class=com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory",
-			"--spark_config",
-			"spark.sql.catalogImplementation=hive",
-		}
-	}
-
-	return append(s3Configs, glueConfigs...)
-}
-
 func (glueS3 SparkGlueS3FileStore) SparkConfigs() sparkConfigs {
 	s3Configs := glueS3.SparkS3FileStore.SparkConfigs()
 	var tableFormat pt.TableFormatType
@@ -347,20 +260,6 @@ func (glueS3 SparkGlueS3FileStore) SparkConfigs() sparkConfigs {
 	return append(s3Configs, glueConfig, tableFormatConfig)
 }
 
-func (glueS3 SparkGlueS3FileStore) Packages() []string {
-	packages := []string{"org.apache.spark:spark-hadoop-cloud_2.12:3.2.0"}
-
-	if glueS3.GlueConfig.TableFormat == pc.Iceberg {
-		packages = append(packages, "org.apache.iceberg:iceberg-spark-runtime-3.4_2.12:1.4.2")
-	}
-	return []string{
-		"--packages",
-		strings.Join(packages, ","),
-		"--exclude-packages",
-		"com.google.guava:guava",
-	}
-}
-
 func (glueS3 SparkGlueS3FileStore) ParseFilePath(path string) (filestore.Filepath, error) {
 	return glueS3.SparkS3FileStore.ParseFilePath(path)
 }
@@ -383,40 +282,17 @@ type SparkAzureFileStore struct {
 	*AzureFileStore
 }
 
-func (store SparkAzureFileStore) configString() string {
-	return fmt.Sprintf("fs.azure.account.key.%s.dfs.core.windows.net=%s", store.AccountName, store.AccountKey)
-}
-
 func (azureStore SparkAzureFileStore) SparkConfigs() sparkConfigs {
-	// TODO
-	panic("Not implemented")
-}
-
-func (azureStore SparkAzureFileStore) SparkConfig() []string {
-	return []string{
-		"--spark_config",
-		fmt.Sprintf("\"%s\"", azureStore.configString()),
+	return sparkAzureFlags{
+		AccountName: azureStore.AccountName,
+		AccountKey: azureStore.AccountKey,
+		ConnectionString: azureStore.connectionString(),
+		ContainerName: azureStore.containerName(),
 	}
 }
 
-func (azureStore SparkAzureFileStore) CredentialsConfig() []string {
-	return []string{
-		"--credential",
-		fmt.Sprintf("\"azure_connection_string=%s\"", azureStore.connectionString()),
-		"--credential",
-		fmt.Sprintf("\"azure_container_name=%s\"", azureStore.containerName()),
-	}
-}
-
-func (azureStore SparkAzureFileStore) Packages() []string {
-	return []string{
-		"--packages",
-		"\"org.apache.hadoop:hadoop-azure:3.2.0\"",
-	}
-}
-
-func (azureStore SparkAzureFileStore) Type() string {
-	return "azure_blob_store"
+func (azureStore SparkAzureFileStore) Type() SparkFileStoreType {
+	return SFS_AZURE_BLOB
 }
 
 func NewSparkGCSFileStore(config Config) (SparkFileStore, error) {
@@ -442,49 +318,15 @@ type SparkGCSFileStore struct {
 }
 
 func (gcs SparkGCSFileStore) SparkConfigs() sparkConfigs {
-	// TODO
-	panic("Not implemented")
-}
-
-func (gcs SparkGCSFileStore) SparkConfig() []string {
-	return []string{
-		"--spark_config",
-		"fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
-		"--spark_config",
-		"fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
-		"--spark_config",
-		"fs.gs.auth.service.account.enable=true",
-		"--spark_config",
-		"fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
-		"--spark_config",
-		"fs.gs.auth.type=SERVICE_ACCOUNT_JSON_KEYFILE",
+	return sparkGCSFlags{
+		ProjectID: gcs.Credentials.ProjectID,
+		Bucket: gcs.Bucket,
+		JSONCreds: gcs.SerializedCredentials,
 	}
 }
 
-func (gcs SparkGCSFileStore) CredentialsConfig() []string {
-	base64Credentials := base64.StdEncoding.EncodeToString(gcs.SerializedCredentials)
-
-	return []string{
-		"--credential",
-		fmt.Sprintf("\"gcp_project_id=%s\"", gcs.Credentials.ProjectId),
-		"--credential",
-		fmt.Sprintf("\"gcp_bucket_name=%s\"", gcs.Bucket),
-		"--credential",
-		fmt.Sprintf("\"gcp_credentials=%s\"", base64Credentials),
-	}
-}
-
-func (gcs SparkGCSFileStore) Packages() []string {
-	return []string{
-		"--packages",
-		"com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.0",
-		"--jars",
-		"/app/provider/scripts/spark/jars/gcs-connector-hadoop2-2.2.11-shaded.jar",
-	}
-}
-
-func (gcs SparkGCSFileStore) Type() string {
-	return "google_cloud_storage"
+func (gcs SparkGCSFileStore) Type() SparkFileStoreType {
+	return SFS_GCS
 }
 
 func NewSparkHDFSFileStore(config Config) (SparkFileStore, error) {
@@ -505,24 +347,12 @@ type SparkHDFSFileStore struct {
 }
 
 func (hdfs SparkHDFSFileStore) SparkConfigs() sparkConfigs {
-	// TODO
-	panic("Not implemented")
+	// Not currently tested
+	return sparkConfigs{}
 }
 
-func (hdfs SparkHDFSFileStore) SparkConfig() []string {
-	return []string{}
-}
-
-func (hdfs SparkHDFSFileStore) CredentialsConfig() []string {
-	return []string{}
-}
-
-func (hdfs SparkHDFSFileStore) Packages() []string {
-	return []string{}
-}
-
-func (hdfs SparkHDFSFileStore) Type() string {
-	return "hdfs"
+func (hdfs SparkHDFSFileStore) Type() SparkFileStoreType {
+	return SFS_HDFS
 }
 
 func NewSparkLocalFileStore(config Config) (SparkFileStore, error) {
@@ -543,24 +373,12 @@ type SparkLocalFileStore struct {
 }
 
 func (local SparkLocalFileStore) SparkConfigs() sparkConfigs {
-	// TODO
-	panic("Not implemented")
+	// Not currently tested
+	return sparkConfigs{}
 }
 
-func (local SparkLocalFileStore) SparkConfig() []string {
-	return []string{}
-}
-
-func (local SparkLocalFileStore) CredentialsConfig() []string {
-	return []string{}
-}
-
-func (local SparkLocalFileStore) Packages() []string {
-	return []string{}
-}
-
-func (local SparkLocalFileStore) Type() string {
-	return "local"
+func (local SparkLocalFileStore) Type() SparkFileStoreType {
+	return SFS_LOCAL
 }
 
 type SparkFileStoreConfig interface {

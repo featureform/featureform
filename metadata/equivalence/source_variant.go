@@ -309,6 +309,7 @@ func (s sqlTransformation) IsEquivalent(other Equivalencer) bool {
 
 	return isSqlEqual(s.Query, otherSQL.Query) &&
 		reflect.DeepEqual(s.Sources, otherSQL.Sources) &&
+		reflect.DeepEqual(s.IncrementalSources, otherSQL.IncrementalSources) &&
 		reflect.DeepEqual(s.ResourceSnowflakeConfig, otherSQL.ResourceSnowflakeConfig)
 }
 

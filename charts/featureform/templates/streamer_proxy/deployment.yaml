@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamer-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: streamer-proxy
+  template:
+    metadata:
+      labels:
+        app: streamer-proxy
+    spec:
+      containers:
+      - name: streamer-proxy
+        image: streamer-proxy:stable
+        ports:
+        - containerPort: 8086
+        env:
+        - name: ICEBERG_STREAMER_ADDRESS
+          value: "iceberg-streamer:8085"

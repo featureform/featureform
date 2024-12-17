@@ -298,6 +298,3 @@ icebergStreamer:
     enabled: false
     minReplicas: 1
     maxReplicas: 100
-  default_uri: ""
-  awsAccessKeyId: ""
-  awsSecretAccessKey: ""

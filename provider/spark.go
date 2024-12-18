@@ -620,13 +620,10 @@ type baseExecutor struct {
 
 type SparkExecutor interface {
 	SupportsTransformationOption(opt TransformationOptionType) (bool, error)
-	RunSparkJob(args []string, store SparkFileStore, opts SparkJobOptions, tfOpts TransformationOptions) error
-
-	InitializeExecutor(store SparkFileStore) error
-
-	PythonFileURI(store SparkFileStore) (filestore.Filepath, error)
-	SparkSubmitArgs(outputLocation pl.Location, cleanQuery string, sources []string, jobType JobType, store SparkFileStore, mappings []SourceMapping) ([]string, error)
-	GetDFArgs(outputLocation pl.Location, code string, sources []string, store SparkFileStore, mappings []SourceMapping) ([]string, error)
+	RunSparkJob(cmd *sparkCommand, store SparkFileStoreV2, opts SparkJobOptions, tfOpts TransformationOptions) error
+	InitializeExecutor(store SparkFileStoreV2) error
+	PythonFileURI(store SparkFileStoreV2) (filestore.Filepath, error)
+	SparkSubmitArgs(deployMode types.SparkDeployMode, tfType TransformationType, outputLocation pl.Location, code string, sources []pysparkSourceInfo, jobType JobType, store SparkFileStoreV2, mappings []SourceMapping) (*sparkCommand, error)
 }
 
 func NewSparkExecutor(
@@ -656,121 +653,6 @@ func NewSparkExecutor(
 	default:
 		return nil, fferr.NewInvalidArgumentErrorf("the executor type ('%s') is not supported", execType)
 	}
-}
-
-func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath, store SparkFileStore) error {
-	fileExists, _ := store.Exists(pl.NewFileLocation(storePath))
-	if fileExists {
-		return nil
-	}
-
-	f, err := os.Open(filePath.Key())
-	if err != nil {
-		return fferr.NewInternalError(err)
-	}
-
-	fileStats, err := f.Stat()
-	if err != nil {
-		return fferr.NewInternalError(err)
-	}
-
-	pythonScriptBytes := make([]byte, fileStats.Size())
-	_, err = f.Read(pythonScriptBytes)
-	if err != nil {
-		return fferr.NewInternalError(err)
-	}
-	if err := store.Write(storePath, pythonScriptBytes); err != nil {
-		return err
-	}
-	// TODO(simba) use filepath String method once implemented
-	fmt.Printf("Uploaded %v to %v\n", filePath, storePath)
-	return nil
-}
-
-func removeEscapeCharacters(values []string) []string {
-	for i, v := range values {
-		v = strings.Replace(v, "\\", "", -1)
-		v = strings.Replace(v, "\"", "", -1)
-		values[i] = v
-	}
-	return values
-}
-
-func exceedsSubmitParamsTotalByteLimit(argsList []string, query string, sources []string) bool {
-	totalBytes := 0
-	for _, str := range argsList {
-		totalBytes += len(str)
-	}
-
-	totalBytes += len(query)
-
-	for _, source := range sources {
-		totalBytes += len(source)
-	}
-
-	return totalBytes >= SPARK_SUBMIT_PARAMS_BYTE_LIMIT
-}
-
-func writeSubmitParamsToFileStore(query string, sources []string, store SparkFileStore, logger *zap.SugaredLogger) (filestore.Filepath, error) {
-	paramsFileId := uuid.New()
-	paramsPath, err := store.CreateFilePath(
-		fmt.Sprintf(
-			"featureform/spark-submit-params/%s.json",
-			paramsFileId.String(),
-		), false,
-	)
-	if err != nil {
-		return nil, err
-	}
-	paramsMap := map[string]interface{}{}
-	paramsMap["sql_query"] = query
-	paramsMap["sources"] = sources
-
-	data, err := json.Marshal(paramsMap)
-	if err != nil {
-		return nil, fferr.NewInternalError(err)
-	}
-
-	logger.Debugw("Writing spark submit params to filestore", "path", paramsPath, "data", string(data))
-	if err := store.Write(paramsPath, data); err != nil {
-		return nil, err
-	}
-
-	return paramsPath, nil
-}
-
-func snowflakeConnectorCredentials(config *pc.SnowflakeConfig) []string {
-	snowflakeBaseURL := "snowflakecomputing.com"
-	var sfURL string
-	if config.HasLegacyCredentials() {
-		sfURL = fmt.Sprintf("%s.%s", config.AccountLocator, snowflakeBaseURL)
-	} else {
-		sfURL = fmt.Sprintf("%s-%s.%s", config.Organization, config.Account, snowflakeBaseURL)
-	}
-	return []string{
-		"--credential",
-		fmt.Sprintf("sfURL=%s", sfURL),
-		"--credential",
-		fmt.Sprintf("sfUser=%s", config.Username),
-		"--credential",
-		fmt.Sprintf("sfPassword=%s", config.Password),
-		"--credential",
-		fmt.Sprintf("sfWarehouse=%s", config.Warehouse),
-	}
-}
-
-func getSnowflakeConfigFromSourceMapping(mappings []SourceMapping) (*pc.SnowflakeConfig, error) {
-	var snowflakeConfig *pc.SnowflakeConfig
-	for _, mapping := range mappings {
-		if mapping.ProviderType == pt.SnowflakeOffline {
-			snowflakeConfig = &pc.SnowflakeConfig{}
-			if err := snowflakeConfig.Deserialize(mapping.ProviderConfig); err != nil {
-				return nil, err
-			}
-			break
-		}
-	}
-	return snowflakeConfig, nil
 }
 
 func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {

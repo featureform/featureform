@@ -50,7 +50,7 @@ type SparkGenericExecutor struct {
 	baseExecutor
 }
 
-func (s *SparkGenericExecutor) InitializeExecutor(store SparkFileStore) error {
+func (s *SparkGenericExecutor) InitializeExecutor(store SparkFileStoreV2) error {
 	s.logger.Info("Uploading PySpark script to filestore")
 	// We can't use CreateFilePath here because it calls Validate under the hood,
 	// which will always fail given it's a local file without a valid scheme or bucket, for example.
@@ -105,7 +105,7 @@ func (s *SparkGenericExecutor) SupportsTransformationOption(opt TransformationOp
 	return false, nil
 }
 
-func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore, opts SparkJobOptions, tfOpts TransformationOptions) error {
+func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStoreV2, opts SparkJobOptions, tfOpts TransformationOptions) error {
 	bashCommand := "bash"
 	sparkArgsString := strings.Join(args, " ")
 	var commandString string
@@ -150,7 +150,7 @@ func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore, 
 	return nil
 }
 
-func (s *SparkGenericExecutor) PythonFileURI(store SparkFileStore) (filestore.Filepath, error) {
+func (s *SparkGenericExecutor) PythonFileURI(store SparkFileStoreV2) (filestore.Filepath, error) {
 	// not used for Spark Generic Executor
 	return nil, nil
 }
@@ -160,7 +160,7 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(
 	cleanQuery string,
 	sourceList []string,
 	jobType JobType,
-	store SparkFileStore,
+	store SparkFileStoreV2,
 	mappings []SourceMapping,
 ) ([]string, error) {
 
@@ -194,7 +194,7 @@ func (s *SparkGenericExecutor) SparkSubmitArgs(
 		"--job_type",
 		fmt.Sprintf("'%s'", jobType),
 		"--store_type",
-		store.Type(),
+		store.Type().String(),
 	}
 	argList = append(argList, scriptArgs...)
 
@@ -214,7 +214,7 @@ func (s *SparkGenericExecutor) GetDFArgs(
 	outputLocation pl.Location,
 	code string,
 	sources []string,
-	store SparkFileStore,
+	store SparkFileStoreV2,
 	mappings []SourceMapping,
 ) ([]string, error) {
 
@@ -244,7 +244,7 @@ func (s *SparkGenericExecutor) GetDFArgs(
 		"--code",
 		code,
 		"--store_type",
-		store.Type(),
+		store.Type().String(),
 	}
 	argList = append(argList, scriptArgs...)
 

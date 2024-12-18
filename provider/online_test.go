@@ -169,7 +169,9 @@ func testBatchSetGetEntity(t *testing.T, store OnlineStore) {
 	if err := batchTable.BatchSet(maxSet); err != nil {
 		t.Fatalf("Failed to set multi entity: %s", err)
 	}
-	for _, item := range maxSet {
+	// We do this for test efficiency purposes, as some bulk writers support large limits, and `Get`ing every
+	// individual one balloons test times.
+	for _, item := range maxSet[:20] {
 		entity, val := item.Entity, item.Value
 		gotVal, err = tab.Get(entity)
 		if err != nil {
@@ -215,12 +217,12 @@ func testMassTableWrite(t *testing.T, store OnlineStore) {
 	for i := range tableList {
 		tab, err := store.CreateTable(tableList[i].Name, tableList[i].Variant, types.Int)
 		if err != nil {
-			t.Fatalf("could not create table %v in online store: %v", tableList[i], err)
+			t.Fatalf("could not create table %v in online store: %v\n", tableList[i], err)
 		}
 		defer store.DeleteTable(tableList[i].Name, tableList[i].Variant)
 		for j := range entityList {
 			if err := tab.Set(entityList[j], 1); err != nil {
-				t.Fatalf("could not set entity %v in table %v: %v", entityList[j], tableList[i], err)
+				t.Fatalf("could not set entity %v in table %v: %v\n", entityList[j], tableList[i], err)
 			}
 		}
 	}

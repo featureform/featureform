@@ -26,31 +26,56 @@ def step_impl(context):
     context.variant = ff.get_run()
 
 
-@when('I register "{transformation_name}" transformation with auto variant')
-def step_impl(context, transformation_name):
-    @context.spark.df_transformation(
-        name=transformation_name,
-        inputs=[context.transactions],
-    )
-    def some_transformation(df):
-        """Unedited transactions"""
-        return df
+@when(
+    'I register "{transformation_name}" transformation with auto variant of type "{tf_type}"'
+)
+def step_impl(context, transformation_name, tf_type):
+    if tf_type == "sql":
+
+        @context.spark.sql_transformation(
+            name=transformation_name,
+            inputs=[context.transactions],
+        )
+        def some_transformation(inp):
+            """Unedited transactions"""
+            return "select * from {{ inp }}"
+
+    else:
+
+        @context.spark.df_transformation(
+            name=transformation_name,
+            inputs=[context.transactions],
+        )
+        def some_transformation(df):
+            """Unedited transactions"""
+            return df
 
     context.client.apply(asynchronous=False, verbose=True)
     context.transformation = some_transformation
 
 
 @then(
-    'I should be able to reuse the same variant for the same "{transformation_name}" transformation'
+    'I should be able to reuse the same variant for the same "{transformation_name}" transformation of type "{tf_type}"'
 )
-def step_impl(context, transformation_name):
-    @context.spark.df_transformation(
-        name=transformation_name,
-        inputs=[context.transactions],
-    )
-    def some_transformation(df):
-        """Unedited transactions"""
-        return df
+def step_impl(context, transformation_name, tf_type):
+    if tf_type == "sql":
+
+        @context.spark.sql_transformation(
+            name=transformation_name,
+            inputs=[context.transactions],
+        )
+        def some_transformation(inp):
+            """Unedited transactions"""
+            return "select * from {{ inp }}"
+
+    else:
+        @context.spark.df_transformation(
+            name=transformation_name,
+            inputs=[context.transactions],
+        )
+        def some_transformation(df):
+            """Unedited transactions"""
+            return df
 
     context.client.apply(asynchronous=False, verbose=True)
     context.new_transformation = some_transformation
@@ -101,19 +126,31 @@ def step_impl(context):
 
 
 @then(
-    'I should be able to register a modified "{name}" transformation with new auto variant'
+    'I should be able to register a modified "{name}" transformation with new auto variant of type "{tf_type}"'
 )
-def step_impl(context, name):
-    @context.spark.df_transformation(
-        name=name,
-        inputs=[context.transactions],
-    )
-    def some_transformation(df):
-        """modified transactions"""
-        from pyspark.sql.functions import lit
+def step_impl(context, name, tf_type):
+    if tf_type == "sql":
 
-        df = df.withColumn("new_column", lit("hi.world"))
-        return df
+        @context.spark.sql_transformation(
+            name=name,
+            inputs=[context.transactions],
+        )
+        def some_transformation(inp):
+            """modified transactions"""
+            return "select * from {{ inp }} limit 10"
+
+    else:
+
+        @context.spark.df_transformation(
+            name=name,
+            inputs=[context.transactions],
+        )
+        def some_transformation(df):
+            """modified transactions"""
+            from pyspark.sql.functions import lit
+
+            df = df.withColumn("new_column", lit("hi.world"))
+            return df
 
     context.client.apply(asynchronous=False, verbose=True)
     context.new_transformation = some_transformation

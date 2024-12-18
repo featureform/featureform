@@ -31,6 +31,10 @@ import (
 	"time"
 )
 
+const (
+	valuesTableName = "values"
+)
+
 // The serializer versions. If adding a new one make sure to add to the serializers map variable
 const (
 	// firestoreSerializeV0 serializes everything as strings, including numbers
@@ -93,7 +97,9 @@ func (ser firestoreSerializerV0) Deserialize(t vt.ValueType, value interface{}) 
 			return nil, fmt.Errorf("expected float64 value but got %T", value)
 		}
 	case vt.NilType:
-		if value != nil {
+		if value == nil {
+			return value, nil
+		} else {
 			return nil, fmt.Errorf("expected nil value but got %T", value)
 		}
 	case vt.Bool:
@@ -139,7 +145,7 @@ type firestoreOnlineStore struct {
 }
 
 type firestoreOnlineTable struct {
-	document   *firestore.DocumentRef
+	collection *firestore.CollectionRef
 	key        firestoreTableKey
 	valueType  vt.ValueType
 	serializer se.Serializer[interface{}]
@@ -233,7 +239,7 @@ func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStor
 	}
 	logger := store.logger.With("table", tableName)
 	return &firestoreOnlineTable{
-		document:   table.Ref,
+		collection: table.Ref,
 		key:        key,
 		valueType:  vt.ScalarType(valueType.(string)),
 		serializer: firestoreSerializerV0{},
@@ -262,7 +268,7 @@ func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueTyp
 	}
 	logger := store.logger.With("table", tableName)
 	return &firestoreOnlineTable{
-		document:   store.collection.Doc(tableName),
+		collection: store.collection.Doc(tableName),
 		key:        key,
 		valueType:  valueType,
 		serializer: firestoreSerializerV0{},
@@ -319,7 +325,7 @@ func (table firestoreOnlineTable) Set(entity string, value interface{}) error {
 }
 
 func (table firestoreOnlineTable) Get(entity string) (interface{}, error) {
-	dataSnap, err := table.document.Get(context.TODO())
+	dataSnap, err := table.collection.Get(context.TODO())
 	if err != nil {
 		wrapped := fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), table.key.Feature, table.key.Variant, fferr.ENTITY, err)
 		wrapped.AddDetail("entity", entity)
@@ -343,16 +349,19 @@ func (table firestoreOnlineTable) BatchSet(items []SetItem) error {
 		return fferr.NewInternalErrorf(
 			"Cannot batch write %d items.\nMax: %d\n", len(items), maxFirestoreBatchSize)
 	}
-	serialized := make(map[string]interface{})
+	batch := table.collection.Client.Batch()
 	for _, item := range items {
 		serializedValue, err := table.serializer.Serialize(table.valueType, item.Value)
 		if err != nil {
 			table.logger.Error("Error serializing value", "entity", item.Entity, "value", item.Value, "err", err)
 			return err
 		}
-		serialized[item.Entity] = serializedValue
+		entityDoc := table.collection.Collection("entities").Doc(item.Entity)
+		batch.Set(entityDoc, map[string]interface{}{
+			"value": serializedValue,
+		}, firestore.MergeAll)
 	}
-	_, err := table.document.Set(context.TODO(), serialized, firestore.MergeAll)
+	_, err := batch.Commit(context.TODO())
 	if err != nil {
 		return err
 	}

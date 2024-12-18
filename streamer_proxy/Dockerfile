@@ -1,20 +1,17 @@
-FROM golang:1.21-alpine
+FROM golang:1.22-alpine
 WORKDIR /app
 
 COPY go.mod ./
 COPY go.sum ./
 
 ENV PATH /go/bin:$PATH
-COPY ./streamer_proxy/main.go ./main.go
-COPY ./streamer_proxy/iceberg_proxy.go ./iceberg_proxy.go
+COPY ./streamer_proxy/main.go /app/
 
-RUN go build ./main.go
+RUN go build /app/main.go
 
-FROM golang:1.21-alpine
-
-RUN apk update && apk add --no-cache curl
+FROM golang:1.22-alpine
 
 COPY --from=0 ./app/main ./main
-EXPOSE 8086
 
+EXPOSE 8086
 ENTRYPOINT ["./main"]

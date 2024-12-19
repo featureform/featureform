@@ -341,6 +341,10 @@ func (store *firestoreOnlineStore) DeleteTable(feature, variant string) error {
 }
 
 func (store *firestoreOnlineStore) CheckHealth() (bool, error) {
+	// We need to check whether we can reach Firestore. The simplest way of doing this is
+	// by getting a random collection (by calling `Collections().Next()`). However, this
+	// is still able to throw an iterator.Done error if there are no collections,
+	// so we just check for that.
 	_, err := store.client.Collections(context.TODO()).Next()
 	if err != nil && !errors.Is(err, iterator.Done) {
 		store.logger.Error("Health check failed, unable to connect to firestore")

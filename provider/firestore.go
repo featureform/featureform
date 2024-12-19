@@ -214,7 +214,7 @@ func (store *firestoreOnlineStore) AsOnlineStore() (OnlineStore, error) {
 
 func (store *firestoreOnlineStore) Close() error {
 	if err := store.client.Close(); err != nil {
-		fferr.NewExecutionError(pt.FirestoreOnline.String(), err)
+		return fferr.NewExecutionError(pt.FirestoreOnline.String(), err)
 	}
 	return nil
 }

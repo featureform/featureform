@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log"
 	"net"
 
 	"github.com/apache/arrow/go/v17/arrow/flight"
+	"github.com/featureform/helpers"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -17,41 +19,35 @@ type GoProxyServer struct {
 }
 
 func (gps *GoProxyServer) DoGet(ticket *flight.Ticket, stream flight.FlightService_DoGetServer) error {
-	log.Println("Received request: ", string(ticket.GetTicket()))
-
-	// todo: interceptor is set to nil right now, but can include the okta interceptor later
+	log.Printf("Received request, forwarding to iceberg-streamer at: %v", gps.streamerAddress)
 	insecureOption := grpc.WithTransportCredentials(insecure.NewCredentials())
 	client, err := flight.NewClientWithMiddleware(gps.streamerAddress, nil, nil, insecureOption)
 	if err != nil {
-		log.Fatalf("Failed to connect to the python streamer: %v", err)
+		log.Fatalf("Failed to connect to the iceberg-streamer: %v", err)
 		return err
 	}
 	defer client.Close()
 
-	// fetch the stream, passing this back to the client caller
-	flightStream, err := client.DoGet(context.TODO(), ticket)
+	// fetch and pass stream back to the caller
+	flightStream, err := client.DoGet(context.Background(), ticket)
 	if err != nil {
-		log.Printf("Error fetching the data from the python streamer: %v", err)
+		log.Printf("Error fetching the data from the iceberg-streamer: %v", err)
 		return err
 	}
 
-	// todo: need to use context cancellation so the caller can set healthy limits
 	for {
 		flightData, err := flightStream.Recv()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				log.Println("Reached the end of the stream")
 				break
 			}
-			// todo: might delete these logs, the err is already getting returned to the proxy caller
-			log.Printf("Error reading from the python streamer: %v", err)
 			return err
 		}
 
-		//send back the flight data, don't need a big buffer, just past back as-is
+		//send back the flight data as-is
 		sendErr := stream.Send(flightData)
 		if sendErr != nil {
-			log.Printf("Failed to send data back to client caller: %v/\n", err)
 			return err
 		}
 	}
@@ -59,11 +55,13 @@ func (gps *GoProxyServer) DoGet(ticket *flight.Ticket, stream flight.FlightServi
 }
 
 func main() {
-	//get the gRPC server and stream back to the clients. todo: set the env variables from the container
 	serverAddress := "0.0.0.0:8086"
-	streamerAddress := "iceberg-streamer:8085"
+	streamerAddress := helpers.GetEnv("ICEBERG_STREAMER_ADDRESS", "")
+	if streamerAddress == "" {
+		log.Fatalf("Missing ICEBERG_STREAMER_ADDRESS env variable: %v", streamerAddress)
+	}
 
-	flightServer := &GoProxyServer{
+	proxyFlightServer := &GoProxyServer{
 		streamerAddress: streamerAddress,
 	}
 
@@ -74,10 +72,9 @@ func main() {
 	}
 
 	log.Printf("Starting Go Proxy Flight server on %s...", serverAddress)
-	flight.RegisterFlightServiceServer(grpcServer, flightServer)
+	flight.RegisterFlightServiceServer(grpcServer, proxyFlightServer)
 	servErr := grpcServer.Serve(listener)
 	if servErr != nil {
 		log.Fatalf("Failed to start gRPC server: %v", err)
 	}
-
 }

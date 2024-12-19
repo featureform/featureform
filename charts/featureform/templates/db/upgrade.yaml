@@ -1,0 +1,35 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
+{{ if eq .Values.stateProvider "psql" }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: featureform-db-migration-up
+  labels:
+    chart: featureform
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: db-migration-up
+          image: "{{ .Values.repository }}/{{ .Values.psql.migration.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          env:
+            - name: GOOSE_DRIVER
+              value: postgres
+            - name: GOOSE_DBSTRING
+              valueFrom:
+                secretKeyRef:
+                  name: psql-secret-literal
+                  key: connection-string
+{{ end }}

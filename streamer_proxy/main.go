@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"io"
-	"log"
 	"net"
 
 	"github.com/apache/arrow/go/v17/arrow/flight"
 	"github.com/featureform/helpers"
+	"github.com/featureform/logging"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -16,14 +16,15 @@ import (
 type GoProxyServer struct {
 	flight.BaseFlightServer
 	streamerAddress string
+	logger          logging.Logger
 }
 
 func (gps *GoProxyServer) DoGet(ticket *flight.Ticket, stream flight.FlightService_DoGetServer) error {
-	log.Printf("Received request, forwarding to iceberg-streamer at: %v", gps.streamerAddress)
+	gps.logger.Infof("Received request, forwarding to iceberg-streamer at: %v", gps.streamerAddress)
 	insecureOption := grpc.WithTransportCredentials(insecure.NewCredentials())
 	client, err := flight.NewClientWithMiddleware(gps.streamerAddress, nil, nil, insecureOption)
 	if err != nil {
-		log.Fatalf("Failed to connect to the iceberg-streamer: %v", err)
+		gps.logger.Fatalf("Failed to connect to the iceberg-streamer: %v", err)
 		return err
 	}
 	defer client.Close()
@@ -31,7 +32,7 @@ func (gps *GoProxyServer) DoGet(ticket *flight.Ticket, stream flight.FlightServi
 	// fetch and pass stream back to the caller
 	flightStream, err := client.DoGet(context.Background(), ticket)
 	if err != nil {
-		log.Printf("Error fetching the data from the iceberg-streamer: %v", err)
+		gps.logger.Infof("Error fetching the data from the iceberg-streamer: %v", err)
 		return err
 	}
 
@@ -39,9 +40,10 @@ func (gps *GoProxyServer) DoGet(ticket *flight.Ticket, stream flight.FlightServi
 		flightData, err := flightStream.Recv()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				log.Println("Reached the end of the stream")
+				gps.logger.Infof("Reached the end of the stream")
 				break
 			}
+			gps.logger.Infof("An error occurred: %v", err)
 			return err
 		}
 
@@ -55,26 +57,29 @@ func (gps *GoProxyServer) DoGet(ticket *flight.Ticket, stream flight.FlightServi
 }
 
 func main() {
+	baseLogger := logging.NewLogger("iceberg-proxy")
 	serverAddress := "0.0.0.0:8086"
 	streamerAddress := helpers.GetEnv("ICEBERG_STREAMER_ADDRESS", "")
 	if streamerAddress == "" {
-		log.Fatalf("Missing ICEBERG_STREAMER_ADDRESS env variable: %v", streamerAddress)
+
+		baseLogger.Fatalf("Missing ICEBERG_STREAMER_ADDRESS env variable: %v", streamerAddress)
 	}
 
 	proxyFlightServer := &GoProxyServer{
 		streamerAddress: streamerAddress,
+		logger:          baseLogger,
 	}
 
 	grpcServer := grpc.NewServer()
 	listener, err := net.Listen("tcp", serverAddress)
 	if err != nil {
-		log.Fatalf("Failed to bind addres to %s: %v", serverAddress, err)
+		proxyFlightServer.logger.Fatalf("Failed to bind addres to %s: %v", serverAddress, err)
 	}
 
-	log.Printf("Starting Go Proxy Flight server on %s...", serverAddress)
+	proxyFlightServer.logger.Infof("Starting Go Proxy Flight server on %s...", serverAddress)
 	flight.RegisterFlightServiceServer(grpcServer, proxyFlightServer)
 	servErr := grpcServer.Serve(listener)
 	if servErr != nil {
-		log.Fatalf("Failed to start gRPC server: %v", err)
+		proxyFlightServer.logger.Fatalf("Failed to start gRPC server: %v", err)
 	}
 }

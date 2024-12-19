@@ -1,7 +1,7 @@
 # docker build -f ./serving/Dockerfile . -t serving in /serving
 # docker tag serving:latest featureformcom/serving:latest
 # docker push featureformcom/serving:latest
-FROM golang:1.21
+FROM golang:1.22
 
 WORKDIR /app
 

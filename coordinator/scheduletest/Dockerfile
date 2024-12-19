@@ -1,4 +1,4 @@
-FROM golang:1.21-alpine
+FROM golang:1.22-alpine
 
 WORKDIR /app
 
@@ -26,7 +26,7 @@ COPY ./coordinator/scheduletest/*.go ./coordinator/scheduletest/
 
 RUN go build ./coordinator/scheduletest/main.go
 
-FROM golang:1.21-alpine
+FROM golang:1.22-alpine
 
 COPY --from=0 ./app/main ./main
 

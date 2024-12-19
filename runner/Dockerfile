@@ -5,7 +5,7 @@
 # docker build -f ./runner/Dockerfile . -t worker in /serving
 # docker tag worker:latest featureformcom/worker:latest
 # docker push featureformcom/worker:latest
-FROM golang:1.21
+FROM golang:1.22
 
 WORKDIR /app
 

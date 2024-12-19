@@ -297,4 +297,15 @@ icebergStreamer:
   autoscaling:
     enabled: false
     minReplicas: 1
-    maxReplicas: 100
+    maxReplicas: 10
+
+# Configuration for iceberg proxy
+icebergProxy:
+  port: 8086
+  image:
+    name: iceberg-proxy
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10

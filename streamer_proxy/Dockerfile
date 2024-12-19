@@ -7,6 +7,9 @@ COPY go.sum ./
 ENV PATH /go/bin:$PATH
 COPY ./logging/ ./logging/
 COPY ./helpers/ ./helpers/
+COPY ./config/ ./config/
+COPY ./fferr ./fferr/
+COPY ./metadata/proto/ ./metadata/proto/
 COPY ./streamer_proxy/main.go /app/
 
 RUN go build /app/main.go

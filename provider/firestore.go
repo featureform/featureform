@@ -32,7 +32,8 @@ import (
 )
 
 const (
-	valuesTableName = "values"
+	// valueKey represents the key for the feature in a document.
+	valueKey = "value"
 )
 
 // The serializer versions. If adding a new one make sure to add to the serializers map variable
@@ -133,10 +134,6 @@ func (ser firestoreSerializerV0) Deserialize(t vt.ValueType, value interface{}) 
 	}
 }
 
-func (t firestoreTableKey) String() string {
-	return fmt.Sprintf("%s__%s__%s", t.Collection, t.Feature, t.Variant)
-}
-
 type firestoreOnlineStore struct {
 	client     *firestore.Client
 	collection *firestore.CollectionRef
@@ -145,6 +142,7 @@ type firestoreOnlineStore struct {
 }
 
 type firestoreOnlineTable struct {
+	client     *firestore.Client
 	collection *firestore.CollectionRef
 	key        firestoreTableKey
 	valueType  vt.ValueType
@@ -154,6 +152,22 @@ type firestoreOnlineTable struct {
 
 type firestoreTableKey struct {
 	Collection, Feature, Variant string
+}
+
+func (t firestoreTableKey) String() string {
+	return fmt.Sprintf("%s__%s__%s", t.Collection, t.Feature, t.Variant)
+}
+
+func (t firestoreTableKey) CollectionString() string {
+	return t.Collection
+}
+
+func (t firestoreTableKey) FeatureString() string {
+	return t.Feature
+}
+
+func (t firestoreTableKey) VariantString() string {
+	return t.Variant
 }
 
 func firestoreOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
@@ -211,35 +225,29 @@ func GetMetadataTable() string {
 
 func (store *firestoreOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
 	key := firestoreTableKey{store.collection.ID, feature, variant}
-	tableName := key.String()
+	tableKey := key.String()
+	featureName := key.FeatureString()
+	variantName := key.VariantString()
 
-	table, err := store.collection.Doc(tableName).Get(context.TODO())
-	if status.Code(err) == codes.NotFound {
-		wrapped := fferr.NewDatasetNotFoundError(feature, variant, err)
-		wrapped.AddDetail("table_name", tableName)
-		return nil, wrapped
-	}
-	if err != nil {
-		wrapped := fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
-		wrapped.AddDetail("table_name", tableName)
-		return nil, wrapped
-	}
+	variantTable := store.collection.Doc(featureName).Collection(variantName)
 
 	metadata, err := store.collection.Doc(GetMetadataTable()).Get(context.TODO())
 	if err != nil {
 		wrapped := fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
-		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("table_name", GetMetadataTable())
 		return nil, wrapped
 	}
-	valueType, err := metadata.DataAt(tableName)
+	valueType, err := metadata.DataAt(tableKey)
 	if err != nil {
-		wrapped := fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
-		wrapped.AddDetail("table_name", tableName)
+		wrapped := fferr.NewDatasetNotFoundError(feature, variant, err)
+		wrapped.AddDetail("table_key", tableKey)
 		return nil, wrapped
 	}
-	logger := store.logger.With("table", tableName)
+
+	logger := store.logger.With("table", tableKey)
 	return &firestoreOnlineTable{
-		collection: table.Ref,
+		client:     store.client,
+		collection: variantTable,
 		key:        key,
 		valueType:  vt.ScalarType(valueType.(string)),
 		serializer: firestoreSerializerV0{},
@@ -253,22 +261,55 @@ func (store *firestoreOnlineStore) CreateTable(feature, variant string, valueTyp
 		return nil, fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
 	}
 
+	logger := store.logger.With("feature", feature, "variant", variant)
+
 	key := firestoreTableKey{store.collection.ID, feature, variant}
-	tableName := key.String()
-	_, err := store.collection.Doc(tableName).Set(context.TODO(), map[string]interface{}{})
+	tableKey := key.String()
+	featureName := key.FeatureString()
+	variantName := key.VariantString()
+
+	metadataDoc := store.collection.Doc(GetMetadataTable())
+	newMetadataField := map[string]interface{}{
+		tableKey: valueType,
+	}
+
+	// We want to check if there is a pre-existing feature variant already registered, and error out
+	// if it exists. Only then do we create a reference to a new table.
+	// We do this in a transaction to avoid race conditions between the checks and insertions.
+	err := store.client.RunTransaction(context.TODO(), func(ctx context.Context, tx *firestore.Transaction) error {
+		metadata, err := tx.Get(metadataDoc)
+
+		// If it returns an error, check if the document is not found. If that's the case, then create a new
+		// document with the new entry.
+		if err != nil {
+			if status.Code(err) != codes.NotFound {
+				logger.Error("Error grabbing metadata table")
+				return err
+			}
+
+			return tx.Set(metadataDoc, newMetadataField)
+		}
+
+		// Else, the document already exists, so first check to see if a table entry already exists.
+		// Check if the key already exists
+		if _, exists := metadata.Data()[tableKey]; exists {
+			logger.Error("Table already exists")
+			return fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
+		}
+
+		// Add the new key-value pair
+		return tx.Set(metadataDoc, newMetadataField, firestore.MergeAll)
+	})
+
 	if err != nil {
 		return nil, fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
 
-	_, err = store.collection.Doc(GetMetadataTable()).Set(context.TODO(), map[string]interface{}{
-		tableName: valueType,
-	}, firestore.MergeAll)
-	if err != nil {
-		return nil, fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
-	}
-	logger := store.logger.With("table", tableName)
+	variantTable := store.collection.Doc(featureName).Collection(variantName)
+
 	return &firestoreOnlineTable{
-		collection: store.collection.Doc(tableName),
+		client:     store.client,
+		collection: variantTable,
 		key:        key,
 		valueType:  valueType,
 		serializer: firestoreSerializerV0{},
@@ -325,22 +366,27 @@ func (table firestoreOnlineTable) Set(entity string, value interface{}) error {
 }
 
 func (table firestoreOnlineTable) Get(entity string) (interface{}, error) {
-	dataSnap, err := table.collection.Get(context.TODO())
+	dataSnap, err := table.collection.Doc(entity).Get(context.TODO())
 	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return nil, fferr.NewEntityNotFoundError(table.key.Feature, table.key.Variant, entity, err)
+		}
 		wrapped := fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), table.key.Feature, table.key.Variant, fferr.ENTITY, err)
 		wrapped.AddDetail("entity", entity)
 		return nil, wrapped
 	}
-	value, err := dataSnap.DataAt(entity)
+	value, err := dataSnap.DataAt(valueKey)
 	if err != nil {
-		return nil, fferr.NewEntityNotFoundError(table.key.Feature, table.key.Variant, entity, err)
+		wrapped := fferr.NewResourceExecutionError(pt.FirestoreOnline.String(), table.key.Feature, table.key.Variant, fferr.ENTITY, err)
+		wrapped.AddDetail("entity", entity)
+		return nil, wrapped
 	}
 
 	return table.serializer.Deserialize(table.valueType, value)
 }
 
 // maxFirestoreBatchSize is the max amount of items that can be written to Firestore at once.
-const maxFirestoreBatchSize = 500
+const maxFirestoreBatchSize = 20
 
 func (table firestoreOnlineTable) MaxBatchSize() (int, error) { return maxFirestoreBatchSize, nil }
 
@@ -349,21 +395,25 @@ func (table firestoreOnlineTable) BatchSet(items []SetItem) error {
 		return fferr.NewInternalErrorf(
 			"Cannot batch write %d items.\nMax: %d\n", len(items), maxFirestoreBatchSize)
 	}
-	batch := table.collection.Client.Batch()
+
+	bulkWriter := table.client.BulkWriter(context.TODO())
+
 	for _, item := range items {
 		serializedValue, err := table.serializer.Serialize(table.valueType, item.Value)
 		if err != nil {
 			table.logger.Error("Error serializing value", "entity", item.Entity, "value", item.Value, "err", err)
 			return err
 		}
-		entityDoc := table.collection.Collection("entities").Doc(item.Entity)
-		batch.Set(entityDoc, map[string]interface{}{
-			"value": serializedValue,
-		}, firestore.MergeAll)
+		document := table.collection.Doc(item.Entity)
+		_, err = bulkWriter.Create(document, map[string]interface{}{
+			valueKey: serializedValue,
+		})
+		if err != nil {
+			table.logger.Error("Error creating document", "entity", item.Entity, "value", item.Value, "err", err)
+			return err
+		}
 	}
-	_, err := batch.Commit(context.TODO())
-	if err != nil {
-		return err
-	}
+
+	bulkWriter.End()
 	return nil
 }

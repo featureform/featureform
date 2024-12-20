@@ -69,7 +69,6 @@ func main() {
 	serverAddress := "0.0.0.0:8086"
 	streamerAddress := helpers.GetEnv("ICEBERG_STREAMER_ADDRESS", "")
 	if streamerAddress == "" {
-
 		baseLogger.Fatalf("Missing ICEBERG_STREAMER_ADDRESS env variable: %v", streamerAddress)
 	}
 

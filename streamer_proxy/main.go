@@ -31,7 +31,7 @@ func (gps *GoProxyServer) DoGet(ticket *flight.Ticket, stream flight.FlightServi
 	insecureOption := grpc.WithTransportCredentials(insecure.NewCredentials())
 	client, err := flight.NewClientWithMiddleware(gps.streamerAddress, nil, nil, insecureOption)
 	if err != nil {
-		gps.logger.Fatalf("Failed to connect to the iceberg-streamer: %v", err)
+		gps.logger.Errorf("Failed to connect to the iceberg-streamer: %v", err)
 		return err
 	}
 	defer client.Close()

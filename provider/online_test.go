@@ -77,6 +77,8 @@ func randomFeatureVariant() (string, string) {
 
 func testCreateGetTable(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
+	// This is done before creating it as sometimes creation partially fails and leaves some resources behind,
+	// so we attempt to delete it anyway and ignore the error.
 	defer store.DeleteTable(mockFeature, mockVariant)
 	if tab, err := store.CreateTable(mockFeature, mockVariant, types.String); tab == nil || err != nil {
 		t.Fatalf("Failed to create table: %s", err)

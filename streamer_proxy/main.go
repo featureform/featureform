@@ -39,7 +39,7 @@ func (gps *GoProxyServer) DoGet(ticket *flight.Ticket, stream flight.FlightServi
 	// fetch and pass stream back to the caller
 	flightStream, err := client.DoGet(context.Background(), ticket)
 	if err != nil {
-		gps.logger.Infof("Error fetching the data from the iceberg-streamer: %v", err)
+		gps.logger.Errorf("Error fetching the data from the iceberg-streamer: %v", err)
 		return err
 	}
 
@@ -50,13 +50,14 @@ func (gps *GoProxyServer) DoGet(ticket *flight.Ticket, stream flight.FlightServi
 				gps.logger.Infof("Reached the end of the stream")
 				break
 			}
-			gps.logger.Infof("An error occurred: %v", err)
+			gps.logger.Errorf("An error occurred receiving the flight data from stream: %v", err)
 			return err
 		}
 
 		//send back the flight data as-is
 		sendErr := stream.Send(flightData)
 		if sendErr != nil {
+			gps.logger.Errorf("An error occurred passing the flight data to client: %v", err)
 			return err
 		}
 	}

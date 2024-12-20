@@ -5,7 +5,7 @@ description: "Featureform supports [Firestore](https://firebase.google.com/docs/
 
 ## Implementation
 
-We are given a collection as part of configuration. Within this collection, we create a document for every feature. Within this document, we create a collection for every feature variant. We then create one document for each entity in this collection, with a key-value pair representing the value of that feature for the given entity.
+We are given a collection as part of the configuration. Within this collection, we create a document for every feature. Within this document, we create a collection for every feature variant. We then create one document for each entity in this collection, with a key-value pair representing the value of that feature for the given entity.
 A metadata table is stored in the same Firestore collection as well to allow the provider to keep track of its own state. Featureform's scheduler aims to achieve consistency between Firestore's internal state with the user's desired state as specified in the metadata service.
 
 ## Configuration

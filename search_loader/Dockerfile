@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine
+FROM golang:1.21-alpine
 WORKDIR /app
 
 COPY go.mod ./
@@ -38,7 +38,7 @@ COPY ./api/ ./api/
 
 RUN go build ./main.go
 
-FROM golang:1.22-alpine
+FROM golang:1.21-alpine
 
 RUN apk update && apk add --no-cache curl
 

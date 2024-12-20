@@ -6,7 +6,7 @@
 #
 
 # docker buildx build -f ./metadata/dashboard/Dockerfile . -t featureformcom/metadata-dashboard:latest -o type=image --platform=linux/arm64,linux/amd64 --push
-FROM golang:1.22-alpine
+FROM golang:1.21-alpine
 
 WORKDIR /app
 

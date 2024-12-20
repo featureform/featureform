@@ -1,6 +1,6 @@
 # docker tag coordinator:latest featureformcom/coordinator:latest
 # docker push featureformcom/coordinator:latest
-FROM golang:1.22 as builder
+FROM golang:1.21 as builder
 
 WORKDIR /app
 

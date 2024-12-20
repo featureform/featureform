@@ -33,7 +33,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/dashboard/.next/static ./.next/st
 COPY --from=builder --chown=nextjs:nodejs /app/dashboard/out ./out
 
 # Build Go services
-FROM golang:1.22 AS go-builder
+FROM golang:1.21 AS go-builder
 
 RUN apt update && \
     apt install -y protobuf-compiler
@@ -82,7 +82,7 @@ RUN go build -o execs/dashboard_metadata metadata/dashboard/main/main.go
 RUN go build -o execs/serving serving/main/main.go
 
 # Final image
-FROM golang:1.22
+FROM golang:1.21
 
 WORKDIR /app
 

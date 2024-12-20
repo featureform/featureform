@@ -7,7 +7,7 @@
 
 # docker tag metadata:latest featureformcom/metadata:latest
 # docker push featureformcom/metadata:latest
-FROM golang:1.22-alpine
+FROM golang:1.21-alpine
 
 WORKDIR /app
 

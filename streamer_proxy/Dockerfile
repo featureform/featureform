@@ -5,7 +5,7 @@
 #  Copyright 2024 FeatureForm Inc.
 #
 
-FROM golang:1.22-alpine
+FROM golang:1.21-alpine
 WORKDIR /app
 
 COPY go.mod ./
@@ -21,7 +21,7 @@ COPY ./streamer_proxy/main.go /app/
 
 RUN go build /app/main.go
 
-FROM golang:1.22-alpine
+FROM golang:1.21-alpine
 
 COPY --from=0 ./app/main ./main
 

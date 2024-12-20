@@ -32,7 +32,7 @@ func CastNumberToFloat32(value any) (float32, error) {
 	case string:
 		f64, err := strconv.ParseFloat(typed, 32)
 		if err != nil {
-			return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
+			return 0, fmt.Errorf("Type error: Expected numerical type and got %T: %e", typed, err)
 		}
 		return float32(f64), nil
 	default:
@@ -60,7 +60,7 @@ func CastNumberToFloat64(value any) (float64, error) {
 	case string:
 		f64, err := strconv.ParseFloat(typed, 64)
 		if err != nil {
-			return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
+			return 0, fmt.Errorf("Type error: Expected numerical type and got %T: %e", typed, err)
 		}
 		return f64, nil
 	default:

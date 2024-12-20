@@ -29,7 +29,7 @@ spec:
         - name: {{ .Values.k8sImagePullSecret }}
       containers:
       - name: iceberg-streamer
-        image: "{{ .Values.repository | default .Values.repository }}/{{ .Values.icebergStreamer.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
+        image: "{{ .Values.repository }}/{{ .Values.icebergStreamer.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.pullPolicy }}
         ports:
         - containerPort: 8085

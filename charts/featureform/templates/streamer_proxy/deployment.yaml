@@ -8,18 +8,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: iceberg-streamer
+  name: iceberg-proxy
 spec:
-  {{- if not .Values.icebergStreamer.autoscaling.enabled }}
-  replicas: {{ .Values.icebergStreamer.replicaCount }}
+  {{- if not .Values.icebergProxy.autoscaling.enabled }}
+  replicas: {{ .Values.icebergProxy.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      app: iceberg-streamer
+      app: iceberg-proxy
   template:
     metadata:
       labels:
-        app: iceberg-streamer
+        app: iceberg-proxy
       {{ if .Values.restartOnUpdate }}
       annotations:
         timestamp: {{ now | quote }}
@@ -28,8 +28,11 @@ spec:
       imagePullSecrets:
         - name: {{ .Values.k8sImagePullSecret }}
       containers:
-      - name: iceberg-streamer
-        image: "{{ .Values.repository }}/{{ .Values.icebergStreamer.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
+      - name: iceberg-proxy
+        image: "{{ .Values.repository }}/{{ .Values.icebergProxy.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.pullPolicy }}
         ports:
-        - containerPort: 8085
+        - containerPort: 8086
+        env:
+        - name: ICEBERG_STREAMER_ADDRESS
+          value: "iceberg-streamer:{{ .Values.icebergStreamer.port | quote }}"

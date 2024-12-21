@@ -138,7 +138,7 @@ func (serv *FeatureServer) getOrCacheFeatureMetadata(ctx context.Context, name, 
 	if feature, has := serv.Features.Load(serv.getNVCacheKey(name, variant)); has {
 		return feature.(*metadata.FeatureVariant), nil
 	} else {
-		metaFeature, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{name, variant})
+		metaFeature, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 		if err != nil {
 			logger.Errorw("metadata lookup failed", "Err", err)
 			obs.SetError()

@@ -144,39 +144,39 @@ func invalidTypeFeatureRecords() map[provider.ResourceID][]provider.ResourceReco
 
 func allTypesFeatureRecords() map[provider.ResourceID][]provider.ResourceRecord {
 	idToVal := map[provider.ResourceID]interface{}{
-		provider.ResourceID{
+		{
 			Name:    "feature",
 			Variant: "double",
 		}: 12.5,
-		provider.ResourceID{
+		{
 			Name:    "feature",
 			Variant: "float",
 		}: float32(2.3),
-		provider.ResourceID{
+		{
 			Name:    "feature",
 			Variant: "str",
 		}: "abc",
-		provider.ResourceID{
+		{
 			Name:    "feature",
 			Variant: "int",
 		}: 5,
-		provider.ResourceID{
+		{
 			Name:    "feature",
 			Variant: "smallint",
 		}: int32(4),
-		provider.ResourceID{
+		{
 			Name:    "feature",
 			Variant: "bigint",
 		}: int64(3),
-		provider.ResourceID{
+		{
 			Name:    "feature",
 			Variant: "bool",
 		}: true,
-		provider.ResourceID{
+		{
 			Name:    "feature",
 			Variant: "proto",
 		}: &pb.Value{
-			Value: &pb.Value_StrValue{"proto"},
+			Value: &pb.Value_StrValue{StrValue: "proto"},
 		},
 	}
 	recs := make(map[provider.ResourceID][]provider.ResourceRecord)
@@ -217,7 +217,7 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "double",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -232,7 +232,7 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "float",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -247,7 +247,7 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "str",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -262,7 +262,7 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "int",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -277,7 +277,7 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "smallint",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -292,7 +292,7 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "bigint",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -307,7 +307,7 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "bool",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -322,7 +322,7 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "proto",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -363,7 +363,7 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "variant",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -378,7 +378,7 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "variant2",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -393,7 +393,7 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "variant",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Type:     types.String,
 			Location: metadata.ResourceVariantColumns{
@@ -406,8 +406,8 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Name:     "training-set",
 			Variant:  "variant",
 			Provider: "mockOnline",
-			Label:    metadata.NameVariant{"label", "variant"},
-			Features: metadata.NameVariants{{"feature", "variant"}},
+			Label:    metadata.NameVariant{Name: "label", Variant: "variant"},
+			Features: metadata.NameVariants{{Name: "feature", Variant: "variant"}},
 			Owner:    "Featureform",
 		},
 	}
@@ -615,13 +615,13 @@ func TestFeatureServe(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "variant",
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "mockEntity",
 				Values: []string{"a"},
 			},
@@ -653,7 +653,7 @@ func TestFeatureServeMultipleEntities(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "variant",
 			},
@@ -687,6 +687,7 @@ func TestFeatureServeMultipleEntities(t *testing.T) {
 	}
 }
 
+// todo: should be able to delete
 type mockBatchServingStream struct {
 	RowChan    chan *pb.BatchFeatureRow
 	ShouldFail bool
@@ -729,6 +730,8 @@ func (stream *mockBatchServingStream) RecvMsg(interface{}) error {
 	return nil
 }
 
+// todo: follow up with team here
+
 // func TestBatchFeatureServe(t *testing.T) {
 // 	ctx := onlineTestContext{
 // 		ResourceDefsFn: simpleResourceDefsFn,
@@ -738,7 +741,7 @@ func (stream *mockBatchServingStream) RecvMsg(interface{}) error {
 // 	defer ctx.Destroy()
 // 	req := &pb.BatchFeatureServeRequest{
 // 		Features: []*pb.FeatureID{
-// 			&pb.FeatureID{
+// 			{
 // 				Name:    "feature",
 // 				Version: "variant",
 // 			},
@@ -788,13 +791,13 @@ func TestFeatureNotFound(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "nonexistantFeature",
 				Version: "variant",
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "mockEntity",
 				Values: []string{"a"},
 			},
@@ -814,13 +817,13 @@ func TestProviderNotRegistered(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "variant",
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "mockEntity",
 				Values: []string{"a"},
 			},
@@ -840,13 +843,13 @@ func TestOfflineStoreAsOnlineStore(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "variant",
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "mockEntity",
 				Values: []string{"a"},
 			},
@@ -866,13 +869,13 @@ func TestTableNotFoundInOnlineStore(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "variant",
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "mockEntity",
 				Values: []string{"a"},
 			},
@@ -892,13 +895,13 @@ func TestEntityNotFoundInOnlineStore(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "variant",
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "mockEntity",
 				Values: []string{"NonExistantEntity"},
 			},
@@ -918,13 +921,13 @@ func TestEntityNotInRequest(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "variant",
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "wrongEntity",
 				Values: []string{"a"},
 			},
@@ -944,13 +947,13 @@ func TestInvalidFeatureType(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "variant",
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "mockEntity",
 				Values: []string{"a"},
 			},
@@ -970,35 +973,35 @@ func TestAllFeatureTypes(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "double",
 			},
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "float",
 			},
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "str",
 			},
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "int",
 			},
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "smallint",
 			},
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "bigint",
 			},
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "bool",
 			},
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "proto",
 			},
@@ -1093,7 +1096,7 @@ func TestOnDemandFeatureServe(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature-od",
 				Version: "on-demand",
 			},

@@ -1007,7 +1007,7 @@ func TestAllFeatureTypes(t *testing.T) {
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "mockEntity",
 				Values: []string{"a"},
 			},

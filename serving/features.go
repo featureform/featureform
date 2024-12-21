@@ -191,7 +191,7 @@ func (serv *FeatureServer) getOrCacheFeatureProvider(ctx context.Context, meta *
 			return nil, err
 		}
 		serv.Providers.Store(meta.Provider(), store)
-		return store.(provider.OnlineStore), nil
+		return store, nil
 	}
 }
 
@@ -249,7 +249,7 @@ func (serv *FeatureServer) getEntityValues(ctx context.Context, entities []strin
 	for i, entityVal := range entities {
 		// Start a goroutine for each entity
 		go func(index int, ev string) {
-			val, err := featureTable.(provider.OnlineStoreTable).Get(ev)
+			val, err := featureTable.Get(ev)
 			if err != nil {
 				// Push error into the error channel
 				errCh <- err

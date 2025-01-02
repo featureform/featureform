@@ -648,6 +648,7 @@ func (resource *sourceVariantResource) IsEquivalent(other ResourceVariant) (bool
 	if err != nil {
 		return false, err
 	}
+
 	otherSv, err := equivalence.SourceVariantFromProto(otherCasted.serialized)
 	if err != nil {
 		return false, err

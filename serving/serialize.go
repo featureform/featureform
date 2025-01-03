@@ -285,7 +285,7 @@ func wrapBool(val bool) *pb.Value {
 	}
 }
 
-func wrapNil(val interface{}) *pb.Value {
+func wrapNil(_ interface{}) *pb.Value {
 	return &pb.Value{
 		Value: &pb.Value_StrValue{StrValue: ""},
 	}

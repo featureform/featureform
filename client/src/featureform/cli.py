@@ -9,6 +9,8 @@ import os
 import click
 import validators
 import urllib.request
+import pyarrow.flight as flight
+import json
 
 from .client import Client
 from .deploy import (
@@ -153,6 +155,41 @@ def version():
     output += f"\nCluster Version: {cluster_version}"
 
     print(output)
+
+
+@cli.command()
+@click.argument("name", required=True)
+@click.argument("variant", required=True)
+def stream(name, variant):
+    print(f"The name-variant: {name} - {variant}")
+    server_address = "go-proxy:8086"
+
+    print(f"Connecting to Flight server at {server_address}")
+    df = fetch_data_and_print(server_address, name, variant)
+    print("data frame: ", df)
+
+
+def fetch_data_and_print(server_address, name, variant):
+    """
+    Fetch data from the python-streamer
+    """
+    client = flight.connect(server_address)
+    ticket_data = {
+        "name": name,
+        "variant": variant,
+    }
+
+    # todox: swap this out for the new function in client.dataframe
+    ticket = flight.Ticket(json.dumps(ticket_data).encode("utf-8"))
+    client = flight.connect(f"grpc://{server_address}")
+    try:
+        stream = client.do_get(ticket)
+        reader = stream.read_all()  # todo: don't read all. just iterate
+        return reader.to_pandas()
+    except flight.FlightError as e:
+        raise RuntimeError(f"Failed to fetch data from Go proxy: {e}")
+    finally:
+        client.close()
 
 
 @cli.command()

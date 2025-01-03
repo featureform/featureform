@@ -10,6 +10,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 
@@ -26,6 +27,23 @@ type GoProxyServer struct {
 	logger          logging.Logger
 }
 
+func hydrateTicket(ticket *flight.Ticket) *flight.Ticket {
+	//copy the ticket values,
+	//get the provider credentials from location.go
+	/*
+		ticket_data = {
+			"catalog": catalog,
+			"namespace": namespace,
+			"table": table,
+			"client.access-key-id": access_key_id,
+			"client.secret-access-key": secret_access_key,
+		}
+	*/
+	//send back the ticket
+	fmt.Println(ticket.Ticket)
+	return ticket
+}
+
 func (gps *GoProxyServer) DoGet(ticket *flight.Ticket, stream flight.FlightService_DoGetServer) error {
 	gps.logger.Infof("Received request, forwarding to iceberg-streamer at: %v", gps.streamerAddress)
 	insecureOption := grpc.WithTransportCredentials(insecure.NewCredentials())
@@ -36,8 +54,10 @@ func (gps *GoProxyServer) DoGet(ticket *flight.Ticket, stream flight.FlightServi
 	}
 	defer client.Close()
 
+	filledTicket := hydrateTicket(ticket)
+
 	// fetch and pass stream back to the caller
-	flightStream, err := client.DoGet(context.Background(), ticket)
+	flightStream, err := client.DoGet(context.Background(), filledTicket)
 	if err != nil {
 		gps.logger.Errorf("Error fetching the data from the iceberg-streamer: %v", err)
 		return err
@@ -80,7 +100,7 @@ func main() {
 	grpcServer := grpc.NewServer()
 	listener, err := net.Listen("tcp", serverAddress)
 	if err != nil {
-		proxyFlightServer.logger.Fatalf("Failed to bind addres to %s: %v", serverAddress, err)
+		proxyFlightServer.logger.Fatalf("Failed to bind address to %s: %v", serverAddress, err)
 	}
 
 	proxyFlightServer.logger.Infof("Starting Go Proxy Flight server on %s...", serverAddress)

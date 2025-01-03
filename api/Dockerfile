@@ -28,6 +28,7 @@ COPY ./metadata/proto/ ./metadata/proto/
 COPY ./metadata/equivalence/ ./metadata/equivalence/
 COPY ./proto/ ./proto/
 COPY ./helpers/ ./helpers/
+COPY ./secrets/ ./secrets/
 COPY ./logging/ ./logging/
 COPY ./types ./types
 COPY ./kubernetes ./kubernetes

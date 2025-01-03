@@ -8,10 +8,9 @@
 package provider
 
 import (
+	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
-
-	"github.com/featureform/provider/retriever"
 
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -46,11 +45,13 @@ func TestOfflineStorePostgres(t *testing.T) {
 		Port:     "5432",
 		Database: db,
 		Username: user,
-		Password: retriever.NewStaticValue[string](password),
+		Password: password,
 		SSLMode:  "disable",
 	}
 
-	store, err := GetOfflineStore(pt.PostgresOffline, postgresConfig.Serialize())
+	serialize, err := postgresConfig.Serialize()
+	assert.NoError(t, err)
+	store, err := GetOfflineStore(pt.PostgresOffline, serialize)
 	if err != nil {
 		t.Fatalf("could not initialize store: %s\n", err)
 	}

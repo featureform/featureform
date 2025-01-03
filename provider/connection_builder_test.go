@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	pc "github.com/featureform/provider/provider_config"
-	"github.com/featureform/provider/retriever"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,7 +18,7 @@ import (
 func mockPostgresConfig() pc.PostgresConfig {
 	return pc.PostgresConfig{
 		Username: "test_user",
-		Password: retriever.NewStaticValue[string]("test_password"),
+		Password: "test_password",
 		Host:     "localhost",
 		Port:     "5432",
 		SSLMode:  "disable",
@@ -65,14 +64,4 @@ func TestGetConnectionBuilderFunc(t *testing.T) {
 			assert.Equal(t, tt.expectedURL, actualURL)
 		})
 	}
-}
-
-func TestGetConnectionBuilderFunc_MissingPassword(t *testing.T) {
-	config := mockPostgresConfig()
-	config.Password = nil
-
-	connectionBuilder := PostgresConnectionBuilderFunc(config)
-	url, err := connectionBuilder("default_db", "")
-	assert.NoError(t, err)
-	assert.Equal(t, "postgres://test_user:@localhost:5432/default_db?sslmode=disable&search_path=%22public%22", url)
 }

@@ -34,6 +34,7 @@ COPY ./logging/ ./logging/
 COPY ./metadata/*.go ./metadata/
 COPY ./metadata/proto/ ./metadata/proto/
 COPY ./helpers/ ./helpers/
+COPY ./secrets/ ./secrets/
 COPY ./integrations/ ./integrations/
 COPY ./metadata/search/ ./metadata/search/
 COPY ./metadata/equivalence/ ./metadata/equivalence/

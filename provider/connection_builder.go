@@ -18,17 +18,7 @@ import (
 var logger = logging.NewLogger("connection_builder")
 
 func PostgresConnectionBuilder(sc provider_config.PostgresConfig) string {
-	var password string
-	if sc.Password != nil {
-		p, err := sc.Password.Get()
-		if err != nil {
-			logger.Error(err, "Error getting password, proceeding with empty password")
-		} else {
-			password = p
-		}
-	}
-
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", sc.Username, password, sc.Host, sc.Port, sc.Database, sc.SSLMode)
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", sc.Username, sc.Password, sc.Host, sc.Port, sc.Database, sc.SSLMode)
 
 	// Append the search_path only if the schema is not empty
 	if sc.Schema != "" {

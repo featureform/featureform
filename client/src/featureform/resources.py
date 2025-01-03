@@ -26,7 +26,9 @@ import warnings
 from . import feature_flag
 from .enums import *
 from .exceptions import *
+from .secret_provider import Secret, StaticSecret
 from .types import VectorType, type_from_proto
+from .utils import is_valid_url
 from .version import check_up_to_date
 
 logger = logging.getLogger(__name__)
@@ -794,8 +796,12 @@ class PostgresConfig:
     port: str
     database: str
     user: str
-    password: str
+    password: Union[Secret, str]
     sslmode: str
+
+    def __post_init__(self):
+        if isinstance(self.password, str):
+            self.password = StaticSecret(self.password)
 
     def software(self) -> str:
         return "postgres"
@@ -808,22 +814,22 @@ class PostgresConfig:
             "Host": self.host,
             "Port": self.port,
             "Username": self.user,
-            "Password": self.password,
+            "Password": self.password.serialize(),
             "Database": self.database,
             "SSLMode": self.sslmode,
         }
         return bytes(json.dumps(config), "utf-8")
 
-    def __eq__(self, __value: object) -> bool:
-        if not isinstance(__value, PostgresConfig):
-            return False
-        return (
-            self.host == __value.host
-            and self.port == __value.port
-            and self.database == __value.database
-            and self.user == __value.user
-            and self.password == __value.password
-            and self.sslmode == __value.sslmode
+    @classmethod
+    def deserialize(cls, config: bytes) -> "PostgresConfig":
+        config = json.loads(config.decode("utf-8"))
+        return cls(
+            host=config["Host"],
+            port=config["Port"],
+            database=config["Database"],
+            user=config["Username"],
+            password=Secret.deserialize(config["Password"]),
+            sslmode=config["SSLMode"],
         )
 
 

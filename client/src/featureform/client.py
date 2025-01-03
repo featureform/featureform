@@ -14,7 +14,7 @@ from pyiceberg.catalog import load_catalog
 from pyiceberg.table import Table
 from typeguard import typechecked
 
-from .constants import NO_RECORD_LIMIT
+from .constants import ONE_MILLION_RECORD_LIMIT
 from .enums import FileFormat, DataResourceType, RefreshMode, Initialize
 from .proto import metadata_pb2 as pb
 from .register import (
@@ -58,6 +58,7 @@ from .resources import (
     SnowflakeDynamicTableConfig,
 )
 from .serving import ServingClient
+import pyarrow.flight as flight
 
 
 class Client(ResourceClient, ServingClient):
@@ -123,7 +124,7 @@ class Client(ResourceClient, ServingClient):
             SourceRegistrar, SubscriptableTransformation, ResourceVariant, str
         ],
         variant: Optional[str] = None,
-        limit=NO_RECORD_LIMIT,
+        limit=ONE_MILLION_RECORD_LIMIT,
         spark_session=None,
         asynchronous=False,
         verbose=False,
@@ -142,7 +143,7 @@ class Client(ResourceClient, ServingClient):
         Args:
             source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
             variant (str): The source variant; can't be None if source is a string
-            limit (int): The maximum number of records to return; defaults to NO_RECORD_LIMIT
+            limit (int): The maximum number of records to return; defaults to ONE_MILLION_RECORD_LIMIT
             spark_session: Specifices to read as a spark session.
             asynchronous (bool): Flag to determine whether the client should wait for resources to be in either a READY or FAILED state before returning. Defaults to False to ensure that newly registered resources are in a READY state prior to serving them as dataframes.
 
@@ -173,6 +174,7 @@ class Client(ResourceClient, ServingClient):
                 )
             return self._spark_dataframe(source, spark_session)
         if iceberg:
+            # todox:pull this here
             return self._iceberg_dataframe(source)
         return self.impl._get_source_as_df(name, variant, limit)
 
@@ -199,7 +201,41 @@ class Client(ResourceClient, ServingClient):
             SourceRegistrar, SubscriptableTransformation, ResourceVariant, str
         ],
     ):
-        return self._get_iceberg_table(source).scan().to_pandas()
+        return self._helper_fetch_iceberg_from_proxy(source)
+
+    def _helper_fetch_iceberg_from_proxy(
+        self,
+        name: str,
+        variant: str,
+        limit=ONE_MILLION_RECORD_LIMIT,
+    ):
+        """
+        Fetch Iceberg data via the Go proxy using Apache Arrow Flight.
+
+        Args:
+            name (str): The resource name.
+            variant (str): The resource variant.
+            limit (int): The total record limit. Defaults to ONE_MILLION_RECORD_LIMIT
+
+        Returns:
+            iceberg data catalog stream
+        """
+        ticket_data = {
+            "name": name,
+            "variant": variant,
+        }
+
+        proxy_address = "go-proxy:8086"
+        ticket = flight.Ticket(json.dumps(ticket_data).encode("utf-8"))
+        client = flight.connect(f"grpc://{proxy_address}")
+        try:
+            stream = client.do_get(ticket)
+            reader = stream.read_all()
+            return reader.to_pandas()
+        except flight.FlightError as e:
+            raise RuntimeError(f"Failed to fetch data from Go proxy: {e}")
+        finally:
+            client.close()
 
     # TODO, combine this with the dataset logic in serving.py
     def _spark_dataframe(self, source, spark_session):

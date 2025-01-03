@@ -583,7 +583,7 @@ func (args sparkS3Flags) SparkFlags() sparkFlags {
 				Value: args.AccessKey,
 			},
 			sparkCredFlag{
-				Key:   "aws_secret_key_id",
+				Key:   "aws_secret_access_key",
 				Value: args.SecretKey,
 			},
 		)

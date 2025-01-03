@@ -1498,11 +1498,23 @@ def setup_sql_parser(parser):
 
     :param parser: The SQL command parser.
     """
+    setup_common_parser(parser)
+    parser.add_argument("--sql_query", help="SQL query to run on the data source.")
+
+def setup_df_parser(parser):
+    """
+    Configures the DataFrame parser with necessary arguments.
+
+    :param parser: The DataFrame command parser.
+    """
+    setup_common_parser(parser)
+    parser.add_argument("--code", required=True, help="Path to transformation code file.")
+
+def setup_common_parser(parser):
     # fmt: off
     parser.add_argument("--job_type", choices=list(JobType), help="Type of job being run.")
     parser.add_argument("--output", action=JsonAction, required=True,
                         help="Output file location; e.g., s3a://bucket/path")
-    parser.add_argument("--sql_query", help="SQL query to run on the data source.")
     parser.add_argument("--sources", nargs="*", action=JsonListAction,
                         help="List of sources in the transformation string.")
     parser.add_argument("--store_type", choices=FILESTORES)
@@ -1523,32 +1535,6 @@ def setup_sql_parser(parser):
     parser.add_argument("--direct_copy_entity_column", help="If doing a direct copy, the name of the entity column in the source dataframe")
     parser.add_argument("--direct_copy_value_column", help="If doing a direct copy, the name of the value column in the source dataframe")
     parser.add_argument("--direct_copy_timestamp_column", help="If doing a direct copy, the name of the timestamp column in the source dataframe. Don't set this if not relevent.")
-    # fmt: on
-
-
-def setup_df_parser(parser):
-    """
-    Configures the DataFrame parser with necessary arguments.
-
-    :param parser: The DataFrame command parser.
-    """
-    # fmt: off
-    parser.add_argument("--job_type", choices=list(JobType), help="Type of job being run.")
-    parser.add_argument("--output", action=JsonAction, required=True,
-                        help="Output file location; e.g., s3a://bucket/path")
-    parser.add_argument("--code", required=True, help="Path to transformation code file.")
-    parser.add_argument("--sources", nargs="*", action=JsonListAction,
-                        help="List of sources in the transformation string.")
-    parser.add_argument("--store_type", choices=FILESTORES)
-    parser.add_argument("--spark_config", "-sc", action="append", default=[], help="Spark config to set by default.")
-    parser.add_argument("--credential", "-c", action="append", default=[], help="Credentials needed for the job.")
-    parser.add_argument("--output_format", default=OutputFormat.PARQUET.value, choices=list(OutputFormat),
-                        help="DEPRECATED Output file format.")
-    parser.add_argument("--headers", default=Headers.INCLUDE.value, choices=list(Headers),
-                        help="DEPRECATED Whether to include/exclude headers in output.")
-    parser.add_argument("--submit_params_uri", help="Path to the submit params file.")
-    parser.add_argument("--is_update", default=False, action=BoolAction,
-                        help="Specifies if this transform has been run successfully before, and that this is an update.")
     # fmt: on
 
 

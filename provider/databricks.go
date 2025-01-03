@@ -23,12 +23,12 @@ import (
 	"github.com/databricks/databricks-sdk-go/service/jobs"
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
+	"github.com/featureform/logging"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 )
 
 type DatabricksResultState string
@@ -40,7 +40,7 @@ const (
 	Cancelled DatabricksResultState = "CANCELLED"
 )
 
-func NewDatabricksExecutor(databricksConfig pc.DatabricksConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+func NewDatabricksExecutor(databricksConfig pc.DatabricksConfig, logger logging.Logger) (SparkExecutor, error) {
 	client := databricks.Must(
 		databricks.NewWorkspaceClient(&databricks.Config{
 			Host:     databricksConfig.Host,
@@ -108,7 +108,7 @@ type DatabricksExecutor struct {
 	cluster            string
 	config             pc.DatabricksConfig
 	errorMessageClient *dbClient.DatabricksClient
-	logger             *zap.SugaredLogger
+	logger             logging.Logger
 	baseExecutor
 }
 
@@ -119,7 +119,7 @@ func (db *DatabricksExecutor) SupportsTransformationOption(opt TransformationOpt
 func (db *DatabricksExecutor) RunSparkJob(cmd *sparkCommand, store SparkFileStoreV2, opts SparkJobOptions, tfopts TransformationOptions) error {
 	args := cmd.Compile()
 	logger := db.logger.With("args", args, "store", store.Type(), "job_name", opts.JobName, "cluster_id", db.cluster)
-	pythonFilepath, err := db.PythonFileURI(store)
+	pythonFilepath, err := sparkPythonFileURI(store, logger)
 	if err != nil {
 		logger.Errorw("could not get python file path", "error", err)
 		return err
@@ -220,23 +220,8 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStoreV2) error {
 	return nil
 }
 
-// Need the bucket from here
-func (db *DatabricksExecutor) PythonFileURI(store SparkFileStoreV2) (filestore.Filepath, error) {
-	relativePath := db.files.RemoteScriptPath
-	filePath, err := store.CreateFilePath(relativePath, false)
-	if err != nil {
-		return nil, fmt.Errorf("could not create file path: %v", err)
-	}
-	if store.FilestoreType() == filestore.S3 {
-		if err := filePath.SetScheme(filestore.S3Prefix); err != nil {
-			return nil, fmt.Errorf("could not set scheme: %v", err)
-		}
-	}
-	return filePath, nil
-}
-
 func (e *DatabricksExecutor) SparkSubmitArgs(deployMode types.SparkDeployMode, tfType TransformationType, outputLocation pl.Location, code string, sourceList []pysparkSourceInfo, jobType JobType, store SparkFileStoreV2, mappings []SourceMapping) (*sparkCommand, error) {
-	return genericSparkSubmitArgs(pc.EMR, deployMode, tfType, outputLocation, code, sourceList, jobType, store, mappings)
+	return genericSparkSubmitArgs(pc.Databricks, deployMode, tfType, outputLocation, code, sourceList, jobType, store, mappings)
 }
 
 func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {

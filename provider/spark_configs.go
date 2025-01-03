@@ -26,8 +26,12 @@ type sparkCommand struct {
 	Configs sparkConfigs
 }
 
+func (cmd *sparkCommand) AddConfigs(cfgs ...sparkConfig) {
+	cmd.Configs = append(cmd.Configs, cfgs...)
+}
+
 func (cmd *sparkCommand) Compile() []string {
-	cmd.Configs.CompileCommand(cmd.Script, cmd.ScriptArgs...)
+	return cmd.Configs.CompileCommand(cmd.Script, cmd.ScriptArgs...)
 }
 
 type sparkConfigs []sparkConfig
@@ -390,7 +394,7 @@ func (flag sparkDataframeQueryFlag) SparkFlags() sparkFlags {
 	return sparkFlags{
 		sparkScriptFlag{
 			"code",
-			flag.CleanQuery,
+			flag.Code,
 		},
 		sparkSourcesFlag{
 			Sources: flag.Sources,
@@ -418,7 +422,7 @@ type sparkSnowflakeFlags struct {
 
 func (args sparkSnowflakeFlags) SparkFlags() sparkFlags {
 	if args.Config == nil {
-		logging.GlobalLoggger.Debug(
+		logging.GlobalLogger.Debug(
 			"Not setting spark snowflake flags, snowflake config not set",
 		)
 		return sparkFlags{}
@@ -465,7 +469,7 @@ func (args sparkAzureFlags) SparkFlags() sparkFlags {
 	return sparkFlags{
 		sparkConfigFlag{
 			Key: fmt.Sprintf("fs.azure.account.key.%s.dfs.core.windows.net", args.AccountName),
-			Value: args.AcocuntKey,
+			Value: args.AccountKey,
 		},
 		sparkCredFlag{
 			Key:   "azure_connection_string",
@@ -485,7 +489,7 @@ func (args sparkAzureFlags) SparkFlags() sparkFlags {
 type sparkGCSFlags struct {
 	ProjectID string
 	Bucket string
-	JSONCreds string
+	JSONCreds []byte
 }
 
 func (args sparkGCSFlags) SparkFlags() sparkFlags {
@@ -794,19 +798,105 @@ type sparkOutputFlag struct {
 }
 
 func (flag sparkOutputFlag) SparkFlags() sparkFlags {
-	outputStr, err := flag.Location.Serialize()
+	if flag.Output == nil {
+		return sparkFlags{
+			// Script expects an output always and needs to be JSON.
+			sparkScriptFlag{
+				Key:   "output",
+				Value: "{}",
+			},
+		}
+	}
+	outputStr, err := flag.Output.Serialize()
 	if err != nil {
-		logger.GlobalLogger.Errorw(
+		logging.GlobalLogger.Errorw(
 			"Failed to serialize output for spark. Skipping flags.",
-			"location", args.Location,
+			"location", flag.Output,
 			"error", err,
 		)
-		return sparkFlags{}
+		return sparkFlags{
+			// Script expects an output always and needs to be JSON.
+			sparkScriptFlag{
+				Key:   "output",
+				Value: "{}",
+			},
+		}
 	}
 	return sparkFlags{
 		sparkScriptFlag{
 			Key:   "output",
-			Value: string(flag.Type),
+			Value: outputStr,
+		},
+	}
+}
+
+// This is a legacy flag to keep the old version of
+// materialization working.
+type sparkLegacyOutputFormatFlag struct {
+	FileType filestore.FileType
+}
+
+func (flag sparkLegacyOutputFormatFlag) SparkFlags() sparkFlags {
+	switch flag.FileType {
+	case filestore.Parquet, filestore.CSV:
+		return sparkFlags {
+			sparkScriptFlag{
+				Key: "output_format",
+				Value: string(flag.FileType),
+			},
+		}
+	case filestore.NilFileType:
+		// Default to Parquet
+		return sparkFlags {
+			sparkScriptFlag{
+				Key: "output_format",
+				Value: string(filestore.Parquet),
+			},
+		}
+	default:
+		// Default to Parquet
+		logging.GlobalLogger.Warnw(
+			"Unsupported file type for output format flag. Default to Parquet.",
+			"filetype", flag.FileType,
+		)
+		return sparkFlags {
+			sparkScriptFlag{
+				Key: "output_format",
+				Value: string(filestore.Parquet),
+			},
+		}
+	}
+}
+
+// This is a legacy flag to keep the old version of
+// materialization working.
+type sparkLegacyIncludeHeadersFlag struct {
+	ShouldInclude bool
+}
+
+func (flag sparkLegacyIncludeHeadersFlag) SparkFlags() sparkFlags {
+	if flag.ShouldInclude {
+		// Script defaults to include
+		return sparkFlags{}
+	} else {
+		return sparkFlags{
+			sparkScriptFlag{
+				Key: "headers",
+				Value: "exclude",
+			},
+		}
+	}
+}
+
+type sparkMasterFlag struct {
+	Master string
+}
+
+func (flag sparkMasterFlag) SparkFlags() sparkFlags {
+	return sparkFlags{
+		sparkSubmitFlag{
+			"master",
+			flag.Master,
 		},
 	}
 }

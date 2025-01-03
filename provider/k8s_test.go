@@ -20,17 +20,17 @@ import (
 	"time"
 
 	"github.com/featureform/config"
-
 	"github.com/featureform/helpers"
 	"github.com/featureform/metadata"
+	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
 	"github.com/featureform/provider/types"
+	filestore "github.com/featureform/filestore"
+	pl "github.com/featureform/provider/location"
+
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/mitchellh/mapstructure"
-
-	filestore "github.com/featureform/filestore"
-	pl "github.com/featureform/provider/location"
 	"github.com/parquet-go/parquet-go"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
@@ -822,7 +822,7 @@ func TestDatabricksInitialization(t *testing.T) {
 		Token:   token,
 		Cluster: cluster,
 	}
-	executor, err := NewDatabricksExecutor(databricksConfig, zaptest.NewLogger(t).Sugar())
+	executor, err := NewDatabricksExecutor(databricksConfig, logging.NewTestLogger(t))
 	if err != nil {
 		t.Fatalf("Could not create new databricks client: %v", err)
 	}

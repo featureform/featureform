@@ -9,10 +9,8 @@ package provider
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/glue/types"
 
@@ -33,11 +31,6 @@ import (
 )
 
 type SparkFileStore interface {
-	// TODO deprecate these three and use SparkConfigs() instead
-	SparkConfig() []string
-	CredentialsConfig() []string
-	Packages() []string
-
 	Type() SparkFileStoreType
 	SparkConfigs() sparkConfigs
 	FileStore
@@ -283,11 +276,13 @@ type SparkAzureFileStore struct {
 }
 
 func (azureStore SparkAzureFileStore) SparkConfigs() sparkConfigs {
-	return sparkAzureFlags{
-		AccountName: azureStore.AccountName,
-		AccountKey: azureStore.AccountKey,
-		ConnectionString: azureStore.connectionString(),
-		ContainerName: azureStore.containerName(),
+	return sparkConfigs{
+		sparkAzureFlags{
+			AccountName: azureStore.AccountName,
+			AccountKey: azureStore.AccountKey,
+			ConnectionString: azureStore.connectionString(),
+			ContainerName: azureStore.containerName(),
+		},
 	}
 }
 
@@ -318,10 +313,12 @@ type SparkGCSFileStore struct {
 }
 
 func (gcs SparkGCSFileStore) SparkConfigs() sparkConfigs {
-	return sparkGCSFlags{
-		ProjectID: gcs.Credentials.ProjectID,
-		Bucket: gcs.Bucket,
-		JSONCreds: gcs.SerializedCredentials,
+	return sparkConfigs{
+		sparkGCSFlags{
+			ProjectID: gcs.Credentials.ProjectId,
+			Bucket: gcs.Bucket,
+			JSONCreds: gcs.SerializedCredentials,
+		},
 	}
 }
 

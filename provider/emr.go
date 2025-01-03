@@ -11,7 +11,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -23,13 +22,12 @@ import (
 	"github.com/featureform/config"
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
-	"github.com/featureform/helpers"
 	"github.com/featureform/helpers/compression"
+	"github.com/featureform/logging"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
-	"go.uber.org/zap"
 )
 
 // StepCompleteWaiter.WaitForOutput returns this formatted error message, which is our only means of determining
@@ -38,7 +36,7 @@ import (
 // of the AWS SDK this message could change, so it's important to keep an eye on this.
 const EMR_MAX_WAIT_DURATION_ERROR = "exceeded max wait time for StepComplete waiter"
 
-func NewEMRExecutor(emrConfig pc.EMRConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+func NewEMRExecutor(emrConfig pc.EMRConfig, logger logging.Logger) (SparkExecutor, error) {
 	var useServiceAccount bool
 	var awsAccessKeyId, awsSecretKey string
 	switch creds := emrConfig.Credentials.(type) {
@@ -97,27 +95,9 @@ func NewEMRExecutor(emrConfig pc.EMRConfig, logger *zap.SugaredLogger) (SparkExe
 type EMRExecutor struct {
 	client       *emr.Client
 	clusterName  string
-	logger       *zap.SugaredLogger
+	logger       logging.Logger
 	logFileStore *FileStore
 	baseExecutor
-}
-
-func (e *EMRExecutor) PythonFileURI(store SparkFileStoreV2) (filestore.Filepath, error) {
-	e.logger.Debug("Getting python file URI")
-	sparkScriptPathEnv := e.files.RemoteScriptPath
-	sparkScriptPath, err := store.CreateFilePath(sparkScriptPathEnv, false)
-	if err != nil {
-		e.logger.Errorw("Failed to parse remote script path", "path", sparkScriptPathEnv)
-		return nil, err
-	}
-	// Need to replace s3a:// with s3:// for the script name to be correctly interpreted by the EMR cluster
-	if sparkScriptPath.Scheme() == "s3a://" {
-		if err := sparkScriptPath.SetScheme("s3://"); err != nil {
-			e.logger.Errorw("Unable to change spark script scheme to s3 from s3a", "error", err)
-			return nil, err
-		}
-	}
-	return sparkScriptPath, nil
 }
 
 func (e EMRExecutor) Files() config.SparkFileConfigs {
@@ -156,7 +136,7 @@ func (e *EMRExecutor) RunSparkJob(cmd *sparkCommand, store SparkFileStoreV2, opt
 	}
 }
 
-func (e *EMRExecutor) getResumeOption(tfOpts TransformationOptions, logger *zap.SugaredLogger) *ResumeOption {
+func (e *EMRExecutor) getResumeOption(tfOpts TransformationOptions, logger logging.Logger) *ResumeOption {
 	tfOpt := tfOpts.GetByType(ResumableTransformation)
 	if tfOpt == nil {
 		logger.Debugw("ResumeOption not found")
@@ -173,7 +153,7 @@ func (e *EMRExecutor) getResumeOption(tfOpts TransformationOptions, logger *zap.
 	return casted
 }
 
-func (e *EMRExecutor) runOrResumeJob(ctx context.Context, args []string, clusterID, jobName string, resumeOpt *ResumeOption, logger *zap.SugaredLogger) (string, error) {
+func (e *EMRExecutor) runOrResumeJob(ctx context.Context, args []string, clusterID, jobName string, resumeOpt *ResumeOption, logger logging.Logger) (string, error) {
 	if resumeOpt != nil && resumeOpt.IsResumeIDSet() {
 		logger.Debugw("ResumeID is set")
 		resumeID := resumeOpt.ResumeID()
@@ -203,7 +183,7 @@ func (e *EMRExecutor) runOrResumeJob(ctx context.Context, args []string, cluster
 	return stepID, nil
 }
 
-func (e *EMRExecutor) handleAsyncResumeOption(resumeOpt *ResumeOption, clusterID, stepID string, maxWait time.Duration, logger *zap.SugaredLogger) error {
+func (e *EMRExecutor) handleAsyncResumeOption(resumeOpt *ResumeOption, clusterID, stepID string, maxWait time.Duration, logger logging.Logger) error {
 	if !resumeOpt.IsResumeIDSet() {
 		// Set the new ResumeID
 		resumeID, err := (&emrResumeID{ClusterID: clusterID, StepID: stepID}).Marshal()
@@ -292,7 +272,7 @@ func (e EMRExecutor) InitializeExecutor(store SparkFileStoreV2) error {
 		e.logger.Errorw("Failed to set local script path", "path", e.files.LocalScriptPath, "err", err)
 		return err
 	}
-	sparkRemoteScriptPath, err := e.PythonFileURI(store)
+	sparkRemoteScriptPath, err := sparkPythonFileURI(store, e.logger)
 	if err != nil {
 		e.logger.Errorw("Failed to get remote script path during init", "err", err)
 		return err
@@ -378,7 +358,7 @@ func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string, maxWa
 	return "", nil
 }
 
-func (e *EMRExecutor) getLogFileMessage(logFile string, logger *zap.SugaredLogger, maxWait time.Duration) (string, error) {
+func (e *EMRExecutor) getLogFileMessage(logFile string, logger logging.Logger, maxWait time.Duration) (string, error) {
 	logger.Debug("Getting log message")
 	outputFilepath := &filestore.S3Filepath{}
 	filePath := fmt.Sprintf("%s/stdout.gz", logFile)
@@ -410,7 +390,7 @@ func (e *EMRExecutor) getLogFileMessage(logFile string, logger *zap.SugaredLogge
 	return errorMessage, nil
 }
 
-func (e *EMRExecutor) waitForLogFile(logFile filestore.Filepath, logger *zap.SugaredLogger, maxWait time.Duration) error {
+func (e *EMRExecutor) waitForLogFile(logFile filestore.Filepath, logger logging.Logger, maxWait time.Duration) error {
 	// wait until log file exists
 	elapsed := time.Duration(0)
 	waitTime := 2 * time.Second

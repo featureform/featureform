@@ -8,17 +8,55 @@
 package provider
 
 import (
-	"github.com/aws/aws-sdk-go-v2/service/glue"
+	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/google/uuid"
+
 	"github.com/featureform/config"
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
-	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
 )
+
+func getSparkDeployModeFromEnv() types.SparkDeployMode{
+	if helpers.GetEnvBool("USE_CLIENT_MODE", false) {
+		return types.SparkClientDeployMode
+	} else {
+		return types.SparkClusterDeployMode
+	}
+}
+
+func sparkPythonFileURI(store SparkFileStoreV2, logger logging.Logger) (filestore.Filepath, error) {
+	logger.Debug("Getting python file URI")
+	config, err := config.CreateSparkScriptConfig()
+	if err != nil {
+		logger.Errorw("Failed to get remote script path", "err", err)
+		return nil, err
+	}
+	rawPath := config.RemoteScriptPath
+	sparkScriptPath, err := store.CreateFilePath(rawPath, false)
+	if err != nil {
+		logger.Errorw("Failed to parse remote script path", "path", rawPath)
+		return nil, err
+	}
+	// Need to replace s3a:// with s3:// for the script name
+	// to be correctly interpreted by Spark
+	if sparkScriptPath.Scheme() == filestore.S3APrefix {
+		if err := sparkScriptPath.SetScheme(filestore.S3Prefix); err != nil {
+			logger.Errorw("Unable to change spark script scheme to s3 from s3a", "error", err)
+			return nil, err
+		}
+	}
+	return sparkScriptPath, nil
+}
 
 func genericSparkSubmitArgs(execType pc.SparkExecutorType, deployMode types.SparkDeployMode, tfType TransformationType, outputLocation pl.Location, code string, sourceList []pysparkSourceInfo, jobType JobType, store SparkFileStoreV2, mappings []SourceMapping) (*sparkCommand, error) {
 	logger := logger.With("deployMode", deployMode, "outputLocation", outputLocation, "outputLocationType", fmt.Sprintf("%T", outputLocation), "code", code, "sourceList", sourceList, "jobType", jobType, "store", store)
@@ -28,23 +66,36 @@ func genericSparkSubmitArgs(execType pc.SparkExecutorType, deployMode types.Spar
 		logger.Errorw("Could not get Snowflake config from source mapping", "error", err)
 		return nil, err
 	}
-	sparkScriptRemotePath, err := e.PythonFileURI(store)
+	sparkScriptRemotePath, err := sparkPythonFileURI(store, logger)
 	if err != nil {
 		logger.Errorw("Failed to get python file URI", "Err", err)
 		return nil, err
 	}
+	var scriptArg string
+	switch tfType {
+	case SQLTransformation:
+		scriptArg = "sql"
+	case DFTransformation:
+		scriptArg = "df"
+	default:
+		errMsg := fmt.Sprintf("Unknown transformation type: %s", tfType)
+		logger.Error(errMsg)
+		return nil, fferr.NewInternalErrorf(errMsg)
+	}
 	cmd := &sparkCommand{
 		Script: sparkScriptRemotePath,
-		ScriptArgs: []string{"sql"},
+		ScriptArgs: []string{scriptArg},
+		Configs: sparkCoreConfigs(
+			sparkCoreConfigsArgs{
+				JobType: jobType,
+				ExecType: pc.EMR,
+				Output: outputLocation,
+				DeployMode: deployMode,
+				SnowflakeConfig: snowflakeConfig,
+				Store: store,
+			},
+		),
 	}
-	configs := sparkCoreConfigs(sparkCoreConfigsArgs {
-		JobType: jobType,
-		ExecType: pc.EMR,
-		Output: outputLocation,
-		DeployMode: deployMode,
-		SnowflakeConfig: snowflakeConfig,
-		Store: store,
-	})
 	// In S3, we write the sql and sources to an extenral file to try to avoid going over the
 	// maximum character limit
 	if store.FilestoreType() == filestore.S3 && tfType == SQLTransformation {
@@ -55,16 +106,16 @@ func genericSparkSubmitArgs(execType pc.SparkExecutorType, deployMode types.Spar
 			return nil, err
 		}
 		logger.Debugw("submit params to file")
-		cmd.Configs = append(configs, sparkSqlSubmitParamsURIFlag{
+		cmd.AddConfigs(sparkSqlSubmitParamsURIFlag{
 			URI: paramsPath,
 		})
 	} else if tfType == SQLTransformation {
-		cmd.Configs = append(configs, sparkSqlQueryFlag{
+		cmd.AddConfigs(sparkSqlQueryFlag{
 			CleanQuery: code,
 			Sources: sourceList,
 		})
 	} else if tfType == DFTransformation {
-		cmd.Configs = append(configs, sparkDataframeQueryFlag{
+		cmd.AddConfigs(sparkDataframeQueryFlag{
 			Code: code,
 			Sources: sourceList,
 		})
@@ -117,7 +168,7 @@ func sparkCoreConfigs(args sparkCoreConfigsArgs) sparkConfigs{
 }
 
 func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath, store SparkFileStoreV2) error {
-	logger := logger.GlobalLogger.With(
+	logger := logging.GlobalLogger.With(
 		"fromPath", filePath.ToURI(),
 		"toPath", filePath.ToURI(),
 		"store", store.Type(),
@@ -167,7 +218,7 @@ func removeEscapeCharacters(values []string) []string {
 	return values
 }
 
-func exceedsSubmitParamsTotalByteLimit(cmd sparkCommand) bool {
+func exceedsSubmitParamsTotalByteLimit(cmd *sparkCommand) bool {
 	args := cmd.Compile()
 	totalBytes := 0
 	for _, str := range args {
@@ -178,7 +229,7 @@ func exceedsSubmitParamsTotalByteLimit(cmd sparkCommand) bool {
 	return totalBytes >= SPARK_SUBMIT_PARAMS_BYTE_LIMIT
 }
 
-func writeSubmitParamsToFileStore(query string, sources []string, store SparkFileStoreV2, logger logging.Logger) (filestore.Filepath, error) {
+func writeSubmitParamsToFileStore(query string, sources []pysparkSourceInfo, store SparkFileStoreV2, logger logging.Logger) (filestore.Filepath, error) {
 	paramsFileId := uuid.New()
 	paramsPath, err := store.CreateFilePath(
 		fmt.Sprintf(
@@ -189,9 +240,18 @@ func writeSubmitParamsToFileStore(query string, sources []string, store SparkFil
 	if err != nil {
 		return nil, err
 	}
+	serializedSources := make([]string, len(sources))
+	for i, source := range sources {
+		serialized, err := source.Serialize()
+		if err != nil {
+			logger.Errorw("Failed to serialize source", "source", source, "err", err)
+			return nil, err
+		}
+		serializedSources[i] = serialized
+	}
 	paramsMap := map[string]interface{}{}
 	paramsMap["sql_query"] = query
-	paramsMap["sources"] = sources
+	paramsMap["sources"] = serializedSources
 
 	data, err := json.Marshal(paramsMap)
 	if err != nil {

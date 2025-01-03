@@ -15,11 +15,10 @@ import (
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pt "github.com/featureform/provider/provider_type"
-	"go.uber.org/zap/zaptest"
 )
 
 func TestSourceTaskRun(t *testing.T) {
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+	logger := logging.NewTestLogger(t)
 
 	serv, addr := startServ(t)
 	defer serv.Stop()
@@ -59,7 +58,7 @@ func TestSourceTaskRun(t *testing.T) {
 			metadata: client,
 			taskDef:  runs[0],
 			spawner:  &spawner.MemoryJobSpawner{},
-			logger:   zaptest.NewLogger(t).Sugar(),
+			logger:   logging.NewTestLogger(t),
 		},
 	}
 	err = task.Run()

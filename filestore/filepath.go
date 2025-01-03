@@ -34,10 +34,11 @@ const (
 )
 
 const (
-	Parquet FileType = "parquet"
-	CSV     FileType = "csv"
-	JSON    FileType = "json"
-	DB      FileType = "db"
+	NilFileType FileType = ""
+	Parquet     FileType = "parquet"
+	CSV         FileType = "csv"
+	JSON        FileType = "json"
+	DB          FileType = "db"
 )
 
 const (
@@ -321,7 +322,7 @@ type S3Filepath struct {
 }
 
 func (s3 *S3Filepath) Validate() error {
-	if s3.scheme != "s3://" && s3.scheme != "s3a://" && s3.scheme != "s3n://" {
+	if s3.scheme != S3Prefix && s3.scheme != S3APrefix && s3.scheme != S3NPrefix {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("invalid scheme '%s', must be 's3:// or 's3a://' or 's3n://'", s3.scheme))
 	}
 	if s3.bucket == "" {

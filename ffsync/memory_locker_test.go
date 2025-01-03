@@ -13,7 +13,7 @@ import (
 	"github.com/jonboulle/clockwork"
 	"testing"
 )
- 
+
 func TestMemoryLocker(t *testing.T) {
 	clock := clockwork.NewFakeClock()
 

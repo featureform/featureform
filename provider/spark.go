@@ -21,7 +21,6 @@ import (
 	"github.com/featureform/config"
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
-	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
@@ -67,9 +66,31 @@ type pysparkSourceInfo struct {
 	// require a specific role to access
 	AwsAssumeRoleArn    string `json:"awsAssumeRoleArn"`
 	TimestampColumnName string `json:"timestampColumnName"`
+
+	// Deprecated
+	// TODO remove
+	// Old version of our pyspark job actually passed in strings
+	// as opposed to JSON for source infos. If legacy string is
+	// set than serialization will just return this string.
+	LegacyString string `json:"-"`
+}
+
+// Legacy parts of our script, specifically materialization, don't use the
+// JSON version of pyspark source info.
+func wrapLegacyPysparkSourceInfos(paths []string) []pysparkSourceInfo {
+	sources := make([]pysparkSourceInfo, len(paths))
+	for i, path := range paths {
+		sources[i] = pysparkSourceInfo{
+			LegacyString: path,
+		}
+	}
+	return sources
 }
 
 func (p *pysparkSourceInfo) Serialize() (string, error) {
+	if p.LegacyString != "" {
+		return p.LegacyString, nil
+	}
 	jsonBytes, err := json.Marshal(p)
 	if err != nil {
 		return "", fferr.NewInternalError(err)
@@ -316,6 +337,8 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 		return nil, err
 	}
 
+	sources := wrapLegacyPysparkSourceInfos(materializationPaths)
+
 	// Create a query that selects all features from the table
 	query := createJoinQuery(len(ids))
 
@@ -328,9 +351,11 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 
 	// Submit arguments for a spark job
 	sparkArgs, err := store.Executor.SparkSubmitArgs(
+		getSparkDeployModeFromEnv(),
+		SQLTransformation,
 		pl.NewFileLocation(outputPath),
 		query,
-		materializationPaths,
+		sources,
 		BatchFeatures,
 		store.Store,
 		make([]SourceMapping, 0),
@@ -477,15 +502,14 @@ func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 		LocationType: string(pl.FileStoreLocationType),
 		Provider:     store.Type(),
 	}
-	jsonSource, err := source.Serialize()
-	if err != nil {
-		return false, err
-	}
 
 	args, err := store.Executor.SparkSubmitArgs(
+		// We hardcode client to get the best error message from health check.
+		types.SparkClientDeployMode,
+		SQLTransformation,
 		pl.NewFileLocation(healthCheckOutPath),
 		"SELECT * FROM source_0",
-		[]string{jsonSource},
+		[]pysparkSourceInfo{source},
 		Transform,
 		store.Store,
 		make([]SourceMapping, 0),
@@ -547,7 +571,7 @@ func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		return nil, err
 	}
 	logger.Infow("Creating Spark executor:", "type", sc.ExecutorType)
-	exec, err := NewSparkExecutor(sc.ExecutorType, sc.ExecutorConfig, logger.SugaredLogger)
+	exec, err := NewSparkExecutor(sc.ExecutorType, sc.ExecutorConfig, logger)
 	if err != nil {
 		logger.Errorw("Failure initializing Spark executor", "type", sc.ExecutorType, "error", err)
 		return nil, err
@@ -620,19 +644,15 @@ type baseExecutor struct {
 
 type SparkExecutor interface {
 	SupportsTransformationOption(opt TransformationOptionType) (bool, error)
-	RunSparkJob(args []string, store SparkFileStore, opts SparkJobOptions, tfOpts TransformationOptions) error
-
-	InitializeExecutor(store SparkFileStore) error
-
-	PythonFileURI(store SparkFileStore) (filestore.Filepath, error)
-	SparkSubmitArgs(outputLocation pl.Location, cleanQuery string, sources []string, jobType JobType, store SparkFileStore, mappings []SourceMapping) ([]string, error)
-	GetDFArgs(outputLocation pl.Location, code string, sources []string, store SparkFileStore, mappings []SourceMapping) ([]string, error)
+	RunSparkJob(cmd *sparkCommand, store SparkFileStoreV2, opts SparkJobOptions, tfOpts TransformationOptions) error
+	InitializeExecutor(store SparkFileStoreV2) error
+	SparkSubmitArgs(deployMode types.SparkDeployMode, tfType TransformationType, outputLocation pl.Location, code string, sources []pysparkSourceInfo, jobType JobType, store SparkFileStoreV2, mappings []SourceMapping) (*sparkCommand, error)
 }
 
 func NewSparkExecutor(
 	execType pc.SparkExecutorType,
 	config pc.SparkExecutorConfig,
-	logger *zap.SugaredLogger,
+	logger logging.Logger,
 ) (SparkExecutor, error) {
 	switch execType {
 	case pc.EMR:
@@ -656,121 +676,6 @@ func NewSparkExecutor(
 	default:
 		return nil, fferr.NewInvalidArgumentErrorf("the executor type ('%s') is not supported", execType)
 	}
-}
-
-func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath, store SparkFileStore) error {
-	fileExists, _ := store.Exists(pl.NewFileLocation(storePath))
-	if fileExists {
-		return nil
-	}
-
-	f, err := os.Open(filePath.Key())
-	if err != nil {
-		return fferr.NewInternalError(err)
-	}
-
-	fileStats, err := f.Stat()
-	if err != nil {
-		return fferr.NewInternalError(err)
-	}
-
-	pythonScriptBytes := make([]byte, fileStats.Size())
-	_, err = f.Read(pythonScriptBytes)
-	if err != nil {
-		return fferr.NewInternalError(err)
-	}
-	if err := store.Write(storePath, pythonScriptBytes); err != nil {
-		return err
-	}
-	// TODO(simba) use filepath String method once implemented
-	fmt.Printf("Uploaded %v to %v\n", filePath, storePath)
-	return nil
-}
-
-func removeEscapeCharacters(values []string) []string {
-	for i, v := range values {
-		v = strings.Replace(v, "\\", "", -1)
-		v = strings.Replace(v, "\"", "", -1)
-		values[i] = v
-	}
-	return values
-}
-
-func exceedsSubmitParamsTotalByteLimit(argsList []string, query string, sources []string) bool {
-	totalBytes := 0
-	for _, str := range argsList {
-		totalBytes += len(str)
-	}
-
-	totalBytes += len(query)
-
-	for _, source := range sources {
-		totalBytes += len(source)
-	}
-
-	return totalBytes >= SPARK_SUBMIT_PARAMS_BYTE_LIMIT
-}
-
-func writeSubmitParamsToFileStore(query string, sources []string, store SparkFileStore, logger *zap.SugaredLogger) (filestore.Filepath, error) {
-	paramsFileId := uuid.New()
-	paramsPath, err := store.CreateFilePath(
-		fmt.Sprintf(
-			"featureform/spark-submit-params/%s.json",
-			paramsFileId.String(),
-		), false,
-	)
-	if err != nil {
-		return nil, err
-	}
-	paramsMap := map[string]interface{}{}
-	paramsMap["sql_query"] = query
-	paramsMap["sources"] = sources
-
-	data, err := json.Marshal(paramsMap)
-	if err != nil {
-		return nil, fferr.NewInternalError(err)
-	}
-
-	logger.Debugw("Writing spark submit params to filestore", "path", paramsPath, "data", string(data))
-	if err := store.Write(paramsPath, data); err != nil {
-		return nil, err
-	}
-
-	return paramsPath, nil
-}
-
-func snowflakeConnectorCredentials(config *pc.SnowflakeConfig) []string {
-	snowflakeBaseURL := "snowflakecomputing.com"
-	var sfURL string
-	if config.HasLegacyCredentials() {
-		sfURL = fmt.Sprintf("%s.%s", config.AccountLocator, snowflakeBaseURL)
-	} else {
-		sfURL = fmt.Sprintf("%s-%s.%s", config.Organization, config.Account, snowflakeBaseURL)
-	}
-	return []string{
-		"--credential",
-		fmt.Sprintf("sfURL=%s", sfURL),
-		"--credential",
-		fmt.Sprintf("sfUser=%s", config.Username),
-		"--credential",
-		fmt.Sprintf("sfPassword=%s", config.Password),
-		"--credential",
-		fmt.Sprintf("sfWarehouse=%s", config.Warehouse),
-	}
-}
-
-func getSnowflakeConfigFromSourceMapping(mappings []SourceMapping) (*pc.SnowflakeConfig, error) {
-	var snowflakeConfig *pc.SnowflakeConfig
-	for _, mapping := range mappings {
-		if mapping.ProviderType == pt.SnowflakeOffline {
-			snowflakeConfig = &pc.SnowflakeConfig{}
-			if err := snowflakeConfig.Deserialize(mapping.ProviderConfig); err != nil {
-				return nil, err
-			}
-			break
-		}
-	}
-	return snowflakeConfig, nil
 }
 
 func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
@@ -842,7 +747,7 @@ type pysparkCatalogTable struct {
 }
 
 func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, isUpdate bool, tfOpts TransformationOptions) error {
-	updatedQuery, sources, err := spark.updateQuery(config.Query, config.SourceMapping)
+	updatedQuery, sources, err := spark.prepareQueryForSpark(config.Query, config.SourceMapping)
 	if err != nil {
 		spark.Logger.Errorw("Could not generate updated query for spark transformation", "error", err)
 		return err
@@ -870,7 +775,16 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 	}
 
 	spark.Logger.Debugw("Running SQL transformation")
-	sparkArgs, err := spark.Executor.SparkSubmitArgs(outputLocation, updatedQuery, sources, JobType(Transform), spark.Store, config.SourceMapping)
+	sparkArgs, err := spark.Executor.SparkSubmitArgs(
+		getSparkDeployModeFromEnv(),
+		SQLTransformation,
+		outputLocation,
+		updatedQuery,
+		sources,
+		Transform,
+		spark.Store,
+		config.SourceMapping,
+	)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
 		return err
@@ -957,17 +871,6 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 
 	logger.Debugw("Successfully wrote transformation pickle file", "path", pickledTransformationPath.ToURI())
 	pysparkSourceInfos, err := createSourceInfo(config.SourceMapping, logger)
-
-	var sourceInfo []string
-	for _, pysparkSourceInfo := range pysparkSourceInfos {
-		jsonStr, err := pysparkSourceInfo.Serialize()
-		if err != nil {
-			logger.Errorw("Error serializing sourceInfo", "sourceInfo", sourceInfo, "error", err)
-			return err
-		}
-		sourceInfo = append(sourceInfo, jsonStr)
-	}
-
 	if err != nil {
 		return err
 	}
@@ -989,10 +892,13 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		return err
 	}
 
-	sparkArgs, err := spark.Executor.GetDFArgs(
+	sparkArgs, err := spark.Executor.SparkSubmitArgs(
+		getSparkDeployModeFromEnv(),
+		DFTransformation,
 		outputLocation,
 		pickledTransformationPath.Key(),
-		sourceInfo,
+		pysparkSourceInfos,
+		Transform,
 		spark.Store,
 		config.SourceMapping,
 	)
@@ -1114,9 +1020,9 @@ func createSourceInfo(mapping []SourceMapping, logger *zap.SugaredLogger) ([]pys
 	return sources, nil
 }
 
-func (spark *SparkOfflineStore) updateQuery(query string, mapping []SourceMapping) (string, []string, error) {
+func (spark *SparkOfflineStore) prepareQueryForSpark(query string, mapping []SourceMapping) (string, []pysparkSourceInfo, error) {
 	spark.Logger.Debugw("Updating query", "query", query, "mapping", mapping)
-	sources := make([]string, len(mapping))
+	sources := make([]pysparkSourceInfo, len(mapping))
 	replacements := make(
 		[]string,
 		len(mapping)*2,
@@ -1124,13 +1030,13 @@ func (spark *SparkOfflineStore) updateQuery(query string, mapping []SourceMappin
 
 	for i, m := range mapping {
 		replacements = append(replacements, m.Template)
-		spark.Logger.Debugw("Source mapping in updateQuery", "template", m.Template, "index", i)
+		spark.Logger.Debugw("Source mapping in prepareQueryForSpark", "template", m.Template, "index", i)
 		replacements = append(replacements, fmt.Sprintf("source_%v", i))
 		var source pysparkSourceInfo
 
 		switch m.ProviderType {
 		case pt.SparkOffline:
-			spark.Logger.Debugw("Source mapping in updateQuery", "source_location", m.Location.Location(), "location_type", fmt.Sprintf("%T", m.Location))
+			spark.Logger.Debugw("Source mapping in prepareQueryForSpark", "source_location", m.Location.Location(), "location_type", fmt.Sprintf("%T", m.Location))
 
 			sparkConfig := pc.SparkConfig{}
 			if err := sparkConfig.Deserialize(m.ProviderConfig); err != nil {
@@ -1184,25 +1090,20 @@ func (spark *SparkOfflineStore) updateQuery(query string, mapping []SourceMappin
 				Schema:              schema,
 				TimestampColumnName: m.TimestampColumnName,
 			}
-			spark.Logger.Debugw("Source mapping in updateQuery", "source", source)
+			spark.Logger.Debugw("Source mapping in prepareQueryForSpark", "source", source)
 		default:
 			spark.Logger.Errorw("Unsupported source type", "source_type", m.ProviderType)
 			return "", nil, fferr.NewInternalErrorf("unsupported source type: %s", m.ProviderType.String())
 		}
-		jsonStr, err := source.Serialize()
-		if err != nil {
-			spark.Logger.Errorw("Error serializing source", "source", source, "error", err)
-			return "", nil, err
-		}
-		sources[i] = jsonStr
+		sources[i] = source
 	}
 
 	replacer := strings.NewReplacer(replacements...)
 	updatedQuery := replacer.Replace(query)
 
 	if strings.Contains(updatedQuery, "{{") {
-		spark.Logger.Errorw("Template replace failed", updatedQuery)
-		err := fferr.NewInternalError(fmt.Errorf("template replacement error"))
+		spark.Logger.Errorw("Template replace failed", "query", updatedQuery, "mapping", mapping)
+		err := fferr.NewInternalErrorf("template replacement error")
 		err.AddDetail("Query", updatedQuery)
 		return "", nil, err
 	}
@@ -1478,39 +1379,34 @@ func blobSparkMaterialization(
 	if err != nil {
 		return nil, err
 	}
-	// TODO: Handle directories from the source path
 	sourcePySpark := pysparkSourceInfo{
 		Location:     sparkResourceTable.schema.SourceTable.Location(),
 		LocationType: string(sparkResourceTable.schema.SourceTable.Type()),
 		TableFormat:  tableFormat,
 		Provider:     spark.Type(),
 	}
-	jsonSource, err := sourcePySpark.Serialize()
-	if err != nil {
-		return nil, err
-	}
-	sources := []string{jsonSource}
-
-	spark.Logger.Debugw("Fetched source files of type", "latestSourcePath", sparkResourceTable.schema.SourceTable.Location(), "fileFound", len(sources), "fileType", filestore.Parquet)
-	sparkArgs, err := spark.Executor.SparkSubmitArgs(pl.NewFileLocation(destinationPath), materializationQuery, sources, Materialize, spark.Store, make([]SourceMapping, 0))
+	sparkArgs, err := spark.Executor.SparkSubmitArgs(
+		getSparkDeployModeFromEnv(),
+		SQLTransformation,
+		pl.NewFileLocation(destinationPath),
+		materializationQuery,
+		[]pysparkSourceInfo{sourcePySpark},
+		Materialize,
+		spark.Store,
+		make([]SourceMapping, 0),
+	)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
 		return nil, err
 	}
-	// The default value for output_format in offline_store_spark_runner.py is parquet,
-	// so it's only necessary to append CSV in this case; if we support more output formats
-	// (e.g. JSON), then we should refactor this to a method and append in all cases.
-
-	if opts.Output == filestore.CSV {
-		sparkArgs = append(sparkArgs, "--output_format", string(opts.Output))
-	} else {
-		sparkArgs = append(sparkArgs, "--output_format", string(filestore.Parquet))
-	}
-
-	// The default value for headers in offline_store_spark_runner.py is "include"
-	if !opts.ShouldIncludeHeaders {
-		sparkArgs = append(sparkArgs, "--headers", "exclude")
-	}
+	sparkArgs.AddConfigs(
+		sparkLegacyOutputFormatFlag{
+			FileType: opts.Output,
+		},
+		sparkLegacyIncludeHeadersFlag{
+			ShouldInclude: opts.ShouldIncludeHeaders,
+		},
+	)
 	if isUpdate {
 		spark.Logger.Debugw("Updating materialization", "id", id)
 	} else {
@@ -1554,8 +1450,6 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID, opts Materi
 }
 
 func (spark *SparkOfflineStore) directCopyMaterialize(id ResourceID, opts MaterializationOptions) error {
-	// TODO handle materialize from Snowflake and other inputs.
-	// TODO handle writing flags to file
 	online := opts.DirectCopyTo
 	logger := spark.Logger.With("resource_id", id, "online_store_type", fmt.Sprintf("%T", online))
 	logger.Debugf("Running direct copy materialization")
@@ -1580,23 +1474,26 @@ func (spark *SparkOfflineStore) directCopyMaterialize(id ResourceID, opts Materi
 	if sourceTable.Type() == pl.CatalogLocationType {
 		tableFormat = string(sourceTable.(*pl.CatalogLocation).TableFormat())
 	}
-	sourceInfo := pysparkSourceInfo{
-		Location:     sourceTable.Location(),
-		LocationType: string(sourceTable.Type()),
-		TableFormat:  tableFormat,
-		Provider:     spark.Type(),
+	sparkArgs, err := spark.Executor.SparkSubmitArgs(
+		getSparkDeployModeFromEnv(),
+		SQLTransformation,
+		pl.NilLocation{},
+		"",
+		[]pysparkSourceInfo{pysparkSourceInfo{
+			Location:     sourceTable.Location(),
+			LocationType: string(sourceTable.Type()),
+			TableFormat:  tableFormat,
+			Provider:     spark.Type(),
+		}},
+		Materialize,
+		spark.Store,
+		make([]SourceMapping, 0),
+	)
+	if err != nil {
+		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
+		return err
 	}
-	logger.Debug("Source Info created", "source_info", sourceInfo)
-	var deployMode types.SparkDeployMode
-	// TODO, the false here should be implied
-	if helpers.GetEnvBool("USE_CLIENT_MODE", false) {
-		logger.Debug("Using client deploy mode")
-		deployMode = types.SparkClientDeployMode
-	} else {
-		logger.Debug("Using cluster deploy mode")
-		deployMode = types.SparkClusterDeployMode
-	}
-	configs := sparkConfigs{
+	sparkArgs.AddConfigs(
 		sparkDirectCopyFlags{
 			Creds: sparkDynamoFlags{
 				Region:    dynamo.region,
@@ -1611,25 +1508,7 @@ func (spark *SparkOfflineStore) directCopyMaterialize(id ResourceID, opts Materi
 			ValueColumn:     schema.Value,
 			TimestampColumn: schema.TS,
 		},
-		sparkJobTypeFlag{
-			Type: Materialize,
-		},
-		sparkSourcesFlag{
-			Sources: []pysparkSourceInfo{sourceInfo},
-		},
-		sparkDeployFlag{
-			Mode: deployMode,
-		},
-	}
-	configs = append(configs, spark.Store.SparkConfigs()...)
-	path, err := spark.Executor.PythonFileURI(spark.Store)
-	if err != nil {
-		logger.Errorw("Failed to get Python file URI", "error", err)
-		return err
-	}
-	// The sql and output part is due to how this worked in legacy. It's just to keep things
-	// parsing correctly but its not functionally doing anything.
-	sparkArgs := configs.CompileCommand(path, "sql", "--output", "{}")
+	)
 	sparkOpts := SparkJobOptions{
 		MaxJobDuration: opts.MaxJobDuration,
 		JobName:        opts.JobName,
@@ -1697,7 +1576,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Training set definition not valid", "definition", def, "error", err)
 		return err
 	}
-	sourcePaths := make([]string, 0)
+	sourcePaths := make([]pysparkSourceInfo, 0)
 	featureSchemas := make([]ResourceSchema, 0)
 	destinationPath, err := spark.Store.CreateFilePath(def.ID.ToFilestorePath(), true)
 	if err != nil {
@@ -1756,13 +1635,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Unsupported label provider", "provider", def.LabelSourceMapping.ProviderType)
 		return fferr.NewInternalErrorf("unsupported label provider: %s", def.LabelSourceMapping.ProviderType.String())
 	}
-	jsonLabel, err := labelPySparkSource.Serialize()
-	if err != nil {
-		spark.Logger.Errorw("Could not serialize label source", "label", labelPySparkSource, "error", err)
-		return err
-	}
-	spark.Logger.Debugw("Label source JSON", "source_json", jsonLabel)
-	sourcePaths = append(sourcePaths, jsonLabel)
+	sourcePaths = append(sourcePaths, labelPySparkSource)
 	for idx, feature := range def.Features {
 		var featureSchema ResourceSchema
 		var featureSourceLocation pl.Location
@@ -1799,17 +1672,21 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 			Provider:     spark.Type(),
 			TableFormat:  tableFormat,
 		}
-		jsonFeature, err := featurePySparkSource.Serialize()
-		if err != nil {
-			spark.Logger.Errorw("Could not serialize feature source", "feature", featurePySparkSource, "error", err)
-			return err
-		}
-		sourcePaths = append(sourcePaths, jsonFeature)
+		sourcePaths = append(sourcePaths, featurePySparkSource)
 		featureSchemas = append(featureSchemas, featureSchema)
 	}
 	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
 	sourceMappings := append(def.FeatureSourceMappings, def.LabelSourceMapping)
-	sparkArgs, err := spark.Executor.SparkSubmitArgs(pl.NewFileLocation(destinationPath), trainingSetQuery, sourcePaths, CreateTrainingSet, spark.Store, sourceMappings)
+	sparkArgs, err := spark.Executor.SparkSubmitArgs(
+		getSparkDeployModeFromEnv(),
+		SQLTransformation,
+		pl.NewFileLocation(destinationPath),
+		trainingSetQuery,
+		sourcePaths,
+		CreateTrainingSet,
+		spark.Store,
+		sourceMappings,
+	)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
 		return err

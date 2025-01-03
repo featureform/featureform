@@ -14,11 +14,13 @@ import (
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
+	"github.com/featureform/logging"
 )
 
 type LocationType string
 
 const (
+	NilLocationType       LocationType = "nil_location_type"
 	SQLLocationType       LocationType = "sql"
 	FileStoreLocationType LocationType = "filestore"
 	CatalogLocationType   LocationType = "catalog"
@@ -29,6 +31,31 @@ type Location interface {
 	Type() LocationType
 	Serialize() (string, error)
 	Deserialize(config []byte) error
+}
+
+type NilLocation struct{}
+
+func (loc NilLocation) Location() string {
+	return "<nil location>"
+}
+
+func (loc NilLocation) Type() LocationType {
+	return NilLocationType
+}
+
+func (loc NilLocation) Serialize() (string, error) {
+	// Serializes into valid JSON
+	return "{}", nil
+}
+
+func (loc NilLocation) Deserialize(config []byte) error {
+	confStr := string(config)
+	if confStr == "{}" {
+		return nil
+	}
+	errMsg := fmt.Sprintf("Cannot deserialize into nil location\n%s\n", confStr)
+	logging.GlobalLogger.Error(errMsg)
+	return fferr.NewInternalErrorf(errMsg)
 }
 
 type JSONLocation struct {

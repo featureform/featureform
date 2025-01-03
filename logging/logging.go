@@ -81,13 +81,36 @@ func (logger Logger) withRequestID(id RequestID) Logger {
 		return logger
 	}
 	if logger.id != "" {
-		logger.Warnw("Request ID already set in logger. Using existing Request ID", "current request-id", logger.id, "new request-id", id)
+		logger.Infow("Request ID already set in logger. Using existing Request ID", "current request-id", logger.id, "new request-id", id)
 		return logger
 	}
 	valuesWithRequestID := logger.appendValueMap(map[string]interface{}{"request-id": id})
-	return Logger{SugaredLogger: logger.With("request-id", id),
+	return Logger{
+		SugaredLogger: logger.SugaredLogger.With("request-id", id),
 		id:     id,
-		values: valuesWithRequestID}
+		values: valuesWithRequestID,
+	}
+}
+
+func (logger Logger) With(args ...interface{}) Logger {
+	valueMap := make(map[string]interface{})
+	for i := 0; i < len(args); i += 2 {
+		str, ok := args[i].(string)
+		if !ok {
+			// If the arg can't be a string, just ignore it.
+			GlobalLogger.Debugw(
+				"Unable to add args in logger with",
+				"args", args, "not string", args[i],
+			)
+			continue
+		}
+		valueMap[str] = args[i + 1]
+	}
+	return Logger{
+		SugaredLogger: logger.SugaredLogger.With(args...),
+		id:     logger.id,
+		values: logger.appendValueMap(valueMap),
+	}
 }
 
 func (logger Logger) WithResource(resourceType ResourceType, name, variant string) Logger {
@@ -160,7 +183,7 @@ func (logger Logger) WithValues(values map[string]interface{}) Logger {
 func (logger Logger) GetValue(key string) interface{} {
 	value, ok := logger.values.Load(key)
 	if !ok {
-		logger.Warnw("Value not found", "key", key)
+		logger.Infow("Value not found", "key", key)
 	}
 	return value
 }
@@ -224,7 +247,7 @@ func AttachRequestID(id string, ctx context.Context, logger Logger) context.Cont
 	}
 	contextID := ctx.Value(RequestIDKey)
 	if contextID != nil {
-		logger.Warnw("Request ID already set in context. Overwriting request ID", "old request-id", contextID, "new request-id", id)
+		logger.Infow("Request ID already set in context. Overwriting request ID", "old request-id", contextID, "new request-id", id)
 	}
 	ctx = context.WithValue(ctx, RequestIDKey, RequestID(id))
 	logger = logger.withRequestID(RequestID(id))

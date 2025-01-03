@@ -21,7 +21,6 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/scheduling"
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 )
 
 type ExecutorConfig struct {
@@ -202,7 +201,7 @@ func (e *Executor) Run(task tasks.Task) chan error {
 	return errChan
 }
 
-func (e *Executor) getTaskRunner(runMetadata scheduling.TaskRunMetadata, lastSuccessfulRun scheduling.TaskRunMetadata, isUpdate bool, logger *zap.SugaredLogger) (tasks.Task, error) {
+func (e *Executor) getTaskRunner(runMetadata scheduling.TaskRunMetadata, lastSuccessfulRun scheduling.TaskRunMetadata, isUpdate bool, logger logging.Logger) (tasks.Task, error) {
 	e.logger.Infow("getTaskRunner", "last task", lastSuccessfulRun)
 	taskConfig := tasks.TaskConfig{
 		DependencyPollInterval: e.config.DependencyPollInterval,
@@ -212,7 +211,7 @@ func (e *Executor) getTaskRunner(runMetadata scheduling.TaskRunMetadata, lastSuc
 	return tasks.Get(runMetadata.TargetType, baseTask)
 }
 
-func (e *Executor) waitForPendingDependencies(run scheduling.TaskRunMetadata, logger *zap.SugaredLogger) error {
+func (e *Executor) waitForPendingDependencies(run scheduling.TaskRunMetadata, logger logging.Logger) error {
 	allRuns, allTasks, err := e.collectAllRuns(run)
 	if err != nil {
 		return err
@@ -225,7 +224,7 @@ func (e *Executor) waitForPendingDependencies(run scheduling.TaskRunMetadata, lo
 	return e.checkAllRuns(allRuns, allTasks, logger)
 }
 
-func (e *Executor) checkAllRuns(allRuns []scheduling.TaskRunID, allTasks []scheduling.TaskID, logger *zap.SugaredLogger) error {
+func (e *Executor) checkAllRuns(allRuns []scheduling.TaskRunID, allTasks []scheduling.TaskID, logger logging.Logger) error {
 	errCh := make(chan error, len(allRuns))
 	defer close(errCh) // Close the channel when all operations are done.
 
@@ -264,7 +263,7 @@ func (e *Executor) collectAllRuns(run scheduling.TaskRunMetadata) ([]scheduling.
 	return allRuns, allTasks, nil
 }
 
-func (e *Executor) waitForRunCompletion(tid scheduling.TaskID, rid scheduling.TaskRunID, logger *zap.SugaredLogger) error {
+func (e *Executor) waitForRunCompletion(tid scheduling.TaskID, rid scheduling.TaskRunID, logger logging.Logger) error {
 	for {
 		logger.Infow("Checking dependency status", "task_id", tid, "run_id", rid)
 		run, err := e.metadata.Tasks.GetRun(tid, rid)

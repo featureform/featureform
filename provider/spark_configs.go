@@ -8,14 +8,31 @@
 package provider
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 
 	"github.com/featureform/filestore"
 	"github.com/featureform/helpers/stringset"
 	"github.com/featureform/logging"
+	pl "github.com/featureform/provider/location"
+	pc "github.com/featureform/provider/provider_config"
 	"github.com/featureform/provider/types"
 )
+
+type sparkCommand struct {
+	Script     filestore.Filepath
+	ScriptArgs []string
+	Configs    sparkConfigs
+}
+
+func (cmd *sparkCommand) AddConfigs(cfgs ...sparkConfig) {
+	cmd.Configs = append(cmd.Configs, cfgs...)
+}
+
+func (cmd *sparkCommand) Compile() []string {
+	return cmd.Configs.CompileCommand(cmd.Script, cmd.ScriptArgs...)
+}
 
 type sparkConfigs []sparkConfig
 
@@ -147,6 +164,9 @@ func (flag sparkSubmitFlag) IsSparkSubmitNative() bool {
 
 func (flag sparkSubmitFlag) TryCombine(other sparkFlagStringer) sparkFlagStringer {
 	return nil
+}
+
+type sparkScriptArg struct {
 }
 
 // These are flags that are NOT native to spark-submit and are parsed
@@ -320,9 +340,6 @@ func (flag sparkSourcesFlag) SparkFlags() sparkFlags {
 	}
 }
 
-// TODO snowflake stuff
-// TODO spark submit params
-
 type sparkIncludePyScript struct {
 	Path filestore.Filepath
 }
@@ -336,6 +353,55 @@ func (flag sparkIncludePyScript) SparkFlags() sparkFlags {
 	}
 }
 
+// sqlSubmitParamsURI points at a file containing --sql_query and --sources
+// to get around character limits in spark submit APIs.
+type sparkSqlSubmitParamsURIFlag struct {
+	URI filestore.Filepath
+}
+
+func (flag sparkSqlSubmitParamsURIFlag) SparkFlags() sparkFlags {
+	return sparkFlags{
+		sparkScriptFlag{
+			"submit_params_uri",
+			flag.URI.Key(),
+		},
+	}
+}
+
+type sparkSqlQueryFlag struct {
+	CleanQuery string
+	Sources    []pysparkSourceInfo
+}
+
+func (flag sparkSqlQueryFlag) SparkFlags() sparkFlags {
+	return sparkFlags{
+		sparkScriptFlag{
+			"sql_query",
+			flag.CleanQuery,
+		},
+		sparkSourcesFlag{
+			Sources: flag.Sources,
+		},
+	}
+}
+
+type sparkDataframeQueryFlag struct {
+	Code    string
+	Sources []pysparkSourceInfo
+}
+
+func (flag sparkDataframeQueryFlag) SparkFlags() sparkFlags {
+	return sparkFlags{
+		sparkScriptFlag{
+			"code",
+			flag.Code,
+		},
+		sparkSourcesFlag{
+			Sources: flag.Sources,
+		},
+	}
+}
+
 type sparkDeployFlag struct {
 	Mode types.SparkDeployMode
 }
@@ -345,6 +411,119 @@ func (flag sparkDeployFlag) SparkFlags() sparkFlags {
 		sparkSubmitFlag{
 			"deploy-mode",
 			flag.Mode.SparkArg(),
+		},
+	}
+}
+
+type sparkSnowflakeFlags struct {
+	Config       *pc.SnowflakeConfig
+	ExecutorType pc.SparkExecutorType
+}
+
+func (args sparkSnowflakeFlags) SparkFlags() sparkFlags {
+	if args.Config == nil {
+		logging.GlobalLogger.Debug(
+			"Not setting spark snowflake flags, snowflake config not set",
+		)
+		return sparkFlags{}
+	}
+	flags := sparkFlags{
+		sparkCredFlag{
+			Key:   "sfUrl",
+			Value: args.Config.GetBaseURL(),
+		},
+		sparkCredFlag{
+			Key:   "sfUser",
+			Value: args.Config.Username,
+		},
+		sparkCredFlag{
+			Key:   "sfPassword",
+			Value: args.Config.Password,
+		},
+		sparkCredFlag{
+			Key:   "sfWarehouse",
+			Value: args.Config.Warehouse,
+		},
+	}
+	// Databricks has these packages pre-installed.
+	if args.ExecutorType == pc.EMR {
+		flags = append(flags, sparkPackagesFlag{
+			Packages: []string{
+				"net.snowflake:snowflake-jdbc:3.13.22",
+				"net.snowflake:spark-snowflake_2.12:2.12.0-spark_3.4",
+			},
+		})
+	}
+	return flags
+}
+
+// This is based on very legacy values and aren't tested
+type sparkAzureFlags struct {
+	AccountName      string
+	AccountKey       string
+	ConnectionString string
+	ContainerName    string
+}
+
+func (args sparkAzureFlags) SparkFlags() sparkFlags {
+	return sparkFlags{
+		sparkConfigFlag{
+			Key:   fmt.Sprintf("fs.azure.account.key.%s.dfs.core.windows.net", args.AccountName),
+			Value: args.AccountKey,
+		},
+		sparkCredFlag{
+			Key:   "azure_connection_string",
+			Value: args.ConnectionString,
+		},
+		sparkCredFlag{
+			Key:   "azure_container_name",
+			Value: args.ContainerName,
+		},
+		sparkPackagesFlag{
+			Packages: []string{"org.apache.hadoop:hadoop-azure-3.2.0"},
+		},
+	}
+}
+
+// This is based on very legacy values and aren't tested
+type sparkGCSFlags struct {
+	ProjectID string
+	Bucket    string
+	JSONCreds []byte
+}
+
+func (args sparkGCSFlags) SparkFlags() sparkFlags {
+	return sparkFlags{
+		sparkConfigFlag{
+			Key:   "fs.gs.impl",
+			Value: "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
+		},
+		sparkConfigFlag{
+			Key:   "fs.AbstractFileSystem.gs.impl",
+			Value: "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
+		},
+		sparkConfigFlag{
+			Key:   "fs.gs.auth.service.account.enable",
+			Value: "true",
+		},
+		sparkConfigFlag{
+			Key:   "fs.gs.auth.type",
+			Value: "SERVICE_ACCOUNT_JSON_KEYFILE",
+		},
+		sparkCredFlag{
+			Key:   "gcp_project_id",
+			Value: args.ProjectID,
+		},
+		sparkCredFlag{
+			Key:   "gcp_bucket_name",
+			Value: args.Bucket,
+		},
+		sparkCredFlag{
+			Key:   "gcp_credentials",
+			Value: base64.StdEncoding.EncodeToString(args.JSONCreds),
+		},
+		sparkPackagesFlag{
+			Packages: []string{"com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.0"},
 		},
 	}
 }
@@ -404,7 +583,7 @@ func (args sparkS3Flags) SparkFlags() sparkFlags {
 				Value: args.AccessKey,
 			},
 			sparkCredFlag{
-				Key:   "aws_secret_key_id",
+				Key:   "aws_secret_access_key",
 				Value: args.SecretKey,
 			},
 		)
@@ -416,7 +595,6 @@ func (args sparkS3Flags) SparkFlags() sparkFlags {
 			},
 		)
 	}
-	// TODO, do I need those package flags?
 	return flags
 }
 
@@ -612,6 +790,114 @@ func (flag sparkJobTypeFlag) SparkFlags() sparkFlags {
 		sparkScriptFlag{
 			Key:   "job_type",
 			Value: string(flag.Type),
+		},
+	}
+}
+
+type sparkOutputFlag struct {
+	Output pl.Location
+}
+
+func (flag sparkOutputFlag) SparkFlags() sparkFlags {
+	if flag.Output == nil {
+		return sparkFlags{
+			// Script expects an output always and needs to be JSON.
+			sparkScriptFlag{
+				Key:   "output",
+				Value: "{}",
+			},
+		}
+	}
+	outputStr, err := flag.Output.Serialize()
+	if err != nil {
+		logging.GlobalLogger.Errorw(
+			"Failed to serialize output for spark. Skipping flags.",
+			"location", flag.Output,
+			"error", err,
+		)
+		return sparkFlags{
+			// Script expects an output always and needs to be JSON.
+			sparkScriptFlag{
+				Key:   "output",
+				Value: "{}",
+			},
+		}
+	}
+	return sparkFlags{
+		sparkScriptFlag{
+			Key:   "output",
+			Value: outputStr,
+		},
+	}
+}
+
+// This is a legacy flag to keep the old version of
+// materialization working.
+type sparkLegacyOutputFormatFlag struct {
+	FileType filestore.FileType
+}
+
+func (flag sparkLegacyOutputFormatFlag) SparkFlags() sparkFlags {
+	switch flag.FileType {
+	case filestore.Parquet, filestore.CSV:
+		return sparkFlags{
+			sparkScriptFlag{
+				Key:   "output_format",
+				Value: string(flag.FileType),
+			},
+		}
+	case filestore.NilFileType:
+		// Default to Parquet
+		return sparkFlags{
+			sparkScriptFlag{
+				Key:   "output_format",
+				Value: string(filestore.Parquet),
+			},
+		}
+	default:
+		// Default to Parquet
+		logging.GlobalLogger.Warnw(
+			"Unsupported file type for output format flag. Default to Parquet.",
+			"filetype", flag.FileType,
+		)
+		return sparkFlags{
+			sparkScriptFlag{
+				Key:   "output_format",
+				Value: string(filestore.Parquet),
+			},
+		}
+	}
+}
+
+// This is a legacy flag to keep the old version of
+// materialization working.
+type sparkLegacyIncludeHeadersFlag struct {
+	ShouldInclude bool
+}
+
+func (flag sparkLegacyIncludeHeadersFlag) SparkFlags() sparkFlags {
+	if flag.ShouldInclude {
+		// Script defaults to include
+		return sparkFlags{}
+	} else {
+		return sparkFlags{
+			sparkScriptFlag{
+				Key:   "headers",
+				Value: "exclude",
+			},
+		}
+	}
+}
+
+type sparkMasterFlag struct {
+	Master string
+}
+
+func (flag sparkMasterFlag) SparkFlags() sparkFlags {
+	return sparkFlags{
+		sparkSubmitFlag{
+			"master",
+			flag.Master,
 		},
 	}
 }

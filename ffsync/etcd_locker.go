@@ -17,7 +17,6 @@ import (
 	"github.com/featureform/logging"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
-	"go.uber.org/zap"
 )
 
 const etcdLoggerKey = "etcdLogger"
@@ -93,7 +92,7 @@ func (m *etcdLocker) cancelableWaitTime(key string) error {
 
 // blockingLock will attempt to lock a key and wait if the key is already locked
 func (m *etcdLocker) blockingLock(ctx context.Context, lockMutex *concurrency.Mutex, key string) error {
-	logger := ctx.Value(etcdLoggerKey).(*zap.SugaredLogger)
+	logger := ctx.Value(etcdLoggerKey).(logging.Logger)
 	logger.Debug("Locking Key with wait")
 	var err error
 	go func() {
@@ -113,7 +112,7 @@ func (m *etcdLocker) blockingLock(ctx context.Context, lockMutex *concurrency.Mu
 // nonBlockingLock will attempt to lock a key and will return a KeyAlreadyLockedError if the key is
 // already locked
 func (m *etcdLocker) nonBlockingLock(ctx context.Context, lockMutex *concurrency.Mutex, key string) error {
-	logger := ctx.Value(etcdLoggerKey).(*zap.SugaredLogger)
+	logger := ctx.Value(etcdLoggerKey).(logging.Logger)
 	logger.Debug("Locking Key without wait")
 	if err := lockMutex.TryLock(m.ctx); err != nil {
 		if err == concurrency.ErrLocked {

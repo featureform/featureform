@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/featureform/logging"
-	"go.uber.org/zap"
 
 	"github.com/featureform/fferr"
 	"github.com/google/uuid"
@@ -55,7 +54,7 @@ type memoryLocker struct {
 }
 
 func (m *memoryLocker) checkLock(ctx context.Context, key string) error {
-	logger := ctx.Value(memoryLoggerKey).(*zap.SugaredLogger)
+	logger := ctx.Value(memoryLoggerKey).(logging.Logger)
 	logger.Debug("Checking lock for key ", key)
 
 	logger.Debug("Checking if key is prefix of existing key ", key)
@@ -84,7 +83,7 @@ func (m *memoryLocker) checkLock(ctx context.Context, key string) error {
 }
 
 func (m *memoryLocker) attemptLock(ctx context.Context, key string, wait bool) error {
-	logger := ctx.Value(memoryLoggerKey).(*zap.SugaredLogger)
+	logger := ctx.Value(memoryLoggerKey).(logging.Logger)
 	logger.Debug("Attempting to lock key")
 	startTime := m.clock.Now()
 

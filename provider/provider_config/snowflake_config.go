@@ -179,6 +179,15 @@ func (sf *SnowflakeConfig) getBaseConnection(database, schema string) (string, e
 	return "", fferr.NewProviderConfigError(string(provider_type.SnowflakeOffline), fmt.Errorf("credentials not found"))
 }
 
+func (sf *SnowflakeConfig) GetBaseURL() string {
+	suffix := "snowflakecomputing.com"
+	isLegacy := sf.HasLegacyCredentials()
+	if isLegacy {
+		return fmt.Sprintf("%s.%s", sf.AccountLocator, suffix)
+	}
+	return fmt.Sprintf("%s-%s.%s", sf.Organization, sf.Account, suffix)
+}
+
 func (sf *SnowflakeConfig) schema() string {
 	if sf.Schema == "" {
 		return "PUBLIC"

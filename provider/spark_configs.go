@@ -429,7 +429,7 @@ func (args sparkSnowflakeFlags) SparkFlags() sparkFlags {
 	}
 	flags := sparkFlags{
 		sparkCredFlag{
-			Key:   "sfUrl",
+			Key:   "sfURL",
 			Value: args.Config.GetBaseURL(),
 		},
 		sparkCredFlag{

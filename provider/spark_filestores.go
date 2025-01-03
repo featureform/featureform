@@ -62,11 +62,6 @@ type SparkFileStoreV2 interface {
 	// Seems like one of these could be deprecated or we need clarity on the diff
 	Type() SparkFileStoreType
 	FilestoreType() filestore.FileStoreType
-
-	// TODO deprecate these three and use SparkConfigs() instead
-	// SparkConfig() []string
-	// CredentialsConfig() []string
-	// Packages() []string
 }
 
 type SparkFileStoreFactory func(config Config) (SparkFileStore, error)

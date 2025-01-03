@@ -78,7 +78,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: "3.13"
           cache: "pip" # caching pip dependencies
 
       - name: Configure AWS credentials
@@ -239,10 +239,10 @@ jobs:
         with:
           go-version: 1.21
 
-      - name: Set up Python 3.14
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: "3.13"
 
       - name: Create and activate virtual environment
         run: |
@@ -288,7 +288,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: "3.13"
 
       - name: Install pyspark packages
         run: |
@@ -328,7 +328,7 @@ jobs:
         # macos-14 switched to M1 chips which broke some of our
         # dependencies. We're hard pinning to macOS-13 for now.
         os: [ubuntu-latest, macos-13, windows-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         exclude:
           - os: windows-latest
             python-version: "3.11"
@@ -399,7 +399,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: "3.13"
 
       - name: Install grpc_tools
         run: pip install grpcio-tools==1.62.2 build mypy-protobuf
@@ -562,7 +562,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: "3.13"
 
       - name: Install grpc_tools
         run: pip install grpcio-tools==1.62.2 build mypy-protobuf
@@ -725,7 +725,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: "3.13"
 
       - name: Install grpc_tools
         run: pip install grpcio-tools==1.62.2 build mypy-protobuf

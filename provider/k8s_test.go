@@ -20,13 +20,13 @@ import (
 	"time"
 
 	"github.com/featureform/config"
+	filestore "github.com/featureform/filestore"
 	"github.com/featureform/helpers"
-	"github.com/featureform/metadata"
 	"github.com/featureform/logging"
+	"github.com/featureform/metadata"
+	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	"github.com/featureform/provider/types"
-	filestore "github.com/featureform/filestore"
-	pl "github.com/featureform/provider/location"
 
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"

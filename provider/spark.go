@@ -66,7 +66,7 @@ type pysparkSourceInfo struct {
 	// require a specific role to access
 	AwsAssumeRoleArn    string `json:"awsAssumeRoleArn"`
 	TimestampColumnName string `json:"timestampColumnName"`
-	
+
 	// Deprecated
 	// TODO remove
 	// Old version of our pyspark job actually passed in strings
@@ -86,7 +86,6 @@ func wrapLegacyPysparkSourceInfos(paths []string) []pysparkSourceInfo {
 	}
 	return sources
 }
-
 
 func (p *pysparkSourceInfo) Serialize() (string, error) {
 	if p.LegacyString != "" {

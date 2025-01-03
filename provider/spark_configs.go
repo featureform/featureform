@@ -15,15 +15,15 @@ import (
 	"github.com/featureform/filestore"
 	"github.com/featureform/helpers/stringset"
 	"github.com/featureform/logging"
-	pc "github.com/featureform/provider/provider_config"
 	pl "github.com/featureform/provider/location"
+	pc "github.com/featureform/provider/provider_config"
 	"github.com/featureform/provider/types"
 )
 
 type sparkCommand struct {
-	Script filestore.Filepath
+	Script     filestore.Filepath
 	ScriptArgs []string
-	Configs sparkConfigs
+	Configs    sparkConfigs
 }
 
 func (cmd *sparkCommand) AddConfigs(cfgs ...sparkConfig) {
@@ -359,7 +359,7 @@ type sparkSqlSubmitParamsURIFlag struct {
 	URI filestore.Filepath
 }
 
-func (flag sparkSqlSubmitParamsURIFlag ) SparkFlags() sparkFlags {
+func (flag sparkSqlSubmitParamsURIFlag) SparkFlags() sparkFlags {
 	return sparkFlags{
 		sparkScriptFlag{
 			"submit_params_uri",
@@ -370,7 +370,7 @@ func (flag sparkSqlSubmitParamsURIFlag ) SparkFlags() sparkFlags {
 
 type sparkSqlQueryFlag struct {
 	CleanQuery string
-	Sources []pysparkSourceInfo
+	Sources    []pysparkSourceInfo
 }
 
 func (flag sparkSqlQueryFlag) SparkFlags() sparkFlags {
@@ -386,7 +386,7 @@ func (flag sparkSqlQueryFlag) SparkFlags() sparkFlags {
 }
 
 type sparkDataframeQueryFlag struct {
-	Code string
+	Code    string
 	Sources []pysparkSourceInfo
 }
 
@@ -416,7 +416,7 @@ func (flag sparkDeployFlag) SparkFlags() sparkFlags {
 }
 
 type sparkSnowflakeFlags struct {
-	Config *pc.SnowflakeConfig
+	Config       *pc.SnowflakeConfig
 	ExecutorType pc.SparkExecutorType
 }
 
@@ -427,21 +427,21 @@ func (args sparkSnowflakeFlags) SparkFlags() sparkFlags {
 		)
 		return sparkFlags{}
 	}
-	flags := sparkFlags {
+	flags := sparkFlags{
 		sparkCredFlag{
-			Key: "sfUrl",
+			Key:   "sfUrl",
 			Value: args.Config.GetBaseURL(),
 		},
 		sparkCredFlag{
-			Key: "sfUser",
+			Key:   "sfUser",
 			Value: args.Config.Username,
 		},
 		sparkCredFlag{
-			Key: "sfPassword",
+			Key:   "sfPassword",
 			Value: args.Config.Password,
 		},
 		sparkCredFlag{
-			Key: "sfWarehouse",
+			Key:   "sfWarehouse",
 			Value: args.Config.Warehouse,
 		},
 	}
@@ -459,16 +459,16 @@ func (args sparkSnowflakeFlags) SparkFlags() sparkFlags {
 
 // This is based on very legacy values and aren't tested
 type sparkAzureFlags struct {
-	AccountName string
-	AccountKey string
+	AccountName      string
+	AccountKey       string
 	ConnectionString string
-	ContainerName string
+	ContainerName    string
 }
 
 func (args sparkAzureFlags) SparkFlags() sparkFlags {
 	return sparkFlags{
 		sparkConfigFlag{
-			Key: fmt.Sprintf("fs.azure.account.key.%s.dfs.core.windows.net", args.AccountName),
+			Key:   fmt.Sprintf("fs.azure.account.key.%s.dfs.core.windows.net", args.AccountName),
 			Value: args.AccountKey,
 		},
 		sparkCredFlag{
@@ -488,14 +488,14 @@ func (args sparkAzureFlags) SparkFlags() sparkFlags {
 // This is based on very legacy values and aren't tested
 type sparkGCSFlags struct {
 	ProjectID string
-	Bucket string
+	Bucket    string
 	JSONCreds []byte
 }
 
 func (args sparkGCSFlags) SparkFlags() sparkFlags {
 	return sparkFlags{
 		sparkConfigFlag{
-			Key: "fs.gs.impl",
+			Key:   "fs.gs.impl",
 			Value: "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
 		},
 		sparkConfigFlag{
@@ -527,6 +527,7 @@ func (args sparkGCSFlags) SparkFlags() sparkFlags {
 		},
 	}
 }
+
 type sparkS3Flags struct {
 	// AccessKey and SecretKey are optional, if they aren't set we default
 	// to assuming a role.
@@ -839,17 +840,17 @@ type sparkLegacyOutputFormatFlag struct {
 func (flag sparkLegacyOutputFormatFlag) SparkFlags() sparkFlags {
 	switch flag.FileType {
 	case filestore.Parquet, filestore.CSV:
-		return sparkFlags {
+		return sparkFlags{
 			sparkScriptFlag{
-				Key: "output_format",
+				Key:   "output_format",
 				Value: string(flag.FileType),
 			},
 		}
 	case filestore.NilFileType:
 		// Default to Parquet
-		return sparkFlags {
+		return sparkFlags{
 			sparkScriptFlag{
-				Key: "output_format",
+				Key:   "output_format",
 				Value: string(filestore.Parquet),
 			},
 		}
@@ -859,9 +860,9 @@ func (flag sparkLegacyOutputFormatFlag) SparkFlags() sparkFlags {
 			"Unsupported file type for output format flag. Default to Parquet.",
 			"filetype", flag.FileType,
 		)
-		return sparkFlags {
+		return sparkFlags{
 			sparkScriptFlag{
-				Key: "output_format",
+				Key:   "output_format",
 				Value: string(filestore.Parquet),
 			},
 		}
@@ -881,7 +882,7 @@ func (flag sparkLegacyIncludeHeadersFlag) SparkFlags() sparkFlags {
 	} else {
 		return sparkFlags{
 			sparkScriptFlag{
-				Key: "headers",
+				Key:   "headers",
 				Value: "exclude",
 			},
 		}

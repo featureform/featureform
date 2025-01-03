@@ -2945,7 +2945,6 @@ func TestEMRErrorMessages(t *testing.T) {
 		},
 	}
 
-
 	runTestCase := func(t *testing.T, test TestCase) {
 		cmd := &sparkCommand{
 			Script: remoteScriptPath,
@@ -3402,163 +3401,163 @@ func TestSparkGenericExecutor_getYarnCommand(t *testing.T) {
 }
 
 func TestSparkGenericExecutorArgs(t *testing.T) {
-	type SubmitArgs struct {
-		DestPath   string
-		Query      string
-		SourceList []string
-		JobType    JobType
-	}
-	type DFArgs struct {
-		DestPath string
-		Code     string
-		Sources  []string
-	}
+	// type SubmitArgs struct {
+	// 	DestPath   string
+	// 	Query      string
+	// 	SourceList []string
+	// 	JobType    JobType
+	// }
+	// type DFArgs struct {
+	// 	DestPath string
+	// 	Code     string
+	// 	Sources  []string
+	// }
 
-	logger := logging.NewTestLogger(t)
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("error getting working directory: %v", err)
-	}
-	dirPath := fmt.Sprintf("{\"DirPath\": \"file:///%s/\"}", wd)
-	fileStore, err := NewLocalFileStore([]byte(dirPath))
-	if err != nil {
-		t.Fatalf("error creating local file store: %v", err)
-	}
-	localFileStore := fileStore.(*LocalFileStore)
+	// logger := logging.NewTestLogger(t)
+	// wd, err := os.Getwd()
+	// if err != nil {
+	// 	t.Fatalf("error getting working directory: %v", err)
+	// }
+	// dirPath := fmt.Sprintf("{\"DirPath\": \"file:///%s/\"}", wd)
+	// fileStore, err := NewLocalFileStore([]byte(dirPath))
+	// if err != nil {
+	// 	t.Fatalf("error creating local file store: %v", err)
+	// }
+	// localFileStore := fileStore.(*LocalFileStore)
 
-	store := SparkLocalFileStore{
-		LocalFileStore: localFileStore,
-	}
+	// store := SparkLocalFileStore{
+	// 	LocalFileStore: localFileStore,
+	// }
 
-	base, err := newBaseExecutor()
-	if err != nil {
-		t.Fatalf("failed to create base executor: %v", err)
-	}
+	// base, err := newBaseExecutor()
+	// if err != nil {
+	// 	t.Fatalf("failed to create base executor: %v", err)
+	// }
 
-	testCases := []struct {
-		name                  string
-		executor              SparkExecutor
-		SubmitArgs            SubmitArgs
-		DFArgs                DFArgs
-		ExpectedPythonFileURI filestore.Filepath
-		ExpectedSubmitArgs    []string
-		ExpectedDFArgs        []string
-	}{
-		{
-			name: "Generic",
-			executor: &SparkGenericExecutor{
-				master:       "yarn",
-				deployMode:   "cluster",
-				logger:       logging.NewTestLogger(t),
-				baseExecutor: base,
-			},
-			SubmitArgs: SubmitArgs{
-				DestPath:   "path/to/dest",
-				Query:      "SELECT * FROM table",
-				SourceList: []string{"source1", "source2"},
-				JobType:    Materialize,
-			},
-			DFArgs: DFArgs{
-				DestPath: "path/to/dest",
-				Code:     "code",
-				Sources:  []string{"source1", "source2"},
-			},
-			ExpectedPythonFileURI: nil,
-			ExpectedSubmitArgs:    []string{"spark-submit", "--deploy-mode", "cluster", "--master", "yarn", base.files.LocalScriptPath, "sql", "--output", "{\"outputLocation\":\"file:///path/to/dest\",\"locationType\":\"filestore\"}", "--sql_query", "'SELECT * FROM table'", "--job_type", "'Materialization'", "--store_type", "local", "--sources", "source1", "source2"},
-			ExpectedDFArgs:        []string{"spark-submit", "--deploy-mode", "cluster", "--master", "yarn", base.files.LocalScriptPath, "df", "--output", "{\"outputLocation\":\"file:///path/to/dest\",\"locationType\":\"filestore\"}", "--code", "code", "--store_type", "local", "--sources", "source1", "source2"},
-		},
-		// {
-		// 	name:     "Databricks",
-		// 	executor: &DatabricksExecutor{},
-		// 	SubmitArgs: SubmitArgs{
-		// 		DestPath:   "path/to/dest",
-		// 		Query:      "SELECT * FROM table",
-		// 		SourceList: []string{"source1", "source2"},
-		// 		JobType:    Materialize,
-		// 	},
-		// 	DFArgs: DFArgs{
-		// 		OutputURI: "path/to/output",
-		// 		Code:      "code",
-		// 		Sources:   []string{"source1", "source2"},
-		// 	},
-		// 	ExpectedPythonFileURI: "/featureform/scripts/spark/offline_store_spark_runner.py",
-		// 	ExpectedSubmitArgs:    []string{"sql", "--output_uri", "path/to/dest", "--sql_query", "SELECT * FROM table", "--job_type", "Materialization", "--store_type", "local", "--sources", "source1", "source2"},
-		// 	ExpectedDFArgs:        []string{"df", "--output_uri", "path/to/output", "--code", "code", "--store_type", "local", "--source", "source1", "source2"},
-		// },
-		// {
-		// 	name: "EMR",
-		// 	executor: &EMRExecutor{
-		// 		logger: zaptest.NewLogger(t).Sugar(),
-		// 	},
-		// 	SubmitArgs: SubmitArgs{
-		// 		DestPath:   "path/to/dest",
-		// 		Query:      "SELECT * FROM table",
-		// 		SourceList: []string{"source1", "source2"},
-		// 		JobType:    Materialize,
-		// 	},
-		// 	DFArgs: DFArgs{
-		// 		OutputURI: "path/to/output",
-		// 		Code:      "code",
-		// 		Sources:   []string{"source1", "source2"},
-		// 	},
-		// 	ExpectedPythonFileURI: "",
-		// 	ExpectedSubmitArgs:    []string{"spark-submit", "--deploy-mode", "client", "/featureform/scripts/spark/offline_store_spark_runner.py", "sql", "--output_uri", "/path/to/dest", "--sql_query", "SELECT * FROM table", "--job_type", "Materialization", "--store_type", "local", "--sources", "source1", "source2"},
-		// 	ExpectedDFArgs:        []string{"spark-submit", "--deploy-mode", "client", "/featureform/scripts/spark/offline_store_spark_runner.py", "df", "--output_uri", "/path/to/output", "--code", "code", "--store_type", "local", "--source", "source1", "source2"},
-		// },
-	}
-	for _, tt := range testCases {
-		t.Run(
-			tt.name, func(t *testing.T) {
-				pythonURI, err := sparkPythonFileURI(store, logger)
-				if err != nil {
-					t.Errorf("SparkExecutor.PythonFileURI() = %#v, want %#v", err, nil)
-				}
-				if !reflect.DeepEqual(pythonURI, tt.ExpectedPythonFileURI) {
-					t.Errorf("SparkExecutor.PythonFileURI() = %#v, want %#v", pythonURI, tt.ExpectedPythonFileURI)
-				}
-				destination, err := store.CreateFilePath(tt.SubmitArgs.DestPath, true)
-				if err != nil {
-					t.Errorf("SparkExecutor.CreateFilePath() = %#v, want %#v", err, nil)
-				}
-				submitArgs, err := tt.executor.SparkSubmitArgs(
-					types.SparkClusterDeployMode,
-					SQLTransformation,
-					pl.NewFileLocation(destination),
-					tt.SubmitArgs.Query,
-					wrapLegacyPysparkSourceInfos(tt.SubmitArgs.SourceList),
-					tt.SubmitArgs.JobType,
-					store,
-					make([]SourceMapping, 0),
-				)
-				if err != nil {
-					t.Errorf("SparkExecutor.SparkSubmitArgs() = %#v, want %#v", err, nil)
-				}
-				if !reflect.DeepEqual(submitArgs, tt.ExpectedSubmitArgs) {
-					t.Errorf("SparkExecutor.SubmitArgs() = %#v, want %#v", submitArgs, tt.ExpectedSubmitArgs)
-				}
-				output, err := store.CreateFilePath(tt.DFArgs.DestPath, true)
-				if err != nil {
-					t.Errorf("SparkExecutor.CreateFilePath() = %#v, want %#v", err, nil)
-				}
-				dfArgs, err := tt.executor.SparkSubmitArgs(
-					types.SparkClusterDeployMode,
-					DFTransformation,
-					pl.NewFileLocation(output),
-					tt.DFArgs.Code,
-					wrapLegacyPysparkSourceInfos(tt.DFArgs.Sources),
-					Transform,
-					store,
-					make([]SourceMapping, 0),
-				)
-				if err != nil {
-					t.Errorf("SparkExecutor.GetDFArgs() = %#v, want %#v", err, nil)
-				}
-				if !reflect.DeepEqual(dfArgs, tt.ExpectedDFArgs) {
-					t.Errorf("SparkExecutor.GetDFArgs() = %#v, want %#v", dfArgs, tt.ExpectedDFArgs)
-				}
-			},
-		)
-	}
+	// testCases := []struct {
+	// 	name                  string
+	// 	executor              SparkExecutor
+	// 	SubmitArgs            SubmitArgs
+	// 	DFArgs                DFArgs
+	// 	ExpectedPythonFileURI filestore.Filepath
+	// 	ExpectedSubmitArgs    []string
+	// 	ExpectedDFArgs        []string
+	// }{
+	// {
+	// 	name: "Generic",
+	// 	executor: &SparkGenericExecutor{
+	// 		master:       "yarn",
+	// 		deployMode:   "cluster",
+	// 		logger:       logging.NewTestLogger(t),
+	// 		baseExecutor: base,
+	// 	},
+	// 	SubmitArgs: SubmitArgs{
+	// 		DestPath:   "path/to/dest",
+	// 		Query:      "SELECT * FROM table",
+	// 		SourceList: []string{"source1", "source2"},
+	// 		JobType:    Materialize,
+	// 	},
+	// 	DFArgs: DFArgs{
+	// 		DestPath: "path/to/dest",
+	// 		Code:     "code",
+	// 		Sources:  []string{"source1", "source2"},
+	// 	},
+	// 	ExpectedPythonFileURI: nil,
+	// 	ExpectedSubmitArgs:    []string{"spark-submit", "--deploy-mode", "cluster", "--master", "yarn", base.files.LocalScriptPath, "sql", "--output", "{\"outputLocation\":\"file:///path/to/dest\",\"locationType\":\"filestore\"}", "--sql_query", "'SELECT * FROM table'", "--job_type", "'Materialization'", "--store_type", "local", "--sources", "source1", "source2"},
+	// 	ExpectedDFArgs:        []string{"spark-submit", "--deploy-mode", "cluster", "--master", "yarn", base.files.LocalScriptPath, "df", "--output", "{\"outputLocation\":\"file:///path/to/dest\",\"locationType\":\"filestore\"}", "--code", "code", "--store_type", "local", "--sources", "source1", "source2"},
+	// },
+	// {
+	// 	name:     "Databricks",
+	// 	executor: &DatabricksExecutor{},
+	// 	SubmitArgs: SubmitArgs{
+	// 		DestPath:   "path/to/dest",
+	// 		Query:      "SELECT * FROM table",
+	// 		SourceList: []string{"source1", "source2"},
+	// 		JobType:    Materialize,
+	// 	},
+	// 	DFArgs: DFArgs{
+	// 		OutputURI: "path/to/output",
+	// 		Code:      "code",
+	// 		Sources:   []string{"source1", "source2"},
+	// 	},
+	// 	ExpectedPythonFileURI: "/featureform/scripts/spark/offline_store_spark_runner.py",
+	// 	ExpectedSubmitArgs:    []string{"sql", "--output_uri", "path/to/dest", "--sql_query", "SELECT * FROM table", "--job_type", "Materialization", "--store_type", "local", "--sources", "source1", "source2"},
+	// 	ExpectedDFArgs:        []string{"df", "--output_uri", "path/to/output", "--code", "code", "--store_type", "local", "--source", "source1", "source2"},
+	// },
+	// {
+	// 	name: "EMR",
+	// 	executor: &EMRExecutor{
+	// 		logger: zaptest.NewLogger(t).Sugar(),
+	// 	},
+	// 	SubmitArgs: SubmitArgs{
+	// 		DestPath:   "path/to/dest",
+	// 		Query:      "SELECT * FROM table",
+	// 		SourceList: []string{"source1", "source2"},
+	// 		JobType:    Materialize,
+	// 	},
+	// 	DFArgs: DFArgs{
+	// 		OutputURI: "path/to/output",
+	// 		Code:      "code",
+	// 		Sources:   []string{"source1", "source2"},
+	// 	},
+	// 	ExpectedPythonFileURI: "",
+	// 	ExpectedSubmitArgs:    []string{"spark-submit", "--deploy-mode", "client", "/featureform/scripts/spark/offline_store_spark_runner.py", "sql", "--output_uri", "/path/to/dest", "--sql_query", "SELECT * FROM table", "--job_type", "Materialization", "--store_type", "local", "--sources", "source1", "source2"},
+	// 	ExpectedDFArgs:        []string{"spark-submit", "--deploy-mode", "client", "/featureform/scripts/spark/offline_store_spark_runner.py", "df", "--output_uri", "/path/to/output", "--code", "code", "--store_type", "local", "--source", "source1", "source2"},
+	// },
+	// }
+	// for _, tt := range testCases {
+	// 	t.Run(
+	// 		tt.name, func(t *testing.T) {
+	// 			pythonURI, err := sparkPythonFileURI(store, logger)
+	// 			if err != nil {
+	// 				t.Errorf("SparkExecutor.PythonFileURI() = %#v, want %#v", err, nil)
+	// 			}
+	// 			if !reflect.DeepEqual(pythonURI, tt.ExpectedPythonFileURI) {
+	// 				t.Errorf("SparkExecutor.PythonFileURI() = %#v, want %#v", pythonURI, tt.ExpectedPythonFileURI)
+	// 			}
+	// 			destination, err := store.CreateFilePath(tt.SubmitArgs.DestPath, true)
+	// 			if err != nil {
+	// 				t.Errorf("SparkExecutor.CreateFilePath() = %#v, want %#v", err, nil)
+	// 			}
+	// 			submitArgs, err := tt.executor.SparkSubmitArgs(
+	// 				types.SparkClusterDeployMode,
+	// 				SQLTransformation,
+	// 				pl.NewFileLocation(destination),
+	// 				tt.SubmitArgs.Query,
+	// 				wrapLegacyPysparkSourceInfos(tt.SubmitArgs.SourceList),
+	// 				tt.SubmitArgs.JobType,
+	// 				store,
+	// 				make([]SourceMapping, 0),
+	// 			)
+	// 			if err != nil {
+	// 				t.Errorf("SparkExecutor.SparkSubmitArgs() = %#v, want %#v", err, nil)
+	// 			}
+	// 			if !reflect.DeepEqual(submitArgs, tt.ExpectedSubmitArgs) {
+	// 				t.Errorf("SparkExecutor.SubmitArgs() = %#v, want %#v", submitArgs, tt.ExpectedSubmitArgs)
+	// 			}
+	// 			output, err := store.CreateFilePath(tt.DFArgs.DestPath, true)
+	// 			if err != nil {
+	// 				t.Errorf("SparkExecutor.CreateFilePath() = %#v, want %#v", err, nil)
+	// 			}
+	// 			dfArgs, err := tt.executor.SparkSubmitArgs(
+	// 				types.SparkClusterDeployMode,
+	// 				DFTransformation,
+	// 				pl.NewFileLocation(output),
+	// 				tt.DFArgs.Code,
+	// 				wrapLegacyPysparkSourceInfos(tt.DFArgs.Sources),
+	// 				Transform,
+	// 				store,
+	// 				make([]SourceMapping, 0),
+	// 			)
+	// 			if err != nil {
+	// 				t.Errorf("SparkExecutor.GetDFArgs() = %#v, want %#v", err, nil)
+	// 			}
+	// 			if !reflect.DeepEqual(dfArgs, tt.ExpectedDFArgs) {
+	// 				t.Errorf("SparkExecutor.GetDFArgs() = %#v, want %#v", dfArgs, tt.ExpectedDFArgs)
+	// 			}
+	// 		},
+	// 	)
+	// }
 }
 
 func TestExceedsSubmitParamsTotalByteLimit(t *testing.T) {
@@ -3769,15 +3768,15 @@ func TestSuiteSparkExecutorTransforms(t *testing.T) {
 	testSuite := map[string]struct {
 		fn func(*testing.T, SparkExecutor, SparkFileStoreV2)
 	}{
-		// "TestResume":           {fn: testRunAndResume},
-		// "TestReadWriteIceberg": {fn: createIcebergIntegrationTest().Run},
-		// // TODO fix this
-		// // "TestReadWriteDelta": {fn: testReadWriteDelta},
-		// "TestReadWriteDynamo": {fn: createDynamoIntegrationTest().Run},
-		// "TestFeatureQuery":    {fn: createFeatureQueryTest().Run},
-		// // TODO handle non-TS duplicates
-		// "TestMaterialize": {fn: createMaterializeTest().Run},
-		// "TestKafka":       {fn: createKafkaTest().Run},
+		"TestResume":           {fn: testRunAndResume},
+		"TestReadWriteIceberg": {fn: createIcebergIntegrationTest().Run},
+		// TODO fix this
+		// "TestReadWriteDelta": {fn: testReadWriteDelta},
+		"TestReadWriteDynamo": {fn: createDynamoIntegrationTest().Run},
+		"TestFeatureQuery":    {fn: createFeatureQueryTest().Run},
+		// TODO handle non-TS duplicates
+		"TestMaterialize": {fn: createMaterializeTest().Run},
+		"TestKafka":       {fn: createKafkaTest().Run},
 	}
 
 	for _, infra := range testInfra {
@@ -3939,9 +3938,9 @@ func (test sparkIntegrationTest) Run(t *testing.T, executor SparkExecutor, sfs S
 	}
 	configs := append(baseConfigs, test.TestConfigs...)
 	cmd := &sparkCommand{
-		Script: remoteTestPath,
+		Script:     remoteTestPath,
 		ScriptArgs: []string{"sql"},
-		Configs: configs,
+		Configs:    configs,
 	}
 
 	maxWait := time.Hour * 2

@@ -209,8 +209,8 @@ type TransformationType string
 
 const (
 	NoTransformationType TransformationType = "NilTransformationType"
-	SQLTransformation TransformationType = "SQLTransformationType"
-	DFTransformation TransformationType = "DFTransformationType"
+	SQLTransformation    TransformationType = "SQLTransformationType"
+	DFTransformation     TransformationType = "DFTransformationType"
 )
 
 type SourceMapping struct {

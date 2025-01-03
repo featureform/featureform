@@ -43,11 +43,11 @@ func (t SparkFileStoreType) String() string {
 }
 
 const (
-	SFS_S3 SparkFileStoreType = "s3"
+	SFS_S3         SparkFileStoreType = "s3"
 	SFS_AZURE_BLOB SparkFileStoreType = "azure_blob_store"
-	SFS_GCS SparkFileStoreType = "google_cloud_storage"
-	SFS_HDFS SparkFileStoreType = "hdfs"
-	SFS_LOCAL SparkFileStoreType = "local"
+	SFS_GCS        SparkFileStoreType = "google_cloud_storage"
+	SFS_HDFS       SparkFileStoreType = "hdfs"
+	SFS_LOCAL      SparkFileStoreType = "local"
 )
 
 type SparkFileStoreV2 interface {
@@ -135,7 +135,6 @@ func (s3 SparkS3FileStore) SparkConfigs() sparkConfigs {
 		},
 	}
 }
-
 
 func (s3 SparkS3FileStore) Type() SparkFileStoreType {
 	return SFS_S3
@@ -278,10 +277,10 @@ type SparkAzureFileStore struct {
 func (azureStore SparkAzureFileStore) SparkConfigs() sparkConfigs {
 	return sparkConfigs{
 		sparkAzureFlags{
-			AccountName: azureStore.AccountName,
-			AccountKey: azureStore.AccountKey,
+			AccountName:      azureStore.AccountName,
+			AccountKey:       azureStore.AccountKey,
 			ConnectionString: azureStore.connectionString(),
-			ContainerName: azureStore.containerName(),
+			ContainerName:    azureStore.containerName(),
 		},
 	}
 }
@@ -316,7 +315,7 @@ func (gcs SparkGCSFileStore) SparkConfigs() sparkConfigs {
 	return sparkConfigs{
 		sparkGCSFlags{
 			ProjectID: gcs.Credentials.ProjectId,
-			Bucket: gcs.Bucket,
+			Bucket:    gcs.Bucket,
 			JSONCreds: gcs.SerializedCredentials,
 		},
 	}

@@ -26,7 +26,7 @@ import (
 	"github.com/featureform/provider/types"
 )
 
-func getSparkDeployModeFromEnv() types.SparkDeployMode{
+func getSparkDeployModeFromEnv() types.SparkDeployMode {
 	if helpers.GetEnvBool("USE_CLIENT_MODE", false) {
 		return types.SparkClientDeployMode
 	} else {
@@ -83,16 +83,16 @@ func genericSparkSubmitArgs(execType pc.SparkExecutorType, deployMode types.Spar
 		return nil, fferr.NewInternalErrorf(errMsg)
 	}
 	cmd := &sparkCommand{
-		Script: sparkScriptRemotePath,
+		Script:     sparkScriptRemotePath,
 		ScriptArgs: []string{scriptArg},
 		Configs: sparkCoreConfigs(
 			sparkCoreConfigsArgs{
-				JobType: jobType,
-				ExecType: pc.EMR,
-				Output: outputLocation,
-				DeployMode: deployMode,
+				JobType:         jobType,
+				ExecType:        pc.EMR,
+				Output:          outputLocation,
+				DeployMode:      deployMode,
 				SnowflakeConfig: snowflakeConfig,
-				Store: store,
+				Store:           store,
 			},
 		),
 	}
@@ -112,11 +112,11 @@ func genericSparkSubmitArgs(execType pc.SparkExecutorType, deployMode types.Spar
 	} else if tfType == SQLTransformation {
 		cmd.AddConfigs(sparkSqlQueryFlag{
 			CleanQuery: code,
-			Sources: sourceList,
+			Sources:    sourceList,
 		})
 	} else if tfType == DFTransformation {
 		cmd.AddConfigs(sparkDataframeQueryFlag{
-			Code: code,
+			Code:    code,
 			Sources: sourceList,
 		})
 	}
@@ -138,20 +138,19 @@ func genericSparkSubmitArgs(execType pc.SparkExecutorType, deployMode types.Spar
 	return cmd, nil
 }
 
-
 type sparkCoreConfigsArgs struct {
-	JobType JobType
-	ExecType pc.SparkExecutorType
-	Output pl.Location
-	DeployMode types.SparkDeployMode
+	JobType         JobType
+	ExecType        pc.SparkExecutorType
+	Output          pl.Location
+	DeployMode      types.SparkDeployMode
 	SnowflakeConfig *pc.SnowflakeConfig
-	Store SparkFileStoreV2
+	Store           SparkFileStoreV2
 }
 
-func sparkCoreConfigs(args sparkCoreConfigsArgs) sparkConfigs{
+func sparkCoreConfigs(args sparkCoreConfigsArgs) sparkConfigs {
 	configs := sparkConfigs{
 		sparkSnowflakeFlags{
-			Config: args.SnowflakeConfig,
+			Config:       args.SnowflakeConfig,
 			ExecutorType: args.ExecType,
 		},
 		sparkJobTypeFlag{

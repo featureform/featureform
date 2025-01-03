@@ -11,6 +11,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/featureform/logging"
+	"go.uber.org/zap"
 	"strings"
 	"time"
 
@@ -781,6 +783,7 @@ type bqOfflineStore struct {
 	client *bigquery.Client
 	parent BQOfflineStoreConfig
 	query  BQOfflineTableQueries
+	logger *zap.SugaredLogger
 	BaseProvider
 }
 
@@ -800,10 +803,13 @@ func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
 	}
 	defer client.Close()
 
+	logger := logging.NewLogger("bigquery")
+
 	return &bqOfflineStore{
 		client: client,
 		parent: config,
 		query:  config.QueryImpl,
+		logger: logger.SugaredLogger,
 		BaseProvider: BaseProvider{
 			ProviderType:   config.ProviderType,
 			ProviderConfig: config.Config,
@@ -870,9 +876,12 @@ func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sche
 }
 
 func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
+	store.logger.Infow("Registering primary from source table", "id", id.Name)
+
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
+
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if exists {
@@ -880,6 +889,7 @@ func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, table
 	}
 
 	tableName, err := GetPrimaryTableName(id)
+
 	if err != nil {
 		return nil, err
 	}
@@ -916,7 +926,7 @@ func (store *bqOfflineStore) CreateTransformation(config TransformationConfig, o
 	if len(opts) > 0 {
 		return fferr.NewInternalErrorf("BigQuery does not support transformation options")
 	}
-	name, err := store.getTransformationTableName(config.TargetTableID)
+	name, err := store.getTableName(config.TargetTableID)
 	if err != nil {
 		return err
 	}
@@ -932,15 +942,12 @@ func (store *bqOfflineStore) CreateTransformation(config TransformationConfig, o
 	return err
 }
 
-func (store *bqOfflineStore) getTransformationTableName(id ResourceID) (string, error) {
-	if err := id.check(Transformation); err != nil {
-		return "", fferr.NewInternalErrorf("resource type must be %s: received %s", Transformation.String(), id.Type.String())
-	}
-	return ps.ResourceToTableName("Transformation", id.Name, id.Variant)
+func (store *bqOfflineStore) getTableName(id ResourceID) (string, error) {
+	return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 }
 
 func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	name, err := store.getTransformationTableName(id)
+	name, err := store.getTableName(id)
 	if err != nil {
 		return nil, err
 	}
@@ -979,7 +986,7 @@ func (store *bqOfflineStore) UpdateTransformation(config TransformationConfig, o
 	if len(opts) > 0 {
 		return fferr.NewInternalErrorf("BigQuery does not support transformation options")
 	}
-	name, err := store.getTransformationTableName(config.TargetTableID)
+	name, err := store.getTableName(config.TargetTableID)
 	if err != nil {
 		return err
 	}
@@ -1473,7 +1480,7 @@ func (store *bqOfflineStore) Close() error {
 
 func (store *bqOfflineStore) tableExists(id ResourceID) (bool, error) {
 	var n []bigquery.Value
-	tableName, err := store.getTransformationTableName(id)
+	tableName, err := store.getTableName(id)
 	if err != nil {
 		return false, err
 	}

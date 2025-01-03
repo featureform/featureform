@@ -75,10 +75,10 @@ jobs:
           CLICKHOUSE_DB: ${{ env.CLICKHOUSE_DB }}
           CLICKHOUSE_PASSWORD: ${{ env.CLICKHOUSE_PASSWORD }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
           cache: "pip" # caching pip dependencies
 
       - name: Configure AWS credentials
@@ -239,10 +239,10 @@ jobs:
         with:
           go-version: 1.21
 
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
       - name: Create and activate virtual environment
         run: |
@@ -288,7 +288,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: "3.11"
 
       - name: Install pyspark packages
         run: |
@@ -328,7 +328,7 @@ jobs:
         # macos-14 switched to M1 chips which broke some of our
         # dependencies. We're hard pinning to macOS-13 for now.
         os: [ubuntu-latest, macos-13, windows-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
         exclude:
           - os: windows-latest
             python-version: "3.11"
@@ -397,9 +397,9 @@ jobs:
         with:
           go-version: 1.21
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: "3.10"
 
       - name: Install grpc_tools
         run: pip install grpcio-tools==1.62.2 build mypy-protobuf
@@ -560,9 +560,9 @@ jobs:
         with:
           go-version: 1.21
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: "3.10"
 
       - name: Install grpc_tools
         run: pip install grpcio-tools==1.62.2 build mypy-protobuf
@@ -723,9 +723,9 @@ jobs:
         with:
           go-version: 1.21
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
+          python-version: "3.10"
 
       - name: Install grpc_tools
         run: pip install grpcio-tools==1.62.2 build mypy-protobuf

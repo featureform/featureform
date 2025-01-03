@@ -301,16 +301,16 @@ jobs:
         working-directory: ./
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           names: api-server dashboard dashboard-metadata metadata serving k8s_runner k8s_runner_scikit backup
           path: /tmp
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.7"
+          python-version: "3.11"
           check-latest: true
 
       - name: Set up Go

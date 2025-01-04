@@ -9,8 +9,6 @@ package provider
 
 import (
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -28,19 +26,29 @@ func TestOnlineStoreFirestore(t *testing.T) {
 	if !ok {
 		t.Fatalf("missing FIRESTORE_PROJECT variable")
 	}
-	credentials, ok := os.LookupEnv("FIRESTORE_CREDENTIALS_FILE")
-	if !ok {
-		t.Fatalf("missing FIRESTORE_CREDENTIALS_FILE variable")
-	}
-	JSONCredentials, err := ioutil.ReadFile(credentials)
-	if err != nil {
-		panic(fmt.Sprintf("Could not open firestore credentials: %v", err))
+
+	var credentialBytes []byte
+
+	credentials, ok := os.LookupEnv("FIRESTORE_CREDENTIALS")
+	if ok {
+		t.Logf("Using credentials from \"FIRESTORE_CREDENTIALS\" environment variable")
+		credentialBytes = []byte(credentials)
+	} else {
+		credentialsFile, ok := os.LookupEnv("FIRESTORE_CREDENTIALS_FILE")
+		if !ok {
+			t.Fatalf("missing FIRESTORE_CREDENTIALS or FIRESTORE_CREDENTIALS_FILE variable")
+		}
+		t.Logf("Using credentials from \"FIRESTORE_CREDENTIALS_FILE\" environment variable")
+		credentialBytes, err = os.ReadFile(credentialsFile)
+		if err != nil {
+			t.Fatalf("Could not open firestore credentials: %v", err)
+		}
 	}
 
 	var credentialsDict map[string]interface{}
-	err = json.Unmarshal(JSONCredentials, &credentialsDict)
+	err = json.Unmarshal(credentialBytes, &credentialsDict)
 	if err != nil {
-		panic(fmt.Errorf("cannot unmarshal big query credentials: %v", err))
+		t.Fatalf("cannot unmarshal big query credentials: %v", err)
 	}
 
 	firestoreConfig := &pc.FirestoreConfig{

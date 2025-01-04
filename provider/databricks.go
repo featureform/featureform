@@ -124,9 +124,9 @@ func (db *DatabricksExecutor) RunSparkJob(cmd *sparkCommand, store SparkFileStor
 		logger.Errorw("could not get python file path", "error", err)
 		return err
 	}
-	pythonTask := jobs.SparkPythonTask{
-		PythonFile: pythonFilepath.ToURI(),
-		Parameters: args,
+	pythonTask := &jobs.SparkSubmitTasks{
+		// The spark-submit string is implied, so skip that.
+		Parameters: args[1:],
 	}
 	ctx := context.Background()
 	id := uuid.New().String()
@@ -137,7 +137,7 @@ func (db *DatabricksExecutor) RunSparkJob(cmd *sparkCommand, store SparkFileStor
 			{
 				TaskKey:           fmt.Sprintf("featureform-task-%s", id),
 				ExistingClusterId: db.cluster,
-				SparkPythonTask:   &pythonTask,
+				SparkSubmitTask:   pythonTask,
 			},
 		},
 	})

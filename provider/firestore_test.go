@@ -28,9 +28,9 @@ func TestOnlineStoreFirestore(t *testing.T) {
 	if !ok {
 		t.Fatalf("missing FIRESTORE_PROJECT variable")
 	}
-	credentials, ok := os.LookupEnv("FIRESTORE_CRED")
+	credentials, ok := os.LookupEnv("FIRESTORE_CREDENTIALS_FILE")
 	if !ok {
-		t.Fatalf("missing FIRESTORE_CRED variable")
+		t.Fatalf("missing FIRESTORE_CREDENTIALS_FILE variable")
 	}
 	JSONCredentials, err := ioutil.ReadFile(credentials)
 	if err != nil {

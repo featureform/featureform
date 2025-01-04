@@ -34,6 +34,14 @@ func (cmd *sparkCommand) Compile() []string {
 	return cmd.Configs.CompileCommand(cmd.Script, cmd.ScriptArgs...)
 }
 
+// CompileScriptOnly returns the script location as a string followed by
+// all the arguments in the script for use in providers like Databricks.
+func (cmd *sparkCommand) CompileScriptOnly() (string, []string) {
+	_, scriptFlags := cmd.Configs.SeparateNativeFlags()
+	args := append(cmd.ScriptArgs, scriptFlags.SparkStringFlags())
+	return scriptLoc.ToURI(), args
+}
+
 type sparkConfigs []sparkConfig
 
 func (cfgs sparkConfigs) CompileCommand(scriptLoc filestore.Filepath, args ...string) []string {

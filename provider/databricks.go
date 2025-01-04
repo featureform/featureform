@@ -117,11 +117,11 @@ func (db *DatabricksExecutor) SupportsTransformationOption(opt TransformationOpt
 }
 
 func (db *DatabricksExecutor) RunSparkJob(cmd *sparkCommand, store SparkFileStoreV2, opts SparkJobOptions, tfopts TransformationOptions) error {
-	args := cmd.Compile()
-	logger := db.logger.With("args", args, "store", store.Type(), "job_name", opts.JobName, "cluster_id", db.cluster)
-	pythonTask := &jobs.SparkSubmitTask{
-		// The spark-submit string is implied, so skip that.
-		Parameters: args[1:],
+	script, args := cmd.CompileScriptOnly()
+	logger := db.logger.With("script", script, "args", args, "store", store.Type(), "job_name", opts.JobName, "cluster_id", db.cluster)
+	pythonTask := &jobs.PythonTask{
+		PythonFile:  script,
+		Parameters: args,
 	}
 	ctx := context.Background()
 	id := uuid.New().String()

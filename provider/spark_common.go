@@ -88,7 +88,7 @@ func genericSparkSubmitArgs(execType pc.SparkExecutorType, deployMode types.Spar
 		Configs: sparkCoreConfigs(
 			sparkCoreConfigsArgs{
 				JobType:         jobType,
-				ExecType:        pc.EMR,
+				ExecType:        execType,
 				Output:          outputLocation,
 				DeployMode:      deployMode,
 				SnowflakeConfig: snowflakeConfig,

@@ -37,21 +37,27 @@ func (cmd *sparkCommand) Compile() []string {
 // CompileScriptOnly returns the script location as a string followed by
 // all the arguments in the script for use in providers like Databricks.
 func (cmd *sparkCommand) CompileScriptOnly() (string, []string) {
-	_, scriptFlags := cmd.Configs.SeparateNativeFlags()
-	args := append(cmd.ScriptArgs, scriptFlags.SparkStringFlags())
-	return scriptLoc.ToURI(), args
+	list := cmd.Configs.ToSparkFlagsList()
+	_, scriptFlags := list.SeparateNativeFlags()
+	args := append(cmd.ScriptArgs, scriptFlags.SparkStringFlags()...)
+	return cmd.Script.ToURI(), args
 }
 
 type sparkConfigs []sparkConfig
+
+func (cfgs sparkConfigs) ToSparkFlagsList() sparkFlagsList {
+	list := make(sparkFlagsList, len(cfgs))
+	for i, cfg := range cfgs {
+		list[i] = cfg.SparkFlags()
+	}
+	return list
+}
 
 func (cfgs sparkConfigs) CompileCommand(scriptLoc filestore.Filepath, args ...string) []string {
 	cmd := []string{
 		"spark-submit",
 	}
-	list := make(sparkFlagsList, len(cfgs))
-	for i, cfg := range cfgs {
-		list[i] = cfg.SparkFlags()
-	}
+	list := cfgs.ToSparkFlagsList()
 	native, script := list.SeparateNativeFlags()
 	cmd = append(cmd, native.SparkStringFlags()...)
 	cmd = append(cmd, scriptLoc.ToURI())

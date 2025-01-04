@@ -119,7 +119,7 @@ func (db *DatabricksExecutor) SupportsTransformationOption(opt TransformationOpt
 func (db *DatabricksExecutor) RunSparkJob(cmd *sparkCommand, store SparkFileStoreV2, opts SparkJobOptions, tfopts TransformationOptions) error {
 	script, args := cmd.CompileScriptOnly()
 	logger := db.logger.With("script", script, "args", args, "store", store.Type(), "job_name", opts.JobName, "cluster_id", db.cluster)
-	pythonTask := &jobs.PythonTask{
+	pythonTask := &jobs.SparkPythonTask{
 		PythonFile:  script,
 		Parameters: args,
 	}
@@ -132,7 +132,7 @@ func (db *DatabricksExecutor) RunSparkJob(cmd *sparkCommand, store SparkFileStor
 			{
 				TaskKey:           fmt.Sprintf("featureform-task-%s", id),
 				ExistingClusterId: db.cluster,
-				SparkSubmitTask:   pythonTask,
+				SparkPythonTask:   pythonTask,
 			},
 		},
 	})

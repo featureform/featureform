@@ -119,12 +119,7 @@ func (db *DatabricksExecutor) SupportsTransformationOption(opt TransformationOpt
 func (db *DatabricksExecutor) RunSparkJob(cmd *sparkCommand, store SparkFileStoreV2, opts SparkJobOptions, tfopts TransformationOptions) error {
 	args := cmd.Compile()
 	logger := db.logger.With("args", args, "store", store.Type(), "job_name", opts.JobName, "cluster_id", db.cluster)
-	pythonFilepath, err := sparkPythonFileURI(store, logger)
-	if err != nil {
-		logger.Errorw("could not get python file path", "error", err)
-		return err
-	}
-	pythonTask := &jobs.SparkSubmitTasks{
+	pythonTask := &jobs.SparkSubmitTask{
 		// The spark-submit string is implied, so skip that.
 		Parameters: args[1:],
 	}

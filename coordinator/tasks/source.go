@@ -42,11 +42,9 @@ type tableMapping struct {
 }
 
 func (t *SourceTask) Run() error {
-	// We should be initialize this stuff and passing it through.
-	// This is just a quick way to add our context.Context at this level.
-	logger := t.logger
-	_, ctx, _ := logger.InitializeRequestID(context.TODO())
+	_, ctx, logger := t.logger.InitializeRequestID(context.TODO())
 	t.ctx = ctx
+	logger.Debugw("Running source task")
 	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
 		errMsg := fmt.Sprintf("cannot create a source from target type: %s", t.taskDef.TargetType)

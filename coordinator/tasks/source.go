@@ -105,14 +105,18 @@ func (t *SourceTask) Run() error {
 		"is_primary", source.IsPrimaryData(),
 		"definition", source.Definition(),
 	)
-	logger.Info("Selecting source job type")
-	if source.IsSQLTransformation() {
+	logger.Debug("Selecting source job type")
+	switch {
+	case source.IsSQLTransformation():
+		logger.Info("Running SQL transformation job")
 		return t.runSQLTransformationJob(source, resID, sourceStore)
-	} else if source.IsDFTransformation() {
+	case source.IsDFTransformation():
+		logger.Info("Running DF transformation job")
 		return t.runDFTransformationJob(source, resID, sourceStore)
-	} else if source.IsPrimaryData() {
+	case source.IsPrimaryData():
+		logger.Info("Running primary table job")
 		return t.runPrimaryTableJob(source, resID, sourceStore)
-	} else {
+	default:
 		logger.Error("Unknown source type")
 		return fferr.NewInternalErrorf("source type not implemented")
 	}

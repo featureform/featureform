@@ -219,7 +219,7 @@ jobs:
 
       - name: Archive code coverage results
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: search-coverage-reports
           path: ./cover.html
@@ -265,7 +265,7 @@ jobs:
           source venv/bin/activate
           ./pip_update.sh --no-dash
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: client
           path: ./client
@@ -283,7 +283,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: client
           path: ./client
@@ -338,7 +338,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Download Working Compiled Directories
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: client
           path: ./client
@@ -484,7 +484,7 @@ jobs:
 
       - name: Archive behave test results without Autovariants
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: behave-reports-without-av
           path: ./tests/end_to_end/output/
@@ -530,7 +530,7 @@ jobs:
 
       - name: Upload Logs
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: featureform-non-av.log
           path: ./featureform-non-av.log
@@ -647,7 +647,7 @@ jobs:
 
       - name: Archive behave test results with Autovariants
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: behave-reports-av
           path: ./tests/end_to_end/output/
@@ -693,7 +693,7 @@ jobs:
 
       - name: Upload Logs
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: featureform-av.log
           path: ./featureform-av.log
@@ -840,7 +840,7 @@ jobs:
 
       - name: Upload Logs
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: featureform-e2e-pytest.log
           path: ./featureform-e2e-pytest.log

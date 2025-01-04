@@ -187,6 +187,7 @@ func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath
 		logger.Errorw("Unable open local file for copy", "error", err)
 		return fferr.NewInternalError(err)
 	}
+	defer f.Close()
 
 	fileStats, err := f.Stat()
 	if err != nil {

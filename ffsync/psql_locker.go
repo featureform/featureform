@@ -93,7 +93,11 @@ func (l *psqlLocker) runLockQuery(key string, id string) error {
 }
 
 func (l *psqlLocker) attemptLock(ctx context.Context, key string, id string, wait bool) error {
-	logger := ctx.Value(psqlLoggerKey).(logging.Logger)
+	logger, ok := ctx.Value(psqlLoggerKey).(logging.Logger)
+	if !ok {
+		logger.DPanic("Unable to get logger from context. Using global logger.")
+		logger = logging.GlobalLogger
+	}
 	logger.Debug("Attempting to lock key")
 	startTime := l.clock.Now()
 	for {

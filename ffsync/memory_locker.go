@@ -54,7 +54,11 @@ type memoryLocker struct {
 }
 
 func (m *memoryLocker) checkLock(ctx context.Context, key string) error {
-	logger := ctx.Value(memoryLoggerKey).(logging.Logger)
+	logger, ok := ctx.Value(memoryLoggerKey).(logging.Logger)
+	if !ok {
+		logger.DPanic("Unable to get logger from context. Using global logger.")
+		logger = logging.GlobalLogger
+	}
 	logger.Debug("Checking lock for key ", key)
 
 	logger.Debug("Checking if key is prefix of existing key ", key)

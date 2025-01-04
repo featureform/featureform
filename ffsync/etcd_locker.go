@@ -92,7 +92,11 @@ func (m *etcdLocker) cancelableWaitTime(key string) error {
 
 // blockingLock will attempt to lock a key and wait if the key is already locked
 func (m *etcdLocker) blockingLock(ctx context.Context, lockMutex *concurrency.Mutex, key string) error {
-	logger := ctx.Value(etcdLoggerKey).(logging.Logger)
+	logger, ok := ctx.Value(etcdLoggerKey).(logging.Logger)
+	if !ok {
+		logger.DPanic("Unable to get logger from context. Using global logger.")
+		logger = logging.GlobalLogger
+	}
 	logger.Debug("Locking Key with wait")
 	var err error
 	go func() {

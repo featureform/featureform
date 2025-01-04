@@ -1513,7 +1513,7 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 					t.Fatalf("could not create output path %s", err)
 				}
 				args, err := store.Executor.SparkSubmitArgs(
-					types.SparkClusterDeployMode,
+					types.SparkClientDeployMode,
 					DFTransformation,
 					pl.NewFileLocation(output),
 					ttConst.code,
@@ -2953,7 +2953,7 @@ func TestEMRErrorMessages(t *testing.T) {
 			},
 			Configs: sparkConfigs{
 				sparkDeployFlag{
-					Mode: types.SparkClusterDeployMode,
+					Mode: types.SparkClientDeployMode,
 				},
 			},
 		}
@@ -3520,7 +3520,7 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 	// 				t.Errorf("SparkExecutor.CreateFilePath() = %#v, want %#v", err, nil)
 	// 			}
 	// 			submitArgs, err := tt.executor.SparkSubmitArgs(
-	// 				types.SparkClusterDeployMode,
+	// 				types.SparkClientDeployMode,
 	// 				SQLTransformation,
 	// 				pl.NewFileLocation(destination),
 	// 				tt.SubmitArgs.Query,
@@ -3540,7 +3540,7 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 	// 				t.Errorf("SparkExecutor.CreateFilePath() = %#v, want %#v", err, nil)
 	// 			}
 	// 			dfArgs, err := tt.executor.SparkSubmitArgs(
-	// 				types.SparkClusterDeployMode,
+	// 				types.SparkClientDeployMode,
 	// 				DFTransformation,
 	// 				pl.NewFileLocation(output),
 	// 				tt.DFArgs.Code,
@@ -3575,7 +3575,7 @@ func TestExceedsSubmitParamsTotalByteLimit(t *testing.T) {
 	/// 		name:     "SubmitParamsWithinLimit",
 	/// 		cmd:      genericSparkSubmitArgs(
 	/// 			pc.EMR,
-	/// 			types.SparkClusterDeployMode,
+	/// 			types.SparkClientDeployMode,
 	/// 			SQLTransformation,
 	/// 			pl.NewFileLocation(output),
 	/// 			"SELECT * FROM table",
@@ -3935,6 +3935,7 @@ func (test sparkIntegrationTest) Run(t *testing.T, executor SparkExecutor, sfs S
 		sparkIncludePyScript{
 			Path: remoteRunnerPath,
 		},
+		sparkOutputFlag{},
 	}
 	configs := append(baseConfigs, test.TestConfigs...)
 	cmd := &sparkCommand{
@@ -3982,7 +3983,7 @@ func createIcebergIntegrationTest() sparkIntegrationTest {
 		JobName:     "IcebergIntegrationTest",
 		File:        "test_iceberg.py",
 		TestConfigs: configs,
-		DeployMode:  types.SparkClusterDeployMode,
+		DeployMode:  types.SparkClientDeployMode,
 	}
 }
 
@@ -4071,7 +4072,7 @@ func createDynamoIntegrationTest() sparkIntegrationTest {
 		JobName:     "DynamodbIntegrationTest",
 		File:        "test_dynamodb.py",
 		TestConfigs: configs,
-		DeployMode:  types.SparkClusterDeployMode,
+		DeployMode:  types.SparkClientDeployMode,
 	}
 }
 
@@ -4080,7 +4081,7 @@ func createFeatureQueryTest() sparkIntegrationTest {
 		JobName:     "FeatureQueryTest",
 		File:        "test_feature_query.py",
 		TestConfigs: sparkConfigs{},
-		DeployMode:  types.SparkClusterDeployMode,
+		DeployMode:  types.SparkClientDeployMode,
 	}
 }
 
@@ -4119,7 +4120,7 @@ func createMaterializeTest() sparkIntegrationTest {
 		JobName:     "MaterializeTest",
 		File:        "test_materialize.py",
 		TestConfigs: configs,
-		DeployMode:  types.SparkClusterDeployMode,
+		DeployMode:  types.SparkClientDeployMode,
 	}
 }
 
@@ -4131,7 +4132,7 @@ func createKafkaTest() sparkIntegrationTest {
 		JobName:     "KafkaTest",
 		File:        "test_kafka.py",
 		TestConfigs: configs,
-		DeployMode:  types.SparkClusterDeployMode,
+		DeployMode:  types.SparkClientDeployMode,
 	}
 }
 

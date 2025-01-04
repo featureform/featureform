@@ -1507,8 +1507,7 @@ def setup_df_parser(parser):
 def setup_common_parser(parser):
     # fmt: off
     parser.add_argument("--job_type", choices=list(JobType), help="Type of job being run.")
-    parser.add_argument("--output", action=JsonAction, required=True,
-                        help="Output file location; e.g., s3a://bucket/path")
+    parser.add_argument("--output", action=JsonAction, help="Output file location; e.g., s3a://bucket/path")
     parser.add_argument("--sources", nargs="*", action=JsonListAction,
                         help="List of sources in the transformation string.")
     parser.add_argument("--store_type", choices=FILESTORES)

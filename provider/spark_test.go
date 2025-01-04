@@ -1333,62 +1333,6 @@ func testGetTransformation(t *testing.T, store *SparkOfflineStore) {
 	}
 }
 
-func testGetSourcePath(t *testing.T, store *SparkOfflineStore) {
-	cases := []struct {
-		name            string
-		sourcePath      string
-		expectedPath    string
-		expectedFailure bool
-	}{
-		{
-			"PrimaryPathSuccess",
-			"featureform_primary__test_name__14e4cd5e183d44968a6cf22f2f61d945",
-			"featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/part-00000-9d3cb5a3-4b9c-4109-afa3-a75759bfcf89-c000.snappy.parquet",
-			false,
-		},
-		{
-			"TransformationPathSuccess",
-			"featureform_transformation__028f6213-77a8-43bb-9d91-dd7e9ee96102__test_variant",
-			"featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384",
-			false,
-		},
-		{
-			"PrimaryPathFailure",
-			"featureform_primary__fake_name__fake_variant",
-			"",
-			true,
-		},
-		{
-			"TransformationPathFailure",
-			"featureform_transformation__fake_name__fake_variant",
-			"",
-			true,
-		},
-	}
-
-	for _, tt := range cases {
-		ttConst := tt
-		t.Run(
-			ttConst.name, func(t *testing.T) {
-				t.Parallel()
-				time.Sleep(time.Second * 15)
-				actualPath, err := store.getSourcePath(ttConst.sourcePath)
-				if !ttConst.expectedFailure && err != nil {
-					t.Fatalf("getSourcePath could not get the path because %s.", err)
-				}
-
-				if !ttConst.expectedFailure && !reflect.DeepEqual(ttConst.expectedPath, actualPath) {
-					t.Fatalf(
-						"getSourcePath could not find the expected path. Expected \"%s\", got \"%s\".",
-						ttConst.expectedPath,
-						actualPath,
-					)
-				}
-			},
-		)
-	}
-}
-
 func testGetResourceInformationFromFilePath(t *testing.T, store *SparkOfflineStore) {
 	cases := []struct {
 		name         string

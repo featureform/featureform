@@ -135,12 +135,6 @@ def main(args):
     return output_location
 
 
-def init_spark_config(spark_configs):
-    spark = SparkSession.builder.appName("Execute SQL Query")
-    set_spark_configs(spark, spark_configs)
-    return spark.getOrCreate()
-
-
 class TableFormatClient(ABC):
     def __init__(self, spark, catalog, database):
         self._spark = spark

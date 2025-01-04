@@ -202,12 +202,12 @@ func (e *Executor) Run(task tasks.Task) chan error {
 }
 
 func (e *Executor) getTaskRunner(runMetadata scheduling.TaskRunMetadata, lastSuccessfulRun scheduling.TaskRunMetadata, isUpdate bool, logger logging.Logger) (tasks.Task, error) {
-	e.logger.Infow("getTaskRunner", "last task", lastSuccessfulRun)
+	logger.Infow("getTaskRunner", "last task", lastSuccessfulRun)
 	taskConfig := tasks.TaskConfig{
 		DependencyPollInterval: e.config.DependencyPollInterval,
 	}
 	baseTask := tasks.NewBaseTask(e.metadata, runMetadata, lastSuccessfulRun, isUpdate, e.spawner, logger, taskConfig)
-	e.logger.Infow("Base task created", "task", baseTask)
+	logger.Infow("Base task created", "task", baseTask)
 	return tasks.Get(runMetadata.TargetType, baseTask)
 }
 

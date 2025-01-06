@@ -317,6 +317,8 @@ const EntityPageView = ({
     resourceHeading = 'Dataset'
   }
 
+  const metadataInputSet = Array.from(new Set(metadata['inputs']));
+
   return true || (!resources.loading && !resources.failed && resources.data) ? (
     <StyledContainer maxWidth={false}>
       <Box>
@@ -611,13 +613,13 @@ const EntityPageView = ({
                   </ResourceItem>
                 )}
 
-                {metadata['inputs']?.length ? (
+                {metadataInputSet?.length ? (
                   <ResourceItem>
                     <ItemBox>
                       <ItemTypography variant='body1'>
                         <strong>Datasets:</strong>
                       </ItemTypography>
-                      {metadata['inputs'].map((nv, index) => (
+                      {metadataInputSet.map((nv, index) => (
                         <Chip
                           key={index}
                           variant='outlined'

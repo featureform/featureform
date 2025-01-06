@@ -174,8 +174,10 @@ class Client(ResourceClient, ServingClient):
                 )
             return self._spark_dataframe(source, spark_session)
         if iceberg:
-            # todox:pull this here
-            return self._iceberg_dataframe(source)
+            resource_type = DataResourceType.TRANSFORMATION
+            if isinstance(source, TrainingSetVariant):
+                resource_type = DataResourceType.TRAINING_SET
+            return self._iceberg_dataframe(source, variant, resource_type)
         return self.impl._get_source_as_df(name, variant, limit)
 
     def _get_iceberg_table(
@@ -197,17 +199,9 @@ class Client(ResourceClient, ServingClient):
 
     def _iceberg_dataframe(
         self,
-        source: Union[
-            SourceRegistrar, SubscriptableTransformation, ResourceVariant, str
-        ],
-    ):
-        return self._helper_fetch_iceberg_from_proxy(source)
-
-    def _helper_fetch_iceberg_from_proxy(
-        self,
-        name: str,
-        variant: str,
-        limit=ONE_MILLION_RECORD_LIMIT,
+        source: str = None,
+        variant: str = None,
+        resource_type: DataResourceType = None,
     ):
         """
         Fetch Iceberg data via the Go proxy using Apache Arrow Flight.
@@ -220,10 +214,7 @@ class Client(ResourceClient, ServingClient):
         Returns:
             iceberg data catalog stream
         """
-        ticket_data = {
-            "name": name,
-            "variant": variant,
-        }
+        ticket_data = {"location": self.location(source, variant, resource_type)}
 
         proxy_address = "go-proxy:8086"
         ticket = flight.Ticket(json.dumps(ticket_data).encode("utf-8"))
@@ -412,6 +403,7 @@ class Client(ResourceClient, ServingClient):
             )
 
         location = self.impl.location(name, variant, resource_type)
+        print("location is: ", location)
         return location
 
     def close(self):

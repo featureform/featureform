@@ -17,6 +17,7 @@ from .deploy import (
     DockerDeployment,
 )
 
+from resources import ResourceVariant
 from .version import get_package_version
 from .tls import get_version_hosted
 
@@ -158,38 +159,30 @@ def version():
 
 
 @cli.command()
+@click.option(
+    "--host",
+    "host",
+    required=False,
+    help="The host address of the API server to connect to",
+)
+@click.option(
+    "--cert", "cert", required=False, help="Path to self-signed TLS certificate"
+)
+@click.option("--insecure", is_flag=True, help="Disables TLS verification")
 @click.argument("name", required=True)
 @click.argument("variant", required=True)
-def stream(name, variant):
+def stream(host, cert, insecure, name, variant):
+    host = host or os.getenv("FEATUREFORM_HOST")
+    if host is None:
+        raise ValueError(
+            "Host value must be set with --host flag or in env as FEATUREFORM_HOST"
+        )
+
+    client = Client(host=host, insecure=insecure, cert_path=cert)
+
     print(f"The name-variant: {name} - {variant}")
-    server_address = "go-proxy:8086"
-
-    print(f"Connecting to Flight server at {server_address}")
-    df = fetch_data_and_print(server_address, name, variant)
-    print("data frame: ", df)
-
-
-def fetch_data_and_print(server_address, name, variant):
-    """
-    Fetch data from the python-streamer
-    """
-    client = flight.connect(server_address)
-    ticket_data = {
-        "name": name,
-        "variant": variant,
-    }
-
-    # todox: swap this out for the new function in client.dataframe
-    ticket = flight.Ticket(json.dumps(ticket_data).encode("utf-8"))
-    client = flight.connect(f"grpc://{server_address}")
-    try:
-        stream = client.do_get(ticket)
-        reader = stream.read_all()  # todo: don't read all. just iterate
-        return reader.to_pandas()
-    except flight.FlightError as e:
-        raise RuntimeError(f"Failed to fetch data from Go proxy: {e}")
-    finally:
-        client.close()
+    df = client.dataframe(source=name, variant=variant, iceberg=True)
+    print("pulled data frame: ", df)
 
 
 @cli.command()

@@ -28,8 +28,8 @@ type GoProxyServer struct {
 }
 
 func hydrateTicket(ticket *flight.Ticket) *flight.Ticket {
-	//copy the ticket values,
-	//get the provider credentials from location.go
+	// todo: pull the ticket location
+	location := ""
 	/*
 		ticket_data = {
 			"catalog": catalog,
@@ -39,8 +39,7 @@ func hydrateTicket(ticket *flight.Ticket) *flight.Ticket {
 			"client.secret-access-key": secret_access_key,
 		}
 	*/
-	//send back the ticket
-	fmt.Println(ticket.Ticket)
+	fmt.Println(location)
 	return ticket
 }
 

@@ -838,11 +838,26 @@ func (serv *FeatureServer) getOfflineResourceLocation(ctx context.Context, name,
 		if err != nil {
 			return "", err
 		}
-		providerEntry, err = sv.FetchProvider(serv.Metadata, ctx)
+		resource = sv
+
+		primaryLocation, err := sv.GetPrimaryLocation()
 		if err != nil {
+			serv.Logger.Errorw("Could not retrieve primary location from source variant", "error", err)
 			return "", err
 		}
-		resource = sv
+
+		if primaryLocation != nil {
+			return primaryLocation.Location(), nil
+		}
+
+		transLocation, err := sv.GetTransformationLocation()
+		if err != nil {
+			serv.Logger.Errorw("Could not retrieve primary location from source variant", "error", err)
+			return "", err
+		}
+
+		return transLocation.Location(), nil
+
 	case provider.TrainingSet:
 		serv.Logger.Infow("Getting Training Set Provider", "name", name, "variant", variant)
 		ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})

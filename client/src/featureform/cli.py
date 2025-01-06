@@ -17,7 +17,6 @@ from .deploy import (
     DockerDeployment,
 )
 
-from resources import ResourceVariant
 from .version import get_package_version
 from .tls import get_version_hosted
 

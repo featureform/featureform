@@ -2219,6 +2219,7 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variantReq
 	ctx = logging.AttachRequestID(variantRequest.RequestId, ctx, serv.Logger)
 	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.FeatureVariant, variantRequest.FeatureVariant.Name, variantRequest.FeatureVariant.Variant)
 	logger.Info("Creating Feature Variant")
+	logger.Debugw("Feature Variant ResourceSnowflakeConfig", "snowflake_config", variantRequest.FeatureVariant.ResourceSnowflakeConfig)
 
 	variant := variantRequest.FeatureVariant
 	variant.Created = tspb.New(time.Now())

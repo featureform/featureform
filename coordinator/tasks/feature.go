@@ -144,6 +144,7 @@ func (t *FeatureTask) Run() error {
 		}
 		resourceSnowflakeConfig = tempConfig
 	}
+	t.logger.Debugw("Dynamic Table Config in Feature Task", "config", resourceSnowflakeConfig)
 
 	providerResID := provider.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: provider.Feature}
 	materializedRunnerConfig := runner.MaterializedRunnerConfig{

@@ -4744,7 +4744,7 @@ def set_resource_snowflake_config_defaults(
         resource_snowflake_config = ResourceSnowflakeConfig(
             dynamic_table_config=SnowflakeDynamicTableConfig(
                 target_lag=ONE_DAY_TARGET_LAG,
-                refresh_mode=RefreshMode.AUTO,
+                refresh_mode=RefreshMode.INCREMENTAL,
                 initialize=Initialize.ON_CREATE,
             )
         )
@@ -4753,7 +4753,7 @@ def set_resource_snowflake_config_defaults(
     elif not resource_snowflake_config.dynamic_table_config:
         resource_snowflake_config.dynamic_table_config = SnowflakeDynamicTableConfig(
             target_lag=ONE_DAY_TARGET_LAG,
-            refresh_mode=RefreshMode.AUTO,
+            refresh_mode=RefreshMode.INCREMENTAL,
             initialize=Initialize.ON_CREATE,
         )
 

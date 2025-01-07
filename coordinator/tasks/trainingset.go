@@ -151,47 +151,8 @@ func (t *TrainingSetTask) Run() error {
 		LagFeatures:             lagFeaturesList,
 		ResourceSnowflakeConfig: resourceSnowflakeConfig,
 	}
-	tsRunnerConfig := runner.TrainingSetRunnerConfig{
-		OfflineType:   pt.Type(providerEntry.Type()),
-		OfflineConfig: providerEntry.SerializedConfig(),
-		Def:           trainingSetDef,
-		IsUpdate:      t.isUpdate,
-	}
-	serialized, _ := tsRunnerConfig.Serialize()
 
-	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Job runner..."); err != nil {
-		return err
-	}
-
-	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.TRAINING_SET_VARIANT}
-	jobRunner, err := t.spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serialized, resID)
-	if err != nil {
-		return err
-	}
-
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Starting execution...")
-	if err != nil {
-		return err
-	}
-
-	completionWatcher, err := jobRunner.Run()
-	if err != nil {
-		return err
-	}
-
-	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for completion..."); err != nil {
-		return err
-	}
-
-	if err := completionWatcher.Wait(); err != nil {
-		return err
-	}
-
-	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Training Set creation complete..."); err != nil {
-		return err
-	}
-
-	return nil
+	return t.runTrainingSetJob(trainingSetDef, store)
 }
 
 func (t *TrainingSetTask) getLabelSourceMapping(label *metadata.LabelVariant) (provider.SourceMapping, error) {
@@ -360,4 +321,53 @@ func (t *TrainingSetTask) getSourceTableNameForSnowflake(feature *metadata.Featu
 	} else {
 		return "", fferr.NewInternalErrorf("unsupported source type: %T", sv.Definition())
 	}
+}
+
+func (t *TrainingSetTask) runTrainingSetJob(def provider.TrainingSetDef, offlineStore provider.OfflineStore) error {
+	t.logger.Debugw("Running training set job", "id", def.ID)
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Starting Training Set Creation..."); err != nil {
+		t.logger.Errorw("Unable to add run log", "error", err)
+		// We can continue without the run log
+	}
+
+	var trainingSetFnType func(provider.TrainingSetDef) error
+	if t.isUpdate {
+		trainingSetFnType = offlineStore.UpdateTrainingSet
+	} else {
+		trainingSetFnType = offlineStore.CreateTrainingSet
+	}
+
+	t.logger.Debugw("Running training set task")
+	tsWatcher := &runner.SyncWatcher{
+		ResultSync:  &runner.ResultSync{},
+		DoneChannel: make(chan interface{}),
+	}
+	go func() {
+		if err := trainingSetFnType(def); err != nil {
+			t.logger.Errorw("Training set failed, ending watch", "error", err)
+			tsWatcher.EndWatch(err)
+			return
+		}
+		tsWatcher.EndWatch(nil)
+	}()
+
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for training set job to complete..."); err != nil {
+		t.logger.Errorw("Unable to add run log", "error", err)
+		// We can continue without the run log
+	}
+
+	t.logger.Infow("Waiting for training set job to complete")
+	if err := tsWatcher.Wait(); err != nil {
+		t.logger.Errorw("Training set job failed", "error", err)
+		return err
+	}
+
+	t.logger.Infow("Training set job completed")
+
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Training Set creation complete."); err != nil {
+		t.logger.Errorw("Unable to add run log", "error", err)
+		// We can continue without the run log
+	}
+
+	return nil
 }

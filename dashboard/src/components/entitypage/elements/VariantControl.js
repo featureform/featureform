@@ -68,6 +68,8 @@ const VariantControl = ({
   const [variantList, setVariantList] = useState([]);
   const [filteredVarList, setFilteredVarList] = useState([]);
 
+  const isChecked = !IsAutoVariant(variant);
+
   const closeSnackBar = (_, reason) => {
     if (reason === 'clickaway') {
       return;
@@ -218,6 +220,7 @@ const VariantControl = ({
             handleClose={handleClose}
             handleSelect={handleSelect}
             handleSearch={handleSearch}
+            initialChecked={isChecked}
           />
         </Popover>
       </Box>

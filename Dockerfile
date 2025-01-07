@@ -1,6 +1,6 @@
 FROM node:18-alpine AS base
 
-# Build the dashboard directoy, only what is needed.
+# Build the dashboard directory, only what is needed
 FROM base AS deps
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
 RUN apk add --no-cache libc6-compat
@@ -19,7 +19,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app/dashboard
 RUN npm run build
 
-#Production image, copy all the files and run next
+# Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app/dashboard
 ENV NODE_ENV=production
@@ -43,8 +43,8 @@ RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 WORKDIR /app
 COPY go.mod ./
 COPY go.sum ./
-
 RUN go mod download
+
 COPY ./filestore/ ./filestore/
 COPY ./health/ ./health/
 COPY integrations/ integrations/
@@ -68,11 +68,9 @@ COPY kubernetes/ kubernetes/
 COPY config/ config/
 COPY logging/ logging/
 
-
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./proto/serving.proto
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./scheduling/proto/scheduling.proto
-
 
 RUN mkdir execs
 RUN go build -o execs/api api/main/main.go
@@ -81,7 +79,21 @@ RUN go build -o execs/coordinator coordinator/main/main.go
 RUN go build -o execs/dashboard_metadata metadata/dashboard/main/main.go
 RUN go build -o execs/serving serving/main/main.go
 
-# Final image
+# Build Python Streamer
+FROM python:3.10-slim AS streamer-builder
+
+WORKDIR /app/streamer
+
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
+    && rm -rf /var/lib/apt/lists/*
+RUN pip install --upgrade pip
+RUN pip install boto3 pyarrow 'pyiceberg[glue]'
+
+COPY ./streamer/ /app/streamer/
+
+EXPOSE 8085
+
+# Final Image
 FROM golang:1.21
 
 WORKDIR /app
@@ -118,6 +130,9 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Copy built dashboard
 COPY --from=runner /app/dashboard ./dashboard
+
+# Copy Python Streamer
+COPY --from=streamer-builder /app/streamer /app/streamer
 
 # Setup Spark
 ARG SPARK_FILEPATH=/app/provider/scripts/spark/offline_store_spark_runner.py
@@ -156,15 +171,14 @@ ENV SERVING_HOST="0.0.0.0"
 ENV ETCD_ARCH=""
 ENV MEILI_LOG_LEVEL="WARN"
 ENV FEATUREFORM_HOST="localhost"
-
 ENV FF_STATE_PROVIDER="psql"
 ENV USE_CLIENT_MODE="true"
-
 ENV RDS_HOST="host.docker.internal"
 
 EXPOSE 7878
 EXPOSE 80
 EXPOSE 5432
+EXPOSE 8085
 
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 

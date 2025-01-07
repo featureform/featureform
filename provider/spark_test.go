@@ -1465,7 +1465,7 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 					JobType:        Transform,
 					Store:          store.Store,
 					Mappings:       make([]SourceMapping, 0),
-				}.PrepareCommand()
+				}.PrepareCommand(logger.NewTestLogger(t))
 
 				if !ttConst.expectedFailure && err != nil {
 					t.Fatalf("could not get df args %s", err)
@@ -4081,7 +4081,7 @@ func createKafkaTest() sparkIntegrationTest {
 }
 
 func TestCreateSourceInfo(t *testing.T) {
-	logger := zap.NewExample().Sugar()
+	logger := logging.NewTestLogger(t)
 
 	// Set up the local file path
 	fp := filestore.LocalFilepath{}

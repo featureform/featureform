@@ -13,6 +13,10 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
+
+	"encoding/json"
+	"os"
 
 	"github.com/apache/arrow/go/v17/arrow/flight"
 	"github.com/featureform/helpers"
@@ -27,20 +31,48 @@ type GoProxyServer struct {
 	logger          logging.Logger
 }
 
-func hydrateTicket(ticket *flight.Ticket) *flight.Ticket {
-	// todo: pull the ticket location
-	location := ""
-	/*
-		ticket_data = {
-			"catalog": catalog,
-			"namespace": namespace,
-			"table": table,
-			"client.access-key-id": access_key_id,
-			"client.secret-access-key": secret_access_key,
-		}
-	*/
-	fmt.Println(location)
-	return ticket
+// pulls the client ticket's location and hydrates with additional entries
+func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, error) {
+	var ticketData map[string]string
+	err := json.Unmarshal(ticket.Ticket, &ticketData)
+	if err != nil {
+		masrhalErr := fmt.Errorf("failed to parse ticket JSON: %w", err)
+		gps.logger.Error(masrhalErr)
+		return nil, masrhalErr
+	}
+
+	location, ok := ticketData["location"]
+	if !ok || location == "" {
+		locationErr := fmt.Errorf("missing 'location' in ticket data")
+		gps.logger.Error(locationErr)
+		return nil, locationErr
+	}
+
+	parts := strings.Split(location, ".")
+	if len(parts) != 2 {
+		splitErr := fmt.Errorf("invalid location format, expected 'name.variant' but got: %s", location)
+		gps.logger.Error(splitErr)
+		return nil, splitErr
+	}
+	namespace := parts[0]
+	table := parts[1]
+
+	hydratedTicketData := map[string]string{
+		"catalog":                  "default",
+		"namespace":                namespace,
+		"table":                    table,
+		"client.access-key-id":     os.Getenv("AWS_ACCESS_KEY_ID"), // todox: need to change this.
+		"client.secret-access-key": os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		"client.region":            os.Getenv("AWS_REGION"),
+	}
+
+	//re-package the ticket
+	hydratedTicketBytes, err := json.Marshal(hydratedTicketData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal hydrated ticket JSON: %w", err)
+	}
+
+	return &flight.Ticket{Ticket: hydratedTicketBytes}, nil
 }
 
 func (gps *GoProxyServer) DoGet(ticket *flight.Ticket, stream flight.FlightService_DoGetServer) error {
@@ -53,7 +85,11 @@ func (gps *GoProxyServer) DoGet(ticket *flight.Ticket, stream flight.FlightServi
 	}
 	defer client.Close()
 
-	filledTicket := hydrateTicket(ticket)
+	filledTicket, err := gps.hydrateTicket(ticket)
+	if err != nil {
+		gps.logger.Errorf("Failed to hydrate ticket: %v", err)
+		return err
+	}
 
 	// fetch and pass stream back to the caller
 	flightStream, err := client.DoGet(context.Background(), filledTicket)

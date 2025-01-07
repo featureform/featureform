@@ -34,5 +34,5 @@ spec:
         ports:
         - containerPort: 8086
         env:
-        - name: ICEBERG_STREAMER_ADDRESS
-          value: "iceberg-streamer:{{ .Values.icebergStreamer.port | quote }}"
+          - name: ICEBERG_STREAMER_PORT
+            value: {{ .Values.icebergStreamer.port | quote }}

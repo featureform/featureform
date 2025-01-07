@@ -1391,7 +1391,7 @@ func (resource *trainingSetVariantResource) Validate(ctx context.Context, lookup
 		case pb.ComputationMode_CLIENT_COMPUTED:
 			return fferr.NewInvalidArgumentErrorf("feature %s has unsupported computation mode %s", feature.Name, featureVariant.serialized.Mode)
 		default:
-			return fferr.NewInternalError(fmt.Errorf("feature %s has unknown computation mode %s", feature.Name, featureVariant.serialized.Mode))
+			return fferr.NewInternalErrorf("feature %s has unknown computation mode %s", feature.Name, featureVariant.serialized.Mode)
 		}
 	}
 	return nil

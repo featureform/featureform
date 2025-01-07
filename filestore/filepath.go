@@ -10,13 +10,14 @@ package filestore
 import (
 	"fmt"
 	"net/url"
+	pathlib "path"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
-	"strings"
-
 	"github.com/featureform/fferr"
+	"github.com/featureform/logging"
 )
 
 type FileType string
@@ -113,7 +114,7 @@ type Filepath interface {
 	Validate() error
 	IsValid() bool
 
-	// TODO: Add Append method and move any trimming of path into this method and delete it from everywhere else
+	AppendPathString(path string) error
 }
 
 func NewEmptyFilepath(storeType FileStoreType) (Filepath, error) {
@@ -314,6 +315,36 @@ func (fp *FilePath) Validate() error {
 	// 	return fferr.NewInvalidArgumentError(fmt.Errorf("directory path cannot have a file extension"))
 	// }
 	fp.isValid = true
+	return nil
+}
+
+func (fp *FilePath) AppendPathString(path string) error {
+	if !fp.IsDir() {
+		logging.GlobalLogger.Errorw(
+			"Append only works on a directory path",
+			"filepath", fp,
+			"append", path,
+		)
+		return fferr.NewInternalErrorf("Append only works on a directory path\n%s\n", fp.ToURI())
+	}
+	u, err := url.Parse(path)
+	if err != nil {
+		logging.GlobalLogger.Errorw(
+			"Invalid path to append",
+			"filepath", fp,
+			"append", path,
+		)
+		return fferr.NewInternalErrorf("Invalid path to append\n%s\n", path)
+	}
+	if u.IsAbs() {
+		logging.GlobalLogger.Errorw(
+			"Cannot append an absolute URL path",
+			"filepath", fp,
+			"append", path,
+		)
+		return fferr.NewInternalErrorf("Cannot append an absolute URL path\n%s\n", path)
+	}
+	fp.SetKey(pathlib.Join(fp.Key(), path))
 	return nil
 }
 

@@ -1456,16 +1456,16 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 				if err != nil {
 					t.Fatalf("could not create output path %s", err)
 				}
-				args, err := store.Executor.SparkSubmitArgs(
-					types.SparkClientDeployMode,
-					DFTransformation,
-					pl.NewFileLocation(output),
-					ttConst.code,
-					wrapLegacyPysparkSourceInfos(ttConst.mapping),
-					Transform,
-					store.Store,
-					make([]SourceMapping, 0),
-				)
+				args, err := sparkScriptCommandDef{
+					DeployMode:     types.SparkClientDeployMode,
+					TFType:         DFTransformation,
+					OutputLocation: pl.NewFileLocation(output),
+					Code:           ttConst.code,
+					SourceList:     wrapLegacyPysparkSourceInfos(ttConst.mapping),
+					JobType:        Transform,
+					Store:          store.Store,
+					Mappings:       make([]SourceMapping, 0),
+				}.PrepareCommand()
 
 				if !ttConst.expectedFailure && err != nil {
 					t.Fatalf("could not get df args %s", err)

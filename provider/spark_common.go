@@ -58,27 +58,50 @@ func sparkPythonFileURI(store SparkFileStoreV2, logger logging.Logger) (filestor
 	return sparkScriptPath, nil
 }
 
-func genericSparkSubmitArgs(execType pc.SparkExecutorType, deployMode types.SparkDeployMode, tfType TransformationType, outputLocation pl.Location, code string, sourceList []pysparkSourceInfo, jobType JobType, store SparkFileStoreV2, mappings []SourceMapping) (*sparkCommand, error) {
-	logger := logger.With("deployMode", deployMode, "outputLocation", outputLocation, "outputLocationType", fmt.Sprintf("%T", outputLocation), "code", code, "sourceList", sourceList, "jobType", jobType, "store", store)
+type sparkScriptCommandDef struct {
+	// DeployMode specifies how the job should be deployed on Spark.
+	DeployMode types.SparkDeployMode
+	// TFType specificies the transformation type for transformations.
+	TFType TransformationType
+	// OutputLocation specifies where to write output to in certain transformations.
+	OutputLocation pl.Location
+	// Code should be either a path to the function pkl for dataframes or a SQL string.
+	Code string
+	// SourceList are read and mapped as inputs in the spark script.
+	SourceList []pysparkSourceInfo
+	// JobType specifies which job mode to run the script against.
+	JobType JobType
+	// Store is the filestore interface for Spark to read and write against.
+	Store SparkFileStoreV2
+	// Mappings provides SourceMappings for use alongside SourceList
+	Mappings []SourceMapping
+}
+
+func (def sparkScriptCommandDef) PrepareCommand(logger logging.Logger) (*sparkCommand, error) {
+	logger = logger.With("scriptCommandDef", def)
 	logger.Debugw("SparkSubmitArgs")
-	snowflakeConfig, err := getSnowflakeConfigFromSourceMapping(mappings)
+	snowflakeConfig, err := getSnowflakeConfigFromSourceMapping(def.Mappings)
 	if err != nil {
-		logger.Errorw("Could not get Snowflake config from source mapping", "error", err)
+		logger.Errorw(
+			"Could not get Snowflake config from source mapping",
+			"mappings", def.Mappings,
+			"error", err,
+		)
 		return nil, err
 	}
-	sparkScriptRemotePath, err := sparkPythonFileURI(store, logger)
+	sparkScriptRemotePath, err := sparkPythonFileURI(def.Store, logger)
 	if err != nil {
-		logger.Errorw("Failed to get python file URI", "Err", err)
+		logger.Errorw("Failed to get python file URI", "error", err)
 		return nil, err
 	}
 	var scriptArg string
-	switch tfType {
+	switch def.TFType {
 	case SQLTransformation:
 		scriptArg = "sql"
 	case DFTransformation:
 		scriptArg = "df"
 	default:
-		errMsg := fmt.Sprintf("Unknown transformation type: %s", tfType)
+		errMsg := fmt.Sprintf("Unknown transformation type: %s", def.TFType)
 		logger.Error(errMsg)
 		return nil, fferr.NewInternalErrorf(errMsg)
 	}
@@ -87,20 +110,19 @@ func genericSparkSubmitArgs(execType pc.SparkExecutorType, deployMode types.Spar
 		ScriptArgs: []string{scriptArg},
 		Configs: sparkCoreConfigs(
 			sparkCoreConfigsArgs{
-				JobType:         jobType,
-				ExecType:        execType,
-				Output:          outputLocation,
-				DeployMode:      deployMode,
+				JobType:         def.JobType,
+				Output:          def.OutputLocation,
+				DeployMode:      def.DeployMode,
 				SnowflakeConfig: snowflakeConfig,
-				Store:           store,
+				Store:           def.Store,
 			},
 		),
 	}
 	// In S3, we write the sql and sources to an extenral file to try to avoid going over the
 	// maximum character limit
-	if store.FilestoreType() == filestore.S3 && tfType == SQLTransformation {
+	if def.Store.FilestoreType() == filestore.S3 && def.TFType == SQLTransformation {
 		logger.Debugw("Writing submit params to file")
-		paramsPath, err := writeSubmitParamsToFileStore(code, sourceList, store, logger)
+		paramsPath, err := writeSubmitParamsToFileStore(def.Code, def.SourceList, def.Store, logger)
 		if err != nil {
 			logger.Errorw("Failed to write submit params to file store", "err", err)
 			return nil, err
@@ -109,15 +131,15 @@ func genericSparkSubmitArgs(execType pc.SparkExecutorType, deployMode types.Spar
 		cmd.AddConfigs(sparkSqlSubmitParamsURIFlag{
 			URI: paramsPath,
 		})
-	} else if tfType == SQLTransformation {
+	} else if def.TFType == SQLTransformation {
 		cmd.AddConfigs(sparkSqlQueryFlag{
-			CleanQuery: code,
-			Sources:    sourceList,
+			CleanQuery: def.Code,
+			Sources:    def.SourceList,
 		})
-	} else if tfType == DFTransformation {
+	} else if def.TFType == DFTransformation {
 		cmd.AddConfigs(sparkDataframeQueryFlag{
-			Code:    code,
-			Sources: sourceList,
+			Code:    def.Code,
+			Sources: def.SourceList,
 		})
 	}
 	// EMR's API enforces a 10K-character (i.e. bytes) limit on string values passed to HadoopJarStep, so to avoid a 400, we need
@@ -126,13 +148,13 @@ func genericSparkSubmitArgs(execType pc.SparkExecutorType, deployMode types.Spar
 	if exceedsSubmitParamsTotalByteLimit(cmd) {
 		logger.Errorw(
 			"Command exceeded",
-			"filestore", store.FilestoreType(),
+			"filestore", def.Store.FilestoreType(),
 			"command", cmd,
 			"compiled command", cmd.Compile(),
 		)
 		return nil, fferr.NewInternalErrorf(
 			"Featureform's spark submit is too long for Spark and file store type %s is not supported for remote args submit.",
-			store.FilestoreType())
+			def.Store.FilestoreType())
 	}
 	logger.Debugw("Compiled spark command", "command", cmd)
 	return cmd, nil
@@ -140,7 +162,6 @@ func genericSparkSubmitArgs(execType pc.SparkExecutorType, deployMode types.Spar
 
 type sparkCoreConfigsArgs struct {
 	JobType         JobType
-	ExecType        pc.SparkExecutorType
 	Output          pl.Location
 	DeployMode      types.SparkDeployMode
 	SnowflakeConfig *pc.SnowflakeConfig
@@ -150,8 +171,7 @@ type sparkCoreConfigsArgs struct {
 func sparkCoreConfigs(args sparkCoreConfigsArgs) sparkConfigs {
 	configs := sparkConfigs{
 		sparkSnowflakeFlags{
-			Config:       args.SnowflakeConfig,
-			ExecutorType: args.ExecType,
+			Config: args.SnowflakeConfig,
 		},
 		sparkJobTypeFlag{
 			Type: args.JobType,

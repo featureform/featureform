@@ -21,7 +21,6 @@ import (
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
-	"github.com/featureform/provider/types"
 )
 
 func NewSparkGenericExecutor(sparkGenericConfig pc.SparkGenericConfig, logger logging.Logger) (SparkExecutor, error) {
@@ -107,6 +106,7 @@ func (s *SparkGenericExecutor) SupportsTransformationOption(opt TransformationOp
 }
 
 func (s *SparkGenericExecutor) RunSparkJob(sparkCmd *sparkCommand, store SparkFileStoreV2, opts SparkJobOptions, tfOpts TransformationOptions) error {
+	sparkCmd.AddConfigs(sparkMasterFlag{s.master})
 	args := sparkCmd.Compile()
 	bashCommand := "bash"
 	sparkArgsString := strings.Join(args, " ")
@@ -150,32 +150,4 @@ func (s *SparkGenericExecutor) RunSparkJob(sparkCmd *sparkCommand, store SparkFi
 	}
 
 	return nil
-}
-
-func (e *SparkGenericExecutor) SparkSubmitArgs(
-	deployMode types.SparkDeployMode,
-	tfType TransformationType,
-	outputLocation pl.Location,
-	code string,
-	sourceList []pysparkSourceInfo,
-	jobType JobType,
-	store SparkFileStoreV2,
-	mappings []SourceMapping,
-) (*sparkCommand, error) {
-	cmd, err := genericSparkSubmitArgs(
-		pc.SparkGeneric,
-		deployMode,
-		tfType,
-		outputLocation,
-		code,
-		sourceList,
-		jobType,
-		store,
-		mappings,
-	)
-	if err != nil {
-		return nil, err
-	}
-	cmd.AddConfigs(sparkMasterFlag{e.master})
-	return cmd, nil
 }

@@ -30,7 +30,6 @@ import (
 	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	"golang.org/x/exp/slices"
 )
 
@@ -308,7 +307,7 @@ type SparkOfflineStore struct {
 	Executor   SparkExecutor
 	Store      SparkFileStore
 	GlueConfig *pc.GlueConfig
-	Logger     *zap.SugaredLogger
+	Logger     logging.Logger
 	query      *defaultPythonOfflineQueries
 	BaseProvider
 }
@@ -350,16 +349,16 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 	}
 
 	// Submit arguments for a spark job
-	sparkArgs, err := store.Executor.SparkSubmitArgs(
-		getSparkDeployModeFromEnv(),
-		SQLTransformation,
-		pl.NewFileLocation(outputPath),
-		query,
-		sources,
-		BatchFeatures,
-		store.Store,
-		make([]SourceMapping, 0),
-	)
+	sparkArgs, err := sparkScriptCommandDef{
+		DeployMode:     getSparkDeployModeFromEnv(),
+		TFType:         SQLTransformation,
+		OutputLocation: pl.NewFileLocation(outputPath),
+		Code:           query,
+		SourceList:     sources,
+		JobType:        BatchFeatures,
+		Store:          store.Store,
+		Mappings:       make([]SourceMapping, 0),
+	}.PrepareCommand(store.Logger)
 
 	if err != nil {
 		store.Logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
@@ -473,28 +472,38 @@ func (store *SparkOfflineStore) Close() error {
 // 2. Run a Spark job that reads from <blob-store>/featureform/HealthCheck/health_check.csv and
 // writes to <blob-store>/featureform/HealthCheck/health_check_out.csv
 func (store *SparkOfflineStore) CheckHealth() (bool, error) {
+	logger := store.Logger.With("running-health-check", "true")
 	if config.ShouldSkipSparkHealthCheck() {
+		logger.Debug("Skipping health check")
 		return true, nil
 	}
+	logger.Info("Running spark offline store health check")
 	healthCheckPath, err := store.Store.CreateFilePath("featureform/HealthCheck/health_check.csv", false)
 	if err != nil {
 		wrapped := fferr.NewInternalError(err)
 		wrapped.AddDetails("store_type", store.Type(), "action", "file_path_creation")
+		logger.Errorw("Failed to create file path", "error", wrapped)
 		return false, wrapped
 	}
 	csvBytes, err := store.getHealthCheckCSVBytes()
 	if err != nil {
-		return false, fmt.Errorf("failed to create mock CSV data for health check file: %v", err)
+		errMsg := fmt.Sprintf(
+			"failed to create mock CSV data for health check file: %v", err,
+		)
+		logger.Error(errMsg)
+		return false, fferr.NewInternalErrorf(errMsg)
 	}
 	if err := store.Store.Write(healthCheckPath, csvBytes); err != nil {
 		wrapped := fferr.NewConnectionError(store.Type().String(), err)
 		wrapped.AddDetail("action", "write")
+		logger.Errorw("Failed to write to health check path", "err", wrapped)
 		return false, wrapped
 	}
 	healthCheckOutPath, err := store.Store.CreateFilePath("featureform/HealthCheck/health_check_out", true)
 	if err != nil {
 		wrapped := fferr.NewInternalError(err)
 		wrapped.AddDetails("store_type", store.Type(), "action", "file_path_creation")
+		logger.Errorw("Failed to create health check filepath", "err", wrapped)
 		return false, wrapped
 	}
 	source := pysparkSourceInfo{
@@ -503,19 +512,20 @@ func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 		Provider:     store.Type(),
 	}
 
-	args, err := store.Executor.SparkSubmitArgs(
-		// We hardcode client to get the best error message from health check.
-		types.SparkClientDeployMode,
-		SQLTransformation,
-		pl.NewFileLocation(healthCheckOutPath),
-		"SELECT * FROM source_0",
-		[]pysparkSourceInfo{source},
-		Transform,
-		store.Store,
-		make([]SourceMapping, 0),
-	)
+	// We hardcode client to get the best error message from health check.
+	args, err := sparkScriptCommandDef{
+		DeployMode:     types.SparkClientDeployMode,
+		TFType:         SQLTransformation,
+		OutputLocation: pl.NewFileLocation(healthCheckOutPath),
+		Code:           "SELECT * FROM source_0",
+		SourceList:     []pysparkSourceInfo{source},
+		JobType:        Transform,
+		Store:          store.Store,
+		Mappings:       make([]SourceMapping, 0),
+	}.PrepareCommand(logger)
 	if err != nil {
-		return false, fmt.Errorf("failed to build arguments for Spark submit due to: %v", err)
+		logger.Errorw("Failed to prepare spark submit command", "error", err)
+		return false, err
 	}
 	opts := SparkJobOptions{
 		MaxJobDuration: 30 * time.Minute,
@@ -524,10 +534,13 @@ func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 	if err := store.Executor.RunSparkJob(args, store.Store, opts, nil); err != nil {
 		wrapped := fferr.NewConnectionError(store.Type().String(), err)
 		wrapped.AddDetail("action", "job_submission")
+		logger.Errorw("Spark health check failed", "error", wrapped)
 		return false, wrapped
 	}
+	logger.Info("Spark health check job succeeded")
 
 	if store.UsesCatalog() {
+		logger.Info("Running aws glue health check")
 		glueS3Filestore, isGlueS3Filestore := store.Store.(*SparkGlueS3FileStore)
 		if !isGlueS3Filestore {
 			return false, fferr.NewInternalErrorf("filestore is not SparkGlueS3FileStore; received %T", store.Store)
@@ -611,7 +624,7 @@ func sparkOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		Executor:   exec,
 		Store:      store,
 		GlueConfig: sc.GlueConfig,
-		Logger:     logger.SugaredLogger,
+		Logger:     logger,
 		query:      &queries,
 		BaseProvider: BaseProvider{
 			ProviderType:   pt.SparkOffline,
@@ -643,10 +656,9 @@ type baseExecutor struct {
 }
 
 type SparkExecutor interface {
-	SupportsTransformationOption(opt TransformationOptionType) (bool, error)
-	RunSparkJob(cmd *sparkCommand, store SparkFileStoreV2, opts SparkJobOptions, tfOpts TransformationOptions) error
 	InitializeExecutor(store SparkFileStoreV2) error
-	SparkSubmitArgs(deployMode types.SparkDeployMode, tfType TransformationType, outputLocation pl.Location, code string, sources []pysparkSourceInfo, jobType JobType, store SparkFileStoreV2, mappings []SourceMapping) (*sparkCommand, error)
+	RunSparkJob(cmd *sparkCommand, store SparkFileStoreV2, opts SparkJobOptions, tfOpts TransformationOptions) error
+	SupportsTransformationOption(opt TransformationOptionType) (bool, error)
 }
 
 func NewSparkExecutor(
@@ -683,7 +695,7 @@ func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, ta
 	case *pl.SQLLocation:
 		return nil, fferr.NewInternalErrorf("SQLLocation not supported for primary table registration")
 	case *pl.FileStoreLocation:
-		return blobRegisterPrimary(id, *lt, spark.Logger, spark.Store)
+		return blobRegisterPrimary(id, *lt, spark.Logger.SugaredLogger, spark.Store)
 	case *pl.CatalogLocation:
 		return spark.registerPrimaryCatalogTable(id, *lt, spark.Logger, spark.Store)
 	default:
@@ -691,7 +703,7 @@ func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, ta
 	}
 }
 
-func (spark *SparkOfflineStore) registerPrimaryCatalogTable(id ResourceID, catalogLocation pl.CatalogLocation, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
+func (spark *SparkOfflineStore) registerPrimaryCatalogTable(id ResourceID, catalogLocation pl.CatalogLocation, logger logging.Logger, store FileStore) (PrimaryTable, error) {
 	return nil, nil
 }
 
@@ -699,7 +711,7 @@ func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, s
 	if len(opts) > 0 {
 		spark.Logger.Errorf("Spark Offline Store does not currently support resource options; received %v for resource %v", opts, id)
 	}
-	return blobRegisterResourceFromSourceTable(id, schema, spark.Logger, spark.Store)
+	return blobRegisterResourceFromSourceTable(id, schema, spark.Logger.SugaredLogger, spark.Store)
 }
 
 func (spark *SparkOfflineStore) SupportsTransformationOption(opt TransformationOptionType) (bool, error) {
@@ -747,46 +759,52 @@ type pysparkCatalogTable struct {
 }
 
 func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, isUpdate bool, tfOpts TransformationOptions) error {
+	logger := spark.Logger.With(
+		"transform-config", config,
+		"isUpdate", isUpdate,
+		"transform-options", tfOpts,
+	)
+	logger.Debug("Running SQL transformation")
 	updatedQuery, sources, err := spark.prepareQueryForSpark(config.Query, config.SourceMapping)
 	if err != nil {
-		spark.Logger.Errorw("Could not generate updated query for spark transformation", "error", err)
+		logger.Errorw("Could not generate updated query for spark transformation", "error", err)
 		return err
 	}
-
-	spark.Logger.Debugw("Updated query and sources", "query", updatedQuery, "sources", sources)
+	logger = logger.With("update-query", updatedQuery, "sources", sources)
+	logger.Debug("Updated query and sources")
 	outputLocation, err := spark.outputLocation(config.TargetTableID)
 	if err != nil {
-		spark.Logger.Errorw("Could not generate output location for spark transformation", "error", err)
+		logger.Errorw("Could not generate output location for spark transformation", "error", err)
 		return err
 	}
 
 	transformationExists, err := spark.Store.Exists(outputLocation)
 	if err != nil {
-		spark.Logger.Errorw("Could not check if transformation exists", "error", err)
+		logger.Errorw("Could not check if transformation exists", "error", err)
 		return err
 	}
 
 	if !isUpdate && transformationExists {
-		spark.Logger.Errorw("Creation when transformation already exists", "target", config.TargetTableID, "location", outputLocation.Location())
+		logger.Errorw("Creation when transformation already exists", "target", config.TargetTableID, "location", outputLocation.Location())
 		return fferr.NewDatasetAlreadyExistsError(config.TargetTableID.Name, config.TargetTableID.Variant, fmt.Errorf(outputLocation.Location()))
 	} else if isUpdate && !transformationExists {
-		spark.Logger.Errorw("Update job attempted when transformation does not exist", "target", config.TargetTableID, "location", outputLocation.Location())
+		logger.Errorw("Update job attempted when transformation does not exist", "target", config.TargetTableID, "location", outputLocation.Location())
 		return fferr.NewDatasetNotFoundError(config.TargetTableID.Name, config.TargetTableID.Variant, fmt.Errorf(outputLocation.Location()))
 	}
 
-	spark.Logger.Debugw("Running SQL transformation")
-	sparkArgs, err := spark.Executor.SparkSubmitArgs(
-		getSparkDeployModeFromEnv(),
-		SQLTransformation,
-		outputLocation,
-		updatedQuery,
-		sources,
-		Transform,
-		spark.Store,
-		config.SourceMapping,
-	)
+	logger.Debugw("Running SQL transformation")
+	sparkArgs, err := sparkScriptCommandDef{
+		DeployMode:     getSparkDeployModeFromEnv(),
+		TFType:         SQLTransformation,
+		OutputLocation: outputLocation,
+		Code:           updatedQuery,
+		SourceList:     sources,
+		JobType:        Transform,
+		Store:          spark.Store,
+		Mappings:       config.SourceMapping,
+	}.PrepareCommand(logger)
 	if err != nil {
-		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
+		logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
 		return err
 	}
 
@@ -798,12 +816,12 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 			config.TargetTableID.Variant,
 		),
 	}
-	spark.Logger.Debugw("Running spark job", "args", sparkArgs, "options", opts)
+	logger.Debugw("Running spark job", "args", sparkArgs, "options", opts)
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store, opts, tfOpts); err != nil {
-		spark.Logger.Errorw("spark submit job for transformation failed to run", "target", config.TargetTableID, "error", err)
+		logger.Errorw("spark submit job for transformation failed to run", "target", config.TargetTableID, "error", err)
 		return err
 	}
-	spark.Logger.Debugw("Successfully ran SQL transformation")
+	logger.Debugw("Successfully ran SQL transformation")
 	return nil
 }
 
@@ -816,20 +834,24 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		"variant",
 		config.TargetTableID.Variant,
 	)
-	logger.Debugw("Creating DF transformation")
+	logger.Info("Creating DF transformation")
 
+	picklePath := ps.ResourceToPicklePath(
+		config.TargetTableID.Name,
+		config.TargetTableID.Variant,
+	)
+	logger = logger.With("df-pickle-path", picklePath)
 	pickledTransformationPath, err := spark.Store.CreateFilePath(
-		ps.ResourceToPicklePath(
-			config.TargetTableID.Name,
-			config.TargetTableID.Variant,
-		), false,
+		picklePath, false,
 	)
 	if err != nil {
+		logger.Errorw("Unable to create file path for pickle path", "err", err)
 		return err
 	}
 
 	pickleExists, err := spark.Store.Exists(pl.NewFileLocation(pickledTransformationPath))
 	if err != nil {
+		logger.Errorw("Unable to check if pickle exists", "err", err)
 		return err
 	}
 
@@ -839,7 +861,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	datasetNotFound := !pickleExists && isUpdate
 
 	if datasetAlreadyExists {
-		logger.Errorw("Transformation already exists", config.TargetTableID, pickledTransformationPath.ToURI())
+		logger.Error("Transformation already exists")
 		return fferr.NewDatasetAlreadyExistsError(
 			config.TargetTableID.Name,
 			config.TargetTableID.Variant,
@@ -850,8 +872,6 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	if datasetNotFound {
 		logger.Errorw(
 			"Transformation doesn't exists at destination but is being updated",
-			config.TargetTableID,
-			pickledTransformationPath.ToURI(),
 		)
 		return fferr.NewDatasetNotFoundError(
 			config.TargetTableID.Name,
@@ -862,46 +882,39 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 
 	// It's important to set the scheme to s3:// here because the runner script uses boto3 to read the file, and it expects an s3:// path
 	if err := pickledTransformationPath.SetScheme(filestore.S3Prefix); err != nil {
+		logger.Errorw("Unable to set scheme to s3", "err", err)
 		return err
 	}
 
 	if err := spark.Store.Write(pickledTransformationPath, config.Code); err != nil {
+		logger.Errorw("Unable to write pickle file", "err", err)
 		return err
 	}
 
-	logger.Debugw("Successfully wrote transformation pickle file", "path", pickledTransformationPath.ToURI())
+	logger.Info("Successfully wrote transformation pickle file")
 	pysparkSourceInfos, err := createSourceInfo(config.SourceMapping, logger)
 	if err != nil {
+		logger.Errorw("Unable to create source info", "err", err)
 		return err
 	}
-
-	transformationDestinationPath := ps.ResourceToDirectoryPath(
-		config.TargetTableID.Type.String(),
-		config.TargetTableID.Name,
-		config.TargetTableID.Variant,
-	)
-	transformationDestination, err := spark.Store.CreateFilePath(transformationDestinationPath, true)
-	if err != nil {
-		return err
-	}
-	logger.Debugw("Transformation destination path", "path", transformationDestination.ToURI())
 
 	outputLocation, err := spark.outputLocation(config.TargetTableID)
 	if err != nil {
-		spark.Logger.Errorw("Could not generate output location for spark transformation", "error", err)
+		logger.Errorw("Could not generate output location for spark transformation", "error", err)
 		return err
 	}
+	logger.With("output-location", outputLocation.Location())
 
-	sparkArgs, err := spark.Executor.SparkSubmitArgs(
-		getSparkDeployModeFromEnv(),
-		DFTransformation,
-		outputLocation,
-		pickledTransformationPath.Key(),
-		pysparkSourceInfos,
-		Transform,
-		spark.Store,
-		config.SourceMapping,
-	)
+	sparkArgs, err := sparkScriptCommandDef{
+		DeployMode:     getSparkDeployModeFromEnv(),
+		TFType:         DFTransformation,
+		OutputLocation: outputLocation,
+		Code:           pickledTransformationPath.Key(),
+		SourceList:     pysparkSourceInfos,
+		JobType:        Transform,
+		Store:          spark.Store,
+		Mappings:       config.SourceMapping,
+	}.PrepareCommand(logger)
 	if err != nil {
 		logger.Errorw("error getting spark dataframe arguments", err)
 		return err
@@ -920,15 +933,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		logger.Errorw("error running Spark dataframe job", "error", err)
 		return err
 	}
-	logger.Debugw(
-		"Successfully ran transformation",
-		"type",
-		config.Type,
-		"name",
-		config.TargetTableID.Name,
-		"variant",
-		config.TargetTableID.Variant,
-	)
+	logger.Infow("Successfully ran transformation")
 	return nil
 }
 
@@ -952,7 +957,7 @@ func (spark *SparkOfflineStore) outputLocation(targetTableID ResourceID) (pl.Loc
 	return pl.NewCatalogLocation(spark.GlueConfig.Database, tableName, string(spark.GlueConfig.TableFormat)), nil
 }
 
-func createSourceInfo(mapping []SourceMapping, logger *zap.SugaredLogger) ([]pysparkSourceInfo, error) {
+func createSourceInfo(mapping []SourceMapping, logger logging.Logger) ([]pysparkSourceInfo, error) {
 	sources := make([]pysparkSourceInfo, 0)
 
 	for _, m := range mapping {
@@ -1187,7 +1192,7 @@ func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSc
 }
 
 func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
-	return fileStoreGetPrimary(id, spark.Store, spark.Logger)
+	return fileStoreGetPrimary(id, spark.Store, spark.Logger.SugaredLogger)
 }
 
 // Unlike a resource table created from a source table, which is effectively a pointer in the filestore to the source table
@@ -1260,7 +1265,7 @@ func (spark *SparkOfflineStore) CreateResourceTable(id ResourceID, schema TableS
 }
 
 func (spark *SparkOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
-	return fileStoreGetResourceTable(id, spark.Store, spark.Logger)
+	return fileStoreGetResourceTable(id, spark.Store, spark.Logger.SugaredLogger)
 }
 
 func blobSparkMaterialization(
@@ -1314,16 +1319,16 @@ func blobSparkMaterialization(
 		TableFormat:  tableFormat,
 		Provider:     spark.Type(),
 	}
-	sparkArgs, err := spark.Executor.SparkSubmitArgs(
-		getSparkDeployModeFromEnv(),
-		SQLTransformation,
-		pl.NewFileLocation(destinationPath),
-		materializationQuery,
-		[]pysparkSourceInfo{sourcePySpark},
-		Materialize,
-		spark.Store,
-		make([]SourceMapping, 0),
-	)
+	sparkArgs, err := sparkScriptCommandDef{
+		DeployMode:     getSparkDeployModeFromEnv(),
+		TFType:         SQLTransformation,
+		OutputLocation: pl.NewFileLocation(destinationPath),
+		Code:           materializationQuery,
+		SourceList:     []pysparkSourceInfo{sourcePySpark},
+		JobType:        Materialize,
+		Store:          spark.Store,
+		Mappings:       make([]SourceMapping, 0),
+	}.PrepareCommand(spark.Logger)
 	if err != nil {
 		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
 		return nil, err
@@ -1403,23 +1408,26 @@ func (spark *SparkOfflineStore) directCopyMaterialize(id ResourceID, opts Materi
 	if sourceTable.Type() == pl.CatalogLocationType {
 		tableFormat = string(sourceTable.(*pl.CatalogLocation).TableFormat())
 	}
-	sparkArgs, err := spark.Executor.SparkSubmitArgs(
-		getSparkDeployModeFromEnv(),
-		SQLTransformation,
-		pl.NilLocation{},
-		"",
-		[]pysparkSourceInfo{pysparkSourceInfo{
+	sourceList := []pysparkSourceInfo{
+		pysparkSourceInfo{
 			Location:     sourceTable.Location(),
 			LocationType: string(sourceTable.Type()),
 			TableFormat:  tableFormat,
 			Provider:     spark.Type(),
-		}},
-		Materialize,
-		spark.Store,
-		make([]SourceMapping, 0),
-	)
+		},
+	}
+	sparkArgs, err := sparkScriptCommandDef{
+		DeployMode:     getSparkDeployModeFromEnv(),
+		TFType:         SQLTransformation,
+		OutputLocation: pl.NilLocation{},
+		Code:           "",
+		SourceList:     sourceList,
+		JobType:        Materialize,
+		Store:          spark.Store,
+		Mappings:       make([]SourceMapping, 0),
+	}.PrepareCommand(logger)
 	if err != nil {
-		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
+		logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
 		return err
 	}
 	sparkArgs.AddConfigs(
@@ -1442,12 +1450,12 @@ func (spark *SparkOfflineStore) directCopyMaterialize(id ResourceID, opts Materi
 		MaxJobDuration: opts.MaxJobDuration,
 		JobName:        opts.JobName,
 	}
-	spark.Logger.Debugw("Running spark job", "args", sparkArgs, "options", sparkOpts)
+	logger.Debugw("Running spark job", "args", sparkArgs, "options", sparkOpts)
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store, sparkOpts, nil); err != nil {
-		spark.Logger.Errorw("Spark submit job failed to run", "error", err)
+		logger.Errorw("Spark submit job failed to run", "error", err)
 		return err
 	}
-	spark.Logger.Debugw("Successfully created materialization", "id", id)
+	logger.Debugw("Successfully created materialization", "id", id)
 	return nil
 }
 
@@ -1462,7 +1470,7 @@ func (spark *SparkOfflineStore) SupportsMaterializationOption(opt Materializatio
 }
 
 func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
-	return fileStoreGetMaterialization(id, spark.Store, spark.Logger)
+	return fileStoreGetMaterialization(id, spark.Store, spark.Logger.SugaredLogger)
 }
 
 func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (
@@ -1473,7 +1481,7 @@ func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID, opts Materi
 }
 
 func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) error {
-	return fileStoreDeleteMaterialization(id, spark.Store, spark.Logger)
+	return fileStoreDeleteMaterialization(id, spark.Store, spark.Logger.SugaredLogger)
 }
 
 func (spark *SparkOfflineStore) getResourceSchema(id ResourceID) (ResourceSchema, error) {
@@ -1505,31 +1513,36 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		spark.Logger.Errorw("Training set definition not valid", "definition", def, "error", err)
 		return err
 	}
+	logger := spark.Logger.With("id", def.ID)
 	sourcePaths := make([]pysparkSourceInfo, 0)
 	featureSchemas := make([]ResourceSchema, 0)
-	destinationPath, err := spark.Store.CreateFilePath(def.ID.ToFilestorePath(), true)
+	filePath := def.ID.ToFilestorePath()
+	logger = logger.With("path", filePath)
+	destinationPath, err := spark.Store.CreateFilePath(filePath, true)
 	if err != nil {
+		logger.Errorw("Failed to create destination path")
 		return err
 	}
 	trainingSetExists, err := spark.Store.Exists(pl.NewFileLocation(destinationPath))
 	if err != nil {
+		logger.Errorw("Unable to check if path exists")
 		return err
 	}
 	if trainingSetExists && !isUpdate {
-		spark.Logger.Errorw("Training set already exists", "id", def.ID)
+		logger.Errorw("Training set already exists")
 		return fferr.NewDatasetAlreadyExistsError(def.ID.Name, def.ID.Variant, fmt.Errorf(destinationPath.ToURI()))
 	} else if !trainingSetExists && isUpdate {
-		spark.Logger.Errorw("Training set does not exist", "id", def.ID)
+		logger.Errorw("Training set does not exist")
 		return fferr.NewDatasetNotFoundError(def.ID.Name, def.ID.Variant, fmt.Errorf(destinationPath.ToURI()))
 	}
 	var labelSchema ResourceSchema
 	var labelPySparkSource pysparkSourceInfo
-	spark.Logger.Debugw("Label provider", "provider", def.LabelSourceMapping.ProviderType)
+	logger.Debugw("Label provider", "provider", def.LabelSourceMapping.ProviderType)
 	switch def.LabelSourceMapping.ProviderType {
 	case pt.SparkOffline:
 		labelSchema, err = spark.getResourceSchema(def.Label)
 		if err != nil {
-			spark.Logger.Errorw("Could not get schema of label in spark store", "label", def.Label, "error", err)
+			logger.Errorw("Could not get schema of label in spark store", "label", def.Label, "error", err)
 			return err
 		}
 		var tableFormat string
@@ -1545,7 +1558,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	case pt.SnowflakeOffline:
 		config := pc.SnowflakeConfig{}
 		if err := config.Deserialize(def.LabelSourceMapping.ProviderConfig); err != nil {
-			spark.Logger.Errorw("Error deserializing snowflake config", "error", err)
+			logger.Errorw("Error deserializing snowflake config", "error", err)
 			return err
 		}
 		labelPySparkSource = pysparkSourceInfo{
@@ -1561,7 +1574,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 			TS:     "ts",
 		}
 	default:
-		spark.Logger.Errorw("Unsupported label provider", "provider", def.LabelSourceMapping.ProviderType)
+		logger.Errorw("Unsupported label provider", "provider", def.LabelSourceMapping.ProviderType)
 		return fferr.NewInternalErrorf("unsupported label provider: %s", def.LabelSourceMapping.ProviderType.String())
 	}
 	sourcePaths = append(sourcePaths, labelPySparkSource)
@@ -1573,7 +1586,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		case pt.SparkOffline:
 			featureSchema, err = spark.getResourceSchema(feature)
 			if err != nil {
-				spark.Logger.Errorw("Could not get schema of feature in spark store", "feature", feature, "error", err)
+				logger.Errorw("Could not get schema of feature in spark store", "feature", feature, "error", err)
 				return err
 			}
 			featureSourceLocation = featureSchema.SourceTable
@@ -1585,7 +1598,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 				TS:     "ts",
 			}
 		default:
-			spark.Logger.Errorw("Unsupported feature provider", "provider", def.FeatureSourceMappings[idx].ProviderType)
+			logger.Errorw("Unsupported feature provider", "provider", def.FeatureSourceMappings[idx].ProviderType)
 			return fferr.NewInternalErrorf(
 				"unsupported feature provider: %s",
 				def.FeatureSourceMappings[idx].ProviderType.String(),
@@ -1606,42 +1619,43 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 	}
 	trainingSetQuery := spark.query.trainingSetCreate(def, featureSchemas, labelSchema)
 	sourceMappings := append(def.FeatureSourceMappings, def.LabelSourceMapping)
-	sparkArgs, err := spark.Executor.SparkSubmitArgs(
-		getSparkDeployModeFromEnv(),
-		SQLTransformation,
-		pl.NewFileLocation(destinationPath),
-		trainingSetQuery,
-		sourcePaths,
-		CreateTrainingSet,
-		spark.Store,
-		sourceMappings,
-	)
+	sparkArgs, err := sparkScriptCommandDef{
+		DeployMode:     getSparkDeployModeFromEnv(),
+		TFType:         SQLTransformation,
+		OutputLocation: pl.NewFileLocation(destinationPath),
+		Code:           trainingSetQuery,
+		SourceList:     sourcePaths,
+		JobType:        CreateTrainingSet,
+		Store:          spark.Store,
+		Mappings:       sourceMappings,
+	}.PrepareCommand(logger)
 	if err != nil {
-		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
+		logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
 		return err
 	}
-	spark.Logger.Debugw("Creating training set", "definition", def)
+	logger.Debugw("Creating training set", "definition", def)
 	opts := SparkJobOptions{
 		MaxJobDuration: time.Hour * 48,
 		JobName:        fmt.Sprintf("featureform-training-set--%s--%s", def.ID.Name, def.ID.Variant),
 	}
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store, opts, nil); err != nil {
-		spark.Logger.Errorw("Spark submit training set job failed to run", "definition", def.ID, "error", err)
+		logger.Errorw("Spark submit training set job failed to run", "definition", def.ID, "error", err)
 		return err
 	}
 	trainingSetExists, err = spark.Store.Exists(pl.NewFileLocation(destinationPath))
 	if err != nil {
+		logger.Errorw("Unable to check if training set exists after running job", "err", err)
 		return err
 	}
 	if !trainingSetExists {
-		spark.Logger.Errorw("Could not get training set resource key in offline store")
+		spark.Logger.Errorw("Training set doesn't exist after running job")
 		return fferr.NewDatasetNotFoundError(def.ID.Name, def.ID.Variant, fmt.Errorf(destinationPath.ToURI()))
 	}
-	spark.Logger.Debugw(
+	spark.Logger.Infow(
 		"Successfully created training set",
 		"definition",
 		def,
-		"newestTrainingSet",
+		"location",
 		destinationPath.ToURI(),
 	)
 	return nil
@@ -1657,7 +1671,7 @@ func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 }
 
 func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
-	return fileStoreGetTrainingSet(id, spark.Store, spark.Logger)
+	return fileStoreGetTrainingSet(id, spark.Store, spark.Logger.SugaredLogger)
 }
 
 func (spark *SparkOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {

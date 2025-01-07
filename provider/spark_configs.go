@@ -430,8 +430,7 @@ func (flag sparkDeployFlag) SparkFlags() sparkFlags {
 }
 
 type sparkSnowflakeFlags struct {
-	Config       *pc.SnowflakeConfig
-	ExecutorType pc.SparkExecutorType
+	Config *pc.SnowflakeConfig
 }
 
 func (args sparkSnowflakeFlags) SparkFlags() sparkFlags {
@@ -458,15 +457,12 @@ func (args sparkSnowflakeFlags) SparkFlags() sparkFlags {
 			Key:   "sfWarehouse",
 			Value: args.Config.Warehouse,
 		},
-	}
-	// Databricks has these packages pre-installed.
-	if args.ExecutorType == pc.EMR {
-		flags = append(flags, sparkPackagesFlag{
+		sparkPackagesFlag{
 			Packages: []string{
 				"net.snowflake:snowflake-jdbc:3.13.22",
 				"net.snowflake:spark-snowflake_2.12:2.12.0-spark_3.4",
 			},
-		})
+		},
 	}
 	return flags
 }

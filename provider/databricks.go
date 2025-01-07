@@ -27,7 +27,6 @@ import (
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
-	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 )
 
@@ -120,7 +119,7 @@ func (db *DatabricksExecutor) RunSparkJob(cmd *sparkCommand, store SparkFileStor
 	script, args := cmd.CompileScriptOnly()
 	logger := db.logger.With("script", script, "args", args, "store", store.Type(), "job_name", opts.JobName, "cluster_id", db.cluster)
 	pythonTask := &jobs.SparkPythonTask{
-		PythonFile:  script,
+		PythonFile: script,
 		Parameters: args,
 	}
 	ctx := context.Background()
@@ -213,10 +212,6 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStoreV2) error {
 		return err
 	}
 	return nil
-}
-
-func (e *DatabricksExecutor) SparkSubmitArgs(deployMode types.SparkDeployMode, tfType TransformationType, outputLocation pl.Location, code string, sourceList []pysparkSourceInfo, jobType JobType, store SparkFileStoreV2, mappings []SourceMapping) (*sparkCommand, error) {
-	return genericSparkSubmitArgs(pc.Databricks, deployMode, tfType, outputLocation, code, sourceList, jobType, store, mappings)
 }
 
 func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {

@@ -436,10 +436,6 @@ func (e *EMRExecutor) cancelStep(stepId string, waitDuration time.Duration) erro
 	return wrapped
 }
 
-func (e *EMRExecutor) SparkSubmitArgs(deployMode types.SparkDeployMode, tfType TransformationType, outputLocation pl.Location, code string, sourceList []pysparkSourceInfo, jobType JobType, store SparkFileStoreV2, mappings []SourceMapping) (*sparkCommand, error) {
-	return genericSparkSubmitArgs(pc.EMR, deployMode, tfType, outputLocation, code, sourceList, jobType, store, mappings)
-}
-
 func createLogS3FileStore(emrRegion string, s3LogLocation string, awsAccessKeyId string, awsSecretKey string, useServiceAccount bool) (*FileStore, error) {
 	if s3LogLocation == "" {
 		return nil, fmt.Errorf("s3 log location is empty")

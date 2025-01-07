@@ -1364,6 +1364,39 @@ func (resource *trainingSetVariantResource) Owner() string {
 	return resource.serialized.Owner
 }
 
+func (resource *trainingSetVariantResource) Validate(ctx context.Context, lookup ResourceLookup) error {
+	label, err := lookup.Lookup(ctx, ResourceID{Name: resource.serialized.Label.Name, Variant: resource.serialized.Label.Variant, Type: LABEL_VARIANT})
+	if err != nil {
+		return err
+	}
+	labelVariant, isLabelVariant := label.(*labelVariantResource)
+	if !isLabelVariant {
+		return fferr.NewDatasetNotFoundError(resource.ID().Name, resource.ID().Variant, fmt.Errorf("label variant not found"))
+	}
+	entityMap := map[string]struct{}{labelVariant.serialized.Entity: {}}
+	for _, feature := range resource.serialized.Features {
+		featureResource, err := lookup.Lookup(ctx, ResourceID{Name: feature.Name, Variant: feature.Variant, Type: FEATURE_VARIANT})
+		if err != nil {
+			return err
+		}
+		featureVariant, isFeatureVariant := featureResource.(*featureVariantResource)
+		if !isFeatureVariant {
+			return fferr.NewDatasetNotFoundError(feature.Name, feature.Variant, fmt.Errorf("feature variant not found"))
+		}
+		switch featureVariant.serialized.Mode {
+		case pb.ComputationMode_PRECOMPUTED:
+			if _, exists := entityMap[featureVariant.serialized.Entity]; !exists {
+				return fferr.NewInvalidArgumentErrorf("feature %s entity %s does not match label entity %s", feature.Name, featureVariant.serialized.Entity, labelVariant.serialized.Entity)
+			}
+		case pb.ComputationMode_CLIENT_COMPUTED:
+			return fferr.NewInvalidArgumentErrorf("feature %s has unsupported computation mode %s", feature.Name, featureVariant.serialized.Mode)
+		default:
+			return fferr.NewInternalErrorf("feature %s has unknown computation mode %s", feature.Name, featureVariant.serialized.Mode)
+		}
+	}
+	return nil
+}
+
 type modelResource struct {
 	serialized *pb.Model
 }
@@ -2261,6 +2294,10 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, varian
 	logger.Info("Creating TrainingSet Variant")
 
 	variant := variantRequest.TrainingSetVariant
+	tsRes := &trainingSetVariantResource{variant}
+	if err := tsRes.Validate(ctx, serv.lookup); err != nil {
+		return nil, err
+	}
 	variant.Created = tspb.New(time.Now())
 	taskTarget := scheduling.NameVariant{Name: variant.Name, Variant: variant.Variant, ResourceType: TRAINING_SET_VARIANT.String()}
 	task, err := serv.taskManager.CreateTask("mytask", scheduling.ResourceCreation, taskTarget)
@@ -2268,7 +2305,8 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, varian
 		return nil, err
 	}
 	variant.TaskIdList = []string{task.ID.String()}
-	return serv.genericCreate(ctx, &trainingSetVariantResource{variant}, func(name, variant string) Resource {
+
+	return serv.genericCreate(ctx, tsRes, func(name, variant string) Resource {
 		return &trainingSetResource{
 			&pb.TrainingSet{
 				Name:           name,

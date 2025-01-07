@@ -216,9 +216,9 @@ class Client(ResourceClient, ServingClient):
         """
         ticket_data = {"location": self.location(source, variant, resource_type)}
 
-        proxy_address = "go-proxy:8086"
+        proxy_address = "localhost:443" # todox: switch to domain
         ticket = flight.Ticket(json.dumps(ticket_data).encode("utf-8"))
-        client = flight.connect(f"grpc://{proxy_address}")
+        client = flight.connect(f"grpc://{proxy_address}/iceberg.proxy/")
         try:
             stream = client.do_get(ticket)
             reader = stream.read_all()

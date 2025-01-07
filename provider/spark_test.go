@@ -33,10 +33,8 @@ import (
 	"testing"
 	"time"
 
-	// s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
-	"go.uber.org/zap"
 
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
@@ -1465,7 +1463,7 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 					JobType:        Transform,
 					Store:          store.Store,
 					Mappings:       make([]SourceMapping, 0),
-				}.PrepareCommand(logger.NewTestLogger(t))
+				}.PrepareCommand(logging.NewTestLogger(t))
 
 				if !ttConst.expectedFailure && err != nil {
 					t.Fatalf("could not get df args %s", err)

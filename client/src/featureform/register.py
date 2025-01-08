@@ -4906,7 +4906,7 @@ class ResourceClient:
         request = self._create_delete_request(source, variant, resource_type)
 
         # Send the request to delete the resource
-        self._stub.DeleteResource(request)
+        self._stub.MarkForDeletion(request)
         print("Deleting resource async")
 
     def _create_delete_request(

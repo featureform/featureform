@@ -16,7 +16,6 @@ import (
 	"strings"
 
 	"encoding/json"
-	"os"
 
 	"github.com/apache/arrow/go/v17/arrow/flight"
 	"github.com/featureform/helpers"
@@ -31,9 +30,17 @@ type GoProxyServer struct {
 	logger          logging.Logger
 }
 
+type TicketData struct {
+	Location        string `json:"location"`
+	Region          string `json:"client.region"`
+	AccessKeyId     string `json:"client.access-key-id"`
+	SecretAccessKey string `json:"client.secret-access-key"`
+	Limit           int    `json:"limit"`
+}
+
 // pulls the client ticket's location and hydrates with additional entries
 func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, error) {
-	var ticketData map[string]string
+	var ticketData TicketData
 	err := json.Unmarshal(ticket.Ticket, &ticketData)
 	if err != nil {
 		masrhalErr := fmt.Errorf("failed to parse ticket JSON: %w", err)
@@ -41,29 +48,56 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 		return nil, masrhalErr
 	}
 
-	location, ok := ticketData["location"]
-	if !ok || location == "" {
+	// handle location
+	if ticketData.Location == "" {
 		locationErr := fmt.Errorf("missing 'location' in ticket data")
 		gps.logger.Error(locationErr)
 		return nil, locationErr
 	}
 
-	parts := strings.Split(location, ".")
+	parts := strings.Split(ticketData.Location, ".")
 	if len(parts) != 2 {
-		splitErr := fmt.Errorf("invalid location format, expected 'name.variant' but got: %s", location)
+		splitErr := fmt.Errorf("invalid location format, expected 'name.variant' but got: %s", ticketData.Location)
 		gps.logger.Error(splitErr)
 		return nil, splitErr
 	}
 	namespace := parts[0]
 	table := parts[1]
 
-	hydratedTicketData := map[string]string{
+	// validate region
+	if ticketData.Region == "" {
+		regionErr := fmt.Errorf("missing 'client.region' in ticket data")
+		gps.logger.Error(regionErr)
+		return nil, regionErr
+	}
+
+	//  validate keyId
+	if ticketData.AccessKeyId == "" {
+		accessKeyIdErr := fmt.Errorf("missing 'client.access-key-id' in ticket data")
+		gps.logger.Error(accessKeyIdErr)
+		return nil, accessKeyIdErr
+	}
+
+	// validate secretKey
+	if ticketData.SecretAccessKey == "" {
+		secretErr := fmt.Errorf("missing 'client.secret-access-key' in ticket data")
+		gps.logger.Error(secretErr)
+		return nil, secretErr
+	}
+
+	// validate limit
+	if ticketData.Limit == 0 {
+		ticketData.Limit = 100 // todox: update to global default
+	}
+
+	hydratedTicketData := map[string]any{
 		"catalog":                  "default",
 		"namespace":                namespace,
 		"table":                    table,
-		"client.access-key-id":     os.Getenv("AWS_ACCESS_KEY_ID"), // todox: need to change this.
-		"client.secret-access-key": os.Getenv("AWS_SECRET_ACCESS_KEY"),
-		"client.region":            os.Getenv("AWS_REGION"),
+		"client.access-key-id":     ticketData.AccessKeyId,
+		"client.secret-access-key": ticketData.SecretAccessKey,
+		"client.region":            ticketData.Region,
+		"limit":                    ticketData.Limit,
 	}
 
 	//re-package the ticket

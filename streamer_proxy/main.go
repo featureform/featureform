@@ -56,8 +56,8 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 	}
 
 	parts := strings.Split(ticketData.Location, ".")
-	if len(parts) != 2 {
-		splitErr := fmt.Errorf("invalid location format, expected 'name.variant' but got: %s", ticketData.Location)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		splitErr := fmt.Errorf("invalid location format, expected 'namespace.table' but got: %s", ticketData.Location)
 		gps.logger.Error(splitErr)
 		return nil, splitErr
 	}

@@ -92,6 +92,7 @@ const VariantControl = ({
       name: '---',
       variant: propItem.variant,
       owner: propItem.owner,
+      status: propItem.status,
       created: new Date(),
     };
     const propDate = new Date(propItem.created);

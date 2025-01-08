@@ -62,6 +62,15 @@ export default function VariantView({
       sortable: false,
       filterable: false,
     },
+    {
+      field: 'status',
+      headerName: 'Status',
+      flex: 1,
+      width: 125,
+      editable: false,
+      sortable: false,
+      filterable: false,
+    },
   ];
 
   const ENTER_KEY = 'Enter';

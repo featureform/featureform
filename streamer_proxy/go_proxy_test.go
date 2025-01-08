@@ -138,7 +138,7 @@ func TestInvalidTicket(t *testing.T) {
 		},
 		{
 			name:        "malformed json",
-			ticketMap:   []byte(`{";lkja"as:as "basdfaosdfasdoking_glue_db.test_csv",}`),
+			ticketMap:   []byte(`{i'm not valid!}`),
 			expectedMsg: "failed to parse ticket JSON: json: cannot unmarshal string into Go value of type main.TicketData",
 		},
 	}

@@ -1397,6 +1397,10 @@ func (store *bqOfflineStore) ResourceLocation(id ResourceID, resource any) (pl.L
 	return pl.NewSQLLocation(tableName), err
 }
 
+func (store bqOfflineStore) Delete(location pl.Location) error {
+	return fferr.NewInternalErrorf("delete not implemented")
+}
+
 type bqTrainingRowsIterator struct {
 	iter            *bigquery.RowIterator
 	currentFeatures []interface{}

@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/featureform/logging"
-	"go.uber.org/zap"
 	"strings"
 	"time"
 
@@ -48,6 +47,7 @@ type BQOfflineStoreConfig struct {
 	ProjectId    string
 	ProviderType p_type.Type
 	QueryImpl    BQOfflineTableQueries
+	logger       logging.Logger
 }
 
 type BQOfflineTableQueries interface {
@@ -783,7 +783,7 @@ type bqOfflineStore struct {
 	client *bigquery.Client
 	parent BQOfflineStoreConfig
 	query  BQOfflineTableQueries
-	logger *zap.SugaredLogger
+	logger logging.Logger
 	BaseProvider
 }
 
@@ -803,13 +803,11 @@ func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
 	}
 	defer client.Close()
 
-	logger := logging.NewLogger("bigquery")
-
 	return &bqOfflineStore{
 		client: client,
 		parent: config,
 		query:  config.QueryImpl,
-		logger: logger.SugaredLogger,
+		logger: config.logger,
 		BaseProvider: BaseProvider{
 			ProviderType:   config.ProviderType,
 			ProviderConfig: config.Config,
@@ -819,17 +817,20 @@ func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
 
 func bigQueryOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.BigQueryConfig{}
+	logger := logging.NewLogger("bigquery")
 	if err := sc.Deserialize(config); err != nil {
 		return nil, err
 	}
 	queries := defaultBQQueries{}
 	queries.setTablePrefix(fmt.Sprintf("%s.%s", sc.ProjectId, sc.DatasetId))
 	queries.setContext()
+
 	sgConfig := BQOfflineStoreConfig{
 		Config:       config,
 		ProjectId:    sc.ProjectId,
 		ProviderType: pt.BigQueryOffline,
 		QueryImpl:    &queries,
+		logger:       logger,
 	}
 
 	store, err := NewBQOfflineStore(sgConfig)
@@ -876,21 +877,27 @@ func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sche
 }
 
 func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
-	store.logger.Infow("Registering primary from source table", "id", id.Name)
+	logger := store.logger.WithValues(map[string]any{
+		"resourceId": id,
+	})
+	logger.Infow("Registering primary from source table")
 
 	if err := id.check(Primary); err != nil {
+		logger.Errorw("Resource type is not primary", "err", err)
 		return nil, err
 	}
 
 	if exists, err := store.tableExists(id); err != nil {
+		logger.Errorw("Checking if table exists", "err", err)
 		return nil, err
 	} else if exists {
+		logger.Errorw("Table already exists", "err", err)
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 
 	tableName, err := GetPrimaryTableName(id)
-
 	if err != nil {
+		logger.Errorw("Mapping id to table name", "err", err)
 		return nil, err
 	}
 	query := store.query.primaryTableRegister(tableName, tableLocation.Location())
@@ -898,16 +905,19 @@ func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, table
 	bqQ := store.client.Query(query)
 	job, err := bqQ.Run(store.query.getContext())
 	if err != nil {
+		logger.Errorw("Running query", "err", err)
 		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 
 	err = store.query.monitorJob(job)
 	if err != nil {
+		logger.Errorw("Monitoring BigQuery job", "err", err)
 		return nil, err
 	}
 
 	columnNames, err := store.query.getColumns(store.client, tableName)
 	if err != nil {
+		logger.Errorw("Getting column names", "err", err)
 		return nil, err
 	}
 	return &bqPrimaryTable{

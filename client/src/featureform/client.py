@@ -8,6 +8,7 @@
 import json
 from datetime import datetime
 from typing import List, Optional, Union
+import os
 
 from google.protobuf.timestamp_pb2 import Timestamp
 from pyiceberg.catalog import load_catalog
@@ -177,7 +178,7 @@ class Client(ResourceClient, ServingClient):
             resource_type = DataResourceType.TRANSFORMATION
             if isinstance(source, TrainingSetVariant):
                 resource_type = DataResourceType.TRAINING_SET
-            return self._iceberg_dataframe(source, variant, resource_type)
+            return self._iceberg_dataframe(source, variant, resource_type, limit)
         return self.impl._get_source_as_df(name, variant, limit)
 
     def _get_iceberg_table(
@@ -202,32 +203,59 @@ class Client(ResourceClient, ServingClient):
         source: str = None,
         variant: str = None,
         resource_type: DataResourceType = None,
+        limit: int = ONE_MILLION_RECORD_LIMIT,
     ):
         """
-        Fetch Iceberg data via the Go proxy using Apache Arrow Flight.
+        Fetch Iceberg data via the Go proxy using Apache Arrow Flight protocol.
 
         Args:
-            name (str): The resource name.
+            source (str): The resource name.
             variant (str): The resource variant.
-            limit (int): The total record limit. Defaults to ONE_MILLION_RECORD_LIMIT
+            resource_type (DataResourceType): The resource type.
 
         Returns:
-            iceberg data catalog stream
+            pandas.DataFrame: Iceberg data catalog stream
         """
-        ticket_data = {"location": self.location(source, variant, resource_type)}
+        
+        ticket_data = {"location": self.location(source, variant, resource_type), 
+		"client.region": "us-east-1",
+		"client.access-key-id":os.getenv("AWS_ACCESS_KEY"), # todox: should we pull these from the provider itself?
+		"client.secret-access-key":os.getenv("AWS_SECRET_KEY"),
+		 "limit": limit}
+        print("with location: ", ticket_data["location"])
 
-        proxy_address = "localhost:443" # todox: switch to domain
+        # handle tls
+        tls_cert_path = os.path.join(os.getcwd(), "tls.crt")
+        if not os.path.exists(tls_cert_path):
+            raise FileNotFoundError(f"TLS certificate not found at {tls_cert_path}")
+
+        with open(tls_cert_path, "rb") as f:
+            tls_root_certs = f.read()
+
+        flight_address = f"grpc+tls://{self._host}/arrow.flight.protocol.FlightService/"
+        print(f"flight server address: {flight_address}")
+
+        print("client initializing...")
+        client = flight.connect(
+            flight_address,
+            tls_root_certs=tls_root_certs,
+        )
+
+        print("building ticket...")
         ticket = flight.Ticket(json.dumps(ticket_data).encode("utf-8"))
-        client = flight.connect(f"grpc://{proxy_address}/iceberg.proxy/")
+
         try:
+            print("Attempting to fetch data via Arrow Flight from Go Proxy...")
             stream = client.do_get(ticket)
             reader = stream.read_all()
-            return reader.to_pandas()
+            df = reader.to_pandas()
+            print(df)
+            return df
         except flight.FlightError as e:
             raise RuntimeError(f"Failed to fetch data from Go proxy: {e}")
         finally:
             client.close()
-
+   
     # TODO, combine this with the dataset logic in serving.py
     def _spark_dataframe(self, source, spark_session):
         location = self.location(source)
@@ -403,7 +431,6 @@ class Client(ResourceClient, ServingClient):
             )
 
         location = self.impl.location(name, variant, resource_type)
-        print("location is: ", location)
         return location
 
     def close(self):

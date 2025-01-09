@@ -182,6 +182,7 @@ class Client(ResourceClient, ServingClient):
             return self._iceberg_dataframe(source, variant, resource_type, limit)
         return self.impl._get_source_as_df(name, variant, limit)
 
+    # todox: deprecate?
     def _get_iceberg_table(
         self,
         source: Union[

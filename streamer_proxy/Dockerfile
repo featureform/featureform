@@ -5,11 +5,12 @@
 #  Copyright 2024 FeatureForm Inc.
 #
 
-FROM golang:1.21-alpine
+FROM golang:1.21-alpine as Builder
 WORKDIR /app
 
 COPY go.mod ./
 COPY go.sum ./
+RUN go mod download
 
 ENV PATH /go/bin:$PATH
 COPY ./logging/ ./logging/
@@ -17,13 +18,13 @@ COPY ./helpers/ ./helpers/
 COPY ./config/ ./config/
 COPY ./fferr ./fferr/
 COPY ./metadata/proto/ ./metadata/proto/
-COPY ./streamer_proxy/main.go /app/
+COPY ./streamer_proxy/ ./streamer_proxy/
 
-RUN go build /app/main.go
+RUN go build -o /app/main ./streamer_proxy/
 
-FROM golang:1.21-alpine
+FROM alpine:latest
 
-COPY --from=0 ./app/main ./main
+COPY --from=builder ./app/main ./main
 
 EXPOSE 8086
 ENTRYPOINT ["./main"]

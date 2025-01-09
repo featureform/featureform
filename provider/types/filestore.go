@@ -21,3 +21,10 @@ const (
 	DeltaType                            = "delta"
 	IcebergType                          = "iceberg"
 )
+
+type DirectCopyTarget string
+
+const (
+	NoDirectCopyTarget DirectCopyTarget = ""
+	DirectCopyDynamo   DirectCopyTarget = "dynamo"
+)

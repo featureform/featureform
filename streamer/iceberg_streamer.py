@@ -94,7 +94,7 @@ class StreamerService(FlightServerBase):
         # return the record reader
         limit = request_dict["limit"]
         scan = iceberg_table.scan(limit=limit)
-        print(f"Scan complete with limit({limit}")
+        print(f"Scan complete with limit({limit})")
         return scan.to_arrow_batch_reader()
 
 def graceful_shutdown(server):

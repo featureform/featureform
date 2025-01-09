@@ -223,7 +223,7 @@ class Client(ResourceClient, ServingClient):
 		"client.access-key-id":os.getenv("AWS_ACCESS_KEY"), # todox: should we pull these from the provider itself?
 		"client.secret-access-key":os.getenv("AWS_SECRET_KEY"),
 		 "limit": limit}
-        print("with location: ", ticket_data["location"])
+        print("With location: ", ticket_data["location"])
 
         # handle tls
         tls_cert_path = os.path.join(os.getcwd(), "tls.crt")
@@ -234,15 +234,15 @@ class Client(ResourceClient, ServingClient):
             tls_root_certs = f.read()
 
         flight_address = f"grpc+tls://{self._host}/arrow.flight.protocol.FlightService/"
-        print(f"flight server address: {flight_address}")
+        print(f"Flight server address: {flight_address}")
 
-        print("client initializing...")
+        print("Client initializing...")
         client = flight.connect(
             flight_address,
             tls_root_certs=tls_root_certs,
         )
 
-        print("building ticket...")
+        print("Building ticket...")
         ticket = flight.Ticket(json.dumps(ticket_data).encode("utf-8"))
 
         try:

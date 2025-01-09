@@ -162,7 +162,7 @@ def version():
     "--host",
     "host",
     required=False,
-    help="The host address of the API server to connect to",
+    help="The host address for the arrow flight client to connect to",
 )
 @click.option(
     "--cert", "cert", required=False, help="Path to self-signed TLS certificate"

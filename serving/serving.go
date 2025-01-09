@@ -889,7 +889,6 @@ func (serv *FeatureServer) getOfflineResourceLocation(ctx context.Context, name,
 	return fileLocation.Location(), nil
 }
 
-// todo: need to follow up here
 func (serv *FeatureServer) getOnlineResourceLocation(_ context.Context, _, _ string, _ int32) (string, error) {
 	return "", fferr.NewInternalError(fmt.Errorf("online resource location not implemented"))
 }

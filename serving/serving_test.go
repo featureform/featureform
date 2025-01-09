@@ -730,8 +730,6 @@ func (stream *mockBatchServingStream) RecvMsg(interface{}) error {
 	return nil
 }
 
-// todo: follow up with team here
-
 // func TestBatchFeatureServe(t *testing.T) {
 // 	ctx := onlineTestContext{
 // 		ResourceDefsFn: simpleResourceDefsFn,

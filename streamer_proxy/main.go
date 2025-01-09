@@ -24,6 +24,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+const one_million_record_limit = 1_000_000
+
 type GoProxyServer struct {
 	flight.BaseFlightServer
 	streamerAddress string
@@ -87,7 +89,7 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 
 	// validate limit
 	if ticketData.Limit == 0 {
-		ticketData.Limit = 100 // todox: update to global default
+		ticketData.Limit = one_million_record_limit
 	}
 
 	hydratedTicketData := map[string]any{

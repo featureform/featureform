@@ -93,8 +93,6 @@ RUN pip install boto3 pyarrow 'pyiceberg[glue]'
 
 COPY ./streamer/ /app/streamer/
 
-EXPOSE 8085
-
 # Final Image
 FROM golang:1.21
 

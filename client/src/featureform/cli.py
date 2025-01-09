@@ -178,10 +178,9 @@ def stream(host, cert, insecure, name, variant):
         )
 
     client = Client(host=host, insecure=insecure, cert_path=cert)
-
-    print(f"The name-variant: {name} - {variant}")
-    df = client.dataframe(source=name, variant=variant, iceberg=True)
-    print("pulled data frame: ", df)
+    # todox: need to chunk the call
+    df = client.dataframe(source=name, variant=variant, iceberg=True, limit=15_000)
+    print(df)
 
 
 @cli.command()

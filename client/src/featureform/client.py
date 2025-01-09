@@ -152,7 +152,8 @@ class Client(ResourceClient, ServingClient):
             df (pandas.DataFrame): The dataframe computed from the source or transformation
 
         """
-        self.apply(asynchronous=asynchronous, verbose=verbose)
+        # todox: calling apply during client.dataframe can't be right
+        # self.apply(asynchronous=asynchronous, verbose=verbose)
         if isinstance(
             source, (SourceRegistrar, SubscriptableTransformation, ResourceVariant)
         ):
@@ -216,7 +217,6 @@ class Client(ResourceClient, ServingClient):
         Returns:
             pandas.DataFrame: Iceberg data catalog stream
         """
-        
         ticket_data = {"location": self.location(source, variant, resource_type), 
 		"client.region": "us-east-1",
 		"client.access-key-id":os.getenv("AWS_ACCESS_KEY"), # todox: should we pull these from the provider itself?
@@ -249,7 +249,6 @@ class Client(ResourceClient, ServingClient):
             stream = client.do_get(ticket)
             reader = stream.read_all()
             df = reader.to_pandas()
-            print(df)
             return df
         except flight.FlightError as e:
             raise RuntimeError(f"Failed to fetch data from Go proxy: {e}")

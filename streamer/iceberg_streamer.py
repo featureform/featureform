@@ -38,7 +38,7 @@ class StreamerService(FlightServerBase):
             "limit": request_data.get("limit", ONE_MILLION_RECORD_LIMIT),
         }
 
-        print(f"Receiving flight ticket for table: {request_dict['namespace']}.{request_dict['table']}")
+        print(f"Processing stream request for table: {request_dict['namespace']}.{request_dict['table']}")
 
         required_fields = [
             "namespace",

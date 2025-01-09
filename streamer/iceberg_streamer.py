@@ -105,7 +105,7 @@ if __name__ == "__main__":
     server = StreamerService()
     
     # close out gracefully
-    signal.signal(signal.SIGINT, lambda sig, frame: graceful_shutdown(server))
-    signal.signal(signal.SIGTERM, lambda sign, frame: graceful_shutdown(server))
+    signal.signal(signal.SIGINT, lambda _sig, _frame: graceful_shutdown(server))
+    signal.signal(signal.SIGTERM, lambda _sign, _frame: graceful_shutdown(server))
 
     server.serve()

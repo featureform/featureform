@@ -54,6 +54,7 @@ type BQOfflineTableQueries interface {
 	tableExists(tableName string) string
 	viewExists(viewName string) string
 	determineColumnType(valueType types.ValueType) (string, error)
+	determineNativeColumnType(valueType types.ValueType) (bigquery.FieldType, error)
 	primaryTableCreate(name string, columnString string) string
 	upsertQuery(tb string, columns string, placeholder string) string
 	createValuePlaceholderString(columns []TableColumn) string
@@ -84,10 +85,14 @@ type BQOfflineTableQueries interface {
 	trainingRowSelect(columns string, trainingSetName string) string
 	primaryTableRegister(tableName string, sourceName string) string
 	getTableName(tableName string) string
+	getProjectId() string
+	getDatasetId() string
 }
 
 type defaultBQQueries struct {
 	TablePrefix string
+	ProjectId   string
+	DatasetId   string
 	Ctx         context.Context
 }
 
@@ -96,9 +101,11 @@ type bqGenericTableIterator struct {
 	currentValue GenericRecord
 	err          error
 	query        BQOfflineTableQueries
+	columns      []TableColumn
 }
 
 type bqPrimaryTable struct {
+	table  *bigquery.Table
 	client *bigquery.Client
 	name   string
 	query  BQOfflineTableQueries
@@ -118,13 +125,21 @@ func (pt *bqPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) 
 		query = fmt.Sprintf("SELECT * FROM `%s` LIMIT %d", tableName, n)
 	}
 	bqQ := pt.client.Query(query)
+
+	columns, err := pt.query.getColumns(pt.client, pt.name)
+	if err != nil {
+		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
+		wrapped.AddDetail("table_name", tableName)
+		return nil, wrapped
+	}
+
 	it, err := bqQ.Read(pt.query.getContext())
 	if err != nil {
 		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)
 		return nil, wrapped
 	}
-	return newBigQueryGenericTableIterator(it, pt.query), nil
+	return newBigQueryGenericTableIterator(it, pt.query, columns), nil
 }
 
 func (pt *bqPrimaryTable) NumRows() (int64, error) {
@@ -227,18 +242,11 @@ func (it *bqGenericTableIterator) Values() GenericRecord {
 
 func (it *bqGenericTableIterator) Columns() []string {
 	var columns []string
-	// As the documentation for bigquery.Schema notes:
-	// > The schema of the table. In some scenarios it will only be available after the first call to Next(),
-	//  like when a call to Query.Read uses the jobs.query API for an optimized query path.
-	// Given this possibility, we should check if the schema is empty and if so, call Next() to populate it.
-	// Given Columns is only called to fetch the data sources columns list, we can safely call Next() here
-	// without concern for skipping a value in the iteration.
-	if len(it.iter.Schema) == 0 {
-		it.Next()
-	}
-	for _, col := range it.iter.Schema {
+
+	for _, col := range it.columns {
 		columns = append(columns, col.Name)
 	}
+
 	return columns
 }
 
@@ -250,12 +258,13 @@ func (it *bqGenericTableIterator) Close() error {
 	return nil
 }
 
-func newBigQueryGenericTableIterator(it *bigquery.RowIterator, query BQOfflineTableQueries) GenericTableIterator {
+func newBigQueryGenericTableIterator(it *bigquery.RowIterator, query BQOfflineTableQueries, columns []TableColumn) GenericTableIterator {
 	return &bqGenericTableIterator{
 		iter:         it,
 		currentValue: nil,
 		err:          nil,
 		query:        query,
+		columns:      columns,
 	}
 }
 
@@ -313,6 +322,25 @@ func (q defaultBQQueries) determineColumnType(valueType types.ValueType) (string
 		return "TIMESTAMP", nil
 	case types.NilType:
 		return "STRING", nil
+	default:
+		return "", fferr.NewDataTypeNotFoundErrorf(valueType, "cannot find column type for value type")
+	}
+}
+
+func (q defaultBQQueries) determineNativeColumnType(valueType types.ValueType) (bigquery.FieldType, error) {
+	switch valueType {
+	case types.Int, types.Int32, types.Int64:
+		return bigquery.IntegerFieldType, nil
+	case types.Float32, types.Float64:
+		return bigquery.FloatFieldType, nil
+	case types.String:
+		return bigquery.StringFieldType, nil
+	case types.Bool:
+		return bigquery.BooleanFieldType, nil
+	case types.Timestamp:
+		return bigquery.TimestampFieldType, nil
+	case types.NilType:
+		return bigquery.StringFieldType, nil
 	default:
 		return "", fferr.NewDataTypeNotFoundErrorf(valueType, "cannot find column type for value type")
 	}
@@ -595,6 +623,14 @@ func (q defaultBQQueries) getTableName(tableName string) string {
 	return fmt.Sprintf("%s.%s", q.getTablePrefix(), tableName)
 }
 
+func (q defaultBQQueries) getProjectId() string {
+	return q.ProjectId
+}
+
+func (q defaultBQQueries) getDatasetId() string {
+	return q.DatasetId
+}
+
 type bqMaterialization struct {
 	id        MaterializationID
 	client    *bigquery.Client
@@ -822,7 +858,10 @@ func bigQueryOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	if err := sc.Deserialize(config); err != nil {
 		return nil, err
 	}
-	queries := defaultBQQueries{}
+	queries := defaultBQQueries{
+		ProjectId: sc.ProjectId,
+		DatasetId: sc.DatasetId,
+	}
 	queries.setTablePrefix(fmt.Sprintf("%s.%s", sc.ProjectId, sc.DatasetId))
 	queries.setContext()
 	sgConfig := BQOfflineStoreConfig{
@@ -910,7 +949,11 @@ func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, table
 	if err != nil {
 		return nil, err
 	}
+
+	table := store.client.Dataset(store.query.getDatasetId()).Table(tableLocation.Location())
+
 	return &bqPrimaryTable{
+		table:  table,
 		client: store.client,
 		name:   tableName,
 		schema: TableSchema{Columns: columnNames},

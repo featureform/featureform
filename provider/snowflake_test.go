@@ -990,22 +990,32 @@ func verifyPrimaryTable(t *testing.T, primary PrimaryTable, records []GenericRec
 		t.Fatalf("Could not get generic iterator: %v", err)
 	}
 
-	i := 0
+	if iterator.Columns()[0] != "ID" {
+		// TODO: Remove this
+		t.Fatalf("expected ID as first column")
+	}
+	rowsSeen := 0
 	for iterator.Next() {
-		for j, v := range iterator.Values() {
+		valuesIter := iterator.Values()
+		id := valuesIter[0].(int)
+		for j, v := range valuesIter {
 			// NOTE: we're handling float64 differently hear given the values returned by Snowflake have less precision
 			// and therefore are not equal unless we round them; if tests require handling of other types, we can add
 			// additional cases here, otherwise the default case will cover all other types
 			switch v.(type) {
 			case float64:
-				assert.True(t, floatsAreClose(v.(float64), records[i][j].(float64), floatTolerance), "expected same values")
+				assert.True(t, floatsAreClose(v.(float64), records[id][j].(float64), floatTolerance), "expected same values")
 			case time.Time:
-				assert.Equal(t, records[i][j].(time.Time).Truncate(time.Microsecond), v.(time.Time).Truncate(time.Microsecond), "expected same values")
+				assert.Equal(t, records[id][j].(time.Time).Truncate(time.Microsecond), v.(time.Time).Truncate(time.Microsecond), "expected same values")
 			default:
-				assert.Equal(t, v, records[i][j], "expected same values")
+				assert.Equal(t, v, records[id][j], "expected same values")
 			}
 		}
-		i++
+		rowsSeen++
+	}
+
+	if rowsSeen != int(numRows) {
+		t.Fatalf("incorrect number of rows: expected %d, got %d", numRows, rowsSeen)
 	}
 }
 

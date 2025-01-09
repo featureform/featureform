@@ -8,9 +8,7 @@
 import json
 from pyiceberg.catalog import load_catalog
 from pyarrow.flight import FlightServerBase, RecordBatchStream
-import logging
 
-logger = logging.getLogger(__name__)
 port = 8085
 
 
@@ -21,12 +19,12 @@ class StreamerService(FlightServerBase):
 
     def do_get(self, _, ticket):
         ticket_json = ticket.ticket.decode("utf-8")
-        logger.debug(f"do_get(): utf-8 ticket value: {ticket_json}")
+        print("Receiving flight ticket...")
 
         try:
             request_data = json.loads(ticket_json)
         except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON format in ticket: {ticket_json}") from e
+            raise ValueError(f"Invalid JSON format in ticket") from e
 
         requestDict = {
             "catalog": request_data.get("catalog", "default"),
@@ -65,7 +63,7 @@ class StreamerService(FlightServerBase):
         return RecordBatchStream(record_batch_reader)
 
     def load_data_from_iceberg_table(self, requestDict):
-        logger.info(
+        print(
             f"Loading table: {requestDict['namespace']}.{requestDict['table']} with catalog: {requestDict['catalog']}"
         )
 
@@ -84,7 +82,7 @@ class StreamerService(FlightServerBase):
                 (requestDict["namespace"], requestDict["table"])
             )
         except Exception as e:
-            logger.error(
+            print(
                 f"Failed to load table {requestDict['namespace']}.{requestDict['table']}: {str(e)}"
             )
             raise
@@ -96,6 +94,6 @@ class StreamerService(FlightServerBase):
 
 
 if __name__ == "__main__":
-    logger.info(f"Starting the streamer client service on port {port}...")
+    print(f"Starting the streamer client service on port {port}...")
     server = StreamerService()
     server.serve()

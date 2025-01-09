@@ -64,6 +64,7 @@ class StreamerService(FlightServerBase):
                 )
 
         record_batch_reader = self.load_data_from_iceberg_table(request_dict)
+        print("Load complete. Returning batch reader to client.")
         return RecordBatchStream(record_batch_reader)
 
     def load_data_from_iceberg_table(self, request_dict):
@@ -93,7 +94,7 @@ class StreamerService(FlightServerBase):
         # return the record reader
         limit = request_dict["limit"]
         scan = iceberg_table.scan(limit=limit)
-        print(f"Scan complete with limit({limit}), returning batch reader...")
+        print(f"Scan complete with limit({limit}")
         return scan.to_arrow_batch_reader()
 
 def graceful_shutdown(server):

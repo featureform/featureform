@@ -112,7 +112,9 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 func (gps *GoProxyServer) DoGet(ticket *flight.Ticket, stream flight.FlightService_DoGetServer) error {
 	gps.logger.Infof("Received request, forwarding to iceberg-streamer at: %v", gps.streamerAddress)
 	insecureOption := grpc.WithTransportCredentials(insecure.NewCredentials())
-	client, err := flight.NewClientWithMiddleware(gps.streamerAddress, nil, nil, insecureOption)
+	sizeOption := grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(20 * 1024 * 1024)) //20 MB
+
+	client, err := flight.NewClientWithMiddleware(gps.streamerAddress, nil, nil, insecureOption, sizeOption)
 	if err != nil {
 		gps.logger.Errorf("Failed to connect to the iceberg-streamer: %v", err)
 		return err

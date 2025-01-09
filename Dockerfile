@@ -67,6 +67,7 @@ COPY types/ types/
 COPY kubernetes/ kubernetes/
 COPY config/ config/
 COPY logging/ logging/
+COPY ./streamer_proxy/ streamer_proxy/
 
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./proto/serving.proto
 RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./metadata/proto/metadata.proto
@@ -78,6 +79,7 @@ RUN go build -o execs/metadata metadata/server/server.go
 RUN go build -o execs/coordinator coordinator/main/main.go
 RUN go build -o execs/dashboard_metadata metadata/dashboard/main/main.go
 RUN go build -o execs/serving serving/main/main.go
+RUN go build -o execs/streamer_proxy streamer_proxy/main.go
 
 # Build Python Streamer
 FROM python:3.10-slim AS streamer-builder
@@ -179,6 +181,7 @@ EXPOSE 7878
 EXPOSE 80
 EXPOSE 5432
 EXPOSE 8085
+EXPOSE 8086
 
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 

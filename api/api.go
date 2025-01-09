@@ -594,12 +594,39 @@ func (serv *MetadataServer) GetModels(stream pb.Api_GetModelsServer) error {
 func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.GetEquivalentRequest) (*pb.ResourceVariant, error) {
 	ctx = logging.AttachRequestID(req.RequestId, ctx, serv.Logger)
 	logger := logging.GetLoggerFromContext(ctx)
+
+	preprocessSourceVariant(req)
+
+	// Log start of the request
 	logger.Info("Handling GetEquivalent call")
 	resp, err := serv.meta.GetEquivalent(ctx, req)
 	if err != nil {
-		logger.Errorw("GetEquivalent failed", "error", err)
+		logger.Errorw("GetEquivalent failed", "error", err, "requestId", req.RequestId)
+		return nil, err
 	}
-	return resp, err
+
+	return resp, nil
+}
+
+func preprocessSourceVariant(req *pb.GetEquivalentRequest) {
+	sv := req.Variant.GetSourceVariant()
+	if sv == nil {
+		return
+	}
+
+	tf := sv.GetTransformation()
+	if tf == nil {
+		return
+	}
+
+	sqlTransformation := tf.GetSQLTransformation()
+	if sqlTransformation == nil {
+		return
+	}
+
+	sources := extractSourcesFromSQLTransformation(sqlTransformation.Query)
+	sqlTransformation.Source = sources
+	return
 }
 
 func (serv *MetadataServer) Run(ctx context.Context, req *pb.RunRequest) (*pb.Empty, error) {
@@ -991,25 +1018,28 @@ func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, sourceReque
 	case *pb.SourceVariant_Transformation:
 		switch transformationType := casted.Transformation.Type.(type) {
 		case *pb.Transformation_SQLTransformation:
-			logger.Debugw("Retreiving the sources from SQL Transformation", "transformation type", transformationType)
-			transformation := casted.Transformation.Type.(*pb.Transformation_SQLTransformation).SQLTransformation
-			qry := transformation.Query
-			numEscapes := strings.Count(qry, "{{")
-			sources := make([]*pb.NameVariant, numEscapes)
-			for i := 0; i < numEscapes; i++ {
-				split := strings.SplitN(qry, "{{", 2)
-				afterSplit := strings.SplitN(split[1], "}}", 2)
-				key := strings.TrimSpace(afterSplit[0])
-				nameVariant := strings.SplitN(key, ".", 2)
-				sources[i] = &pb.NameVariant{Name: nameVariant[0], Variant: nameVariant[1]}
-				qry = afterSplit[1]
-			}
+			logger.Debugw("Retrieving the sources from SQL Transformation", "transformation type", transformationType)
+			sources := extractSourcesFromSQLTransformation(transformationType.SQLTransformation.Query)
 			logger.Debugw("Setting the source in the SQL Transformation", "sources", sources)
 			source.Definition.(*pb.SourceVariant_Transformation).Transformation.Type.(*pb.Transformation_SQLTransformation).SQLTransformation.Source = sources
 		case *pb.Transformation_DFTransformation:
 		}
 	}
 	return serv.meta.CreateSourceVariant(ctx, sourceRequest)
+}
+
+func extractSourcesFromSQLTransformation(query string) []*pb.NameVariant {
+	numEscapes := strings.Count(query, "{{")
+	sources := make([]*pb.NameVariant, numEscapes)
+	for i := 0; i < numEscapes; i++ {
+		split := strings.SplitN(query, "{{", 2)
+		afterSplit := strings.SplitN(split[1], "}}", 2)
+		key := strings.TrimSpace(afterSplit[0])
+		nameVariant := strings.SplitN(key, ".", 2)
+		sources[i] = &pb.NameVariant{Name: nameVariant[0], Variant: nameVariant[1]}
+		query = afterSplit[1]
+	}
+	return sources
 }
 
 func (serv *MetadataServer) CreateEntity(ctx context.Context, entityRequest *pb.EntityRequest) (*pb.Empty, error) {

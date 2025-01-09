@@ -289,6 +289,130 @@ func filledResourceDefs() []ResourceDef {
 	}
 }
 
+func filledInvalidTrainingSetDAG() []ResourceDef {
+	redisConfig := pc.RedisConfig{
+		Addr:     "0.0.0.0",
+		Password: "root",
+		DB:       0,
+	}
+	snowflakeConfig := pc.SnowflakeConfig{
+		Username:     "featureformer",
+		Password:     "password",
+		Organization: "featureform",
+		Account:      "featureform-test",
+		Database:     "transactions_db",
+		Schema:       "fraud",
+		Warehouse:    "ff_wh_xs",
+		Role:         "sysadmin",
+	}
+	return []ResourceDef{
+		UserDef{
+			Name:       "Featureform",
+			Tags:       Tags{},
+			Properties: Properties{},
+		},
+		ProviderDef{
+			Name:             "mockOnline",
+			Description:      "A mock online provider",
+			Type:             string(pt.RedisOnline),
+			Software:         "redis",
+			Team:             "fraud",
+			SerializedConfig: redisConfig.Serialized(),
+			Tags:             Tags{},
+			Properties:       Properties{},
+		},
+		ProviderDef{
+			Name:             "mockOffline",
+			Description:      "A mock offline provider",
+			Type:             string(pt.SnowflakeOffline),
+			Software:         "snowflake",
+			Team:             "recommendations",
+			SerializedConfig: snowflakeConfig.Serialize(),
+			Tags:             Tags{},
+			Properties:       Properties{},
+		},
+		EntityDef{
+			Name:        "user",
+			Description: "A user entity",
+			Tags:        Tags{},
+			Properties:  Properties{},
+		},
+		EntityDef{
+			Name:        "customer",
+			Description: "A customer entity",
+			Tags:        Tags{},
+			Properties:  Properties{},
+		},
+		SourceDef{
+			Name:        "mockSource",
+			Variant:     "var",
+			Description: "A CSV source",
+			Definition: TransformationSource{
+				TransformationType: SQLTransformationType{
+					Query: "SELECT * FROM dummy",
+					Sources: []NameVariant{{
+						Name:    "mockName",
+						Variant: "mockVariant"},
+					},
+				},
+			},
+			Owner:      "Featureform",
+			Provider:   "mockOffline",
+			Tags:       Tags{},
+			Properties: Properties{},
+		},
+		FeatureDef{
+			Name:        "customer-feature",
+			Variant:     "variant",
+			Provider:    "mockOnline",
+			Entity:      "customer",
+			Type:        types.Int,
+			Description: "Customer feature variant",
+			Source:      NameVariant{"mockSource", "var"},
+			Owner:       "Featureform",
+			Location: ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
+			Tags:       Tags{},
+			Properties: Properties{},
+			Mode:       PRECOMPUTED,
+			IsOnDemand: false,
+		},
+		LabelDef{
+			Name:        "label",
+			Variant:     "variant",
+			Type:        types.Int64,
+			Description: "label variant",
+			Provider:    "mockOffline",
+			Entity:      "user",
+			Source:      NameVariant{"mockSource", "var"},
+			Owner:       "Featureform",
+			Location: ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
+			Tags:       Tags{},
+			Properties: Properties{},
+		},
+		TrainingSetDef{
+			Name:        "training-set",
+			Variant:     "variant",
+			Provider:    "mockOffline",
+			Description: "training-set variant",
+			Label:       NameVariant{"label", "variant"},
+			Features: NameVariants{
+				{"customer-feature", "variant"},
+			},
+			Owner:      "Featureform",
+			Tags:       Tags{},
+			Properties: Properties{},
+		},
+	}
+}
+
 func list(client *Client, t ResourceType) (interface{}, error) {
 	ctx := context.Background()
 	switch t {
@@ -2386,7 +2510,6 @@ func Test_GetEquivalent(t *testing.T) {
 		Description: "training-set variant",
 		Label:       NameVariant{"label", "variant"},
 		Features: NameVariants{
-			{"feature", "variant"},
 			{"feature2", "variant"},
 		},
 		Owner:      "Featureform",
@@ -2679,6 +2802,44 @@ func Test_CreateResourceVariantResourceChanged(t *testing.T) {
 		Mode:       CLIENT_COMPUTED,
 		IsOnDemand: true,
 	}
+	featureDef3 := FeatureDef{
+		Name:        "feature3",
+		Variant:     "variant",
+		Provider:    "mockOnline",
+		Entity:      "user",
+		Type:        types.String,
+		Description: "Feature3 variant",
+		Source:      NameVariant{"mockSource", "var"},
+		Owner:       "Featureform",
+		Location: ResourceVariantColumns{
+			Entity: "col1",
+			Value:  "col2",
+			TS:     "col3",
+		},
+		Tags:       Tags{},
+		Properties: Properties{},
+		Mode:       PRECOMPUTED,
+		IsOnDemand: false,
+	}
+	featureDef4 := FeatureDef{
+		Name:        "feature4",
+		Variant:     "variant",
+		Provider:    "mockOnline",
+		Entity:      "user",
+		Type:        types.String,
+		Description: "Feature4 variant",
+		Source:      NameVariant{"mockSource", "var"},
+		Owner:       "Featureform",
+		Location: ResourceVariantColumns{
+			Entity: "col1",
+			Value:  "col2",
+			TS:     "col3",
+		},
+		Tags:       Tags{},
+		Properties: Properties{},
+		Mode:       PRECOMPUTED,
+		IsOnDemand: false,
+	}
 	labelDef := LabelDef{
 		Name:        "label",
 		Variant:     "variant",
@@ -2696,7 +2857,6 @@ func Test_CreateResourceVariantResourceChanged(t *testing.T) {
 		Tags:       Tags{},
 		Properties: Properties{},
 	}
-
 	trainingSetDef := TrainingSetDef{
 		Name:        "training-set",
 		Variant:     "variant",
@@ -2704,15 +2864,14 @@ func Test_CreateResourceVariantResourceChanged(t *testing.T) {
 		Description: "training-set variant",
 		Label:       NameVariant{"label", "variant"},
 		Features: NameVariants{
-			{"feature", "variant"},
-			{"feature2", "variant"},
+			{"feature3", "variant"},
 		},
 		Owner:      "Featureform",
 		Tags:       Tags{},
 		Properties: Properties{},
 	}
 
-	resourceDefs := []ResourceDef{userDef, entityDef, onlineDef, offlineDef, sourceDef, featureDef, featureDef2, labelDef, trainingSetDef}
+	resourceDefs := []ResourceDef{userDef, entityDef, onlineDef, offlineDef, sourceDef, featureDef, featureDef2, featureDef3, featureDef4, labelDef, trainingSetDef}
 
 	err := client.CreateAll(context, resourceDefs)
 	if err != nil {
@@ -2752,10 +2911,23 @@ func Test_CreateResourceVariantResourceChanged(t *testing.T) {
 
 	// change trainingSetDef
 	trainingSetDef.Features = NameVariants{
-		{"feature", "variant"},
+		{"feature4", "variant"},
 	}
 	err = client.Create(context, trainingSetDef)
 	if err == nil {
 		t.Fatalf("Expected error but got none")
 	}
+}
+
+// **NOTE**: Other tests cover the positive test case for common entity given they create
+// training sets whose features and label share a common entity.
+func TestInvalidCommonEntity(t *testing.T) {
+	ctx := testContext{
+		Defs: filledInvalidTrainingSetDAG(),
+	}
+	_, err := ctx.Create(t)
+	if err == nil {
+		t.Fatal("Expected training set variant creation to fail to do mismatched entities")
+	}
+	defer ctx.Destroy()
 }

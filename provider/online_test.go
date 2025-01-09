@@ -77,6 +77,8 @@ func randomFeatureVariant() (string, string) {
 
 func testCreateGetTable(t *testing.T, store OnlineStore) {
 	mockFeature, mockVariant := randomFeatureVariant()
+	// This is done before creating it as sometimes creation partially fails and leaves some resources behind,
+	// so we attempt to delete it anyway and ignore the error.
 	defer store.DeleteTable(mockFeature, mockVariant)
 	if tab, err := store.CreateTable(mockFeature, mockVariant, types.String); tab == nil || err != nil {
 		t.Fatalf("Failed to create table: %s", err)
@@ -215,12 +217,12 @@ func testMassTableWrite(t *testing.T, store OnlineStore) {
 	for i := range tableList {
 		tab, err := store.CreateTable(tableList[i].Name, tableList[i].Variant, types.Int)
 		if err != nil {
-			t.Fatalf("could not create table %v in online store: %v", tableList[i], err)
+			t.Fatalf("could not create table %v in online store: %v\n", tableList[i], err)
 		}
 		defer store.DeleteTable(tableList[i].Name, tableList[i].Variant)
 		for j := range entityList {
 			if err := tab.Set(entityList[j], 1); err != nil {
-				t.Fatalf("could not set entity %v in table %v: %v", entityList[j], tableList[i], err)
+				t.Fatalf("could not set entity %v in table %v: %v\n", entityList[j], tableList[i], err)
 			}
 		}
 	}
@@ -275,8 +277,9 @@ func testNilValues(t *testing.T, store OnlineStore) {
 		},
 	}
 	for _, resource := range onlineResources {
-		featureName := uuid.New().String()
-		tab, err := store.CreateTable(featureName, "", resource.Type)
+		featureName, variantName := randomFeatureVariant()
+		defer store.DeleteTable(featureName, variantName)
+		tab, err := store.CreateTable(featureName, variantName, resource.Type)
 		if err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
@@ -290,7 +293,6 @@ func testNilValues(t *testing.T, store OnlineStore) {
 		if !reflect.DeepEqual(resource.Value, gotVal) {
 			t.Fatalf("Values are not the same %v, type %T. %v, type %T", resource.Value, resource.Value, gotVal, gotVal)
 		}
-		store.DeleteTable(featureName, "")
 	}
 }
 
@@ -318,8 +320,9 @@ func testFloatVecValues(t *testing.T, store OnlineStore) {
 		},
 	}
 	for _, resource := range onlineResources {
-		featureName := uuid.New().String()
-		tab, err := store.CreateTable(featureName, "", resource.Type)
+		featureName, variantName := randomFeatureVariant()
+		defer store.DeleteTable(featureName, variantName)
+		tab, err := store.CreateTable(featureName, variantName, resource.Type)
 		if err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
@@ -333,7 +336,6 @@ func testFloatVecValues(t *testing.T, store OnlineStore) {
 		if !reflect.DeepEqual(resource.Value, gotVal) {
 			t.Fatalf("Values are not the same %v, type %T. %v, type %T", resource.Value, resource.Value, gotVal, gotVal)
 		}
-		store.DeleteTable(featureName, "")
 	}
 }
 
@@ -371,8 +373,9 @@ func testTypeCasting(t *testing.T, store OnlineStore) {
 		},
 	}
 	for _, resource := range onlineResources {
-		featureName := uuid.New().String()
-		tab, err := store.CreateTable(featureName, "", resource.Type)
+		featureName, variantName := randomFeatureVariant()
+		store.DeleteTable(featureName, variantName)
+		tab, err := store.CreateTable(featureName, variantName, resource.Type)
 		if err != nil {
 			t.Fatalf("Failed to create table: %s", err)
 		}
@@ -386,7 +389,6 @@ func testTypeCasting(t *testing.T, store OnlineStore) {
 		if !reflect.DeepEqual(resource.Value, gotVal) {
 			t.Fatalf("Values are not the same %v, type %T. %v, type %T", resource.Value, resource.Value, gotVal, gotVal)
 		}
-		store.DeleteTable(featureName, "")
 	}
 }
 

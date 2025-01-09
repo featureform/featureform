@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -27,19 +26,11 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
+	sparklib "github.com/featureform/provider/spark"
 	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
-)
-
-type JobType string
-
-const (
-	Materialize       JobType = "Materialization"
-	Transform         JobType = "Transformation"
-	CreateTrainingSet JobType = "Training Set"
-	BatchFeatures     JobType = "Batch Features"
 )
 
 const MATERIALIZATION_ID_SEGMENTS = 3
@@ -47,55 +38,6 @@ const ENTITY_INDEX = 0
 const VALUE_INDEX = 1
 const TIMESTAMP_INDEX = 2
 const SPARK_SUBMIT_PARAMS_BYTE_LIMIT = 10_240
-
-type pysparkSourceInfo struct {
-	Location     string  `json:"location"`
-	LocationType string  `json:"locationType"`
-	Provider     pt.Type `json:"provider"`
-	// TableFormat is used for file sources
-	TableFormat string `json:"tableFormat"`
-	// FileType and IsDir are used for file sources
-	FileType string `json:"fileType"`
-	IsDir    bool   `json:"isDir"`
-	// Database and Schema are used for Snowflake sources
-	Database string `json:"database"`
-	Schema   string `json:"schema"`
-
-	// AwsAssumeRoleArn is used for S3/Glue sources that
-	// require a specific role to access
-	AwsAssumeRoleArn    string `json:"awsAssumeRoleArn"`
-	TimestampColumnName string `json:"timestampColumnName"`
-
-	// Deprecated
-	// TODO remove
-	// Old version of our pyspark job actually passed in strings
-	// as opposed to JSON for source infos. If legacy string is
-	// set than serialization will just return this string.
-	LegacyString string `json:"-"`
-}
-
-// Legacy parts of our script, specifically materialization, don't use the
-// JSON version of pyspark source info.
-func wrapLegacyPysparkSourceInfos(paths []string) []pysparkSourceInfo {
-	sources := make([]pysparkSourceInfo, len(paths))
-	for i, path := range paths {
-		sources[i] = pysparkSourceInfo{
-			LegacyString: path,
-		}
-	}
-	return sources
-}
-
-func (p *pysparkSourceInfo) Serialize() (string, error) {
-	if p.LegacyString != "" {
-		return p.LegacyString, nil
-	}
-	jsonBytes, err := json.Marshal(p)
-	if err != nil {
-		return "", fferr.NewInternalError(err)
-	}
-	return string(jsonBytes), nil
-}
 
 type SparkExecutorConfig interface {
 	Serialize() ([]byte, error)
@@ -336,7 +278,7 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 		return nil, err
 	}
 
-	sources := wrapLegacyPysparkSourceInfos(materializationPaths)
+	sources := sparklib.WrapLegacySourceInfos(materializationPaths)
 
 	// Create a query that selects all features from the table
 	query := createJoinQuery(len(ids))
@@ -355,7 +297,7 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 		OutputLocation: pl.NewFileLocation(outputPath),
 		Code:           query,
 		SourceList:     sources,
-		JobType:        BatchFeatures,
+		JobType:        types.BatchFeatures,
 		Store:          store.Store,
 		Mappings:       make([]SourceMapping, 0),
 	}.PrepareCommand(store.Logger)
@@ -413,7 +355,7 @@ func (store *SparkOfflineStore) createFilePathsFromIDs(materializationIDs []Reso
 		if err != nil {
 			return nil, err
 		}
-		source := pysparkSourceInfo{
+		source := sparklib.SourceInfo{
 			Location:     matDir.ToURI(),
 			LocationType: string(pl.FileStoreLocationType),
 			Provider:     pt.Type(store.Store.Type()),
@@ -506,7 +448,7 @@ func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 		logger.Errorw("Failed to create health check filepath", "err", wrapped)
 		return false, wrapped
 	}
-	source := pysparkSourceInfo{
+	source := sparklib.SourceInfo{
 		Location:     healthCheckPath.ToURI(),
 		LocationType: string(pl.FileStoreLocationType),
 		Provider:     store.Type(),
@@ -518,8 +460,8 @@ func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 		TFType:         SQLTransformation,
 		OutputLocation: pl.NewFileLocation(healthCheckOutPath),
 		Code:           "SELECT * FROM source_0",
-		SourceList:     []pysparkSourceInfo{source},
-		JobType:        Transform,
+		SourceList:     []sparklib.SourceInfo{source},
+		JobType:        types.Transform,
 		Store:          store.Store,
 		Mappings:       make([]SourceMapping, 0),
 	}.PrepareCommand(logger)
@@ -657,7 +599,7 @@ type baseExecutor struct {
 
 type SparkExecutor interface {
 	InitializeExecutor(store SparkFileStoreV2) error
-	RunSparkJob(cmd *sparkCommand, store SparkFileStoreV2, opts SparkJobOptions, tfOpts TransformationOptions) error
+	RunSparkJob(cmd *sparklib.Command, store SparkFileStoreV2, opts SparkJobOptions, tfOpts TransformationOptions) error
 	SupportsTransformationOption(opt TransformationOptionType) (bool, error)
 }
 
@@ -799,7 +741,7 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 		OutputLocation: outputLocation,
 		Code:           updatedQuery,
 		SourceList:     sources,
-		JobType:        Transform,
+		JobType:        types.Transform,
 		Store:          spark.Store,
 		Mappings:       config.SourceMapping,
 	}.PrepareCommand(logger)
@@ -892,7 +834,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 	}
 
 	logger.Info("Successfully wrote transformation pickle file")
-	pysparkSourceInfos, err := createSourceInfo(config.SourceMapping, logger)
+	sourceInfos, err := createSourceInfo(config.SourceMapping, logger)
 	if err != nil {
 		logger.Errorw("Unable to create source info", "err", err)
 		return err
@@ -910,8 +852,8 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		TFType:         DFTransformation,
 		OutputLocation: outputLocation,
 		Code:           pickledTransformationPath.Key(),
-		SourceList:     pysparkSourceInfos,
-		JobType:        Transform,
+		SourceList:     sourceInfos,
+		JobType:        types.Transform,
 		Store:          spark.Store,
 		Mappings:       config.SourceMapping,
 	}.PrepareCommand(logger)
@@ -957,12 +899,12 @@ func (spark *SparkOfflineStore) outputLocation(targetTableID ResourceID) (pl.Loc
 	return pl.NewCatalogLocation(spark.GlueConfig.Database, tableName, string(spark.GlueConfig.TableFormat)), nil
 }
 
-func createSourceInfo(mapping []SourceMapping, logger logging.Logger) ([]pysparkSourceInfo, error) {
-	sources := make([]pysparkSourceInfo, 0)
+func createSourceInfo(mapping []SourceMapping, logger logging.Logger) ([]sparklib.SourceInfo, error) {
+	sources := make([]sparklib.SourceInfo, 0)
 
 	for _, m := range mapping {
 		logger.Debugw("Source mapping in createSourceInfo", "mapping", m)
-		var source pysparkSourceInfo
+		var source sparklib.SourceInfo
 
 		switch m.ProviderType {
 		case pt.SparkOffline:
@@ -975,12 +917,12 @@ func createSourceInfo(mapping []SourceMapping, logger logging.Logger) ([]pyspark
 
 			switch lt := m.Location.(type) {
 			case *pl.FileStoreLocation:
-				source = pysparkSourceInfo{
+				source = sparklib.SourceInfo{
 					Location:     lt.Location(),
 					LocationType: string(lt.Type()),
 				}
 			case *pl.CatalogLocation:
-				source = pysparkSourceInfo{
+				source = sparklib.SourceInfo{
 					Location:     lt.Location(),
 					LocationType: string(lt.Type()),
 					TableFormat:  lt.TableFormat(),
@@ -1003,7 +945,7 @@ func createSourceInfo(mapping []SourceMapping, logger logging.Logger) ([]pyspark
 				return nil, err
 			}
 
-			source = pysparkSourceInfo{
+			source = sparklib.SourceInfo{
 				Location:            m.Source,
 				LocationType:        string(m.Location.Type()),
 				Provider:            pt.SnowflakeOffline,
@@ -1025,9 +967,9 @@ func createSourceInfo(mapping []SourceMapping, logger logging.Logger) ([]pyspark
 	return sources, nil
 }
 
-func (spark *SparkOfflineStore) prepareQueryForSpark(query string, mapping []SourceMapping) (string, []pysparkSourceInfo, error) {
+func (spark *SparkOfflineStore) prepareQueryForSpark(query string, mapping []SourceMapping) (string, []sparklib.SourceInfo, error) {
 	spark.Logger.Debugw("Updating query", "query", query, "mapping", mapping)
-	sources := make([]pysparkSourceInfo, len(mapping))
+	sources := make([]sparklib.SourceInfo, len(mapping))
 	replacements := make(
 		[]string,
 		len(mapping)*2,
@@ -1037,7 +979,7 @@ func (spark *SparkOfflineStore) prepareQueryForSpark(query string, mapping []Sou
 		replacements = append(replacements, m.Template)
 		spark.Logger.Debugw("Source mapping in prepareQueryForSpark", "template", m.Template, "index", i)
 		replacements = append(replacements, fmt.Sprintf("source_%v", i))
-		var source pysparkSourceInfo
+		var source sparklib.SourceInfo
 
 		switch m.ProviderType {
 		case pt.SparkOffline:
@@ -1050,12 +992,12 @@ func (spark *SparkOfflineStore) prepareQueryForSpark(query string, mapping []Sou
 
 			switch lt := m.Location.(type) {
 			case *pl.FileStoreLocation:
-				source = pysparkSourceInfo{
+				source = sparklib.SourceInfo{
 					Location:     lt.Location(),
 					LocationType: string(lt.Type()),
 				}
 			case *pl.CatalogLocation:
-				source = pysparkSourceInfo{
+				source = sparklib.SourceInfo{
 					Location:     lt.Location(),
 					LocationType: string(lt.Type()),
 					TableFormat:  lt.TableFormat(),
@@ -1087,7 +1029,7 @@ func (spark *SparkOfflineStore) prepareQueryForSpark(query string, mapping []Sou
 			if sqlLocation.GetSchema() != "" {
 				schema = sqlLocation.GetSchema()
 			}
-			source = pysparkSourceInfo{
+			source = sparklib.SourceInfo{
 				Location:            sqlLocation.GetTable(),
 				LocationType:        string(m.Location.Type()),
 				Provider:            pt.SnowflakeOffline,
@@ -1313,7 +1255,7 @@ func blobSparkMaterialization(
 	if err != nil {
 		return nil, err
 	}
-	sourcePySpark := pysparkSourceInfo{
+	sourcePySpark := sparklib.SourceInfo{
 		Location:     sparkResourceTable.schema.SourceTable.Location(),
 		LocationType: string(sparkResourceTable.schema.SourceTable.Type()),
 		TableFormat:  tableFormat,
@@ -1324,8 +1266,8 @@ func blobSparkMaterialization(
 		TFType:         SQLTransformation,
 		OutputLocation: pl.NewFileLocation(destinationPath),
 		Code:           materializationQuery,
-		SourceList:     []pysparkSourceInfo{sourcePySpark},
-		JobType:        Materialize,
+		SourceList:     []sparklib.SourceInfo{sourcePySpark},
+		JobType:        types.Materialize,
 		Store:          spark.Store,
 		Mappings:       make([]SourceMapping, 0),
 	}.PrepareCommand(spark.Logger)
@@ -1334,10 +1276,10 @@ func blobSparkMaterialization(
 		return nil, err
 	}
 	sparkArgs.AddConfigs(
-		sparkLegacyOutputFormatFlag{
+		sparklib.LegacyOutputFormatFlag{
 			FileType: opts.Output,
 		},
-		sparkLegacyIncludeHeadersFlag{
+		sparklib.LegacyIncludeHeadersFlag{
 			ShouldInclude: opts.ShouldIncludeHeaders,
 		},
 	)
@@ -1408,8 +1350,8 @@ func (spark *SparkOfflineStore) directCopyMaterialize(id ResourceID, opts Materi
 	if sourceTable.Type() == pl.CatalogLocationType {
 		tableFormat = string(sourceTable.(*pl.CatalogLocation).TableFormat())
 	}
-	sourceList := []pysparkSourceInfo{
-		pysparkSourceInfo{
+	sourceList := []sparklib.SourceInfo{
+		sparklib.SourceInfo{
 			Location:     sourceTable.Location(),
 			LocationType: string(sourceTable.Type()),
 			TableFormat:  tableFormat,
@@ -1422,7 +1364,7 @@ func (spark *SparkOfflineStore) directCopyMaterialize(id ResourceID, opts Materi
 		OutputLocation: pl.NilLocation{},
 		Code:           "",
 		SourceList:     sourceList,
-		JobType:        Materialize,
+		JobType:        types.Materialize,
 		Store:          spark.Store,
 		Mappings:       make([]SourceMapping, 0),
 	}.PrepareCommand(logger)
@@ -1431,13 +1373,13 @@ func (spark *SparkOfflineStore) directCopyMaterialize(id ResourceID, opts Materi
 		return err
 	}
 	sparkArgs.AddConfigs(
-		sparkDirectCopyFlags{
-			Creds: sparkDynamoFlags{
+		sparklib.DirectCopyFlags{
+			Creds: sparklib.DynamoFlags{
 				Region:    dynamo.region,
 				AccessKey: dynamo.accessKey,
 				SecretKey: dynamo.secretKey,
 			},
-			Target:          directCopyDynamo,
+			Target:          types.DirectCopyDynamo,
 			TableName:       dynamo.FormatTableName(id.Name, id.Variant),
 			FeatureName:     id.Name,
 			FeatureVariant:  id.Variant,
@@ -1514,7 +1456,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		return err
 	}
 	logger := spark.Logger.With("id", def.ID)
-	sourcePaths := make([]pysparkSourceInfo, 0)
+	sourcePaths := make([]sparklib.SourceInfo, 0)
 	featureSchemas := make([]ResourceSchema, 0)
 	filePath := def.ID.ToFilestorePath()
 	logger = logger.With("path", filePath)
@@ -1536,7 +1478,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		return fferr.NewDatasetNotFoundError(def.ID.Name, def.ID.Variant, fmt.Errorf(destinationPath.ToURI()))
 	}
 	var labelSchema ResourceSchema
-	var labelPySparkSource pysparkSourceInfo
+	var labelPySparkSource sparklib.SourceInfo
 	logger.Debugw("Label provider", "provider", def.LabelSourceMapping.ProviderType)
 	switch def.LabelSourceMapping.ProviderType {
 	case pt.SparkOffline:
@@ -1549,7 +1491,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		if labelSchema.SourceTable.Type() == pl.CatalogLocationType {
 			tableFormat = labelSchema.SourceTable.(*pl.CatalogLocation).TableFormat()
 		}
-		labelPySparkSource = pysparkSourceInfo{
+		labelPySparkSource = sparklib.SourceInfo{
 			Location:     labelSchema.SourceTable.Location(),
 			LocationType: string(labelSchema.SourceTable.Type()),
 			Provider:     def.LabelSourceMapping.ProviderType,
@@ -1561,7 +1503,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 			logger.Errorw("Error deserializing snowflake config", "error", err)
 			return err
 		}
-		labelPySparkSource = pysparkSourceInfo{
+		labelPySparkSource = sparklib.SourceInfo{
 			Location:     def.LabelSourceMapping.Source,
 			LocationType: string(pl.SQLLocationType),
 			Provider:     def.LabelSourceMapping.ProviderType,
@@ -1608,7 +1550,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		if featureSourceLocation.Type() == pl.CatalogLocationType {
 			tableFormat = featureSourceLocation.(*pl.CatalogLocation).TableFormat()
 		}
-		featurePySparkSource := pysparkSourceInfo{
+		featurePySparkSource := sparklib.SourceInfo{
 			Location:     featureSourceLocation.Location(),
 			LocationType: string(featureSourceLocation.Type()),
 			Provider:     spark.Type(),
@@ -1625,7 +1567,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		OutputLocation: pl.NewFileLocation(destinationPath),
 		Code:           trainingSetQuery,
 		SourceList:     sourcePaths,
-		JobType:        CreateTrainingSet,
+		JobType:        types.CreateTrainingSet,
 		Store:          spark.Store,
 		Mappings:       sourceMappings,
 	}.PrepareCommand(logger)

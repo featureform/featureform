@@ -27,6 +27,7 @@ import (
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/spark"
 	"github.com/google/uuid"
 )
 
@@ -115,7 +116,7 @@ func (db *DatabricksExecutor) SupportsTransformationOption(opt TransformationOpt
 	return false, nil
 }
 
-func (db *DatabricksExecutor) RunSparkJob(cmd *sparkCommand, store SparkFileStoreV2, opts SparkJobOptions, tfopts TransformationOptions) error {
+func (db *DatabricksExecutor) RunSparkJob(cmd *spark.Command, store SparkFileStoreV2, opts SparkJobOptions, tfopts TransformationOptions) error {
 	script, args := cmd.CompileScriptOnly()
 	logger := db.logger.With("script", script, "args", args, "store", store.Type(), "job_name", opts.JobName, "cluster_id", db.cluster)
 	pythonTask := &jobs.SparkPythonTask{

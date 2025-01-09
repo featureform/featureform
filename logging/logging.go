@@ -113,6 +113,12 @@ func (logger Logger) With(args ...interface{}) Logger {
 	}
 }
 
+func (logger Logger) LogIfErr(msg string, err error) {
+	if err != nil {
+		logger.Errorw("Defered error failed.", "msg", msg, "err", err)
+	}
+}
+
 func (logger Logger) WithResource(resourceType ResourceType, name, variant string) Logger {
 	newValues := make(map[string]interface{})
 	if resourceType != "" {

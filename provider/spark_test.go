@@ -24,6 +24,7 @@ import (
 	"github.com/featureform/filestore"
 	fs "github.com/featureform/filestore"
 	"github.com/featureform/metadata"
+	"github.com/featureform/provider/spark"
 
 	"bytes"
 	"encoding/csv"
@@ -1459,8 +1460,8 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 					TFType:         DFTransformation,
 					OutputLocation: pl.NewFileLocation(output),
 					Code:           ttConst.code,
-					SourceList:     wrapLegacyPysparkSourceInfos(ttConst.mapping),
-					JobType:        Transform,
+					SourceList:     spark.WrapLegacySourceInfos(ttConst.mapping),
+					JobType:        types.Transform,
 					Store:          store.Store,
 					Mappings:       make([]SourceMapping, 0),
 				}.PrepareCommand(logging.NewTestLogger(t))
@@ -2888,13 +2889,13 @@ func TestEMRErrorMessages(t *testing.T) {
 	}
 
 	runTestCase := func(t *testing.T, test TestCase) {
-		cmd := &sparkCommand{
+		cmd := &spark.Command{
 			Script: remoteScriptPath,
 			ScriptArgs: []string{
 				test.ErrorMessage,
 			},
-			Configs: sparkConfigs{
-				sparkDeployFlag{
+			Configs: spark.Configs{
+				spark.DeployFlag{
 					Mode: types.SparkClientDeployMode,
 				},
 			},
@@ -3466,7 +3467,7 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 	// 				SQLTransformation,
 	// 				pl.NewFileLocation(destination),
 	// 				tt.SubmitArgs.Query,
-	// 				wrapLegacyPysparkSourceInfos(tt.SubmitArgs.SourceList),
+	// 				spark.WrapLegacySourceInfos(tt.SubmitArgs.SourceList),
 	// 				tt.SubmitArgs.JobType,
 	// 				store,
 	// 				make([]SourceMapping, 0),
@@ -3486,7 +3487,7 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 	// 				DFTransformation,
 	// 				pl.NewFileLocation(output),
 	// 				tt.DFArgs.Code,
-	// 				wrapLegacyPysparkSourceInfos(tt.DFArgs.Sources),
+	// 				spark.WrapLegacySourceInfos(tt.DFArgs.Sources),
 	// 				Transform,
 	// 				store,
 	// 				make([]SourceMapping, 0),
@@ -3521,7 +3522,7 @@ func TestExceedsSubmitParamsTotalByteLimit(t *testing.T) {
 	/// 			SQLTransformation,
 	/// 			pl.NewFileLocation(output),
 	/// 			"SELECT * FROM table",
-	/// 			wrapLegacyPysparkSourceInfos("table"),
+	/// 			spark.WrapLegacySourceInfos("table"),
 	/// 			Transform,
 	/// 			store.Store,
 	/// 			make([]SourceMapping, 0),
@@ -3748,10 +3749,10 @@ func testRunAndResume(t *testing.T, executor SparkExecutor, sfs SparkFileStoreV2
 		t.Fatalf("could not upload '%s' to '%s': %v", localScriptPath.ToURI(), remoteScriptPath.ToURI(), err)
 	}
 
-	cmd := &sparkCommand{
+	cmd := &spark.Command{
 		Script: remoteScriptPath,
-		Configs: sparkConfigs{
-			sparkDeployFlag{
+		Configs: spark.Configs{
+			spark.DeployFlag{
 				Mode: types.SparkClientDeployMode,
 			},
 		},
@@ -3817,9 +3818,9 @@ type sparkIntegrationTest struct {
 	// File will be the file name under provider/scripts/spar/integration_test_scripts
 	// that will be run. Look under that directory to see some examples.
 	File string
-	// TestConfigs should include all sparkConfigs except for the one that includes
+	// TestConfigs should include all SparkConfigs except for the one that includes
 	// the actual pyspark script and the deploy mode.
-	TestConfigs sparkConfigs
+	TestConfigs spark.Configs
 	// DeployMode is how the spark test should be run.
 	DeployMode types.SparkDeployMode
 }
@@ -3870,17 +3871,17 @@ func (test sparkIntegrationTest) Run(t *testing.T, executor SparkExecutor, sfs S
 	t.Logf("Wrote from %s to %s", localRunnerPath.ToURI(), remoteRunnerPath.ToURI())
 	defer deleteRemotePath(remoteRunnerPath)
 
-	baseConfigs := sparkConfigs{
-		sparkDeployFlag{
+	baseConfigs := spark.Configs{
+		spark.DeployFlag{
 			Mode: test.DeployMode,
 		},
-		sparkIncludePyScript{
+		spark.IncludePyScript{
 			Path: remoteRunnerPath,
 		},
-		sparkOutputFlag{},
+		spark.OutputFlag{},
 	}
 	configs := append(baseConfigs, test.TestConfigs...)
-	cmd := &sparkCommand{
+	cmd := &spark.Command{
 		Script:     remoteTestPath,
 		ScriptArgs: []string{"sql"},
 		Configs:    configs,
@@ -3903,23 +3904,23 @@ func createIcebergIntegrationTest() sparkIntegrationTest {
 	accessKey := helpers.GetEnv("AWS_ACCESS_KEY", "")
 	secretKey := helpers.GetEnv("AWS_SECRET_KEY", "")
 	bucket := helpers.GetEnv("S3_BUCKET_NAME", "")
-	configs := sparkConfigs{
-		sparkGlueFlags{
-			fileStoreType:   types.S3Type,
-			tableFormatType: types.IcebergType,
+	configs := spark.Configs{
+		spark.GlueFlags{
+			FileStoreType:   types.S3Type,
+			TableFormatType: types.IcebergType,
 			// This test assumes that the glue catalog and S3 bucket are in the same region, but that
 			// doesn't have to be true.
 			Region: bucketRegion,
 			// TODO make this a secret so we can get from env.
 			Warehouse: "s3://ali-aws-lake-house-iceberg-blog-demo/demo2/",
 		},
-		sparkS3Flags{
+		spark.S3Flags{
 			AccessKey: accessKey,
 			SecretKey: secretKey,
 			Region:    bucketRegion,
 			Bucket:    bucket,
 		},
-		sparkIcebergFlags{},
+		spark.IcebergFlags{},
 	}
 	return sparkIntegrationTest{
 		JobName:     "IcebergIntegrationTest",
@@ -3962,7 +3963,7 @@ func createIcebergIntegrationTest() sparkIntegrationTest {
 // 	accessKey := helpers.GetEnv("AWS_ACCESS_KEY", "")
 // 	secretKey := helpers.GetEnv("AWS_SECRET_KEY", "")
 // 	bucket := helpers.GetEnv("S3_BUCKET_NAME", "")
-// 	configs := sparkConfigs{
+// 	configs := SparkConfigs{
 // 		sparkGlueFlags{
 // 			fileStoreType:   types.S3Type,
 // 			tableFormatType: types.DeltaType,
@@ -4002,13 +4003,13 @@ func createDynamoIntegrationTest() sparkIntegrationTest {
 	accessKey := helpers.GetEnv("AWS_ACCESS_KEY_ID", "")
 	secretKey := helpers.GetEnv("AWS_SECRET_KEY", "")
 	dynamoRegion := "us-east-1"
-	configs := sparkConfigs{
-		sparkDynamoFlags{
+	configs := spark.Configs{
+		spark.DynamoFlags{
 			Region:    dynamoRegion,
 			AccessKey: accessKey,
 			SecretKey: secretKey,
 		},
-		sparkHighMemoryFlags{},
+		spark.HighMemoryFlags{},
 	}
 	return sparkIntegrationTest{
 		JobName:     "DynamodbIntegrationTest",
@@ -4022,7 +4023,7 @@ func createFeatureQueryTest() sparkIntegrationTest {
 	return sparkIntegrationTest{
 		JobName:     "FeatureQueryTest",
 		File:        "test_feature_query.py",
-		TestConfigs: sparkConfigs{},
+		TestConfigs: spark.Configs{},
 		DeployMode:  types.SparkClientDeployMode,
 	}
 }
@@ -4034,29 +4035,29 @@ func createMaterializeTest() sparkIntegrationTest {
 	accessKey := helpers.GetEnv("AWS_ACCESS_KEY_ID", "")
 	secretKey := helpers.GetEnv("AWS_SECRET_KEY", "")
 	bucket := helpers.GetEnv("S3_BUCKET_NAME", "")
-	configs := sparkConfigs{
-		sparkDynamoFlags{
+	configs := spark.Configs{
+		spark.DynamoFlags{
 			Region:    dynamoRegion,
 			AccessKey: accessKey,
 			SecretKey: secretKey,
 		},
-		sparkGlueFlags{
-			fileStoreType:   types.S3Type,
-			tableFormatType: types.IcebergType,
+		spark.GlueFlags{
+			FileStoreType:   types.S3Type,
+			TableFormatType: types.IcebergType,
 			// This test assumes that the glue catalog and S3 bucket are in the same region, but that
 			// doesn't have to be true.
 			Region: bucketRegion,
 			// TODO add this to secrets
 			Warehouse: "s3://ali-aws-lake-house-iceberg-blog-demo/demo2/",
 		},
-		sparkS3Flags{
+		spark.S3Flags{
 			AccessKey: accessKey,
 			SecretKey: secretKey,
 			Region:    bucketRegion,
 			Bucket:    bucket,
 		},
-		sparkIcebergFlags{},
-		sparkHighMemoryFlags{},
+		spark.IcebergFlags{},
+		spark.HighMemoryFlags{},
 	}
 	return sparkIntegrationTest{
 		JobName:     "MaterializeTest",
@@ -4067,8 +4068,8 @@ func createMaterializeTest() sparkIntegrationTest {
 }
 
 func createKafkaTest() sparkIntegrationTest {
-	configs := sparkConfigs{
-		sparkKafkaFlags{},
+	configs := spark.Configs{
+		spark.KafkaFlags{},
 	}
 	return sparkIntegrationTest{
 		JobName:     "KafkaTest",
@@ -4119,7 +4120,7 @@ func TestCreateSourceInfo(t *testing.T) {
 	testCases := []struct {
 		name        string
 		mappings    []SourceMapping
-		expected    []pysparkSourceInfo
+		expected    []spark.SourceInfo
 		expectError bool
 	}{
 		{
@@ -4132,7 +4133,7 @@ func TestCreateSourceInfo(t *testing.T) {
 					TimestampColumnName: "event_time",
 				},
 			},
-			expected: []pysparkSourceInfo{
+			expected: []spark.SourceInfo{
 				{
 					Location:            "//path/to/data",
 					LocationType:        "filestore",
@@ -4173,7 +4174,7 @@ func TestCreateSourceInfo(t *testing.T) {
 					Location:       pl.NewFileLocation(&fp),
 				},
 			},
-			expected: []pysparkSourceInfo{
+			expected: []spark.SourceInfo{
 				{
 					Location:     "database.table",
 					LocationType: "catalog",

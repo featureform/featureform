@@ -23,6 +23,7 @@ import (
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/spark"
 	"github.com/featureform/provider/types"
 )
 
@@ -68,16 +69,16 @@ type sparkScriptCommandDef struct {
 	// Code should be either a path to the function pkl for dataframes or a SQL string.
 	Code string
 	// SourceList are read and mapped as inputs in the spark script.
-	SourceList []pysparkSourceInfo
+	SourceList []spark.SourceInfo
 	// JobType specifies which job mode to run the script against.
-	JobType JobType
+	JobType types.Job
 	// Store is the filestore interface for Spark to read and write against.
 	Store SparkFileStoreV2
 	// Mappings provides SourceMappings for use alongside SourceList
 	Mappings []SourceMapping
 }
 
-func (def sparkScriptCommandDef) PrepareCommand(logger logging.Logger) (*sparkCommand, error) {
+func (def sparkScriptCommandDef) PrepareCommand(logger logging.Logger) (*spark.Command, error) {
 	logger = logger.With("scriptCommandDef", def)
 	logger.Debugw("SparkSubmitArgs")
 	snowflakeConfig, err := getSnowflakeConfigFromSourceMapping(def.Mappings)
@@ -105,7 +106,7 @@ func (def sparkScriptCommandDef) PrepareCommand(logger logging.Logger) (*sparkCo
 		logger.Error(errMsg)
 		return nil, fferr.NewInternalErrorf(errMsg)
 	}
-	cmd := &sparkCommand{
+	cmd := &spark.Command{
 		Script:     sparkScriptRemotePath,
 		ScriptArgs: []string{scriptArg},
 		Configs: sparkCoreConfigs(
@@ -128,16 +129,16 @@ func (def sparkScriptCommandDef) PrepareCommand(logger logging.Logger) (*sparkCo
 			return nil, err
 		}
 		logger.Debugw("submit params to file")
-		cmd.AddConfigs(sparkSqlSubmitParamsURIFlag{
+		cmd.AddConfigs(spark.SqlSubmitParamsURIFlag{
 			URI: paramsPath,
 		})
 	} else if def.TFType == SQLTransformation {
-		cmd.AddConfigs(sparkSqlQueryFlag{
+		cmd.AddConfigs(spark.SqlQueryFlag{
 			CleanQuery: def.Code,
 			Sources:    def.SourceList,
 		})
 	} else if def.TFType == DFTransformation {
-		cmd.AddConfigs(sparkDataframeQueryFlag{
+		cmd.AddConfigs(spark.DataframeQueryFlag{
 			Code:    def.Code,
 			Sources: def.SourceList,
 		})
@@ -161,25 +162,25 @@ func (def sparkScriptCommandDef) PrepareCommand(logger logging.Logger) (*sparkCo
 }
 
 type sparkCoreConfigsArgs struct {
-	JobType         JobType
+	JobType         types.Job
 	Output          pl.Location
 	DeployMode      types.SparkDeployMode
 	SnowflakeConfig *pc.SnowflakeConfig
 	Store           SparkFileStoreV2
 }
 
-func sparkCoreConfigs(args sparkCoreConfigsArgs) sparkConfigs {
-	configs := sparkConfigs{
-		sparkSnowflakeFlags{
+func sparkCoreConfigs(args sparkCoreConfigsArgs) spark.Configs {
+	configs := spark.Configs{
+		spark.SnowflakeFlags{
 			Config: args.SnowflakeConfig,
 		},
-		sparkJobTypeFlag{
+		spark.JobTypeFlag{
 			Type: args.JobType,
 		},
-		sparkOutputFlag{
+		spark.OutputFlag{
 			Output: args.Output,
 		},
-		sparkDeployFlag{
+		spark.DeployFlag{
 			Mode: args.DeployMode,
 		},
 	}
@@ -238,7 +239,7 @@ func removeEscapeCharacters(values []string) []string {
 	return values
 }
 
-func exceedsSubmitParamsTotalByteLimit(cmd *sparkCommand) bool {
+func exceedsSubmitParamsTotalByteLimit(cmd *spark.Command) bool {
 	args := cmd.Compile()
 	totalBytes := 0
 	for _, str := range args {
@@ -249,7 +250,7 @@ func exceedsSubmitParamsTotalByteLimit(cmd *sparkCommand) bool {
 	return totalBytes >= SPARK_SUBMIT_PARAMS_BYTE_LIMIT
 }
 
-func writeSubmitParamsToFileStore(query string, sources []pysparkSourceInfo, store SparkFileStoreV2, logger logging.Logger) (filestore.Filepath, error) {
+func writeSubmitParamsToFileStore(query string, sources []spark.SourceInfo, store SparkFileStoreV2, logger logging.Logger) (filestore.Filepath, error) {
 	paramsFileId := uuid.New()
 	paramsPath, err := store.CreateFilePath(
 		fmt.Sprintf(

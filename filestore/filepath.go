@@ -87,6 +87,9 @@ type Filepath interface {
 	Scheme() string
 	SetScheme(scheme string) error
 
+	// Clone returns an exact copy of this filepath.
+	Clone() Filepath
+
 	// Returns the name of the bucket (S3) or container (Azure Blob Storage)
 	Bucket() string
 	SetBucket(bucket string) error
@@ -114,7 +117,7 @@ type Filepath interface {
 	Validate() error
 	IsValid() bool
 
-	AppendPathString(path string) error
+	AppendPathString(path string, isDir bool) error
 }
 
 func NewEmptyFilepath(storeType FileStoreType) (Filepath, error) {
@@ -169,6 +172,17 @@ type FilePath struct {
 	key     string
 	isDir   bool
 	isValid bool
+	// If updating fields, make sure to update Clone
+}
+
+func (fp *FilePath) Clone() Filepath {
+	return &FilePath{
+		scheme: fp.scheme,
+		bucket: fp.bucket,
+		key: fp.key,
+		isDir: fp.isDir,
+		isValid: fp.isValid,
+	}
 }
 
 func (fp *FilePath) SetScheme(scheme string) error {
@@ -318,7 +332,7 @@ func (fp *FilePath) Validate() error {
 	return nil
 }
 
-func (fp *FilePath) AppendPathString(path string) error {
+func (fp *FilePath) AppendPathString(path string, isDir bool) error {
 	if !fp.IsDir() {
 		logging.GlobalLogger.Errorw(
 			"Append only works on a directory path",
@@ -378,6 +392,13 @@ func (s3 *S3Filepath) ToURI() string {
 type AzureFilepath struct {
 	StorageAccount string
 	FilePath
+}
+
+func (azure *AzureFilepath) Clone() Filepath {
+	return &AzureFilepath{
+		StorageAccount: azure.StorageAccount,
+		FilePath: *azure.FilePath.Clone().(*FilePath),
+	}
 }
 
 func (azure *AzureFilepath) ToURI() string {
@@ -452,12 +473,31 @@ type GCSFilepath struct {
 	FilePath
 }
 
+func NewGCSFilepath(bucket, key string, isDir bool) (*GCSFilepath, error) {
+	path := &GCSFilepath{
+		FilePath{
+			scheme: GSPrefix,
+			bucket: bucket,
+			key: key,
+			isDir: isDir,
+			isValid: false,
+		},
+	}
+	if err := path.Validate(); err != nil {
+		logging.GlobalLogger.Errorw(
+			"GCS filepath is invalid", "path", path, "err", err,
+		)
+		return nil, err
+	}
+	return path, nil
+}
+
 func (gcs *GCSFilepath) ToURI() string {
-	return fmt.Sprintf("%s%s/%s", gcs.scheme, gcs.bucket, gcs.key)
+	return fmt.Sprintf("%s%s", gcs.scheme, pathlib.Join(gcs.bucket, gcs.key))
 }
 
 func (gcs *GCSFilepath) Validate() error {
-	if gcs.scheme != "gs://" {
+	if gcs.scheme != GSPrefix {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("invalid scheme '%s', must be 'gs://'", gcs.scheme))
 	}
 	if gcs.bucket == "" {

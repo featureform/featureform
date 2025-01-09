@@ -26,29 +26,16 @@ import (
 	"github.com/featureform/logging"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
+	"github.com/featureform/provider/spark"
 	pt "github.com/featureform/provider/types"
 	"github.com/pkg/errors"
 )
 
 type SparkFileStore interface {
-	Type() SparkFileStoreType
-	SparkConfigs() sparkConfigs
+	Type() pt.SparkFileStoreType
+	SparkConfigs() spark.Configs
 	FileStore
 }
-
-type SparkFileStoreType string
-
-func (t SparkFileStoreType) String() string {
-	return string(t)
-}
-
-const (
-	SFS_S3         SparkFileStoreType = "s3"
-	SFS_AZURE_BLOB SparkFileStoreType = "azure_blob_store"
-	SFS_GCS        SparkFileStoreType = "google_cloud_storage"
-	SFS_HDFS       SparkFileStoreType = "hdfs"
-	SFS_LOCAL      SparkFileStoreType = "local"
-)
 
 type SparkFileStoreV2 interface {
 	CreateFilePath(key string, isDirectory bool) (filestore.Filepath, error)
@@ -56,11 +43,11 @@ type SparkFileStoreV2 interface {
 	Read(key filestore.Filepath) ([]byte, error)
 	Delete(key filestore.Filepath) error
 	Close() error
-	SparkConfigs() sparkConfigs
+	SparkConfigs() spark.Configs
 
 	Exists(location pl.Location) (bool, error)
 	// Seems like one of these could be deprecated or we need clarity on the diff
-	Type() SparkFileStoreType
+	Type() pt.SparkFileStoreType
 	FilestoreType() filestore.FileStoreType
 }
 
@@ -115,14 +102,14 @@ func NewSparkS3FileStore(config Config) (SparkFileStore, error) {
 	return &SparkS3FileStore{s3}, nil
 }
 
-func (s3 SparkS3FileStore) SparkConfigs() sparkConfigs {
+func (s3 SparkS3FileStore) SparkConfigs() spark.Configs {
 	accessKey, secretKey := "", ""
 	if staticCreds, ok := s3.Credentials.(pc.AWSStaticCredentials); ok {
 		accessKey = staticCreds.AccessKeyId
 		secretKey = staticCreds.SecretKey
 	}
-	return sparkConfigs{
-		sparkS3Flags{
+	return spark.Configs{
+		spark.S3Flags{
 			AccessKey: accessKey,
 			SecretKey: secretKey,
 			Region:    s3.BucketRegion,
@@ -131,8 +118,8 @@ func (s3 SparkS3FileStore) SparkConfigs() sparkConfigs {
 	}
 }
 
-func (s3 SparkS3FileStore) Type() SparkFileStoreType {
-	return SFS_S3
+func (s3 SparkS3FileStore) Type() pt.SparkFileStoreType {
+	return pt.SFS_S3
 }
 
 // SparkGlueS3FileStore is a SparkFileStore that uses Glue as the catalog for Iceberg tables
@@ -223,24 +210,24 @@ func (glueS3 SparkGlueS3FileStore) Exists(location pl.Location) (bool, error) {
 	}
 }
 
-func (glueS3 SparkGlueS3FileStore) SparkConfigs() sparkConfigs {
+func (glueS3 SparkGlueS3FileStore) SparkConfigs() spark.Configs {
 	s3Configs := glueS3.SparkS3FileStore.SparkConfigs()
 	var tableFormat pt.TableFormatType
-	var tableFormatConfig sparkConfig
+	var tableFormatConfig spark.Config
 	// TODO unify these under pt package
 	switch glueS3.GlueConfig.TableFormat {
 	case pc.Iceberg:
 		tableFormat = pt.IcebergType
-		tableFormatConfig = sparkIcebergFlags{}
+		tableFormatConfig = spark.IcebergFlags{}
 	case pc.DeltaLake:
 		tableFormat = pt.DeltaType
-		tableFormatConfig = sparkDeltaFlags{}
+		tableFormatConfig = spark.DeltaFlags{}
 	default:
 		panic("Not implemented")
 	}
-	glueConfig := sparkGlueFlags{
-		fileStoreType:   pt.S3Type,
-		tableFormatType: tableFormat,
+	glueConfig := spark.GlueFlags{
+		FileStoreType:   pt.S3Type,
+		TableFormatType: tableFormat,
 		Region:          glueS3.GlueConfig.Region,
 		Warehouse:       glueS3.GlueConfig.Warehouse,
 	}
@@ -269,9 +256,9 @@ type SparkAzureFileStore struct {
 	*AzureFileStore
 }
 
-func (azureStore SparkAzureFileStore) SparkConfigs() sparkConfigs {
-	return sparkConfigs{
-		sparkAzureFlags{
+func (azureStore SparkAzureFileStore) SparkConfigs() spark.Configs {
+	return spark.Configs{
+		spark.AzureFlags{
 			AccountName:      azureStore.AccountName,
 			AccountKey:       azureStore.AccountKey,
 			ConnectionString: azureStore.connectionString(),
@@ -280,8 +267,8 @@ func (azureStore SparkAzureFileStore) SparkConfigs() sparkConfigs {
 	}
 }
 
-func (azureStore SparkAzureFileStore) Type() SparkFileStoreType {
-	return SFS_AZURE_BLOB
+func (azureStore SparkAzureFileStore) Type() pt.SparkFileStoreType {
+	return pt.SFS_AZURE_BLOB
 }
 
 func NewSparkGCSFileStore(config Config) (SparkFileStore, error) {
@@ -306,9 +293,9 @@ type SparkGCSFileStore struct {
 	*GCSFileStore
 }
 
-func (gcs SparkGCSFileStore) SparkConfigs() sparkConfigs {
-	return sparkConfigs{
-		sparkGCSFlags{
+func (gcs SparkGCSFileStore) SparkConfigs() spark.Configs {
+	return spark.Configs{
+		spark.GCSFlags{
 			ProjectID: gcs.Credentials.ProjectId,
 			Bucket:    gcs.Bucket,
 			JSONCreds: gcs.SerializedCredentials,
@@ -316,8 +303,8 @@ func (gcs SparkGCSFileStore) SparkConfigs() sparkConfigs {
 	}
 }
 
-func (gcs SparkGCSFileStore) Type() SparkFileStoreType {
-	return SFS_GCS
+func (gcs SparkGCSFileStore) Type() pt.SparkFileStoreType {
+	return pt.SFS_GCS
 }
 
 func NewSparkHDFSFileStore(config Config) (SparkFileStore, error) {
@@ -337,13 +324,13 @@ type SparkHDFSFileStore struct {
 	*HDFSFileStore
 }
 
-func (hdfs SparkHDFSFileStore) SparkConfigs() sparkConfigs {
+func (hdfs SparkHDFSFileStore) SparkConfigs() spark.Configs {
 	// Not currently tested
-	return sparkConfigs{}
+	return spark.Configs{}
 }
 
-func (hdfs SparkHDFSFileStore) Type() SparkFileStoreType {
-	return SFS_HDFS
+func (hdfs SparkHDFSFileStore) Type() pt.SparkFileStoreType {
+	return pt.SFS_HDFS
 }
 
 func NewSparkLocalFileStore(config Config) (SparkFileStore, error) {
@@ -363,13 +350,13 @@ type SparkLocalFileStore struct {
 	*LocalFileStore
 }
 
-func (local SparkLocalFileStore) SparkConfigs() sparkConfigs {
+func (local SparkLocalFileStore) SparkConfigs() spark.Configs {
 	// Not currently tested
-	return sparkConfigs{}
+	return spark.Configs{}
 }
 
-func (local SparkLocalFileStore) Type() SparkFileStoreType {
-	return SFS_LOCAL
+func (local SparkLocalFileStore) Type() pt.SparkFileStoreType {
+	return pt.SFS_LOCAL
 }
 
 type SparkFileStoreConfig interface {

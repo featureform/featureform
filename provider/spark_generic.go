@@ -21,6 +21,7 @@ import (
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/spark"
 )
 
 func NewSparkGenericExecutor(sparkGenericConfig pc.SparkGenericConfig, logger logging.Logger) (SparkExecutor, error) {
@@ -105,8 +106,8 @@ func (s *SparkGenericExecutor) SupportsTransformationOption(opt TransformationOp
 	return false, nil
 }
 
-func (s *SparkGenericExecutor) RunSparkJob(sparkCmd *sparkCommand, store SparkFileStoreV2, opts SparkJobOptions, tfOpts TransformationOptions) error {
-	sparkCmd.AddConfigs(sparkMasterFlag{s.master})
+func (s *SparkGenericExecutor) RunSparkJob(sparkCmd *spark.Command, store SparkFileStoreV2, opts SparkJobOptions, tfOpts TransformationOptions) error {
+	sparkCmd.AddConfigs(spark.MasterFlag{s.master})
 	args := sparkCmd.Compile()
 	bashCommand := "bash"
 	sparkArgsString := strings.Join(args, " ")

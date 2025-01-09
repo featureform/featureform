@@ -27,6 +27,7 @@ import (
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/spark"
 	"github.com/featureform/provider/types"
 )
 
@@ -111,7 +112,7 @@ func (e *EMRExecutor) SupportsTransformationOption(opt TransformationOptionType)
 	return false, nil
 }
 
-func (e *EMRExecutor) RunSparkJob(cmd *sparkCommand, store SparkFileStoreV2, opts SparkJobOptions, tfOpts TransformationOptions) error {
+func (e *EMRExecutor) RunSparkJob(cmd *spark.Command, store SparkFileStoreV2, opts SparkJobOptions, tfOpts TransformationOptions) error {
 	ctx := context.TODO()
 	args := cmd.Compile()
 	logger := e.logger.With("args", args, "opts", opts, "tfOpts", tfOpts)

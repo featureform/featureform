@@ -21,10 +21,10 @@ func TestSuiteSparkFileStoreV2(t *testing.T) {
 	ctx := context.Background()
 	logger := logging.NewTestLogger(t)
 	blFS, err := biglake.NewSparkFileStore(ctx, biglake.SparkFileStoreConfig{
-		Bucket: helpers.MustGetTestingEnv(t, "GCS_BUCKET_NAME"),
-		BaseDir: uuid.NewString(),
+		Bucket:    helpers.MustGetTestingEnv(t, "GCS_BUCKET_NAME"),
+		BaseDir:   uuid.NewString(),
 		CredsPath: helpers.MustGetTestingEnv(t, "BIGQUERY_CREDENTIALS"),
-		Logger: logger,
+		Logger:    logger,
 	})
 	if err != nil {
 		t.Fatalf("Failed to create biglake filestore: %v", err)

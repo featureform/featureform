@@ -115,7 +115,8 @@ func (e *EMRExecutor) SupportsTransformationOption(opt TransformationOptionType)
 func (e *EMRExecutor) RunSparkJob(cmd *spark.Command, store SparkFileStoreV2, opts SparkJobOptions, tfOpts TransformationOptions) error {
 	ctx := context.TODO()
 	args := cmd.Compile()
-	logger := e.logger.With("args", args, "opts", opts, "tfOpts", tfOpts)
+	redactedArgs := cmd.Redacted().Compile()
+	logger := e.logger.With("args", redactedArgs, "opts", opts, "tfOpts", tfOpts)
 	logger.Debugw("Running SparkJob")
 
 	resumeOpt := e.getResumeOption(tfOpts, logger)

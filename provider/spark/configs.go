@@ -15,10 +15,13 @@ import (
 	"github.com/featureform/filestore"
 	"github.com/featureform/helpers/stringset"
 	"github.com/featureform/logging"
+	"github.com/featureform/logging/redacted"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	"github.com/featureform/provider/types"
 )
+
+const RedactedString = "<FF_REDACTED>"
 
 type Command struct {
 	Script     filestore.Filepath
@@ -32,6 +35,14 @@ func (cmd *Command) AddConfigs(cfgs ...Config) {
 
 func (cmd *Command) Compile() []string {
 	return cmd.Configs.CompileCommand(cmd.Script, cmd.ScriptArgs...)
+}
+
+func (cmd *Command) Redacted() *Command {
+	return &Command {
+		Script: cmd.Script,
+		ScriptArgs: cmd.ScriptArgs,
+		Configs: cmd.Configs.Redacted(),
+	}
 }
 
 // CompileScriptOnly returns the script location as a string followed by
@@ -66,8 +77,18 @@ func (cfgs Configs) CompileCommand(scriptLoc filestore.Filepath, args ...string)
 	return cmd
 }
 
+// Redact replaces all sensitive strings with RedactedString
+func (cfgs Configs) Redacted() Configs {
+	redacted := make(Configs, len(cfgs))
+	for i, cfg := range cfgs {
+		redacted[i] = cfg.Redacted()
+	}
+	return redacted
+}
+
 type Config interface {
 	SparkFlags() Flags
+	Redacted() Config
 }
 
 type FlagsList []Flags
@@ -354,6 +375,10 @@ func (flag SourcesFlag) SparkFlags() Flags {
 	}
 }
 
+func (flag SourcesFlag) Redacted() Config {
+	return flag
+}
+
 type IncludePyScript struct {
 	Path filestore.Filepath
 }
@@ -365,6 +390,10 @@ func (flag IncludePyScript) SparkFlags() Flags {
 			flag.Path.ToURI(),
 		},
 	}
+}
+
+func (flag IncludePyScript) Redacted() Config {
+	return flag
 }
 
 // sqlSubmitParamsURI points at a file containing --sql_query and --sources
@@ -380,6 +409,10 @@ func (flag SqlSubmitParamsURIFlag) SparkFlags() Flags {
 			flag.URI.Key(),
 		},
 	}
+}
+
+func (flag SqlSubmitParamsURIFlag) Redacted() Config {
+	return flag
 }
 
 type SqlQueryFlag struct {
@@ -399,6 +432,10 @@ func (flag SqlQueryFlag) SparkFlags() Flags {
 	}
 }
 
+func (flag SqlQueryFlag) Redacted() Config {
+	return flag
+}
+
 type DataframeQueryFlag struct {
 	Code    string
 	Sources []SourceInfo
@@ -416,6 +453,10 @@ func (flag DataframeQueryFlag) SparkFlags() Flags {
 	}
 }
 
+func (flag DataframeQueryFlag) Redacted() Config {
+	return flag
+}
+
 type DeployFlag struct {
 	Mode types.SparkDeployMode
 }
@@ -427,6 +468,10 @@ func (flag DeployFlag) SparkFlags() Flags {
 			flag.Mode.SparkArg(),
 		},
 	}
+}
+
+func (flag DeployFlag) Redacted() Config {
+	return flag
 }
 
 type SnowflakeFlags struct {
@@ -467,6 +512,12 @@ func (args SnowflakeFlags) SparkFlags() Flags {
 	return flags
 }
 
+func (args SnowflakeFlags) Redacted() Config {
+	return SnowflakeFlags{
+		Config: args.Config.Redacted(),
+	}
+}
+
 // This is based on very legacy values and aren't tested
 type AzureFlags struct {
 	AccountName      string
@@ -492,6 +543,15 @@ func (args AzureFlags) SparkFlags() Flags {
 		PackagesFlag{
 			Packages: []string{"org.apache.hadoop:hadoop-azure-3.2.0"},
 		},
+	}
+}
+
+func (args AzureFlags) Redacted() Config {
+	return AzureFlags{
+		AccountName: args.AccountName,
+		AccountKey: redacted.String,
+		ContainerName: args.ContainerName,
+		ConnectionString: redacted.String,
 	}
 }
 
@@ -535,6 +595,14 @@ func (args GCSFlags) SparkFlags() Flags {
 		PackagesFlag{
 			Packages: []string{"com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.0"},
 		},
+	}
+}
+
+func (args GCSFlags) Redacted() Config {
+	return GCSFlags{
+		ProjectID: args.ProjectID,
+		Bucket: args.Bucket,
+		JSONCreds: []byte(redacted.String),
 	}
 }
 
@@ -608,6 +676,15 @@ func (args S3Flags) SparkFlags() Flags {
 	return flags
 }
 
+func (args S3Flags) Redacted() Config {
+	return S3Flags{
+		AccessKey: redacted.String,
+		SecretKey: redacted.String,
+		Region: args.Region,
+		Bucket: args.Bucket,
+	}
+}
+
 type GlueFlags struct {
 	FileStoreType   types.FileStoreType
 	TableFormatType types.TableFormatType
@@ -627,6 +704,10 @@ func (args GlueFlags) SparkFlags() Flags {
 	default:
 		panic("TODO better fail")
 	}
+}
+
+func (args GlueFlags) Redacted() Config {
+	return args
 }
 
 func (args GlueFlags) icebergFlags() Flags {
@@ -685,6 +766,10 @@ func (args IcebergFlags) SparkFlags() Flags {
 	}
 }
 
+func (args IcebergFlags) Redacted() Config {
+	return args
+}
+
 type DeltaFlags struct{}
 
 func (args DeltaFlags) SparkFlags() Flags {
@@ -694,6 +779,10 @@ func (args DeltaFlags) SparkFlags() Flags {
 			Value: "io.delta.sql.DeltaSparkSessionExtension",
 		},
 	}
+}
+
+func (args DeltaFlags) Redacted() Config {
+	return args
 }
 
 type KafkaFlags struct{}
@@ -707,6 +796,10 @@ func (args KafkaFlags) SparkFlags() Flags {
 			},
 		},
 	}
+}
+
+func (args KafkaFlags) Redacted() Config {
+	return args
 }
 
 type DirectCopyFlags struct {
@@ -761,6 +854,19 @@ func (args DirectCopyFlags) SparkFlags() Flags {
 	return append(credFlags, copyFlags...)
 }
 
+func (args DirectCopyFlags) Redacted() Config {
+	return DirectCopyFlags{
+		Creds: args.Creds.Redacted(),
+		Target: args.Target,
+		TableName: args.TableName,
+		FeatureName: args.FeatureName,
+		FeatureVariant: args.FeatureVariant,
+		EntityColumn: args.EntityColumn,
+		ValueColumn: args.ValueColumn,
+		TimestampColumn: args.TimestampColumn,
+	}
+}
+
 type DynamoFlags struct {
 	Region    string
 	AccessKey string
@@ -784,6 +890,14 @@ func (args DynamoFlags) SparkFlags() Flags {
 	}
 }
 
+func (args DynamoFlags) Redacted() Config {
+	return DynamoFlags{
+		Region: args.Region,
+		AccessKey: redacted.String,
+		SecretKey: redacted.String,
+	}
+}
+
 type JobTypeFlag struct {
 	Type types.Job
 }
@@ -795,6 +909,10 @@ func (flag JobTypeFlag) SparkFlags() Flags {
 			Value: string(flag.Type),
 		},
 	}
+}
+
+func (flag JobTypeFlag) Redacted() Config {
+	return flag
 }
 
 type OutputFlag struct {
@@ -832,6 +950,10 @@ func (flag OutputFlag) SparkFlags() Flags {
 			Value: outputStr,
 		},
 	}
+}
+
+func (flag OutputFlag) Redacted() Config {
+	return flag
 }
 
 // This is a legacy flag to keep the old version of
@@ -872,6 +994,10 @@ func (flag LegacyOutputFormatFlag) SparkFlags() Flags {
 	}
 }
 
+func (flag LegacyOutputFormatFlag) Redacted() Config {
+	return flag
+}
+
 // This is a legacy flag to keep the old version of
 // materialization working.
 type LegacyIncludeHeadersFlag struct {
@@ -892,6 +1018,10 @@ func (flag LegacyIncludeHeadersFlag) SparkFlags() Flags {
 	}
 }
 
+func (flag LegacyIncludeHeadersFlag) Redacted() Config {
+	return flag
+}
+
 type MasterFlag struct {
 	Master string
 }
@@ -903,6 +1033,10 @@ func (flag MasterFlag) SparkFlags() Flags {
 			flag.Master,
 		},
 	}
+}
+
+func (flag MasterFlag) Redacted() Config {
+	return flag
 }
 
 type HighMemoryFlags struct{}
@@ -922,4 +1056,8 @@ func (args HighMemoryFlags) SparkFlags() Flags {
 			Value: "1g",
 		},
 	}
+}
+
+func (args HighMemoryFlags) Redacted() Config {
+	return args
 }

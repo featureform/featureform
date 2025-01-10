@@ -20,6 +20,7 @@ import (
 	"github.com/featureform/filestore"
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
+	"github.com/featureform/logging/redacted"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -78,14 +79,39 @@ type sparkScriptCommandDef struct {
 	Mappings []SourceMapping
 }
 
+func (def sparkScriptCommandDef) Redacted() map[string]any {
+	redactedMapping := make([]SourceMapping, len(def.Mappings))
+	for i, m := range def.Mappings {
+		redactedMapping[i] = SourceMapping{
+			Template:            m.Template,
+			Source:              m.Source,
+			ProviderType:        m.ProviderType,
+			ProviderConfig:      pc.SerializedConfig(redacted.String),
+			TimestampColumnName: m.TimestampColumnName,
+			Location:            m.Location,
+			Columns:             m.Columns,
+		}
+	}
+	return map[string]any{
+		"DeployMode":     def.DeployMode,
+		"TFType":         def.TFType,
+		"OutputLocation": def.OutputLocation,
+		"Code":           def.Code,
+		"SourceList":     def.SourceList,
+		"JobType":        def.JobType,
+		"Mappings":       redactedMapping,
+		"FileStoreType":  def.Store.FilestoreType(),
+		"SparkStoreType": def.Store.Type(),
+	}
+}
+
 func (def sparkScriptCommandDef) PrepareCommand(logger logging.Logger) (*spark.Command, error) {
-	logger = logger.With("scriptCommandDef", def)
-	logger.Debugw("SparkSubmitArgs")
+	logger = logger.WithValues(def.Redacted())
+	logger.Debug("SparkSubmitArgs")
 	snowflakeConfig, err := getSnowflakeConfigFromSourceMapping(def.Mappings)
 	if err != nil {
 		logger.Errorw(
 			"Could not get Snowflake config from source mapping",
-			"mappings", def.Mappings,
 			"error", err,
 		)
 		return nil, err
@@ -122,13 +148,14 @@ func (def sparkScriptCommandDef) PrepareCommand(logger logging.Logger) (*spark.C
 	// In S3, we write the sql and sources to an extenral file to try to avoid going over the
 	// maximum character limit
 	if def.Store.FilestoreType() == filestore.S3 && def.TFType == SQLTransformation {
-		logger.Debugw("Writing submit params to file")
+		logger.Debug("Writing submit params to file")
 		paramsPath, err := writeSubmitParamsToFileStore(def.Code, def.SourceList, def.Store, logger)
 		if err != nil {
 			logger.Errorw("Failed to write submit params to file store", "err", err)
 			return nil, err
 		}
-		logger.Debugw("submit params to file")
+		logger = logger.With("spark-params-file", paramsPath.ToURI())
+		logger.Debug("submit params to file")
 		cmd.AddConfigs(spark.SqlSubmitParamsURIFlag{
 			URI: paramsPath,
 		})
@@ -150,14 +177,13 @@ func (def sparkScriptCommandDef) PrepareCommand(logger logging.Logger) (*spark.C
 		logger.Errorw(
 			"Command exceeded",
 			"filestore", def.Store.FilestoreType(),
-			"command", cmd,
-			"compiled command", cmd.Compile(),
+			"command", cmd.Redacted(),
 		)
 		return nil, fferr.NewInternalErrorf(
-			"Featureform's spark submit is too long for Spark and file store type %s is not supported for remote args submit.",
-			def.Store.FilestoreType())
+			"Spark submit params exceeds max length that Spark allows.",
+		)
 	}
-	logger.Debugw("Compiled spark command", "command", cmd)
+	logger.Debugw("Compiled spark command", "command", cmd.Redacted())
 	return cmd, nil
 }
 

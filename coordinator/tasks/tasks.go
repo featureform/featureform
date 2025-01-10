@@ -103,6 +103,17 @@ func NewBaseTask(metadata *metadata.Client, taskDef scheduling.TaskRunMetadata, 
 	}
 }
 
+func (bt *BaseTask) Redacted() map[string]any {
+	return map[string]any{
+		"task-def":        bt.taskDef,
+		"last-successful": bt.lastSuccessfulTask,
+		"is-update":       bt.isUpdate,
+		"spawner-type":    fmt.Sprintf("%T", bt.spawner),
+		"task-config":     bt.config,
+	}
+
+}
+
 func (bt *BaseTask) waitForRunCompletion(id []scheduling.TaskRunID) error {
 	return nil
 }

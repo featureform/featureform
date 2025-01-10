@@ -13,10 +13,10 @@ import (
 	"strings"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/provider/provider_type"
-
 	ss "github.com/featureform/helpers/stringset"
 	sr "github.com/featureform/helpers/struct_iterator"
+	"github.com/featureform/logging/redacted"
+	"github.com/featureform/provider/provider_type"
 )
 
 type SnowflakeTableConfig struct {
@@ -70,6 +70,26 @@ func (sf SnowflakeConfig) MutableFields() ss.StringSet {
 		"Database":      true,
 		"Warehouse":     true,
 		"SessionParams": true,
+	}
+}
+
+func (sf *SnowflakeConfig) Redacted() *SnowflakeConfig {
+	redactedSessionParams := make(map[string]string)
+	for key, _ := range sf.SessionParams {
+		redactedSessionParams[key] = redacted.String
+	}
+	return &SnowflakeConfig{
+		Username: sf.Username,
+		Password: redacted.String,
+		AccountLocator: sf.AccountLocator,
+		Organization: sf.Organization,
+		Account: sf.Account,
+		Database: sf.Database,
+		Schema: sf.Schema,
+		Warehouse: sf.Warehouse,
+		Role: sf.Role,
+		Catalog: sf.Catalog,
+		SessionParams: redactedSessionParams,
 	}
 }
 

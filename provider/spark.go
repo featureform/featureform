@@ -315,8 +315,9 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 		Mappings:       make([]SourceMapping, 0),
 	}.PrepareCommand(logger)
 
+	logger = logger.With("args", sparkArgs.Redacted())
 	if err != nil {
-		logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
+		logger.Errorw("Problem creating spark submit arguments", "error", err)
 		return nil, err
 	}
 	// Run the spark job
@@ -763,8 +764,9 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 		Store:          spark.Store,
 		Mappings:       config.SourceMapping,
 	}.PrepareCommand(logger)
+	logger = logger.With("args", sparkArgs.Redacted())
 	if err != nil {
-		logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
+		logger.Errorw("Problem creating spark submit arguments", "error", err)
 		return err
 	}
 
@@ -776,7 +778,7 @@ func (spark *SparkOfflineStore) sqlTransformation(config TransformationConfig, i
 			config.TargetTableID.Variant,
 		),
 	}
-	logger.Debugw("Running spark job", "args", sparkArgs, "options", opts)
+	logger.Debugw("Running spark job", "options", opts)
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store, opts, tfOpts); err != nil {
 		logger.Errorw("spark submit job for transformation failed to run", "target", config.TargetTableID, "error", err)
 		return err
@@ -875,6 +877,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 		Store:          spark.Store,
 		Mappings:       config.SourceMapping,
 	}.PrepareCommand(logger)
+	logger = logger.With("args", sparkArgs.Redacted())
 	if err != nil {
 		logger.Errorw("error getting spark dataframe arguments", err)
 		return err
@@ -888,7 +891,7 @@ func (spark *SparkOfflineStore) dfTransformation(config TransformationConfig, is
 			config.TargetTableID.Variant,
 		),
 	}
-	logger.Debugw("Running DF transformation", "args", sparkArgs, "options", opts)
+	logger.Debugw("Running DF transformation", "options", opts)
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store, opts, tfOpts); err != nil {
 		logger.Errorw("error running Spark dataframe job", "error", err)
 		return err
@@ -1289,8 +1292,9 @@ func blobSparkMaterialization(
 		Store:          spark.Store,
 		Mappings:       make([]SourceMapping, 0),
 	}.PrepareCommand(spark.Logger)
+	logger = logger.With("args", sparkArgs.Redacted())
 	if err != nil {
-		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
+		spark.Logger.Errorw("Problem creating spark submit arguments", "error", err)
 		return nil, err
 	}
 	sparkArgs.AddConfigs(
@@ -1310,7 +1314,7 @@ func blobSparkMaterialization(
 		MaxJobDuration: opts.MaxJobDuration,
 		JobName:        opts.JobName,
 	}
-	spark.Logger.Debugw("Running spark job", "args", sparkArgs, "options", sparkOpts)
+	spark.Logger.Debugw("Running spark job", "options", sparkOpts)
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store, sparkOpts, nil); err != nil {
 		spark.Logger.Errorw("Spark submit job failed to run", "error", err)
 		return nil, err
@@ -1387,7 +1391,7 @@ func (spark *SparkOfflineStore) directCopyMaterialize(id ResourceID, opts Materi
 		Mappings:       make([]SourceMapping, 0),
 	}.PrepareCommand(logger)
 	if err != nil {
-		logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
+		logger.Errorw("Problem creating spark submit arguments", "error", err)
 		return err
 	}
 	sparkArgs.AddConfigs(
@@ -1410,7 +1414,7 @@ func (spark *SparkOfflineStore) directCopyMaterialize(id ResourceID, opts Materi
 		MaxJobDuration: opts.MaxJobDuration,
 		JobName:        opts.JobName,
 	}
-	logger.Debugw("Running spark job", "args", sparkArgs, "options", sparkOpts)
+	logger.Debugw("Running spark job", "options", sparkOpts)
 	if err := spark.Executor.RunSparkJob(sparkArgs, spark.Store, sparkOpts, nil); err != nil {
 		logger.Errorw("Spark submit job failed to run", "error", err)
 		return err
@@ -1590,7 +1594,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		Mappings:       sourceMappings,
 	}.PrepareCommand(logger)
 	if err != nil {
-		logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
+		logger.Errorw("Problem creating spark submit arguments", "error", err)
 		return err
 	}
 	logger.Debugw("Creating training set", "definition", def)

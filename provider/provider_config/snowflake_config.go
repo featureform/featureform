@@ -74,6 +74,9 @@ func (sf SnowflakeConfig) MutableFields() ss.StringSet {
 }
 
 func (sf *SnowflakeConfig) Redacted() *SnowflakeConfig {
+	if sf == nil {
+		return nil
+	}
 	redactedSessionParams := make(map[string]string)
 	for key, _ := range sf.SessionParams {
 		redactedSessionParams[key] = redacted.String

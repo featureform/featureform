@@ -190,7 +190,7 @@ func sparkCoreConfigs(args sparkCoreConfigsArgs) spark.Configs {
 func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath, store SparkFileStoreV2) error {
 	logger := logging.GlobalLogger.With(
 		"fromPath", filePath.ToURI(),
-		"toPath", filePath.ToURI(),
+		"toPath", storePath.ToURI(),
 		"store", store.Type(),
 	)
 	fileExists, err := store.Exists(pl.NewFileLocation(storePath))

@@ -9,6 +9,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/featureform/storage"
 	"os"
 
 	"github.com/featureform/logging"
@@ -31,10 +32,16 @@ func main() {
 		panic(err.Error())
 	}
 
+	resourcesRepo, err := storage.NewResourcesRepositoryFromEnv(managerType)
+	if err != nil {
+		panic(err.Error())
+	}
+
 	config := &metadata.Config{
-		Logger:      logger,
-		Address:     fmt.Sprintf(":%s", addr),
-		TaskManager: manager,
+		Logger:              logger,
+		Address:             fmt.Sprintf(":%s", addr),
+		TaskManager:         manager,
+		ResourcesRepository: resourcesRepo,
 	}
 	if enableSearch == "true" {
 		logger.Infow("Connecting to search", "host", os.Getenv("MEILISEARCH_HOST"), "port", os.Getenv("MEILISEARCH_PORT"))

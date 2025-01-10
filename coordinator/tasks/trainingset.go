@@ -34,6 +34,7 @@ func (t *TrainingSetTask) Run() error {
 		return fferr.NewInternalErrorf("cannot create a source from target type: %s", t.taskDef.TargetType)
 	}
 
+	tsId := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.TRAINING_SET_VARIANT}
 	t.logger.Info("Running training set job on resource: ", "name", nv.Name, "variant", nv.Variant)
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Starting Training Set Creation..."); err != nil {
 		return err
@@ -43,27 +44,50 @@ func (t *TrainingSetTask) Run() error {
 		return err
 	}
 
+	if t.isDelete {
+		t.logger.Debugw("Deleting training set", "resource_id", tsId)
+
+		// Fetch the staged-for-deletion training set
+		tsToDelete, err := t.metadata.GetStagedForDeletionTrainingSetVariant(context.Background(), metadata.NameVariant{
+			Name:    nv.Name,
+			Variant: nv.Variant,
+		})
+		if err != nil {
+			return err
+		}
+
+		trainingSetLocation, err := ps.ResourceToTableName(provider.TrainingSet.String(), nv.Name, nv.Variant)
+		if err != nil {
+			return err
+		}
+		t.logger.Debugw("Deleting training set at location", "location", trainingSetLocation)
+		store, getStoreErr := getStore(t.BaseTask, t.metadata, tsToDelete)
+		if getStoreErr != nil {
+			return getStoreErr
+		}
+		if err := store.Delete(pl.NewSQLLocation(trainingSetLocation)); err != nil {
+			return err
+		}
+		if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Training Set deleted..."); err != nil {
+			return err
+		}
+
+		t.logger.Debugw("Finalizing delete", "resource_id", tsId)
+		if err := t.metadata.FinalizeDelete(context.Background(), tsId); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
 	ts, err := t.metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{Name: nv.Name, Variant: nv.Variant})
 	if err != nil {
 		return err
 	}
 
-	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Offline Store..."); err != nil {
-		return err
-	}
-
-	providerEntry, err := ts.FetchProvider(t.metadata, context.Background())
-	if err != nil {
-		return err
-	}
-	t.logger.Debugw("Training set provider", "type", providerEntry.Type(), "config", providerEntry.SerializedConfig())
-	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
-	if err != nil {
-		return err
-	}
-	store, err := p.AsOfflineStore()
-	if err != nil {
-		return err
+	store, getStoreErr := getStore(t.BaseTask, t.metadata, ts)
+	if getStoreErr != nil {
+		return getStoreErr
 	}
 	t.logger.Debugw("Training set offline store", "type", fmt.Sprintf("%T", store))
 	defer func(store provider.OfflineStore) {
@@ -72,11 +96,6 @@ func (t *TrainingSetTask) Run() error {
 			t.logger.Errorf("could not close offline store: %v", err)
 		}
 	}(store)
-	providerResID := provider.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: provider.TrainingSet}
-
-	if _, err := store.GetTrainingSet(providerResID); err == nil {
-		return err
-	}
 
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for dependencies to complete..."); err != nil {
 		return err
@@ -142,8 +161,13 @@ func (t *TrainingSetTask) Run() error {
 		resourceSnowflakeConfig = tempConfig
 	}
 
+	tsIdProvider := provider.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: provider.TrainingSet}
+	if _, err := store.GetTrainingSet(tsIdProvider); err == nil {
+		return err
+	}
+
 	trainingSetDef := provider.TrainingSetDef{
-		ID:                      providerResID,
+		ID:                      tsIdProvider,
 		Label:                   provider.ResourceID{Name: label.Name(), Variant: label.Variant(), Type: provider.Label},
 		LabelSourceMapping:      labelSourceMapping,
 		Features:                featureList,
@@ -153,6 +177,13 @@ func (t *TrainingSetTask) Run() error {
 	}
 
 	return t.runTrainingSetJob(trainingSetDef, store)
+}
+
+func (t *TrainingSetTask) getStore(ts *metadata.TrainingSetVariant) (provider.OfflineStore, error) {
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Offline Store..."); err != nil {
+		return nil, err
+	}
+	return getStore(t.BaseTask, t.metadata, ts)
 }
 
 func (t *TrainingSetTask) getLabelSourceMapping(label *metadata.LabelVariant) (provider.SourceMapping, error) {

@@ -57,6 +57,8 @@ func (t *SourceTask) Run() error {
 	if err != nil {
 		logger.Warnw("Failed to add run log \"Fetching metadata\" Continuing.", "error", err)
 	}
+	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.SOURCE_VARIANT}
+
 	source, err := t.metadata.GetSourceVariant(ctx, metadata.NameVariant{nv.Name, nv.Variant})
 	if err != nil {
 		logger.Errorw("Failed to get source variant", "namevariant", nv, "error", err)
@@ -91,6 +93,41 @@ func (t *SourceTask) Run() error {
 		)
 		return err
 	}
+
+	if t.isDelete {
+		t.logger.Infow("Deleting source", "resource_id", resID, "is_primary", source.IsPrimaryData(), "definition", source.Definition())
+		sourceToDelete, stagedDeleteErr := t.metadata.GetStagedForDeletionSourceVariant(ctx, metadata.NameVariant{
+			Name:    nv.Name,
+			Variant: nv.Variant,
+		})
+		if stagedDeleteErr != nil {
+			return stagedDeleteErr
+		}
+
+		if sourceToDelete.IsPrimaryData() {
+			t.logger.Debugw("Can't delete primary data", "resource_id", resID)
+			return nil
+		}
+		tfLocation, tfLocationErr := source.GetTransformationLocation()
+		if tfLocationErr != nil {
+			return tfLocationErr
+		}
+		t.logger.Debugw("Deleting source at location", "location", tfLocation, "error", tfLocationErr)
+
+		deleteErr := sourceStore.Delete(tfLocation)
+		if deleteErr != nil {
+			return deleteErr
+		}
+
+		t.logger.Debugw("Deleting source metadata", "resource_id", resID)
+		finalizeDeleteErr := t.metadata.FinalizeDelete(ctx, resID)
+		if finalizeDeleteErr != nil {
+			return finalizeDeleteErr
+		}
+
+		return nil
+	}
+
 	defer func(sourceStore provider.OfflineStore) {
 		err := sourceStore.Close()
 		if err != nil {

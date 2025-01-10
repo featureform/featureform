@@ -82,6 +82,7 @@ func (e *Executor) RunTask(tid scheduling.TaskID, rid scheduling.TaskRunID) erro
 	}
 
 	logger = logger.With("target", run.Target)
+	logger.Debugw("Task run started", "run", run)
 
 	// Stop attempting to run the run
 	// In the future we should differentiate so we know if we need to cancel other runs

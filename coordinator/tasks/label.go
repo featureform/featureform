@@ -11,6 +11,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/featureform/provider/provider_schema"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
@@ -34,8 +36,46 @@ func (t *LabelTask) Run() error {
 	if err != nil {
 		return err
 	}
+	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.LABEL_VARIANT}
 
-	label, err := t.metadata.GetLabelVariant(context.Background(), metadata.NameVariant{Name: nameVariant.Name, Variant: nameVariant.Variant})
+	if t.isDelete {
+		labelToDelete, err := t.metadata.GetStagedForDeletionLabelVariant(
+			context.Background(),
+			metadata.NameVariant{
+				Name:    nv.Name,
+				Variant: nv.Variant,
+			},
+		)
+		if err != nil {
+			return err
+		}
+
+		t.logger.Infow("Deleting label", "resource_id", resID)
+		labelTableName, tableNameErr := provider_schema.ResourceToTableName(provider_schema.Label, resID.Name, resID.Variant)
+		if tableNameErr != nil {
+			t.logger.Debugw("Failed to get table name for label", "error", tableNameErr)
+			return err
+		}
+
+		sourceStore, err := getStore(t.BaseTask, t.metadata, labelToDelete)
+		if err != nil {
+			return err
+		}
+
+		t.logger.Debugw("Deleting label at location", "location", pl.NewSQLLocation(labelTableName))
+		deleteErr := sourceStore.Delete(pl.NewSQLLocation(labelTableName))
+		if deleteErr != nil {
+			return deleteErr
+		}
+		t.logger.Debugw("Deleted label at location", "location", pl.NewSQLLocation(labelTableName))
+		if err := t.metadata.FinalizeDelete(context.Background(), resID); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	label, err := t.metadata.GetLabelVariant(context.Background(), nameVariant)
 	if err != nil {
 		return err
 	}
@@ -56,18 +96,11 @@ func (t *LabelTask) Run() error {
 		return err
 	}
 
-	sourceProvider, err := source.FetchProvider(t.metadata, context.Background())
-	if err != nil {
-		return err
+	sourceStore, getStoreErr := getStore(t.BaseTask, t.metadata, source)
+	if getStoreErr != nil {
+		return getStoreErr
 	}
-	p, err := provider.Get(pt.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
-	if err != nil {
-		return err
-	}
-	sourceStore, err := p.AsOfflineStore()
-	if err != nil {
-		return err
-	}
+
 	defer func(sourceStore provider.OfflineStore) {
 		err := sourceStore.Close()
 		if err != nil {

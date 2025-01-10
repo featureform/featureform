@@ -194,7 +194,6 @@ message NameVariant {
 message NameVariantRequest {
   NameVariant name_variant = 1;
   string request_id = 2;
-  bool includeDeleted = 3;
 }
 
 message Empty {}

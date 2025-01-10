@@ -2415,7 +2415,7 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 		Variant: variant,
 		Type:    resourceType,
 	}
-	foundResource, err := m.lookup.Lookup(c, objID)
+	foundResource, err := m.lookup.Lookup(c, objID, metadata.ResourceLookupOpt{IncludeDeleted: false})
 
 	if err != nil {
 		fetchError := m.GetRequestError(http.StatusBadRequest, err, c, "PostTags - Error finding the resource with resourceID")

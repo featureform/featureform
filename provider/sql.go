@@ -31,6 +31,8 @@ import (
 	db "github.com/jackc/pgx/v4"
 )
 
+var sqlLogger = logging.NewLogger("sql")
+
 func sanitize(ident string) string {
 	return db.Identifier{ident}.Sanitize()
 }

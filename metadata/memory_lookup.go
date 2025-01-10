@@ -76,11 +76,12 @@ func (lookup MemoryResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 	return msg, nil
 }
 
-func (lookup MemoryResourceLookup) Lookup(ctx context.Context, id ResourceID) (Resource, error) {
+func (lookup MemoryResourceLookup) Lookup(ctx context.Context, id ResourceID, opt ResourceLookupOpt) (Resource, error) {
 	logger := logging.NewLogger("lookup")
 	key := createKey(id)
 	logger.Infow("Get", "key", key)
-	resp, err := lookup.Connection.Get(key)
+
+	resp, err := lookup.Connection.Get(key, opt.ToQueryOpts()...)
 	if err != nil || len(resp) == 0 {
 		return nil, fferr.NewKeyNotFoundError(key, err)
 	}
@@ -101,6 +102,17 @@ func (lookup MemoryResourceLookup) Lookup(ctx context.Context, id ResourceID) (R
 	}
 	logger.Infow("Return", "key", key)
 	return resource, nil
+}
+
+func (lookup MemoryResourceLookup) Delete(ctx context.Context, id ResourceID) error {
+	logger := logging.NewLogger("lookup")
+	key := createKey(id)
+	logger.Infow("Delete", "key", key)
+	_, err := lookup.Connection.Delete(key)
+	if err != nil {
+		return fferr.NewKeyNotFoundError(key, err)
+	}
+	return nil
 }
 
 func (lookup MemoryResourceLookup) GetCountWithPrefix(ctx context.Context, id string) (int, error) {
@@ -174,7 +186,6 @@ func (lookup MemoryResourceLookup) SetSchedule(ctx context.Context, id ResourceI
 }
 
 func (lookup MemoryResourceLookup) Set(ctx context.Context, id ResourceID, res Resource) error {
-
 	serRes, err := lookup.serializeResource(res)
 	if err != nil {
 		return err
@@ -241,12 +252,13 @@ func (lookup MemoryResourceLookup) ListForType(ctx context.Context, t ResourceTy
 	return resources, nil
 }
 
-func (lookup MemoryResourceLookup) ListVariants(ctx context.Context, t ResourceType, name string) ([]Resource, error) {
+func (lookup MemoryResourceLookup) ListVariants(ctx context.Context, t ResourceType, name string, opt ResourceLookupOpt) ([]Resource, error) {
 	logger := logging.NewLogger("memmory_lookup.go:ListVariants")
 	startTime := time.Now()
 	resources := make([]Resource, 0)
 	logger.Infow("list variants with prefix", "type", t, "name", name)
-	resp, err := lookup.Connection.List(variantLookupPrefix(t, name))
+	opts := opt.ToQueryOpts()
+	resp, err := lookup.Connection.List(variantLookupPrefix(t, name), opts...)
 	logger.Infow("listed variants with prefix", "type", t, "name", name, "duration", time.Since(startTime))
 	if err != nil {
 		return nil, err
@@ -299,7 +311,7 @@ func (lookup MemoryResourceLookup) List(ctx context.Context) ([]Resource, error)
 }
 
 func (lookup *MemoryResourceLookup) SetStatus(ctx context.Context, id ResourceID, status *pb.ResourceStatus) error {
-	res, err := lookup.Lookup(ctx, id)
+	res, err := lookup.Lookup(ctx, id, ResourceLookupOpt{IncludeDeleted: false})
 	if err != nil {
 		return err
 	}

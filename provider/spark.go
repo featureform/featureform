@@ -259,8 +259,17 @@ func (store *SparkOfflineStore) AsOfflineStore() (OfflineStore, error) {
 }
 
 func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIterator, error) {
+	logger := store.Logger.With("operation", "GetBatchFeatures", "ids", ids)
+	legacyStore, ok := store.Store.(SparkFileStore)
+	if !ok {
+		errMsg := "Batch Features No Longer Supported in OfflineStoreV2"
+		logger.Error(errMsg)
+		return nil, fferr.NewInternalErrorf(errMsg)
+	}
 	if len(ids) == 0 {
-		return &FileStoreBatchServing{store: store.Store, iter: nil}, fferr.NewInternalError(fmt.Errorf("no feature ids provided"))
+		errMsg := "No feature IDs provdided"
+		logger.Error(errMsg)
+		return nil, fferr.NewInternalErrorf(errMsg)
 	}
 	// Convert all IDs to materialization IDs
 	materializationIDs := make([]ResourceID, len(ids))
@@ -273,8 +282,9 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 		}
 	}
 	// Convert materialization ID to file paths
-	materializationPaths, err := store.createFilePathsFromIDs(materializationIDs)
+	materializationPaths, err := store.createFilePathsFromIDs(legacyStore, materializationIDs)
 	if err != nil {
+		logger.Errorw("Failed to create file path for IDs", "err", err)
 		return nil, err
 	}
 
@@ -285,8 +295,11 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 
 	// Create output file path
 	batchDirUUID := uuid.NewSHA1(uuid.NameSpaceDNS, []byte(batchDir))
-	outputPath, err := store.Store.CreateFilePath(fmt.Sprintf("featureform/BatchFeatures/%s", batchDirUUID), true)
+	rawPath := fmt.Sprintf("featureform/BatchFeatures/%s", batchDirUUID)
+	logger = logger.With("output-path", rawPath)
+	outputPath, err := legacyStore.CreateFilePath(rawPath, true)
 	if err != nil {
+		logger.Errorw("Failed to create output file path", "err", err)
 		return nil, err
 	}
 
@@ -300,46 +313,50 @@ func (store *SparkOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeature
 		JobType:        types.BatchFeatures,
 		Store:          store.Store,
 		Mappings:       make([]SourceMapping, 0),
-	}.PrepareCommand(store.Logger)
+	}.PrepareCommand(logger)
 
 	if err != nil {
-		store.Logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
+		logger.Errorw("Problem creating spark submit arguments", "error", err, "args", sparkArgs)
 		return nil, err
 	}
 	// Run the spark job
 	if err := store.Executor.RunSparkJob(sparkArgs, store.Store, SparkJobOptions{MaxJobDuration: time.Hour * 48}, nil); err != nil {
-		store.Logger.Errorw("Error running Spark job", "error", err)
+		logger.Errorw("Error running Spark job", "error", err)
 		return nil, err
 	}
 	// Create a batch iterator that iterates through the dir
-	outputFiles, err := store.Store.List(outputPath, filestore.Parquet)
+	outputFiles, err := legacyStore.List(outputPath, filestore.Parquet)
 	if err != nil {
+		logger.Errorw("Failed to list in path", "error", err)
 		return nil, err
 	}
 	groups, err := filestore.NewFilePathGroup(outputFiles, filestore.DateTimeDirectoryGrouping)
 	if err != nil {
+		logger.Errorw("Failed to create filegroup", "error", err)
 		return nil, err
 	}
 	newest, err := groups.GetFirst()
 	if err != nil {
+		logger.Errorw("Failed to get first file in group", "error", err)
 		return nil, err
 	}
-	iterator, err := store.Store.Serve(newest)
+	iterator, err := legacyStore.Serve(newest)
 	if err != nil {
+		logger.Errorw("Failed to serve newest file", "error", err)
 		return nil, err
 	}
 	store.Logger.Debug("Successfully created batch iterator")
-	return &FileStoreBatchServing{store: store.Store, iter: iterator, numFeatures: len(ids)}, nil
+	return &FileStoreBatchServing{store: legacyStore, iter: iterator, numFeatures: len(ids)}, nil
 }
 
-func (store *SparkOfflineStore) createFilePathsFromIDs(materializationIDs []ResourceID) ([]string, error) {
+func (store *SparkOfflineStore) createFilePathsFromIDs(legacyStore SparkFileStore, materializationIDs []ResourceID) ([]string, error) {
 	materializationPaths := make([]string, len(materializationIDs))
 	for i, id := range materializationIDs {
 		path, err := store.Store.CreateFilePath(id.ToFilestorePath(), true)
 		if err != nil {
 			return nil, err
 		}
-		sourceFiles, err := store.Store.List(path, filestore.Parquet)
+		sourceFiles, err := legacyStore.List(path, filestore.Parquet)
 		if err != nil {
 			return nil, err
 		}
@@ -639,7 +656,8 @@ func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, ta
 	case *pl.FileStoreLocation:
 		return blobRegisterPrimary(id, *lt, spark.Logger.SugaredLogger, spark.Store)
 	case *pl.CatalogLocation:
-		return spark.registerPrimaryCatalogTable(id, *lt, spark.Logger, spark.Store)
+		// TODO consider registering things in the catalog anyway?
+		return nil, nil
 	default:
 		return nil, fferr.NewInternalErrorf("unsupported location type for primary table registration")
 	}

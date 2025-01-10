@@ -3078,203 +3078,130 @@ func TestLocalSparkS3GlueStore(t *testing.T) {
 	}
 }
 
-func TestSparkFilestore(t *testing.T) {
-	// TODO Simba testCases := []struct {
-	// TODO Simba 	name                string
-	// TODO Simba 	store               SparkFileStore
-	// TODO Simba 	ExpectedConfig      []string
-	// TODO Simba 	ExpectedCredentials []string
-	// TODO Simba 	ExpectedPackages    []string
-	// TODO Simba 	ExpectedType        string
-	// TODO Simba }{
-	// TODO Simba 	{
-	// TODO Simba 		name:                "Local No Args",
-	// TODO Simba 		store:               SparkLocalFileStore{LocalFileStore: &LocalFileStore{}},
-	// TODO Simba 		ExpectedConfig:      []string{},
-	// TODO Simba 		ExpectedCredentials: []string{},
-	// TODO Simba 		ExpectedPackages:    []string{},
-	// TODO Simba 		ExpectedType:        "local",
-	// TODO Simba 	},
-	// TODO Simba 	{
-	// TODO Simba 		name: "S3 Empty Args",
-	// TODO Simba 		store: SparkS3FileStore{S3FileStore: &S3FileStore{
-	// TODO Simba 			Credentials: pc.AWSStaticCredentials{
-	// TODO Simba 				AccessKeyId: "",
-	// TODO Simba 				SecretKey:   "",
-	// TODO Simba 			},
-	// TODO Simba 		}},
-	// TODO Simba 		ExpectedConfig:      []string{"--spark_config", "\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\"", "--spark_config", "\"fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\"", "--spark_config", "\"fs.s3a.access.key=\"", "--spark_config", "\"fs.s3a.secret.key=\"", "--spark_config", "\"fs.s3a.endpoint=s3.amazonaws.com\""},
-	// TODO Simba 		ExpectedCredentials: []string{"--credential", "\"aws_bucket_name=\"", "--credential", "\"aws_region=\"", "--credential", "\"aws_access_key_id=\"", "--credential", "\"aws_secret_access_key=\""},
-	// TODO Simba 		ExpectedPackages:    []string{"--packages", "org.apache.spark:spark-hadoop-cloud_2.12:3.2.0", "--exclude-packages", "com.google.guava:guava"},
-	// TODO Simba 		ExpectedType:        "s3",
-	// TODO Simba 	},
-	// TODO Simba 	{
-	// TODO Simba 		name: "S3 With Args",
-	// TODO Simba 		store: SparkS3FileStore{S3FileStore: &S3FileStore{
-	// TODO Simba 			Credentials: pc.AWSStaticCredentials{
-	// TODO Simba 				AccessKeyId: "access_key",
-	// TODO Simba 				SecretKey:   "secret_key",
-	// TODO Simba 			},
-	// TODO Simba 			BucketRegion: "us-east-1",
-	// TODO Simba 			Path:         "path",
-	// TODO Simba 		}},
-	// TODO Simba 		ExpectedConfig:      []string{"--spark_config", "\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\"", "--spark_config", "\"fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\"", "--spark_config", "\"fs.s3a.access.key=access_key\"", "--spark_config", "\"fs.s3a.secret.key=secret_key\"", "--spark_config", "\"fs.s3a.endpoint=s3.us-east-1.amazonaws.com\""},
-	// TODO Simba 		ExpectedCredentials: []string{"--credential", "\"aws_bucket_name=\"", "--credential", "\"aws_region=us-east-1\"", "--credential", "\"aws_access_key_id=access_key\"", "--credential", "\"aws_secret_access_key=secret_key\""},
-	// TODO Simba 		ExpectedPackages:    []string{"--packages", "org.apache.spark:spark-hadoop-cloud_2.12:3.2.0", "--exclude-packages", "com.google.guava:guava"},
-	// TODO Simba 		ExpectedType:        "s3",
-	// TODO Simba 	},
-	// TODO Simba 	{
-	// TODO Simba 		name: "S3 With Assume Role Credentials",
-	// TODO Simba 		store: SparkS3FileStore{S3FileStore: &S3FileStore{
-	// TODO Simba 			Credentials:  pc.AWSAssumeRoleCredentials{},
-	// TODO Simba 			BucketRegion: "us-east-1",
-	// TODO Simba 			Path:         "path",
-	// TODO Simba 		}},
-	// TODO Simba 		ExpectedConfig:      []string{"--spark_config", "\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\""},
-	// TODO Simba 		ExpectedCredentials: []string{"--credential", "\"aws_bucket_name=\"", "--credential", "\"aws_region=us-east-1\"", "--credential", "\"use_service_account=true\""},
-	// TODO Simba 		ExpectedPackages:    []string{"--packages", "org.apache.spark:spark-hadoop-cloud_2.12:3.2.0", "--exclude-packages", "com.google.guava:guava"},
-	// TODO Simba 		ExpectedType:        "s3",
-	// TODO Simba 	},
-	// TODO Simba 	{
-	// TODO Simba 		name:                "Azure No Args",
-	// TODO Simba 		store:               SparkAzureFileStore{AzureFileStore: &AzureFileStore{}},
-	// TODO Simba 		ExpectedConfig:      []string{"--spark_config", "\"fs.azure.account.key..dfs.core.windows.net=\""},
-	// TODO Simba 		ExpectedCredentials: []string{"--credential", "\"azure_connection_string=\"", "--credential", "\"azure_container_name=\""},
-	// TODO Simba 		ExpectedPackages:    []string{"--packages", "\"org.apache.hadoop:hadoop-azure:3.2.0\""},
-	// TODO Simba 		ExpectedType:        "azure_blob_store",
-	// TODO Simba 	},
-	// TODO Simba 	{
-	// TODO Simba 		name: "Azure With Args",
-	// TODO Simba 		store: SparkAzureFileStore{AzureFileStore: &AzureFileStore{
-	// TODO Simba 			AccountName:      "account_name",
-	// TODO Simba 			AccountKey:       "account_key",
-	// TODO Simba 			ConnectionString: "connection_str",
-	// TODO Simba 			ContainerName:    "container_name",
-	// TODO Simba 		}},
-	// TODO Simba 		ExpectedConfig:      []string{"--spark_config", "\"fs.azure.account.key.account_name.dfs.core.windows.net=account_key\""},
-	// TODO Simba 		ExpectedCredentials: []string{"--credential", "\"azure_connection_string=connection_str\"", "--credential", "\"azure_container_name=container_name\""},
-	// TODO Simba 		ExpectedPackages:    []string{"--packages", "\"org.apache.hadoop:hadoop-azure:3.2.0\""},
-	// TODO Simba 		ExpectedType:        "azure_blob_store",
-	// TODO Simba 	},
-	// TODO Simba 	{
-	// TODO Simba 		name:                "GCS No Args",
-	// TODO Simba 		store:               SparkGCSFileStore{GCSFileStore: &GCSFileStore{}},
-	// TODO Simba 		ExpectedConfig:      []string{"--spark_config", "fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem", "--spark_config", "fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS", "--spark_config", "fs.gs.auth.service.account.enable=true", "--spark_config", "fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem", "--spark_config", "fs.gs.auth.type=SERVICE_ACCOUNT_JSON_KEYFILE"},
-	// TODO Simba 		ExpectedCredentials: []string{"--credential", "\"gcp_project_id=\"", "--credential", "\"gcp_bucket_name=\"", "--credential", "\"gcp_credentials=\""},
-	// TODO Simba 		ExpectedPackages:    []string{"--packages", "com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.0", "--jars", "/app/provider/scripts/spark/jars/gcs-connector-hadoop2-2.2.11-shaded.jar"},
-	// TODO Simba 		ExpectedType:        "google_cloud_storage",
-	// TODO Simba 	},
-	// TODO Simba 	{
-	// TODO Simba 		name: "GCS With Args",
-	// TODO Simba 		store: SparkGCSFileStore{GCSFileStore: &GCSFileStore{
-	// TODO Simba 			Bucket: "bucket",
-	// TODO Simba 			Path:   "path",
-	// TODO Simba 			Credentials: pc.GCPCredentials{
-	// TODO Simba 				ProjectId: "project_id",
-	// TODO Simba 				JSON: map[string]interface{}{
-	// TODO Simba 					"key": "value",
-	// TODO Simba 				},
-	// TODO Simba 			},
-	// TODO Simba 		}},
-	// TODO Simba 		ExpectedConfig:      []string{"--spark_config", "fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem", "--spark_config", "fs.AbstractFileSystem.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS", "--spark_config", "fs.gs.auth.service.account.enable=true", "--spark_config", "fs.gs.impl=com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem", "--spark_config", "fs.gs.auth.type=SERVICE_ACCOUNT_JSON_KEYFILE"},
-	// TODO Simba 		ExpectedCredentials: []string{"--credential", "\"gcp_project_id=project_id\"", "--credential", "\"gcp_bucket_name=bucket\"", "--credential", "\"gcp_credentials=\""},
-	// TODO Simba 		ExpectedPackages:    []string{"--packages", "com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.0", "--jars", "/app/provider/scripts/spark/jars/gcs-connector-hadoop2-2.2.11-shaded.jar"},
-	// TODO Simba 		ExpectedType:        "google_cloud_storage",
-	// TODO Simba 	},
-	// TODO Simba 	{
-	// TODO Simba 		name:                "HDFS No Args",
-	// TODO Simba 		store:               SparkHDFSFileStore{HDFSFileStore: &HDFSFileStore{}},
-	// TODO Simba 		ExpectedConfig:      []string{},
-	// TODO Simba 		ExpectedCredentials: []string{},
-	// TODO Simba 		ExpectedPackages:    []string{},
-	// TODO Simba 		ExpectedType:        "hdfs",
-	// TODO Simba 	},
-	// TODO Simba 	{
-	// TODO Simba 		name: "S3 Glue Without Args",
-	// TODO Simba 		store: SparkGlueS3FileStore{
-	// TODO Simba 			GlueConfig: &pc.GlueConfig{
-	// TODO Simba 				Warehouse:   "s3://bucket/warehouse",
-	// TODO Simba 				Region:      "us-east-3",
-	// TODO Simba 				TableFormat: pc.Iceberg,
-	// TODO Simba 			},
-	// TODO Simba 			GlueClient: nil,
-	// TODO Simba 			Logger:     logging.WrapZapLogger(zap.NewExample().Sugar()),
-	// TODO Simba 			SparkS3FileStore: SparkS3FileStore{
-	// TODO Simba 				S3FileStore: &S3FileStore{
-	// TODO Simba 					Credentials: pc.AWSStaticCredentials{
-	// TODO Simba 						AccessKeyId: "access_key",
-	// TODO Simba 						SecretKey:   "secret_key",
-	// TODO Simba 					},
-	// TODO Simba 					BucketRegion: "us-east-1",
-	// TODO Simba 					Path:         "path",
-	// TODO Simba 				},
-	// TODO Simba 			},
-	// TODO Simba 		},
-	// TODO Simba 		ExpectedConfig: []string{
-	// TODO Simba 			"--spark_config", "\"fs.s3a.access.key=access_key\"",
-	// TODO Simba 			"--spark_config", "\"fs.s3a.secret.key=secret_key\"",
-	// TODO Simba 			"--spark_config", "\"fs.s3a.endpoint=s3.us-east-1.amazonaws.com\"",
-	// TODO Simba 			"--spark_config", "\"fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\"",
-	// TODO Simba 			"--spark_config", "\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\"",
-	// TODO Simba 			// Glue and Iceberg specific configurations
-	// TODO Simba 			"--spark_config", "spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
-	// TODO Simba 			"--spark_config", "spark.sql.catalog.ff_catalog.io-impl=org.apache.iceberg.aws.s3.S3FileIO",
-	// TODO Simba 			"--spark_config", "spark.sql.catalog.ff_catalog.region=us-east-3",
-	// TODO Simba 			"--spark_config", "spark.sql.catalog.ff_catalog=org.apache.iceberg.spark.SparkCatalog",
-	// TODO Simba 			"--spark_config", "spark.sql.catalog.ff_catalog.catalog-impl=org.apache.iceberg.aws.glue.GlueCatalog",
-	// TODO Simba 			"--spark_config", "spark.sql.catalog.ff_catalog.warehouse=s3://bucket/warehouse",
-	// TODO Simba 		},
-	// TODO Simba 		ExpectedCredentials: []string{
-	// TODO Simba 			"--credential", "\"aws_bucket_name=\"", // Assuming missing Bucket value should include actual bucket name here
-	// TODO Simba 			"--credential", "\"aws_region=us-east-1\"",
-	// TODO Simba 			"--credential", "\"aws_access_key_id=access_key\"",
-	// TODO Simba 			"--credential", "\"aws_secret_access_key=secret_key\"",
-	// TODO Simba 		},
-	// TODO Simba 		ExpectedPackages: []string{
-	// TODO Simba 			"--packages", "org.apache.spark:spark-hadoop-cloud_2.12:3.2.0,org.apache.iceberg:iceberg-spark-runtime-3.4_2.12:1.4.2",
-	// TODO Simba 			"--exclude-packages", "com.google.guava:guava",
-	// TODO Simba 		},
-	// TODO Simba 		ExpectedType: "s3",
-	// TODO Simba 	},
-	// TODO Simba }
-	// TODO Simba for _, tt := range testCases {
-	// TODO Simba 	t.Run(
-	// TODO Simba 		tt.name, func(t *testing.T) {
-	// TODO Simba 			assert.ElementsMatchf(
-	// TODO Simba 				t,
-	// TODO Simba 				tt.store.SparkConfig(),
-	// TODO Simba 				tt.ExpectedConfig,
-	// TODO Simba 				"SparkFileStore.SparkConfig() = %#v, want %#v",
-	// TODO Simba 				tt.store.SparkConfig(),
-	// TODO Simba 				tt.ExpectedConfig,
-	// TODO Simba 			)
-	// TODO Simba 			assert.ElementsMatchf(
-	// TODO Simba 				t,
-	// TODO Simba 				tt.store.CredentialsConfig(),
-	// TODO Simba 				tt.ExpectedCredentials,
-	// TODO Simba 				"SparkFileStore.CredentialsConfig() = %#v, want %#v",
-	// TODO Simba 				tt.store.CredentialsConfig(),
-	// TODO Simba 				tt.ExpectedCredentials,
-	// TODO Simba 			)
-	// TODO Simba 			assert.ElementsMatchf(
-	// TODO Simba 				t,
-	// TODO Simba 				tt.store.Packages(),
-	// TODO Simba 				tt.ExpectedPackages,
-	// TODO Simba 				"SparkFileStore.Packages() = %#v, want %#v",
-	// TODO Simba 				tt.store.Packages(),
-	// TODO Simba 				tt.ExpectedPackages,
-	// TODO Simba 			)
-	// TODO Simba 			assert.Equalf(
-	// TODO Simba 				t,
-	// TODO Simba 				tt.store.Type(),
-	// TODO Simba 				tt.ExpectedType,
-	// TODO Simba 				"SparkFileStore.Type() = %v, want %v",
-	// TODO Simba 				tt.store.Type(),
-	// TODO Simba 				tt.ExpectedType,
-	// TODO Simba 			)
-	// TODO Simba 		},
-	// TODO Simba 	)
-	// TODO Simba }
+func TestSparkFileStoreV2Config(t *testing.T) {
+	script, err := filestore.NewEmptyFilepath(filestore.S3)
+	if err != nil {
+		t.Fatalf("Failed to create empty file path: %s", err)
+	}
+	script.SetScheme(filestore.S3Prefix)
+	script.SetBucket("test")
+	script.SetKey("script.py")
+	testCases := []struct {
+		name          string
+		store         SparkFileStoreV2
+		ExpectedFlags []string
+	}{
+		{
+			name:          "Local No Args",
+			store:         SparkLocalFileStore{LocalFileStore: &LocalFileStore{}},
+			ExpectedFlags: []string{"spark-submit", "s3://test/script.py"},
+		},
+		{
+			name: "S3 static creds",
+			store: SparkS3FileStore{
+				S3FileStore: &S3FileStore{
+					Credentials: pc.AWSStaticCredentials{
+						AccessKeyId: "TEST-ACCESS",
+						SecretKey:   "TEST-SECRET",
+					},
+					Bucket:       "test-bucket",
+					BucketRegion: "us-east-1",
+					Path:         "path",
+				},
+			},
+			ExpectedFlags: []string{
+				"spark-submit", "s3://test/script.py",
+				"--spark_config", "\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\"",
+				"--credential", "\"aws_bucket_name=test-bucket\"",
+				"--credential", "\"aws_region=us-east-1\"",
+				"--store_type", "s3",
+				"--spark_config", "\"fs.s3a.endpoint=s3.us-east-1.amazonaws.com\"",
+				"--spark_config", "\"fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\"",
+				"--spark_config", "\"fs.s3a.access.key=TEST-ACCESS\"",
+				"--spark_config", "\"fs.s3a.secret.key=TEST-SECRET\"",
+				"--credential", "\"aws_access_key_id=TEST-ACCESS\"",
+				"--credential", "\"aws_secret_access_key=TEST-SECRET\"",
+			},
+		},
+		{
+			name: "S3 assume creds",
+			store: SparkS3FileStore{
+				S3FileStore: &S3FileStore{
+					Credentials:  pc.AWSAssumeRoleCredentials{},
+					Bucket:       "test-bucket",
+					BucketRegion: "us-east-1",
+					Path:         "path",
+				},
+			},
+			ExpectedFlags: []string{
+				"spark-submit", "s3://test/script.py",
+				"--spark_config", "\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\"",
+				"--credential", "\"aws_bucket_name=test-bucket\"",
+				"--credential", "\"aws_region=us-east-1\"",
+				"--store_type", "s3",
+				"--spark_config", "\"fs.s3a.endpoint=s3.us-east-1.amazonaws.com\"",
+				"--credential", "\"use_service_account=true\"",
+			},
+		},
+		{
+			name: "S3 with Glue",
+			store: SparkGlueS3FileStore{
+				GlueConfig: &pc.GlueConfig{
+					Warehouse:   "s3://bucket/warehouse",
+					Region:      "us-east-3",
+					TableFormat: pc.Iceberg,
+				},
+				SparkS3FileStore: SparkS3FileStore{
+					S3FileStore: &S3FileStore{
+						Credentials: pc.AWSStaticCredentials{
+							AccessKeyId: "TEST-ACCESS",
+							SecretKey:   "TEST-SECRET",
+						},
+						Bucket:       "test-bucket",
+						BucketRegion: "us-east-1",
+						Path:         "path",
+					},
+				},
+			},
+			ExpectedFlags: []string{
+				"spark-submit",
+				"--packages", "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.6.1",
+				"s3://test/script.py",
+				"--spark_config", "\"spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem\"",
+				"--credential", "\"aws_bucket_name=test-bucket\"",
+				"--credential", "\"aws_region=us-east-1\"",
+				"--store_type", "s3",
+				"--spark_config", "\"fs.s3a.endpoint=s3.us-east-1.amazonaws.com\"",
+				"--spark_config", "\"fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\"",
+				"--spark_config", "\"fs.s3a.access.key=TEST-ACCESS\"",
+				"--spark_config", "\"fs.s3a.secret.key=TEST-SECRET\"",
+				"--credential", "\"aws_access_key_id=TEST-ACCESS\"",
+				"--credential", "\"aws_secret_access_key=TEST-SECRET\"",
+				"--spark_config", "\"spark.sql.catalog.ff_catalog.region=us-east-3\"",
+				"--spark_config", "\"spark.sql.catalog.ff_catalog=org.apache.iceberg.spark.SparkCatalog\"",
+				"--spark_config", "\"spark.sql.catalog.ff_catalog.catalog-impl=org.apache.iceberg.aws.glue.GlueCatalog\"",
+				"--spark_config", "\"spark.sql.catalog.ff_catalog.warehouse=s3://bucket/warehouse\"",
+				"--spark_config", "\"spark.sql.catalog.ff_catalog.io-impl=org.apache.iceberg.aws.s3.S3FileIO\"",
+				"--spark_config", "\"spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions\"",
+			},
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(
+			tt.name, func(t *testing.T) {
+				cfgs := tt.store.SparkConfigs()
+				flags := cfgs.CompileCommand(script)
+				assert.ElementsMatchf(
+					t,
+					flags,
+					tt.ExpectedFlags,
+					"SparkFileStore.SparkConfig() = %#v, want %#v",
+					flags,
+					tt.ExpectedFlags,
+				)
+			},
+		)
+	}
 }
 
 func TestSparkGenericExecutor_getYarnCommand(t *testing.T) {
@@ -3504,62 +3431,59 @@ func TestSparkGenericExecutorArgs(t *testing.T) {
 }
 
 func TestExceedsSubmitParamsTotalByteLimit(t *testing.T) {
-	// TODO Simba
-	/// script := filepath.NewEmptyFilePath(filestore.S3)
-	/// script.SetScheme(filestore.S3Prefix)
-	/// script.SetBucket("bucket")
-	/// script.SetKey("featureform/Feature/t_name/t_variant")
-	/// testCases := []struct {
-	/// 	name                 string
-	/// 	cmd                  *sparkCommand
-	/// 	shouldExceedAPILimit bool
-	/// }{
-	/// 	{
-	/// 		name:     "SubmitParamsWithinLimit",
-	/// 		cmd:      genericSparkSubmitArgs(
-	/// 			pc.EMR,
-	/// 			types.SparkClientDeployMode,
-	/// 			SQLTransformation,
-	/// 			pl.NewFileLocation(output),
-	/// 			"SELECT * FROM table",
-	/// 			spark.WrapLegacySourceInfos("table"),
-	/// 			Transform,
-	/// 			store.Store,
-	/// 			make([]SourceMapping, 0),
+	script, err := filestore.NewEmptyFilepath(filestore.S3)
+	if err != nil {
+		t.Fatalf("Failed to create empty file path: %s", err)
+	}
+	script.SetScheme(filestore.S3Prefix)
+	script.SetBucket("bucket")
+	script.SetKey("featureform/Feature/t_name/t_variant")
+	testCases := []struct {
+		name                 string
+		cmd                  *spark.Command
+		shouldExceedAPILimit bool
+	}{
+		{
+			name: "SubmitParamsWithinLimit",
+			cmd: &spark.Command{
+				Script:     script,
+				ScriptArgs: []string{"sql"},
+				Configs:    nil,
+			},
+			shouldExceedAPILimit: false,
+		},
+		{
+			name: "SubmitParamsExceedsLimit",
+			cmd: &spark.Command{
+				Script:     script,
+				ScriptArgs: []string{"sql"},
+				Configs: spark.Configs{
+					spark.SqlQueryFlag{
+						CleanQuery: randomStringNBytes(5_000, t),
+						Sources: spark.WrapLegacySourceInfos([]string{
+							randomStringNBytes(1_000, t),
+							randomStringNBytes(1_000, t),
+							randomStringNBytes(1_000, t),
+							randomStringNBytes(1_000, t),
+							randomStringNBytes(1_000, t),
+						}),
+					},
+				},
+			},
+			shouldExceedAPILimit: true,
+		},
+	}
 
-	/// 		),
-	/// 		argsList: []string{"sql", "--output_uri", "s3://bucket/featureform/Feature/t_name/t_variant/", "--job_type", "Materialization", "--store_type", "s3"},
-	/// 		query:    "SELECT * FROM table",
-	/// 		sourceList: []string{
-	/// 			"s3://bucket/featureform/Feature/t_name/t_variant/",
-	/// 		},
-	/// 		shouldExceedAPILimit: false,
-	/// 	},
-	/// 	{
-	/// 		name:     "SubmitParamsExceedsLimit",
-	/// 		argsList: []string{"sql", "--output_uri", "s3://bucket/featureform/Feature/t_name/t_variant/", "--job_type", "Materialization", "--store_type", "s3"},
-	/// 		query:    randomStringNBytes(5_000, t),
-	/// 		sourceList: []string{
-	/// 			randomStringNBytes(1_000, t),
-	/// 			randomStringNBytes(1_000, t),
-	/// 			randomStringNBytes(1_000, t),
-	/// 			randomStringNBytes(1_000, t),
-	/// 			randomStringNBytes(1_000, t),
-	/// 		},
-	/// 		shouldExceedAPILimit: true,
-	/// 	},
-	/// }
-
-	/// for _, tt := range testCases {
-	/// 	t.Run(
-	/// 		tt.name, func(t *testing.T) {
-	/// 			actual := exceedsSubmitParamsTotalByteLimit(tt.argsList, tt.query, tt.sourceList)
-	/// 			if actual != tt.shouldExceedAPILimit {
-	/// 				t.Fatalf("Expected %v, got %v", tt.shouldExceedAPILimit, actual)
-	/// 			}
-	/// 		},
-	/// 	)
-	/// }
+	for _, tt := range testCases {
+		t.Run(
+			tt.name, func(t *testing.T) {
+				actual := exceedsSubmitParamsTotalByteLimit(tt.cmd)
+				if actual != tt.shouldExceedAPILimit {
+					t.Fatalf("Expected %v, got %v", tt.shouldExceedAPILimit, actual)
+				}
+			},
+		)
+	}
 }
 
 func TestNewSparkFileStores(t *testing.T) {

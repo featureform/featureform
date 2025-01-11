@@ -44,8 +44,6 @@ class StreamerService(FlightServerBase):
         required_fields = [
             "namespace",
             "table",
-            "client.access-key-id",
-            "client.secret-access-key",
             "client.region",
         ]
         missing_fields = [
@@ -54,6 +52,14 @@ class StreamerService(FlightServerBase):
         if missing_fields:
             raise ValueError(
                 f"Missing required request fields: {', '.join(missing_fields)}"
+            )
+
+        # verify either "client.access-key-id" and "client.secret-access-key" OR "client.role-arn" is provided
+        has_static_credentials = request_dict.get("client.access-key-id") and request_dict.get("client.secret-access-key")
+        has_role_arn = request_dict.get("client.role-arn")
+        if not (has_static_credentials or has_role_arn):
+            raise ValueError(
+                "Invalid credentials: Provide either 'client.access-key-id' and 'client.secret-access-key' or 'client.role-arn'."
             )
 
         # validate the limit
@@ -78,10 +84,10 @@ class StreamerService(FlightServerBase):
                 request_dict["catalog"],
                 **{
                     "type": "glue",
-                    "client.region": request_dict["client.region"],
-                    "client.access-key-id": request_dict["client.access-key-id"],
-                    "client.secret-access-key": request_dict["client.secret-access-key"],
-                    "client.role-arn": request_dict["client.role-arn"]
+                    "client.region": request_dict["client.region"], # not optional
+                    "client.access-key-id": request_dict.get("client.access-key-id"),
+                    "client.secret-access-key": request_dict.get("client.secret-access-key"),
+                    "client.role-arn": request_dict.get("client.role-arn")
                 },
             )
 

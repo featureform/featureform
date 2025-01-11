@@ -138,6 +138,7 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 		"client.region":            config.ExecutorConfig.ClusterRegion,
 		"client.access-key-id":     config.ExecutorConfig.Credentials.AccessKeyID,
 		"client.secret-access-key": config.ExecutorConfig.Credentials.SecretKey,
+		"client.role-arn":          config.GlueConfig.AssumeRoleArn,
 		"limit":                    ticketData.Limit,
 	}
 

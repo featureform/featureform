@@ -35,6 +35,7 @@ class StreamerService(FlightServerBase):
             "client.access-key-id": request_data.get("client.access-key-id"),
             "client.secret-access-key": request_data.get("client.secret-access-key"),
             "client.region": request_data.get("client.region"),
+            "client.role-arn": request_data.get("client.role-arn"),
             "limit": request_data.get("limit", ONE_MILLION_RECORD_LIMIT),
         }
 
@@ -80,6 +81,7 @@ class StreamerService(FlightServerBase):
                     "client.region": request_dict["client.region"],
                     "client.access-key-id": request_dict["client.access-key-id"],
                     "client.secret-access-key": request_dict["client.secret-access-key"],
+                    "client.role-arn": request_dict["client.role-arn"]
                 },
             )
 

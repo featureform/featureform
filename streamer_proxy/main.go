@@ -20,6 +20,7 @@ import (
 	"github.com/apache/arrow/go/v17/arrow/flight"
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
+	"github.com/featureform/metadata"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -30,14 +31,36 @@ type GoProxyServer struct {
 	flight.BaseFlightServer
 	streamerAddress string
 	logger          logging.Logger
+	metadata        *metadata.Client
 }
 
 type TicketData struct {
-	Location        string `json:"location"`
-	Region          string `json:"client.region"`
-	AccessKeyId     string `json:"client.access-key-id"`
-	SecretAccessKey string `json:"client.secret-access-key"`
-	Limit           int    `json:"limit"`
+	Source       string `json:"source"`
+	Variant      string `json:"variant"`
+	ResourceType string `json:"resourceType"`
+	Limit        int    `json:"limit"`
+}
+
+type AWSConfig struct {
+	AccessKeyID string `json:"AccessKeyId"`
+	SecretKey   string `json:"SecretKey"`
+	Type        string `json:"Type"`
+}
+
+type ExecutorConfig struct {
+	ClusterName   string    `json:"ClusterName"`
+	ClusterRegion string    `json:"ClusterRegion"`
+	Credentials   AWSConfig `json:"Credentials"`
+}
+
+type GlueConfig struct {
+	// todox: need to handle case where key/secret are not available
+	AssumeRoleArn string `json:"AssumeRoleArn"`
+}
+
+type ConfigData struct {
+	ExecutorConfig ExecutorConfig `json:"ExecutorConfig"`
+	GlueConfig     GlueConfig     `json:"GlueConfig"`
 }
 
 // pulls the client ticket's location and hydrates with additional entries
@@ -51,40 +74,56 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 	}
 
 	// handle location
-	if ticketData.Location == "" {
-		locationErr := fmt.Errorf("missing 'location' in ticket data")
-		gps.logger.Error(locationErr)
-		return nil, locationErr
+	if ticketData.Source == "" {
+		sourceErr := fmt.Errorf("missing 'source' in ticket data")
+		gps.logger.Error(sourceErr)
+		return nil, sourceErr
 	}
 
-	parts := strings.Split(ticketData.Location, ".")
+	if ticketData.Variant == "" {
+		variantErr := fmt.Errorf("missing 'variant' in ticket data")
+		gps.logger.Error(variantErr)
+		return nil, variantErr
+	}
+
+	if ticketData.ResourceType == "" {
+		resourceTypeErr := fmt.Errorf("missing 'resourceType' in ticket data")
+		gps.logger.Error(resourceTypeErr)
+		return nil, resourceTypeErr
+	}
+
+	sourceVariant, getSourceErr := gps.metadata.GetSourceVariant(context.TODO(), metadata.NameVariant{Name: ticketData.Source, Variant: ticketData.Variant})
+	if getSourceErr != nil {
+		gps.logger.Error("error when invoking metadata.GetSourceVariant()", "error", getSourceErr)
+		return nil, getSourceErr
+	}
+
+	gps.logger.Infof("Fetching primary location with source variant: %s-%s", sourceVariant.Name(), sourceVariant.Variant())
+	location, locationErr := sourceVariant.GetPrimaryLocation()
+	if locationErr != nil {
+		gps.logger.Error("error when invoking sourceVariant.GetPrimaryLocation()", "error", locationErr)
+		return nil, locationErr
+	}
+	parts := strings.Split(location.Location(), ".")
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		splitErr := fmt.Errorf("invalid location format, expected 'namespace.table' but got: %s", ticketData.Location)
+		splitErr := fmt.Errorf("invalid location format, expected 'namespace.table' but got: %s", location.Location())
 		gps.logger.Error(splitErr)
 		return nil, splitErr
 	}
 	namespace := parts[0]
 	table := parts[1]
 
-	// validate region
-	if ticketData.Region == "" {
-		regionErr := fmt.Errorf("missing 'client.region' in ticket data")
-		gps.logger.Error(regionErr)
-		return nil, regionErr
+	//pull the provider
+	provider, providerErr := gps.metadata.GetProvider(context.TODO(), sourceVariant.Provider())
+	if providerErr != nil {
+		gps.logger.Error("error when invoking metadata.GetProvider(%s)", sourceVariant.Provider())
+		return nil, providerErr
 	}
 
-	//  validate keyId
-	if ticketData.AccessKeyId == "" {
-		accessKeyIdErr := fmt.Errorf("missing 'client.access-key-id' in ticket data")
-		gps.logger.Error(accessKeyIdErr)
-		return nil, accessKeyIdErr
-	}
-
-	// validate secretKey
-	if ticketData.SecretAccessKey == "" {
-		secretErr := fmt.Errorf("missing 'client.secret-access-key' in ticket data")
-		gps.logger.Error(secretErr)
-		return nil, secretErr
+	var config ConfigData
+	jsonErr := json.Unmarshal(provider.SerializedConfig(), &config)
+	if jsonErr != nil {
+		gps.logger.Error("could not deserialize the provider config", "error", jsonErr)
 	}
 
 	// validate limit
@@ -96,9 +135,9 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 		"catalog":                  "default",
 		"namespace":                namespace,
 		"table":                    table,
-		"client.access-key-id":     ticketData.AccessKeyId,
-		"client.secret-access-key": ticketData.SecretAccessKey,
-		"client.region":            ticketData.Region,
+		"client.region":            config.ExecutorConfig.ClusterRegion,
+		"client.access-key-id":     config.ExecutorConfig.Credentials.AccessKeyID,
+		"client.secret-access-key": config.ExecutorConfig.Credentials.SecretKey,
 		"limit":                    ticketData.Limit,
 	}
 
@@ -170,12 +209,26 @@ func main() {
 		logger:          baseLogger,
 	}
 
+	// connect to metadata
+	metadataHost := helpers.GetEnv("METADATA_HOST", "localhost")
+	metadataPort := helpers.GetEnv("METADATA_PORT", "8080")
+	metadataUrl := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
+
+	client, err := metadata.NewClient(metadataUrl, baseLogger)
+	if err != nil {
+		proxyFlightServer.logger.Errorw("Failed to connect: %v", err)
+		panic(err)
+	}
+	proxyFlightServer.logger.Infof("Connected to Metadata at %s", metadataUrl)
+	proxyFlightServer.metadata = client
+
 	grpcServer := grpc.NewServer()
 	listener, err := net.Listen("tcp", serverAddress)
 	if err != nil {
 		proxyFlightServer.logger.Fatalf("Failed to bind address to %s: %v", serverAddress, err)
 	}
 
+	// start the proxy flight server
 	proxyFlightServer.logger.Infof("Starting Go Proxy Flight server on %s...", serverAddress)
 	flight.RegisterFlightServiceServer(grpcServer, proxyFlightServer)
 	servErr := grpcServer.Serve(listener)

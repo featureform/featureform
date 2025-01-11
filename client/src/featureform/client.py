@@ -218,12 +218,7 @@ class Client(ResourceClient, ServingClient):
         Returns:
             pandas.DataFrame: Iceberg data catalog stream
         """
-        ticket_data = {"location": self.location(source, variant, resource_type), 
-		"client.region": "us-east-1",
-		"client.access-key-id":os.getenv("AWS_ACCESS_KEY"), # todox: should we pull these from the provider itself?
-		"client.secret-access-key":os.getenv("AWS_SECRET_KEY"),
-		 "limit": limit}
-        print("With location: ", ticket_data["location"])
+        ticket_data = {"source": source, "variant": variant, "resourceType": resource_type}
 
         # handle tls
         tls_cert_path = os.path.join(os.getcwd(), "tls.crt")

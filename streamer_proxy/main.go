@@ -54,7 +54,6 @@ type ExecutorConfig struct {
 }
 
 type GlueConfig struct {
-	// todox: need to handle case where key/secret are not available
 	AssumeRoleArn string `json:"AssumeRoleArn"`
 }
 

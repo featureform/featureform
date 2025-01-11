@@ -8,35 +8,163 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"io"
 	"testing"
 
 	"github.com/apache/arrow/go/v17/arrow/flight"
 	"github.com/featureform/logging"
+	"github.com/featureform/metadata"
+	pb "github.com/featureform/metadata/proto"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
 )
 
+type SourceClient struct {
+	grpc.ClientStream
+}
+
+var sourceCalls = 0
+
+func (c SourceClient) Send(nv *pb.NameVariantRequest) error {
+	return nil
+}
+
+func (c SourceClient) Recv() (*pb.SourceVariant, error) {
+	if sourceCalls == 0 {
+		sourceCalls++
+		return &pb.SourceVariant{
+			Name:    "test_name",
+			Variant: "test_variant",
+			Definition: &pb.SourceVariant_PrimaryData{PrimaryData: &pb.PrimaryData{
+				Location: &pb.PrimaryData_Catalog{
+					Catalog: &pb.CatalogTable{
+						Database:    "aws_database",
+						Table:       "aws_table",
+						TableFormat: "tableFormat",
+					},
+				},
+			}},
+			Provider: "test_provider",
+		}, nil
+	}
+	return nil, io.EOF
+}
+
+func (c SourceClient) CloseSend() error {
+	return nil
+}
+
+type ProviderClient struct {
+	grpc.ClientStream
+}
+
+var providerCalls = 0
+
+func (c ProviderClient) Send(nv *pb.NameRequest) error {
+	return nil
+}
+
+func (c ProviderClient) Recv() (*pb.Provider, error) {
+	jsonBytes := []byte(
+		`{
+			"ExecutorConfig": {
+				"ClusterName": "my_cluster",
+				"ClusterRegion": "us-east-1",
+				"Credentials": {
+					"AccessKeyId": "someKey",
+					"SecretKey": "someSecret",
+					"Type": "AWS_STATIC_CREDENTIALS"
+				}
+			},
+			"GlueConfig": {
+				"AssumeRoleArn": "someRole",
+				"Database": "booking_glue_db",
+				"Region": "us-east-1",
+				"TableFormat": "iceberg",
+				"Warehouse": "s3://test.warehouse/glue"
+			}
+		}`)
+
+	if providerCalls == 0 {
+		providerCalls++
+		return &pb.Provider{
+			Name:             "booking_test_provider",
+			Type:             "GLUE",
+			Software:         "AWS",
+			SerializedConfig: jsonBytes,
+			Tags:             &pb.Tags{Tag: []string{"booking_tag"}},
+			Properties:       &pb.Properties{},
+			Status:           &pb.ResourceStatus{Status: pb.ResourceStatus_READY},
+			Sources:          []*pb.NameVariant{{Name: "test_name", Variant: "test_variant"}},
+		}, nil
+	}
+	return nil, io.EOF
+}
+
+func (c ProviderClient) CloseSend() error {
+	return nil
+}
+
+type MockGrpcConn struct {
+	pb.MetadataClient
+}
+
+type MockMetadataClient struct {
+	GrpcConn MockGrpcConn
+}
+
+func (m MockGrpcConn) GetSourceVariants(context.Context, ...grpc.CallOption) (pb.Metadata_GetSourceVariantsClient, error) {
+	return SourceClient{}, nil
+}
+
+func (m MockGrpcConn) GetProviders(context.Context, ...grpc.CallOption) (pb.Metadata_GetProvidersClient, error) {
+	return ProviderClient{}, nil
+}
+
 func TestValidTicket(t *testing.T) {
+	sourceCalls = 0
+	providerCalls = 0
 
 	proxyFlightServer := &GoProxyServer{
 		streamerAddress: "test-address:8080",
 		logger:          logging.NewLogger("iceberg-proxy-test"),
+		metadata: &metadata.Client{
+			GrpcConn: MockGrpcConn{},
+		},
 	}
 
-	var proxyBytes = []byte(`{"location": "booking_glue_db.test_csv", 
-		"client.region": "someRegion",
-		"client.access-key-id":"someKey",
-		"client.secret-access-key":"someSecret",
-		 "limit": 5}`)
+	var proxyBytes = []byte(`{"source": "test_name", 
+		"variant": "test_variant",
+		"resourceType":"someResource",
+		"limit": 5}`)
 
 	ticket := flight.Ticket{
 		Ticket: proxyBytes,
 	}
 
-	hyrdatedTicket, err := proxyFlightServer.hydrateTicket(&ticket)
+	hydratedTicket, err := proxyFlightServer.hydrateTicket(&ticket)
 
 	assert.NoError(t, err, "hydrateTicket returned an error")
-	assert.NotEmpty(t, hyrdatedTicket.Ticket)
+	assert.NotEmpty(t, hydratedTicket.Ticket)
+
+	var ticketData = map[string]any{}
+
+	jsonErr := json.Unmarshal(hydratedTicket.Ticket, &ticketData)
+	if jsonErr != nil {
+		assert.FailNow(t, "The returned config data did not marshal correctly", jsonErr)
+	}
+
+	assert.Equal(t, "default", ticketData["catalog"])
+	assert.Equal(t, "aws_database", ticketData["namespace"])
+	assert.Equal(t, "aws_table", ticketData["table"])
+	assert.Equal(t, "us-east-1", ticketData["client.region"])
+	assert.Equal(t, "someKey", ticketData["client.access-key-id"])
+	assert.Equal(t, "someSecret", ticketData["client.secret-access-key"])
+	assert.Equal(t, "someRole", ticketData["client.role-arn"])
+	assert.Equal(t, float64(5), ticketData["limit"])
+
 }
 
 func TestInvalidTicket(t *testing.T) {
@@ -52,89 +180,34 @@ func TestInvalidTicket(t *testing.T) {
 		expectedMsg string
 	}{
 		{
-			name: "malformed location key",
+			name: "malformed or missing source key",
 			ticketMap: map[string]any{
-				"locationasdf":             "namespace.table",
-				"client.access-key-id":     "someKey",
-				"client.secret-access-key": "someAccess",
-				"client.region":            "someRegion",
-				"limit":                    5,
+				"sour":         "someSource",
+				"variant":      "someVariant",
+				"resourceType": "PRIMARY",
+				"limit":        5,
 			},
-			expectedMsg: "missing 'location' in ticket data",
+			expectedMsg: "missing 'source' in ticket data",
 		},
 		{
-			name: "no location value",
+			name: "malformed or missing variant value",
 			ticketMap: map[string]any{
-				"location":                 "",
-				"client.access-key-id":     "someKey",
-				"client.secret-access-key": "someAccess",
-				"client.region":            "someRegion",
-				"limit":                    5,
+				"source":       "someSource",
+				"variant":      "",
+				"resourceType": "PRIMARY",
+				"limit":        5,
 			},
-			expectedMsg: "missing 'location' in ticket data",
+			expectedMsg: "missing 'variant' in ticket data",
 		},
 		{
-			name: "malformed location value",
+			name: "malformed or missing resource type key",
 			ticketMap: map[string]any{
-				"location":                 ".",
-				"client.access-key-id":     "someKey",
-				"client.secret-access-key": "someAccess",
-				"client.region":            "someRegion",
-				"limit":                    5,
+				"source":        "someSource",
+				"variant":       "someVariant",
+				"resourceTypes": "PRIMARY",
+				"limit":         5,
 			},
-			expectedMsg: "invalid location format, expected 'namespace.table' but got: .",
-		},
-		{
-			name: "missing location namespace",
-			ticketMap: map[string]any{
-				"location":                 ".table",
-				"client.access-key-id":     "someKey",
-				"client.secret-access-key": "someAccess",
-				"client.region":            "someRegion",
-				"limit":                    5,
-			},
-			expectedMsg: "invalid location format, expected 'namespace.table' but got: .table",
-		},
-		{
-			name: "missing location namespace",
-			ticketMap: map[string]any{
-				"location":                 "namespace.",
-				"client.access-key-id":     "someKey",
-				"client.secret-access-key": "someAccess",
-				"client.region":            "someRegion",
-				"limit":                    5,
-			},
-			expectedMsg: "invalid location format, expected 'namespace.table' but got: namespace.",
-		},
-		{
-			name: "missing region",
-			ticketMap: map[string]any{
-				"location":                 "namespace.table",
-				"client.access-key-id":     "someKey",
-				"client.secret-access-key": "someAccess",
-				"limit":                    5,
-			},
-			expectedMsg: "missing 'client.region' in ticket data",
-		},
-		{
-			name: "missing access key id",
-			ticketMap: map[string]any{
-				"location":                 "namespace.table",
-				"client.secret-access-key": "someAccess",
-				"client.region":            "someRegion",
-				"limit":                    5,
-			},
-			expectedMsg: "missing 'client.access-key-id' in ticket data",
-		},
-		{
-			name: "missing secret access key",
-			ticketMap: map[string]any{
-				"location":             "namespace.table",
-				"client.access-key-id": "someKey",
-				"client.region":        "someRegion",
-				"limit":                5,
-			},
-			expectedMsg: "missing 'client.secret-access-key' in ticket data",
+			expectedMsg: "missing 'resourceType' in ticket data",
 		},
 		{
 			name:        "malformed json",
@@ -154,9 +227,9 @@ func TestInvalidTicket(t *testing.T) {
 				Ticket: ticketBytes,
 			}
 
-			hyrdatedTicket, err := proxyFlightServer.hydrateTicket(&ticket)
+			hydratedTicket, err := proxyFlightServer.hydrateTicket(&ticket)
 			assert.EqualError(t, err, tt.expectedMsg)
-			assert.Nil(t, hyrdatedTicket, "the ticket should be 'nil'")
+			assert.Nil(t, hydratedTicket, "the ticket should be 'nil'")
 		})
 	}
 

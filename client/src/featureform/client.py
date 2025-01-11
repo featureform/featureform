@@ -204,7 +204,7 @@ class Client(ResourceClient, ServingClient):
         self,
         source: str = None,
         variant: str = None,
-        resource_type: DataResourceType = None,
+        resource_type: DataResourceType = DataResourceType.PRIMARY,
         limit: int = ONE_MILLION_RECORD_LIMIT,
     ):
         """
@@ -218,7 +218,7 @@ class Client(ResourceClient, ServingClient):
         Returns:
             pandas.DataFrame: Iceberg data catalog stream
         """
-        ticket_data = {"source": source, "variant": variant, "resourceType": DataResourceType.PRIMARY}
+        ticket_data = {"source": source, "variant": variant, "resourceType": resource_type}
 
         # handle tls
         tls_cert_path = os.path.join(os.getcwd(), "tls.crt")

@@ -218,7 +218,7 @@ class Client(ResourceClient, ServingClient):
         Returns:
             pandas.DataFrame: Iceberg data catalog stream
         """
-        ticket_data = {"source": source, "variant": variant, "resourceType": resource_type}
+        ticket_data = {"source": source, "variant": variant, "resourceType": resource_type.name}
 
         # handle tls
         tls_cert_path = os.path.join(os.getcwd(), "tls.crt")

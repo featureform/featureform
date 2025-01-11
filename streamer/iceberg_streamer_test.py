@@ -39,27 +39,23 @@ def test_do_get_invalid_ticket_format(ticket_input, streamer_service):
     [
         (
             "{}",
-            "Missing required request fields: namespace, table, client.access-key-id, client.secret-access-key, client.region",
+            "Missing required request fields: namespace, table, client.region",
         ),
         (
             '{"namespace": "my_namespace"}',
-            "Missing required request fields: table, client.access-key-id, client.secret-access-key, client.region",
+            "Missing required request fields: table, client.region",
         ),
         (
             '{"namespace": "my_namespace", "table": "my_table"}',
-            "Missing required request fields: client.access-key-id, client.secret-access-key, client.region",
+            "Either 'client.access-key-id' and 'client.secret-access-key' or 'client.role-arn' must be provided.",
         ),
         (
-            '{"namespace": "my_namespace", "table": "my_table"}',
-            "Missing required request fields: client.access-key-id, client.secret-access-key, client.region",
+            '{"namespace": "my_namespace", "table": "my_table", "client.role-arn": "my_role"}',
+            "Missing required request fields: client.region",
         ),
         (
             '{"namespace": "my_namespace", "table": "my_table", "client.access-key-id": "my_key"}',
             "Missing required request fields: client.secret-access-key, client.region",
-        ),
-        (
-            '{"namespace": "my_namespace", "table": "my_table", "client.access-key-id": "my_key", "client.secret-access-key": "my_access"}',
-            "Missing required request fields: client.region",
         ),
     ],
 )

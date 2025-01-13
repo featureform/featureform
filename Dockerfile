@@ -98,7 +98,7 @@ FROM golang:1.21
 
 WORKDIR /app
 
-# Install python for the streamer to work
+# Install Python for the streamer to work
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip build-essential \
     && rm -rf /var/lib/apt/lists/*
 

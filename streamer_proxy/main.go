@@ -199,13 +199,13 @@ func (gps *GoProxyServer) DoGet(ticket *flight.Ticket, stream flight.FlightServi
 func main() {
 	baseLogger := logging.NewLogger("iceberg-proxy")
 	serverAddress := "0.0.0.0:8086"
-	streamerAddress := helpers.GetEnv("ICEBERG_STREAMER_PORT", "")
-	if streamerAddress == "" {
-		baseLogger.Fatalf("Missing ICEBERG_STREAMER_PORT env variable: %v", streamerAddress)
+	streamerPort := helpers.GetEnv("ICEBERG_STREAMER_PORT", "8085") //defaults to port 8085
+	if streamerPort == "" {
+		baseLogger.Fatalf("Missing ICEBERG_STREAMER_PORT env variable: %v", streamerPort)
 	}
 
 	proxyFlightServer := &GoProxyServer{
-		streamerAddress: "iceberg-streamer:" + streamerAddress,
+		streamerAddress: fmt.Sprintf("iceberg-streamer:%s", streamerPort),
 		logger:          baseLogger,
 	}
 

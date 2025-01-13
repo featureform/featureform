@@ -82,14 +82,14 @@ RUN go build -o execs/serving serving/main/main.go
 RUN go build -o execs/streamer_proxy streamer_proxy/main.go
 
 # Build Python Streamer
-FROM python:3.10-slim AS streamer-builder
+FROM python:3.10 AS streamer-builder
 
 WORKDIR /app/streamer
 
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
-RUN pip install --upgrade pip
-RUN pip install boto3 pyarrow 'pyiceberg[glue]'
+RUN pip install --break-system-packages --upgrade pip
+RUN pip install --break-system-packages boto3 pyarrow 'pyiceberg[glue]'
 
 COPY ./streamer/ /app/streamer/
 
@@ -98,10 +98,17 @@ FROM golang:1.21
 
 WORKDIR /app
 
-# Copy the python streamer-builder contents to the final image
-COPY --from=streamer-builder /usr/local/lib/python3.10 /usr/local/lib/python3.10
-COPY --from=streamer-builder /usr/local/bin /usr/local/bin
+# Install python for the streamer to work
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --break-system-packages --upgrade pip
+RUN pip install --break-system-packages boto3 pyarrow 'pyiceberg[glue]'
+
+# Copy the Python virtual environment
 COPY --from=streamer-builder /app/streamer /app/streamer
+
+ENV PATH="/app/venv/bin:$PATH"
 
 # Install and configure Supervisor
 RUN apt-get update && apt-get install -y supervisor

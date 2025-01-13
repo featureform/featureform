@@ -46,8 +46,8 @@ def test_do_get_invalid_ticket_format(ticket_input, streamer_service):
             "Missing required request fields: table, client.region",
         ),
         (
-            '{"namespace": "my_namespace", "table": "my_table"}',
-            "Either 'client.access-key-id' and 'client.secret-access-key' or 'client.role-arn' must be provided.",
+            '{"namespace": "my_namespace", "table": "my_table", "client.region": "some_region"}',
+            "Invalid credentials: Provide either 'client.access-key-id' and 'client.secret-access-key' or 'client.role-arn'."
         ),
         (
             '{"namespace": "my_namespace", "table": "my_table", "client.role-arn": "my_role"}',
@@ -55,7 +55,7 @@ def test_do_get_invalid_ticket_format(ticket_input, streamer_service):
         ),
         (
             '{"namespace": "my_namespace", "table": "my_table", "client.access-key-id": "my_key"}',
-            "Missing required request fields: client.secret-access-key, client.region",
+            "Missing required request fields: client.region"
         ),
     ],
 )
@@ -146,6 +146,7 @@ def test_do_get_success_fires_correct_params(mock_load_catalog, streamer_service
             "client.region": "my_region",
             "client.access-key-id": "my_key",
             "client.secret-access-key": "my_access",
+            "client.role-arn": None,
         }
     )
     mock_catalog.load_table.assert_called_once_with(("my_namespace", "my_table"))

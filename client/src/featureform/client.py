@@ -218,38 +218,50 @@ class Client(ResourceClient, ServingClient):
         Returns:
             pandas.DataFrame: Iceberg data catalog stream
         """
-        ticket_data = {"source": source, "variant": variant, "resourceType": resource_type.name}
+        # debugging (deleting in a bit)
+        print('client metrics')
+        print('host: ', self._host)
+        print('insecure:', self._insecure)
+        print("request params are:")
+        print("source...")
+        print(source)
+        print('variant...')
+        print(variant)
+        print('resource type...')
+        print(resource_type)
+        print("limit...")
+        print(limit)
+        ticket_data = {"source": source, "variant": variant, "resourceType": resource_type.name, "limit": limit}
 
-        # handle tls
-        tls_cert_path = os.path.join(os.getcwd(), "tls.crt")
-        if not os.path.exists(tls_cert_path):
-            raise FileNotFoundError(f"TLS certificate not found at {tls_cert_path}")
-
-        with open(tls_cert_path, "rb") as f:
-            tls_root_certs = f.read()
-
-        flight_address = f"grpc+tls://{self._host}/arrow.flight.protocol.FlightService/"
+        protocol = "grpc+tcp" if self._insecure else "grpc+tls"
+        flight_address = f"{protocol}://{self._host}/arrow.flight.protocol.FlightService/"
         print(f"Flight server address: {flight_address}")
 
         print("Client initializing...")
-        client = flight.connect(
-            flight_address,
-            tls_root_certs=tls_root_certs,
-        )
+        client_kwargs = {}
+        if not self._insecure:
+            print("not secure")
+            cert_path = self._cert_path or os.getenv("FEATUREFORM_CERT")
+            if cert_path:
+                print(f"Using TLS certificate at: {cert_path}")
+                client_kwargs["tls_root_certs"] = cert_path
+            
+
+        flight_client = flight.connect(flight_address, **client_kwargs)
 
         print("Building ticket...")
         ticket = flight.Ticket(json.dumps(ticket_data).encode("utf-8"))
 
         try:
             print("Attempting to fetch data via Arrow Flight from Go Proxy...")
-            stream = client.do_get(ticket)
+            stream = flight_client.do_get(ticket)
             reader = stream.read_all()
             df = reader.to_pandas()
             return df
         except flight.FlightError as e:
             raise RuntimeError(f"Failed to fetch data from Go proxy: {e}")
         finally:
-            client.close()
+            flight_client.close()
    
     # TODO, combine this with the dataset logic in serving.py
     def _spark_dataframe(self, source, spark_session):

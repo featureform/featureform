@@ -88,6 +88,7 @@ WORKDIR /app/streamer
 
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
+USER streamer_user
 RUN pip install --upgrade pip
 RUN pip install boto3 pyarrow 'pyiceberg[glue]'
 

@@ -32,6 +32,7 @@ import (
 	"github.com/featureform/storage/query"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -1943,6 +1944,46 @@ func (m *MetadataServer) FailRunningJobs(c *gin.Context) {
 	c.JSON(200, "Status change complete")
 }
 
+func (m *MetadataServer) ClearAppState(c *gin.Context) {
+	connection, err := getPsqlConnection()
+	if err != nil {
+		c.JSON(400, fmt.Sprintf("could not create database connection: %s", err.Error()))
+		return
+	}
+	_, err = connection.Exec(context.Background(), "TRUNCATE TABLE ff_locks, ff_ordered_id, ff_task_metadata;")
+	if err != nil {
+		c.JSON(400, fmt.Sprintf("failed to run query: %s", err.Error()))
+		return
+	}
+	c.JSON(200, "Application state successfully cleared")
+}
+
+func getPsqlConnection() (*pgxpool.Conn, error) {
+	config := help.PSQLConfig{
+		Host:     help.GetEnv("PSQL_HOST", "localhost"),
+		Port:     help.GetEnv("PSQL_PORT", "5432"),
+		User:     help.GetEnv("PSQL_USER", "postgres"),
+		Password: help.GetEnv("PSQL_PASSWORD", "password"),
+		DBName:   help.GetEnv("PSQL_DB", "postgres"),
+		SSLMode:  help.GetEnv("PSQL_SSLMODE", "disable"),
+	}
+	db, err := help.NewPSQLPoolConnection(config)
+	if err != nil {
+		return nil, fferr.NewInternalErrorf("could not create database connection: %w", err)
+	}
+
+	connection, err := db.Acquire(context.Background())
+	if err != nil {
+		return nil, fferr.NewInternalErrorf("failed to acquire connection from the database pool: %w", err)
+	}
+
+	err = connection.Ping(context.Background())
+	if err != nil {
+		return nil, fferr.NewInternalErrorf("failed to ping the database: %w", err)
+	}
+	return connection, nil
+}
+
 func (m *MetadataServer) GetSearch(c *gin.Context) {
 	query, ok := c.GetQuery("q")
 	if !ok {
@@ -2747,6 +2788,7 @@ func (m *MetadataServer) Start(port string, local bool) error {
 	} else {
 		router.Use(cors.Default())
 	}
+	router.GET("/data/admin/clearstate", m.ClearAppState)
 	router.POST("/data/:type", m.GetMetadataList)
 	router.GET("/data/failrunning", m.FailRunningJobs)
 	router.GET("/data/:type/:resource", m.GetMetadata)

@@ -98,6 +98,11 @@ FROM golang:1.21
 
 WORKDIR /app
 
+# Copy the python streamer-builder contents to the final image
+COPY --from=streamer-builder /usr/local/lib/python3.10 /usr/local/lib/python3.10
+COPY --from=streamer-builder /usr/local/bin /usr/local/bin
+COPY --from=streamer-builder /app/streamer /app/streamer
+
 # Install and configure Supervisor
 RUN apt-get update && apt-get install -y supervisor
 RUN mkdir -p /var/lock/apache2 /var/run/apache2 /var/run/sshd /var/log/supervisor

@@ -81,6 +81,7 @@ func createSparkRemoteScriptPath() (string, error) {
 	runnerMD5, err := os.ReadFile("/app/provider/scripts/spark/offline_store_spark_runner_md5.txt")
 	if err != nil {
 		fmt.Printf("failed to read MD5 hash file: %v\nAttempting to read the file from the local filesystem\n", err)
+		// TODO remove this hardcoding
 		if filename, err := createHashFromFile("./provider/scripts/spark/offline_store_spark_runner.py"); err != nil {
 			fmt.Printf("failed to create MD5 hash from file: %v\n", err)
 			return "", fmt.Errorf("Could not generate valid MD5 hash for the pyspark file. Exiting...")

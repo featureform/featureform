@@ -118,12 +118,12 @@ func (db *DatabricksExecutor) SupportsTransformationOption(opt TransformationOpt
 
 func (db *DatabricksExecutor) RunSparkJob(cmd *spark.Command, store SparkFileStoreV2, opts SparkJobOptions, tfopts TransformationOptions) error {
 	safeScript, safeArgs := cmd.Redacted().CompileScriptOnly()
-	logger := db.logger.With("script", safeScript, "args", safeArgs, "store", store.Type(), "job_name", opts.JobName, "cluster_id", db.cluster)
 	ctx := context.Background()
 	id := uuid.New().String()
-
 	task := cmd.CompileDatabricks()
+	logger := db.logger.With("script", safeScript, "args", safeArgs, "store", store.Type(), "job_name", opts.JobName, "cluster_id", db.cluster, "id", id)
 	task.TaskKey = fmt.Sprintf("featureform-task-%s", id)
+	logger.Info("Running Spark job")
 	task.ExistingClusterId = db.cluster
 	jobToRun, err := db.client.Jobs.Create(ctx, jobs.CreateJob{
 		Name:  fmt.Sprintf("%s-%s", opts.JobName, id),

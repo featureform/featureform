@@ -3627,33 +3627,51 @@ func TestSuiteSparkExecutorTransforms(t *testing.T) {
 	//CredsPath: helpers.MustGetTestingEnv(t, "BIGQUERY_CREDENTIALS"),
 	//Region:    helpers.MustGetTestingEnv(t, "BIGLAKE_REGION"),
 	//ProjectID: helpers.MustGetTestingEnv(t, "BIGLAKE_PROJECT_ID"),
-  //Logger:    logger,
+	//Logger:    logger,
 	//})
 	//if err != nil {
 	//t.Fatalf("Failed to create biglake: %s", err)
 	//}
 	//dataproc, err := NewDataprocServerlessExecutor(ctx, DataprocServerlessExecutorConfig{
-  //ProjectID: helpers.MustGetTestingEnv(t, "BIGLAKE_PROJECT_ID"),
-  //Region:    helpers.MustGetTestingEnv(t, "BIGLAKE_REGION"),
+	//ProjectID: helpers.MustGetTestingEnv(t, "BIGLAKE_PROJECT_ID"),
+	//Region:    helpers.MustGetTestingEnv(t, "BIGLAKE_REGION"),
 	//CredsPath: helpers.MustGetTestingEnv(t, "BIGQUERY_CREDENTIALS"),
 	//Logger:    logger,
 	//})
-	bucketName := helpers.MustGetTestingEnv(t, "S3_BUCKET_PATH")
-	emr, s3, err := createEMRAndS3(bucketName)
-	if err != nil {
-		t.Fatalf("Failed to create dataproc: %s", err)
-	}
 	// bucketName := helpers.MustGetTestingEnv(t, "S3_BUCKET_PATH")
 	// emr, s3, err := createEMRAndS3(bucketName)
 	// if err != nil {
-	// 	t.Fatalf("Failed to create EMR and S3: %s", err)
+	// 	t.Fatalf("Failed to create biglake: %s", err)
+	// }
+	// dataproc, err := NewDataprocServerlessExecutor(ctx, DataprocServerlessExecutorConfig{
+	// 	ProjectID: helpers.MustGetTestingEnv(t, "BIGLAKE_PROJECT_ID"),
+	// 	Region:    helpers.MustGetTestingEnv(t, "BIGLAKE_REGION"),
+	// 	CredsPath: helpers.MustGetTestingEnv(t, "BIGQUERY_CREDENTIALS"),
+	// 	Logger:    logger,
+	// })
+	// if err != nil {
+	// 	t.Fatalf("Failed to create dataproc: %s", err)
+	// }
+	bucketName := helpers.MustGetTestingEnv(t, "S3_BUCKET_PATH")
+	emr, s3, err := createEMRAndS3(bucketName)
+	if err != nil {
+		t.Fatalf("Failed to create EMR and S3: %s", err)
+	}
+	// dbrix, err := NewDatabricksExecutor(pc.DatabricksConfig{
+	// 	Host:
+	// 	Token:
+	// 	Cluster:
+	// }, logger)
+	// if err != nil {
+	// 	t.Fatalf("Failed to create dbrix: %s", err)
 	// }
 	testInfra := []struct {
 		Executor  SparkExecutor
 		FileStore SparkFileStoreV2
 	}{
-		// {emr, s3},
-		{dataproc, blFS},
+		{emr, s3},
+		// {dataproc, blFS},
+		// {dbrix, s3},
 	}
 	testSuite := map[string]struct {
 		fn func(*testing.T, SparkExecutor, SparkFileStoreV2)
@@ -3662,7 +3680,7 @@ func TestSuiteSparkExecutorTransforms(t *testing.T) {
 		// "TestReadWriteIceberg": {fn: createIcebergIntegrationTest().Run},
 		// // TODO fix this
 		// // "TestReadWriteDelta": {fn: testReadWriteDelta},
-		// "TestReadWriteDynamo": {fn: createDynamoIntegrationTest().Run},
+		"TestReadWriteDynamo": {fn: createDynamoIntegrationTest().Run},
 		// "TestFeatureQuery":    {fn: createFeatureQueryTest().Run},
 		// // TODO handle non-TS duplicates
 		// "TestMaterialize": {fn: createMaterializeTest().Run},
@@ -3810,6 +3828,13 @@ func (test sparkIntegrationTest) Run(t *testing.T, executor SparkExecutor, sfs S
 	}
 	t.Logf("Wrote from %s to %s", localRunnerPath.ToURI(), remoteRunnerPath.ToURI())
 	defer deleteRemotePath(sfs, remoteRunnerPath)
+
+	if remoteRunnerPath.Scheme() == filestore.S3APrefix {
+		remoteRunnerPath.SetScheme(filestore.S3Prefix)
+	}
+	if remoteTestPath.Scheme() == filestore.S3APrefix {
+		remoteTestPath.SetScheme(filestore.S3Prefix)
+	}
 
 	baseConfigs := spark.Configs{
 		spark.DeployFlag{
@@ -4158,40 +4183,5 @@ func TestCreateSourceInfo(t *testing.T) {
 				assert.Equal(t, expected, actual, "Source %d does not match expected value", i)
 			}
 		})
-	}
-}
-
-func TestSimba(t *testing.T) {
-	ctx := context.Background()
-	logger := logging.NewTestLogger(t)
-	blFS, err := biglake.NewSparkFileStore(ctx, biglake.SparkFileStoreConfig{
-		Bucket:    helpers.MustGetTestingEnv(t, "GCS_BUCKET_NAME"),
-		BaseDir:   uuid.NewString(),
-		CredsPath: helpers.MustGetTestingEnv(t, "BIGQUERY_CREDENTIALS"),
-		Logger:    logger,
-	})
-	if err != nil {
-		t.Fatalf("Failed to create biglake: %s", err)
-	}
-	dataproc, err := NewDataprocServerlessExecutor(ctx, DataprocServerlessExecutorConfig{
-		ProjectID: helpers.MustGetTestingEnv(t, "BIGLAKE_PROJECT_ID"),
-		Region:    helpers.MustGetTestingEnv(t, "BIGLAKE_REGION"),
-		CredsPath: helpers.MustGetTestingEnv(t, "BIGQUERY_CREDENTIALS"),
-		Logger:    logger,
-	})
-	if err != nil {
-		t.Fatalf("Failed to create dataproc: %s", err)
-	}
-	maxWait := time.Hour * 2
-	jobOpts := SparkJobOptions{MaxJobDuration: maxWait, JobName: "testRunAndResume"}
-	remoteScriptPath, err := blFS.CreateFilePath("unit_tests/scripts/tests/test_noop_5sec.py", false)
-	if err != nil {
-		t.Fatalf("could not create remote script path: %v", err)
-	}
-	cmd := &spark.Command{
-		Script: remoteScriptPath,
-	}
-	if err := dataproc.RunSparkJob(cmd, blFS, jobOpts, nil); err != nil {
-		t.Fatalf("Failed to run no-op with resume: %s", err)
 	}
 }

@@ -37,9 +37,6 @@ type DataprocServerlessExecutorConfig struct {
 func NewDataprocServerlessExecutor(
 	ctx context.Context, cfg DataprocServerlessExecutorConfig,
 ) (*DataprocServerlessExecutor, error) {
-func NewDataprocServerlessExecutor(
-	ctx context.Context, cfg DataprocServerlessExecutorConfig,
-) (*DataprocServerlessExecutor, error) {
 	logger := cfg.Logger.With(
 		"executor-type", "dataproc-serverless",
 		"project-id", cfg.ProjectID,

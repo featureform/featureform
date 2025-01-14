@@ -909,10 +909,6 @@ func (spark *SparkOfflineStore) outputLocation(targetTableID ResourceID) (pl.Loc
 		}
 		return pl.NewFileLocation(fp), nil
 	}
-	_, isEMR := spark.Executor.(*EMRExecutor)
-	if !isEMR {
-		return nil, fferr.NewInternalErrorf("AWS Glue is only supported on EMR")
-	}
 	tableName, err := ps.ResourceToCatalogTableName(targetTableID.Type.String(), targetTableID.Name, targetTableID.Variant)
 	if err != nil {
 		return nil, err

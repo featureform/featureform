@@ -229,6 +229,8 @@ func main() {
 		logger:          baseLogger,
 	}
 
+	proxyFlightServer.logger.Infof("Go proxy using streamer address %s", proxyFlightServer.streamerAddress)
+
 	// connect to metadata
 	metadataHost := helpers.GetEnv("METADATA_HOST", "localhost")
 	metadataPort := helpers.GetEnv("METADATA_PORT", "8080")
@@ -249,6 +251,7 @@ func main() {
 
 	// start the proxy flight server
 	proxyFlightServer.logger.Infof("Starting Go Proxy Flight server on %s...", serverAddress)
+	proxyFlightServer.logger.Infof("Go proxy using streamer address %s", proxyFlightServer.streamerAddress)
 	flight.RegisterFlightServiceServer(grpcServer, proxyFlightServer)
 	servErr := grpcServer.Serve(listener)
 	if servErr != nil {

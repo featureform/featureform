@@ -93,16 +93,19 @@ func (logger Logger) withRequestID(id RequestID) Logger {
 }
 
 func (logger Logger) With(args ...interface{}) Logger {
+	if len(args)%2 != 0 {
+	    GlobalLogger.Errorw("Odd number of arguments passed to With. Skipping.", "args", args)
+	    return logger
+	}
 	valueMap := make(map[string]interface{})
 	for i := 0; i < len(args); i += 2 {
 		str, ok := args[i].(string)
 		if !ok {
-			// If the arg can't be a string, just ignore it.
-			GlobalLogger.Debugw(
+			GlobalLogger.Errorw(
 				"Unable to add args in logger with",
 				"args", args, "not string", args[i],
 			)
-			continue
+			return logger
 		}
 		valueMap[str] = args[i + 1]
 	}

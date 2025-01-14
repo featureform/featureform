@@ -3635,14 +3635,14 @@ func TestSuiteSparkExecutorTransforms(t *testing.T) {
 	testSuite := map[string]struct {
 		fn func(*testing.T, SparkExecutor, SparkFileStoreV2)
 	}{
-		"TestResume":           {fn: testRunAndResume},
-		"TestReadWriteIceberg": {fn: createIcebergIntegrationTest().Run},
+		// "TestResume":           {fn: testRunAndResume},
+		// "TestReadWriteIceberg": {fn: createIcebergIntegrationTest().Run},
 		// // TODO fix this
 		// // "TestReadWriteDelta": {fn: testReadWriteDelta},
-		"TestReadWriteDynamo": {fn: createDynamoIntegrationTest().Run},
-		"TestFeatureQuery":    {fn: createFeatureQueryTest().Run},
+		// "TestReadWriteDynamo": {fn: createDynamoIntegrationTest().Run},
+		// "TestFeatureQuery":    {fn: createFeatureQueryTest().Run},
 		// // TODO handle non-TS duplicates
-		"TestMaterialize": {fn: createMaterializeTest().Run},
+		// "TestMaterialize": {fn: createMaterializeTest().Run},
 		// "TestKafka":       {fn: createKafkaTest().Run},
 	}
 

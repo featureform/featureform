@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/featureform/logging"
-	"go.uber.org/zap"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/helpers"
@@ -94,7 +93,11 @@ func (l *psqlLocker) runLockQuery(key string, id string) error {
 }
 
 func (l *psqlLocker) attemptLock(ctx context.Context, key string, id string, wait bool) error {
-	logger := ctx.Value(psqlLoggerKey).(*zap.SugaredLogger)
+	logger, ok := ctx.Value(psqlLoggerKey).(logging.Logger)
+	if !ok {
+		logger.DPanic("Unable to get logger from context. Using global logger.")
+		logger = logging.GlobalLogger
+	}
 	logger.Debug("Attempting to lock key")
 	startTime := l.clock.Now()
 	for {
@@ -144,7 +147,11 @@ func (l *psqlLocker) Lock(ctx context.Context, key string, wait bool) (Key, erro
 }
 
 func (l *psqlLocker) updateLockTime(ctx context.Context, key *psqlKey) {
-	logger := ctx.Value(psqlLoggerKey).(*zap.SugaredLogger)
+	logger, ok := ctx.Value(psqlLoggerKey).(logging.Logger)
+	if !ok {
+		logger.DPanic("Unable to get logger from context. Using global logger.")
+		logger = logging.GlobalLogger
+	}
 	ticker := l.clock.NewTicker(updateSleepTime.Duration())
 	defer ticker.Stop()
 

@@ -36,6 +36,7 @@ import (
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
+	"github.com/featureform/provider/types"
 )
 
 type pandasOfflineQueries struct {
@@ -624,7 +625,7 @@ func addETCDVars(envVars map[string]string) map[string]string {
 	return envVars
 }
 
-func (k8s *K8sOfflineStore) pandasRunnerArgs(outputURI string, updatedQuery string, sources []string, jobType JobType) map[string]string {
+func (k8s *K8sOfflineStore) pandasRunnerArgs(outputURI string, updatedQuery string, sources []string, jobType types.Job) map[string]string {
 	sourceList := strings.Join(sources, ",")
 	envVars := map[string]string{
 		"OUTPUT_URI":          outputURI,
@@ -680,7 +681,7 @@ func (k8s *K8sOfflineStore) sqlTransformation(config TransformationConfig, isUpd
 		return fferr.NewDatasetNotFoundError(config.TargetTableID.Name, config.TargetTableID.Variant, fmt.Errorf(filepath.ToURI()))
 	}
 	k8s.logger.Debugw("Running SQL transformation", "target_table", config.TargetTableID, "query", config.Query)
-	runnerArgs := k8s.pandasRunnerArgs(filepath.ToURI(), updatedQuery, sources, Transform)
+	runnerArgs := k8s.pandasRunnerArgs(filepath.ToURI(), updatedQuery, sources, types.Transform)
 	runnerArgs = addResourceID(runnerArgs, config.TargetTableID)
 
 	args, err := k8s.checkArgs(config.Args)
@@ -1263,7 +1264,7 @@ func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Mater
 		k8s.logger.Errorw("Could not determine newest source file for materialization", "sourcePath", sourcePath, "error", err)
 		return nil, err
 	}
-	k8sArgs := k8s.pandasRunnerArgs(destinationPath.ToURI(), materializationQuery, []string{newestSourcePath.ToURI()}, Materialize)
+	k8sArgs := k8s.pandasRunnerArgs(destinationPath.ToURI(), materializationQuery, []string{newestSourcePath.ToURI()}, types.Materialize)
 	k8sArgs = addResourceID(k8sArgs, id)
 	if err := k8s.executor.ExecuteScript(k8sArgs, nil); err != nil {
 		k8s.logger.Errorw("Job failed to run", "error", err)
@@ -1394,7 +1395,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	trainingSetQuery := k8s.query.trainingSetCreate(def, featureSchemas, labelSchema)
 	k8s.logger.Debugw("Source List", "SourceFiles", sourcePaths)
 	k8s.logger.Debugw("Training Set Query", "list", trainingSetQuery)
-	pandasArgs := k8s.pandasRunnerArgs(destinationPath.ToURI(), trainingSetQuery, sourcePaths, CreateTrainingSet)
+	pandasArgs := k8s.pandasRunnerArgs(destinationPath.ToURI(), trainingSetQuery, sourcePaths, types.CreateTrainingSet)
 	pandasArgs = addResourceID(pandasArgs, def.ID)
 	k8s.logger.Debugw("Creating training set", "definition", def)
 

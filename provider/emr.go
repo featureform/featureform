@@ -11,7 +11,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -23,13 +22,13 @@ import (
 	"github.com/featureform/config"
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
-	"github.com/featureform/helpers"
 	"github.com/featureform/helpers/compression"
+	"github.com/featureform/logging"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/spark"
 	"github.com/featureform/provider/types"
-	"go.uber.org/zap"
 )
 
 // StepCompleteWaiter.WaitForOutput returns this formatted error message, which is our only means of determining
@@ -38,7 +37,7 @@ import (
 // of the AWS SDK this message could change, so it's important to keep an eye on this.
 const EMR_MAX_WAIT_DURATION_ERROR = "exceeded max wait time for StepComplete waiter"
 
-func NewEMRExecutor(emrConfig pc.EMRConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+func NewEMRExecutor(emrConfig pc.EMRConfig, logger logging.Logger) (SparkExecutor, error) {
 	var useServiceAccount bool
 	var awsAccessKeyId, awsSecretKey string
 	switch creds := emrConfig.Credentials.(type) {
@@ -97,27 +96,9 @@ func NewEMRExecutor(emrConfig pc.EMRConfig, logger *zap.SugaredLogger) (SparkExe
 type EMRExecutor struct {
 	client       *emr.Client
 	clusterName  string
-	logger       *zap.SugaredLogger
+	logger       logging.Logger
 	logFileStore *FileStore
 	baseExecutor
-}
-
-func (e *EMRExecutor) PythonFileURI(store SparkFileStore) (filestore.Filepath, error) {
-	e.logger.Debug("Getting python file URI")
-	sparkScriptPathEnv := e.files.RemoteScriptPath
-	sparkScriptPath, err := store.CreateFilePath(sparkScriptPathEnv, false)
-	if err != nil {
-		e.logger.Errorw("Failed to parse remote script path", "path", sparkScriptPathEnv)
-		return nil, err
-	}
-	// Need to replace s3a:// with s3:// for the script name to be correctly interpreted by the EMR cluster
-	if sparkScriptPath.Scheme() == "s3a://" {
-		if err := sparkScriptPath.SetScheme("s3://"); err != nil {
-			e.logger.Errorw("Unable to change spark script scheme to s3 from s3a", "error", err)
-			return nil, err
-		}
-	}
-	return sparkScriptPath, nil
 }
 
 func (e EMRExecutor) Files() config.SparkFileConfigs {
@@ -131,9 +112,11 @@ func (e *EMRExecutor) SupportsTransformationOption(opt TransformationOptionType)
 	return false, nil
 }
 
-func (e *EMRExecutor) RunSparkJob(args []string, store SparkFileStore, opts SparkJobOptions, tfOpts TransformationOptions) error {
+func (e *EMRExecutor) RunSparkJob(cmd *spark.Command, store SparkFileStoreV2, opts SparkJobOptions, tfOpts TransformationOptions) error {
 	ctx := context.TODO()
-	logger := e.logger.With("args", args, "opts", opts, "tfOpts", tfOpts)
+	args := cmd.Compile()
+	redactedArgs := cmd.Redacted().Compile()
+	logger := e.logger.With("args", redactedArgs, "opts", opts, "tfOpts", tfOpts)
 	logger.Debugw("Running SparkJob")
 
 	resumeOpt := e.getResumeOption(tfOpts, logger)
@@ -155,7 +138,7 @@ func (e *EMRExecutor) RunSparkJob(args []string, store SparkFileStore, opts Spar
 	}
 }
 
-func (e *EMRExecutor) getResumeOption(tfOpts TransformationOptions, logger *zap.SugaredLogger) *ResumeOption {
+func (e *EMRExecutor) getResumeOption(tfOpts TransformationOptions, logger logging.Logger) *ResumeOption {
 	tfOpt := tfOpts.GetByType(ResumableTransformation)
 	if tfOpt == nil {
 		logger.Debugw("ResumeOption not found")
@@ -172,7 +155,7 @@ func (e *EMRExecutor) getResumeOption(tfOpts TransformationOptions, logger *zap.
 	return casted
 }
 
-func (e *EMRExecutor) runOrResumeJob(ctx context.Context, args []string, clusterID, jobName string, resumeOpt *ResumeOption, logger *zap.SugaredLogger) (string, error) {
+func (e *EMRExecutor) runOrResumeJob(ctx context.Context, args []string, clusterID, jobName string, resumeOpt *ResumeOption, logger logging.Logger) (string, error) {
 	if resumeOpt != nil && resumeOpt.IsResumeIDSet() {
 		logger.Debugw("ResumeID is set")
 		resumeID := resumeOpt.ResumeID()
@@ -202,7 +185,7 @@ func (e *EMRExecutor) runOrResumeJob(ctx context.Context, args []string, cluster
 	return stepID, nil
 }
 
-func (e *EMRExecutor) handleAsyncResumeOption(resumeOpt *ResumeOption, clusterID, stepID string, maxWait time.Duration, logger *zap.SugaredLogger) error {
+func (e *EMRExecutor) handleAsyncResumeOption(resumeOpt *ResumeOption, clusterID, stepID string, maxWait time.Duration, logger logging.Logger) error {
 	if !resumeOpt.IsResumeIDSet() {
 		// Set the new ResumeID
 		resumeID, err := (&emrResumeID{ClusterID: clusterID, StepID: stepID}).Marshal()
@@ -284,24 +267,33 @@ func (e *EMRExecutor) waitForStep(ctx context.Context, clusterId, stepId string,
 	return nil
 }
 
-func (e EMRExecutor) InitializeExecutor(store SparkFileStore) error {
+func (e EMRExecutor) InitializeExecutor(store SparkFileStoreV2) error {
 	e.logger.Info("Uploading PySpark script to filestore")
 	sparkLocalScriptPath := &filestore.LocalFilepath{}
 	if err := sparkLocalScriptPath.SetKey(e.files.LocalScriptPath); err != nil {
+		e.logger.Errorw("Failed to set local script path", "path", e.files.LocalScriptPath, "err", err)
 		return err
 	}
-	sparkRemoteScriptPath, err := store.CreateFilePath(e.files.RemoteScriptPath, false)
+	sparkRemoteScriptPath, err := sparkPythonFileURI(store, e.logger)
 	if err != nil {
+		e.logger.Errorw("Failed to get remote script path during init", "err", err)
 		return err
 	}
 
-	err = readAndUploadFile(sparkLocalScriptPath, sparkRemoteScriptPath, store)
-	if err != nil {
+	if err := readAndUploadFile(sparkLocalScriptPath, sparkRemoteScriptPath, store); err != nil {
+		e.logger.Errorw("Failed to copy local file to remote", "err", err)
 		return err
 	}
 	scriptExists, err := store.Exists(pl.NewFileLocation(sparkRemoteScriptPath))
 	if err != nil || !scriptExists {
-		return fferr.NewInternalError(fmt.Errorf("could not upload spark script: Path: %s, Error: %v", sparkRemoteScriptPath.ToURI(), err))
+		e.logger.Errorw(
+			"Spark file copy succeeded but file doesn't exist in remote.",
+			"path", sparkRemoteScriptPath.ToURI(), "err", err,
+		)
+		return fferr.NewInternalErrorf(
+			"could not upload spark script: Path: %s, Error: %v",
+			sparkRemoteScriptPath.ToURI(), err,
+		)
 	}
 	return nil
 }
@@ -368,7 +360,7 @@ func (e *EMRExecutor) getStepErrorMessage(clusterId string, stepId string, maxWa
 	return "", nil
 }
 
-func (e *EMRExecutor) getLogFileMessage(logFile string, logger *zap.SugaredLogger, maxWait time.Duration) (string, error) {
+func (e *EMRExecutor) getLogFileMessage(logFile string, logger logging.Logger, maxWait time.Duration) (string, error) {
 	logger.Debug("Getting log message")
 	outputFilepath := &filestore.S3Filepath{}
 	filePath := fmt.Sprintf("%s/stdout.gz", logFile)
@@ -400,7 +392,7 @@ func (e *EMRExecutor) getLogFileMessage(logFile string, logger *zap.SugaredLogge
 	return errorMessage, nil
 }
 
-func (e *EMRExecutor) waitForLogFile(logFile filestore.Filepath, logger *zap.SugaredLogger, maxWait time.Duration) error {
+func (e *EMRExecutor) waitForLogFile(logFile filestore.Filepath, logger logging.Logger, maxWait time.Duration) error {
 	// wait until log file exists
 	elapsed := time.Duration(0)
 	waitTime := 2 * time.Second
@@ -444,174 +436,6 @@ func (e *EMRExecutor) cancelStep(stepId string, waitDuration time.Duration) erro
 	wrapped := fferr.NewExecutionError(pt.SparkOffline.String(), fmt.Errorf("EMR step exceeded max wait duration and was cancelled"))
 	wrapped.AddDetails("executor_type", "EMR", "cluster_id", e.clusterName, "step_id", stepId, "wait_duration", waitDuration.String())
 	return wrapped
-}
-
-func (e *EMRExecutor) SparkSubmitArgs(outputLocation pl.Location, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore, mappings []SourceMapping) ([]string, error) {
-	e.logger.Debugw("SparkSubmitArgs", "outputLocation", outputLocation, "outputLocationType", fmt.Sprintf("%T", outputLocation), "cleanQuery", cleanQuery, "sourceList", sourceList, "jobType", jobType, "store", store)
-	argList := []string{
-		"spark-submit",
-	}
-
-	if helpers.GetEnvBool("USE_CLIENT_MODE", false) {
-		argList = append(argList, "--deploy-mode", "client")
-	} else {
-		argList = append(argList, "--deploy-mode", "cluster")
-	}
-
-	snowflakeConfig, err := getSnowflakeConfigFromSourceMapping(mappings)
-	if err != nil {
-		e.logger.Errorw("Could not get Snowflake config from source mapping", "error", err)
-		return nil, err
-	}
-
-	packageArgs := removeEscapeCharacters(store.Packages())
-
-	if snowflakeConfig != nil {
-		for idx, arg := range packageArgs {
-			if arg == "--packages" && idx+1 < len(packageArgs) {
-				packageArgs[idx+1] = fmt.Sprintf("%s,%s", packageArgs[idx+1], "net.snowflake:snowflake-jdbc:3.13.22,net.snowflake:spark-snowflake_2.12:2.12.0-spark_3.4")
-				break
-			}
-		}
-	}
-
-	argList = append(argList, packageArgs...) // adding any packages needed for filestores
-
-	sparkScriptPathEnv := e.files.RemoteScriptPath
-	sparkScriptPath, err := store.CreateFilePath(sparkScriptPathEnv, false)
-	if err != nil {
-		return nil, err
-	}
-	// Need to replace s3a:// with s3:// for the script name to be correctly interpreted by the EMR cluster
-	if sparkScriptPath.Scheme() == "s3a://" {
-		if err := sparkScriptPath.SetScheme("s3://"); err != nil {
-			e.logger.Errorw("Unable to change spark script scheme to s3 from s3a", "error", err)
-			return nil, err
-		}
-	}
-	sparkScriptRemotePath := sparkScriptPath.ToURI()
-
-	output, err := outputLocation.Serialize()
-	if err != nil {
-		return nil, err
-	}
-
-	scriptArgs := []string{
-		sparkScriptRemotePath,
-		"sql",
-		"--output",
-		output,
-		"--job_type",
-		string(jobType),
-		"--store_type",
-		store.Type(),
-	}
-	argList = append(argList, scriptArgs...)
-
-	sparkConfigs := removeEscapeCharacters(store.SparkConfig())
-	argList = append(argList, sparkConfigs...)
-
-	credentialConfigs := removeEscapeCharacters(store.CredentialsConfig())
-	argList = append(argList, credentialConfigs...)
-
-	if snowflakeConfig != nil {
-		argList = append(argList, removeEscapeCharacters(snowflakeConnectorCredentials(snowflakeConfig))...)
-	}
-
-	// EMR's API enforces a 10K-character (i.e. bytes) limit on string values passed to HadoopJarStep, so to avoid a 400, we need
-	// to check to ensure the args are below this limit. If they exceed this limit, it's most likely due to the query and/or the list
-	// of sources, so we write these as a JSON file and read them from the PySpark runner script to side-step this constraint
-	// Adding the additional conditional statement, || store.FilestoreType() == filestore.S3, so we always write the submit params
-	// to a file when using S3 as the filestore type
-	if exceedsSubmitParamsTotalByteLimit(argList, cleanQuery, sourceList) || store.FilestoreType() == filestore.S3 {
-		e.logger.Debugw("Exceeded submit params byte limit; writing to file store", "store", store.FilestoreType())
-		if store.FilestoreType() != filestore.S3 {
-			return argList, fmt.Errorf("%s is not a currently support file store for writing submit params; supported types: %s", store.FilestoreType(), filestore.S3)
-		}
-
-		paramsPath, err := writeSubmitParamsToFileStore(cleanQuery, sourceList, store, e.logger)
-		if err != nil {
-			return nil, err
-		}
-
-		argList = append(argList, "--submit_params_uri", paramsPath.Key())
-	} else {
-		argList = append(argList, "--sql_query", cleanQuery)
-		argList = append(argList, "--sources")
-		argList = append(argList, sourceList...)
-	}
-
-	return argList, nil
-}
-
-func (e *EMRExecutor) GetDFArgs(outputLocation pl.Location, code string, sources []string, store SparkFileStore, mappings []SourceMapping) ([]string, error) {
-	argList := []string{
-		"spark-submit",
-	}
-
-	if helpers.GetEnvBool("USE_CLIENT_MODE", false) {
-		argList = append(argList, "--deploy-mode", "client")
-	} else {
-		argList = append(argList, "--deploy-mode", "cluster")
-	}
-
-	snowflakeConfig, err := getSnowflakeConfigFromSourceMapping(mappings)
-	if err != nil {
-		return nil, err
-	}
-
-	packageArgs := removeEscapeCharacters(store.Packages())
-
-	if snowflakeConfig != nil {
-		for idx, arg := range packageArgs {
-			if arg == "--packages" && idx+1 < len(packageArgs) {
-				packageArgs[idx+1] = fmt.Sprintf("%s,%s", packageArgs[idx+1], "net.snowflake:snowflake-jdbc:3.13.22,net.snowflake:spark-snowflake_2.12:2.12.0-spark_3.4")
-				break
-			}
-		}
-	}
-	argList = append(argList, packageArgs...) // adding any packages needed for filestores
-
-	sparkScriptPathEnv := e.files.RemoteScriptPath
-	sparkScriptPath, err := store.CreateFilePath(sparkScriptPathEnv, false)
-	if err != nil {
-		return nil, err
-	}
-	codePath := strings.Replace(code, filestore.S3APrefix, filestore.S3Prefix, -1)
-	// Need to replace s3a:// with s3:// for the script name to be correctly interpreted by the EMR cluster
-	sparkScriptRemotePath := strings.Replace(sparkScriptPath.ToURI(), filestore.S3APrefix, filestore.S3Prefix, -1)
-
-	output, err := outputLocation.Serialize()
-	if err != nil {
-		return nil, err
-	}
-
-	scriptArgs := []string{
-		sparkScriptRemotePath,
-		"df",
-		"--output",
-		output,
-		"--code",
-		codePath,
-		"--store_type",
-		store.Type(),
-	}
-	argList = append(argList, scriptArgs...)
-
-	sparkConfigs := removeEscapeCharacters(store.SparkConfig())
-	argList = append(argList, sparkConfigs...)
-
-	credentialConfigs := removeEscapeCharacters(store.CredentialsConfig())
-	argList = append(argList, credentialConfigs...)
-
-	if snowflakeConfig != nil {
-		argList = append(argList, removeEscapeCharacters(snowflakeConnectorCredentials(snowflakeConfig))...)
-	}
-
-	argList = append(argList, "--sources")
-	argList = append(argList, sources...)
-
-	return argList, nil
 }
 
 func createLogS3FileStore(emrRegion string, s3LogLocation string, awsAccessKeyId string, awsSecretKey string, useServiceAccount bool) (*FileStore, error) {

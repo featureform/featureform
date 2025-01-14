@@ -19,7 +19,6 @@ import (
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
 	"github.com/featureform/scheduling"
-	"go.uber.org/zap/zaptest"
 )
 
 func startServ(t *testing.T) (*metadata.MetadataServer, string) {
@@ -27,9 +26,8 @@ func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 	if err != nil {
 		panic(err.Error())
 	}
-	logger := zaptest.NewLogger(t)
 	config := &metadata.Config{
-		Logger:      logging.WrapZapLogger(logger.Sugar()),
+		Logger:      logging.NewTestLogger(t),
 		TaskManager: manager,
 	}
 	serv, err := metadata.NewMetadataServer(config)
@@ -50,7 +48,7 @@ func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 }
 
 func TestLabelTaskRun(t *testing.T) {
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+	logger := logging.NewTestLogger(t)
 
 	serv, addr := startServ(t)
 	defer serv.Stop()
@@ -110,7 +108,7 @@ func TestLabelTaskRun(t *testing.T) {
 			metadata: client,
 			taskDef:  labelTaskRun,
 			spawner:  &spawner.MemoryJobSpawner{},
-			logger:   zaptest.NewLogger(t).Sugar(),
+			logger:   logging.NewTestLogger(t),
 		},
 	}
 	err = task.Run()

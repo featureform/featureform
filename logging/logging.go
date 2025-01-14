@@ -81,13 +81,45 @@ func (logger Logger) withRequestID(id RequestID) Logger {
 		return logger
 	}
 	if logger.id != "" {
-		logger.Warnw("Request ID already set in logger. Using existing Request ID", "current request-id", logger.id, "new request-id", id)
+		logger.Infow("Request ID already set in logger. Using existing Request ID", "current request-id", logger.id, "new request-id", id)
 		return logger
 	}
 	valuesWithRequestID := logger.appendValueMap(map[string]interface{}{"request-id": id})
-	return Logger{SugaredLogger: logger.With("request-id", id),
+	return Logger{
+		SugaredLogger: logger.SugaredLogger.With("request-id", id),
 		id:     id,
-		values: valuesWithRequestID}
+		values: valuesWithRequestID,
+	}
+}
+
+func (logger Logger) With(args ...interface{}) Logger {
+	if len(args)%2 != 0 {
+	    GlobalLogger.Errorw("Odd number of arguments passed to With. Skipping.", "args", args)
+	    return logger
+	}
+	valueMap := make(map[string]interface{})
+	for i := 0; i < len(args); i += 2 {
+		str, ok := args[i].(string)
+		if !ok {
+			GlobalLogger.Errorw(
+				"Unable to add args in logger with",
+				"args", args, "not string", args[i],
+			)
+			return logger
+		}
+		valueMap[str] = args[i + 1]
+	}
+	return Logger{
+		SugaredLogger: logger.SugaredLogger.With(args...),
+		id:     logger.id,
+		values: logger.appendValueMap(valueMap),
+	}
+}
+
+func (logger Logger) LogIfErr(msg string, err error) {
+	if err != nil {
+		logger.Errorw("Deferred error failed.", "msg", msg, "err", err)
+	}
 }
 
 func (logger Logger) WithResource(resourceType ResourceType, name, variant string) Logger {
@@ -160,21 +192,20 @@ func (logger Logger) WithValues(values map[string]interface{}) Logger {
 func (logger Logger) GetValue(key string) interface{} {
 	value, ok := logger.values.Load(key)
 	if !ok {
-		logger.Warnw("Value not found", "key", key)
+		logger.Infow("Value not found", "key", key)
 	}
 	return value
 }
 
 func (logger Logger) appendValueMap(values map[string]interface{}) *sync.Map {
-
 	combinedValues := &sync.Map{}
-	for k, v := range values {
-		combinedValues.Store(k, v)
-	}
 	logger.values.Range(func(key, value interface{}) bool {
 		combinedValues.Store(key, value)
 		return true
 	})
+	for k, v := range values {
+		combinedValues.Store(k, v)
+	}
 	return combinedValues
 }
 
@@ -224,7 +255,7 @@ func AttachRequestID(id string, ctx context.Context, logger Logger) context.Cont
 	}
 	contextID := ctx.Value(RequestIDKey)
 	if contextID != nil {
-		logger.Warnw("Request ID already set in context. Overwriting request ID", "old request-id", contextID, "new request-id", id)
+		logger.Infow("Request ID already set in context. Overwriting request ID", "old request-id", contextID, "new request-id", id)
 	}
 	ctx = context.WithValue(ctx, RequestIDKey, RequestID(id))
 	logger = logger.withRequestID(RequestID(id))

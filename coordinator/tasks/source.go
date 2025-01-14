@@ -14,7 +14,6 @@ import (
 	"time"
 
 	db "github.com/jackc/pgx/v4"
-	"go.uber.org/zap"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
@@ -43,63 +42,80 @@ type tableMapping struct {
 }
 
 func (t *SourceTask) Run() error {
-	// We should be initialize this stuff and passing it through.
-	// This is just a quick way to add our context.Context at this level.
-	ffLogger := logging.WrapZapLogger(t.logger)
-	_, ctx, _ := ffLogger.InitializeRequestID(context.TODO())
+	_, ctx, logger := t.logger.InitializeRequestID(context.TODO())
 	t.ctx = ctx
+	logger.Debugw("Running source task")
 	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
-		return fferr.NewInternalErrorf("cannot create a source from target type: %s", t.taskDef.TargetType)
+		errMsg := fmt.Sprintf("cannot create a source from target type: %s", t.taskDef.TargetType)
+		logger.Error(errMsg)
+		return fferr.NewInternalErrorf(errMsg)
 	}
 
 	t.logger.Info("Running register source job on resource: ", nv)
 	err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Metadata...")
 	if err != nil {
-		return err
+		logger.Warnw("Failed to add run log \"Fetching metadata\" Continuing.", "error", err)
 	}
 	source, err := t.metadata.GetSourceVariant(ctx, metadata.NameVariant{nv.Name, nv.Variant})
 	if err != nil {
+		logger.Errorw("Failed to get source variant", "namevariant", nv, "error", err)
 		return err
 	}
 	if err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Provider..."); err != nil {
-		return err
+		logger.Warnw("Failed to add run log \"Fetching provider\" Continuing.", "error", err)
 	}
 	sourceProvider, err := source.FetchProvider(t.metadata, ctx)
 	if err != nil {
+		logger.Errorw("Failed to fetch provider metadata", "namevariant", nv, "error", err)
 		return err
 	}
-	err = t.metadata.Tasks.AddRunLog(
+	if err := t.metadata.Tasks.AddRunLog(
 		t.taskDef.TaskId,
 		t.taskDef.ID,
 		fmt.Sprintf("Initializing Offline Store: %s...", sourceProvider.Type()),
-	)
-	if err != nil {
+	); err != nil {
+		logger.Warnw("Failed to add run log \"Initializing store\" Continuing.", "error", err)
 		return err
 	}
 	p, err := provider.Get(pt.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
 	if err != nil {
+		logger.Errorw("Failed to get offline store", "config", sourceProvider.SerializedConfig(), "error", err)
 		return err
 	}
 	sourceStore, err := p.AsOfflineStore()
 	if err != nil {
+		logger.Errorw(
+			"Retrieved provider is not an offline store",
+			"provider-type", sourceProvider.Type(), "error", err,
+		)
 		return err
 	}
 	defer func(sourceStore provider.OfflineStore) {
 		err := sourceStore.Close()
 		if err != nil {
-			t.logger.Errorf("could not close offline store: %v", err)
+			logger.Errorf("could not close offline store: %v", err)
 		}
 	}(sourceStore)
 	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.SOURCE_VARIANT}
-	t.logger.Infow("Selecting source job type", "resource_id", resID, "is_primary", source.IsPrimaryData(), "definition", source.Definition())
-	if source.IsSQLTransformation() {
+	logger = logger.With(
+		"resource_id", resID,
+		"is_primary", source.IsPrimaryData(),
+		"definition", source.Definition(),
+	)
+	logger.Debug("Selecting source job type")
+	switch {
+	case source.IsSQLTransformation():
+		logger.Info("Running SQL transformation job")
 		return t.runSQLTransformationJob(source, resID, sourceStore)
-	} else if source.IsDFTransformation() {
+	case source.IsDFTransformation():
+		logger.Info("Running DF transformation job")
 		return t.runDFTransformationJob(source, resID, sourceStore)
-	} else if source.IsPrimaryData() {
+	case source.IsPrimaryData():
+		logger.Info("Running primary table job")
 		return t.runPrimaryTableJob(source, resID, sourceStore)
-	} else {
+	default:
+		logger.Error("Unknown source type")
 		return fferr.NewInternalErrorf("source type not implemented")
 	}
 }
@@ -369,7 +385,7 @@ func (t *SourceTask) runPrimaryTableJob(
 
 func (t *SourceTask) mapNameVariantsToTables(
 	sources metadata.NameVariants,
-	logger *zap.SugaredLogger,
+	logger logging.Logger,
 ) (map[string]tableMapping, error) {
 	sourceMap := make(map[string]tableMapping)
 	for _, nameVariant := range sources {
@@ -552,7 +568,7 @@ func getOrderedSourceMappings(
 	return sourceMapping, nil
 }
 
-func templateReplace(template string, replacements map[string]tableMapping, offlineStore provider.OfflineStore, logger *zap.SugaredLogger) (string, error) {
+func templateReplace(template string, replacements map[string]tableMapping, offlineStore provider.OfflineStore, logger logging.Logger) (string, error) {
 	logger.Debugw("Template Replace", "template", template, "replacements", replacements)
 	formattedString := ""
 	numEscapes := strings.Count(template, "{{")
@@ -575,7 +591,7 @@ func templateReplace(template string, replacements map[string]tableMapping, offl
 	return formattedString, nil
 }
 
-func getReplacementString(offlineStore provider.OfflineStore, tableMapping tableMapping, logger *zap.SugaredLogger) (string, error) {
+func getReplacementString(offlineStore provider.OfflineStore, tableMapping tableMapping, logger logging.Logger) (string, error) {
 	logger.Debugw("Getting Replacement String", "table_mapping", tableMapping, "offline_store_type", offlineStore.Type())
 	switch offlineStore.Type() {
 	case pt.BigQueryOffline:

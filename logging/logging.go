@@ -115,7 +115,7 @@ func (logger Logger) With(args ...interface{}) Logger {
 
 func (logger Logger) LogIfErr(msg string, err error) {
 	if err != nil {
-		logger.Errorw("Defered error failed.", "msg", msg, "err", err)
+		logger.Errorw("Deferred error failed.", "msg", msg, "err", err)
 	}
 }
 

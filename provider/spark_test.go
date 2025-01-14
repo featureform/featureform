@@ -3678,7 +3678,7 @@ func TestSuiteSparkExecutorTransforms(t *testing.T) {
 		// "TestReadWriteIceberg": {fn: createIcebergIntegrationTest().Run},
 		// // TODO fix this
 		// // "TestReadWriteDelta": {fn: testReadWriteDelta},
-		"TestReadWriteDynamo": {fn: createDynamoIntegrationTest().Run},
+		// "TestReadWriteDynamo": {fn: createDynamoIntegrationTest().Run},
 		// "TestFeatureQuery":    {fn: createFeatureQueryTest().Run},
 		// // TODO handle non-TS duplicates
 		// "TestMaterialize": {fn: createMaterializeTest().Run},

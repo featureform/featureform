@@ -17,23 +17,23 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sync/syncmap"
-
+	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
+	"github.com/parquet-go/parquet-go"
+	"golang.org/x/sync/syncmap"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	fs "github.com/featureform/filestore"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
-	"github.com/google/uuid"
-	"github.com/parquet-go/parquet-go"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 // defaultRowsPerChunk is the number of rows in a chunk when using materializations.
@@ -384,6 +384,23 @@ func (opts TransformationOptions) GetByType(t TransformationOptionType) Transfor
 		}
 	}
 	return nil
+}
+
+func (opts TransformationOptions) GetResumeOption(logger logging.Logger) (*ResumeOption, bool) {
+	opt := opts.GetByType(ResumableTransformation)
+	if opt == nil {
+		logger.Debugw("ResumeOption not found")
+		return nil, false
+	}
+	casted, ok := opt.(*ResumeOption)
+	if !ok {
+		logger.DPanicw(
+			"Unknown transformation option with ResumableTransformation type",
+			"option", opt,
+		)
+		return nil, false
+	}
+	return casted, true
 }
 
 type TransformationOption interface {

@@ -5,7 +5,7 @@
 // Copyright 2024 FeatureForm Inc.
 //
 
-package spark 
+package spark
 
 import (
 	"encoding/json"
@@ -62,4 +62,3 @@ func (p *SourceInfo) Serialize() (string, error) {
 	}
 	return string(jsonBytes), nil
 }
-

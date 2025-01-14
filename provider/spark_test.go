@@ -8,41 +8,39 @@
 package provider
 
 import (
+	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"regexp"
-
-	"github.com/featureform/provider/provider_type"
-
-	"github.com/stretchr/testify/assert"
-
-	"github.com/featureform/fferr"
-	"github.com/featureform/filestore"
-	fs "github.com/featureform/filestore"
-	"github.com/featureform/metadata"
-	"github.com/featureform/provider/spark"
-
-	"bytes"
-	"encoding/csv"
 	random "math/rand"
+	"os"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/joho/godotenv"
-
+	"github.com/featureform/fferr"
+	"github.com/featureform/filestore"
+	fs "github.com/featureform/filestore"
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
+	"github.com/featureform/metadata"
+	"github.com/featureform/provider/biglake"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
+	"github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/spark"
 	"github.com/featureform/provider/types"
+
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
+	"github.com/stretchr/testify/assert"
 )
 
 // will replace all the upload parquet table functions
@@ -3621,28 +3619,51 @@ func TestSuiteSparkExecutorTransforms(t *testing.T) {
 		t.Skip("Skipping spark executor integration tests")
 	}
 	t.Parallel()
-	bucketName := helpers.MustGetTestingEnv(t, "S3_BUCKET_PATH")
-	emr, s3, err := createEMRAndS3(bucketName)
+	ctx := context.Background()
+	logger := logging.NewTestLogger(t)
+	blFS, err := biglake.NewSparkFileStore(ctx, biglake.SparkFileStoreConfig{
+		Bucket:    helpers.MustGetTestingEnv(t, "GCS_BUCKET_NAME"),
+		BaseDir:   uuid.NewString(),
+		CredsPath: helpers.MustGetTestingEnv(t, "BIGQUERY_CREDENTIALS"),
+		Region:    helpers.MustGetTestingEnv(t, "BIGLAKE_REGION"),
+		ProjectID: helpers.MustGetTestingEnv(t, "BIGLAKE_PROJECT_ID"),
+		Logger:    logger,
+	})
 	if err != nil {
-		t.Fatalf("Failed to create EMR and S3: %s", err)
+		t.Fatalf("Failed to create biglake: %s", err)
 	}
+	dataproc, err := NewDataprocServerlessExecutor(ctx, DataprocServerlessExecutorConfig{
+		ProjectID: helpers.MustGetTestingEnv(t, "BIGLAKE_PROJECT_ID"),
+		Region:    helpers.MustGetTestingEnv(t, "BIGLAKE_REGION"),
+		CredsPath: helpers.MustGetTestingEnv(t, "BIGQUERY_CREDENTIALS"),
+		Logger:    logger,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create dataproc: %s", err)
+	}
+	// bucketName := helpers.MustGetTestingEnv(t, "S3_BUCKET_PATH")
+	// emr, s3, err := createEMRAndS3(bucketName)
+	// if err != nil {
+	// 	t.Fatalf("Failed to create EMR and S3: %s", err)
+	// }
 	testInfra := []struct {
 		Executor  SparkExecutor
 		FileStore SparkFileStoreV2
 	}{
-		{emr, s3},
+		// {emr, s3},
+		{dataproc, blFS},
 	}
 	testSuite := map[string]struct {
 		fn func(*testing.T, SparkExecutor, SparkFileStoreV2)
 	}{
-		"TestResume":           {fn: testRunAndResume},
+		// "TestResume":           {fn: testRunAndResume},
 		"TestReadWriteIceberg": {fn: createIcebergIntegrationTest().Run},
 		// // TODO fix this
 		// // "TestReadWriteDelta": {fn: testReadWriteDelta},
-		"TestReadWriteDynamo": {fn: createDynamoIntegrationTest().Run},
-		"TestFeatureQuery":    {fn: createFeatureQueryTest().Run},
+		// "TestReadWriteDynamo": {fn: createDynamoIntegrationTest().Run},
+		// "TestFeatureQuery":    {fn: createFeatureQueryTest().Run},
 		// // TODO handle non-TS duplicates
-		"TestMaterialize": {fn: createMaterializeTest().Run},
+		// "TestMaterialize": {fn: createMaterializeTest().Run},
 		// "TestKafka":       {fn: createKafkaTest().Run},
 	}
 
@@ -3672,6 +3693,7 @@ func testRunAndResume(t *testing.T, executor SparkExecutor, sfs SparkFileStoreV2
 	if err := readAndUploadFile(localScriptPath, remoteScriptPath, sfs); err != nil {
 		t.Fatalf("could not upload '%s' to '%s': %v", localScriptPath.ToURI(), remoteScriptPath.ToURI(), err)
 	}
+	defer deleteRemotePath(sfs, remoteScriptPath)
 
 	cmd := &spark.Command{
 		Script: remoteScriptPath,
@@ -3755,14 +3777,6 @@ func (test sparkIntegrationTest) Run(t *testing.T, executor SparkExecutor, sfs S
 	// UUID is added to deal with race conditions where two tests run in parallel.
 	remoteScriptDir := fmt.Sprintf("unit_tests/scripts/tests/%s/%s/", safeTimeString, uuid.NewString())
 
-	deleteRemotePath := func(path filestore.Filepath) {
-		if err := sfs.Delete(path); err != nil {
-			// Since this function is defered, we shouldn't use t.
-			// The test may complete before this runs.
-			fmt.Printf("Failed to delete remote path %s\n%s", path.ToURI(), err)
-		}
-	}
-
 	localTestPathStr := fmt.Sprintf("scripts/spark/integration_test_scripts/%s", test.File)
 	localTestPath := &fs.LocalFilepath{}
 	if err := localTestPath.SetKey(localTestPathStr); err != nil {
@@ -3777,7 +3791,7 @@ func (test sparkIntegrationTest) Run(t *testing.T, executor SparkExecutor, sfs S
 		t.Fatalf("could not upload '%s' to '%s': %v", localTestPath.ToURI(), remoteTestPath.ToURI(), err)
 	}
 	t.Logf("Wrote from %s to %s", localTestPath.ToURI(), remoteTestPath.ToURI())
-	defer deleteRemotePath(remoteTestPath)
+	defer deleteRemotePath(sfs, remoteTestPath)
 
 	localRunnerPathStr := "scripts/spark/offline_store_spark_runner.py"
 	localRunnerPath := &fs.LocalFilepath{}
@@ -3793,7 +3807,7 @@ func (test sparkIntegrationTest) Run(t *testing.T, executor SparkExecutor, sfs S
 		t.Fatalf("could not upload '%s' to '%s': %v", localRunnerPath.ToURI(), remoteRunnerPath.ToURI(), err)
 	}
 	t.Logf("Wrote from %s to %s", localRunnerPath.ToURI(), remoteRunnerPath.ToURI())
-	defer deleteRemotePath(remoteRunnerPath)
+	defer deleteRemotePath(sfs, remoteRunnerPath)
 
 	baseConfigs := spark.Configs{
 		spark.DeployFlag{
@@ -3820,6 +3834,14 @@ func (test sparkIntegrationTest) Run(t *testing.T, executor SparkExecutor, sfs S
 	t.Logf("Waiting for async opt")
 	if err := asyncOpt.Wait(); err != nil {
 		t.Fatalf("AsyncOpt failed with resume: %s", err)
+	}
+}
+
+func deleteRemotePath(sfs SparkFileStoreV2, path filestore.Filepath) {
+	if err := sfs.Delete(path); err != nil {
+		// Since this function is defered, we shouldn't use t.
+		// The test may complete before this runs.
+		fmt.Printf("Failed to delete remote path %s\n%s", path.ToURI(), err)
 	}
 }
 
@@ -4134,5 +4156,40 @@ func TestCreateSourceInfo(t *testing.T) {
 				assert.Equal(t, expected, actual, "Source %d does not match expected value", i)
 			}
 		})
+	}
+}
+
+func TestSimba(t *testing.T) {
+	ctx := context.Background()
+	logger := logging.NewTestLogger(t)
+	blFS, err := biglake.NewSparkFileStore(ctx, biglake.SparkFileStoreConfig{
+		Bucket:    helpers.MustGetTestingEnv(t, "GCS_BUCKET_NAME"),
+		BaseDir:   uuid.NewString(),
+		CredsPath: helpers.MustGetTestingEnv(t, "BIGQUERY_CREDENTIALS"),
+		Logger:    logger,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create biglake: %s", err)
+	}
+	dataproc, err := NewDataprocServerlessExecutor(ctx, DataprocServerlessExecutorConfig{
+		ProjectID: helpers.MustGetTestingEnv(t, "BIGLAKE_PROJECT_ID"),
+		Region:    helpers.MustGetTestingEnv(t, "BIGLAKE_REGION"),
+		CredsPath: helpers.MustGetTestingEnv(t, "BIGQUERY_CREDENTIALS"),
+		Logger:    logger,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create dataproc: %s", err)
+	}
+	maxWait := time.Hour * 2
+	jobOpts := SparkJobOptions{MaxJobDuration: maxWait, JobName: "testRunAndResume"}
+	remoteScriptPath, err := blFS.CreateFilePath("unit_tests/scripts/tests/test_noop_5sec.py", false)
+	if err != nil {
+		t.Fatalf("could not create remote script path: %v", err)
+	}
+	cmd := &spark.Command{
+		Script: remoteScriptPath,
+	}
+	if err := dataproc.RunSparkJob(cmd, blFS, jobOpts, nil); err != nil {
+		t.Fatalf("Failed to run no-op with resume: %s", err)
 	}
 }

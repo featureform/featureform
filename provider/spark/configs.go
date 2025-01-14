@@ -19,6 +19,8 @@ import (
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	"github.com/featureform/provider/types"
+
+	"cloud.google.com/go/dataproc/v2/apiv1/dataprocpb"
 )
 
 const RedactedString = "<FF_REDACTED>"
@@ -38,10 +40,29 @@ func (cmd *Command) Compile() []string {
 }
 
 func (cmd *Command) Redacted() *Command {
-	return &Command {
-		Script: cmd.Script,
+	return &Command{
+		Script:     cmd.Script,
 		ScriptArgs: cmd.ScriptArgs,
-		Configs: cmd.Configs.Redacted(),
+		Configs:    cmd.Configs.Redacted(),
+	}
+}
+
+func (cmd *Command) CompileDataprocServerless(projectID, region string) *dataprocpb.CreateBatchRequest {
+	list := cmd.Configs.ToSparkFlagsList()
+	nativeFlags, scriptFlags := list.SeparateNativeFlags()
+	scriptArgs := append(cmd.ScriptArgs, scriptFlags.SparkStringFlags()...)
+	batch := &dataprocpb.Batch{
+		BatchConfig: &dataprocpb.Batch_PysparkBatch{
+			PysparkBatch: &dataprocpb.PySparkBatch{
+				MainPythonFileUri: cmd.Script.ToURI(),
+				Args:              scriptArgs,
+			},
+		},
+	}
+	nativeFlags.ApplyToDataprocServerless(batch)
+	return &dataprocpb.CreateBatchRequest{
+		Parent: fmt.Sprintf("projects/%s/locations/%s", projectID, region),
+		Batch:  batch,
 	}
 }
 
@@ -112,10 +133,20 @@ func (flagsList FlagsList) SparkStringFlags() []string {
 	return args
 }
 
-type NativeFlags Flags
+type NativeFlags []NativeFlagStringer
 
 func (flags NativeFlags) SparkStringFlags() []string {
-	return Flags(flags).SparkStringFlags()
+	casted := make(Flags, len(flags))
+	for i, flag := range flags {
+		casted[i] = flag
+	}
+	return casted.SparkStringFlags()
+}
+
+func (flags NativeFlags) ApplyToDataprocServerless(batch *dataprocpb.Batch) {
+	for _, flag := range flags {
+		flag.ApplyToDataprocServerless(batch)
+	}
 }
 
 type ScriptFlags Flags
@@ -131,7 +162,7 @@ func (flags Flags) SeparateNativeFlags() (NativeFlags, ScriptFlags) {
 	script := make(ScriptFlags, 0)
 	for _, flag := range flags {
 		if flag.IsSparkSubmitNative() {
-			native = append(native, flag)
+			native = append(native, flag.(NativeFlagStringer))
 		} else {
 			script = append(script, flag)
 		}
@@ -178,30 +209,10 @@ type FlagStringer interface {
 	TryCombine(FlagStringer) FlagStringer
 }
 
-// These are flags that are native to the spark-submit command.
-// They go between spark-submit and the script name.
-// spark-submit <native flags> file.py <script flags>
-type SubmitFlag struct {
-	Key   string
-	Value string
-}
-
-func (flag SubmitFlag) SparkStringFlags() []string {
-	return []string{
-		fmt.Sprintf("--%s", flag.Key),
-		flag.Value,
-	}
-}
-
-func (flag SubmitFlag) IsSparkSubmitNative() bool {
-	return true
-}
-
-func (flag SubmitFlag) TryCombine(other FlagStringer) FlagStringer {
-	return nil
-}
-
-type ScriptArg struct {
+type NativeFlagStringer interface {
+	// Apply a flag to Dataproc serverless
+	ApplyToDataprocServerless(*dataprocpb.Batch)
+	FlagStringer
 }
 
 // These are flags that are NOT native to spark-submit and are parsed
@@ -247,6 +258,18 @@ func (flag NativeConfigFlag) IsSparkSubmitNative() bool {
 
 func (flag NativeConfigFlag) TryCombine(other FlagStringer) FlagStringer {
 	return nil
+}
+
+func (flag NativeConfigFlag) ApplyToDataprocServerless(batch *dataprocpb.Batch) {
+	if batch.RuntimeConfig == nil {
+		batch.RuntimeConfig = &dataprocpb.RuntimeConfig{
+			Properties: map[string]string{},
+		}
+	}
+	if batch.RuntimeConfig.Properties == nil {
+		batch.RuntimeConfig.Properties = map[string]string{}
+	}
+	batch.RuntimeConfig.Properties[flag.Key] = flag.Value
 }
 
 // ConfigFlag should be set in Spark via spark.config in
@@ -304,6 +327,18 @@ func (flag PackagesFlag) SparkStringFlags() []string {
 		"--packages",
 		strings.Join(flag.Packages, ","),
 	}
+}
+
+func (flag PackagesFlag) ApplyToDataprocServerless(batch *dataprocpb.Batch) {
+	if batch.RuntimeConfig == nil {
+		batch.RuntimeConfig = &dataprocpb.RuntimeConfig{
+			Properties: map[string]string{},
+		}
+	}
+	if batch.RuntimeConfig.Properties == nil {
+		batch.RuntimeConfig.Properties = map[string]string{}
+	}
+	batch.RuntimeConfig.Properties["spark.jars.packages"] = strings.Join(flag.Packages, ",")
 }
 
 func (flag PackagesFlag) IsSparkSubmitNative() bool {
@@ -383,13 +418,31 @@ type IncludePyScript struct {
 	Path filestore.Filepath
 }
 
-func (flag IncludePyScript) SparkFlags() Flags {
-	return Flags{
-		SubmitFlag{
-			"py-files",
-			flag.Path.ToURI(),
-		},
+func (flag IncludePyScript) SparkStringFlags() []string {
+	return []string{"--py-files", flag.Path.ToURI()}
+}
+
+func (flag IncludePyScript) IsSparkSubmitNative() bool {
+	return true
+}
+
+func (flag IncludePyScript) TryCombine(other FlagStringer) FlagStringer {
+	return nil
+}
+
+func (flag IncludePyScript) ApplyToDataprocServerless(batch *dataprocpb.Batch) {
+	batchConfig, ok := batch.BatchConfig.(*dataprocpb.Batch_PysparkBatch)
+	if !ok {
+		logging.GlobalLogger.DPanicw(
+			"Unable to cast batch config to pyspark batch", "config", batch.BatchConfig,
+		)
 	}
+	pyspark := batchConfig.PysparkBatch
+	pyspark.PythonFileUris = append(pyspark.PythonFileUris, flag.Path.ToURI())
+}
+
+func (flag IncludePyScript) SparkFlags() Flags {
+	return Flags{flag}
 }
 
 func (flag IncludePyScript) Redacted() Config {
@@ -462,16 +515,30 @@ type DeployFlag struct {
 }
 
 func (flag DeployFlag) SparkFlags() Flags {
-	return Flags{
-		SubmitFlag{
-			"deploy-mode",
-			flag.Mode.SparkArg(),
-		},
-	}
+	return Flags{flag}
 }
 
 func (flag DeployFlag) Redacted() Config {
 	return flag
+}
+
+func (flag DeployFlag) SparkStringFlags() []string {
+	return []string{"--deploy-mode", flag.Mode.SparkArg()}
+}
+
+func (flag DeployFlag) IsSparkSubmitNative() bool {
+	return true
+}
+
+func (flag DeployFlag) TryCombine(other FlagStringer) FlagStringer {
+	return nil
+}
+
+func (flag DeployFlag) ApplyToDataprocServerless(batch *dataprocpb.Batch) {
+	logging.GlobalLogger.Debugw(
+		"Ignoring spark deploy mode for GCP",
+		"deploy-mode", flag.Mode.SparkArg(),
+	)
 }
 
 type SnowflakeFlags struct {
@@ -548,9 +615,9 @@ func (args AzureFlags) SparkFlags() Flags {
 
 func (args AzureFlags) Redacted() Config {
 	return AzureFlags{
-		AccountName: args.AccountName,
-		AccountKey: redacted.String,
-		ContainerName: args.ContainerName,
+		AccountName:      args.AccountName,
+		AccountKey:       redacted.String,
+		ContainerName:    args.ContainerName,
 		ConnectionString: redacted.String,
 	}
 }
@@ -601,7 +668,7 @@ func (args GCSFlags) SparkFlags() Flags {
 func (args GCSFlags) Redacted() Config {
 	return GCSFlags{
 		ProjectID: args.ProjectID,
-		Bucket: args.Bucket,
+		Bucket:    args.Bucket,
 		JSONCreds: []byte(redacted.String),
 	}
 }
@@ -680,8 +747,8 @@ func (args S3Flags) Redacted() Config {
 	return S3Flags{
 		AccessKey: redacted.String,
 		SecretKey: redacted.String,
-		Region: args.Region,
-		Bucket: args.Bucket,
+		Region:    args.Region,
+		Bucket:    args.Bucket,
 	}
 }
 
@@ -856,13 +923,13 @@ func (args DirectCopyFlags) SparkFlags() Flags {
 
 func (args DirectCopyFlags) Redacted() Config {
 	return DirectCopyFlags{
-		Creds: args.Creds.Redacted(),
-		Target: args.Target,
-		TableName: args.TableName,
-		FeatureName: args.FeatureName,
-		FeatureVariant: args.FeatureVariant,
-		EntityColumn: args.EntityColumn,
-		ValueColumn: args.ValueColumn,
+		Creds:           args.Creds.Redacted(),
+		Target:          args.Target,
+		TableName:       args.TableName,
+		FeatureName:     args.FeatureName,
+		FeatureVariant:  args.FeatureVariant,
+		EntityColumn:    args.EntityColumn,
+		ValueColumn:     args.ValueColumn,
 		TimestampColumn: args.TimestampColumn,
 	}
 }
@@ -892,7 +959,7 @@ func (args DynamoFlags) SparkFlags() Flags {
 
 func (args DynamoFlags) Redacted() Config {
 	return DynamoFlags{
-		Region: args.Region,
+		Region:    args.Region,
 		AccessKey: redacted.String,
 		SecretKey: redacted.String,
 	}
@@ -1027,16 +1094,30 @@ type MasterFlag struct {
 }
 
 func (flag MasterFlag) SparkFlags() Flags {
-	return Flags{
-		SubmitFlag{
-			"master",
-			flag.Master,
-		},
-	}
+	return Flags{flag}
 }
 
 func (flag MasterFlag) Redacted() Config {
 	return flag
+}
+
+func (flag MasterFlag) SparkStringFlags() []string {
+	return []string{"--master", flag.Master}
+}
+
+func (flag MasterFlag) IsSparkSubmitNative() bool {
+	return true
+}
+
+func (flag MasterFlag) TryCombine(other FlagStringer) FlagStringer {
+	return nil
+}
+
+func (flag MasterFlag) ApplyToDataprocServerless(batch *dataprocpb.Batch) {
+	logging.GlobalLogger.Debugw(
+		"Ignoring spark master flag for GCP",
+		"master-flag", flag.Master,
+	)
 }
 
 type HighMemoryFlags struct{}

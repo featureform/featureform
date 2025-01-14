@@ -10,54 +10,66 @@ package biglake
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	"github.com/featureform/logging"
 	"github.com/featureform/provider/location"
-	"github.com/featureform/provider/types"
 	"github.com/featureform/provider/spark"
+	"github.com/featureform/provider/types"
 
+	biglakelib "cloud.google.com/go/bigquery/biglake/apiv1"
+	biglakepb "cloud.google.com/go/bigquery/biglake/apiv1/biglakepb"
 	"cloud.google.com/go/storage"
-	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
-	biglakeapi "cloud.google.com/go/bigquery/biglake/apiv1"
-	// biglakepb "cloud.google.com/go/bigquery/biglake/apiv1/biglakepb"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type BiglakeSparkFileStore struct {
-	basePath   filestore.Filepath
-	gcsClient  *storage.Client
-	blClient   *biglakeapi.MetastoreClient
-	projectID  string
-	region     string
-	ctx        context.Context
-	logger     logging.Logger
+	basePath  filestore.Filepath
+	gcsClient *storage.Client
+	blClient  *biglakelib.MetastoreClient
+	projectID string
+	region    string
+	ctx       context.Context
+	logger    logging.Logger
 }
 
 type SparkFileStoreConfig struct {
 	// ProjectID that contains the biglake metastore
 	ProjectID string
 	// Region in Google Cloud to use for the biglake catalog.
-	Region    string
+	Region string
 	// Bucket to read and write from.
-	Bucket    string
+	Bucket string
 	// BaseDir is the directory to work in. paths in CreateFilePath will append to this base.
-	BaseDir   string
+	BaseDir string
 	// CredsPath is optional. It should point to a file with the JSON creds at this path,
 	// otherwise defaults to the default auth chain.
 	CredsPath string
 	// Logger to use.
-	Logger    logging.Logger
+	Logger logging.Logger
 }
 
 func NewSparkFileStore(ctx context.Context, cfg SparkFileStoreConfig) (
 	*BiglakeSparkFileStore, error,
 ) {
+	if cfg.Region == "" {
+		return nil, fferr.NewInvalidArgumentErrorf("Region must be set for biglake filestore")
+	}
+	if cfg.Bucket == "" {
+		return nil, fferr.NewInvalidArgumentErrorf("Bucket must be set for biglake filestore")
+	}
+	if cfg.ProjectID == "" {
+		return nil, fferr.NewInvalidArgumentErrorf("ProjectID must be set for biglake filestore")
+	}
 	logger := cfg.Logger.With(
+		"projectID", cfg.ProjectID,
+		"region", cfg.Region,
 		"bucket", cfg.Bucket,
-		"base-dir",  cfg.BaseDir,
+		"base-dir", cfg.BaseDir,
 		"creds-path", cfg.CredsPath,
 	)
 	logger.Debug("Creating biglake spark filestore")
@@ -78,12 +90,17 @@ func NewSparkFileStore(ctx context.Context, cfg SparkFileStoreConfig) (
 		logger.Errorw(msg, "err", err)
 		return nil, fferr.NewInternalErrorf("%s: %w", msg, err)
 	}
+	blClient, err := biglakelib.NewMetastoreClient(ctx, opts...)
+
 	logger.Info("Succesfully created biglake spark filestore")
 	return &BiglakeSparkFileStore{
-		ctx: ctx,
-		gcsClient:     gcsClient,
-		logger: logger,
-		basePath: path,
+		ctx:       ctx,
+		projectID: cfg.ProjectID,
+		region:    cfg.Region,
+		gcsClient: gcsClient,
+		blClient:  blClient,
+		logger:    logger,
+		basePath:  path,
 	}, nil
 }
 
@@ -98,12 +115,15 @@ func (bl *BiglakeSparkFileStore) CreateFilePath(path string, isDir bool) (filest
 	}
 	return filepath, nil
 }
- 
+
 func (bl *BiglakeSparkFileStore) Write(path filestore.Filepath, data []byte) error {
 	logger := bl.logger.With("write-path", path.ToURI())
 	logger.Info("Writing to GCS file store")
 	wc := bl.objectHandle(path).NewWriter(bl.ctx)
-	defer logger.LogIfErr("Failed to close GCS writer", wc.Close())
+	// If we don't do this wrap, then the wc.Close() will be run before the defer.
+	defer func() {
+		logger.LogIfErr("Failed to close GCS writer", wc.Close())
+	}()
 
 	if _, err := wc.Write(data); err != nil {
 		msg := "Failed to write to GCS file store"
@@ -125,7 +145,7 @@ func (bl *BiglakeSparkFileStore) Read(path filestore.Filepath) ([]byte, error) {
 	defer logger.LogIfErr("Failed to close GCS reader", rc.Close())
 
 	logger.Debug("Beginning to read all of file")
-	data, err := ioutil.ReadAll(rc)
+	data, err := io.ReadAll(rc)
 	if err != nil {
 		msg := "Failed to read from GCS file store"
 		logger.Errorw(msg, "err", err)
@@ -186,59 +206,48 @@ func (bl *BiglakeSparkFileStore) existsInGCS(path filestore.Filepath) (bool, err
 	return true, nil
 }
 
-// // CreateCatalog creates a BigLake catalog if it doesn't already exist.
-// func (bl *BiglakeSparkFileStore) createCatalog(loc location.Location) error {
-// 	catalogPath := fmt.Sprintf("projects/%s/locations/%s/catalogs/%s", g.projectID, location, catalogName)
-// 
-// 	// Request to create the catalog
-// 	req := &metastore.Catalog{
-// 		Name: catalogPath,
-// 	}
-// 
-// 	_, err := g.metastore.Projects.Locations.Catalogs.Create(fmt.Sprintf("projects/%s/locations/%s", g.projectID, location), req).Do()
-// 	if err != nil {
-// 		return fmt.Errorf("failed to create catalog %s: %w", catalogName, err)
-// 	}
-// 
-// 	return nil
-// }
-// 
-// // DeleteCatalog deletes a BigLake catalog by its name.
-// func (bl *BiglakeSparkFileStore) deleteCatalog(loc location.Location) error {
-// 	catalogPath := fmt.Sprintf("projects/%s/locations/%s/catalogs/%s", g.projectID, location, catalogName)
-// 
-// 	err := g.metastore.Projects.Locations.Catalogs.Delete(catalogPath).Do()
-// 	if err != nil {
-// 		return fmt.Errorf("failed to delete catalog %s: %w", catalogName, err)
-// 	}
-// 
-// 	return nil
-// }
-// 
-// // CatalogExists checks if a BigLake catalog exists.
-// func (bl *BiglakeSparkFileStore) catalogExists(catalogName, location string) (bool, error) {
-// 	catalogPath := fmt.Sprintf("projects/%s/locations/%s/catalogs/%s", g.projectID, location, catalogName)
-// 
-// 	_, err := g.metastore.Projects.Locations.Catalogs.Get(catalogPath).Do()
-// 	if err != nil {
-// 		if isNotFoundErr(err) {
-// 			return false, nil
-// 		}
-// 		return false, fmt.Errorf("failed to check if catalog exists: %w", err)
-// 	}
-// 
-// 	return true, nil
-// }
+// CreateCatalog creates a BigLake catalog if it doesn't exist, and return false
+// if it already exists.
+func (bl *BiglakeSparkFileStore) CreateCatalog(catalogName string) (bool, error) {
+	parent := fmt.Sprintf("projects/%s/locations/%s", bl.projectID, bl.region)
+	logger := bl.logger.With("catalog-name", catalogName, "catalog-op", "create")
+	logger.Info("Creating catalog")
 
-// formatCatalogPath returns a string in the format that the biglake expects for pointing at a catalog.
-func (bl *BiglakeSparkFileStore) formatCatalogPath(catalog string) string {
-	return fmt.Sprintf("projects/%s/locations/%s/catalogs/%s", bl.projectID, bl.region, catalog)
+	req := &biglakepb.CreateCatalogRequest{
+		Parent:    parent,
+		CatalogId: catalogName,
+	}
+
+	if _, err := bl.blClient.CreateCatalog(bl.ctx, req); err != nil {
+		if isAlreadyExistsError(err) {
+			logger.Info("Catalog already exists")
+			return false, nil
+		}
+		logger.Infow("Failed to create catalog", "err", err)
+		return false, fferr.NewInternalErrorf("Failed to create catalog: %w", err)
+	}
+	logger.Info("Created catalog")
+	return true, nil
 }
 
-// Helper function to identify a "not found" error
-func (bl *BiglakeSparkFileStore) isGoogleNotFoundErr(err error) bool {
-	if apiErr, ok := err.(*googleapi.Error); ok && apiErr.Code == 404 {
-		return true
+// DeleteCatalog deletes a BigLake catalog by its name.
+func (bl *BiglakeSparkFileStore) DeleteCatalog(catalogName string) error {
+	name := fmt.Sprintf("projects/%s/locations/%s/catalogs/%s", bl.projectID, bl.region, catalogName)
+	logger := bl.logger.With("catalog-name", catalogName, "catalog-op", "delete")
+	logger.Info("Deleting catalog")
+	req := &biglakepb.DeleteCatalogRequest{
+		Name: name,
+	}
+	if _, err := bl.blClient.DeleteCatalog(bl.ctx, req); err != nil {
+		logger.Infow("Failed to delete catalog", "err", err)
+		return fferr.NewInternalErrorf("Failed to delete catalog: %w", err)
+	}
+	return nil
+}
+
+func isAlreadyExistsError(err error) bool {
+	if s, ok := status.FromError(err); ok {
+		return s.Code() == codes.AlreadyExists
 	}
 	return false
 }

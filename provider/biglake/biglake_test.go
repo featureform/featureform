@@ -19,6 +19,7 @@ import (
 )
 
 func TestCatalog(t *testing.T) {
+	t.Skip("BIG LAKE ENV variables not set yet")
 	ctx := context.Background()
 	logger := logging.NewTestLogger(t)
 	blFS, err := NewSparkFileStore(ctx, SparkFileStoreConfig{

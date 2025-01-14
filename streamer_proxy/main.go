@@ -233,8 +233,7 @@ func main() {
 
 	client, err := metadata.NewClient(metadataUrl, baseLogger)
 	if err != nil {
-		proxyFlightServer.logger.Errorw("Failed to connect: %v", err)
-		panic(err)
+		proxyFlightServer.logger.Fatalf("Failed to connect to metadata service: %v", err)
 	}
 	proxyFlightServer.logger.Infof("Connected to Metadata at %s", metadataUrl)
 	proxyFlightServer.metadata = client

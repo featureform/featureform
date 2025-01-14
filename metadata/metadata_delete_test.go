@@ -13,7 +13,6 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
-	"github.com/featureform/storage"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zaptest"
 )
@@ -26,7 +25,7 @@ func startServPsql(t *testing.T) (*MetadataServer, string) {
 	connection, err := help.NewPSQLPoolConnection(metadataPsqlConfig)
 	assert.NoError(t, err)
 
-	resourcesRepo := storage.NewSqlResourcesRepository(connection, logging.NewTestLogger(t), storage.DefaultResourcesRepoConfig())
+	resourcesRepo := NewSqlResourcesRepository(connection, logging.NewTestLogger(t), DefaultResourcesRepoConfig())
 
 	config := &Config{
 		Logger:              logging.WrapZapLogger(logger.Sugar()),

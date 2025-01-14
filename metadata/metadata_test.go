@@ -11,7 +11,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/featureform/metadata/common"
-	"github.com/featureform/storage"
 	"net"
 	"reflect"
 	"testing"
@@ -562,7 +561,7 @@ func startServ(t *testing.T) (*MetadataServer, string) {
 	config := &Config{
 		Logger:              logging.WrapZapLogger(logger.Sugar()),
 		TaskManager:         manager,
-		ResourcesRepository: storage.NewInMemoryResourcesRepository(),
+		ResourcesRepository: NewInMemoryResourcesRepository(),
 	}
 	serv, err := NewMetadataServer(config)
 	if err != nil {
@@ -587,7 +586,7 @@ func startServNoPanic(t *testing.T) (*MetadataServer, string) {
 	config := &Config{
 		Logger:              logging.WrapZapLogger(logger.Sugar()),
 		TaskManager:         manager,
-		ResourcesRepository: storage.NewInMemoryResourcesRepository(),
+		ResourcesRepository: NewInMemoryResourcesRepository(),
 	}
 
 	serv, err := NewMetadataServer(config)

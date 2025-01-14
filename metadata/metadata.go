@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/featureform/metadata/common"
-	"github.com/featureform/storage"
 	"github.com/featureform/storage/query"
 
 	"github.com/featureform/metadata/equivalence"
@@ -1825,7 +1824,7 @@ type MetadataServer struct {
 	pb.UnimplementedMetadataServer
 	schproto.UnimplementedTasksServer
 	slackNotifier       notifications.SlackNotifier
-	resourcesRepository storage.ResourcesRepository
+	resourcesRepository ResourcesRepository
 }
 
 func (serv *MetadataServer) CreateTaskRun(ctx context.Context, request *schproto.CreateRunRequest) (*schproto.RunID, error) {
@@ -1858,12 +1857,17 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	if err != nil {
 		return nil, err
 	}
+	resourcesRepo, err := NewResourcesRepositoryFromLookup(&baseLookup)
+	if err != nil {
+		return nil, err
+	}
+
 	return &MetadataServer{
 		lookup:              wrappedLookup,
 		address:             config.Address,
 		Logger:              config.Logger,
 		taskManager:         &config.TaskManager,
-		resourcesRepository: config.ResourcesRepository,
+		resourcesRepository: resourcesRepo,
 		slackNotifier:       *notifications.NewSlackNotifier(os.Getenv("SLACK_CHANNEL_ID"), config.Logger),
 	}, nil
 }
@@ -2200,11 +2204,10 @@ func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 }
 
 type Config struct {
-	Logger              logging.Logger
-	SearchParams        *search.MeilisearchParams
-	TaskManager         scheduling.TaskMetadataManager
-	ResourcesRepository storage.ResourcesRepository
-	Address             string
+	Logger       logging.Logger
+	SearchParams *search.MeilisearchParams
+	TaskManager  scheduling.TaskMetadataManager
+	Address      string
 }
 
 func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.ScheduleChangeRequest) (*pb.Empty, error) {
@@ -2279,7 +2282,7 @@ func (serv *MetadataServer) MarkForDeletion(ctx context.Context, request *pb.Mar
 	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
 	logger.Infow("Deleting resource", "resource_id", request.ResourceId)
 
-	if serv.resourcesRepository.Type() == storage.ResourcesRepositoryTypeMemory {
+	if serv.resourcesRepository.Type() == ResourcesRepositoryTypeMemory {
 		logger.Infow("Deletion not supported for memory repository")
 		return &pb.MarkForDeletionResponse{}, fferr.NewInternalErrorf("Deletion not supported for memory repository")
 	}
@@ -2292,6 +2295,17 @@ func (serv *MetadataServer) MarkForDeletion(ctx context.Context, request *pb.Mar
 	if err != nil {
 		logger.Errorw("Could not find resource to delete", "error", err.Error())
 		return &pb.MarkForDeletionResponse{}, err
+	}
+
+	status, err := serv.getStatusFromTasks(ctx, resource)
+	if err != nil {
+		logger.Errorw("Could not get status from tasks", "error", err.Error())
+		return &pb.MarkForDeletionResponse{}, err
+	}
+
+	if status != pb.ResourceStatus_READY && status != pb.ResourceStatus_CREATED {
+		logger.Errorw("Resource is not ready for deletion", "status", status)
+		return &pb.MarkForDeletionResponse{}, fferr.NewInternalErrorf("Resource is not ready for deletion")
 	}
 
 	isDeletableErr := serv.isDeletable(ctx, resource)
@@ -2347,7 +2361,7 @@ func (serv *MetadataServer) GetStagedForDeletionResource(ctx context.Context, re
 	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
 	logger.Infow("Getting staged for deletion resource", "resource_id", request.ResourceId)
 
-	if serv.resourcesRepository.Type() == storage.ResourcesRepositoryTypeMemory {
+	if serv.resourcesRepository.Type() == ResourcesRepositoryTypeMemory {
 		logger.Infow("Deletion not supported for memory repository")
 		return &pb.GetStagedForDeletionResourceResponse{}, fferr.NewInternalErrorf("Deletion not supported for memory repository")
 	}
@@ -2398,6 +2412,8 @@ func (serv *MetadataServer) GetStagedForDeletionResource(ctx context.Context, re
 }
 
 func (serv *MetadataServer) isDeletable(ctx context.Context, resource Resource) error {
+	// we can only delete snowflake resource variants
+
 	// cast resource to source variant
 	resourcesAllowedForDeletion := []ResourceType{
 		FEATURE_VARIANT,
@@ -2412,6 +2428,7 @@ func (serv *MetadataServer) isDeletable(ctx context.Context, resource Resource) 
 	}
 
 	if sourceVariant, ok := resource.(*sourceVariantResource); ok {
+		sv := WrapProtoSourceVariant(sourceVariant.serialized)
 		data := sourceVariant.serialized.GetPrimaryData()
 		if data != nil {
 			return fferr.NewInternalErrorf("Source variant %s is not deletable because it is primary data", sourceVariant.ID().String())
@@ -3363,23 +3380,8 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 		// Can improve on this by linking the request to a specific run but that requires
 		// additional changes
 		if serv.needsJob(resource) {
-			if res, ok := resource.(resourceStatusImplementation); ok {
-				taskID, err := resource.(resourceTaskImplementation).TaskIDs()
-				if err != nil {
-					return err
-				}
-				if len(taskID) >= 0 {
-					// This logic gets the status of the latest task for a resource. Need to create
-					// better logic around this later
-					status, msg, err := serv.fetchStatus(taskID[len(taskID)-1])
-					if err != nil {
-						serv.Logger.Errorw("Failed to set status", "error", err)
-						return err
-					}
-					if err := res.SetAndSaveStatus(ctx, status, msg, serv.lookup); err != nil {
-						return err
-					}
-				}
+			if _, err := serv.getStatusFromTasks(ctx, resource); err != nil {
+				return err
 			}
 		}
 		loggerWithResource.Debug("Sending Resource")
@@ -3390,6 +3392,29 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 		}
 		loggerWithResource.Debug("Send Complete")
 	}
+}
+
+func (serv *MetadataServer) getStatusFromTasks(ctx context.Context, resource Resource) (pb.ResourceStatus_Status, error) {
+	if res, ok := resource.(resourceStatusImplementation); ok {
+		taskID, err := resource.(resourceTaskImplementation).TaskIDs()
+		if err != nil {
+			return pb.ResourceStatus_NO_STATUS, err
+		}
+		if len(taskID) >= 0 {
+			// This logic gets the status of the latest task for a resource. Need to create
+			// better logic around this later
+			status, msg, err := serv.fetchStatus(taskID[len(taskID)-1])
+			if err != nil {
+				serv.Logger.Errorw("Failed to set status", "error", err)
+				return pb.ResourceStatus_NO_STATUS, err
+			}
+			if err := res.SetAndSaveStatus(ctx, status, msg, serv.lookup); err != nil {
+				return pb.ResourceStatus_NO_STATUS, err
+			}
+			return status.Proto(), err
+		}
+	}
+	return resource.GetStatus().GetStatus(), nil
 }
 
 func (serv *MetadataServer) genericList(ctx context.Context, t ResourceType, send sendFn) error {

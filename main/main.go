@@ -9,7 +9,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/featureform/storage"
 	"log"
 	"net"
 	"net/http"
@@ -84,16 +83,10 @@ func main() {
 	/******************************************** Metadata ************************************************************/
 
 	mLogger := logging.NewLogger("metadata")
-	resourcesRepo, err := storage.NewResourcesRepositoryFromEnv(managerType)
-	if err != nil {
-		mLogger.Panicw("Failed to create resources repository", "Err", err)
-	}
-
 	config := &metadata.Config{
-		Logger:              mLogger,
-		Address:             fmt.Sprintf(":%s", metadataPort),
-		TaskManager:         manager,
-		ResourcesRepository: resourcesRepo,
+		Logger:      mLogger,
+		Address:     fmt.Sprintf(":%s", metadataPort),
+		TaskManager: manager,
 	}
 
 	server, err := metadata.NewMetadataServer(config)

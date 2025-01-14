@@ -237,13 +237,17 @@ class Client(ResourceClient, ServingClient):
         print(f"Flight server address: {flight_address}")
 
         print("Client initializing...")
+        # handle tls
         client_kwargs = {}
         if not self._insecure:
             print("is secure")
             cert_path = self._cert_path or os.getenv("FEATUREFORM_CERT")
-            if cert_path:
-                print(f"Using TLS certificate at: {cert_path}")
-                client_kwargs["tls_root_certs"] = cert_path
+            if not os.path.exists(cert_path):
+                raise FileNotFoundError(f"TLS certificate not found at {cert_path}")
+
+            with open(cert_path, "rb") as f:
+                tls_root_certs = f.read()
+                client_kwargs["tls_root_certs"] = tls_root_certs
             
 
         flight_client = flight.connect(flight_address, **client_kwargs)

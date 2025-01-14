@@ -103,7 +103,11 @@ func (bl *BiglakeSparkFileStore) Write(path filestore.Filepath, data []byte) err
 	logger := bl.logger.With("write-path", path.ToURI())
 	logger.Info("Writing to GCS file store")
 	wc := bl.objectHandle(path).NewWriter(bl.ctx)
-	defer logger.LogIfErr("Failed to close GCS writer", wc.Close())
+	defer func() {
+		// If we don't put this in a func then wc.Close will be applied before
+		// the defer is called.
+		logger.LogIfErr("Failed to close GCS writer", wc.Close())
+	}()
 
 	if _, err := wc.Write(data); err != nil {
 		msg := "Failed to write to GCS file store"

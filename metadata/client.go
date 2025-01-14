@@ -2859,24 +2859,30 @@ func (variant *SourceVariant) PrimaryDataTimestampColumn() string {
 
 func (variant *SourceVariant) GetPrimaryLocation() (pl.Location, error) {
 	if !variant.isPrimaryData() {
+		fmt.Println("isPrimaryData() == FALSE. returning nil, nil")
 		return nil, nil
 	}
 	switch pt := variant.serialized.GetPrimaryData().GetLocation().(type) {
 	case *pb.PrimaryData_Table:
+		fmt.Println("primary data table is hit")
 		return pl.NewSQLLocationWithDBSchemaTable(
 			pt.Table.GetDatabase(),
 			pt.Table.GetSchema(),
 			pt.Table.GetName(),
 		), nil
 	case *pb.PrimaryData_Filestore:
+		fmt.Println("primary data file store is hit")
 		fp := filestore.FilePath{}
 		if err := fp.ParseFilePath(pt.Filestore.GetPath()); err != nil {
 			return nil, err
 		}
 		return pl.NewFileLocation(&fp), nil
 	case *pb.PrimaryData_Catalog:
+		fmt.Println("primary data catalog is hit")
 		return pl.NewCatalogLocation(pt.Catalog.GetDatabase(), pt.Catalog.GetTable(), pt.Catalog.GetTableFormat()), nil
 	default:
+		fmt.Println("NO cases were hit with type, returning nil nil")
+		fmt.Println(reflect.TypeOf(pt))
 		return nil, nil
 	}
 }

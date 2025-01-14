@@ -16,4 +16,4 @@ spec:
   - protocol: TCP
     port: {{ .Values.icebergProxy.port }}
     targetPort: 8086
-type: ClusterIP
+  type: ClusterIP

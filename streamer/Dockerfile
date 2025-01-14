@@ -16,6 +16,8 @@ WORKDIR /app
 RUN pip install --upgrade pip
 RUN pip install boto3 pyarrow 'pyiceberg[glue]'
 
+ENV PYTHONUNBUFFERED=1
+
 COPY ./streamer/ /app
 
 EXPOSE 8085

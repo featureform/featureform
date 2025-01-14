@@ -294,6 +294,7 @@ datadog:
 # Configuration for iceberg streamer
 icebergStreamer:
   port: 8085
+  host: iceberg-streamer
   image:
     name: iceberg-streamer
   replicaCount: 1

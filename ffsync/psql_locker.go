@@ -147,7 +147,11 @@ func (l *psqlLocker) Lock(ctx context.Context, key string, wait bool) (Key, erro
 }
 
 func (l *psqlLocker) updateLockTime(ctx context.Context, key *psqlKey) {
-	logger := ctx.Value(psqlLoggerKey).(logging.Logger)
+	logger, ok := ctx.Value(psqlLoggerKey).(logging.Logger)
+	if !ok {
+		logger.DPanic("Unable to get logger from context. Using global logger.")
+		logger = logging.GlobalLogger
+	}
 	ticker := l.clock.NewTicker(updateSleepTime.Duration())
 	defer ticker.Stop()
 

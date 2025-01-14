@@ -5,9 +5,16 @@
 #  Copyright 2024 FeatureForm Inc.
 #
 
-# For fetching sources as dataframes, the default limit is set to -1
-# to denote that all records should be fetched.
-NO_RECORD_LIMIT = -1
-
-# 2 million records
-TWO_MILLION_RECORD_LIMIT = 2_000_000
+apiVersion: v1
+kind: Service
+metadata:
+  name: iceberg-streamer
+spec:
+  selector:
+    app: iceberg-streamer
+  ports:
+  - name: grpc
+    protocol: TCP
+    port: {{ .Values.icebergStreamer.port }}
+    targetPort: 8085
+  type: ClusterIP

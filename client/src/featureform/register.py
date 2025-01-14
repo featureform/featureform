@@ -4823,6 +4823,8 @@ class ResourceClient:
             channel = secure_channel(host, cert_path)
         self._stub = GrpcClient(ff_grpc.ApiStub(channel), debug=debug)
         self._host = host
+        self._cert_path = cert_path or os.getenv("FEATUREFORM_CERT")
+        self._insecure = insecure
 
     def apply(self, asynchronous=False, verbose=False):
         """

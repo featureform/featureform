@@ -43,6 +43,13 @@ spec:
                 name: featureform-api-server
                 port:
                   number: {{ .Values.grpcIngressPort }}
+          - path: /arrow.flight.protocol.FlightService/
+            pathType: Prefix
+            backend:
+              service:
+                name: iceberg-proxy
+                port:
+                  number: {{ .Values.icebergProxy.port }}
 
 
 

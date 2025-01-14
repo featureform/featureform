@@ -80,7 +80,7 @@ func (c ProviderClient) Recv() (*pb.Provider, error) {
 			},
 			"GlueConfig": {
 				"AssumeRoleArn": "someRole",
-				"Database": "booking_glue_db",
+				"Database": "sample_glue_db",
 				"Region": "us-east-1",
 				"TableFormat": "iceberg",
 				"Warehouse": "s3://test.warehouse/glue"
@@ -90,11 +90,11 @@ func (c ProviderClient) Recv() (*pb.Provider, error) {
 	if providerCalls == 0 {
 		providerCalls++
 		return &pb.Provider{
-			Name:             "booking_test_provider",
+			Name:             "sample_test_provider",
 			Type:             "GLUE",
 			Software:         "AWS",
 			SerializedConfig: jsonBytes,
-			Tags:             &pb.Tags{Tag: []string{"booking_tag"}},
+			Tags:             &pb.Tags{Tag: []string{"sample_tag"}},
 			Properties:       &pb.Properties{},
 			Status:           &pb.ResourceStatus{Status: pb.ResourceStatus_READY},
 			Sources:          []*pb.NameVariant{{Name: "test_name", Variant: "test_variant"}},

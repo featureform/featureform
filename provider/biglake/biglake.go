@@ -49,7 +49,7 @@ type SparkFileStoreConfig struct {
 	// CredsPath is optional. It should point to a file with the JSON creds at this path,
 	// otherwise defaults to the default auth chain.
 	CredsPath string
-	// Logger to use.
+	// Logger to use
 	Logger logging.Logger
 }
 
@@ -120,8 +120,10 @@ func (bl *BiglakeSparkFileStore) Write(path filestore.Filepath, data []byte) err
 	logger := bl.logger.With("write-path", path.ToURI())
 	logger.Info("Writing to GCS file store")
 	wc := bl.objectHandle(path).NewWriter(bl.ctx)
-	// If we don't do this wrap, then the wc.Close() will be run before the defer.
+
 	defer func() {
+		// If we don't put this in a func then wc.Close will be applied before
+		// the defer is called.
 		logger.LogIfErr("Failed to close GCS writer", wc.Close())
 	}()
 

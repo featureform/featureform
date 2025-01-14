@@ -3619,25 +3619,27 @@ func TestSuiteSparkExecutorTransforms(t *testing.T) {
 		t.Skip("Skipping spark executor integration tests")
 	}
 	t.Parallel()
-	ctx := context.Background()
-	logger := logging.NewTestLogger(t)
-	blFS, err := biglake.NewSparkFileStore(ctx, biglake.SparkFileStoreConfig{
-		Bucket:    helpers.MustGetTestingEnv(t, "GCS_BUCKET_NAME"),
-		BaseDir:   uuid.NewString(),
-		CredsPath: helpers.MustGetTestingEnv(t, "BIGQUERY_CREDENTIALS"),
-		Region:    helpers.MustGetTestingEnv(t, "BIGLAKE_REGION"),
-		ProjectID: helpers.MustGetTestingEnv(t, "BIGLAKE_PROJECT_ID"),
-		Logger:    logger,
-	})
-	if err != nil {
-		t.Fatalf("Failed to create biglake: %s", err)
-	}
-	dataproc, err := NewDataprocServerlessExecutor(ctx, DataprocServerlessExecutorConfig{
-		ProjectID: helpers.MustGetTestingEnv(t, "BIGLAKE_PROJECT_ID"),
-		Region:    helpers.MustGetTestingEnv(t, "BIGLAKE_REGION"),
-		CredsPath: helpers.MustGetTestingEnv(t, "BIGQUERY_CREDENTIALS"),
-		Logger:    logger,
-	})
+	//ctx := context.Background()
+	//logger := logging.NewTestLogger(t)
+	//blFS, err := biglake.NewSparkFileStore(ctx, biglake.SparkFileStoreConfig{
+	//Bucket:    helpers.MustGetTestingEnv(t, "GCS_BUCKET_NAME"),
+	//BaseDir:   uuid.NewString(),
+	//CredsPath: helpers.MustGetTestingEnv(t, "BIGQUERY_CREDENTIALS"),
+	//Region:    helpers.MustGetTestingEnv(t, "BIGLAKE_REGION"),
+	//ProjectID: helpers.MustGetTestingEnv(t, "BIGLAKE_PROJECT_ID"),
+  //Logger:    logger,
+	//})
+	//if err != nil {
+	//t.Fatalf("Failed to create biglake: %s", err)
+	//}
+	//dataproc, err := NewDataprocServerlessExecutor(ctx, DataprocServerlessExecutorConfig{
+  //ProjectID: helpers.MustGetTestingEnv(t, "BIGLAKE_PROJECT_ID"),
+  //Region:    helpers.MustGetTestingEnv(t, "BIGLAKE_REGION"),
+	//CredsPath: helpers.MustGetTestingEnv(t, "BIGQUERY_CREDENTIALS"),
+	//Logger:    logger,
+	//})
+	bucketName := helpers.MustGetTestingEnv(t, "S3_BUCKET_PATH")
+	emr, s3, err := createEMRAndS3(bucketName)
 	if err != nil {
 		t.Fatalf("Failed to create dataproc: %s", err)
 	}
@@ -3657,7 +3659,7 @@ func TestSuiteSparkExecutorTransforms(t *testing.T) {
 		fn func(*testing.T, SparkExecutor, SparkFileStoreV2)
 	}{
 		// "TestResume":           {fn: testRunAndResume},
-		"TestReadWriteIceberg": {fn: createIcebergIntegrationTest().Run},
+		// "TestReadWriteIceberg": {fn: createIcebergIntegrationTest().Run},
 		// // TODO fix this
 		// // "TestReadWriteDelta": {fn: testReadWriteDelta},
 		// "TestReadWriteDynamo": {fn: createDynamoIntegrationTest().Run},

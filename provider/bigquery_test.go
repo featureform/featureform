@@ -29,7 +29,6 @@ func TestOfflineStoreBigQuery(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
 	}
-	t.Skip("This is erroring @erik")
 
 	err := godotenv.Load("../.env")
 	if err != nil {

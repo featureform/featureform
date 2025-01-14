@@ -201,7 +201,9 @@ class Client(ResourceClient, ServingClient):
 
     def _iceberg_dataframe(
         self,
-        source: Union[str, SourceRegistrar] = None,
+        source: Union[
+            SourceRegistrar, SubscriptableTransformation, ResourceVariant, str
+        ],
         variant: Optional[str] = None,
         resource_type: DataResourceType = DataResourceType.PRIMARY,
         limit: int = TWO_MILLION_RECORD_LIMIT,
@@ -219,8 +221,10 @@ class Client(ResourceClient, ServingClient):
             pandas.DataFrame: Iceberg data catalog stream
         """
         # if the source is a SourceRegistrar, pull the name + variant values
-        if isinstance(source, SourceRegistrar):
-            print("Received SourceRegistrar object, extracting source and variant...")
+        if isinstance(
+            source, (SourceRegistrar, SubscriptableTransformation, ResourceVariant)
+        ):
+            print("Received source object, extracting source and variant...")
             source, variant = source.name_variant()
 
         if not isinstance(source, str) or not isinstance(variant, str):

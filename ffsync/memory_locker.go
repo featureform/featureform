@@ -87,7 +87,11 @@ func (m *memoryLocker) checkLock(ctx context.Context, key string) error {
 }
 
 func (m *memoryLocker) attemptLock(ctx context.Context, key string, wait bool) error {
-	logger := ctx.Value(memoryLoggerKey).(logging.Logger)
+	logger, ok := ctx.Value(memoryLoggerKey).(logging.Logger)
+	if !ok {
+		logger.DPanic("Unable to get logger from context. Using global logger.")
+		logger = logging.GlobalLogger
+	}
 	logger.Debug("Attempting to lock key")
 	startTime := m.clock.Now()
 

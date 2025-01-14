@@ -24,3 +24,18 @@ const (
 func (mode SparkDeployMode) SparkArg() string {
 	return string(mode)
 }
+
+type SparkFileStoreType string
+
+func (t SparkFileStoreType) String() string {
+	return string(t)
+}
+
+const (
+	SFS_S3         SparkFileStoreType = "s3"
+	SFS_AZURE_BLOB SparkFileStoreType = "azure_blob_store"
+	SFS_GCS        SparkFileStoreType = "google_cloud_storage"
+	SFS_HDFS       SparkFileStoreType = "hdfs"
+	SFS_LOCAL      SparkFileStoreType = "local"
+	SFS_BIGLAKE    SparkFileStoreType = "biglake"
+)

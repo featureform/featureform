@@ -230,16 +230,6 @@ class Client(ResourceClient, ServingClient):
         if not isinstance(source, str) or not isinstance(variant, str):
             raise ValueError("Both 'source' and 'variant' must be strings or values from SourceRegistrar.")
 
-        # debugging (deleting in a bit)
-        print('client metrics')
-        print('host: ', self._host)
-        print('insecure:', self._insecure)
-        print("request params are:")
-        print("source:", source)
-        print('variant:', variant)
-        print('resource type:', resource_type)
-        print("limit:", limit)
-
         ticket_data = {
             "source": source,
             "variant": variant,

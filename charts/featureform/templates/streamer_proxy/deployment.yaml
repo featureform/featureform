@@ -36,6 +36,8 @@ spec:
         env:
           - name: ICEBERG_STREAMER_PORT
             value: {{ .Values.icebergStreamer.port | quote }}
+          - name: ICEBERG_STREAMER_HOST
+            value: {{ .Values.icebergStreamer.host | quote }}
           - name: METADATA_HOST
               value: {{ .Values.metadata.host }}
           - name: METADATA_PORT

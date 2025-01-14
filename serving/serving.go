@@ -26,8 +26,6 @@ import (
 
 	"io"
 	"sync"
-
-	"go.uber.org/zap"
 )
 
 const (
@@ -121,7 +119,7 @@ type splitContext struct {
 	testIterator    *provider.TrainingSetIterator
 	isTestFinished  *bool
 	isTrainFinished *bool
-	logger          *zap.SugaredLogger
+	logger          logging.Logger
 }
 
 func (serv *FeatureServer) TrainTestSplit(stream pb.Feature_TrainTestSplitServer) error {

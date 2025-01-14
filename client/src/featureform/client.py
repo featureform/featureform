@@ -201,8 +201,8 @@ class Client(ResourceClient, ServingClient):
 
     def _iceberg_dataframe(
         self,
-        source: str = None,
-        variant: str = None,
+        source: Union[str, SourceRegistrar] = None,
+        variant: Optional[str] = None,
         resource_type: DataResourceType = DataResourceType.PRIMARY,
         limit: int = TWO_MILLION_RECORD_LIMIT,
     ):
@@ -210,27 +210,38 @@ class Client(ResourceClient, ServingClient):
         Fetch Iceberg data via the Go proxy using Apache Arrow Flight protocol.
 
         Args:
-            source (str): The resource name.
-            variant (str): The resource variant.
+            source (Union[str, SourceRegistrar]): The resource name or a SourceRegistrar object.
+            variant (str): The resource variant (required if source is a string).
             resource_type (DataResourceType): The resource type.
+            limit (int): The maximum number of records to fetch.
 
         Returns:
             pandas.DataFrame: Iceberg data catalog stream
         """
+        # if the source is a SourceRegistrar, pull the name + variant values
+        if isinstance(source, SourceRegistrar):
+            print("Received SourceRegistrar object, extracting source and variant...")
+            source, variant = source.name_variant()
+
+        if not isinstance(source, str) or not isinstance(variant, str):
+            raise ValueError("Both 'source' and 'variant' must be strings or values from SourceRegistrar.")
+
         # debugging (deleting in a bit)
         print('client metrics')
         print('host: ', self._host)
         print('insecure:', self._insecure)
         print("request params are:")
-        print("source...")
-        print(source)
-        print('variant...')
-        print(variant)
-        print('resource type...')
-        print(resource_type)
-        print("limit...")
-        print(limit)
-        ticket_data = {"source": source, "variant": variant, "resourceType": resource_type.name, "limit": limit}
+        print("source:", source)
+        print('variant:', variant)
+        print('resource type:', resource_type)
+        print("limit:", limit)
+
+        ticket_data = {
+            "source": source,
+            "variant": variant,
+            "resourceType": resource_type.name,
+            "limit": limit,
+        }
 
         protocol = "grpc+tcp" if self._insecure else "grpc+tls"
         flight_address = f"{protocol}://{self._host}/arrow.flight.protocol.FlightService/"
@@ -240,7 +251,7 @@ class Client(ResourceClient, ServingClient):
         # handle tls
         client_kwargs = {}
         if not self._insecure:
-            print("is secure")
+            print("Secure connection enabled")
             cert_path = self._cert_path or os.getenv("FEATUREFORM_CERT")
             if not os.path.exists(cert_path):
                 raise FileNotFoundError(f"TLS certificate not found at {cert_path}")
@@ -248,7 +259,6 @@ class Client(ResourceClient, ServingClient):
             with open(cert_path, "rb") as f:
                 tls_root_certs = f.read()
                 client_kwargs["tls_root_certs"] = tls_root_certs
-            
 
         flight_client = flight.connect(flight_address, **client_kwargs)
 
@@ -265,7 +275,7 @@ class Client(ResourceClient, ServingClient):
             raise RuntimeError(f"Failed to fetch data from Go proxy: {e}")
         finally:
             flight_client.close()
-   
+
     # TODO, combine this with the dataset logic in serving.py
     def _spark_dataframe(self, source, spark_session):
         location = self.location(source)

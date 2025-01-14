@@ -168,9 +168,11 @@ def version():
     "--cert", "cert", required=False, help="Path to self-signed TLS certificate"
 )
 @click.option("--insecure", is_flag=True, help="Disables TLS verification")
+@click.option("--limit", "limit", required=False, type=int, default=None, help="The maximum number of records to fetch"
+)
 @click.argument("name", required=True)
 @click.argument("variant", required=True)
-def head(host, cert, insecure, name, variant):
+def head(host, cert, insecure, limit, name, variant):
     host = host or os.getenv("FEATUREFORM_HOST")
     if host is None:
         raise ValueError(
@@ -178,7 +180,7 @@ def head(host, cert, insecure, name, variant):
         )
 
     client = Client(host=host, insecure=insecure, cert_path=cert)
-    df = client.dataframe(source=name, variant=variant, iceberg=True)
+    df = client.dataframe(source=name, variant=variant, iceberg=True, limit=limit)
     print(df)
 
 

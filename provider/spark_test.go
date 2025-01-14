@@ -9,7 +9,6 @@ package provider
 
 import (
 	"bytes"
-	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/csv"
@@ -30,7 +29,6 @@ import (
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
-	"github.com/featureform/provider/biglake"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"

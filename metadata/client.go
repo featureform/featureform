@@ -2859,6 +2859,7 @@ func (variant *SourceVariant) PrimaryDataTimestampColumn() string {
 
 func (variant *SourceVariant) GetPrimaryLocation() (pl.Location, error) {
 	if !variant.isPrimaryData() {
+		fmt.Println("Variant is not primary data, returning returning nil values")
 		return nil, nil
 	}
 	switch pt := variant.serialized.GetPrimaryData().GetLocation().(type) {
@@ -2877,6 +2878,7 @@ func (variant *SourceVariant) GetPrimaryLocation() (pl.Location, error) {
 	case *pb.PrimaryData_Catalog:
 		return pl.NewCatalogLocation(pt.Catalog.GetDatabase(), pt.Catalog.GetTable(), pt.Catalog.GetTableFormat()), nil
 	default:
+		fmt.Printf("Default case. Unknown primary data type: %v\n", reflect.TypeOf(pt))
 		return nil, nil
 	}
 }

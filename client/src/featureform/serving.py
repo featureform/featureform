@@ -86,6 +86,8 @@ class ServingClient:
             )
 
         self.impl = HostedClientImpl(host, insecure, cert_path, debug=debug)
+        self._cert_path = cert_path or os.getenv("FEATUREFORM_CERT")
+        self._insecure = insecure
 
     def training_set(
         self,

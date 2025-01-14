@@ -248,7 +248,9 @@ class Client(ResourceClient, ServingClient):
         }
 
         protocol = "grpc+tcp" if self._insecure else "grpc+tls"
-        flight_address = f"{protocol}://{self._host}/arrow.flight.protocol.FlightService/"
+        host, port = self._host.split(":")
+        port = "8086" # point to the proxy port
+        flight_address = f"{protocol}://{host}:{port}/arrow.flight.protocol.FlightService/"
         print(f"Flight server address: {flight_address}")
 
         print("Client initializing...")

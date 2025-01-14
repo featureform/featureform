@@ -9,6 +9,8 @@ import os
 import click
 import validators
 import urllib.request
+import pyarrow.flight as flight
+import json
 
 from .client import Client
 from .deploy import (
@@ -153,6 +155,33 @@ def version():
     output += f"\nCluster Version: {cluster_version}"
 
     print(output)
+
+
+@cli.command()
+@click.option(
+    "--host",
+    "host",
+    required=False,
+    help="The host address for the arrow flight client to connect to",
+)
+@click.option(
+    "--cert", "cert", required=False, help="Path to self-signed TLS certificate"
+)
+@click.option("--insecure", is_flag=True, help="Disables TLS verification")
+@click.option("--limit", "limit", required=False, type=int, default=None, help="The maximum number of records to fetch"
+)
+@click.argument("name", required=True)
+@click.argument("variant", required=True)
+def head(host, cert, insecure, limit, name, variant):
+    host = host or os.getenv("FEATUREFORM_HOST")
+    if host is None:
+        raise ValueError(
+            "Host value must be set with --host flag or in env as FEATUREFORM_HOST"
+        )
+
+    client = Client(host=host, insecure=insecure, cert_path=cert)
+    df = client.dataframe(source=name, variant=variant, iceberg=True, limit=limit)
+    print(df)
 
 
 @cli.command()

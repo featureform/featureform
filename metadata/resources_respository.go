@@ -1,12 +1,13 @@
-package storage
+package metadata
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/avast/retry-go/v4"
+	"golang.org/x/exp/slices"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/featureform/fferr"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
@@ -59,39 +60,44 @@ const (
 type ResourcesRepository interface {
 	Type() ResourcesRepositoryType
 	MarkForDeletion(ctx context.Context, resourceID common.ResourceID) error
+	ResourceLookup
 }
 
 type SqlRepositoryConfig struct {
-	MaxRetryDuration   time.Duration
+	MaxDelay           time.Duration
 	InitialBackoff     time.Duration
 	TransactionTimeout time.Duration
+	Attempts           uint
 }
 
 func DefaultResourcesRepoConfig() SqlRepositoryConfig {
 	return SqlRepositoryConfig{
-		MaxRetryDuration:   10 * time.Second,
-		InitialBackoff:     100 * time.Millisecond,
-		TransactionTimeout: 30 * time.Second,
+		MaxDelay:           5 * time.Second,       // Total time we're willing to retry
+		InitialBackoff:     50 * time.Millisecond, // Start with short delay
+		TransactionTimeout: 10 * time.Second,      // Max time for a single transaction
+		Attempts:           5,                     // Number of total attempts
 	}
 }
 
-func NewResourcesRepositoryFromEnv(managerType string) (ResourcesRepository, error) {
-	return NewResourcesRepositoryFromEnvWithConfig(managerType, DefaultResourcesRepoConfig())
-}
+func NewResourcesRepositoryFromLookup(resourceLookup ResourceLookup) (ResourcesRepository, error) {
+	if resourceLookup == nil {
+		return nil, fmt.Errorf("resource lookup cannot be nil")
+	}
 
-func NewResourcesRepositoryFromEnvWithConfig(managerType string, config SqlRepositoryConfig) (ResourcesRepository, error) {
-	switch managerType {
-	case "memory":
-		return NewInMemoryResourcesRepository(), nil
-	case "psql":
+	switch lookup := resourceLookup.(type) {
+	case *EtcdResourceLookup:
+		return NewInMemoryResourcesRepository(lookup), nil
+	case *LocalResourceLookup:
+		return NewInMemoryResourcesRepository(lookup), nil
+	case *MemoryResourceLookup:
 		metadataPsqlConfig := help.NewMetadataPSQLConfigFromEnv()
 		connection, err := help.NewPSQLPoolConnection(metadataPsqlConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create PSQL connection: %w", err)
 		}
-		return NewSqlResourcesRepository(connection, logging.NewLogger("metadata"), config), nil
+		return NewSqlResourcesRepository(connection, logging.NewLogger("metadata"), lookup, DefaultResourcesRepoConfig()), nil
 	default:
-		return nil, fferr.NewInvalidArgumentErrorf("Metadata Manager must be one of type: memory, psql")
+		return nil, fmt.Errorf("unsupported resource lookup type: %T", resourceLookup)
 	}
 }
 
@@ -99,13 +105,15 @@ type sqlResourcesRepository struct {
 	db     *pgxpool.Pool
 	logger logging.Logger
 	config SqlRepositoryConfig
+	ResourceLookup
 }
 
-func NewSqlResourcesRepository(db *pgxpool.Pool, logger logging.Logger, config SqlRepositoryConfig) ResourcesRepository {
+func NewSqlResourcesRepository(db *pgxpool.Pool, logger logging.Logger, lookup ResourceLookup, config SqlRepositoryConfig) ResourcesRepository {
 	return &sqlResourcesRepository{
-		db:     db,
-		logger: logger,
-		config: config,
+		db:             db,
+		logger:         logger,
+		config:         config,
+		ResourceLookup: lookup,
 	}
 }
 
@@ -148,10 +156,13 @@ func (r *sqlResourcesRepository) withTx(ctx context.Context, fn func(pgx.Tx) err
 	return nil
 }
 
-// an Error that happens at serializable iso level so that we can retry
-func isSerializationError(err error) bool {
+func isRetryableError(err error) bool {
+	var retryablePgErrors = []string{
+		"40001", // Serialization failure
+	}
+
 	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "40001"
+	return errors.As(err, &pgErr) && slices.Contains(retryablePgErrors, pgErr.Code)
 }
 
 func (r *sqlResourcesRepository) Type() ResourcesRepositoryType {
@@ -159,10 +170,6 @@ func (r *sqlResourcesRepository) Type() ResourcesRepositoryType {
 }
 
 func (r *sqlResourcesRepository) MarkForDeletion(ctx context.Context, resourceID common.ResourceID) error {
-	b := backoff.NewExponentialBackOff()
-	b.MaxElapsedTime = r.config.MaxRetryDuration
-	b.InitialInterval = r.config.InitialBackoff
-
 	operation := func() error {
 		return r.withTx(ctx, func(tx pgx.Tx) error {
 			if err := r.checkDependencies(ctx, tx, resourceID); err != nil {
@@ -177,17 +184,22 @@ func (r *sqlResourcesRepository) MarkForDeletion(ctx context.Context, resourceID
 		})
 	}
 
-	return backoff.RetryNotify(
+	return retry.Do(
 		operation,
-		backoff.WithContext(b, ctx),
-		func(err error, duration time.Duration) {
-			if isSerializationError(err) {
-				r.logger.Debugw("retrying after serialization failure",
-					"error", err,
-					"backoff_duration", duration,
-					"resource_id", resourceID)
-			}
-		},
+		retry.Attempts(r.config.Attempts),    // Number of attempts (5)
+		retry.Delay(r.config.InitialBackoff), // Initial delay (50ms)
+		retry.MaxDelay(r.config.MaxDelay),    // Max total time (5s)
+		retry.DelayType(retry.BackOffDelay),  // Exponential backoff
+		retry.RetryIf(isRetryableError),      // Only retry on specific errors
+		retry.OnRetry(func(n uint, err error) {
+			r.logger.Debugw("retrying after error",
+				"attempt", n+1,
+				"error", err,
+				"backoff_duration", r.config.InitialBackoff<<n, // Show actual backoff
+				"resource_id", resourceID,
+			)
+		}),
+		retry.Context(ctx),
 	)
 }
 
@@ -199,7 +211,7 @@ func (r *sqlResourcesRepository) checkDependencies(ctx context.Context, tx pgx.T
 	}
 
 	if dependencyCount > 0 {
-		return backoff.Permanent(fferr.NewInternalErrorf(
+		return retry.Unrecoverable(fferr.NewInternalErrorf(
 			"cannot delete resource %s %s (%s) because it has %d dependencies",
 			resourceID.Type, resourceID.Name, resourceID.Variant, dependencyCount,
 		))
@@ -211,9 +223,12 @@ func (r *sqlResourcesRepository) markDeleted(ctx context.Context, tx pgx.Tx, res
 	var deletedKey string
 	if err := tx.QueryRow(ctx, sqlMarkAsDeleted, resourceID.ToKey()).Scan(&deletedKey); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return backoff.Permanent(fferr.NewInternalErrorf("resource with key %s does not exist in ff_task_metadata", resourceID.ToKey()))
+			return retry.Unrecoverable(fferr.NewInternalErrorf(
+				"resource with key %s does not exist in ff_task_metadata",
+				resourceID.ToKey(),
+			))
 		}
-		return fmt.Errorf("mark as deleted: %w", err)
+		return fferr.NewInternalErrorf("mark as deleted %s: %v", resourceID.ToKey(), err)
 	}
 	return nil
 }
@@ -226,10 +241,12 @@ func (r *sqlResourcesRepository) deleteEdges(ctx context.Context, tx pgx.Tx, res
 	return nil
 }
 
-type inMemoryResourcesRepository struct{}
+type inMemoryResourcesRepository struct {
+	ResourceLookup
+}
 
-func NewInMemoryResourcesRepository() ResourcesRepository {
-	return &inMemoryResourcesRepository{}
+func NewInMemoryResourcesRepository(lookup ResourceLookup) ResourcesRepository {
+	return &inMemoryResourcesRepository{ResourceLookup: lookup}
 }
 
 func (r *inMemoryResourcesRepository) MarkForDeletion(ctx context.Context, resourceID common.ResourceID) error {

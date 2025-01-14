@@ -1,4 +1,4 @@
-FROM golang:1.21-alpine
+FROM golang:1.22-alpine
 
 WORKDIR /app
 
@@ -11,7 +11,7 @@ COPY ./data_loader/loader.go ./helpers/data_loader/main.go
 
 RUN go build ./helpers/data_loader/main.go
 
-FROM golang:1.21-alpine
+FROM golang:1.22-alpine
 
 COPY --from=0 ./app/main ./main
 

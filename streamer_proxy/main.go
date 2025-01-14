@@ -68,9 +68,9 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 	var ticketData TicketData
 	err := json.Unmarshal(ticket.Ticket, &ticketData)
 	if err != nil {
-		masrhalErr := fmt.Errorf("failed to parse ticket JSON: %w", err)
-		gps.logger.Error(masrhalErr)
-		return nil, masrhalErr
+		marshalErr := fmt.Errorf("failed to parse ticket JSON: %w", err)
+		gps.logger.Error(marshalErr)
+		return nil, marshalErr
 	}
 
 	// handle location
@@ -135,6 +135,7 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 	jsonErr := json.Unmarshal(provider.SerializedConfig(), &config)
 	if jsonErr != nil {
 		gps.logger.Error("could not deserialize the provider config", "error", jsonErr)
+		return nil, jsonErr
 	}
 
 	// validate limit
@@ -188,23 +189,25 @@ func (gps *GoProxyServer) DoGet(ticket *flight.Ticket, stream flight.FlightServi
 	}
 
 	for {
-		flightData, err := flightStream.Recv()
-		if err != nil {
-			if errors.Is(err, io.EOF) {
+		flightData, recvErr := flightStream.Recv()
+		if recvErr != nil {
+			if errors.Is(recvErr, io.EOF) {
 				gps.logger.Infof("Reached the end of the stream")
 				break
 			}
-			gps.logger.Errorf("An error occurred receiving the flight data from stream: %v", err)
-			return err
+			gps.logger.Errorf("An error occurred receiving the flight data from stream: %v", recvErr)
+			return recvErr
 		}
 
 		//send back the flight data as-is
 		sendErr := stream.Send(flightData)
 		if sendErr != nil {
-			gps.logger.Errorf("An error occurred passing the flight data to client: %v", err)
-			return err
+			gps.logger.Errorf("An error occurred passing the flight data to client: %v", sendErr)
+			return sendErr
 		}
 	}
+
+	gps.logger.Info("Proxy Get Complete")
 	return nil
 }
 
@@ -249,6 +252,6 @@ func main() {
 	flight.RegisterFlightServiceServer(grpcServer, proxyFlightServer)
 	servErr := grpcServer.Serve(listener)
 	if servErr != nil {
-		proxyFlightServer.logger.Fatalf("Failed to start gRPC server: %v", err)
+		proxyFlightServer.logger.Fatalf("Failed to start gRPC server: %v", servErr)
 	}
 }

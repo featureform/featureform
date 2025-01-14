@@ -239,7 +239,7 @@ class Client(ResourceClient, ServingClient):
         print("Client initializing...")
         client_kwargs = {}
         if not self._insecure:
-            print("not secure")
+            print("is secure")
             cert_path = self._cert_path or os.getenv("FEATUREFORM_CERT")
             if cert_path:
                 print(f"Using TLS certificate at: {cert_path}")

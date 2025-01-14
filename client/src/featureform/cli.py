@@ -170,7 +170,7 @@ def version():
 @click.option("--insecure", is_flag=True, help="Disables TLS verification")
 @click.argument("name", required=True)
 @click.argument("variant", required=True)
-def stream(host, cert, insecure, name, variant):
+def head(host, cert, insecure, name, variant):
     host = host or os.getenv("FEATUREFORM_HOST")
     if host is None:
         raise ValueError(

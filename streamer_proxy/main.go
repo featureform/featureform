@@ -99,6 +99,8 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 
 	gps.logger.Infof("Fetching primary location with source variant: %s-%s", sourceVariant.Name(), sourceVariant.Variant())
 	location, locationErr := sourceVariant.GetPrimaryLocation()
+	gps.logger.Info("location: ", location)
+	gps.logger.Info("locationErr: ", locationErr)
 	if locationErr != nil {
 		gps.logger.Error("error when invoking sourceVariant.GetPrimaryLocation()", "error", locationErr)
 		return nil, locationErr

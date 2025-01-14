@@ -15,7 +15,7 @@ from pyiceberg.catalog import load_catalog
 from pyiceberg.table import Table
 from typeguard import typechecked
 
-from .constants import ONE_MILLION_RECORD_LIMIT
+from .constants import TWO_MILLION_RECORD_LIMIT
 from .enums import FileFormat, DataResourceType, RefreshMode, Initialize
 from .proto import metadata_pb2 as pb
 from .register import (
@@ -125,7 +125,7 @@ class Client(ResourceClient, ServingClient):
             SourceRegistrar, SubscriptableTransformation, ResourceVariant, str
         ],
         variant: Optional[str] = None,
-        limit=ONE_MILLION_RECORD_LIMIT,
+        limit=TWO_MILLION_RECORD_LIMIT,
         spark_session=None,
         asynchronous=False,
         verbose=False,
@@ -144,7 +144,7 @@ class Client(ResourceClient, ServingClient):
         Args:
             source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
             variant (str): The source variant; can't be None if source is a string
-            limit (int): The maximum number of records to return; defaults to ONE_MILLION_RECORD_LIMIT
+            limit (int): The maximum number of records to return; defaults to TWO_MILLION_RECORD_LIMIT
             spark_session: Specifices to read as a spark session.
             asynchronous (bool): Flag to determine whether the client should wait for resources to be in either a READY or FAILED state before returning. Defaults to False to ensure that newly registered resources are in a READY state prior to serving them as dataframes.
 
@@ -205,7 +205,7 @@ class Client(ResourceClient, ServingClient):
         source: str = None,
         variant: str = None,
         resource_type: DataResourceType = DataResourceType.PRIMARY,
-        limit: int = ONE_MILLION_RECORD_LIMIT,
+        limit: int = TWO_MILLION_RECORD_LIMIT,
     ):
         """
         Fetch Iceberg data via the Go proxy using Apache Arrow Flight protocol.

@@ -9,5 +9,5 @@
 # to denote that all records should be fetched.
 NO_RECORD_LIMIT = -1
 
-# 1 million records
-ONE_MILLION_RECORD_LIMIT = 1_000_000
+# 2 million records
+TWO_MILLION_RECORD_LIMIT = 2_000_000

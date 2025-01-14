@@ -12,7 +12,7 @@ from pyiceberg.catalog import load_catalog
 from pyarrow.flight import FlightServerBase, RecordBatchStream
 
 port = 8085
-ONE_MILLION_RECORD_LIMIT = 1_000_000
+TWO_MILLION_RECORD_LIMIT = 2_000_000
 
 class StreamerService(FlightServerBase):
     def __init__(self):
@@ -36,7 +36,7 @@ class StreamerService(FlightServerBase):
             "client.secret-access-key": request_data.get("client.secret-access-key"),
             "client.region": request_data.get("client.region"),
             "client.role-arn": request_data.get("client.role-arn"),
-            "limit": request_data.get("limit", ONE_MILLION_RECORD_LIMIT),
+            "limit": request_data.get("limit", TWO_MILLION_RECORD_LIMIT),
         }
 
         print(f"Processing stream request for table: {request_dict['namespace']}.{request_dict['table']}")

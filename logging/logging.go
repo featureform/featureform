@@ -195,15 +195,14 @@ func (logger Logger) GetValue(key string) interface{} {
 }
 
 func (logger Logger) appendValueMap(values map[string]interface{}) *sync.Map {
-
 	combinedValues := &sync.Map{}
-	for k, v := range values {
-		combinedValues.Store(k, v)
-	}
 	logger.values.Range(func(key, value interface{}) bool {
 		combinedValues.Store(key, value)
 		return true
 	})
+	for k, v := range values {
+		combinedValues.Store(k, v)
+	}
 	return combinedValues
 }
 

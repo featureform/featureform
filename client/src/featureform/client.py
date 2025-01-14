@@ -152,8 +152,7 @@ class Client(ResourceClient, ServingClient):
             df (pandas.DataFrame): The dataframe computed from the source or transformation
 
         """
-        # todox: calling apply during client.dataframe can't be right
-        # self.apply(asynchronous=asynchronous, verbose=verbose)
+        self.apply(asynchronous=asynchronous, verbose=verbose)
         if isinstance(
             source, (SourceRegistrar, SubscriptableTransformation, ResourceVariant)
         ):

@@ -23,11 +23,12 @@ import (
 	"github.com/databricks/databricks-sdk-go/service/jobs"
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
+	"github.com/featureform/logging"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/spark"
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 )
 
 type DatabricksResultState string
@@ -39,7 +40,7 @@ const (
 	Cancelled DatabricksResultState = "CANCELLED"
 )
 
-func NewDatabricksExecutor(databricksConfig pc.DatabricksConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+func NewDatabricksExecutor(databricksConfig pc.DatabricksConfig, logger logging.Logger) (SparkExecutor, error) {
 	client := databricks.Must(
 		databricks.NewWorkspaceClient(&databricks.Config{
 			Host:     databricksConfig.Host,
@@ -107,7 +108,7 @@ type DatabricksExecutor struct {
 	cluster            string
 	config             pc.DatabricksConfig
 	errorMessageClient *dbClient.DatabricksClient
-	logger             *zap.SugaredLogger
+	logger             logging.Logger
 	baseExecutor
 }
 
@@ -115,15 +116,12 @@ func (db *DatabricksExecutor) SupportsTransformationOption(opt TransformationOpt
 	return false, nil
 }
 
-func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore, opts SparkJobOptions, tfopts TransformationOptions) error {
-	logger := db.logger.With("args", args, "store", store.Type(), "job_name", opts.JobName, "cluster_id", db.cluster)
-	pythonFilepath, err := db.PythonFileURI(store)
-	if err != nil {
-		logger.Errorw("could not get python file path", "error", err)
-		return err
-	}
-	pythonTask := jobs.SparkPythonTask{
-		PythonFile: pythonFilepath.ToURI(),
+func (db *DatabricksExecutor) RunSparkJob(cmd *spark.Command, store SparkFileStoreV2, opts SparkJobOptions, tfopts TransformationOptions) error {
+	script, args := cmd.CompileScriptOnly()
+	safeScript, safeArgs := cmd.Redacted().CompileScriptOnly()
+	logger := db.logger.With("script", safeScript, "args", safeArgs, "store", store.Type(), "job_name", opts.JobName, "cluster_id", db.cluster)
+	pythonTask := &jobs.SparkPythonTask{
+		PythonFile: script,
 		Parameters: args,
 	}
 	ctx := context.Background()
@@ -135,7 +133,7 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore, o
 			{
 				TaskKey:           fmt.Sprintf("featureform-task-%s", id),
 				ExistingClusterId: db.cluster,
-				SparkPythonTask:   &pythonTask,
+				SparkPythonTask:   pythonTask,
 			},
 		},
 	})
@@ -169,7 +167,7 @@ func (db *DatabricksExecutor) RunSparkJob(args []string, store SparkFileStore, o
 	return nil
 }
 
-func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
+func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStoreV2) error {
 	logger := db.logger.With("store", store.Type(), "executor_type", "Databricks")
 	// We can't use CreateFilePath here because it calls Validate under the hood,
 	// which will always fail given it's a local file without a valid scheme or bucket, for example.
@@ -218,79 +216,6 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStore) error {
 	return nil
 }
 
-// Need the bucket from here
-func (db *DatabricksExecutor) PythonFileURI(store SparkFileStore) (filestore.Filepath, error) {
-	relativePath := db.files.RemoteScriptPath
-	filePath, err := store.CreateFilePath(relativePath, false)
-	if err != nil {
-		return nil, fmt.Errorf("could not create file path: %v", err)
-	}
-	if store.FilestoreType() == filestore.S3 {
-		if err := filePath.SetScheme(filestore.S3Prefix); err != nil {
-			return nil, fmt.Errorf("could not set scheme: %v", err)
-		}
-	}
-	return filePath, nil
-}
-
-func (db *DatabricksExecutor) SparkSubmitArgs(outputLocation pl.Location, cleanQuery string, sourceList []string, jobType JobType, store SparkFileStore, mappings []SourceMapping) ([]string, error) {
-	db.logger.Debugw("SparkSubmitArgs", "outputLocation", outputLocation.Location(), "cleanQuery", cleanQuery, "sourceList", sourceList, "jobType", jobType, "store", store)
-	if _, isFilestoreLocation := outputLocation.(*pl.FileStoreLocation); !isFilestoreLocation {
-		return nil, fmt.Errorf("output location must be a filestore location")
-	}
-	output, err := outputLocation.Serialize()
-	if err != nil {
-		return nil, err
-	}
-	argList := []string{
-		"sql",
-		"--output",
-		output,
-		"--job_type",
-		string(jobType),
-		"--store_type",
-		store.Type(),
-	}
-	sparkConfigs := store.SparkConfig()
-	argList = append(argList, sparkConfigs...)
-
-	credentialConfigs := store.CredentialsConfig()
-	argList = append(argList, credentialConfigs...)
-
-	snowflakeConfig, err := getSnowflakeConfigFromSourceMapping(mappings)
-	if err != nil {
-		db.logger.Errorw("Could not get Snowflake config from source mapping", "error", err)
-		return nil, err
-	}
-
-	if snowflakeConfig != nil {
-		argList = append(argList, removeEscapeCharacters(snowflakeConnectorCredentials(snowflakeConfig))...)
-	}
-
-	// Databricks's API enforces a 10K-byte limit on job submit params, so to avoid a 400, we need to check to ensure
-	// the args are below this limit. If they exceed this limit, it's most likely due to the query and/or the list of
-	// sources, so we write these as a JSON file and read them from the PySpark runner script to side-step this constraint
-	if exceedsSubmitParamsTotalByteLimit(argList, cleanQuery, sourceList) {
-		db.logger.Debugw("Exceeded submit params byte limit; writing to file store", "store", store.FilestoreType())
-		if store.FilestoreType() != filestore.S3 {
-			return argList, fmt.Errorf("%s is not a currently support file store for writing submit params; supported types: %s", store.FilestoreType(), filestore.S3)
-		}
-
-		paramsPath, err := writeSubmitParamsToFileStore(cleanQuery, sourceList, store, db.logger)
-		if err != nil {
-			return nil, err
-		}
-
-		argList = append(argList, "--submit_params_uri", paramsPath.Key())
-	} else {
-		argList = append(argList, "--sql_query", cleanQuery)
-		argList = append(argList, "--sources")
-		argList = append(argList, sourceList...)
-	}
-
-	return argList, nil
-}
-
 func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {
 	ctx := context.Background()
 
@@ -334,41 +259,4 @@ func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {
 	}
 
 	return fmt.Errorf("%s", runOutput.Error), nil
-}
-
-func (d *DatabricksExecutor) GetDFArgs(outputLocation pl.Location, code string, sources []string, store SparkFileStore, mappings []SourceMapping) ([]string, error) {
-	d.logger.Debugw("GetDFArgs", "outputLocation", outputLocation, "code", code, "sources", sources, "store", store)
-	output, err := outputLocation.Serialize()
-	if err != nil {
-		return nil, err
-	}
-	argList := []string{
-		"df",
-		"--output",
-		output,
-		"--code",
-		code,
-		"--store_type",
-		store.Type(),
-	}
-
-	sparkConfigs := store.SparkConfig()
-	argList = append(argList, sparkConfigs...)
-
-	credentialConfigs := store.CredentialsConfig()
-	argList = append(argList, credentialConfigs...)
-
-	snowflakeConfig, err := getSnowflakeConfigFromSourceMapping(mappings)
-	if err != nil {
-		return nil, err
-	}
-
-	if snowflakeConfig != nil {
-		argList = append(argList, removeEscapeCharacters(snowflakeConnectorCredentials(snowflakeConfig))...)
-	}
-
-	argList = append(argList, "--sources")
-	argList = append(argList, sources...)
-
-	return argList, nil
 }

@@ -2068,6 +2068,32 @@ func (serv *MetadataServer) WatchForCancel(ctx context.Context, id *schproto.Tas
 	return &pb.ResourceStatus{Status: pb.ResourceStatus_CANCELLED}, nil
 }
 
+func (serv *MetadataServer) SetRunEndTime(ctx context.Context, update *schproto.RunEndTimeUpdate) (*schproto.Empty, error) {
+	_, _, logger := serv.Logger.InitializeRequestID(ctx)
+	taskID, runID := update.GetTaskID().GetId(), update.GetRunID().GetId()
+	logger = logger.WithValues(map[string]interface{}{
+		"task_id": taskID,
+		"run_id":  runID,
+	})
+	logger.Info("Setting Run End Time")
+	tid, err := scheduling.ParseTaskID(taskID)
+	if err != nil {
+		logger.Errorw("failed to parse task id", "error", err)
+		return nil, err
+	}
+	rid, err := scheduling.ParseTaskRunID(runID)
+	if err != nil {
+		logger.Errorw("failed to parse run id", "error", err)
+		return nil, err
+	}
+	err = serv.taskManager.SetRunEndTime(rid, tid, update.End.AsTime())
+	if err != nil {
+		logger.Errorw("failed to set run end time", "error", err)
+		return nil, err
+	}
+	return &schproto.Empty{}, nil
+}
+
 func (serv *MetadataServer) Serve() error {
 	if serv.grpcServer != nil {
 		return fferr.NewInternalErrorf("server already running")

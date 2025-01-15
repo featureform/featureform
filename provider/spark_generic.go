@@ -17,13 +17,14 @@ import (
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
+	"github.com/featureform/logging"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
-	"go.uber.org/zap"
+	"github.com/featureform/provider/spark"
 )
 
-func NewSparkGenericExecutor(sparkGenericConfig pc.SparkGenericConfig, logger *zap.SugaredLogger) (SparkExecutor, error) {
+func NewSparkGenericExecutor(sparkGenericConfig pc.SparkGenericConfig, logger logging.Logger) (SparkExecutor, error) {
 	base, err := newBaseExecutor()
 	if err != nil {
 		return nil, err
@@ -46,11 +47,11 @@ type SparkGenericExecutor struct {
 	pythonVersion string
 	coreSite      string
 	yarnSite      string
-	logger        *zap.SugaredLogger
+	logger        logging.Logger
 	baseExecutor
 }
 
-func (s *SparkGenericExecutor) InitializeExecutor(store SparkFileStore) error {
+func (s *SparkGenericExecutor) InitializeExecutor(store SparkFileStoreV2) error {
 	s.logger.Info("Uploading PySpark script to filestore")
 	// We can't use CreateFilePath here because it calls Validate under the hood,
 	// which will always fail given it's a local file without a valid scheme or bucket, for example.
@@ -105,7 +106,9 @@ func (s *SparkGenericExecutor) SupportsTransformationOption(opt TransformationOp
 	return false, nil
 }
 
-func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore, opts SparkJobOptions, tfOpts TransformationOptions) error {
+func (s *SparkGenericExecutor) RunSparkJob(sparkCmd *spark.Command, store SparkFileStoreV2, opts SparkJobOptions, tfOpts TransformationOptions) error {
+	sparkCmd.AddConfigs(spark.MasterFlag{s.master})
+	args := sparkCmd.Compile()
 	bashCommand := "bash"
 	sparkArgsString := strings.Join(args, " ")
 	var commandString string
@@ -148,114 +151,4 @@ func (s *SparkGenericExecutor) RunSparkJob(args []string, store SparkFileStore, 
 	}
 
 	return nil
-}
-
-func (s *SparkGenericExecutor) PythonFileURI(store SparkFileStore) (filestore.Filepath, error) {
-	// not used for Spark Generic Executor
-	return nil, nil
-}
-
-func (s *SparkGenericExecutor) SparkSubmitArgs(
-	outputLocation pl.Location,
-	cleanQuery string,
-	sourceList []string,
-	jobType JobType,
-	store SparkFileStore,
-	mappings []SourceMapping,
-) ([]string, error) {
-
-	s.logger.Debugw("SparkSubmitArgs", "outputLocation", outputLocation.Location(), "cleanQuery", cleanQuery, "sourceList", sourceList, "jobType", jobType, "store", store)
-	if _, isFilestoreLocation := outputLocation.(*pl.FileStoreLocation); !isFilestoreLocation {
-		return nil, fmt.Errorf("output location must be a filestore location")
-	}
-	output, err := outputLocation.Serialize()
-	if err != nil {
-		return nil, err
-	}
-	argList := []string{
-		"spark-submit",
-		"--deploy-mode",
-		s.deployMode,
-		"--master",
-		s.master,
-	}
-
-	packageArgs := store.Packages()
-	argList = append(argList, packageArgs...) // adding any packages needed for filestores
-
-	sparkScriptPathEnv := s.files.LocalScriptPath
-	scriptArgs := []string{
-		sparkScriptPathEnv,
-		"sql",
-		"--output",
-		output,
-		"--sql_query",
-		fmt.Sprintf("'%s'", cleanQuery),
-		"--job_type",
-		fmt.Sprintf("'%s'", jobType),
-		"--store_type",
-		store.Type(),
-	}
-	argList = append(argList, scriptArgs...)
-
-	sparkConfigs := store.SparkConfig()
-	argList = append(argList, sparkConfigs...)
-
-	credentialConfigs := store.CredentialsConfig()
-	argList = append(argList, credentialConfigs...)
-
-	argList = append(argList, "--sources")
-	argList = append(argList, sourceList...)
-
-	return argList, nil
-}
-
-func (s *SparkGenericExecutor) GetDFArgs(
-	outputLocation pl.Location,
-	code string,
-	sources []string,
-	store SparkFileStore,
-	mappings []SourceMapping,
-) ([]string, error) {
-
-	argList := []string{
-		"spark-submit",
-		"--deploy-mode",
-		s.deployMode,
-		"--master",
-		s.master,
-	}
-
-	packageArgs := store.Packages()
-	argList = append(argList, packageArgs...) // adding any packages needed for filestores
-
-	sparkScriptPathEnv := s.files.LocalScriptPath
-
-	output, err := outputLocation.Serialize()
-	if err != nil {
-		return nil, err
-	}
-
-	scriptArgs := []string{
-		sparkScriptPathEnv,
-		"df",
-		"--output",
-		output,
-		"--code",
-		code,
-		"--store_type",
-		store.Type(),
-	}
-	argList = append(argList, scriptArgs...)
-
-	sparkConfigs := store.SparkConfig()
-	argList = append(argList, sparkConfigs...)
-
-	credentialConfigs := store.CredentialsConfig()
-	argList = append(argList, credentialConfigs...)
-
-	argList = append(argList, "--sources")
-	argList = append(argList, sources...)
-
-	return argList, nil
 }

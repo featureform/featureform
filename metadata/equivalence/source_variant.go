@@ -225,12 +225,19 @@ func kubernetesArgsFromProto(proto *pb.KubernetesArgs) kubernetesArgs {
 	if proto == nil {
 		return kubernetesArgs{}
 	}
+	specs := proto.Specs
+	if specs == nil {
+		return kubernetesArgs{
+			image: proto.DockerImage,
+		}
+	}
+
 	return kubernetesArgs{
 		image:         proto.DockerImage,
-		CPURequest:    proto.Specs.CpuRequest,
-		CPULimit:      proto.Specs.CpuLimit,
-		MemoryRequest: proto.Specs.MemoryRequest,
-		MemoryLimit:   proto.Specs.MemoryLimit,
+		CPURequest:    specs.CpuRequest,
+		CPULimit:      specs.CpuLimit,
+		MemoryRequest: specs.MemoryRequest,
+		MemoryLimit:   specs.MemoryLimit,
 	}
 }
 
@@ -244,42 +251,6 @@ func (k kubernetesArgs) IsEquivalent(other Equivalencer) bool {
 		k.CPULimit == otherArgs.CPULimit &&
 		k.MemoryRequest == otherArgs.MemoryRequest &&
 		k.MemoryLimit == otherArgs.MemoryLimit
-}
-
-type resourceSnowflakeConfig struct {
-	DynamicTableConfig snowflakeDynamicTableConfig
-	Warehouse          string
-}
-
-type snowflakeDynamicTableConfig struct {
-	TargetLag   string
-	RefreshMode string
-	Initialize  string
-}
-
-func resourceSnowflakeConfigFromProto(proto *pb.ResourceSnowflakeConfig) resourceSnowflakeConfig {
-	if proto == nil {
-		return resourceSnowflakeConfig{}
-	}
-
-	return resourceSnowflakeConfig{
-		DynamicTableConfig: snowflakeDynamicTableConfig{
-			TargetLag:   proto.DynamicTableConfig.TargetLag,
-			RefreshMode: proto.DynamicTableConfig.RefreshMode.String(),
-			Initialize:  proto.DynamicTableConfig.Initialize.String(),
-		},
-		Warehouse: proto.Warehouse,
-	}
-}
-
-func (s snowflakeDynamicTableConfig) IsEquivalent(other Equivalencer) bool {
-	otherConfig, ok := other.(snowflakeDynamicTableConfig)
-	if !ok {
-		return false
-	}
-	return s.TargetLag == otherConfig.TargetLag &&
-		s.RefreshMode == otherConfig.RefreshMode &&
-		s.Initialize == otherConfig.Initialize
 }
 
 type sqlTransformation struct {
@@ -329,7 +300,6 @@ type dfTransformation struct {
 }
 
 func dfTransformationFromProto(proto *pb.DFTransformation) dfTransformation {
-
 	inputs := make([]nameVariant, len(proto.Inputs))
 	for i, input := range proto.Inputs {
 		inputs[i] = nameVariant{

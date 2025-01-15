@@ -8,7 +8,10 @@
 package equivalence
 
 import (
+	pb "github.com/featureform/metadata/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -225,6 +228,138 @@ func TestFeatureLagIsEquivalent(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.lag1.IsEquivalent(tt.lag2)
 			assert.Equal(t, tt.expected, result, "IsEquivalent() mismatch in test case: %s", tt.name)
+		})
+	}
+}
+
+func TestTrainingSetVariantFromProto(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    *pb.TrainingSetVariant
+		expected trainingSetVariant
+		wantErr  bool
+	}{
+		{
+			name: "complete training set variant with snowflake config",
+			input: &pb.TrainingSetVariant{
+				Name: "test_variant",
+				Features: []*pb.NameVariant{
+					{Name: "feature1"},
+					{Name: "feature2", Variant: "v1"},
+				},
+				Label: &pb.NameVariant{
+					Name: "target_label",
+				},
+				FeatureLags: []*pb.FeatureLag{
+					{
+						Feature: "feature1",
+						Lag:     durationpb.New(time.Hour),
+					},
+				},
+				ResourceSnowflakeConfig: &pb.ResourceSnowflakeConfig{
+					Warehouse: "test_warehouse",
+					DynamicTableConfig: &pb.SnowflakeDynamicTableConfig{
+						TargetLag:   "1h",
+						RefreshMode: pb.RefreshMode_REFRESH_MODE_FULL,
+						Initialize:  pb.Initialize_INITIALIZE_ON_SCHEDULE,
+					},
+				},
+			},
+			expected: trainingSetVariant{
+				Name: "test_variant",
+				Features: []nameVariant{
+					{Name: "feature1"},
+					{Name: "feature2", Variant: "v1"},
+				},
+				Label: nameVariant{
+					Name: "target_label",
+				},
+				LagFeatures: []featureLag{
+					{
+						Feature: "feature1",
+						Lag:     durationpb.New(time.Hour).String(),
+					},
+				},
+				ResourceSnowflakeConfig: resourceSnowflakeConfig{
+					Warehouse: "test_warehouse",
+					DynamicTableConfig: snowflakeDynamicTableConfig{
+						TargetLag:   "1h",
+						RefreshMode: "REFRESH_MODE_FULL",
+						Initialize:  "INITIALIZE_ON_SCHEDULE",
+					},
+				},
+			},
+		},
+		{
+			name: "training set variant without snowflake config",
+			input: &pb.TrainingSetVariant{
+				Name: "no_snowflake",
+				Features: []*pb.NameVariant{
+					{Name: "feature1"},
+					{Name: "feature2", Variant: "v1"},
+				},
+				Label: &pb.NameVariant{
+					Name: "target_label",
+				},
+				FeatureLags: []*pb.FeatureLag{
+					{
+						Feature: "feature1",
+						Lag:     durationpb.New(time.Hour),
+					},
+				},
+				ResourceSnowflakeConfig: nil, // explicitly nil
+			},
+			expected: trainingSetVariant{
+				Name: "no_snowflake",
+				Features: []nameVariant{
+					{Name: "feature1"},
+					{Name: "feature2", Variant: "v1"},
+				},
+				Label: nameVariant{
+					Name: "target_label",
+				},
+				LagFeatures: []featureLag{
+					{
+						Feature: "feature1",
+						Lag:     durationpb.New(time.Hour).String(),
+					},
+				},
+				ResourceSnowflakeConfig: resourceSnowflakeConfig{}, // empty config
+			},
+		},
+		{
+			name: "minimal training set variant",
+			input: &pb.TrainingSetVariant{
+				Name: "minimal_variant",
+				Features: []*pb.NameVariant{
+					{Name: "feature1"},
+				},
+				Label: &pb.NameVariant{
+					Name: "label",
+				},
+			},
+			expected: trainingSetVariant{
+				Name: "minimal_variant",
+				Features: []nameVariant{
+					{Name: "feature1"},
+				},
+				Label: nameVariant{
+					Name: "label",
+				},
+				ResourceSnowflakeConfig: resourceSnowflakeConfig{}, // empty config
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := TrainingSetVariantFromProto(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

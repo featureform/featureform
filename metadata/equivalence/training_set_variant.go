@@ -15,18 +15,20 @@ import (
 )
 
 type trainingSetVariant struct {
-	Name        string
-	Features    []nameVariant
-	Label       nameVariant
-	LagFeatures []featureLag
+	Name                    string
+	Features                []nameVariant
+	Label                   nameVariant
+	LagFeatures             []featureLag
+	ResourceSnowflakeConfig resourceSnowflakeConfig
 }
 
 func TrainingSetVariantFromProto(proto *pb.TrainingSetVariant) (trainingSetVariant, error) {
 	return trainingSetVariant{
-		Name:        proto.Name,
-		Features:    nameVariantsFromProto(proto.Features),
-		Label:       nameVariantFromProto(proto.Label),
-		LagFeatures: featureLagsFromProto(proto.FeatureLags),
+		Name:                    proto.Name,
+		Features:                nameVariantsFromProto(proto.Features),
+		Label:                   nameVariantFromProto(proto.Label),
+		LagFeatures:             featureLagsFromProto(proto.FeatureLags),
+		ResourceSnowflakeConfig: resourceSnowflakeConfigFromProto(proto.ResourceSnowflakeConfig),
 	}, nil
 }
 
@@ -41,7 +43,8 @@ func (t trainingSetVariant) IsEquivalent(other Equivalencer) bool {
 			return t1.Name == t2.Name &&
 				reflect.DeepEqual(t1.Features, t2.Features) &&
 				reflect.DeepEqual(t1.LagFeatures, t2.LagFeatures) &&
-				t1.Label.IsEquivalent(t2.Label)
+				t1.Label.IsEquivalent(t2.Label) &&
+				reflect.DeepEqual(t1.ResourceSnowflakeConfig, t2.ResourceSnowflakeConfig)
 		}),
 	}
 

@@ -395,7 +395,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  db_migration:
+  db-migration-up:
     name: Build DB Migration Job
     environment: Deployment
     defaults:

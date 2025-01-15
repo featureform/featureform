@@ -395,7 +395,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  db_migration:
+  db-migration-up:
     name: Build DB Migration Job
     environment: Deployment
     defaults:
@@ -425,7 +425,7 @@ jobs:
         with:
           context: .
           file: ./db/Dockerfile
-          tags: featureformcom/db_migration:${{ env.TAG }}
+          tags: featureformcom/db-migration-up:${{ env.TAG }}
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max

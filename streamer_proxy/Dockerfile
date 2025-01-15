@@ -5,7 +5,7 @@
 #  Copyright 2024 FeatureForm Inc.
 #
 
-FROM golang:1.21-alpine as Builder
+FROM golang:1.22-alpine as Builder
 WORKDIR /app
 
 COPY go.mod ./

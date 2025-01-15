@@ -2427,15 +2427,66 @@ func (serv *MetadataServer) isDeletable(ctx context.Context, resource Resource) 
 		return fferr.NewInternalErrorf("Resource type %s is not deletable", resource.ID().Type)
 	}
 
-	if sourceVariant, ok := resource.(*sourceVariantResource); ok {
-		sv := WrapProtoSourceVariant(sourceVariant.serialized)
-		data := sourceVariant.serialized.GetPrimaryData()
-		if data != nil {
-			return fferr.NewInternalErrorf("Source variant %s is not deletable because it is primary data", sourceVariant.ID().String())
-		}
+	switch r := resource.(type) {
+	case *trainingSetVariantResource:
+		return serv.validateTrainingSetDeletion(ctx, r)
+	case *sourceVariantResource:
+		return serv.validateSourceDeletion(ctx, r)
+	case *featureVariantResource:
+		return serv.validateFeatureDeletion(ctx, r)
+	case *labelVariantResource:
+		return serv.validateLabelDeletion(ctx, r)
+	}
+	return nil
+}
+
+func (serv *MetadataServer) validateProviderType(ctx context.Context, providerName string) error {
+	provider, err := serv.lookup.Lookup(ctx, ResourceID{Name: providerName, Type: PROVIDER}, ResourceLookupOpt{IncludeDeleted: false})
+	if err != nil {
+		return err
 	}
 
+	providerResource := provider.(*providerResource)
+	t := providerResource.serialized.Type
+	serv.Logger.Debugw("Provider type", "type", t)
+
+	// we can only delete snowflake provider for now
+	if t != pt.SnowflakeOffline.String() {
+		return fferr.NewInternalErrorf("Resource is not deletable because it is not a snowflake provider")
+	}
 	return nil
+}
+
+func (serv *MetadataServer) validateTrainingSetDeletion(ctx context.Context, ts *trainingSetVariantResource) error {
+	wrapped := WrapProtoTrainingSetVariant(ts.serialized)
+	serv.Logger.Debugw("Check provider for deletion", "provider", wrapped.Provider())
+	return serv.validateProviderType(ctx, wrapped.Provider())
+}
+
+func (serv *MetadataServer) validateSourceDeletion(ctx context.Context, sv *sourceVariantResource) error {
+	wrapped := WrapProtoSourceVariant(sv.serialized)
+	serv.Logger.Debugw("Check provider for deletion", "provider", wrapped.Provider())
+
+	if err := serv.validateProviderType(ctx, wrapped.Provider()); err != nil {
+		return err
+	}
+
+	if data := sv.serialized.GetPrimaryData(); data != nil {
+		return fferr.NewInternalErrorf("Source variant %s is not deletable because it is primary data", sv.ID().String())
+	}
+	return nil
+}
+
+func (serv *MetadataServer) validateFeatureDeletion(ctx context.Context, fv *featureVariantResource) error {
+	wrapped := WrapProtoFeatureVariant(fv.serialized)
+	serv.Logger.Debugw("Check provider for deletion", "provider", wrapped.Provider())
+	return serv.validateProviderType(ctx, wrapped.Provider())
+}
+
+func (serv *MetadataServer) validateLabelDeletion(ctx context.Context, lv *labelVariantResource) error {
+	wrapped := WrapProtoLabelVariant(lv.serialized)
+	serv.Logger.Debugw("Check provider for deletion", "provider", wrapped.Provider())
+	return serv.validateProviderType(ctx, wrapped.Provider())
 }
 
 func (serv *MetadataServer) FinalizeDeletion(ctx context.Context, request *pb.FinalizeDeletionRequest) (*pb.FinalizeDeletionResponse, error) {

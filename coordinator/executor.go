@@ -207,9 +207,8 @@ func (e *Executor) getTaskRunner(runMetadata scheduling.TaskRunMetadata, lastSuc
 	taskConfig := tasks.TaskConfig{
 		DependencyPollInterval: e.config.DependencyPollInterval,
 	}
-	baseTask := tasks.NewBaseTask(e.metadata, runMetadata, lastSuccessfulRun, isUpdate, e.spawner, logger, taskConfig)
-	logger = logger.WithValues(baseTask.Redacted())
-	logger.Info("Base task created")
+	baseTask := tasks.NewBaseTask(e.metadata, runMetadata, lastSuccessfulRun, isUpdate, runMetadata.IsDelete, e.spawner, logger, taskConfig)
+	e.logger.Infow("Base task created", "task", baseTask.Redacted())
 	return tasks.Get(runMetadata.TargetType, baseTask)
 }
 

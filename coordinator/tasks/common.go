@@ -28,6 +28,10 @@ func getStore(baseTask BaseTask, client *metadata.Client, pf providerFetcher) (p
 
 	store, err := p.AsOfflineStore()
 	if err != nil {
+		//logger.Errorw(
+		//	"Retrieved provider is not an offline store",
+		//	"provider-type", p.Type(), "error", err,
+		//)
 		return nil, err
 	}
 

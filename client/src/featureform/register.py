@@ -25,6 +25,7 @@ from .exceptions import InvalidSQLQuery
 from .get import *
 from .grpc_client import GrpcClient
 from .list import *
+from .logging import setup_logging
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
 from .resources import *
@@ -4817,6 +4818,8 @@ class ResourceClient:
         if dry_run:
             return
 
+        setup_logging(debug)
+
         host = host or os.getenv("FEATUREFORM_HOST")
         if host is None:
             raise RuntimeError(
@@ -4831,6 +4834,7 @@ class ResourceClient:
         self._host = host
         self._cert_path = cert_path or os.getenv("FEATUREFORM_CERT")
         self._insecure = insecure
+        self.logger = logging.getLogger(__name__)
 
     def apply(self, asynchronous=False, verbose=False):
         """

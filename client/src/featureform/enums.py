@@ -6,7 +6,7 @@
 #
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 from featureform.proto import metadata_pb2 as pb
 from typeguard import typechecked
 from os import path
@@ -224,21 +224,36 @@ class DataResourceType(Enum):
 
 
 class ResourceType(Enum):
-    NO_TYPE = None
-    USER = pb.ResourceType.USER
-    PROVIDER = pb.ResourceType.PROVIDER
-    SOURCE_VARIANT = pb.ResourceType.SOURCE_VARIANT
-    ENTITY = pb.ResourceType.ENTITY
-    FEATURE_VARIANT = pb.ResourceType.FEATURE_VARIANT
-    ONDEMAND_FEATURE = pb.ResourceType.FEATURE_VARIANT
-    LABEL_VARIANT = pb.ResourceType.LABEL_VARIANT
-    TRAININGSET_VARIANT = pb.ResourceType.TRAINING_SET_VARIANT
-    SCHEDULE = None
-    MODEL = pb.ResourceType.MODEL
-    TRANSFORMATION = pb.ResourceType.SOURCE_VARIANT
+    NO_TYPE = auto()
+    USER = auto()
+    PROVIDER = auto()
+    SOURCE_VARIANT = auto()
+    ENTITY = auto()
+    FEATURE_VARIANT = auto()
+    ONDEMAND_FEATURE = auto()
+    LABEL_VARIANT = auto()
+    TRAININGSET_VARIANT = auto()
+    SCHEDULE = auto()
+    MODEL = auto()
+    TRANSFORMATION = auto()
+
+    _proto_map = {
+        NO_TYPE: None,
+        USER: pb.ResourceType.USER,
+        PROVIDER: pb.ResourceType.PROVIDER,
+        SOURCE_VARIANT: pb.ResourceType.SOURCE_VARIANT,
+        ENTITY: pb.ResourceType.ENTITY,
+        FEATURE_VARIANT: pb.ResourceType.FEATURE_VARIANT,
+        ONDEMAND_FEATURE: pb.ResourceType.FEATURE_VARIANT,
+        LABEL_VARIANT: pb.ResourceType.LABEL_VARIANT,
+        TRAININGSET_VARIANT: pb.ResourceType.TRAINING_SET_VARIANT,
+        SCHEDULE: None,
+        MODEL: pb.ResourceType.MODEL,
+        TRANSFORMATION: pb.ResourceType.SOURCE_VARIANT,
+    }
 
     def to_proto(self):
-        return self.value
+        return self._proto_map[self]
 
     def to_string(self) -> str:
         return self.name.replace("_", " ").title()

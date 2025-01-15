@@ -15,6 +15,7 @@ import (
 )
 
 func TestSuiteSparkFileStoreV2(t *testing.T) {
+	t.Skip("Biglake ENV variables not set")
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}

@@ -119,8 +119,7 @@ func (e *EMRExecutor) RunSparkJob(cmd *spark.Command, store SparkFileStoreV2, op
 	logger := e.logger.With("args", redactedArgs, "opts", opts, "tfOpts", tfOpts)
 	logger.Debugw("Running SparkJob")
 
-	resumeOpt := e.getResumeOption(tfOpts, logger)
-	hasResumeOpt := resumeOpt != nil
+	resumeOpt, hasResumeOpt := tfOpts.GetResumeOption(logger)
 	jobName := opts.JobName
 	clusterID := e.clusterName
 	logger = logger.With("resume_opt_set", hasResumeOpt, "job_name", jobName, "cluster_id", clusterID)
@@ -136,23 +135,6 @@ func (e *EMRExecutor) RunSparkJob(cmd *spark.Command, store SparkFileStoreV2, op
 		logger.Infow("Waiting for EMR job to complete", "wait_duration", opts.MaxJobDuration.String())
 		return e.waitForStep(ctx, clusterID, stepID, opts.MaxJobDuration)
 	}
-}
-
-func (e *EMRExecutor) getResumeOption(tfOpts TransformationOptions, logger logging.Logger) *ResumeOption {
-	tfOpt := tfOpts.GetByType(ResumableTransformation)
-	if tfOpt == nil {
-		logger.Debugw("ResumeOption not found")
-		return nil
-	}
-
-	casted, ok := tfOpt.(*ResumeOption)
-	if !ok {
-		logger.DPanicw("Unknown transformation option with ResumableTransformation type", "option", tfOpt)
-		return nil
-	}
-
-	logger.Debugw("Using ResumeOption")
-	return casted
 }
 
 func (e *EMRExecutor) runOrResumeJob(ctx context.Context, args []string, clusterID, jobName string, resumeOpt *ResumeOption, logger logging.Logger) (string, error) {

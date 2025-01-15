@@ -33,7 +33,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/dashboard/.next/static ./.next/st
 COPY --from=builder --chown=nextjs:nodejs /app/dashboard/out ./out
 
 # Build Go services
-FROM golang:1.21 AS go-builder
+FROM golang:1.22 AS go-builder
 
 RUN apt update && \
     apt install -y protobuf-compiler
@@ -94,7 +94,7 @@ RUN pip install --break-system-packages boto3 pyarrow 'pyiceberg[glue]'
 COPY ./streamer/ /app/streamer/
 
 # Final Image
-FROM golang:1.21
+FROM golang:1.22
 
 WORKDIR /app
 

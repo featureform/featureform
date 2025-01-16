@@ -241,9 +241,10 @@ func (t *FeatureTask) Run() error {
 }
 
 func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.Logger) error {
-	t.logger.Infow("Deleting feature")
+	logger.Infow("Deleting feature")
 	featureTableName, tableNameErr := provider_schema.ResourceToTableName(provider_schema.Materialization, resID.Name, resID.Variant)
 	if tableNameErr != nil {
+		logger.Errorw("Failed to get table name for feature", "error", tableNameErr)
 		return tableNameErr
 	}
 	featureLocation := pl.NewSQLLocation(featureTableName)

@@ -10,6 +10,7 @@ package tasks
 import (
 	"context"
 	"fmt"
+	"github.com/featureform/logging"
 	"time"
 
 	"github.com/featureform/fferr"
@@ -147,33 +148,37 @@ func (t *TrainingSetTask) Run() error {
 	return t.runTrainingSetJob(trainingSetDef, store)
 }
 
-func (t *TrainingSetTask) handleDeletion(tsId metadata.ResourceID) error {
-	t.logger.Debugw("Deleting training set", "resource_id", tsId)
-	tsToDelete, err := t.metadata.GetStagedForDeletionTrainingSetVariant(context.Background(), metadata.NameVariant{
-		Name:    tsId.Name,
-		Variant: tsId.Variant,
-	})
+func (t *TrainingSetTask) handleDeletion(tsId metadata.ResourceID, logger logging.Logger) error {
+	logger.Debugw("Deleting training set", "resource_id", tsId)
+	tsToDelete, err := t.metadata.GetStagedForDeletionTrainingSetVariant(context.Background(),
+		metadata.NameVariant{
+			Name:    tsId.Name,
+			Variant: tsId.Variant,
+		})
 	if err != nil {
+		logger.Errorw("Failed to get training set to delete", "error", err)
 		return err
 	}
 
-	trainingSetLocation, err := ps.ResourceToTableName(provider.TrainingSet.String(), tsId.Name, tsId.Variant)
+	trainingSetTable, err := ps.ResourceToTableName(provider.TrainingSet.String(), tsId.Name, tsId.Variant)
 	if err != nil {
+		logger.Errorw("Failed to get table name for training set", "error", err)
 		return err
 	}
-	t.logger.Debugw("Deleting training set at location", "location", trainingSetLocation)
+	logger.Debugw("Deleting training set at location", "location", trainingSetTable)
 	store, getStoreErr := getStore(t.BaseTask, t.metadata, tsToDelete)
 	if getStoreErr != nil {
+		logger.Errorw("Failed to get store", "error", getStoreErr)
 		return getStoreErr
 	}
-	if err := store.Delete(pl.NewSQLLocation(trainingSetLocation)); err != nil {
+	if err := store.Delete(trainingSetTable); err != nil {
 		return err
 	}
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Training Set deleted..."); err != nil {
 		return err
 	}
 
-	t.logger.Debugw("Finalizing delete", "resource_id", tsId)
+	logger.Debugw("Finalizing delete")
 	if err := t.metadata.FinalizeDelete(context.Background(), tsId); err != nil {
 		return err
 	}

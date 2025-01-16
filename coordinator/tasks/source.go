@@ -113,7 +113,7 @@ func (t *SourceTask) handleDeletion(ctx context.Context, resID metadata.Resource
 	}
 
 	if sourceToDelete.IsPrimaryData() {
-		t.logger.Debugw("Can't delete primary data", "resource_id", resID)
+		t.logger.Infow("Can't delete primary data", "resource_id", resID)
 		return nil
 	}
 	tfLocation, tfLocationErr := sourceToDelete.GetTransformationLocation()

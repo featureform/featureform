@@ -244,7 +244,8 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID) error {
 	if tableNameErr != nil {
 		return tableNameErr
 	}
-	t.logger.Debugw("Deleting feature at location", "location", pl.NewSQLLocation(featureTableName))
+	sqlLocation := pl.NewSQLLocation(featureTableName)
+	t.logger.Debugw("Deleting feature at location", "location", sqlLocation)
 
 	nv := metadata.NameVariant{
 		Name:    resID.Name,
@@ -260,7 +261,7 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID) error {
 		return err
 	}
 
-	deleteErr := sourceStore.Delete(pl.NewSQLLocation(featureTableName))
+	deleteErr := sourceStore.Delete(sqlLocation)
 	if deleteErr != nil {
 		return deleteErr
 	}

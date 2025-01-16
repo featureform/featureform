@@ -17,27 +17,15 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-type ResourcesRepositoryType int
+type ResourcesRepositoryType string
 
 const (
-	ResourcesRepositoryTypeUnknown ResourcesRepositoryType = iota
-	ResourcesRepositoryTypeMemory
-	ResourcesRepositoryTypePsql
+	ResourcesRepositoryTypeMemory ResourcesRepositoryType = "memory"
+	ResourcesRepositoryTypePsql   ResourcesRepositoryType = "psql"
 )
 
-func (r ResourcesRepositoryType) String() string {
-	switch r {
-	case ResourcesRepositoryTypeMemory:
-		return "memory"
-	case ResourcesRepositoryTypePsql:
-		return "psql"
-	default:
-		return "unknown"
-	}
-}
-
 const (
-	sqlCountDependencies = `-- name: CountDependencies :one
+	sqlCountDirectDependencies = `-- name: CountDirectDependencies :one
 		SELECT COUNT(*)
 		FROM edges
 		WHERE from_resource_type = $1::integer
@@ -205,7 +193,7 @@ func (r *sqlResourcesRepository) MarkForDeletion(ctx context.Context, resourceID
 
 func (r *sqlResourcesRepository) checkDependencies(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID) error {
 	var dependencyCount int
-	if err := tx.QueryRow(ctx, sqlCountDependencies,
+	if err := tx.QueryRow(ctx, sqlCountDirectDependencies,
 		resourceID.Type, resourceID.Name, resourceID.Variant).Scan(&dependencyCount); err != nil {
 		return fmt.Errorf("count dependencies: %w", err)
 	}

@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/featureform/logging"
 
 	"github.com/featureform/provider/provider_schema"
 
@@ -131,7 +132,8 @@ func (t *LabelTask) Run() error {
 	return nil
 }
 
-func (t *LabelTask) handleDeletion(resID metadata.ResourceID) error {
+func (t *LabelTask) handleDeletion(resID metadata.ResourceID, logger logging.Logger) error {
+	logger.Infow("Deleting label")
 	labelToDelete, err := t.metadata.GetStagedForDeletionLabelVariant(
 		context.Background(),
 		metadata.NameVariant{
@@ -140,34 +142,35 @@ func (t *LabelTask) handleDeletion(resID metadata.ResourceID) error {
 		},
 	)
 	if err != nil {
+		logger.Errorw("Failed to get staged for deletion label", "error", err)
 		return err
 	}
 
 	t.logger.Infow("Deleting label", "resource_id", resID)
 	labelTableName, tableNameErr := provider_schema.ResourceToTableName(provider_schema.Label, resID.Name, resID.Variant)
 	if tableNameErr != nil {
-		t.logger.Debugw("Failed to get table name for label", "error", tableNameErr)
+		logger.Errorw("Failed to get table name", "error", tableNameErr)
 		return err
 	}
 
 	sourceStore, err := getStore(t.BaseTask, t.metadata, labelToDelete)
 	if err != nil {
+		logger.Errorw("Failed to get store", "error", err)
 		return err
 	}
 
-	location := pl.NewSQLLocation(labelTableName)
+	labelLocation := pl.NewSQLLocation(labelTableName)
 
-	t.logger.Debugw("Deleting label at location", "location", location)
-
-	if deleteErr := sourceStore.Delete(location); deleteErr != nil {
+	t.logger.Debugw("Deleting label at location", "location", labelLocation)
+	if deleteErr := sourceStore.Delete(labelLocation); deleteErr != nil {
 		var notFoundErr *fferr.DatasetNotFoundError
 		if errors.As(deleteErr, &notFoundErr) {
-			t.logger.Infow("Table doesn't exist at location, continuing...", "location", location)
+			t.logger.Infow("Table doesn't exist at location, continuing...", "location", labelLocation)
 		} else {
 			return deleteErr
 		}
 	} else {
-		t.logger.Infow("Successfully deleted label at location", "location", location)
+		t.logger.Infow("Successfully deleted label at location", "location", labelLocation)
 	}
 
 	if err := t.metadata.FinalizeDelete(context.Background(), resID); err != nil {

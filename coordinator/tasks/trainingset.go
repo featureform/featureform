@@ -9,6 +9,7 @@ package tasks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/featureform/logging"
 	"time"
@@ -36,7 +37,8 @@ func (t *TrainingSetTask) Run() error {
 	}
 
 	tsId := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.TRAINING_SET_VARIANT}
-	t.logger.Info("Running training set job on resource: ", "name", nv.Name, "variant", nv.Variant)
+	logger := t.logger.WithResource(logging.TrainingSetVariant, tsId.Name, tsId.Variant)
+	logger.Info("Running training set job on resource")
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Starting Training Set Creation..."); err != nil {
 		return err
 	}
@@ -46,7 +48,7 @@ func (t *TrainingSetTask) Run() error {
 	}
 
 	if t.isDelete {
-		return t.handleDeletion(tsId)
+		return t.handleDeletion(tsId, logger)
 	}
 
 	ts, err := t.metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{Name: nv.Name, Variant: nv.Variant})
@@ -58,11 +60,11 @@ func (t *TrainingSetTask) Run() error {
 	if getStoreErr != nil {
 		return getStoreErr
 	}
-	t.logger.Debugw("Training set offline store", "type", fmt.Sprintf("%T", store))
+	logger.Debugw("Training set offline store", "type", fmt.Sprintf("%T", store))
 	defer func(store provider.OfflineStore) {
 		err := store.Close()
 		if err != nil {
-			t.logger.Errorf("could not close offline store: %v", err)
+			logger.Errorf("could not close offline store: %v", err)
 		}
 	}(store)
 
@@ -171,10 +173,21 @@ func (t *TrainingSetTask) handleDeletion(tsId metadata.ResourceID, logger loggin
 		logger.Errorw("Failed to get store", "error", getStoreErr)
 		return getStoreErr
 	}
-	if err := store.Delete(trainingSetTable); err != nil {
-		return err
+
+	trainingSetLocation := pl.NewSQLLocation(trainingSetTable)
+
+	if err := store.Delete(trainingSetLocation); err != nil {
+		var notFoundErr *fferr.DatasetNotFoundError
+		if errors.As(err, &notFoundErr) {
+			logger.Infow("Table doesn't exist at location, continuing...", "location", trainingSetLocation)
+			// continue
+		} else {
+			logger.Errorw("Failed to delete training set", "error", err)
+			return err
+		}
 	}
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Training Set deleted..."); err != nil {
+		logger.Errorw("Unable to add run log", "error", err)
 		return err
 	}
 

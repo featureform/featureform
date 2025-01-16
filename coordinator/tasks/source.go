@@ -9,6 +9,7 @@ package tasks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -125,8 +126,8 @@ func (t *SourceTask) handleDeletion(ctx context.Context, resID metadata.Resource
 		logger.Errorw("Failed to get transformation location", "error", tfLocationErr)
 		return tfLocationErr
 	}
-	t.logger.Debugw("Deleting source at location", "location", tfLocation, "error", tfLocationErr)
 
+	t.logger.Debugw("Deleting source at location", "location", tfLocation, "error", tfLocationErr)
 	sourceStore, err := getStore(t.BaseTask, t.metadata, sourceToDelete)
 	if err != nil {
 		logger.Errorw("Failed to get store", "error", err)
@@ -135,6 +136,12 @@ func (t *SourceTask) handleDeletion(ctx context.Context, resID metadata.Resource
 
 	deleteErr := sourceStore.Delete(tfLocation)
 	if deleteErr != nil {
+		var notFoundErr *fferr.DatasetNotFoundError
+		if errors.As(err, &notFoundErr) {
+			t.logger.Infow("Table doesn't exist at location, continuing...", "location", tfLocation)
+		} else {
+			return err
+		}
 		logger.Errorw("Failed to delete source", "error", deleteErr)
 		return deleteErr
 	}

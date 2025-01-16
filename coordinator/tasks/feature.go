@@ -38,63 +38,7 @@ func (t *FeatureTask) Run() error {
 
 	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.FEATURE_VARIANT}
 	if t.isDelete {
-		t.logger.Infow("Deleting feature variant", "resource_id", resID)
-		featureTableName, tableNameErr := provider_schema.ResourceToTableName(provider_schema.Materialization, resID.Name, resID.Variant)
-		if tableNameErr != nil {
-			return tableNameErr
-		}
-		t.logger.Debugw("Deleting feature at location", "location", pl.NewSQLLocation(featureTableName))
-
-		nv := metadata.NameVariant{
-			Name:    nv.Name,
-			Variant: nv.Variant,
-		}
-		featureToDelete, err := t.metadata.GetStagedForDeletionFeatureVariant(context.Background(), nv)
-		if err != nil {
-			return err
-		}
-
-		sourceStore, err := getStore(t.BaseTask, t.metadata, featureToDelete)
-		if err != nil {
-			return err
-		}
-
-		deleteErr := sourceStore.Delete(pl.NewSQLLocation(featureTableName))
-		if deleteErr != nil {
-			return deleteErr
-		}
-
-		var featureProvider *metadata.Provider // this is the inference store
-		if featureToDelete.Provider() != "" {
-			featureProvider, err = featureToDelete.FetchProvider(t.metadata, context.Background())
-			if err != nil {
-				return err
-			}
-		}
-		t.logger.Debugw("Attempting to delete feature from online store", "name", nv.Name, "variant", nv.Variant)
-		if featureProvider != nil {
-			t.logger.Debugw("Deleting feature from online store", "name", nv.Name, "variant", nv.Variant)
-			onlineProvider, err := provider.Get(pt.Type(featureProvider.Type()), featureProvider.SerializedConfig())
-			if err != nil {
-				return err
-			}
-			casted, err := onlineProvider.AsOnlineStore()
-			if err != nil {
-				return err
-			}
-
-			onlineDeleteErr := casted.DeleteTable(nv.Name, nv.Variant)
-			if onlineDeleteErr != nil {
-				return onlineDeleteErr
-			}
-			t.logger.Debugw("Deleted feature from online store", "name", nv.Name, "variant", nv.Variant)
-		}
-
-		if err := t.metadata.FinalizeDelete(context.Background(), resID); err != nil {
-			return err
-		}
-
-		return nil
+		return t.handleDeletion(resID)
 	}
 
 	t.logger.Info("Running feature materialization job on resource: ", nv)
@@ -291,6 +235,66 @@ func (t *FeatureTask) Run() error {
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Materialization Complete..."); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (t *FeatureTask) handleDeletion(resID metadata.ResourceID) error {
+	t.logger.Infow("Deleting feature variant", "resource_id", resID)
+	featureTableName, tableNameErr := provider_schema.ResourceToTableName(provider_schema.Materialization, resID.Name, resID.Variant)
+	if tableNameErr != nil {
+		return tableNameErr
+	}
+	t.logger.Debugw("Deleting feature at location", "location", pl.NewSQLLocation(featureTableName))
+
+	nv := metadata.NameVariant{
+		Name:    resID.Name,
+		Variant: resID.Variant,
+	}
+	featureToDelete, err := t.metadata.GetStagedForDeletionFeatureVariant(context.Background(), nv)
+	if err != nil {
+		return err
+	}
+
+	sourceStore, err := getStore(t.BaseTask, t.metadata, featureToDelete)
+	if err != nil {
+		return err
+	}
+
+	deleteErr := sourceStore.Delete(pl.NewSQLLocation(featureTableName))
+	if deleteErr != nil {
+		return deleteErr
+	}
+
+	var featureProvider *metadata.Provider // this is the inference store
+	if featureToDelete.Provider() != "" {
+		featureProvider, err = featureToDelete.FetchProvider(t.metadata, context.Background())
+		if err != nil {
+			return err
+		}
+	}
+	t.logger.Debugw("Attempting to delete feature from online store", "name", nv.Name, "variant", nv.Variant)
+	if featureProvider != nil {
+		t.logger.Debugw("Deleting feature from online store", "name", nv.Name, "variant", nv.Variant)
+		onlineProvider, err := provider.Get(pt.Type(featureProvider.Type()), featureProvider.SerializedConfig())
+		if err != nil {
+			return err
+		}
+		casted, err := onlineProvider.AsOnlineStore()
+		if err != nil {
+			return err
+		}
+
+		onlineDeleteErr := casted.DeleteTable(nv.Name, nv.Variant)
+		if onlineDeleteErr != nil {
+			return onlineDeleteErr
+		}
+		t.logger.Debugw("Deleted feature from online store", "name", nv.Name, "variant", nv.Variant)
+	}
+
+	if err := t.metadata.FinalizeDelete(context.Background(), resID); err != nil {
+		return err
+	}
+
 	return nil
 }
 

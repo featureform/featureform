@@ -40,7 +40,7 @@ func (t *LabelTask) Run() error {
 	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.LABEL_VARIANT}
 
 	if t.isDelete {
-		return t.handleDeletion(nv, resID)
+		return t.handleDeletion(resID)
 	}
 
 	label, err := t.metadata.GetLabelVariant(context.Background(), nameVariant)
@@ -131,12 +131,12 @@ func (t *LabelTask) Run() error {
 	return nil
 }
 
-func (t *LabelTask) handleDeletion(nv scheduling.NameVariant, resID metadata.ResourceID) error {
+func (t *LabelTask) handleDeletion(resID metadata.ResourceID) error {
 	labelToDelete, err := t.metadata.GetStagedForDeletionLabelVariant(
 		context.Background(),
 		metadata.NameVariant{
-			Name:    nv.Name,
-			Variant: nv.Variant,
+			Name:    resID.Name,
+			Variant: resID.Variant,
 		},
 	)
 	if err != nil {

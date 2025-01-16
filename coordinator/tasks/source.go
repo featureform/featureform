@@ -55,7 +55,7 @@ func (t *SourceTask) Run() error {
 	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.SOURCE_VARIANT}
 
 	if t.isDelete {
-		return t.handleDeletion(resID, ctx, nv)
+		return t.handleDeletion(ctx, resID)
 	}
 
 	t.logger.Info("Running register source job on resource: ", nv)
@@ -102,11 +102,11 @@ func (t *SourceTask) Run() error {
 	}
 }
 
-func (t *SourceTask) handleDeletion(resID metadata.ResourceID, ctx context.Context, nv scheduling.NameVariant) error {
+func (t *SourceTask) handleDeletion(ctx context.Context, resID metadata.ResourceID) error {
 	t.logger.Infow("Deleting source", "resource_id", resID)
 	sourceToDelete, stagedDeleteErr := t.metadata.GetStagedForDeletionSourceVariant(ctx, metadata.NameVariant{
-		Name:    nv.Name,
-		Variant: nv.Variant,
+		Name:    resID.Name,
+		Variant: resID.Variant,
 	})
 	if stagedDeleteErr != nil {
 		return stagedDeleteErr

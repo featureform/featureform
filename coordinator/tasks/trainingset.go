@@ -45,7 +45,7 @@ func (t *TrainingSetTask) Run() error {
 	}
 
 	if t.isDelete {
-		return t.handleDeletion(tsId, nv)
+		return t.handleDeletion(tsId)
 	}
 
 	ts, err := t.metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{Name: nv.Name, Variant: nv.Variant})
@@ -147,17 +147,17 @@ func (t *TrainingSetTask) Run() error {
 	return t.runTrainingSetJob(trainingSetDef, store)
 }
 
-func (t *TrainingSetTask) handleDeletion(tsId metadata.ResourceID, nv scheduling.NameVariant) error {
+func (t *TrainingSetTask) handleDeletion(tsId metadata.ResourceID) error {
 	t.logger.Debugw("Deleting training set", "resource_id", tsId)
 	tsToDelete, err := t.metadata.GetStagedForDeletionTrainingSetVariant(context.Background(), metadata.NameVariant{
-		Name:    nv.Name,
-		Variant: nv.Variant,
+		Name:    tsId.Name,
+		Variant: tsId.Variant,
 	})
 	if err != nil {
 		return err
 	}
 
-	trainingSetLocation, err := ps.ResourceToTableName(provider.TrainingSet.String(), nv.Name, nv.Variant)
+	trainingSetLocation, err := ps.ResourceToTableName(provider.TrainingSet.String(), tsId.Name, tsId.Variant)
 	if err != nil {
 		return err
 	}

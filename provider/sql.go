@@ -85,6 +85,7 @@ type sqlOfflineStore struct {
 	parent SQLOfflineStoreConfig
 	query  OfflineTableQueries
 	getDb  func(database, schema string) (*sql.DB, error)
+	logger logging.Logger
 	BaseProvider
 }
 
@@ -116,6 +117,7 @@ func NewSQLOfflineStore(config SQLOfflineStoreConfig) (*sqlOfflineStore, error) 
 			ProviderType:   config.ProviderType,
 			ProviderConfig: config.Config,
 		},
+		logger: logging.NewLogger(fmt.Sprintf("sql driver %s", config.ProviderType.String())),
 	}, nil
 }
 
@@ -1062,24 +1064,27 @@ func (store *sqlOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 }
 
 func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
-	// TODO: (Erik) convert to use logger
-	fmt.Printf("Getting Training Set: %v\n", id)
+	logger := store.logger.WithResource(logging.TrainingSetVariant, id.Name, id.Variant)
+	logger.Debugw("Getting training set")
 	if err := id.check(TrainingSet); err != nil {
 		return nil, err
 	}
-	// TODO: (Erik) convert to use logger
-	fmt.Printf("Checking if Training Set exists: %v\n", id)
+	logger.Debugw("Checking if Training Set exists")
 	if exists, err := store.tableExistsForResourceId(id); err != nil {
+		logger.Errorw("Error checking if Training Set exists", "error", err)
 		return nil, err
 	} else if !exists {
+		logger.Errorw("Training Set does not exist")
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	trainingSetName, err := store.getTrainingSetName(id)
 	if err != nil {
+		logger.Errorw("Error getting Training Set name", "error", err)
 		return nil, err
 	}
 	columnNames, err := store.query.getColumns(store.db, trainingSetName)
 	if err != nil {
+		logger.Errorw("Error getting columns", "error", err)
 		return nil, err
 	}
 	features := make([]string, 0)
@@ -1088,16 +1093,18 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 	}
 	columns := strings.Join(features[:], ", ")
 	trainingSetQry := store.query.trainingRowSelect(columns, trainingSetName)
-	// TODO: (Erik) convert to use logger
-	fmt.Printf("Training Set Query: %s\n", trainingSetQry)
+	store.logger.Debugw("Training Set Query", "query", trainingSetQry)
 	rows, err := store.db.Query(trainingSetQry)
 	if err != nil {
+		logger.Errorw("Error querying Training Set", "error", err, "store", store.Type().String())
 		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	colTypes, err := store.getValueColumnTypes(trainingSetName)
 	if err != nil {
+		logger.Errorw("Error getting column types", "error", err, "training_set_name", trainingSetName)
 		return nil, err
 	}
+	logger.Debugw("Returning Training Set Iterator")
 	return store.newsqlTrainingSetIterator(rows, colTypes), nil
 }
 

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
 	db "github.com/jackc/pgx/v4"
@@ -78,19 +79,21 @@ func (q snowflakeSQLQueries) dynamicIcebergTableCreate(tableName, query string, 
 	return sb.String(), nil
 }
 
-func (q snowflakeSQLQueries) resourceTableAsQuery(schema ResourceSchema, hasTimestamp bool) (string, error) {
+func (q snowflakeSQLQueries) resourceTableAsQuery(schema ResourceSchema) (string, error) {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("SELECT IDENTIFIER('%s') AS entity, IDENTIFIER('%s') AS value, ", schema.Entity, schema.Value))
+	sb.WriteString("SELECT ")
 
-	if hasTimestamp {
-		sb.WriteString(fmt.Sprintf("CAST(IDENTIFIER('%s') AS TIMESTAMP_NTZ(6)) AS ts ", schema.TS))
-	} else {
-		sb.WriteString(fmt.Sprintf("to_timestamp_ntz('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMP_NTZ(6) AS ts ", time.UnixMilli(0).UTC()))
+	for _, m := range schema.EntityMappings.Mappings {
+		sb.WriteString(fmt.Sprintf("IDENTIFIER('%s') AS entity_%s, ", m.EntityColumn, m.Name))
 	}
+
+	sb.WriteString(fmt.Sprintf("IDENTIFIER('%s') AS value, ", schema.EntityMappings.ValueColumn))
+	sb.WriteString(toIcebergTimestamp(schema.EntityMappings.TimestampColumn))
 
 	sqlLoc, isSQLLocation := schema.SourceTable.(*pl.SQLLocation)
 	if !isSQLLocation {
+		logging.GlobalLogger.Errorw("source table is not an SQL location", "location_type", fmt.Sprintf("%T", schema.SourceTable))
 		return "", fferr.NewInvalidArgumentErrorf("source table is not an SQL location")
 	}
 
@@ -101,11 +104,10 @@ func (q snowflakeSQLQueries) resourceTableAsQuery(schema ResourceSchema, hasTime
 	return sb.String(), nil
 }
 
-// TODO: (Erik) Determine whether the query without the timestamp is correct
 func (q snowflakeSQLQueries) materializationCreateAsQuery(entity, value, ts, tableName string) string {
 	var sb strings.Builder
 
-	tsSelectStmt := fmt.Sprintf("CAST(IDENTIFIER('%s') AS TIMESTAMP_NTZ(6)) AS ts", ts)
+	tsSelectStmt := toIcebergTimestamp(ts)
 	tsOrderByStmt := fmt.Sprintf("ORDER BY IDENTIFIER('%s') DESC", ts)
 	if ts == "" {
 		tsSelectStmt = fmt.Sprintf("to_timestamp_ntz('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMP_NTZ(6) AS ts", time.UnixMilli(0).UTC())
@@ -141,4 +143,12 @@ func SanitizeSnowflakeIdentifier(obj pl.FullyQualifiedObject) string {
 	ident = append(ident, obj.Table)
 
 	return ident.Sanitize()
+}
+
+func toIcebergTimestamp(tsCol string) string {
+	if tsCol != "" {
+		return fmt.Sprintf("CAST(IDENTIFIER('%s') AS TIMESTAMP_NTZ(6)) AS ts ", tsCol)
+	} else {
+		return fmt.Sprintf("to_timestamp_ntz('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMP_NTZ(6) AS ts ", time.UnixMilli(0).UTC())
+	}
 }

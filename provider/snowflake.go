@@ -160,7 +160,7 @@ func (sf *snowflakeOfflineStore) RegisterResourceFromSourceTable(id ResourceID, 
 		sf.logger.Errorw("Failed to validate schema", "error", err)
 		return nil, err
 	}
-	resourceAsQuery, err := sf.sfQueries.resourceTableAsQuery(schema, schema.TS != "")
+	resourceAsQuery, err := sf.sfQueries.resourceTableAsQuery(schema)
 	if err != nil {
 		sf.logger.Errorw("Failed to create resource table as query", "error", err)
 		return nil, err
@@ -402,7 +402,6 @@ func (sf snowflakeOfflineStore) buildTrainingSetQuery(def TrainingSetDef) (strin
 // using TrainingSetDef directly in the tsquery package, which would create a circular dependency. In the future,
 // we should move TrainingSetDef to the provider/types package to avoid this issue.
 func (sf snowflakeOfflineStore) adaptTsDefToBuilderParams(def TrainingSetDef) (tsq.BuilderParams, error) {
-	lblCols := def.LabelSourceMapping.Columns
 	lblLoc, isSQLLocation := def.LabelSourceMapping.Location.(*pl.SQLLocation)
 	if !isSQLLocation {
 		return tsq.BuilderParams{}, fferr.NewInternalErrorf("label location is not an SQL location")
@@ -412,9 +411,10 @@ func (sf snowflakeOfflineStore) adaptTsDefToBuilderParams(def TrainingSetDef) (t
 	ftCols := make([]metadata.ResourceVariantColumns, len(def.FeatureSourceMappings))
 	ftTableNames := make([]string, len(def.FeatureSourceMappings))
 	ftNameVariants := make([]metadata.ResourceID, len(def.FeatureSourceMappings))
-
+	ftEntityNames := make([]string, 0)
+	sf.logger.Debugw("Feature source mappings", "src_mappings", def.FeatureSourceMappings)
 	for i, ft := range def.FeatureSourceMappings {
-		ftCols[i] = ft.Columns
+		ftCols[i] = *ft.Columns
 		ftLoc, isSQLLocation := ft.Location.(*pl.SQLLocation)
 		if !isSQLLocation {
 			return tsq.BuilderParams{}, fferr.NewInternalErrorf("feature location is not an SQL location")
@@ -426,12 +426,20 @@ func (sf snowflakeOfflineStore) adaptTsDefToBuilderParams(def TrainingSetDef) (t
 			Variant: id.Variant,
 			Type:    metadata.FEATURE_VARIANT,
 		}
+		if ft.EntityMappings == nil || len(ft.EntityMappings.Mappings) != 1 {
+			sf.logger.Errorw("Expected each feature source mapping to have exactly one entity mapping", "mappings", ft.EntityMappings)
+			return tsq.BuilderParams{}, fferr.NewInternalErrorf("expected each feature source mapping to have exactly one entity mapping: mappings = %v", ft.EntityMappings)
+		}
+		sf.logger.Debugw("Feature entity mapping", "entity_mappings", ft.EntityMappings.Mappings)
+		ftEntityNames = append(ftEntityNames, ft.EntityMappings.Mappings[0].Name)
 	}
+	sf.logger.Debugw("Label entity mapping", "entity_mappings", def.LabelSourceMapping.EntityMappings)
 	return tsq.BuilderParams{
-		LabelColumns:           lblCols,
+		LabelEntityMappings:    def.LabelSourceMapping.EntityMappings,
 		SanitizedLabelTable:    lblTableName,
 		FeatureColumns:         ftCols,
 		SanitizedFeatureTables: ftTableNames,
 		FeatureNameVariants:    ftNameVariants,
+		FeatureEntityNames:     ftEntityNames,
 	}, nil
 }

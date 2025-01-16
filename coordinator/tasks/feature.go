@@ -9,6 +9,7 @@ package tasks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/featureform/logging"
 	"github.com/featureform/provider/provider_schema"
@@ -245,8 +246,8 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.L
 	if tableNameErr != nil {
 		return tableNameErr
 	}
-	sqlLocation := pl.NewSQLLocation(featureTableName)
-	logger.Debugw("Deleting feature at location", "location", sqlLocation)
+	featureLocation := pl.NewSQLLocation(featureTableName)
+	logger.Debugw("Deleting feature at location", "location", featureLocation)
 
 	nv := metadata.NameVariant{
 		Name:    resID.Name,
@@ -265,9 +266,15 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.L
 	}
 
 	logger.Debugw("Deleting feature from offline store")
-	deleteErr := sourceStore.Delete(sqlLocation)
-	if deleteErr != nil {
-		return deleteErr
+	if deleteErr := sourceStore.Delete(featureLocation); deleteErr != nil {
+		var notFoundErr *fferr.DatasetNotFoundError
+		if errors.As(deleteErr, &notFoundErr) {
+			t.logger.Infow("Table doesn't exist at location, continuing...", "location", featureLocation)
+		} else {
+			return deleteErr
+		}
+	} else {
+		t.logger.Infow("Successfully deleted label at location", "location", featureLocation)
 	}
 
 	var featureProvider *metadata.Provider // this is the inference store
@@ -294,8 +301,14 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.L
 
 		onlineDeleteErr := casted.DeleteTable(nv.Name, nv.Variant)
 		if onlineDeleteErr != nil {
-			logger.Errorw("Failed to delete feature from online store", "error", onlineDeleteErr)
-			return onlineDeleteErr
+			var notFoundErr *fferr.DatasetNotFoundError
+			if errors.As(onlineDeleteErr, &notFoundErr) {
+				logger.Infow("Table not found in online store, continuing...")
+				// continuing
+			} else {
+				logger.Errorw("Failed to delete feature from online store", "error", onlineDeleteErr)
+				return onlineDeleteErr
+			}
 		}
 		logger.Debugw("Deleted feature from online store", "name", nv.Name, "variant", nv.Variant)
 	}

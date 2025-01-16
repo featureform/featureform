@@ -146,7 +146,7 @@ func (r *sqlResourcesRepository) withTx(ctx context.Context, fn func(pgx.Tx) err
 
 func isRetryableError(err error) bool {
 	var retryablePgErrors = []string{
-		"40001", // Serialization failure
+		"40001", // Serialization failure (error while trying to run everything in a single transaction)
 	}
 
 	var pgErr *pgconn.PgError

@@ -352,8 +352,14 @@ func (store *dynamodbOnlineStore) DeleteTable(feature, variant string) error {
 	}
 	_, err := store.client.DeleteTable(context.TODO(), params)
 	if err != nil {
-		return fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
+		var notFoundErr *types.ResourceNotFoundException
+		if errors.As(err, &notFoundErr) {
+			return fferr.NewDatasetNotFoundError(feature, variant, err)
+		} else {
+			return fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
+		}
 	}
+
 	return nil
 }
 

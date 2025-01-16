@@ -13,10 +13,10 @@ import (
 	"strings"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/provider/provider_type"
-
 	ss "github.com/featureform/helpers/stringset"
 	sr "github.com/featureform/helpers/struct_iterator"
+	"github.com/featureform/logging/redacted"
+	"github.com/featureform/provider/provider_type"
 )
 
 type SnowflakeTableConfig struct {
@@ -70,6 +70,29 @@ func (sf SnowflakeConfig) MutableFields() ss.StringSet {
 		"Database":      true,
 		"Warehouse":     true,
 		"SessionParams": true,
+	}
+}
+
+func (sf *SnowflakeConfig) Redacted() *SnowflakeConfig {
+	if sf == nil {
+		return nil
+	}
+	redactedSessionParams := make(map[string]string)
+	for key, _ := range sf.SessionParams {
+		redactedSessionParams[key] = redacted.String
+	}
+	return &SnowflakeConfig{
+		Username: sf.Username,
+		Password: redacted.String,
+		AccountLocator: sf.AccountLocator,
+		Organization: sf.Organization,
+		Account: sf.Account,
+		Database: sf.Database,
+		Schema: sf.Schema,
+		Warehouse: sf.Warehouse,
+		Role: sf.Role,
+		Catalog: sf.Catalog,
+		SessionParams: redactedSessionParams,
 	}
 }
 
@@ -177,6 +200,15 @@ func (sf *SnowflakeConfig) getBaseConnection(database, schema string) (string, e
 	}
 
 	return "", fferr.NewProviderConfigError(string(provider_type.SnowflakeOffline), fmt.Errorf("credentials not found"))
+}
+
+func (sf *SnowflakeConfig) GetBaseURL() string {
+	suffix := "snowflakecomputing.com"
+	isLegacy := sf.HasLegacyCredentials()
+	if isLegacy {
+		return fmt.Sprintf("%s.%s", sf.AccountLocator, suffix)
+	}
+	return fmt.Sprintf("%s-%s.%s", sf.Organization, sf.Account, suffix)
 }
 
 func (sf *SnowflakeConfig) schema() string {

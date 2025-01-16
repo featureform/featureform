@@ -565,6 +565,8 @@ minikube_build_images: gen_grpc   ## Build Docker images for Minikube
 	minikube image build -f ./provider/scripts/k8s/Dockerfile -t local/k8s_runner:stable . & \
 	minikube image build -f ./provider/scripts/k8s/Dockerfile.scikit -t local/k8s_runner:stable-scikit . & \
 	minikube image build -f ./search_loader/Dockerfile -t local/search-loader:stable . & \
+	minikube image build -f ./streamer/Dockerfile -t local/iceberg-streamer:stable . & \
+	minikube image build -f ./streamer_proxy/Dockerfile -t local/iceberg-proxy:stable . & \
 	minikube image build -f ./db/Dockerfile -t local/db_migration:stable . & \
 	wait; \
 	echo "Build Complete"

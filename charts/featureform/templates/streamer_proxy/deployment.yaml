@@ -1,0 +1,44 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iceberg-proxy
+spec:
+  {{- if not .Values.icebergProxy.autoscaling.enabled }}
+  replicas: {{ .Values.icebergProxy.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: iceberg-proxy
+  template:
+    metadata:
+      labels:
+        app: iceberg-proxy
+      {{ if .Values.restartOnUpdate }}
+      annotations:
+        timestamp: {{ now | quote }}
+      {{ end }}
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.k8sImagePullSecret }}
+      containers:
+      - name: iceberg-proxy
+        image: "{{ .Values.repository }}/{{ .Values.icebergProxy.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.pullPolicy }}
+        ports:
+        - containerPort: 8086
+        env:
+          - name: ICEBERG_STREAMER_PORT
+            value: {{ .Values.icebergStreamer.port | quote }}
+          - name: ICEBERG_STREAMER_HOST
+            value: {{ .Values.icebergStreamer.host | quote }}
+          - name: METADATA_HOST
+            value: {{ .Values.metadata.host }}
+          - name: METADATA_PORT
+            value: {{ .Values.metadata.port | quote }}

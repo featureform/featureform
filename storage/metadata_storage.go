@@ -14,7 +14,6 @@ import (
 	"github.com/featureform/logging"
 	"github.com/featureform/storage/query"
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 )
 
 type MetadataStorage struct {
@@ -24,7 +23,7 @@ type MetadataStorage struct {
 	SkipListLocking bool
 }
 
-func (s *MetadataStorage) unlockWithLogger(ctx context.Context, Locker ffsync.Locker, key ffsync.Key, logger *zap.SugaredLogger) {
+func (s *MetadataStorage) unlockWithLogger(ctx context.Context, Locker ffsync.Locker, key ffsync.Key, logger logging.Logger) {
 	err := Locker.Unlock(ctx, key)
 	if err != nil {
 		logger.Errorw("Error unlocking key: ", err)

@@ -17,11 +17,12 @@ import (
 )
 
 type featureVariant struct {
-	Name            string
-	Provider        string
-	ValueType       types.ValueType
-	ComputationMode string // TODO move definition from metadata to common
-	Location        featureLocation
+	Name                    string
+	Provider                string
+	ValueType               types.ValueType
+	ComputationMode         string // TODO move definition from metadata to common
+	Location                featureLocation
+	ResourceSnowflakeConfig resourceSnowflakeConfig
 }
 
 func FeatureVariantFromProto(proto *pb.FeatureVariant) (featureVariant, error) {
@@ -45,11 +46,12 @@ func FeatureVariantFromProto(proto *pb.FeatureVariant) (featureVariant, error) {
 	}
 
 	return featureVariant{
-		Name:            proto.Name,
-		Provider:        proto.Provider,
-		ValueType:       valueType,
-		ComputationMode: proto.Mode.String(),
-		Location:        location,
+		Name:                    proto.Name,
+		Provider:                proto.Provider,
+		ValueType:               valueType,
+		ComputationMode:         proto.Mode.String(),
+		Location:                location,
+		ResourceSnowflakeConfig: resourceSnowflakeConfigFromProto(proto.ResourceSnowflakeConfig),
 	}, nil
 }
 
@@ -65,7 +67,8 @@ func (f featureVariant) IsEquivalent(other Equivalencer) bool {
 				f1.Provider == f2.Provider &&
 				f1.ValueType == f2.ValueType &&
 				f1.ComputationMode == f2.ComputationMode &&
-				f1.Location.IsEquivalent(f2.Location)
+				f1.Location.IsEquivalent(f2.Location) &&
+				reflect.DeepEqual(f1.ResourceSnowflakeConfig, f2.ResourceSnowflakeConfig)
 		}),
 	}
 

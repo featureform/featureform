@@ -5,7 +5,7 @@
 // Copyright 2024 FeatureForm Inc.
 //
 
-package provider
+package spark
 
 import (
 	"reflect"
@@ -20,13 +20,13 @@ func TestSparkConfig(t *testing.T) {
 		t.Fatalf("Failed to create empty file path: %s", err)
 	}
 	type testCase struct {
-		Configs  sparkConfigs
+		Configs  Configs
 		Expected []string
 	}
 
 	testCases := map[string]testCase{
 		"SimpleIceberg": testCase{
-			Configs: sparkConfigs{sparkIcebergFlags{}},
+			Configs: Configs{IcebergFlags{}},
 			Expected: []string{
 				"spark-submit",
 				"--packages",

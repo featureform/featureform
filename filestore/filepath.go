@@ -10,13 +10,14 @@ package filestore
 import (
 	"fmt"
 	"net/url"
+	pathlib "path"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
-	"strings"
-
 	"github.com/featureform/fferr"
+	"github.com/featureform/logging"
 )
 
 type FileType string
@@ -34,10 +35,11 @@ const (
 )
 
 const (
-	Parquet FileType = "parquet"
-	CSV     FileType = "csv"
-	JSON    FileType = "json"
-	DB      FileType = "db"
+	NilFileType FileType = ""
+	Parquet     FileType = "parquet"
+	CSV         FileType = "csv"
+	JSON        FileType = "json"
+	DB          FileType = "db"
 )
 
 const (
@@ -85,6 +87,9 @@ type Filepath interface {
 	Scheme() string
 	SetScheme(scheme string) error
 
+	// Clone returns an exact copy of this filepath.
+	Clone() Filepath
+
 	// Returns the name of the bucket (S3) or container (Azure Blob Storage)
 	Bucket() string
 	SetBucket(bucket string) error
@@ -112,7 +117,7 @@ type Filepath interface {
 	Validate() error
 	IsValid() bool
 
-	// TODO: Add Append method and move any trimming of path into this method and delete it from everywhere else
+	AppendPathString(path string, isDir bool) error
 }
 
 func NewEmptyFilepath(storeType FileStoreType) (Filepath, error) {
@@ -167,6 +172,17 @@ type FilePath struct {
 	key     string
 	isDir   bool
 	isValid bool
+	// If updating fields, make sure to update Clone
+}
+
+func (fp *FilePath) Clone() Filepath {
+	return &FilePath{
+		scheme: fp.scheme,
+		bucket: fp.bucket,
+		key: fp.key,
+		isDir: fp.isDir,
+		isValid: fp.isValid,
+	}
 }
 
 func (fp *FilePath) SetScheme(scheme string) error {
@@ -316,12 +332,42 @@ func (fp *FilePath) Validate() error {
 	return nil
 }
 
+func (fp *FilePath) AppendPathString(path string, isDir bool) error {
+	if !fp.IsDir() {
+		logging.GlobalLogger.Errorw(
+			"Append only works on a directory path",
+			"filepath", fp,
+			"append", path,
+		)
+		return fferr.NewInternalErrorf("Append only works on a directory path\n%s\n", fp.ToURI())
+	}
+	u, err := url.Parse(path)
+	if err != nil {
+		logging.GlobalLogger.Errorw(
+			"Invalid path to append",
+			"filepath", fp,
+			"append", path,
+		)
+		return fferr.NewInternalErrorf("Invalid path to append\n%s\n", path)
+	}
+	if u.IsAbs() {
+		logging.GlobalLogger.Errorw(
+			"Cannot append an absolute URL path",
+			"filepath", fp,
+			"append", path,
+		)
+		return fferr.NewInternalErrorf("Cannot append an absolute URL path\n%s\n", path)
+	}
+	fp.SetKey(pathlib.Join(fp.Key(), path))
+	return nil
+}
+
 type S3Filepath struct {
 	FilePath
 }
 
 func (s3 *S3Filepath) Validate() error {
-	if s3.scheme != "s3://" && s3.scheme != "s3a://" && s3.scheme != "s3n://" {
+	if s3.scheme != S3Prefix && s3.scheme != S3APrefix && s3.scheme != S3NPrefix {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("invalid scheme '%s', must be 's3:// or 's3a://' or 's3n://'", s3.scheme))
 	}
 	if s3.bucket == "" {
@@ -346,6 +392,13 @@ func (s3 *S3Filepath) ToURI() string {
 type AzureFilepath struct {
 	StorageAccount string
 	FilePath
+}
+
+func (azure *AzureFilepath) Clone() Filepath {
+	return &AzureFilepath{
+		StorageAccount: azure.StorageAccount,
+		FilePath: *azure.FilePath.Clone().(*FilePath),
+	}
 }
 
 func (azure *AzureFilepath) ToURI() string {
@@ -420,12 +473,31 @@ type GCSFilepath struct {
 	FilePath
 }
 
+func NewGCSFilepath(bucket, key string, isDir bool) (*GCSFilepath, error) {
+	path := &GCSFilepath{
+		FilePath{
+			scheme: GSPrefix,
+			bucket: bucket,
+			key: key,
+			isDir: isDir,
+			isValid: false,
+		},
+	}
+	if err := path.Validate(); err != nil {
+		logging.GlobalLogger.Errorw(
+			"GCS filepath is invalid", "path", path, "err", err,
+		)
+		return nil, err
+	}
+	return path, nil
+}
+
 func (gcs *GCSFilepath) ToURI() string {
-	return fmt.Sprintf("%s%s/%s", gcs.scheme, gcs.bucket, gcs.key)
+	return fmt.Sprintf("%s%s", gcs.scheme, pathlib.Join(gcs.bucket, gcs.key))
 }
 
 func (gcs *GCSFilepath) Validate() error {
-	if gcs.scheme != "gs://" {
+	if gcs.scheme != GSPrefix {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("invalid scheme '%s', must be 'gs://'", gcs.scheme))
 	}
 	if gcs.bucket == "" {

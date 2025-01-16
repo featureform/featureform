@@ -9,6 +9,7 @@ package tasks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/featureform/provider/provider_schema"
@@ -39,40 +40,7 @@ func (t *LabelTask) Run() error {
 	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.LABEL_VARIANT}
 
 	if t.isDelete {
-		labelToDelete, err := t.metadata.GetStagedForDeletionLabelVariant(
-			context.Background(),
-			metadata.NameVariant{
-				Name:    nv.Name,
-				Variant: nv.Variant,
-			},
-		)
-		if err != nil {
-			return err
-		}
-
-		t.logger.Infow("Deleting label", "resource_id", resID)
-		labelTableName, tableNameErr := provider_schema.ResourceToTableName(provider_schema.Label, resID.Name, resID.Variant)
-		if tableNameErr != nil {
-			t.logger.Debugw("Failed to get table name for label", "error", tableNameErr)
-			return err
-		}
-
-		sourceStore, err := getStore(t.BaseTask, t.metadata, labelToDelete)
-		if err != nil {
-			return err
-		}
-
-		t.logger.Debugw("Deleting label at location", "location", pl.NewSQLLocation(labelTableName))
-		deleteErr := sourceStore.Delete(pl.NewSQLLocation(labelTableName))
-		if deleteErr != nil {
-			return deleteErr
-		}
-		t.logger.Debugw("Deleted label at location", "location", pl.NewSQLLocation(labelTableName))
-		if err := t.metadata.FinalizeDelete(context.Background(), resID); err != nil {
-			return err
-		}
-
-		return nil
+		return t.handleDeletion(nv, resID)
 	}
 
 	label, err := t.metadata.GetLabelVariant(context.Background(), nameVariant)
@@ -157,6 +125,52 @@ func (t *LabelTask) Run() error {
 	t.logger.Debugw("Resource Table Created", "id", labelID, "schema", schema)
 
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Registration complete..."); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *LabelTask) handleDeletion(nv scheduling.NameVariant, resID metadata.ResourceID) error {
+	labelToDelete, err := t.metadata.GetStagedForDeletionLabelVariant(
+		context.Background(),
+		metadata.NameVariant{
+			Name:    nv.Name,
+			Variant: nv.Variant,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	t.logger.Infow("Deleting label", "resource_id", resID)
+	labelTableName, tableNameErr := provider_schema.ResourceToTableName(provider_schema.Label, resID.Name, resID.Variant)
+	if tableNameErr != nil {
+		t.logger.Debugw("Failed to get table name for label", "error", tableNameErr)
+		return err
+	}
+
+	sourceStore, err := getStore(t.BaseTask, t.metadata, labelToDelete)
+	if err != nil {
+		return err
+	}
+
+	location := pl.NewSQLLocation(labelTableName)
+
+	t.logger.Debugw("Deleting label at location", "location", location)
+
+	if deleteErr := sourceStore.Delete(location); deleteErr != nil {
+		var notFoundErr *fferr.DatasetNotFoundError
+		if errors.As(deleteErr, &notFoundErr) {
+			t.logger.Infow("Table doesn't exist at location, continuing...", "location", location)
+		} else {
+			return deleteErr
+		}
+	} else {
+		t.logger.Infow("Successfully deleted label at location", "location", location)
+	}
+
+	if err := t.metadata.FinalizeDelete(context.Background(), resID); err != nil {
 		return err
 	}
 

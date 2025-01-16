@@ -53,44 +53,9 @@ func (t *SourceTask) Run() error {
 	}
 
 	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.SOURCE_VARIANT}
+
 	if t.isDelete {
-		t.logger.Infow("Deleting source", "resource_id", resID)
-		sourceToDelete, stagedDeleteErr := t.metadata.GetStagedForDeletionSourceVariant(ctx, metadata.NameVariant{
-			Name:    nv.Name,
-			Variant: nv.Variant,
-		})
-		if stagedDeleteErr != nil {
-			return stagedDeleteErr
-		}
-
-		if sourceToDelete.IsPrimaryData() {
-			t.logger.Debugw("Can't delete primary data", "resource_id", resID)
-			return nil
-		}
-		tfLocation, tfLocationErr := sourceToDelete.GetTransformationLocation()
-		if tfLocationErr != nil {
-			return tfLocationErr
-		}
-		t.logger.Debugw("Deleting source at location", "location", tfLocation, "error", tfLocationErr)
-
-		sourceStore, err := getStore(t.BaseTask, t.metadata, sourceToDelete)
-		if err != nil {
-			return err
-		}
-
-		deleteErr := sourceStore.Delete(tfLocation)
-		if deleteErr != nil {
-			return deleteErr
-		}
-
-		t.logger.Debugw("Deleting source metadata", "resource_id", resID)
-		finalizeDeleteErr := t.metadata.FinalizeDelete(ctx, resID)
-		if finalizeDeleteErr != nil {
-			return finalizeDeleteErr
-		}
-
-		t.logger.Debugw("Source deleted", "resource_id", resID)
-		return nil
+		return t.handleDeletion(resID, ctx, nv)
 	}
 
 	t.logger.Info("Running register source job on resource: ", nv)
@@ -135,6 +100,46 @@ func (t *SourceTask) Run() error {
 		logger.Error("Unknown source type")
 		return fferr.NewInternalErrorf("source type not implemented")
 	}
+}
+
+func (t *SourceTask) handleDeletion(resID metadata.ResourceID, ctx context.Context, nv scheduling.NameVariant) error {
+	t.logger.Infow("Deleting source", "resource_id", resID)
+	sourceToDelete, stagedDeleteErr := t.metadata.GetStagedForDeletionSourceVariant(ctx, metadata.NameVariant{
+		Name:    nv.Name,
+		Variant: nv.Variant,
+	})
+	if stagedDeleteErr != nil {
+		return stagedDeleteErr
+	}
+
+	if sourceToDelete.IsPrimaryData() {
+		t.logger.Debugw("Can't delete primary data", "resource_id", resID)
+		return nil
+	}
+	tfLocation, tfLocationErr := sourceToDelete.GetTransformationLocation()
+	if tfLocationErr != nil {
+		return tfLocationErr
+	}
+	t.logger.Debugw("Deleting source at location", "location", tfLocation, "error", tfLocationErr)
+
+	sourceStore, err := getStore(t.BaseTask, t.metadata, sourceToDelete)
+	if err != nil {
+		return err
+	}
+
+	deleteErr := sourceStore.Delete(tfLocation)
+	if deleteErr != nil {
+		return deleteErr
+	}
+
+	t.logger.Debugw("Deleting source metadata", "resource_id", resID)
+	finalizeDeleteErr := t.metadata.FinalizeDelete(ctx, resID)
+	if finalizeDeleteErr != nil {
+		return finalizeDeleteErr
+	}
+
+	t.logger.Debugw("Source deleted", "resource_id", resID)
+	return nil
 }
 
 func (t *SourceTask) runSQLTransformationJob(

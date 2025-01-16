@@ -45,39 +45,7 @@ func (t *TrainingSetTask) Run() error {
 	}
 
 	if t.isDelete {
-		t.logger.Debugw("Deleting training set", "resource_id", tsId)
-
-		// Fetch the staged-for-deletion training set
-		tsToDelete, err := t.metadata.GetStagedForDeletionTrainingSetVariant(context.Background(), metadata.NameVariant{
-			Name:    nv.Name,
-			Variant: nv.Variant,
-		})
-		if err != nil {
-			return err
-		}
-
-		trainingSetLocation, err := ps.ResourceToTableName(provider.TrainingSet.String(), nv.Name, nv.Variant)
-		if err != nil {
-			return err
-		}
-		t.logger.Debugw("Deleting training set at location", "location", trainingSetLocation)
-		store, getStoreErr := getStore(t.BaseTask, t.metadata, tsToDelete)
-		if getStoreErr != nil {
-			return getStoreErr
-		}
-		if err := store.Delete(pl.NewSQLLocation(trainingSetLocation)); err != nil {
-			return err
-		}
-		if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Training Set deleted..."); err != nil {
-			return err
-		}
-
-		t.logger.Debugw("Finalizing delete", "resource_id", tsId)
-		if err := t.metadata.FinalizeDelete(context.Background(), tsId); err != nil {
-			return err
-		}
-
-		return nil
+		return t.handleDeletion(tsId, nv)
 	}
 
 	ts, err := t.metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{Name: nv.Name, Variant: nv.Variant})
@@ -179,11 +147,38 @@ func (t *TrainingSetTask) Run() error {
 	return t.runTrainingSetJob(trainingSetDef, store)
 }
 
-func (t *TrainingSetTask) getStore(ts *metadata.TrainingSetVariant) (provider.OfflineStore, error) {
-	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Offline Store..."); err != nil {
-		return nil, err
+func (t *TrainingSetTask) handleDeletion(tsId metadata.ResourceID, nv scheduling.NameVariant) error {
+	t.logger.Debugw("Deleting training set", "resource_id", tsId)
+	tsToDelete, err := t.metadata.GetStagedForDeletionTrainingSetVariant(context.Background(), metadata.NameVariant{
+		Name:    nv.Name,
+		Variant: nv.Variant,
+	})
+	if err != nil {
+		return err
 	}
-	return getStore(t.BaseTask, t.metadata, ts)
+
+	trainingSetLocation, err := ps.ResourceToTableName(provider.TrainingSet.String(), nv.Name, nv.Variant)
+	if err != nil {
+		return err
+	}
+	t.logger.Debugw("Deleting training set at location", "location", trainingSetLocation)
+	store, getStoreErr := getStore(t.BaseTask, t.metadata, tsToDelete)
+	if getStoreErr != nil {
+		return getStoreErr
+	}
+	if err := store.Delete(pl.NewSQLLocation(trainingSetLocation)); err != nil {
+		return err
+	}
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Training Set deleted..."); err != nil {
+		return err
+	}
+
+	t.logger.Debugw("Finalizing delete", "resource_id", tsId)
+	if err := t.metadata.FinalizeDelete(context.Background(), tsId); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (t *TrainingSetTask) getLabelSourceMapping(label *metadata.LabelVariant) (provider.SourceMapping, error) {

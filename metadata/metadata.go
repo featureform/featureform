@@ -2349,7 +2349,6 @@ func (serv *MetadataServer) MarkForDeletion(ctx context.Context, request *pb.Mar
 		return &pb.MarkForDeletionResponse{}, fferr.NewInternalErrorf("Deletion not supported for memory repository")
 	}
 
-	// todo merge resourceID
 	resId := common.ResourceID{Name: request.ResourceId.Resource.Name, Variant: request.ResourceId.Resource.Variant, Type: common.ResourceType(request.ResourceId.ResourceType)}
 	notCommonResId := ResourceID{Name: resId.Name, Variant: resId.Variant, Type: ResourceType(resId.Type)}
 

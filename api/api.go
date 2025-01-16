@@ -111,9 +111,11 @@ func (serv *MetadataServer) MarkForDeletion(ctx context.Context, req *pb.MarkFor
 
 	out, err := serv.meta.MarkForDeletion(ctx, req)
 	if err != nil {
+		serv.Logger.Errorw("Failed to mark resource for deletion", "error", err)
 		return nil, err
 	}
 
+	logger.Infow("Successfully marked resource for deletion")
 	return out, nil
 }
 

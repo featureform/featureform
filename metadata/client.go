@@ -1343,6 +1343,7 @@ func (client *Client) GetStagedForDeletionLabelVariant(ctx context.Context, id N
 }
 
 func (client *Client) GetStagedForDeletionResource(ctx context.Context, id ResourceID) (*pb.ResourceVariant, error) {
+	client.Logger.Debugw("Getting staged for deletion resource", "id", id)
 	nameVariant := pb.NameVariant{Name: id.Name, Variant: id.Variant}
 	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: id.Type.Serialized()}
 

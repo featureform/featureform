@@ -39,7 +39,7 @@ func NewPSQLStorageImplementation(config helpers.PSQLConfig, tableName string) (
 	indexName := "ff_key_pattern"
 	sanitizedName := helpers.SanitizePostgres(tableName)
 	// Create a table to store the key-value pairs
-	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (key VARCHAR(2048) PRIMARY KEY, value TEXT, delete TIMESTAMP default null)", sanitizedName)
+	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (key VARCHAR(2048) PRIMARY KEY, value TEXT, marked_for_deletion_at TIMESTAMP default null)", sanitizedName)
 	_, err = db.Exec(context.Background(), tableCreationSQL)
 	if err != nil {
 		return nil, fferr.NewInternalErrorf("failed to create table %s: %w", sanitizedName, err)

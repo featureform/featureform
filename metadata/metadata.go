@@ -377,14 +377,14 @@ func (opt ResourceLookupOptions) generateQueryOpts() []query.Query {
 	case ExcludeDeleted:
 		// Only include non-deleted resources (deleted timestamp is NULL)
 		queryOpts = append(queryOpts, query.ValueEquals{
-			Column: query.SQLColumn{Column: "delete"},
+			Column: query.SQLColumn{Column: "marked_for_deletion_at"},
 			Value:  nil,
 		})
 	case DeletedOnly:
 		// Only include deleted resources (deleted timestamp is not NULL)
 		queryOpts = append(queryOpts, query.ValueEquals{
 			Not:    true,
-			Column: query.SQLColumn{Column: "delete"},
+			Column: query.SQLColumn{Column: "marked_for_deletion_at"},
 			Value:  nil,
 		})
 	case IncludeDeleted:
@@ -2420,12 +2420,8 @@ func (serv *MetadataServer) MarkForDeletion(ctx context.Context, request *pb.Mar
 
 func (serv *MetadataServer) GetStagedForDeletionResource(ctx context.Context, request *pb.GetStagedForDeletionResourceRequest) (*pb.GetStagedForDeletionResourceResponse, error) {
 	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
-	logger.Infow("Getting staged for deletion resource", "resource_id", request.ResourceId)
-
-	if serv.resourcesRepository.Type() == ResourcesRepositoryTypeMemory {
-		logger.Infow("Deletion not supported for memory repository")
-		return &pb.GetStagedForDeletionResourceResponse{}, fferr.NewInternalErrorf("Deletion not supported for memory repository")
-	}
+	logger = logger.WithResource(logging.ResourceType(request.ResourceId.ResourceType), request.ResourceId.Resource.Name, request.ResourceId.Resource.Variant)
+	logger.Infow("Getting staged for deletion resource")
 
 	resId := ResourceID{Name: request.ResourceId.Resource.Name, Variant: request.ResourceId.Resource.Variant, Type: ResourceType(request.ResourceId.ResourceType)}
 
@@ -2436,6 +2432,7 @@ func (serv *MetadataServer) GetStagedForDeletionResource(ctx context.Context, re
 		return &pb.GetStagedForDeletionResourceResponse{}, err
 	}
 
+	logger.Debugw("Found resource to delete", "resource", resource)
 	var rv *pb.ResourceVariant
 	switch resId.Type {
 	case FEATURE_VARIANT:

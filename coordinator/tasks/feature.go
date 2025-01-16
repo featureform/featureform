@@ -10,6 +10,7 @@ package tasks
 import (
 	"context"
 	"fmt"
+	"github.com/featureform/logging"
 	"github.com/featureform/provider/provider_schema"
 	"time"
 
@@ -36,12 +37,13 @@ func (t *FeatureTask) Run() error {
 		return fferr.NewInternalErrorf("cannot create a feature from target type: %s", t.taskDef.TargetType)
 	}
 
+	logger := t.logger.WithResource(logging.FeatureVariant, nv.Name, nv.Variant)
 	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.FEATURE_VARIANT}
 	if t.isDelete {
-		return t.handleDeletion(resID)
+		return t.handleDeletion(resID, logger)
 	}
 
-	t.logger.Info("Running feature materialization job on resource: ", nv)
+	logger.Info("Running feature materialization job on resource: ", nv)
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Feature details..."); err != nil {
 		return err
 	}
@@ -50,8 +52,7 @@ func (t *FeatureTask) Run() error {
 	if err != nil {
 		return err
 	}
-	t.logger.Infow("feature variant", "name", feature.Name(), "source", feature.Source(), "location", feature.Location(), "location_col", feature.LocationColumns())
-
+	logger.Infow("Running task", "source", feature.Source(), "location", feature.Location(), "location_col", feature.LocationColumns())
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for dependencies to complete..."); err != nil {
 		return err
 	}
@@ -98,7 +99,7 @@ func (t *FeatureTask) Run() error {
 		return typeErr
 	}
 
-	t.logger.Debugw("Getting feature's source location", "name", source.Name(), "variant", source.Variant())
+	logger.Debugw("Getting feature's source location", "name", source.Name(), "variant", source.Variant())
 	var sourceLocation pl.Location
 	var sourceLocationErr error
 	if source.IsSQLTransformation() || source.IsDFTransformation() {
@@ -110,7 +111,7 @@ func (t *FeatureTask) Run() error {
 	if sourceLocationErr != nil {
 		return sourceLocationErr
 	}
-	t.logger.Debugw("Feature's source location", "location", sourceLocation, "location_type", sourceLocation.Type())
+	logger.Debugw("Feature's source location", "location", sourceLocation, "location_type", sourceLocation.Type())
 	featID := provider.ResourceID{
 		Name:    nv.Name,
 		Variant: nv.Variant,
@@ -124,7 +125,7 @@ func (t *FeatureTask) Run() error {
 		TS:          tmpSchema.TS,
 		SourceTable: sourceLocation,
 	}
-	t.logger.Debugw("Creating Resource Table", "id", featID, "schema", schema)
+	logger.Debugw("Creating Resource Table", "id", featID, "schema", schema)
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Registering Feature from dataset..."); err != nil {
 		return err
 	}
@@ -132,7 +133,7 @@ func (t *FeatureTask) Run() error {
 	if _, err := sourceStore.RegisterResourceFromSourceTable(featID, schema); err != nil {
 		return err
 	}
-	t.logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
+	logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
 
 	maxJobDurationEnv := helpers.GetEnv("MAX_JOB_DURATION", "48h")
 	maxJobDuration, err := time.ParseDuration(maxJobDurationEnv)
@@ -231,26 +232,28 @@ func (t *FeatureTask) Run() error {
 		return materializationErr
 	}
 
-	t.logger.Debugw("Setting status to ready", "id", featID)
+	logger.Debugw("Setting status to ready")
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Materialization Complete..."); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (t *FeatureTask) handleDeletion(resID metadata.ResourceID) error {
-	t.logger.Infow("Deleting feature variant", "resource_id", resID)
+func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.Logger) error {
+	t.logger.Infow("Deleting feature")
 	featureTableName, tableNameErr := provider_schema.ResourceToTableName(provider_schema.Materialization, resID.Name, resID.Variant)
 	if tableNameErr != nil {
 		return tableNameErr
 	}
 	sqlLocation := pl.NewSQLLocation(featureTableName)
-	t.logger.Debugw("Deleting feature at location", "location", sqlLocation)
+	logger.Debugw("Deleting feature at location", "location", sqlLocation)
 
 	nv := metadata.NameVariant{
 		Name:    resID.Name,
 		Variant: resID.Variant,
 	}
+
+	logger.Debugw("Fetching feature that's staged for deletion")
 	featureToDelete, err := t.metadata.GetStagedForDeletionFeatureVariant(context.Background(), nv)
 	if err != nil {
 		return err
@@ -261,6 +264,7 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID) error {
 		return err
 	}
 
+	logger.Debugw("Deleting feature from offline store")
 	deleteErr := sourceStore.Delete(sqlLocation)
 	if deleteErr != nil {
 		return deleteErr
@@ -270,14 +274,17 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID) error {
 	if featureToDelete.Provider() != "" {
 		featureProvider, err = featureToDelete.FetchProvider(t.metadata, context.Background())
 		if err != nil {
+			logger.Errorw("Failed to fetch inference store", "error", err)
 			return err
 		}
 	}
-	t.logger.Debugw("Attempting to delete feature from online store", "name", nv.Name, "variant", nv.Variant)
+
+	logger.Debugw("Attempting to delete feature from online store", "name", nv.Name, "variant", nv.Variant)
 	if featureProvider != nil {
-		t.logger.Debugw("Deleting feature from online store", "name", nv.Name, "variant", nv.Variant)
+		logger.Debugw("Deleting feature from online store")
 		onlineProvider, err := provider.Get(pt.Type(featureProvider.Type()), featureProvider.SerializedConfig())
 		if err != nil {
+			logger.Errorw("Failed to get online provider", "error", err)
 			return err
 		}
 		casted, err := onlineProvider.AsOnlineStore()
@@ -287,9 +294,10 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID) error {
 
 		onlineDeleteErr := casted.DeleteTable(nv.Name, nv.Variant)
 		if onlineDeleteErr != nil {
+			logger.Errorw("Failed to delete feature from online store", "error", onlineDeleteErr)
 			return onlineDeleteErr
 		}
-		t.logger.Debugw("Deleted feature from online store", "name", nv.Name, "variant", nv.Variant)
+		logger.Debugw("Deleted feature from online store", "name", nv.Name, "variant", nv.Variant)
 	}
 
 	if err := t.metadata.FinalizeDelete(context.Background(), resID); err != nil {

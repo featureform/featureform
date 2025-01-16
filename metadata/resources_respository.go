@@ -34,7 +34,7 @@ const (
 
 	sqlMarkAsDeleted = `-- name: MarkAsDeleted :exec
 		UPDATE ff_task_metadata
-		SET delete = NOW()
+		SET marked_for_deletion_at = NOW()
 		WHERE key = $1
 		RETURNING key;`
 

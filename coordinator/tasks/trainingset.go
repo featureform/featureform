@@ -133,7 +133,7 @@ func (t *TrainingSetTask) Run() error {
 	}
 
 	tsIdProvider := provider.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: provider.TrainingSet}
-	if _, err := store.GetTrainingSet(tsIdProvider); err == nil {
+	if _, err := store.GetTrainingSet(tsIdProvider); err != nil {
 		return err
 	}
 

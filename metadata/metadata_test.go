@@ -559,9 +559,8 @@ func startServ(t *testing.T) (*MetadataServer, string) {
 	manager, err := scheduling.NewMemoryTaskMetadataManager()
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:              logging.WrapZapLogger(logger.Sugar()),
-		TaskManager:         manager,
-		ResourcesRepository: NewInMemoryResourcesRepository(),
+		Logger:      logging.WrapZapLogger(logger.Sugar()),
+		TaskManager: manager,
 	}
 	serv, err := NewMetadataServer(config)
 	if err != nil {
@@ -584,9 +583,8 @@ func startServNoPanic(t *testing.T) (*MetadataServer, string) {
 	manager, err := scheduling.NewMemoryTaskMetadataManager()
 	logger := zaptest.NewLogger(t)
 	config := &Config{
-		Logger:              logging.WrapZapLogger(logger.Sugar()),
-		TaskManager:         manager,
-		ResourcesRepository: NewInMemoryResourcesRepository(),
+		Logger:      logging.WrapZapLogger(logger.Sugar()),
+		TaskManager: manager,
 	}
 
 	serv, err := NewMetadataServer(config)

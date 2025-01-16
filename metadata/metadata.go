@@ -313,34 +313,96 @@ func isDirectDependency(ctx context.Context, lookup ResourceLookup, dependency, 
 	return deps.Has(ctx, depId)
 }
 
-type ResourceLookupOpt struct {
-	IncludeDeleted bool
+type DeletionMode int
+
+const (
+	ExcludeDeleted DeletionMode = iota // default: exclude deleted
+	IncludeDeleted
+	DeletedOnly
+)
+
+type ResourceLookupType string
+
+type ResourceLookupOption interface {
+	Type() ResourceLookupType
 }
 
-func (opt ResourceLookupOpt) ToQueryOpts() []query.Query {
+const DeleteLookupOptionType ResourceLookupType = "Deletion"
+
+type DeleteLookupOption struct {
+	deletionMode DeletionMode
+}
+
+func (opt DeleteLookupOption) Type() ResourceLookupType {
+	return DeleteLookupOptionType
+}
+
+type ResourceLookupOptions struct {
+	deletionMode DeletionMode
+}
+
+func NewResourceLookupOptions(opts ...ResourceLookupOption) (ResourceLookupOptions, error) {
+	ro := ResourceLookupOptions{
+		deletionMode: ExcludeDeleted, // default
+	}
+
+	deletionOptionSet := false
+
+	for _, opt := range opts {
+		switch opt.Type() {
+
+		case DeleteLookupOptionType:
+			// If we already saw a DeleteLookupOption, that's an error:
+			if deletionOptionSet {
+				return ro, fferr.NewInternalErrorf("multiple DeletionResourceLookupType options")
+			}
+			deletionOptionSet = true
+
+			dlo, ok := opt.(DeleteLookupOption)
+			if !ok {
+				return ro, fferr.NewInternalErrorf("failed to cast DeletionResourceLookupType option")
+			}
+
+			ro.deletionMode = dlo.deletionMode
+		}
+	}
+
+	return ro, nil
+}
+
+func (opt ResourceLookupOptions) generateQueryOpts() []query.Query {
 	var queryOpts []query.Query
-	queryOpts = append(queryOpts, query.ConditionalOR{
-		Filters: []query.Query{
-			query.ValueEquals{
-				Not: opt.IncludeDeleted,
-				Column: query.SQLColumn{
-					Column: "delete",
-				},
-				Value: "NULL",
-			},
-		},
-	})
+
+	switch opt.deletionMode {
+	case ExcludeDeleted:
+		// Only include non-deleted resources (deleted timestamp is NULL)
+		queryOpts = append(queryOpts, query.ValueEquals{
+			Column: query.SQLColumn{Column: "delete"},
+			Value:  nil,
+		})
+	case DeletedOnly:
+		// Only include deleted resources (deleted timestamp is not NULL)
+		queryOpts = append(queryOpts, query.ValueEquals{
+			Not:    true,
+			Column: query.SQLColumn{Column: "delete"},
+			Value:  nil,
+		})
+	case IncludeDeleted:
+		// No filter needed - include all resources regardless of deleted timestamp
+	}
+
 	return queryOpts
 }
 
 type ResourceLookup interface {
-	Lookup(context.Context, ResourceID, ResourceLookupOpt) (Resource, error)
+	Lookup(context.Context, ResourceID, ...ResourceLookupOption) (Resource, error)
+	//Lookup(context.Context, ResourceID, ResourceLookupOpts) (Resource, error)
 	Has(context.Context, ResourceID) (bool, error) // add is delete
 	Set(context.Context, ResourceID, Resource) error
-	Submap(context.Context, []ResourceID) (ResourceLookup, error)                              // add is delete
-	ListForType(context.Context, ResourceType) ([]Resource, error)                             // add is delete
-	List(context.Context) ([]Resource, error)                                                  // add is delete
-	ListVariants(context.Context, ResourceType, string, ResourceLookupOpt) ([]Resource, error) // add is delete
+	Submap(context.Context, []ResourceID) (ResourceLookup, error)                                    // add is delete
+	ListForType(context.Context, ResourceType) ([]Resource, error)                                   // add is delete
+	List(context.Context) ([]Resource, error)                                                        // add is delete
+	ListVariants(context.Context, ResourceType, string, ...ResourceLookupOption) ([]Resource, error) // add is delete
 	HasJob(context.Context, ResourceID) (bool, error)
 	SetJob(context.Context, ResourceID, string) error
 	SetStatus(context.Context, ResourceID, *pb.ResourceStatus) error
@@ -393,7 +455,7 @@ func (wrapper SearchWrapper) Set(ctx context.Context, id ResourceID, res Resourc
 
 type LocalResourceLookup map[ResourceID]Resource
 
-func (lookup LocalResourceLookup) Lookup(ctx context.Context, id ResourceID, opt ResourceLookupOpt) (Resource, error) {
+func (lookup LocalResourceLookup) Lookup(ctx context.Context, id ResourceID, opts ...ResourceLookupOption) (Resource, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 	res, has := lookup[id]
 	if !has {
@@ -439,7 +501,7 @@ func (lookup LocalResourceLookup) ListForType(ctx context.Context, t ResourceTyp
 	return resources, nil
 }
 
-func (lookup LocalResourceLookup) ListVariants(ctx context.Context, t ResourceType, name string, opt ResourceLookupOpt) ([]Resource, error) {
+func (lookup LocalResourceLookup) ListVariants(ctx context.Context, t ResourceType, name string, opts ...ResourceLookupOption) ([]Resource, error) {
 	resources := make([]Resource, 0)
 	for id, res := range lookup {
 		if id.Type == t && id.Name == name {
@@ -1395,7 +1457,7 @@ func (resource *trainingSetVariantResource) Owner() string {
 
 func (resource *trainingSetVariantResource) Validate(ctx context.Context, lookup ResourceLookup) error {
 	resId := ResourceID{Name: resource.serialized.Label.Name, Variant: resource.serialized.Label.Variant, Type: LABEL_VARIANT}
-	label, err := lookup.Lookup(ctx, resId, ResourceLookupOpt{false})
+	label, err := lookup.Lookup(ctx, resId)
 	if err != nil {
 		return err
 	}
@@ -1406,7 +1468,7 @@ func (resource *trainingSetVariantResource) Validate(ctx context.Context, lookup
 	entityMap := map[string]struct{}{labelVariant.serialized.Entity: {}}
 	for _, feature := range resource.serialized.Features {
 		fvResId := ResourceID{Name: feature.Name, Variant: feature.Variant, Type: FEATURE_VARIANT}
-		featureResource, err := lookup.Lookup(ctx, fvResId, ResourceLookupOpt{false})
+		featureResource, err := lookup.Lookup(ctx, fvResId)
 		if err != nil {
 			return err
 		}
@@ -2291,7 +2353,7 @@ func (serv *MetadataServer) MarkForDeletion(ctx context.Context, request *pb.Mar
 	resId := common.ResourceID{Name: request.ResourceId.Resource.Name, Variant: request.ResourceId.Resource.Variant, Type: common.ResourceType(request.ResourceId.ResourceType)}
 	notCommonResId := ResourceID{Name: resId.Name, Variant: resId.Variant, Type: ResourceType(resId.Type)}
 
-	resource, err := serv.lookup.Lookup(ctx, notCommonResId, ResourceLookupOpt{IncludeDeleted: false})
+	resource, err := serv.lookup.Lookup(ctx, notCommonResId)
 	if err != nil {
 		logger.Errorw("Could not find resource to delete", "error", err.Error())
 		return &pb.MarkForDeletionResponse{}, err
@@ -2368,7 +2430,8 @@ func (serv *MetadataServer) GetStagedForDeletionResource(ctx context.Context, re
 
 	resId := ResourceID{Name: request.ResourceId.Resource.Name, Variant: request.ResourceId.Resource.Variant, Type: ResourceType(request.ResourceId.ResourceType)}
 
-	resource, err := serv.lookup.Lookup(ctx, resId, ResourceLookupOpt{IncludeDeleted: true})
+	resourceLookupOpt := DeleteLookupOption{DeletedOnly}
+	resource, err := serv.lookup.Lookup(ctx, resId, resourceLookupOpt)
 	if err != nil {
 		logger.Errorw("Could not find resource to delete", "error", err.Error())
 		return &pb.GetStagedForDeletionResourceResponse{}, err
@@ -2441,7 +2504,7 @@ func (serv *MetadataServer) isDeletable(ctx context.Context, resource Resource) 
 }
 
 func (serv *MetadataServer) validateProviderType(ctx context.Context, providerName string) error {
-	provider, err := serv.lookup.Lookup(ctx, ResourceID{Name: providerName, Type: PROVIDER}, ResourceLookupOpt{IncludeDeleted: false})
+	provider, err := serv.lookup.Lookup(ctx, ResourceID{Name: providerName, Type: PROVIDER})
 	if err != nil {
 		return err
 	}
@@ -2676,7 +2739,7 @@ func (serv *MetadataServer) addTransformationLocation(ctx context.Context, sv *p
 	}
 	providerName := sv.GetProvider()
 	logger.Debugw("Looking up provider for transformation location", "provider", providerName)
-	providerResource, err := serv.lookup.Lookup(ctx, ResourceID{Name: providerName, Type: PROVIDER}, ResourceLookupOpt{false})
+	providerResource, err := serv.lookup.Lookup(ctx, ResourceID{Name: providerName, Type: PROVIDER})
 	if err != nil {
 		logger.Errorw("Failed to lookup provider resource", "provider", providerName, "error", err)
 		return err
@@ -2955,7 +3018,7 @@ func (serv *MetadataServer) Run(ctx context.Context, req *pb.RunRequest) (*pb.Em
 		logger := baseLogger.WithResource(id.Type.ToLoggingResourceType(), id.Name, id.Variant)
 		// What we receive from the client won't have Task IDs set, so we grab directly from lookup again.
 		logger.Debugw("Looking up resource", "res", id)
-		res, err := serv.lookup.Lookup(ctx, id, ResourceLookupOpt{IncludeDeleted: false})
+		res, err := serv.lookup.Lookup(ctx, id)
 		if err != nil {
 			logger.Errorw("Failed to lookup resource", "error", err)
 			return nil, err
@@ -3017,7 +3080,7 @@ func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.GetEquiva
 	}
 	logger.Debugw("getEquivalent: extracted resource variant")
 
-	resourcesForType, err := serv.lookup.ListVariants(ctx, resType, currentResource.ID().Name, ResourceLookupOpt{IncludeDeleted: false})
+	resourcesForType, err := serv.lookup.ListVariants(ctx, resType, currentResource.ID().Name)
 	if err != nil {
 		logger.Errorw("Unable to list resources", "error", err)
 		return nil, err
@@ -3025,7 +3088,7 @@ func (serv *MetadataServer) getEquivalent(ctx context.Context, req *pb.GetEquiva
 
 	if len(resourcesForType) == 0 {
 		logger.Debugw("getEquivalent: no resources found for type", "type", resType)
-		return nil, err
+		return nil, nil
 	}
 	logger.Debugw("getEquivalent: listed resource variants")
 	filtered, err := serv.filterResources(ctx, resourcesForType, username, filterStatus)
@@ -3152,7 +3215,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 		logger.Errorw("Resource name is not valid", "error", err)
 		return nil, err
 	}
-	existing, err := serv.lookup.Lookup(ctx, id, ResourceLookupOpt{IncludeDeleted: false})
+	existing, err := serv.lookup.Lookup(ctx, id)
 	if _, isResourceError := err.(*fferr.KeyNotFoundError); err != nil && !isResourceError {
 		logger.Errorw("Error looking up resource", "resource ID", id, "error", err)
 		// TODO: consider checking the GRPCError interface to avoid double wrapping error
@@ -3240,7 +3303,7 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 
 func (serv *MetadataServer) setDefaultVariant(ctx context.Context, id ResourceID, defaultVariant string) error {
 	logger := logging.GetLoggerFromContext(ctx)
-	parent, err := serv.lookup.Lookup(ctx, id, ResourceLookupOpt{IncludeDeleted: false})
+	parent, err := serv.lookup.Lookup(ctx, id)
 	if err != nil {
 		logger.Errorw("Unable to lookup parent", "parent-id", id, "error", err)
 		return err
@@ -3421,7 +3484,7 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 			return fferr.NewInternalError(fmt.Errorf("invalid Stream for Get: %T", casted))
 		}
 		loggerWithResource.Debug("Looking up Resource")
-		resource, err := serv.lookup.Lookup(ctx, id, ResourceLookupOpt{IncludeDeleted: false})
+		resource, err := serv.lookup.Lookup(ctx, id)
 		if err != nil {
 			loggerWithResource.Errorw("Unable to look up resource", "error", err)
 			return err

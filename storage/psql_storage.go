@@ -87,6 +87,7 @@ func (psql *psqlStorageImplementation) Get(key string, opts ...query.Query) (str
 	if key == "" {
 		return "", fferr.NewInvalidArgumentErrorf("cannot get an empty key")
 	}
+
 	opts = append(opts, query.ValueEquals{
 		Column: query.SQLColumn{
 			Column: "key",

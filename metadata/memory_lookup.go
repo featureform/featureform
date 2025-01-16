@@ -68,7 +68,7 @@ func (lookup MemoryResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 		return EtcdRow{}, errors.Wrap(err, fmt.Sprintf("failed to parse resource: %s", value))
 	}
 	msg := EtcdRow{
-		ResourceType:      ResourceType(tmp.ResourceType),
+		ResourceType:      tmp.ResourceType,
 		StorageType:       tmp.StorageType,
 		Message:           tmp.Message,
 		SerializedVersion: tmp.SerializedVersion,
@@ -76,12 +76,19 @@ func (lookup MemoryResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 	return msg, nil
 }
 
-func (lookup MemoryResourceLookup) Lookup(ctx context.Context, id ResourceID, opt ResourceLookupOpt) (Resource, error) {
+func (lookup MemoryResourceLookup) Lookup(ctx context.Context, id ResourceID, opts ...ResourceLookupOption) (Resource, error) {
 	logger := logging.NewLogger("lookup")
 	key := createKey(id)
 	logger.Infow("Get", "key", key)
 
-	resp, err := lookup.Connection.Get(key, opt.ToQueryOpts()...)
+	options, err := NewResourceLookupOptions(opts...)
+	if err != nil {
+		logger.Errorw("Failed to create resource lookup options", "error", err)
+		return nil, err
+	}
+	qOpts := options.generateQueryOpts()
+
+	resp, err := lookup.Connection.Get(key, qOpts...)
 	if err != nil || len(resp) == 0 {
 		return nil, fferr.NewKeyNotFoundError(key, err)
 	}
@@ -252,13 +259,20 @@ func (lookup MemoryResourceLookup) ListForType(ctx context.Context, t ResourceTy
 	return resources, nil
 }
 
-func (lookup MemoryResourceLookup) ListVariants(ctx context.Context, t ResourceType, name string, opt ResourceLookupOpt) ([]Resource, error) {
+func (lookup MemoryResourceLookup) ListVariants(ctx context.Context, t ResourceType, name string, opts ...ResourceLookupOption) ([]Resource, error) {
 	logger := logging.NewLogger("memmory_lookup.go:ListVariants")
 	startTime := time.Now()
 	resources := make([]Resource, 0)
 	logger.Infow("list variants with prefix", "type", t, "name", name)
-	opts := opt.ToQueryOpts()
-	resp, err := lookup.Connection.List(variantLookupPrefix(t, name), opts...)
+
+	options, err := NewResourceLookupOptions(opts...)
+	if err != nil {
+		logger.Errorw("Failed to create resource lookup options", "error", err)
+		return nil, err
+	}
+	qOpts := options.generateQueryOpts()
+
+	resp, err := lookup.Connection.List(variantLookupPrefix(t, name), qOpts...)
 	logger.Infow("listed variants with prefix", "type", t, "name", name, "duration", time.Since(startTime))
 	if err != nil {
 		return nil, err
@@ -311,7 +325,7 @@ func (lookup MemoryResourceLookup) List(ctx context.Context) ([]Resource, error)
 }
 
 func (lookup *MemoryResourceLookup) SetStatus(ctx context.Context, id ResourceID, status *pb.ResourceStatus) error {
-	res, err := lookup.Lookup(ctx, id, ResourceLookupOpt{IncludeDeleted: false})
+	res, err := lookup.Lookup(ctx, id)
 	if err != nil {
 		return err
 	}

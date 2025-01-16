@@ -22,15 +22,9 @@ func startServPsql(t *testing.T) (*MetadataServer, string) {
 	manager, err := scheduling.NewPSQLTaskMetadataManager(metadataPsqlConfig)
 	logger := zaptest.NewLogger(t)
 
-	connection, err := help.NewPSQLPoolConnection(metadataPsqlConfig)
-	assert.NoError(t, err)
-
-	resourcesRepo := NewSqlResourcesRepository(connection, logging.NewTestLogger(t), DefaultResourcesRepoConfig())
-
 	config := &Config{
-		Logger:              logging.WrapZapLogger(logger.Sugar()),
-		TaskManager:         manager,
-		ResourcesRepository: resourcesRepo,
+		Logger:      logging.WrapZapLogger(logger.Sugar()),
+		TaskManager: manager,
 	}
 	serv, err := NewMetadataServer(config)
 	if err != nil {
@@ -103,6 +97,19 @@ func TestMetadataDelete(t *testing.T) {
 	err := cli.CreateAll(context.Background(), resources)
 	assert.NoError(t, err)
 
+	// set statuses to ready
+	_, err = serv.SetResourceStatus(context.Background(), &pb.SetStatusRequest{
+		ResourceId: &pb.ResourceID{
+			Resource: &pb.NameVariant{
+				Name: "mockOnline",
+			},
+			ResourceType: pb.ResourceType_PROVIDER,
+		},
+		Status: &pb.ResourceStatus{
+			Status: pb.ResourceStatus_READY,
+		},
+	})
+
 	t.Run("delete provider with no dependencies", func(t *testing.T) {
 		// try to delete the online provider
 		_, err := serv.MarkForDeletion(context.Background(), &pb.MarkForDeletionRequest{
@@ -118,7 +125,7 @@ func TestMetadataDelete(t *testing.T) {
 		res, err := serv.lookup.Lookup(context.Background(), ResourceID{
 			Name: "mockOnline",
 			Type: PROVIDER,
-		}, ResourceLookupOpt{IncludeDeleted: false})
+		})
 
 		assert.Nil(t, res)
 		var knfErr *fferr.KeyNotFoundError

@@ -30,7 +30,6 @@ type TrainingSetTask struct {
 }
 
 func (t *TrainingSetTask) Run() error {
-	fmt.Printf("%#v\n", t.taskDef.Target)
 	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
 		return fferr.NewInternalErrorf("cannot create a source from target type: %s", t.taskDef.TargetType)
@@ -67,6 +66,11 @@ func (t *TrainingSetTask) Run() error {
 			logger.Errorf("could not close offline store: %v", err)
 		}
 	}(store)
+
+	providerResID := provider.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: provider.TrainingSet}
+	if _, err := store.GetTrainingSet(providerResID); err == nil {
+		return err
+	}
 
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for dependencies to complete..."); err != nil {
 		return err
@@ -132,13 +136,8 @@ func (t *TrainingSetTask) Run() error {
 		resourceSnowflakeConfig = tempConfig
 	}
 
-	tsIdProvider := provider.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: provider.TrainingSet}
-	if _, err := store.GetTrainingSet(tsIdProvider); err != nil {
-		return err
-	}
-
 	trainingSetDef := provider.TrainingSetDef{
-		ID:                      tsIdProvider,
+		ID:                      providerResID,
 		Label:                   provider.ResourceID{Name: label.Name(), Variant: label.Variant(), Type: provider.Label},
 		LabelSourceMapping:      labelSourceMapping,
 		Features:                featureList,

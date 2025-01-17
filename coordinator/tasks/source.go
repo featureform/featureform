@@ -76,7 +76,6 @@ func (t *SourceTask) Run() error {
 		logger.Errorw("Failed to get store", "error", err)
 		return err
 	}
-	defer logger.LogIfErr("Failed to close offline store", sourceStore.Close())
 	logger = logger.With(
 		"resource_id", resID,
 		"is_primary", source.IsPrimaryData(),
@@ -128,7 +127,6 @@ func (t *SourceTask) handleDeletion(ctx context.Context, resID metadata.Resource
 		logger.Errorw("Failed to get store", "error", err)
 		return err
 	}
-	logger.LogIfErr("Failed to close source store", sourceStore.Close())
 
 	deleteErr := sourceStore.Delete(tfLocation)
 	if deleteErr != nil {

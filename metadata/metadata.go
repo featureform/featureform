@@ -223,10 +223,17 @@ type ResourceID struct {
 	Type    ResourceType
 }
 
-func (id ResourceID) Proto() *pb.NameVariant {
+func (id ResourceID) NameVariantProto() *pb.NameVariant {
 	return &pb.NameVariant{
 		Name:    id.Name,
 		Variant: id.Variant,
+	}
+}
+
+func (id ResourceID) Proto() *pb.ResourceID {
+	return &pb.ResourceID{
+		Resource:     id.NameVariantProto(),
+		ResourceType: id.Type.Serialized(),
 	}
 }
 
@@ -690,7 +697,7 @@ func (resource *sourceVariantResource) Proto() proto.Message {
 func (sourceVariantResource *sourceVariantResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	id := that.ID()
 	t := id.Type
-	key := id.Proto()
+	key := id.NameVariantProto()
 	serialized := sourceVariantResource.serialized
 	switch t {
 	case TRAINING_SET_VARIANT:
@@ -926,7 +933,7 @@ func (this *featureVariantResource) Notify(ctx context.Context, lookup ResourceL
 	if !relevantOp {
 		return nil
 	}
-	key := id.Proto()
+	key := id.NameVariantProto()
 	this.serialized.Trainingsets = append(this.serialized.Trainingsets, key)
 	return nil
 }
@@ -1169,7 +1176,7 @@ func (this *labelVariantResource) Notify(ctx context.Context, lookup ResourceLoo
 	if !releventOp {
 		return nil
 	}
-	key := id.Proto()
+	key := id.NameVariantProto()
 	this.serialized.Trainingsets = append(this.serialized.Trainingsets, key)
 	return nil
 }
@@ -1627,7 +1634,7 @@ func (this *userResource) Notify(ctx context.Context, lookup ResourceLookup, op 
 		return nil
 	}
 	id := that.ID()
-	key := id.Proto()
+	key := id.NameVariantProto()
 	t := id.Type
 	serialized := this.serialized
 	switch t {
@@ -1711,7 +1718,7 @@ func (this *providerResource) Notify(ctx context.Context, lookup ResourceLookup,
 		return nil
 	}
 	id := that.ID()
-	key := id.Proto()
+	key := id.NameVariantProto()
 	t := id.Type
 	serialized := this.serialized
 	switch t {
@@ -1838,7 +1845,7 @@ func (resource *entityResource) Proto() proto.Message {
 
 func (this *entityResource) Notify(ctx context.Context, lookup ResourceLookup, op operation, that Resource) error {
 	id := that.ID()
-	key := id.Proto()
+	key := id.NameVariantProto()
 	t := id.Type
 	serialized := this.serialized
 	switch t {
@@ -3510,7 +3517,7 @@ func (serv *MetadataServer) getStatusFromTasks(ctx context.Context, resource Res
 		if err != nil {
 			return pb.ResourceStatus_NO_STATUS, err
 		}
-		if len(taskID) >= 0 {
+		if len(taskID) > 0 {
 			// This logic gets the status of the latest task for a resource. Need to create
 			// better logic around this later
 			status, msg, err := serv.fetchStatus(taskID[len(taskID)-1])

@@ -261,7 +261,6 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.L
 		logger.Errorw("Failed to get store", "error", err)
 		return err
 	}
-	defer logger.LogIfErr("Failed to close source store", sourceStore.Close())
 
 	logger.Debugw("Deleting feature from offline store")
 	if deleteErr := sourceStore.Delete(featureLocation); deleteErr != nil {

@@ -223,6 +223,6 @@ type metadataStorageImplementation interface {
 	Count(prefix string, opts ...query.Query) (int, error)
 	// Close closes the storage
 	Close()
-
+	// Type returns the type of the storage
 	Type() MetadataStorageType
 }

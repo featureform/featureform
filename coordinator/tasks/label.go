@@ -154,7 +154,6 @@ func (t *LabelTask) handleDeletion(resID metadata.ResourceID, logger logging.Log
 		logger.Errorw("Failed to get store", "error", err)
 		return err
 	}
-	defer logger.LogIfErr("Failed to close source store", sourceStore.Close())
 
 	labelLocation := pl.NewSQLLocation(labelTableName)
 

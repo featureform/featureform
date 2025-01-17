@@ -85,6 +85,16 @@ func TestMetadataDelete(t *testing.T) {
 			Properties:       Properties{},
 		},
 		ProviderDef{
+			Name:             "mockOfflineToDelete",
+			Description:      "A mock offline provider",
+			Type:             string(pt.SnowflakeOffline),
+			Software:         "snowflake",
+			Team:             "recommendations",
+			SerializedConfig: snowflakeConfig.Serialize(),
+			Tags:             Tags{},
+			Properties:       Properties{},
+		},
+		ProviderDef{
 			Name:             "mockOffline",
 			Description:      "A mock offline provider",
 			Type:             string(pt.SnowflakeOffline),
@@ -93,6 +103,51 @@ func TestMetadataDelete(t *testing.T) {
 			SerializedConfig: snowflakeConfig.Serialize(),
 			Tags:             Tags{},
 			Properties:       Properties{},
+		},
+		EntityDef{
+			Name:        "user",
+			Description: "A user entity",
+			Tags:        Tags{},
+			Properties:  Properties{},
+		},
+		EntityDef{
+			Name:        "item",
+			Description: "An item entity",
+			Tags:        Tags{},
+			Properties:  Properties{},
+		},
+		SourceDef{
+			Name:        "primarydata",
+			Variant:     "var",
+			Description: "A CSV source but different",
+			Definition: PrimaryDataSource{
+				Location: SQLTable{
+					Name: "mockPrimary",
+				},
+				TimestampColumn: "timestamp",
+			},
+			Owner:      "Featureform",
+			Provider:   "mockOffline",
+			Tags:       Tags{},
+			Properties: Properties{},
+		},
+		SourceDef{
+			Name:        "tf",
+			Variant:     "var",
+			Description: "A CSV source",
+			Definition: TransformationSource{
+				TransformationType: SQLTransformationType{
+					Query: "SELECT * FROM dummy",
+					Sources: []NameVariant{{
+						Name:    "primarydata",
+						Variant: "var"},
+					},
+				},
+			},
+			Owner:      "Featureform",
+			Provider:   "mockOffline",
+			Tags:       Tags{},
+			Properties: Properties{},
 		},
 	}
 
@@ -114,12 +169,36 @@ func TestMetadataDelete(t *testing.T) {
 		},
 	})
 
+	_, err = serv.SetResourceStatus(context.Background(), &pb.SetStatusRequest{
+		ResourceId: &pb.ResourceID{
+			Resource: &pb.NameVariant{
+				Name: "mockOfflineToDelete",
+			},
+			ResourceType: pb.ResourceType_PROVIDER,
+		},
+		Status: &pb.ResourceStatus{
+			Status: pb.ResourceStatus_READY,
+		},
+	})
+
+	_, err = serv.SetResourceStatus(context.Background(), &pb.SetStatusRequest{
+		ResourceId: &pb.ResourceID{
+			Resource: &pb.NameVariant{
+				Name: "mockOffline",
+			},
+			ResourceType: pb.ResourceType_PROVIDER,
+		},
+		Status: &pb.ResourceStatus{
+			Status: pb.ResourceStatus_READY,
+		},
+	})
+
 	t.Run("delete provider with no dependencies", func(t *testing.T) {
 		// try to delete the online provider
 		_, err := serv.MarkForDeletion(context.Background(), &pb.MarkForDeletionRequest{
 			ResourceId: &pb.ResourceID{
 				Resource: &pb.NameVariant{
-					Name: "mockOnline",
+					Name: "mockOfflineToDelete",
 				},
 				ResourceType: pb.ResourceType_PROVIDER,
 			},
@@ -127,7 +206,7 @@ func TestMetadataDelete(t *testing.T) {
 		assert.NoError(t, err)
 
 		res, err := serv.lookup.Lookup(context.Background(), ResourceID{
-			Name: "mockOnline",
+			Name: "mockOfflineToDelete",
 			Type: PROVIDER,
 		})
 
@@ -135,4 +214,78 @@ func TestMetadataDelete(t *testing.T) {
 		var knfErr *fferr.KeyNotFoundError
 		assert.True(t, errors.As(err, &knfErr))
 	})
+
+	t.Run("delete provider with dependencies", func(t *testing.T) {
+		// try to delete the online provider
+		_, err := serv.MarkForDeletion(context.Background(), &pb.MarkForDeletionRequest{
+			ResourceId: &pb.ResourceID{
+				Resource: &pb.NameVariant{
+					Name: "mockOffline",
+				},
+				ResourceType: pb.ResourceType_PROVIDER,
+			},
+		})
+		assert.Error(t, err)
+	})
+
+	t.Run("try to delete primary source", func(t *testing.T) {
+		_, err := serv.MarkForDeletion(context.Background(), &pb.MarkForDeletionRequest{
+			ResourceId: &pb.ResourceID{
+				Resource: &pb.NameVariant{
+					Name:    "primarydata",
+					Variant: "var",
+				},
+				ResourceType: pb.ResourceType_SOURCE,
+			},
+		})
+		assert.Error(t, err)
+	})
+
+	t.Run("delete source that's not ready", func(t *testing.T) {
+		_, err := serv.MarkForDeletion(context.Background(), &pb.MarkForDeletionRequest{
+			ResourceId: &pb.ResourceID{
+				Resource: &pb.NameVariant{
+					Name:    "tf",
+					Variant: "var",
+				},
+				ResourceType: pb.ResourceType_SOURCE_VARIANT,
+			},
+		})
+
+		assert.Error(t, err)
+	})
+
+	//	t.Run("delete source that's ready", func(t *testing.T) {
+	//		// set statuses to ready
+	//		resId := ResourceID{Name: "tf", Variant: "var", Type: SOURCE_VARIANT}
+	//		_, err := serv.SetResourceStatus(context.Background(), &pb.SetStatusRequest{
+	//			ResourceId: resId.Proto(),
+	//			Status: &pb.ResourceStatus{
+	//				Status: pb.ResourceStatus_CREATED,
+	//			},
+	//		})
+	//		assert.NoError(t, err)
+	//
+	//]		_, err = serv.MarkForDeletion(context.Background(), &pb.MarkForDeletionRequest{
+	//			ResourceId: resId.Proto(),
+	//		})
+	//		assert.NoError(t, err)
+	//
+	//		res, err := serv.lookup.Lookup(context.Background(), ResourceID{
+	//			Name: "tf",
+	//			Type: SOURCE_VARIANT,
+	//		}, DeleteLookupOption{DeletedOnly})
+	//		assert.NoError(t, err)
+	//
+	//		assert.Equal(t, res.ID(), resId)
+	//
+	//		res, err = serv.lookup.Lookup(context.Background(), ResourceID{
+	//			Name: "mockOfflineToDelete",
+	//			Type: PROVIDER,
+	//		})
+	//
+	//		assert.Nil(t, res)
+	//		var knfErr *fferr.KeyNotFoundError
+	//		assert.True(t, errors.As(err, &knfErr))
+	//	})
 }

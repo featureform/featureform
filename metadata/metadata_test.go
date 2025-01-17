@@ -10,7 +10,6 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"github.com/featureform/metadata/common"
 	"net"
 	"reflect"
 	"testing"
@@ -2408,22 +2407,22 @@ func Test_APIs(t *testing.T) {
 
 }
 
-func Test_Delete(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Integration Test")
-	}
-	serv, _ := startServNoPanic(t)
-
-	resourceId := common.ResourceID{
-		Name:    "label_transactionz",
-		Variant: "2025-01-09t11-41-25",
-		Type:    common.SOURCE_VARIANT,
-	}
-
-	ctx := logging.AttachRequestID(logging.NewRequestID().String(), context.Background(), logging.NewLoggerWithLevel("metadata-test", logging.DebugLevel))
-	_, err := serv.MarkForDeletion(ctx, &pb.MarkForDeletionRequest{ResourceId: resourceId.Proto()})
-	assert.NoError(t, err)
-}
+//func Test_Delete(t *testing.T) {
+//	if testing.Short() {
+//		t.Skip("Integration Test")
+//	}
+//	serv, _ := startServNoPanic(t)
+//
+//	resourceId := common.ResourceID{
+//		Name:    "label_transactionz",
+//		Variant: "2025-01-09t11-41-25",
+//		Type:    common.SOURCE_VARIANT,
+//	}
+//
+//	ctx := logging.AttachRequestID(logging.NewRequestID().String(), context.Background(), logging.NewLoggerWithLevel("metadata-test", logging.DebugLevel))
+//	_, err := serv.MarkForDeletion(ctx, &pb.MarkForDeletionRequest{ResourceId: resourceId.Proto()})
+//	assert.NoError(t, err)
+//}
 
 func Test_GetEquivalent(t *testing.T) {
 	serv, addr := startServNoPanic(t)

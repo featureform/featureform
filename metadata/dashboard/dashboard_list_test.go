@@ -443,6 +443,10 @@ func (m *MockVariantsStore) Delete(key string) (string, error) {
 func (m *MockVariantsStore) Close() {
 }
 
+func (m *MockVariantsStore) Type() ss.MetadataStorageType {
+	return ss.MemoryMetadataStorage
+}
+
 func TestGetFeatureVariants(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)

@@ -237,23 +237,25 @@ class ResourceType(Enum):
     MODEL = auto()
     TRANSFORMATION = auto()
 
-    _proto_map = {
-        NO_TYPE: None,
-        USER: pb.ResourceType.USER,
-        PROVIDER: pb.ResourceType.PROVIDER,
-        SOURCE_VARIANT: pb.ResourceType.SOURCE_VARIANT,
-        ENTITY: pb.ResourceType.ENTITY,
-        FEATURE_VARIANT: pb.ResourceType.FEATURE_VARIANT,
-        ONDEMAND_FEATURE: pb.ResourceType.FEATURE_VARIANT,
-        LABEL_VARIANT: pb.ResourceType.LABEL_VARIANT,
-        TRAININGSET_VARIANT: pb.ResourceType.TRAINING_SET_VARIANT,
-        SCHEDULE: None,
-        MODEL: pb.ResourceType.MODEL,
-        TRANSFORMATION: pb.ResourceType.SOURCE_VARIANT,
-    }
+    @classmethod
+    def _get_proto_map(cls):
+        return {
+            cls.NO_TYPE: None,
+            cls.USER: pb.ResourceType.USER,
+            cls.PROVIDER: pb.ResourceType.PROVIDER,
+            cls.SOURCE_VARIANT: pb.ResourceType.SOURCE_VARIANT,
+            cls.ENTITY: pb.ResourceType.ENTITY,
+            cls.FEATURE_VARIANT: pb.ResourceType.FEATURE_VARIANT,
+            cls.ONDEMAND_FEATURE: pb.ResourceType.FEATURE_VARIANT,
+            cls.LABEL_VARIANT: pb.ResourceType.LABEL_VARIANT,
+            cls.TRAININGSET_VARIANT: pb.ResourceType.TRAINING_SET_VARIANT,
+            cls.SCHEDULE: None,
+            cls.MODEL: pb.ResourceType.MODEL,
+            cls.TRANSFORMATION: pb.ResourceType.SOURCE_VARIANT,
+        }
 
     def to_proto(self):
-        return self._proto_map[self]
+        return self._get_proto_map()[self]
 
     def to_string(self) -> str:
         return self.name.replace("_", " ").title()

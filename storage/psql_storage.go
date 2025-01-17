@@ -262,3 +262,7 @@ func (psql *psqlStorageImplementation) setQuery() string {
 func (psql *psqlStorageImplementation) deleteQuery() string {
 	return fmt.Sprintf("DELETE FROM %s WHERE key = $1 RETURNING value", helpers.SanitizePostgres(psql.tableName))
 }
+
+func (psql *psqlStorageImplementation) Type() MetadataStorageType {
+	return PSQLMetadataStorage
+}

@@ -200,6 +200,14 @@ func (s *MetadataStorage) Close() {
 	s.Storage.Close()
 }
 
+type MetadataStorageType string
+
+const (
+	MemoryMetadataStorage MetadataStorageType = "memory"
+	ETCDMetadataStorage   MetadataStorageType = "etcd"
+	PSQLMetadataStorage   MetadataStorageType = "psql"
+)
+
 type metadataStorageImplementation interface {
 	// Set stores the value for the key and updates it if it already exists
 	Set(key string, value string) error
@@ -215,4 +223,6 @@ type metadataStorageImplementation interface {
 	Count(prefix string, opts ...query.Query) (int, error)
 	// Close closes the storage
 	Close()
+
+	Type() MetadataStorageType
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/avast/retry-go/v4"
+	"github.com/featureform/storage"
 	"golang.org/x/exp/slices"
 	"time"
 
@@ -73,17 +74,25 @@ func NewResourcesRepositoryFromLookup(resourceLookup ResourceLookup) (ResourcesR
 	}
 
 	switch lookup := resourceLookup.(type) {
-	case *EtcdResourceLookup:
+	case *EtcdResourceLookup, *LocalResourceLookup:
 		return NewInMemoryResourcesRepository(lookup), nil
-	case *LocalResourceLookup:
-		return NewInMemoryResourcesRepository(lookup), nil
+
 	case *MemoryResourceLookup:
-		metadataPsqlConfig := help.NewMetadataPSQLConfigFromEnv()
-		connection, err := help.NewPSQLPoolConnection(metadataPsqlConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create PSQL connection: %w", err)
+		switch lookup.Connection.Storage.Type() {
+		case storage.MemoryMetadataStorage, storage.ETCDMetadataStorage:
+			return NewInMemoryResourcesRepository(lookup), nil
+
+		case storage.PSQLMetadataStorage:
+			conn, err := help.NewPSQLPoolConnection(help.NewMetadataPSQLConfigFromEnv())
+			if err != nil {
+				return nil, fmt.Errorf("failed to create PSQL connection: %w", err)
+			}
+			return NewSqlResourcesRepository(conn, logging.NewLogger("metadata"), lookup, DefaultResourcesRepoConfig()), nil
+
+		default:
+			return nil, fmt.Errorf("unsupported storage type: %T", lookup.Connection.Storage.Type())
 		}
-		return NewSqlResourcesRepository(connection, logging.NewLogger("metadata"), lookup, DefaultResourcesRepoConfig()), nil
+
 	default:
 		return nil, fmt.Errorf("unsupported resource lookup type: %T", resourceLookup)
 	}

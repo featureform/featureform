@@ -94,3 +94,7 @@ func (m *memoryStorageImplementation) Delete(key string) (string, error) {
 func (m *memoryStorageImplementation) Close() {
 	// Do nothing
 }
+
+func (m *memoryStorageImplementation) Type() MetadataStorageType {
+	return MemoryMetadataStorage
+}

@@ -123,3 +123,7 @@ func (etcd *etcdStorageImplementation) Delete(key string) (string, error) {
 func (etcd *etcdStorageImplementation) Close() {
 	etcd.client.Close()
 }
+
+func (etcd *etcdStorageImplementation) Type() MetadataStorageType {
+	return ETCDMetadataStorage
+}

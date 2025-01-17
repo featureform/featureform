@@ -80,7 +80,6 @@ func (t *FeatureTask) Run() error {
 	if err != nil {
 		return err
 	}
-	defer logger.LogIfErr("Failed to close source store", sourceStore.Close())
 
 	var featureProvider *metadata.Provider // this is the inference store
 	if feature.Provider() != "" {

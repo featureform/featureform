@@ -2536,11 +2536,6 @@ func (serv *MetadataServer) validateSourceDeletion(ctx context.Context, sv *sour
 	if err := serv.validateProviderType(ctx, wrapped.Provider()); err != nil {
 		return err
 	}
-
-	if data := sv.serialized.GetPrimaryData(); data != nil {
-		return fferr.NewInternalErrorf("Source variant %s is not deletable because it is primary data", sv.ID().String())
-	}
-	return nil
 }
 
 func (serv *MetadataServer) validateFeatureDeletion(ctx context.Context, fv *featureVariantResource) error {

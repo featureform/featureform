@@ -70,7 +70,6 @@ func (t *LabelTask) Run() error {
 	if getStoreErr != nil {
 		return getStoreErr
 	}
-	defer logger.LogIfErr("Failed to close source store", sourceStore.Close())
 
 	var sourceLocation pl.Location
 	var sourceLocationErr error

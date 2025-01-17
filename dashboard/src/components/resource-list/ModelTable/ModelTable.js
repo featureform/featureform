@@ -1,23 +1,15 @@
 import { Typography } from '@mui/material';
-import { styled } from '@mui/system';
 import { useRouter } from 'next/router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { providerLogoMap } from '../../../api/resources';
 import { useDataAPI } from '../../../hooks/dataAPI';
 import { isMatchingDefault } from '../DatasetTable/DatasetTable';
 import { ConnectionSvg } from '../icons/Connections';
-import { UserBubbleSvg } from '../icons/Owner';
 import NoDataMessage from '../NoDataMessage';
 import FilterPanel from './FilterPanel';
 import BaseFilterPanel from '../BaseFilterPanel';
-import { MainContainer, GridContainer, StyledDataGrid } from '../BaseColumnTable';
+import { MainContainer, GridContainer, StyledDataGrid, STATUS_COLORS } from '../BaseColumnTable';
 
-const ProviderImage = styled('img')({
-  width: '2.5em',
-  height: '2em',
-});
-
-export const training_set_columns = [
+export const model_columns = [
   {
     field: 'id',
     headerName: 'id',
@@ -29,7 +21,7 @@ export const training_set_columns = [
   },
   {
     field: 'name',
-    headerName: 'Name (Variant)',
+    headerName: 'Name',
     flex: 1,
     editable: false,
     sortable: false,
@@ -37,59 +29,27 @@ export const training_set_columns = [
     hide: false,
     renderCell: function ({ row }) {
       return (
-        <div>
+        <Typography variant='body2' sx={{ marginLeft: 1 }}>
+          <strong>{row?.name}</strong>
+        </Typography>
+      );
+    },
+  },
+  {
+    field: 'tags',
+    headerName: 'Tags',
+    flex: 1,
+    editable: false,
+    sortable: false,
+    filterable: false,
+    hide: false,
+    renderCell: function ({ row }) {
+      return (
           <div style={{ display: 'flex' }}>
-            <Typography variant='body2' sx={{ marginLeft: 1 }}>
-              <strong>{row?.name}</strong>
+            <Typography variant='body2'>
+              {sanitizeTags(row?.tags)}
             </Typography>
           </div>
-
-          <div style={{ display: 'flex' }}>
-          <Typography variant='body2' sx={{ marginLeft: 1, fontSize: '0.75rem' }}>
-          ({row?.variant})
-          </Typography>
-          </div>
-        </div>
-      );
-    },
-  },
-  {
-    field: 'provider',
-    headerName: 'Provider',
-    flex: 1,
-    editable: false,
-    sortable: false,
-    filterable: false,
-    hide: false,
-    renderCell: function ({ row }) {
-      const providerTxt = row?.provider || row?.providerType || 'Local';
-      const provider =
-        providerLogoMap[row?.providerType?.toUpperCase()] ??
-        providerLogoMap['LOCAL_ONLINE'];
-      return (
-        <>
-          <ProviderImage alt={row?.providerType} src={provider} />
-          <Typography variant='body2' sx={{ marginLeft: 1 }}>
-            {providerTxt}
-          </Typography>
-        </>
-      );
-    },
-  },
-  {
-    field: 'labelName',
-    headerName: 'Label',
-    flex: 1,
-    editable: false,
-    sortable: false,
-    filterable: false,
-    renderCell: function ({ row }) {
-      const DEFAULT_LABEL = 'N/A';
-      const labelName = row?.label?.Name || DEFAULT_LABEL;
-      return (
-        <Typography variant='body2' sx={{ marginLeft: 1 }} aria-label={`Label: ${labelName}`}>
-          {labelName}
-        </Typography>
       );
     },
   },
@@ -97,58 +57,51 @@ export const training_set_columns = [
     field: 'status',
     headerName: 'Status',
     flex: 0,
-    width: 300,
+    width: 350,
     editable: false,
     sortable: false,
     filterable: false,
     renderCell: function ({ row }) {
-      const readyFill = '#6DDE6A';
-      let result = '#DA1E28';
-      if (row?.status && row?.status === 'READY') {
-        result = readyFill;
+      let result = STATUS_COLORS.ERROR;
+      if (row?.status && row?.status === 'CREATED') {
+        result = STATUS_COLORS.READY;
       }
       return (
-        <div>
           <div style={{ display: 'flex' }}>
             <ConnectionSvg fill={result} height='20' width='20' />
             <Typography variant='body2' sx={{ marginLeft: 1 }}>
               {row?.status}
             </Typography>
           </div>
-          <div style={{ display: 'flex' }}>
-            <UserBubbleSvg
-              height='20'
-              width='20'
-              letter={row?.owner?.[0]?.toUpperCase()}
-            />
-            <Typography variant='body2' sx={{ marginLeft: 1 }}>
-              {row?.owner}
-            </Typography>
-          </div>
-        </div>
       );
     },
   },
 ];
 
+function sanitizeTags(tags = [], maxLength = 25) {
+  if (!tags || tags.length === 0) return '';
+  //join all the tags together
+  const formattedTags = tags.join(', ');
+
+  //if the length is longer than max, chop 3 characters and add the ellipse
+  if (formattedTags.length > maxLength) {
+    return `${formattedTags.substring(0, maxLength - 3)}...`;
+  }
+
+  return formattedTags;
+}
+
 const DEFAULT_FILTERS = Object.freeze({
   SearchTxt: '',
-  Owners: [],
-  Statuses: [],
-  Labels: [],
   Tags: [],
-  Providers: [],
   pageSize: 10,
   offset: 0,
 });
 
 const CHECK_BOX_LIMIT = 8;
 
-export const TrainingSetTable = () => {
+export const ModelTable = () => {
   const [tags, setTags] = useState([]);
-  const [owners, setOwners] = useState([]);
-  const [labels, setLabels] = useState([]);
-  const [providers, setProviders] = useState([]);
   const [filters, setFilters] = useState({
     ...DEFAULT_FILTERS,
   });
@@ -163,13 +116,13 @@ export const TrainingSetTable = () => {
     const getResources = async () => {
       setIsLoading(true);
       try {
-        let resp = await dataAPI.getTrainingSetVariants(filters);
+        let resp = await dataAPI.getModels(filters);
         if (resp) {
           setRows(resp.data?.length ? resp.data : []);
           setTotalRowCount(resp.count);
         }
       } catch (error) {
-        console.error('Error fetching training sets', error);
+        console.error('Error fetching models', error);
       } finally {
         setIsLoading(false);
       }
@@ -179,30 +132,9 @@ export const TrainingSetTable = () => {
 
   useEffect(() => {
     const getCheckBoxLists = async () => {
-      const sliceAndMap = (data) => 
-        data.slice(0, CHECK_BOX_LIMIT).map(item => item.name);
-
-      const [allTags, allOwners, allLabels, allProviders] = await Promise.all([
-        dataAPI.getTypeTags('training-sets'),
-        dataAPI.getTypeOwners('training-sets'),
-        dataAPI.getLabelVariants(),
-        dataAPI.getProviders()
-      ]);
-
+      let allTags = await dataAPI.getTypeTags('models');
       if (allTags) {
         setTags(allTags.slice(0, CHECK_BOX_LIMIT));
-      }
-
-      if (allOwners) {
-        setOwners(allOwners.slice(0, CHECK_BOX_LIMIT));
-      }
-      
-      if (allLabels) {
-        setLabels(sliceAndMap(allLabels.data));
-      }
-
-      if (allProviders) {
-        setProviders(sliceAndMap(allProviders.data));
       }
     };
     getCheckBoxLists();
@@ -237,38 +169,36 @@ export const TrainingSetTable = () => {
     [filters]
   );
 
-  const redirect = (name = '', variant = '') => {
-    if (name && variant) {
-      router.push(`/training-sets/${name}?variant=${variant}`);
+  const redirect = (name = '') => {
+    if (name) {
+      router.push(`/models/${name}`);
     }
   };
 
   return (
     <>
       <MainContainer>
-      <BaseFilterPanel onTextFieldEnter={onTextFieldEnter}>
+      <BaseFilterPanel aria-label="Model filters" onTextFieldEnter={onTextFieldEnter}>
         <FilterPanel
+          aria-label="Model tag filters"
           filters={filters}
           tags={tags}
-          owners={owners}
-          labels={labels}
-          providers={providers}
           onCheckBoxChange={checkBoxFilterChange}
         />
       </BaseFilterPanel>
         <GridContainer>
-          <h3>{'Training Sets'}</h3>
+          <h3>{'Models'}</h3>
           {loading ? (
             <div data-testid='loadingGrid'>
               <StyledDataGrid
                 disableVirtualization
-                aria-label={'Training Sets'}
+                aria-label={'Models'}
                 autoHeight
                 density='compact'
                 loading={loading}
                 rows={[]}
                 rowCount={0}
-                columns={training_set_columns}
+                columns={model_columns}
                 hideFooterSelectedRowCount
                 disableColumnFilter
                 disableColumnMenu
@@ -280,9 +210,9 @@ export const TrainingSetTable = () => {
           ) : (
             <StyledDataGrid
               disableVirtualization
-              aria-label={'Training Sets'}
+              aria-label={'Models'}
               rows={rows}
-              columns={training_set_columns}
+              columns={model_columns}
               density='compact'
               rowHeight={80}
               hideFooterSelectedRowCount
@@ -297,7 +227,7 @@ export const TrainingSetTable = () => {
               components={{
                 NoRowsOverlay: () => (
                   <NoDataMessage
-                    type={'Training Set'}
+                    type={'Model'}
                     usingFilters={!isMatchingDefault(DEFAULT_FILTERS, filters)}
                   />
                 ),
@@ -309,10 +239,10 @@ export const TrainingSetTable = () => {
               onRowClick={(params, event) => {
                 event?.preventDefault();
                 if (params?.row?.name) {
-                  redirect(params.row.name, params.row.variant);
+                  redirect(params.row.name);
                 }
               }}
-              getRowId={(row) => row.name + row.variant}
+              getRowId={(row) => row.name}
             />
           )}
         </GridContainer>
@@ -321,4 +251,4 @@ export const TrainingSetTable = () => {
   );
 };
 
-export default TrainingSetTable;
+export default ModelTable;

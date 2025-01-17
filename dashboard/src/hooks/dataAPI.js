@@ -257,6 +257,27 @@ export function useDataAPI() {
     return result;
   };
 
+  const getModels = async (filters = {}) => {
+    const result = await authenticatedFetch(
+      `${API_URL}/data/models`, 
+      {
+      cache: 'no-store',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(filters),
+    })
+      .then((res) => res.json())
+      .catch((error) => {
+        console.error('Error fetching models from server: ', error);
+
+        return [];
+      });
+
+    return result;
+  };
+
   return {
     getTags,
     postTags,
@@ -270,5 +291,6 @@ export function useDataAPI() {
     getLabelVariants,
     getTrainingSetVariants,
     getEntities,
+    getModels,
   };
 }

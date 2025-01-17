@@ -2025,6 +2025,17 @@ func WrapProtoModel(serialized *pb.Model) *Model {
 	}
 }
 
+func (model *Model) ToShallowMap() ModelResource {
+	return ModelResource{
+		Name:        model.Name(),
+		Description: model.Description(),
+		Type:        "Model",
+		Status:      model.Status().String(),
+		Tags:        model.Tags(),
+		Properties:  model.Properties(),
+	}
+}
+
 func (model *Model) Name() string {
 	return model.serialized.GetName()
 }

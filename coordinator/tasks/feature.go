@@ -80,12 +80,7 @@ func (t *FeatureTask) Run() error {
 	if err != nil {
 		return err
 	}
-	defer func(sourceStore provider.OfflineStore) {
-		err := sourceStore.Close()
-		if err != nil {
-			t.logger.Errorf("could not close offline store: %v", err)
-		}
-	}(sourceStore)
+	defer logger.LogIfErr("Failed to close source store", sourceStore.Close())
 
 	var featureProvider *metadata.Provider // this is the inference store
 	if feature.Provider() != "" {
@@ -266,12 +261,7 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.L
 		logger.Errorw("Failed to get store", "error", err)
 		return err
 	}
-	defer func(sourceStore provider.OfflineStore) {
-		err := sourceStore.Close()
-		if err != nil {
-			t.logger.Errorf("could not close offline store: %v", err)
-		}
-	}(sourceStore)
+	defer logger.LogIfErr("Failed to close source store", sourceStore.Close())
 
 	logger.Debugw("Deleting feature from offline store")
 	if deleteErr := sourceStore.Delete(featureLocation); deleteErr != nil {

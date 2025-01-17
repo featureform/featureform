@@ -70,13 +70,8 @@ func (t *LabelTask) Run() error {
 	if getStoreErr != nil {
 		return getStoreErr
 	}
+	defer logger.LogIfErr("Failed to close source store", sourceStore.Close())
 
-	defer func(sourceStore provider.OfflineStore) {
-		err := sourceStore.Close()
-		if err != nil {
-			logger.Errorf("could not close offline store: %v", err)
-		}
-	}(sourceStore)
 	var sourceLocation pl.Location
 	var sourceLocationErr error
 	if source.IsSQLTransformation() || source.IsDFTransformation() {
@@ -159,12 +154,7 @@ func (t *LabelTask) handleDeletion(resID metadata.ResourceID, logger logging.Log
 		logger.Errorw("Failed to get store", "error", err)
 		return err
 	}
-	defer func(sourceStore provider.OfflineStore) {
-		err := sourceStore.Close()
-		if err != nil {
-			t.logger.Errorf("could not close offline store: %v", err)
-		}
-	}(sourceStore)
+	defer logger.LogIfErr("Failed to close source store", sourceStore.Close())
 
 	labelLocation := pl.NewSQLLocation(labelTableName)
 

@@ -54,7 +54,7 @@ func (t *SourceTask) Run() error {
 	}
 
 	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.SOURCE_VARIANT}
-	logger = logger.WithResource(logging.TrainingSetVariant, resID.Name, resID.Variant)
+	logger = logger.WithResource(logging.SourceVariant, resID.Name, resID.Variant)
 
 	if t.isDelete {
 		return t.handleDeletion(ctx, resID, logger)
@@ -127,13 +127,18 @@ func (t *SourceTask) handleDeletion(ctx context.Context, resID metadata.Resource
 		return tfLocationErr
 	}
 
-	t.logger.Debugw("Deleting source at location", "location", tfLocation, "error", tfLocationErr)
+	logger.Debugw("Deleting source at location", "location", tfLocation, "error", tfLocationErr)
 	sourceStore, err := getStore(t.BaseTask, t.metadata, sourceToDelete)
 	if err != nil {
 		logger.Errorw("Failed to get store", "error", err)
 		return err
 	}
-	sourceStore.Close()
+	defer func(sourceStore provider.OfflineStore) {
+		err := sourceStore.Close()
+		if err != nil {
+			t.logger.Errorf("could not close offline store: %v", err)
+		}
+	}(sourceStore)
 
 	deleteErr := sourceStore.Delete(tfLocation)
 	if deleteErr != nil {
@@ -141,10 +146,9 @@ func (t *SourceTask) handleDeletion(ctx context.Context, resID metadata.Resource
 		if errors.As(deleteErr, &notFoundErr) {
 			logger.Infow("Table doesn't exist at location, continuing...", "location", tfLocation)
 		} else {
+			logger.Errorw("Failed to delete source", "error", deleteErr)
 			return deleteErr
 		}
-		logger.Errorw("Failed to delete source", "error", deleteErr)
-		return deleteErr
 	}
 
 	logger.Debugw("Deleting source metadata", "resource_id", resID)

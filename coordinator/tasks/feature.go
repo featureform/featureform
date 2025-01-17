@@ -266,7 +266,12 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.L
 		logger.Errorw("Failed to get store", "error", err)
 		return err
 	}
-	sourceStore.Close()
+	defer func(sourceStore provider.OfflineStore) {
+		err := sourceStore.Close()
+		if err != nil {
+			t.logger.Errorf("could not close offline store: %v", err)
+		}
+	}(sourceStore)
 
 	logger.Debugw("Deleting feature from offline store")
 	if deleteErr := sourceStore.Delete(featureLocation); deleteErr != nil {
@@ -274,11 +279,12 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.L
 		if errors.As(deleteErr, &notFoundErr) {
 			logger.Infow("Table doesn't exist at location, continuing...", "location", featureLocation)
 		} else {
+			logger.Errorw("Failed to delete feature from offline store", "error", deleteErr)
 			return deleteErr
 		}
-	} else {
-		logger.Infow("Successfully deleted label at location", "location", featureLocation)
 	}
+
+	logger.Infow("Successfully deleted feature at location", "location", featureLocation)
 
 	var featureProvider *metadata.Provider // this is the inference store
 	if featureToDelete.Provider() != "" {

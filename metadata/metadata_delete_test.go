@@ -14,16 +14,18 @@ import (
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap/zaptest"
 )
 
 func startServPsql(t *testing.T) (*MetadataServer, string) {
 	metadataPsqlConfig := help.NewMetadataPSQLConfigFromEnv()
 	manager, err := scheduling.NewPSQLTaskMetadataManager(metadataPsqlConfig)
-	logger := zaptest.NewLogger(t)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	logger := logging.NewTestLogger(t)
 
 	config := &Config{
-		Logger:      logging.WrapZapLogger(logger.Sugar()),
+		Logger:      logger,
 		TaskManager: manager,
 	}
 	serv, err := NewMetadataServer(config)

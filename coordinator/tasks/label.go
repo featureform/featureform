@@ -151,7 +151,7 @@ func (t *LabelTask) handleDeletion(resID metadata.ResourceID, logger logging.Log
 	labelTableName, tableNameErr := provider_schema.ResourceToTableName(provider_schema.Label, resID.Name, resID.Variant)
 	if tableNameErr != nil {
 		logger.Errorw("Failed to get table name", "error", tableNameErr)
-		return err
+		return tableNameErr
 	}
 
 	sourceStore, err := getStore(t.BaseTask, t.metadata, labelToDelete)
@@ -159,7 +159,12 @@ func (t *LabelTask) handleDeletion(resID metadata.ResourceID, logger logging.Log
 		logger.Errorw("Failed to get store", "error", err)
 		return err
 	}
-	defer sourceStore.Close()
+	defer func(sourceStore provider.OfflineStore) {
+		err := sourceStore.Close()
+		if err != nil {
+			t.logger.Errorf("could not close offline store: %v", err)
+		}
+	}(sourceStore)
 
 	labelLocation := pl.NewSQLLocation(labelTableName)
 
@@ -171,9 +176,9 @@ func (t *LabelTask) handleDeletion(resID metadata.ResourceID, logger logging.Log
 		} else {
 			return deleteErr
 		}
-	} else {
-		logger.Infow("Successfully deleted label at location", "location", labelLocation)
 	}
+
+	logger.Infow("Successfully deleted label at location", "location", labelLocation)
 
 	if err := t.metadata.FinalizeDelete(context.Background(), resID); err != nil {
 		return err

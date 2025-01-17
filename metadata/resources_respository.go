@@ -70,7 +70,7 @@ func DefaultResourcesRepoConfig() SqlRepositoryConfig {
 
 func NewResourcesRepositoryFromLookup(resourceLookup ResourceLookup) (ResourcesRepository, error) {
 	if resourceLookup == nil {
-		return nil, fmt.Errorf("resource lookup cannot be nil")
+		return nil, fferr.NewInternalErrorf("resource lookup is nil")
 	}
 
 	switch lookup := resourceLookup.(type) {

@@ -3223,18 +3223,19 @@ func (serv *MetadataServer) GetResourceDAG(ctx context.Context, r Resource) (Res
 
 // Resource Variant structs for Dashboard
 type TrainingSetVariantResource struct {
-	Created     time.Time                           `json:"created"`
-	Description string                              `json:"description"`
-	Name        string                              `json:"name"`
-	Owner       string                              `json:"owner"`
-	Provider    string                              `json:"provider"`
-	Variant     string                              `json:"variant"`
-	Label       NameVariant                         `json:"label"`
-	Features    map[string][]FeatureVariantResource `json:"features"`
-	Status      string                              `json:"status"`
-	Error       string                              `json:"error"`
-	Tags        Tags                                `json:"tags"`
-	Properties  Properties                          `json:"properties"`
+	Created      time.Time                           `json:"created"`
+	Description  string                              `json:"description"`
+	Name         string                              `json:"name"`
+	Owner        string                              `json:"owner"`
+	Provider     string                              `json:"provider"`
+	ProviderType string                              `json:"providerType"`
+	Variant      string                              `json:"variant"`
+	Label        NameVariant                         `json:"label"`
+	Features     map[string][]FeatureVariantResource `json:"features"`
+	Status       string                              `json:"status"`
+	Error        string                              `json:"error"`
+	Tags         Tags                                `json:"tags"`
+	Properties   Properties                          `json:"properties"`
 }
 
 type FeatureVariantResource struct {
@@ -3331,6 +3332,18 @@ type ProviderResource struct {
 	Error            string                                  `json:"error"`
 	Tags             Tags                                    `json:"tags"`
 	Properties       Properties                              `json:"properties"`
+}
+
+type ModelResource struct {
+	Name         string                                  `json:"name"`
+	Type         string                                  `json:"type"`
+	Description  string                                  `json:"description"`
+	Features     map[string][]FeatureVariantResource     `json:"features"`
+	Labels       map[string][]LabelVariantResource       `json:"labels"`
+	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
+	Status       string                                  `json:"status"`
+	Tags         Tags                                    `json:"tags"`
+	Properties   Properties                              `json:"properties"`
 }
 
 func getSourceString(variant *SourceVariant) string {

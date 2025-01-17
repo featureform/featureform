@@ -22,11 +22,26 @@ export const GridContainer = styled(Box)({
 
 export const StyledDataGrid = styled(DataGrid)(() => ({
   height: tableHeight,
+  '& .MuiDataGrid-columnHeaders': {
+      backgroundColor: '#EFEFEF50',
+    },
+  '& .MuiDataGrid-footerContainer': {
+    backgroundColor: '#EFEFEF50',
+  },
+  '& .MuiDataGrid-columnHeader': {
+    paddingLeft: '18px',
+  },
+    '& .MuiDataGrid-cell': {
+      borderBottom: '1px solid #c0c5cc',
+  },
   '& .MuiDataGrid-cell:focus': {
     outline: 'none',
   },
   '& .MuiDataGrid-columnHeader:focus': {
     outline: 'none',
+  },
+  '& .MuiDataGrid-row:hover': {
+    backgroundColor: '#EFEFEF50',
   },
   '& .MuiDataGrid-colCellWrapper': {
     display: 'none',
@@ -37,3 +52,8 @@ export const StyledDataGrid = styled(DataGrid)(() => ({
     fontWeight: 'bold',
   },
 }));
+
+export const STATUS_COLORS = {
+  READY: '#6DDE6A',
+  ERROR: '#DA1E28'
+};

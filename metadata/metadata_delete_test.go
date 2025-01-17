@@ -17,7 +17,7 @@ import (
 )
 
 func startServPsql(t *testing.T) (*MetadataServer, string) {
-	metadataPsqlConfig := help.NewMetadataPSQLConfigFromEnv()
+	metadataPsqlConfig := help.NewMetadataPSQLConfigForTesting()
 	manager, err := scheduling.NewPSQLTaskMetadataManager(metadataPsqlConfig)
 	if err != nil {
 		t.Fatalf(err.Error())

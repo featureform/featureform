@@ -133,27 +133,28 @@ func (t *SourceTask) handleDeletion(ctx context.Context, resID metadata.Resource
 		logger.Errorw("Failed to get store", "error", err)
 		return err
 	}
+	sourceStore.Close()
 
 	deleteErr := sourceStore.Delete(tfLocation)
 	if deleteErr != nil {
 		var notFoundErr *fferr.DatasetNotFoundError
-		if errors.As(err, &notFoundErr) {
-			t.logger.Infow("Table doesn't exist at location, continuing...", "location", tfLocation)
+		if errors.As(deleteErr, &notFoundErr) {
+			logger.Infow("Table doesn't exist at location, continuing...", "location", tfLocation)
 		} else {
-			return err
+			return deleteErr
 		}
 		logger.Errorw("Failed to delete source", "error", deleteErr)
 		return deleteErr
 	}
 
-	t.logger.Debugw("Deleting source metadata", "resource_id", resID)
+	logger.Debugw("Deleting source metadata", "resource_id", resID)
 	finalizeDeleteErr := t.metadata.FinalizeDelete(ctx, resID)
 	if finalizeDeleteErr != nil {
 		logger.Errorw("Failed to finalize delete", "error", finalizeDeleteErr)
 		return finalizeDeleteErr
 	}
 
-	t.logger.Infow("Source deleted", "resource_id", resID)
+	logger.Infow("Source deleted", "resource_id", resID)
 	return nil
 }
 

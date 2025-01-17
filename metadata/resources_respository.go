@@ -7,6 +7,7 @@ import (
 	"github.com/avast/retry-go/v4"
 	"github.com/featureform/storage"
 	"golang.org/x/exp/slices"
+	"math"
 	"time"
 
 	"github.com/featureform/fferr"
@@ -192,7 +193,7 @@ func (r *sqlResourcesRepository) MarkForDeletion(ctx context.Context, resourceID
 			r.logger.Debugw("retrying after error",
 				"attempt", n+1,
 				"error", err,
-				"backoff_duration", r.config.InitialBackoff<<n, // Show actual backoff
+				"backoff_duration", time.Duration(float64(r.config.InitialBackoff)*math.Pow(2, float64(n))),
 				"resource_id", resourceID,
 			)
 		}),

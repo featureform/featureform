@@ -224,18 +224,18 @@ class DataResourceType(Enum):
 
 
 class ResourceType(Enum):
-    NO_TYPE = auto()
-    USER = auto()
-    PROVIDER = auto()
-    SOURCE_VARIANT = auto()
-    ENTITY = auto()
-    FEATURE_VARIANT = auto()
-    ONDEMAND_FEATURE = auto()
-    LABEL_VARIANT = auto()
-    TRAININGSET_VARIANT = auto()
-    SCHEDULE = auto()
-    MODEL = auto()
-    TRANSFORMATION = auto()
+    NO_TYPE = 0
+    USER = 1
+    PROVIDER = 2
+    SOURCE_VARIANT = 3
+    ENTITY = 4
+    FEATURE_VARIANT = 5
+    ONDEMAND_FEATURE = 6
+    LABEL_VARIANT = 7
+    TRAININGSET_VARIANT = 8
+    SCHEDULE = 9
+    MODEL = 10
+    TRANSFORMATION = 11
 
     @classmethod
     def _get_proto_map(cls):

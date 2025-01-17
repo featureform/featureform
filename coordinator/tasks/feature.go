@@ -263,19 +263,21 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.L
 
 	sourceStore, err := getStore(t.BaseTask, t.metadata, featureToDelete)
 	if err != nil {
+		logger.Errorw("Failed to get store", "error", err)
 		return err
 	}
+	sourceStore.Close()
 
 	logger.Debugw("Deleting feature from offline store")
 	if deleteErr := sourceStore.Delete(featureLocation); deleteErr != nil {
 		var notFoundErr *fferr.DatasetNotFoundError
 		if errors.As(deleteErr, &notFoundErr) {
-			t.logger.Infow("Table doesn't exist at location, continuing...", "location", featureLocation)
+			logger.Infow("Table doesn't exist at location, continuing...", "location", featureLocation)
 		} else {
 			return deleteErr
 		}
 	} else {
-		t.logger.Infow("Successfully deleted label at location", "location", featureLocation)
+		logger.Infow("Successfully deleted label at location", "location", featureLocation)
 	}
 
 	var featureProvider *metadata.Provider // this is the inference store

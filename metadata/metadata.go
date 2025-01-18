@@ -2365,16 +2365,16 @@ func (serv *MetadataServer) MarkForDeletion(ctx context.Context, request *pb.Mar
 		return &pb.MarkForDeletionResponse{}, err
 	}
 
-	status, err := serv.getStatusFromTasks(ctx, resource)
-	if err != nil {
-		logger.Errorw("Could not get status from tasks", "error", err.Error())
-		return &pb.MarkForDeletionResponse{}, err
-	}
+	//status, err := serv.getStatusFromTasks(ctx, resource)
+	//if err != nil {
+	//	logger.Errorw("Could not get status from tasks", "error", err.Error())
+	//	return &pb.MarkForDeletionResponse{}, err
+	//}
 
-	if status != pb.ResourceStatus_READY && status != pb.ResourceStatus_CREATED {
-		logger.Errorw("Resource is not ready for deletion", "status", status)
-		return &pb.MarkForDeletionResponse{}, fferr.NewInternalErrorf("Resource is not ready for deletion")
-	}
+	//if status != pb.ResourceStatus_READY && status != pb.ResourceStatus_CREATED {
+	//	logger.Errorw("Resource is not ready for deletion", "status", status)
+	//	return &pb.MarkForDeletionResponse{}, fferr.NewInternalErrorf("Resource is not ready for deletion")
+	//}
 
 	isDeletableErr := serv.isDeletable(ctx, resource)
 	if isDeletableErr != nil {

@@ -87,7 +87,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
-          PGPASSWORD=password psql -h postgres -U postgres -d postgres -c '\dt'
+          echo "🔍 Testing Postgres connection on localhost..."
+          PGPASSWORD=password psql -h localhost -U postgres -d postgres -c '\dt'
           
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

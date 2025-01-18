@@ -14,7 +14,7 @@ concurrency:
 
 env:
   POSTGRES_USER: "username"
-  POSTGRES_DB: "default"
+  POSTGRES_DB: "postgres"
   POSTGRES_PASSWORD: "password"
   CLICKHOUSE_USER: "default"
   CLICKHOUSE_HOST: "localhost"

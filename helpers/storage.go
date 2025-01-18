@@ -70,11 +70,11 @@ func NewMetadataPSQLConfigFromEnv() PSQLConfig {
 
 func NewMetadataPSQLConfigForTesting() PSQLConfig {
 	config := PSQLConfig{
-		Host:     "127.0.0.1",
-		User:     GetEnv("POSTGRES_USER", "postgres"),
-		Password: GetEnv("POSTGRES_PASSWORD", "mysecretpassword"),
-		Port:     GetEnv("POSTGRES_PORT", "5432"),
-		DBName:   GetEnv("POSTGRES_DB", "postgres"),
+		Host:     "postgres",
+		User:     "postgres",
+		Password: "password",
+		Port:     "5432",
+		DBName:   "postgres",
 		SSLMode:  GetEnv("POSTGRES_SSL_MODE", "disable"),
 	}
 	return config

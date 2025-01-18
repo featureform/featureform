@@ -75,7 +75,7 @@ func NewMetadataPSQLConfigForTesting() PSQLConfig {
 		Password: "password",
 		Port:     "5432",
 		DBName:   "postgres",
-		SSLMode:  GetEnv("POSTGRES_SSL_MODE", "disable"),
+		SSLMode:  "disable",
 	}
 	return config
 }

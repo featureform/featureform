@@ -64,9 +64,9 @@ jobs:
         ports:
           - 5432:5432
         env:
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: password
 
       clickhouse:
         image: clickhouse/clickhouse-server
@@ -77,6 +77,13 @@ jobs:
           CLICKHOUSE_DB: ${{ env.CLICKHOUSE_DB }}
           CLICKHOUSE_PASSWORD: ${{ env.CLICKHOUSE_PASSWORD }}
     steps:
+
+      - name: Debug Postgres Connection
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          PGPASSWORD=password psql -h postgres -U postgres -d postgres -c '\dt'
+          
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:

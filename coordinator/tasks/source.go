@@ -112,30 +112,30 @@ func (t *SourceTask) handleDeletion(ctx context.Context, resID metadata.Resource
 	}
 
 	if sourceToDelete.IsPrimaryData() {
-		logger.Infow("Can't delete primary data", "resource_id", resID)
-		return nil
-	}
-	tfLocation, tfLocationErr := sourceToDelete.GetTransformationLocation()
-	if tfLocationErr != nil {
-		logger.Errorw("Failed to get transformation location", "error", tfLocationErr)
-		return tfLocationErr
-	}
+		logger.Infow("Can't delete primary data table", "resource_id", resID)
+	} else {
+		tfLocation, tfLocationErr := sourceToDelete.GetTransformationLocation()
+		if tfLocationErr != nil {
+			logger.Errorw("Failed to get transformation location", "error", tfLocationErr)
+			return tfLocationErr
+		}
 
-	logger.Debugw("Deleting source at location", "location", tfLocation, "error", tfLocationErr)
-	sourceStore, err := getStore(t.BaseTask, t.metadata, sourceToDelete)
-	if err != nil {
-		logger.Errorw("Failed to get store", "error", err)
-		return err
-	}
+		logger.Debugw("Deleting source at location", "location", tfLocation, "error", tfLocationErr)
+		sourceStore, err := getStore(t.BaseTask, t.metadata, sourceToDelete)
+		if err != nil {
+			logger.Errorw("Failed to get store", "error", err)
+			return err
+		}
 
-	deleteErr := sourceStore.Delete(tfLocation)
-	if deleteErr != nil {
-		var notFoundErr *fferr.DatasetNotFoundError
-		if errors.As(deleteErr, &notFoundErr) {
-			logger.Infow("Table doesn't exist at location, continuing...", "location", tfLocation)
-		} else {
-			logger.Errorw("Failed to delete source", "error", deleteErr)
-			return deleteErr
+		deleteErr := sourceStore.Delete(tfLocation)
+		if deleteErr != nil {
+			var notFoundErr *fferr.DatasetNotFoundError
+			if errors.As(deleteErr, &notFoundErr) {
+				logger.Infow("Table doesn't exist at location, continuing...", "location", tfLocation)
+			} else {
+				logger.Errorw("Failed to delete source", "error", deleteErr)
+				return deleteErr
+			}
 		}
 	}
 

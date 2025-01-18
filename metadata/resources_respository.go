@@ -178,6 +178,19 @@ func (r *sqlResourcesRepository) MarkForDeletion(ctx context.Context, resourceID
 				return err
 			}
 
+			// get status
+			status, err := r.getStatus(ctx, tx, resourceID)
+			if err != nil {
+				return err
+			}
+
+			if status != scheduling.READY && status != scheduling.CREATED {
+				return retry.Unrecoverable(fferr.NewInternalErrorf(
+					"cannot delete resource %s %s (%s) because it is not in READY or CREATED status",
+					resourceID.Type, resourceID.Name, resourceID.Variant,
+				))
+			}
+
 			if err := r.markDeleted(ctx, tx, resourceID); err != nil {
 				return err
 			}
@@ -260,33 +273,18 @@ func (r *sqlResourcesRepository) getStatus(ctx context.Context, tx pgx.Tx, resou
 								'/run_id=' || lr.run_id
 	`
 
-	// Variable to store the retrieved status
 	var status int
 
 	// Execute the query
 	err := tx.QueryRow(ctx, query, resourceID.ToKey()).Scan(&status)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			// No status found, return a default or unknown status
 			return scheduling.NO_STATUS, nil
 		}
-		// Return the database error
 		return scheduling.NO_STATUS, fmt.Errorf("failed to get status for resource %s: %w", resourceID.ToKey(), err)
 	}
 
-	// Convert the integer status to the proto.ResourceStatus enum
-	switch status {
-	case 1:
-		return scheduling.PENDING, nil
-	case 2:
-		return scheduling.RUNNING, nil
-	case 3:
-		return scheduling.READY, nil
-	case 4:
-		return scheduling.FAILED, nil
-	default:
-		return scheduling.NO_STATUS, nil
-	}
+	return scheduling.Status(status), nil
 }
 
 func (r *sqlResourcesRepository) markDeleted(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID) error {

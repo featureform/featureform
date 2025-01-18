@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/avast/retry-go/v4"
+	"github.com/featureform/scheduling"
 	"github.com/featureform/storage"
 	"golang.org/x/exp/slices"
 	"math"
@@ -218,6 +219,74 @@ func (r *sqlResourcesRepository) checkDependencies(ctx context.Context, tx pgx.T
 		))
 	}
 	return nil
+}
+
+func (r *sqlResourcesRepository) getStatus(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID) (scheduling.Status, error) {
+	const query = `
+		-- Step 1: Extract the first taskId from the taskIdList
+		WITH extracted_task_id AS (
+			SELECT (jsonb_array_elements_text(((ff.value::jsonb ->> 'Message')::jsonb -> 'taskIdList'))::INTEGER) AS task_id
+			FROM ff_task_metadata ff
+			WHERE ff.key = $1
+			LIMIT 1
+		),
+
+		-- Step 2: Get the task run data for the extracted taskId
+		task_runs AS (
+			SELECT tr.value::jsonb AS runs_data, et.task_id
+			FROM extracted_task_id et
+			JOIN ff_task_metadata tr
+			  ON tr.key = '/tasks/runs/task_id=' || et.task_id
+		),
+
+		-- Step 3: Extract the latest runId based on dateCreated
+		latest_run AS (
+			SELECT run_obj->>'runID' AS run_id,
+				   run_obj->>'dateCreated' AS date_created,
+				   tr.task_id
+			FROM task_runs tr,
+				 jsonb_array_elements(tr.runs_data -> 'runs') AS run_obj
+			ORDER BY run_obj->>'dateCreated' DESC
+			LIMIT 1
+		)
+
+		-- Step 4: Retrieve the run metadata and parse the status
+		SELECT (run_metadata.value::jsonb ->> 'status')::INTEGER AS status
+		FROM latest_run lr
+		JOIN ff_task_metadata run_metadata
+		  ON run_metadata.key = '/tasks/runs/metadata/' ||
+								to_char((lr.date_created)::timestamptz, 'YYYY/MM/DD/HH24/MI') ||
+								'/task_id=' || lr.task_id ||
+								'/run_id=' || lr.run_id
+	`
+
+	// Variable to store the retrieved status
+	var status int
+
+	// Execute the query
+	err := tx.QueryRow(ctx, query, resourceID.ToKey()).Scan(&status)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			// No status found, return a default or unknown status
+			return scheduling.NO_STATUS, nil
+		}
+		// Return the database error
+		return scheduling.NO_STATUS, fmt.Errorf("failed to get status for resource %s: %w", resourceID.ToKey(), err)
+	}
+
+	// Convert the integer status to the proto.ResourceStatus enum
+	switch status {
+	case 1:
+		return scheduling.PENDING, nil
+	case 2:
+		return scheduling.RUNNING, nil
+	case 3:
+		return scheduling.READY, nil
+	case 4:
+		return scheduling.FAILED, nil
+	default:
+		return scheduling.NO_STATUS, nil
+	}
 }
 
 func (r *sqlResourcesRepository) markDeleted(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID) error {

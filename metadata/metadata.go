@@ -2536,6 +2536,8 @@ func (serv *MetadataServer) validateSourceDeletion(ctx context.Context, sv *sour
 	if err := serv.validateProviderType(ctx, wrapped.Provider()); err != nil {
 		return err
 	}
+
+	return nil
 }
 
 func (serv *MetadataServer) validateFeatureDeletion(ctx context.Context, fv *featureVariantResource) error {

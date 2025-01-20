@@ -104,6 +104,22 @@ func (serv *MetadataServer) CreateUser(ctx context.Context, userRequest *pb.User
 	return out, nil
 }
 
+// add prune
+func (serv *MetadataServer) PruneResource(ctx context.Context, req *pb.PruneResourceRequest) (*pb.PruneResourceResponse, error) {
+	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
+	logger = logger.WithResource(logging.ResourceTypeFromProto(req.ResourceId.ResourceType), req.ResourceId.Resource.Name, req.ResourceId.Resource.Variant)
+	logger.Infow("Pruning Resource")
+
+	out, err := serv.meta.PruneResource(ctx, req)
+	if err != nil {
+		serv.Logger.Errorw("Failed to prune resource", "error", err)
+		return nil, err
+	}
+
+	logger.Infow("Successfully pruned resource")
+	return out, nil
+}
+
 func (serv *MetadataServer) MarkForDeletion(ctx context.Context, req *pb.MarkForDeletionRequest) (*pb.MarkForDeletionResponse, error) {
 	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
 	logger = logger.WithResource(logging.ResourceTypeFromProto(req.ResourceId.ResourceType), req.ResourceId.Resource.Name, req.ResourceId.Resource.Variant)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/featureform/fferr"
+	"github.com/featureform/metadata/common"
 	"net"
 	"testing"
 
@@ -43,6 +44,23 @@ func startServPsql(t *testing.T) (*MetadataServer, string) {
 		}
 	}()
 	return serv, lis.Addr().String()
+}
+
+func Test_Prune(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Integration Test")
+	}
+	serv, _ := startServPsql(t)
+
+	resourceId := common.ResourceID{
+		Name:    "alif2",
+		Variant: "2025-01-17t19-28-59",
+		Type:    common.FEATURE_VARIANT,
+	}
+
+	ctx := logging.AttachRequestID(logging.NewRequestID().String(), context.Background(), logging.NewLoggerWithLevel("metadata-test", logging.DebugLevel))
+	_, err := serv.PruneResource(ctx, &pb.PruneResourceRequest{ResourceId: resourceId.Proto()})
+	assert.NoError(t, err)
 }
 
 func TestMetadataDelete(t *testing.T) {

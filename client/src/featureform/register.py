@@ -4944,51 +4944,77 @@ class ResourceClient:
         self._stub.MarkForDeletion(request)
         print("Deleting resource async")
 
+    def prune(
+        self,
+        source: Union[DeletableResource, str],  # TODO: get this typing correct
+        variant: Optional[str] = None,
+        resource_type: Optional[ResourceType] = None,
+    ):
+        request = self._create_prune_request(source, variant, resource_type)
+
+        # Send the request to delete the resource
+        self._stub.PruneResource(request)
+        print("Deleting resource async")
+
+    def _create_prune_request(
+        self,
+        source: Union[DeletableResource, str],
+        variant: Optional[str] = None,
+        resource_type: Optional[ResourceType] = None,
+    ) -> metadata_pb2.PruneResourceRequest:
+        return metadata_pb2.PruneResourceRequest(
+            resource_id=self._build_resource_id(source, variant, resource_type)
+        )
+
     def _create_delete_request(
         self,
         source: Union[DeletableResource, str],
         variant: Optional[str] = None,
         resource_type: Optional[ResourceType] = None,
     ) -> metadata_pb2.MarkForDeletionRequest:
+        return metadata_pb2.MarkForDeletionRequest(
+            resource_id=self._build_resource_id(source, variant, resource_type)
+        )
+
+    def _build_resource_id(
+        self,
+        source: Union[DeletableResource, str],
+        variant: Optional[str] = None,
+        resource_type: Optional[ResourceType] = None,
+    ) -> metadata_pb2.ResourceID:
+        """Helper to construct a ResourceID for prune or delete requests."""
+
         if isinstance(source, str):
             if resource_type is None:
                 raise ValueError(
                     "resource_type must be specified if source is a string"
                 )
 
-            if resource_type is ResourceType.PROVIDER:
-                return metadata_pb2.MarkForDeletionRequest(
-                    resource_id=metadata_pb2.ResourceID(
-                        resource=metadata_pb2.NameVariant(name=source),
-                        resource_type=resource_type.to_proto(),
-                    )
+            if resource_type == ResourceType.PROVIDER:
+                return metadata_pb2.ResourceID(
+                    resource=metadata_pb2.NameVariant(name=source),
+                    resource_type=resource_type.to_proto(),
                 )
 
-            # All other string resources require a variant
             if not variant:
                 raise ValueError("variant must be specified for non-provider resources")
 
-            return metadata_pb2.MarkForDeletionRequest(
-                resource_id=metadata_pb2.ResourceID(
-                    resource=metadata_pb2.NameVariant(name=source, variant=variant),
-                    resource_type=resource_type.to_proto(),
-                )
+            return metadata_pb2.ResourceID(
+                resource=metadata_pb2.NameVariant(name=source, variant=variant),
+                resource_type=resource_type.to_proto(),
             )
 
         if isinstance(source, (OfflineProvider, OnlineProvider)):
-            return metadata_pb2.MarkForDeletionRequest(
-                resource_id=metadata_pb2.ResourceID(
-                    resource=metadata_pb2.NameVariant(name=source.name()),
-                    resource_type=ResourceType.PROVIDER.to_proto(),
-                )
+            return metadata_pb2.ResourceID(
+                resource=metadata_pb2.NameVariant(name=source.name()),
+                resource_type=ResourceType.PROVIDER.to_proto(),
             )
 
+        # For other DeletableResource types
         name, variant = source.name_variant()
-        return metadata_pb2.MarkForDeletionRequest(
-            resource_id=metadata_pb2.ResourceID(
-                resource=metadata_pb2.NameVariant(name=name, variant=variant),
-                resource_type=source.get_resource_type().to_proto(),
-            )
+        return metadata_pb2.ResourceID(
+            resource=metadata_pb2.NameVariant(name=name, variant=variant),
+            resource_type=source.get_resource_type().to_proto(),
         )
 
     def run(self):

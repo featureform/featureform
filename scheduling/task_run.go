@@ -115,6 +115,27 @@ const (
 	CANCELLED Status = Status(pb.ResourceStatus_CANCELLED)
 )
 
+func ParseStatus(statusStr string) Status {
+	switch statusStr {
+	case "NO_STATUS":
+		return NO_STATUS
+	case "CREATED":
+		return CREATED
+	case "PENDING":
+		return PENDING
+	case "READY":
+		return READY
+	case "FAILED":
+		return FAILED
+	case "RUNNING":
+		return RUNNING
+	case "CANCELLED":
+		return CANCELLED
+	default:
+		return NO_STATUS // Default fallback for unknown statuses
+	}
+}
+
 var validStatusTransitions = map[Status]mapset.Set[Status]{
 	NO_STATUS: mapset.NewSet(CREATED, PENDING),
 	CREATED:   mapset.NewSet(PENDING),

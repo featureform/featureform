@@ -2347,6 +2347,34 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variantReq
 	})
 }
 
+func (serv *MetadataServer) PruneResource(ctx context.Context, request *pb.PruneResourceRequest) (*pb.PruneResourceResponse, error) {
+	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
+	logger.Infow("Pruning resource", "resource_id", request.ResourceId)
+
+	resId := common.ResourceID{Name: request.ResourceId.Resource.Name, Variant: request.ResourceId.Resource.Variant, Type: common.ResourceType(request.ResourceId.ResourceType)}
+	notCommonResId := ResourceID{Name: resId.Name, Variant: resId.Variant, Type: ResourceType(resId.Type)}
+
+	_, err := serv.lookup.Lookup(ctx, notCommonResId)
+	if err != nil {
+		logger.Errorw("Could not find resource to delete", "error", err.Error())
+		return &pb.PruneResourceResponse{}, err
+	}
+
+	resourcesMarkedForDeletion, err := serv.resourcesRepository.Prune(ctx, resId)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, resource := range resourcesMarkedForDeletion {
+		regularResId := ResourceID{Name: resource.Name, Variant: resource.Variant, Type: ResourceType(resource.Type)}
+		if err := serv.deletionTaskStarter(ctx, regularResId); err != nil {
+			logger.Errorw("Could not delete resource", "error", err.Error())
+			return &pb.PruneResourceResponse{}, err
+		}
+	}
+	return &pb.PruneResourceResponse{}, err
+}
+
 func (serv *MetadataServer) MarkForDeletion(ctx context.Context, request *pb.MarkForDeletionRequest) (*pb.MarkForDeletionResponse, error) {
 	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
 	logger.Infow("Deleting resource", "resource_id", request.ResourceId)
@@ -2365,64 +2393,65 @@ func (serv *MetadataServer) MarkForDeletion(ctx context.Context, request *pb.Mar
 		return &pb.MarkForDeletionResponse{}, err
 	}
 
-	//status, err := serv.getStatusFromTasks(ctx, resource)
-	//if err != nil {
-	//	logger.Errorw("Could not get status from tasks", "error", err.Error())
-	//	return &pb.MarkForDeletionResponse{}, err
-	//}
-
-	//if status != pb.ResourceStatus_READY && status != pb.ResourceStatus_CREATED {
-	//	logger.Errorw("Resource is not ready for deletion", "status", status)
-	//	return &pb.MarkForDeletionResponse{}, fferr.NewInternalErrorf("Resource is not ready for deletion")
-	//}
-
 	isDeletableErr := serv.isDeletable(ctx, resource)
 	if isDeletableErr != nil {
 		logger.Errorw("Could not delete resource", "error", isDeletableErr.Error())
 		return &pb.MarkForDeletionResponse{}, isDeletableErr
 	}
 
-	deleteErr := serv.resourcesRepository.MarkForDeletion(ctx, resId)
+	deleteErr := serv.resourcesRepository.MarkForDeletion(ctx, resId, serv.deletionTaskStarter)
 	if deleteErr != nil {
 		logger.Errorw("Could not delete resource", "error", deleteErr.Error())
 		return &pb.MarkForDeletionResponse{}, deleteErr
 	}
 
-	if serv.needsJob(resource) {
-		taskTarget := scheduling.NameVariant{Name: resId.Name, Variant: resId.Variant, ResourceType: resId.Type.String()}
-		task, err := serv.taskManager.CreateTask("delete-task", scheduling.ResourceDeletion, taskTarget)
-		if err != nil {
-			return nil, err
-		}
+	return &pb.MarkForDeletionResponse{}, nil
+}
 
-		needsJobList := []common.ResourceType{
-			common.FEATURE_VARIANT,
-			common.LABEL_VARIANT,
-			common.TRAINING_SET_VARIANT,
-			common.SOURCE_VARIANT,
-		}
-		if slices.Contains(needsJobList, resId.Type) {
-			taskId := task.ID
-			logger.Info("Creating Job", resId.String())
-			trigger := scheduling.OnApplyTrigger{TriggerName: "Apply"}
-			taskName := fmt.Sprintf("Deleting Resource %s", resId.String())
-			taskRun, createTaskErr := serv.taskManager.CreateTaskRun(taskName, taskId, trigger)
-			if createTaskErr != nil {
-				logger.Errorw("unable to create task run", "task name", taskName, "task ID", taskId, "trigger", trigger.TriggerName, "error", createTaskErr)
-				return nil, createTaskErr
-			}
-			logger.Infow("Successfully Created Task", "task ID", taskRun.TaskId, "taskrun ID", taskRun.ID, "resource ID", resId.String())
-		}
-		return &pb.MarkForDeletionResponse{}, nil
-	} else {
-		err = serv.lookup.Delete(ctx, notCommonResId)
-		if err != nil {
-			logger.Errorw("Could not delete resource", "error", err.Error())
-			return &pb.MarkForDeletionResponse{}, err
-		}
+func (serv *MetadataServer) deletionTaskStarter(ctx context.Context, resId ResourceID) error {
+	logger := serv.Logger.WithResource(logging.ResourceType(resId.Type), resId.Name, resId.Variant)
+	logger.Infow("Handling resource deletion")
+
+	// Create deletion job for resources that need it
+	taskTarget := scheduling.NameVariant{
+		Name:         resId.Name,
+		Variant:      resId.Variant,
+		ResourceType: resId.Type.String(),
+	}
+	task, err := serv.taskManager.CreateTask("delete-task", scheduling.ResourceDeletion, taskTarget)
+	if err != nil {
+		logger.Errorw("unable to create deletion task", "error", err)
+		return err
 	}
 
-	return &pb.MarkForDeletionResponse{}, nil
+	needsJobList := []ResourceType{
+		FEATURE_VARIANT,
+		LABEL_VARIANT,
+		TRAINING_SET_VARIANT,
+		SOURCE_VARIANT,
+	}
+
+	if slices.Contains(needsJobList, resId.Type) {
+		taskName := fmt.Sprintf("Deleting Resource %s", resId.String())
+		trigger := scheduling.OnApplyTrigger{TriggerName: "Apply"}
+
+		taskRun, err := serv.taskManager.CreateTaskRun(taskName, task.ID, trigger)
+		if err != nil {
+			logger.Errorw("unable to create task run",
+				"task_name", taskName,
+				"task_id", task.ID,
+				"trigger", trigger.TriggerName,
+				"error", err)
+			return err
+		}
+
+		logger.Infow("Successfully created deletion task",
+			"task_id", taskRun.TaskId,
+			"taskrun_id", taskRun.ID,
+			"resource_id", resId.String())
+	}
+
+	return nil
 }
 
 func (serv *MetadataServer) GetStagedForDeletionResource(ctx context.Context, request *pb.GetStagedForDeletionResourceRequest) (*pb.GetStagedForDeletionResourceResponse, error) {

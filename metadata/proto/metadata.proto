@@ -48,6 +48,7 @@ service Metadata {
   rpc FinalizeDeletion(FinalizeDeletionRequest) returns (FinalizeDeletionResponse);
   // Retrieves the resource that is staged for deletion.
   rpc GetStagedForDeletionResource(GetStagedForDeletionResourceRequest) returns (GetStagedForDeletionResourceResponse);
+  rpc PruneResource(PruneResourceRequest) returns (PruneResourceResponse);
 
   /**
     * GetEquivalent returns a resourceVariant that matches on key attributes,
@@ -97,6 +98,7 @@ service Api {
    */
 
   rpc MarkForDeletion(MarkForDeletionRequest) returns (MarkForDeletionResponse);
+  rpc PruneResource(PruneResourceRequest) returns (PruneResourceResponse);
 
   rpc GetEquivalent(GetEquivalentRequest) returns (ResourceVariant);
   rpc Run(RunRequest) returns (Empty);
@@ -703,4 +705,11 @@ message GetStagedForDeletionResourceRequest {
 
 message GetStagedForDeletionResourceResponse {
   ResourceVariant resource_variant = 1;
+}
+
+message PruneResourceRequest {
+  ResourceID resource_id = 1;
+}
+
+message PruneResourceResponse {
 }

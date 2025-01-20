@@ -123,6 +123,7 @@ type Client struct {
 
 type ResourceDef interface {
 	ResourceType() ResourceType
+	ResourceID() ResourceID
 }
 
 // accessible to the frontend as it does not directly change status in metadata
@@ -305,6 +306,15 @@ func (def FeatureDef) ResourceType() ResourceType {
 	return FEATURE_VARIANT
 }
 
+// ResourceID
+func (def FeatureDef) ResourceID() ResourceID {
+	return ResourceID{
+		Name:    def.Name,
+		Variant: def.Variant,
+		Type:    FEATURE_VARIANT,
+	}
+}
+
 func (def FeatureDef) Serialize(requestID string) (*pb.FeatureVariantRequest, error) {
 	var typeProto *pb.ValueType
 	if def.Type == nil {
@@ -446,6 +456,15 @@ type LabelDef struct {
 
 func (def LabelDef) ResourceType() ResourceType {
 	return LABEL_VARIANT
+}
+
+// Create To ResourceID func
+func (def LabelDef) ResourceID() ResourceID {
+	return ResourceID{
+		Name:    def.Name,
+		Variant: def.Variant,
+		Type:    LABEL_VARIANT,
+	}
 }
 
 func (def LabelDef) Serialize(requestID string) (*pb.LabelVariantRequest, error) {
@@ -615,6 +634,15 @@ type TrainingSetDef struct {
 
 func (def TrainingSetDef) ResourceType() ResourceType {
 	return TRAINING_SET_VARIANT
+}
+
+// Create To ResourceID func
+func (def TrainingSetDef) ResourceID() ResourceID {
+	return ResourceID{
+		Name:    def.Name,
+		Variant: def.Variant,
+		Type:    TRAINING_SET_VARIANT,
+	}
 }
 
 func (def TrainingSetDef) Serialize(requestID string) *pb.TrainingSetVariantRequest {
@@ -853,6 +881,15 @@ func (def SourceDef) ResourceType() ResourceType {
 	return SOURCE_VARIANT
 }
 
+// Create To ResourceID func
+func (def SourceDef) ResourceID() ResourceID {
+	return ResourceID{
+		Name:    def.Name,
+		Variant: def.Variant,
+		Type:    SOURCE_VARIANT,
+	}
+}
+
 func (def SourceDef) Serialize(requestID string) (*pb.SourceVariantRequest, error) {
 	serialized := &pb.SourceVariantRequest{
 		SourceVariant: &pb.SourceVariant{
@@ -1048,6 +1085,14 @@ func (def UserDef) ResourceType() ResourceType {
 	return USER
 }
 
+// Create To ResourceID func
+func (def UserDef) ResourceID() ResourceID {
+	return ResourceID{
+		Name: def.Name,
+		Type: USER,
+	}
+}
+
 func (client *Client) CreateUser(ctx context.Context, def UserDef) error {
 	requestID := logging.GetRequestIDFromContext(ctx)
 
@@ -1132,6 +1177,14 @@ type ProviderDef struct {
 
 func (def ProviderDef) ResourceType() ResourceType {
 	return PROVIDER
+}
+
+// Create To ResourceID func
+func (def ProviderDef) ResourceID() ResourceID {
+	return ResourceID{
+		Name: def.Name,
+		Type: PROVIDER,
+	}
 }
 
 func (client *Client) CreateProvider(ctx context.Context, def ProviderDef) error {
@@ -1220,6 +1273,15 @@ type EntityDef struct {
 
 func (def EntityDef) ResourceType() ResourceType {
 	return ENTITY
+}
+
+// ToResourceID
+func (def EntityDef) ResourceID() ResourceID {
+	return ResourceID{
+		Name: def.Name,
+		Type: ENTITY,
+	}
+
 }
 
 func (client *Client) CreateEntity(ctx context.Context, def EntityDef) error {
@@ -1366,6 +1428,14 @@ type ModelDef struct {
 
 func (def ModelDef) ResourceType() ResourceType {
 	return MODEL
+}
+
+// Create To ResourceID func
+func (def ModelDef) ResourceID() ResourceID {
+	return ResourceID{
+		Name: def.Name,
+		Type: MODEL,
+	}
 }
 
 func (client *Client) CreateModel(ctx context.Context, def ModelDef) error {
@@ -3116,6 +3186,17 @@ func (client *Client) GetResourceDAG(ctx context.Context, resource Resource) (Re
 	}
 
 	return dag, nil
+}
+
+// SetResourceStatus
+func (client *Client) SetResourceStatus(ctx context.Context, resource Resource, status scheduling.Status, message string) error {
+	_, err := client.GrpcConn.SetResourceStatus(ctx, &pb.SetStatusRequest{
+		ResourceId: resource.ID().Proto(),
+		Status: &pb.ResourceStatus{
+			Status: status.Proto(),
+		},
+	})
+	return err
 }
 
 func (client *Client) Close() {

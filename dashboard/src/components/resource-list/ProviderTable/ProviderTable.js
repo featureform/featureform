@@ -202,7 +202,6 @@ export const provider_columns = [
     sortable: false,
     filterable: false,
     renderCell: function (params) {
-      const connectedFill = '#6DDE6A';
       let result = STATUS_COLORS.ERROR;
       if (params?.row?.status === PROVIDER_STATUS.READY) {
         result = STATUS_COLORS.READY;

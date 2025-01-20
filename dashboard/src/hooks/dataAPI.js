@@ -258,7 +258,7 @@ export function useDataAPI() {
   };
 
   const getModels = async (filters = {}) => {
-    const result = await authenticatedFetch(
+    const result = await fetch(
       `${API_URL}/data/models`, 
       {
       cache: 'no-store',

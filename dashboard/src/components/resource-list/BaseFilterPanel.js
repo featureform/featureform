@@ -14,7 +14,6 @@ import {
   Typography,
 } from '@mui/material';
 import { styled } from '@mui/system';
-import { Box, styled } from '@mui/system';
 import React, { useState } from 'react';
 import { FEATUREFORM_DARK_GRAY } from '../../styles/theme';
 

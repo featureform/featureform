@@ -43,50 +43,10 @@ const (
 )
 
 type BQOfflineStoreConfig struct {
-	Config       pc.SerializedConfig
-	ProjectId    string
-	ProviderType p_type.Type
-	QueryImpl    BQOfflineTableQueries
-	logger       logging.Logger
-}
-
-type BQOfflineTableQueries interface {
-	tableExists(tableName string) string
-	viewExists(viewName string) string
-	determineColumnType(valueType types.ValueType) (string, error)
-	determineNativeColumnType(valueType types.ValueType) (bigquery.FieldType, error)
-	primaryTableCreate(name string, columnString string) string
-	upsertQuery(tb string, columns string, placeholder string) string
-	createValuePlaceholderString(columns []TableColumn) string
-	registerResources(client *bigquery.Client, tableName string, schema ResourceSchema, timestamp bool) error
-	writeUpdate(table string) string
-	writeInserts(table string) string
-	writeExists(table string) string
-	newBQOfflineTable(name string, columnType string) string
-	materializationCreate(tableName string, resultName string) string
-	materializationIterateSegment(tableName string, start int64, end int64) string
-	getNumRowsQuery(tableName string) string
-	getTablePrefix() string
-	setTablePrefix(prefix string)
-	getContext() context.Context
-	setContext()
-	castTableItemType(v interface{}, t interface{}) interface{}
-	materializationExists(tableName string) string
-	materializationDrop(tableName string) string
-	materializationUpdate(client *bigquery.Client, tableName string, sourceName string) error
-	monitorJob(job *bigquery.Job) error
-	transformationCreate(name string, query string) string
-	getColumns(client *bigquery.Client, name string) ([]TableColumn, error)
-	transformationUpdate(client *bigquery.Client, tableName string, query string) error
-	trainingSetCreate(store *bqOfflineStore, def TrainingSetDef, tableName string, labelName string) error
-	trainingSetUpdate(store *bqOfflineStore, def TrainingSetDef, tableName string, labelName string) error
-	trainingSetQuery(store *bqOfflineStore, def TrainingSetDef, tableName string, labelName string, isUpdate bool) error
-	atomicUpdate(client *bigquery.Client, tableName string, tempName string, query string) error
-	trainingRowSelect(columns string, trainingSetName string) string
-	primaryTableRegister(tableName string, sourceName string) string
-	getTableName(tableName string) string
-	getProjectId() string
-	getDatasetId() string
+	Config    pc.SerializedConfig
+	ProjectId string
+	QueryImpl defaultBQQueries
+	logger    logging.Logger
 }
 
 type defaultBQQueries struct {
@@ -100,7 +60,7 @@ type bqGenericTableIterator struct {
 	iter         *bigquery.RowIterator
 	currentValue GenericRecord
 	err          error
-	query        BQOfflineTableQueries
+	query        defaultBQQueries
 	columns      []TableColumn
 }
 
@@ -108,7 +68,7 @@ type bqPrimaryTable struct {
 	table  *bigquery.Table
 	client *bigquery.Client
 	name   string
-	query  BQOfflineTableQueries
+	query  defaultBQQueries
 	schema TableSchema
 }
 
@@ -258,7 +218,7 @@ func (it *bqGenericTableIterator) Close() error {
 	return nil
 }
 
-func newBigQueryGenericTableIterator(it *bigquery.RowIterator, query BQOfflineTableQueries, columns []TableColumn) GenericTableIterator {
+func newBigQueryGenericTableIterator(it *bigquery.RowIterator, query defaultBQQueries, columns []TableColumn) GenericTableIterator {
 	return &bqGenericTableIterator{
 		iter:         it,
 		currentValue: nil,
@@ -635,7 +595,7 @@ type bqMaterialization struct {
 	id        MaterializationID
 	client    *bigquery.Client
 	tableName string
-	query     BQOfflineTableQueries
+	query     defaultBQQueries
 }
 
 func (mat *bqMaterialization) ID() MaterializationID {
@@ -694,10 +654,10 @@ type bqFeatureIterator struct {
 	iter         *bigquery.RowIterator
 	currentValue ResourceRecord
 	err          error
-	query        BQOfflineTableQueries
+	query        defaultBQQueries
 }
 
-func newbqFeatureIterator(it *bigquery.RowIterator, query BQOfflineTableQueries) FeatureIterator {
+func newbqFeatureIterator(it *bigquery.RowIterator, query defaultBQQueries) FeatureIterator {
 	return &bqFeatureIterator{
 		iter:         it,
 		err:          nil,
@@ -744,7 +704,7 @@ func (it *bqFeatureIterator) Close() error {
 
 type bqOfflineTable struct {
 	client *bigquery.Client
-	query  BQOfflineTableQueries
+	query  defaultBQQueries
 	name   string
 }
 
@@ -818,7 +778,7 @@ func (table *bqOfflineTable) Location() pl.Location {
 type bqOfflineStore struct {
 	client *bigquery.Client
 	parent BQOfflineStoreConfig
-	query  BQOfflineTableQueries
+	query  defaultBQQueries
 	logger logging.Logger
 	BaseProvider
 }
@@ -845,7 +805,7 @@ func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
 		query:  config.QueryImpl,
 		logger: config.logger,
 		BaseProvider: BaseProvider{
-			ProviderType:   config.ProviderType,
+			ProviderType:   pt.BigQueryOffline,
 			ProviderConfig: config.Config,
 		},
 	}, nil
@@ -865,11 +825,10 @@ func bigQueryOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	queries.setContext()
 
 	sgConfig := BQOfflineStoreConfig{
-		Config:       config,
-		ProjectId:    sc.ProjectId,
-		ProviderType: pt.BigQueryOffline,
-		QueryImpl:    &queries,
-		logger:       logger,
+		Config:    config,
+		ProjectId: sc.ProjectId,
+		QueryImpl: queries,
+		logger:    logger,
 	}
 
 	store, err := NewBQOfflineStore(sgConfig)
@@ -1463,7 +1422,7 @@ type bqTrainingRowsIterator struct {
 	currentLabel    interface{}
 	err             error
 	isHeaderRow     bool
-	query           BQOfflineTableQueries
+	query           defaultBQQueries
 }
 
 func (store *bqOfflineStore) newbqTrainingSetIterator(iter *bigquery.RowIterator) TrainingSetIterator {

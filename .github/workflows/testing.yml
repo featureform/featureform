@@ -201,7 +201,7 @@ jobs:
           docker run -d -p 9864:9864 -p 9870:9870 -p 8088:8088 -p 9000:9000 -p 9866:9866 --hostname localhost ahmadnazeri/hadoop:latest
 
       - name: Integration Tests
-        run: go test -timeout 100m -coverpkg=./... -coverprofile=./cover.out.tmp ./metadata/metadata_delete_test.go -v
+        run: go test -timeout 100m -coverpkg=./... -coverprofile=./cover.out.tmp ./metadata -v
         env:
           FIRESTORE_CRED: "firestore_credentials.json"
           BIGQUERY_CREDENTIALS: "/home/runner/work/featureform/featureform/provider/bigquery_credentials.json"

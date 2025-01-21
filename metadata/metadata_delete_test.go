@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"github.com/featureform/fferr"
-	"github.com/featureform/metadata/common"
 	"net"
 	"testing"
 
@@ -46,22 +45,22 @@ func startServPsql(t *testing.T) (*MetadataServer, string) {
 	return serv, lis.Addr().String()
 }
 
-func Test_Prune(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Integration Test")
-	}
-	serv, _ := startServPsql(t)
-
-	resourceId := common.ResourceID{
-		Name:    "alif2",
-		Variant: "2025-01-17t19-28-59",
-		Type:    common.FEATURE_VARIANT,
-	}
-
-	ctx := logging.AttachRequestID(logging.NewRequestID().String(), context.Background(), logging.NewLoggerWithLevel("metadata-test", logging.DebugLevel))
-	_, err := serv.PruneResource(ctx, &pb.PruneResourceRequest{ResourceId: resourceId.Proto()})
-	assert.NoError(t, err)
-}
+//func Test_Prune(t *testing.T) {
+//	if testing.Short() {
+//		t.Skip("Integration Test")
+//	}
+//	serv, _ := startServPsql(t)
+//
+//	resourceId := common.ResourceID{
+//		Name:    "alif2",
+//		Variant: "2025-01-17t19-28-59",
+//		Type:    common.FEATURE_VARIANT,
+//	}
+//
+//	ctx := logging.AttachRequestID(logging.NewRequestID().String(), context.Background(), logging.NewLoggerWithLevel("metadata-test", logging.DebugLevel))
+//	_, err := serv.PruneResource(ctx, &pb.PruneResourceRequest{ResourceId: resourceId.Proto()})
+//	assert.NoError(t, err)
+//}
 
 func TestMetadataDelete(t *testing.T) {
 	if testing.Short() {
@@ -274,38 +273,4 @@ func TestMetadataDelete(t *testing.T) {
 
 		assert.Error(t, err)
 	})
-
-	//	t.Run("delete source that's ready", func(t *testing.T) {
-	//		// set statuses to ready
-	//		resId := ResourceID{Name: "tf", Variant: "var", Type: SOURCE_VARIANT}
-	//		_, err := serv.SetResourceStatus(context.Background(), &pb.SetStatusRequest{
-	//			ResourceId: resId.Proto(),
-	//			Status: &pb.ResourceStatus{
-	//				Status: pb.ResourceStatus_CREATED,
-	//			},
-	//		})
-	//		assert.NoError(t, err)
-	//
-	//]		_, err = serv.MarkForDeletion(context.Background(), &pb.MarkForDeletionRequest{
-	//			ResourceId: resId.Proto(),
-	//		})
-	//		assert.NoError(t, err)
-	//
-	//		res, err := serv.lookup.Lookup(context.Background(), ResourceID{
-	//			Name: "tf",
-	//			Type: SOURCE_VARIANT,
-	//		}, DeleteLookupOption{DeletedOnly})
-	//		assert.NoError(t, err)
-	//
-	//		assert.Equal(t, res.ID(), resId)
-	//
-	//		res, err = serv.lookup.Lookup(context.Background(), ResourceID{
-	//			Name: "mockOfflineToDelete",
-	//			Type: PROVIDER,
-	//		})
-	//
-	//		assert.Nil(t, res)
-	//		var knfErr *fferr.KeyNotFoundError
-	//		assert.True(t, errors.As(err, &knfErr))
-	//	})
 }

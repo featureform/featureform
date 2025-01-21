@@ -14,7 +14,7 @@ concurrency:
 
 env:
   POSTGRES_USER: "username"
-  POSTGRES_DB: "default"
+  POSTGRES_DB: "postgres"
   POSTGRES_PASSWORD: "password"
   CLICKHOUSE_USER: "default"
   CLICKHOUSE_HOST: "localhost"
@@ -126,6 +126,15 @@ jobs:
           check-latest: true
           cache-dependency-path: |
             go.sum
+
+      - name: Install Dependencies
+        run: |
+          go mod tidy
+          go install github.com/pressly/goose/v3/cmd/goose@latest
+
+      - name: Apply Database Migrations
+        run: |
+          goose -dir db/migrations postgres "host=localhost user=${{ env.POSTGRES_USER }} password=${{ env.POSTGRES_PASSWORD }} dbname=${{ env.POSTGRES_DB }} sslmode=disable" up
 
       - name: Install grpc_tools
         run: pip install grpcio-tools==1.62.2 build mypy-protobuf

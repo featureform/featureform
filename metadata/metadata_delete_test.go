@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/featureform/fferr"
+	"github.com/stretchr/testify/require"
 	"net"
 	"testing"
 
@@ -244,7 +245,7 @@ func TestMetadataDelete(t *testing.T) {
 				ResourceType: pb.ResourceType_PROVIDER,
 			},
 		})
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 
 	t.Run("try to delete primary source", func(t *testing.T) {

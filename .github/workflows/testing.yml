@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  POSTGRES_USER: "username"
+  POSTGRES_USER: "postgres"
   POSTGRES_DB: "postgres"
   POSTGRES_PASSWORD: "password"
   CLICKHOUSE_USER: "default"

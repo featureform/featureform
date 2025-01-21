@@ -227,3 +227,7 @@ func (m MetadataServerMock) GetStagedForDeletionResource(ctx context.Context, in
 func (m MetadataServerMock) FinalizeDeletion(ctx context.Context, in *pb.FinalizeDeletionRequest, opts ...grpc.CallOption) (*pb.FinalizeDeletionResponse, error) {
 	return &pb.FinalizeDeletionResponse{}, nil
 }
+
+func (m MetadataServerMock) PruneResource(ctx context.Context, in *pb.PruneResourceRequest, opts ...grpc.CallOption) (*pb.PruneResourceResponse, error) {
+	return &pb.PruneResourceResponse{}, nil
+}

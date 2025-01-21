@@ -79,8 +79,8 @@ type ResourcesRepository interface {
 	Type() ResourcesRepositoryType
 	MarkForDeletion2(ctx context.Context, resourceID common.ResourceID) error
 	MarkForDeletion(ctx context.Context, resourceID common.ResourceID, deletionHandler DeletionHandler) error
-	Prune(ctx context.Context, resourceID common.ResourceID) ([]common.ResourceID, error)
-	//Prune2(ctx context.Context, resourceID common.ResourceID, deletionHandler DeletionHandler) ([]common.ResourceID, error)
+	//Prune(ctx context.Context, resourceID common.ResourceID) ([]common.ResourceID, error)
+	Prune2(ctx context.Context, resourceID common.ResourceID, deletionHandler DeletionHandler) ([]common.ResourceID, error)
 	ResourceLookup
 }
 

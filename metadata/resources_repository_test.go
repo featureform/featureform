@@ -127,6 +127,9 @@ func (ts *TestMetadataServer) Close() {
 }
 
 func TestDeleteProvider(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	ctx := context.Background()
 
 	// Initialize the test server once for all subtests
@@ -192,6 +195,9 @@ func TestDeleteProvider(t *testing.T) {
 }
 
 func TestDeletePrimary(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	ctx := context.Background()
 
 	// Initialize the test server once for all subtests
@@ -300,6 +306,9 @@ func TestDeletePrimary(t *testing.T) {
 }
 
 func TestDeleteDag(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	resources := []ResourceDef{
 		UserDef{
 			Name:       "Featureform",
@@ -527,6 +536,9 @@ func TestDeleteDag(t *testing.T) {
 }
 
 func TestPrune(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	resources := []ResourceDef{
 		UserDef{
 			Name:       "Featureform",
@@ -663,11 +675,11 @@ func TestPrune(t *testing.T) {
 	testServer.SetResourcesReady(ctx, resourceIds)
 
 	t.Run("Prune", func(t *testing.T) {
-		markedForDeletion, err := testServer.repo.Prune(ctx, common.ResourceID{
+		markedForDeletion, err := testServer.repo.Prune2(ctx, common.ResourceID{
 			Name:    "training-set",
 			Variant: "variant",
 			Type:    common.TRAINING_SET_VARIANT,
-		})
+		}, testServer.server.deletionTaskStarter)
 		require.NoError(t, err)
 		require.Len(t, markedForDeletion, 1)
 		require.Equal(t, markedForDeletion[0].Name, "training-set")
@@ -737,19 +749,19 @@ func TestPrune(t *testing.T) {
 		require.Equal(t, res.ID().Name, "label")
 
 		// try and delete again
-		markedForDeletion, err = testServer.repo.Prune(ctx, common.ResourceID{
+		markedForDeletion, err = testServer.repo.Prune2(ctx, common.ResourceID{
 			Name:    "training-set",
 			Variant: "variant",
 			Type:    common.TRAINING_SET_VARIANT,
-		})
+		}, testServer.server.deletionTaskStarter)
 		require.NoError(t, err)
 	})
 
 	t.Run("Prune non-existent resource", func(t *testing.T) {
-		markedForDeletion, err := testServer.repo.Prune(ctx, common.ResourceID{
+		markedForDeletion, err := testServer.repo.Prune2(ctx, common.ResourceID{
 			Name: "nonExistentResource",
 			Type: common.TRAINING_SET_VARIANT,
-		})
+		}, testServer.server.deletionTaskStarter)
 		require.Error(t, err)
 		require.Nil(t, markedForDeletion)
 	})

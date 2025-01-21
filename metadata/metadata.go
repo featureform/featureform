@@ -2360,7 +2360,7 @@ func (serv *MetadataServer) PruneResource(ctx context.Context, request *pb.Prune
 		return &pb.PruneResourceResponse{}, err
 	}
 
-	resourcesMarkedForDeletion, err := serv.resourcesRepository.Prune(ctx, resId)
+	resourcesMarkedForDeletion, err := serv.resourcesRepository.Prune2(ctx, resId, serv.deletionTaskStarter)
 	if err != nil {
 		return nil, err
 	}

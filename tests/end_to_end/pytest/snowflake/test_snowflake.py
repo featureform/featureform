@@ -161,7 +161,7 @@ def test_snowflake_register_primary_dataset_different_db_schema(
     assert len(df) == 900
 
 
-def test_snowflake_prune(
+def test_prune_snowflake_transformation(
     ff_client,
     snowflake_fixture,
     snowflake_transactions_dataset,
@@ -180,20 +180,45 @@ def test_snowflake_prune(
 
     ff_client.prune(snowflake_sql_transformation)
 
-    time.sleep(2)
+    time.sleep(1.5)
 
-    cs = snowflake_connector_fixture.cursor()
-    one_row = True
+    assert not table_exists(snowflake_connector_fixture, loc)
+
+
+def test_prune_snowflake_label_registration(
+    ff_client,
+    snowflake_transactions_dataset,
+    snowflake_connector_fixture,
+):
+    @ff.entity
+    class SnowflakeUser:
+        fraudulent = ff.Label(
+            snowflake_transactions_dataset[["CustomerID", "IsFraud"]], type=ff.Bool
+        )
+
+    ff_client.apply(asynchronous=False, verbose=True)
+
+    label_loc = ff_client.location(SnowflakeUser.fraudulent)
+
+    ff_client.prune(SnowflakeUser.fraudulent)
+
+    time.sleep(1.5)
+
+    assert not table_exists(snowflake_connector_fixture, label_loc)
+
+
+def table_exists(snowflake_connector, location):
+    cs = snowflake_connector.cursor()
+    exists = -1
     try:
         cs.execute(
-            f"SELECT * FROM information_schema.tables WHERE TABLE_NAME = '{loc}'"
+            f"SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_NAME = '{location}'"
         )
-        one_row = cs.fetchone()
-        print("RESULTS AFTER PRUNE: ", one_row)
+        results = cs.fetchone()
+        exists = results[0]
     except Exception as e:
         print("ERROR: ", e)
     finally:
         cs.close()
 
-    snowflake_connector_fixture.close()
-    assert one_row is None
+    return exists > 0

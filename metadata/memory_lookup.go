@@ -82,12 +82,13 @@ func (lookup MemoryResourceLookup) Lookup(ctx context.Context, id ResourceID, op
 	logger.Infow("Get", "key", key)
 
 	options, err := NewResourceLookupOptions(opts...)
+	logger.Debugw("Resource lookup options", "options", options)
 	if err != nil {
 		logger.Errorw("Failed to create resource lookup options", "error", err)
 		return nil, err
 	}
 	qOpts := options.generateQueryOpts()
-
+	logger.Debugw("Query options", "options", qOpts, "key", key, "id", id)
 	resp, err := lookup.Connection.Get(key, qOpts...)
 	if err != nil || len(resp) == 0 {
 		return nil, fferr.NewKeyNotFoundError(key, err)

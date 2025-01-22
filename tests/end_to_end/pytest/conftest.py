@@ -33,7 +33,7 @@ def num_records_limit():
 
 @pytest.fixture(scope="function")
 def ff_client():
-    client = ff.Client(host="localhost:7878", insecure=True)
+    client = ff.Client(host="localhost:7878", insecure=True, debug=True)
 
     return client
 

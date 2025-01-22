@@ -2349,10 +2349,10 @@ func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variantReq
 
 func (serv *MetadataServer) PruneResource(ctx context.Context, request *pb.PruneResourceRequest) (*pb.PruneResourceResponse, error) {
 	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
-	logger.Infow("Pruning resource", "resource_id", request.ResourceId)
 
 	resId := common.ResourceID{Name: request.ResourceId.Resource.Name, Variant: request.ResourceId.Resource.Variant, Type: common.ResourceType(request.ResourceId.ResourceType)}
 	notCommonResId := ResourceID{Name: resId.Name, Variant: resId.Variant, Type: ResourceType(resId.Type)}
+	logger.Debugw("Pruning resource", "resource_id", request.ResourceId, "notCommonResId", notCommonResId)
 
 	_, err := serv.lookup.Lookup(ctx, notCommonResId)
 	if err != nil {

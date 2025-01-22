@@ -7,6 +7,7 @@
 
 import pytest
 import featureform as ff
+import time
 
 # The markers can be used to identify to run a subset of tests
 # pytest -m snowflake
@@ -158,3 +159,41 @@ def test_snowflake_register_primary_dataset_different_db_schema(
 
     df = ff_client.dataframe(snowflake_sql_diff_schema)
     assert len(df) == 900
+
+
+def test_snowflake_prune(
+    ff_client,
+    snowflake_fixture,
+    snowflake_transactions_dataset,
+    snowflake_connector_fixture,
+):
+    @snowflake_fixture.sql_transformation(inputs=[snowflake_transactions_dataset])
+    def snowflake_sql_transformation(tbl):
+        return (
+            "SELECT CustomerID AS user_id, avg(TransactionAmount) "
+            "AS avg_transaction_amt FROM {{ tbl }} GROUP BY user_id"
+        )
+
+    ff_client.apply(asynchronous=False, verbose=True)
+
+    loc = ff_client.location(snowflake_sql_transformation)
+
+    ff_client.prune(snowflake_sql_transformation)
+
+    time.sleep(2)
+
+    cs = snowflake_connector_fixture.cursor()
+    one_row = True
+    try:
+        cs.execute(
+            f"SELECT * FROM information_schema.tables WHERE TABLE_NAME = '{loc}'"
+        )
+        one_row = cs.fetchone()
+        print("RESULTS AFTER PRUNE: ", one_row)
+    except Exception as e:
+        print("ERROR: ", e)
+    finally:
+        cs.close()
+
+    snowflake_connector_fixture.close()
+    assert one_row is None

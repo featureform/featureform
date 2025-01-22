@@ -310,7 +310,7 @@ BEGIN
         FOR item IN SELECT jsonb_array_elements(message -> 'trainingsets')
         LOOP
             PERFORM add_edge(
-                training_set_type,
+                source_type,
                 parse_resource_key(source_variant_key, 'name'),
                 parse_resource_key(source_variant_key, 'variant'),
                 training_set_type,

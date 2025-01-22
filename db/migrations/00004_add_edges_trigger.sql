@@ -69,12 +69,14 @@ CREATE TRIGGER after_insert_ff_task_metadata
 -- +goose Down
 -- +goose StatementBegin
 
--- Drop trigger
+-- Drop the trigger
 DROP TRIGGER IF EXISTS after_insert_ff_task_metadata ON ff_task_metadata;
 
--- Drop new functions
-DROP FUNCTION IF EXISTS trigger_add_edge_from_ff_task_metadata_row();
-DROP FUNCTION IF EXISTS add_edges_from_all_ff_task_metadata();
+-- Drop the trigger function
+DROP FUNCTION IF EXISTS trigger_add_edge_from_ff_task_metadata_row;
+
+-- Drop the functions
+DROP FUNCTION IF EXISTS add_edges_from_all_ff_task_metadata;
 DROP FUNCTION IF EXISTS add_edge_from_ff_task_metadata_row(TEXT, TEXT);
 
 -- +goose StatementEnd

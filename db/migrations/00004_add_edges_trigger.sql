@@ -1,8 +1,8 @@
 -- +goose Up
 -- +goose StatementBegin
 
--- Function: add_edge_from_ff_task_metadata
-CREATE FUNCTION add_edge_from_ff_task_metadata(key TEXT, value TEXT) 
+-- Function: add_edge_from_ff_task_metadata_row
+CREATE FUNCTION add_edge_from_ff_task_metadata_row(key TEXT, value TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -21,8 +21,8 @@ BEGIN
 END;
 $$;
 
--- Function: create_edges_from_ff_task_metadata
-CREATE FUNCTION create_edges_from_ff_task_metadata() 
+-- Function: add_edges_from_all_ff_task_metadata
+CREATE FUNCTION add_edges_from_all_ff_task_metadata()
 RETURNS VOID
 LANGUAGE plpgsql
 AS $$
@@ -46,14 +46,14 @@ BEGIN
 END;
 $$;
 
--- Function: trigger_add_edge_from_ff_task_metadata
-CREATE FUNCTION trigger_add_edge_from_ff_task_metadata() 
+-- Function: trigger_add_edge_from_ff_task_metadata_row
+CREATE FUNCTION trigger_add_edge_from_ff_task_metadata_row()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
    -- Call the existing function for the new row
-   PERFORM add_edge_from_ff_task_metadata(NEW.key, NEW.value);
+   PERFORM add_edge_from_ff_task_metadata_row(NEW.key, NEW.value);
    RETURN NEW;  -- Allow the INSERT operation to proceed
 END;
 $$;
@@ -62,7 +62,7 @@ $$;
 CREATE TRIGGER after_insert_ff_task_metadata
    AFTER INSERT ON ff_task_metadata
    FOR EACH ROW
-   EXECUTE PROCEDURE trigger_add_edge_from_ff_task_metadata();
+   EXECUTE PROCEDURE trigger_add_edge_from_ff_task_metadata_row();
 
 -- +goose StatementEnd
 
@@ -73,8 +73,8 @@ CREATE TRIGGER after_insert_ff_task_metadata
 DROP TRIGGER IF EXISTS after_insert_ff_task_metadata ON ff_task_metadata;
 
 -- Drop new functions
-DROP FUNCTION IF EXISTS trigger_add_edge_from_ff_task_metadata();
-DROP FUNCTION IF EXISTS create_edges_from_ff_task_metadata();
-DROP FUNCTION IF EXISTS add_edge_from_ff_task_metadata(TEXT, TEXT);
+DROP FUNCTION IF EXISTS trigger_add_edge_from_ff_task_metadata_row();
+DROP FUNCTION IF EXISTS add_edges_from_all_ff_task_metadata();
+DROP FUNCTION IF EXISTS add_edge_from_ff_task_metadata_row(TEXT, TEXT);
 
 -- +goose StatementEnd

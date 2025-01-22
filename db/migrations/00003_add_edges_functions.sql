@@ -1,81 +1,119 @@
 -- +goose Up
 -- +goose StatementBegin
 
--- Function: extract_resource_details
-CREATE FUNCTION extract_resource_details(resource_key text, part integer) 
+-- Create enum for resource components
+CREATE TABLE resource_component (
+    component TEXT CHECK (component IN ('type', 'name', 'variant'))
+);
+
+-- Function: parse_resource_key
+CREATE FUNCTION parse_resource_key(
+    resource_key text,
+    component resource_component
+) 
 RETURNS text
-LANGUAGE sql
+LANGUAGE plpgsql
 AS $$
-SELECT SPLIT_PART(resource_key, '__', part);
+DECLARE
+    parts text[];
+BEGIN
+    -- Split the key by '__' and ensure proper array length
+    parts := string_to_array(resource_key, '__');
+    IF array_length(parts, 1) < 2 THEN
+        RETURN NULL;
+    END IF;
+
+    CASE component
+        WHEN 'type' THEN
+            RETURN parts[1];
+        WHEN 'name' THEN
+            RETURN parts[2];
+        WHEN 'variant' THEN
+            RETURN CASE 
+                WHEN array_length(parts, 1) >= 3 THEN parts[3]
+                ELSE NULL
+            END;
+    END CASE;
+END;
 $$;
 
--- Function: generate_resource_name
-CREATE FUNCTION generate_resource_name(resource_type integer, resource_name text, resource_variant text) 
+-- Function: create_resource_key
+CREATE FUNCTION create_resource_key(resource_type integer, resource_name text, resource_variant text) 
 RETURNS text
 LANGUAGE plpgsql
 AS $$
 DECLARE
     resource_type_name TEXT;
-BEGIN
+BEGIN 
     CASE resource_type
         WHEN 0 THEN resource_type_name := 'FEATURE';
-WHEN 1 THEN resource_type_name := 'LABEL';
-WHEN 2 THEN resource_type_name := 'TRAINING_SET';
-WHEN 3 THEN resource_type_name := 'SOURCE';
-WHEN 4 THEN resource_type_name := 'FEATURE_VARIANT';
-WHEN 5 THEN resource_type_name := 'LABEL_VARIANT';
-WHEN 6 THEN resource_type_name := 'TRAINING_SET_VARIANT';
-WHEN 7 THEN resource_type_name := 'SOURCE_VARIANT';
-WHEN 8 THEN resource_type_name := 'PROVIDER';
-WHEN 9 THEN resource_type_name := 'ENTITY';
-WHEN 10 THEN resource_type_name := 'MODEL';
-WHEN 11 THEN resource_type_name := 'USER';
-ELSE RAISE EXCEPTION 'Invalid resource_type: %', resource_type;
-END CASE;
+        WHEN 1 THEN resource_type_name := 'LABEL';
+        WHEN 2 THEN resource_type_name := 'TRAINING_SET';
+        WHEN 3 THEN resource_type_name := 'SOURCE';
+        WHEN 4 THEN resource_type_name := 'FEATURE_VARIANT';
+        WHEN 5 THEN resource_type_name := 'LABEL_VARIANT';
+        WHEN 6 THEN resource_type_name := 'TRAINING_SET_VARIANT';
+        WHEN 7 THEN resource_type_name := 'SOURCE_VARIANT';
+        WHEN 8 THEN resource_type_name := 'PROVIDER';
+        WHEN 9 THEN resource_type_name := 'ENTITY';
+        WHEN 10 THEN resource_type_name := 'MODEL';
+        WHEN 11 THEN resource_type_name := 'USER';
+        ELSE RAISE EXCEPTION 'Invalid resource_type: %', resource_type;
+    END CASE;
 
-IF resource_variant IS NOT NULL AND resource_variant <> '' THEN
+    IF resource_variant IS NOT NULL AND resource_variant <> '' THEN
         RETURN CONCAT(resource_type_name, '__', resource_name, '__', resource_variant);
-ELSE
+    ELSE
         RETURN CONCAT(resource_type_name, '__', resource_name, '__');
-END IF;
+    END IF;
 END;
 $$;
 
--- Function: insert_edge
-CREATE FUNCTION insert_edge(
-    from_type integer, 
-    from_name text, 
-    from_variant text, 
-    to_type integer, 
-    to_name text, 
-    to_variant text
+CREATE FUNCTION add_dependency(
+    from_type integer,        -- Resource type of the source
+    from_name text,           -- Resource name of the source
+    from_variant text,        -- Resource variant of the source
+    to_type integer,          -- Resource type of the target
+    to_name text,             -- Resource name of the target
+    to_variant text           -- Resource variant of the target
 ) 
 RETURNS void
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    -- Check if the key in ff_task_metadata has delete = false
+    -- Check if the key exists and is not marked for deletion
     IF EXISTS (
         SELECT 1
         FROM ff_task_metadata
-        WHERE key = generate_resource_name(from_type, from_name, from_variant)
-          AND marked_for_deletion_at is null
+        WHERE key = create_resource_key(from_type, from_name, from_variant)
     ) THEN
--- Perform the INSERT if the condition is satisfied
-INSERT INTO edges (
-    from_resource_type, from_resource_name, from_resource_variant,
-    to_resource_type, to_resource_name, to_resource_variant
-)
-VALUES (
-           from_type, from_name, from_variant,
-           to_type, to_name, to_variant
-       )
-ON CONFLICT DO NOTHING;
-ELSE
-        -- Raise an exception or do nothing if delete = true
-        RAISE EXCEPTION 'Cannot insert edge because key % is marked as deleted in ff_task_metadata', 
-            generate_resource_name(from_type, from_name, from_variant);
-END IF;
+        -- Check if the key is marked for deletion
+        IF EXISTS (
+            SELECT 1
+            FROM ff_task_metadata
+            WHERE key = create_resource_key(from_type, from_name, from_variant)
+              AND marked_for_deletion_at IS NULL
+        ) THEN
+            -- Insert the edge if the key is valid and not marked for deletion
+            INSERT INTO edges (
+                from_resource_type, from_resource_name, from_resource_variant,
+                to_resource_type, to_resource_name, to_resource_variant
+            )
+            VALUES (
+                from_type, from_name, from_variant,
+                to_type, to_name, to_variant
+            )
+            ON CONFLICT DO NOTHING; -- Avoid duplicate edges
+        ELSE
+            -- Raise an error if the key is marked for deletion
+            RAISE EXCEPTION 'Cannot insert edge because key % is marked as deleted in ff_task_metadata', 
+                create_resource_key(from_type, from_name, from_variant);
+        END IF;
+    ELSE
+        -- Raise an error if the key does not exist
+        RAISE EXCEPTION 'Cannot insert edge because key % does not exist in ff_task_metadata', 
+            create_resource_key(from_type, from_name, from_variant);
+    END IF;
 END;
 $$;
 
@@ -86,110 +124,110 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
     feature_type      INT := 4;  -- Resource type for feature_variant
-provider_type     INT := 8;  -- Resource type for provider
-training_set_type INT := 6;  -- Resource type for training_set_variant
-source_type       INT := 7;  -- Resource type for source_variant
-message           JSONB;     -- Parsed Message JSON
-item             JSONB;     -- Individual item in the array
+    provider_type     INT := 8;  -- Resource type for provider
+    training_set_type INT := 6;  -- Resource type for training_set_variant
+    source_type       INT := 7;  -- Resource type for source_variant
+    message           JSONB;     -- Parsed Message JSON
+    item              JSONB;     -- Individual item in the array
 BEGIN
     -- Extract the Message field as JSON
     message := (feature_variant_value::jsonb ->> 'Message')::jsonb;
 
--- Add an edge from FEATURE_VARIANT to its provider
-IF (message ->> 'provider') IS NOT NULL THEN
-        PERFORM insert_edge(
+    -- Add an edge from FEATURE_VARIANT to its provider
+    IF (message ->> 'provider') IS NOT NULL THEN
+        PERFORM add_dependency(
             provider_type,
             message ->> 'provider',
             '',
             feature_type,
-            extract_resource_details(feature_variant_key, 2),
-            extract_resource_details(feature_variant_key, 3)
+            parse_resource_key(feature_variant_key, 'name'),
+            parse_resource_key(feature_variant_key, 'variant')
         );
-END IF;
+    END IF;
 
--- Add edges from FEATURE_VARIANT to trainingsets
-IF message -> 'trainingsets' IS NOT NULL THEN
+    -- Add edges from FEATURE_VARIANT to trainingsets
+    IF message -> 'trainingsets' IS NOT NULL THEN
         FOR item IN SELECT jsonb_array_elements(message -> 'trainingsets')
-                               LOOP
-                        PERFORM insert_edge(
-                            feature_type,
-                            extract_resource_details(feature_variant_key, 2),
-                            extract_resource_details(feature_variant_key, 3),
-                            training_set_type,
-                            item ->> 'name',
-                            item ->> 'variant'
-                        );
-END LOOP;
-END IF;
+        LOOP
+            PERFORM add_dependency(
+                feature_type,
+                parse_resource_key(feature_variant_key, 'name'),
+                parse_resource_key(feature_variant_key, 'variant'),
+                training_set_type,
+                item ->> 'name',
+                item ->> 'variant'
+            );
+        END LOOP;
+    END IF;
 
--- Add an edge from FEATURE_VARIANT to its source
-IF message -> 'source' IS NOT NULL THEN
-        PERFORM insert_edge(
+    -- Add an edge from FEATURE_VARIANT to its source
+    IF message -> 'source' IS NOT NULL THEN
+        PERFORM add_dependency(
             source_type,
             ((message -> 'source')::jsonb) ->> 'name',
             ((message -> 'source')::jsonb) ->> 'variant',
             feature_type,
-            extract_resource_details(feature_variant_key, 2),
-            extract_resource_details(feature_variant_key, 3)
+            parse_resource_key(feature_variant_key, 'name'),
+            parse_resource_key(feature_variant_key, 'variant')
         );
-END IF;
+    END IF;
 END;
 $$;
 
 -- Function: process_label_variant
-CREATE FUNCTION process_label_variant(label_variant_key text, label_variant_value text)
+CREATE FUNCTION process_label_variant(label_variant_key text, label_variant_value text) 
 RETURNS void
 LANGUAGE plpgsql
 AS $$
 DECLARE
     label_type        INT := 5;  -- Resource type for label_variant
-source_type       INT := 7;  -- Resource type for source_variant
-training_set_type INT := 6;  -- Resource type for training_set_variant
-provider_type     INT := 8;  -- Resource type for provider
-message           JSONB;     -- Parsed Message JSON
-item              JSONB;     -- Individual item in JSON arrays
+    source_type       INT := 7;  -- Resource type for source_variant
+    training_set_type INT := 6;  -- Resource type for training_set_variant
+    provider_type     INT := 8;  -- Resource type for provider
+    message           JSONB;     -- Parsed Message JSON
+    item              JSONB;     -- Individual item in JSON arrays
 BEGIN
     -- Extract the Message field as JSON
     message := (label_variant_value::jsonb ->> 'Message')::jsonb;
 
--- Add edge to provider
-IF (message ->> 'provider') IS NOT NULL THEN
-        PERFORM insert_edge(
+    -- Add edge to provider
+    IF (message ->> 'provider') IS NOT NULL THEN
+        PERFORM add_dependency(
             provider_type,
             message ->> 'provider',
             '',
             label_type,
-            extract_resource_details(label_variant_key, 2),
-            extract_resource_details(label_variant_key, 3)
+            parse_resource_key(label_variant_key, 'name'),
+            parse_resource_key(label_variant_key, 'variant')
         );
-END IF;
+    END IF;
 
--- Process trainingsets array
-IF message -> 'trainingsets' IS NOT NULL THEN
+    -- Process trainingsets array
+    IF message -> 'trainingsets' IS NOT NULL THEN
         FOR item IN SELECT jsonb_array_elements(message -> 'trainingsets')
-                               LOOP
-                        PERFORM insert_edge(
-                            label_type,
-                            extract_resource_details(label_variant_key, 2),
-                            extract_resource_details(label_variant_key, 3),
-                            training_set_type,
-                            item ->> 'name',
-                            item ->> 'variant'
-                        );
-END LOOP;
-END IF;
+        LOOP
+            PERFORM add_dependency(
+                label_type,
+                parse_resource_key(label_variant_key, 'name'),
+                parse_resource_key(label_variant_key, 'variant'),
+                training_set_type,
+                item ->> 'name',
+                item ->> 'variant'
+            );
+        END LOOP;
+    END IF;
 
--- Add edge to source
-IF message -> 'source' IS NOT NULL THEN
-        PERFORM insert_edge(
+    -- Add edge to source
+    IF message -> 'source' IS NOT NULL THEN
+        PERFORM add_dependency(
             source_type,
             ((message -> 'source')::jsonb) ->> 'name',
             ((message -> 'source')::jsonb) ->> 'variant',
             label_type,
-            extract_resource_details(label_variant_key, 2),
-            extract_resource_details(label_variant_key, 3)
+            parse_resource_key(label_variant_key, 'name'),
+            parse_resource_key(label_variant_key, 'variant')
         );
-END IF;
+    END IF;
 END;
 $$;
 
@@ -197,105 +235,105 @@ $$;
 CREATE FUNCTION process_source_variant(
     source_variant_key text,
     source_variant_value text
-)
+) 
 RETURNS void
 LANGUAGE plpgsql
 AS $$
 DECLARE
     source_type       INT := 7;  -- Resource type for source_variant
-provider_type     INT := 8;  -- Resource type for provider
-feature_type      INT := 4;  -- Resource type for feature_variant
-training_set_type INT := 6;  -- Resource type for training_set_variant
-label_type        INT := 5;  -- Resource type for label_variant
-message           JSONB;     -- Parsed Message JSON
-item              JSONB;     -- Individual item in lists
+    provider_type     INT := 8;  -- Resource type for provider
+    feature_type      INT := 4;  -- Resource type for feature_variant
+    training_set_type INT := 6;  -- Resource type for training_set_variant
+    label_type        INT := 5;  -- Resource type for label_variant
+    message           JSONB;     -- Parsed Message JSON
+    item              JSONB;     -- Individual item in lists
 BEGIN
     -- Extract the Message field as JSON
     message := (source_variant_value::jsonb ->> 'Message')::jsonb;
 
--- Add an edge from SOURCE_VARIANT to its provider
-IF (message ->> 'provider') IS NOT NULL THEN
-        PERFORM insert_edge(
+    -- Add an edge from SOURCE_VARIANT to its provider
+    IF (message ->> 'provider') IS NOT NULL THEN
+        PERFORM add_dependency(
             provider_type,
             message ->> 'provider',
             '',
             source_type,
-            extract_resource_details(source_variant_key, 2),
-            extract_resource_details(source_variant_key, 3)
+            parse_resource_key(source_variant_key, 'name'),
+            parse_resource_key(source_variant_key, 'variant')
         );
-END IF;
+    END IF;
 
--- Process the "source" array in SQLTransformation or DFTransformation
-IF message -> 'transformation' -> 'SQLTransformation' -> 'source' IS NOT NULL THEN
+    -- Process the "source" array in SQLTransformation or DFTransformation
+    IF message -> 'transformation' -> 'SQLTransformation' -> 'source' IS NOT NULL THEN
         FOR item IN SELECT jsonb_array_elements(message -> 'transformation' -> 'SQLTransformation' -> 'source')
-                               LOOP
-                        PERFORM insert_edge(
-                            source_type,
-                            item ->> 'name',
-                            item ->> 'variant',
-                            source_type,
-                            extract_resource_details(source_variant_key, 2),
-                            extract_resource_details(source_variant_key, 3)
-                        );
-END LOOP;
-ELSIF message -> 'transformation' -> 'DFTransformation' -> 'inputs' IS NOT NULL THEN
+        LOOP
+            PERFORM add_dependency(
+                source_type,
+                item ->> 'name',
+                item ->> 'variant',
+                source_type,
+                parse_resource_key(source_variant_key, 'name'),
+                parse_resource_key(source_variant_key, 'variant')
+            );
+        END LOOP;
+    ELSIF message -> 'transformation' -> 'DFTransformation' -> 'inputs' IS NOT NULL THEN
         FOR item IN SELECT jsonb_array_elements(message -> 'transformation' -> 'DFTransformation' -> 'inputs')
-                               LOOP
-                        PERFORM insert_edge(
-                            source_type,
-                            item ->> 'name',
-                            item ->> 'variant',
-                            source_type,
-                            extract_resource_details(source_variant_key, 2),
-                            extract_resource_details(source_variant_key, 3)
-                        );
-END LOOP;
-END IF;
+        LOOP
+            PERFORM add_dependency(
+                source_type,
+                item ->> 'name',
+                item ->> 'variant',
+                source_type,
+                parse_resource_key(source_variant_key, 'name'),
+                parse_resource_key(source_variant_key, 'variant')
+            );
+        END LOOP;
+    END IF;
 
--- Process the "features" array
-IF message -> 'features' IS NOT NULL THEN
+    -- Process the "features" array
+    IF message -> 'features' IS NOT NULL THEN
         FOR item IN SELECT jsonb_array_elements(message -> 'features')
-                               LOOP
-                        PERFORM insert_edge(
-                            source_type,
-                            extract_resource_details(source_variant_key, 2),
-                            extract_resource_details(source_variant_key, 3),
-                            feature_type,
-                            item ->> 'name',
-                            item ->> 'variant'
-                        );
-END LOOP;
-END IF;
+        LOOP
+            PERFORM add_dependency(
+                source_type,
+                parse_resource_key(source_variant_key, 'name'),
+                parse_resource_key(source_variant_key, 'variant'),
+                feature_type,
+                item ->> 'name',
+                item ->> 'variant'
+            );
+        END LOOP;
+    END IF;
 
--- Process the "trainingsets" array
-IF message -> 'trainingsets' IS NOT NULL THEN
+    -- Process the "trainingsets" array
+    IF message -> 'trainingsets' IS NOT NULL THEN
         FOR item IN SELECT jsonb_array_elements(message -> 'trainingsets')
-                               LOOP
-                        PERFORM insert_edge(
-                            training_set_type,
-                            extract_resource_details(source_variant_key, 2),
-                            extract_resource_details(source_variant_key, 3),
-                            training_set_type,
-                            item ->> 'name',
-                            item ->> 'variant'
-                        );
-END LOOP;
-END IF;
+        LOOP
+            PERFORM add_dependency(
+                training_set_type,
+                parse_resource_key(source_variant_key, 'name'),
+                parse_resource_key(source_variant_key, 'variant'),
+                training_set_type,
+                item ->> 'name',
+                item ->> 'variant'
+            );
+        END LOOP;
+    END IF;
 
--- Process the "labels" array
-IF message -> 'labels' IS NOT NULL THEN
+    -- Process the "labels" array
+    IF message -> 'labels' IS NOT NULL THEN
         FOR item IN SELECT jsonb_array_elements(message -> 'labels')
-                               LOOP
-                        PERFORM insert_edge(
-                            source_type,
-                            extract_resource_details(source_variant_key, 2),
-                            extract_resource_details(source_variant_key, 3),
-                            label_type,
-                            item ->> 'name',
-                            item ->> 'variant'
-                        );
-END LOOP;
-END IF;
+        LOOP
+            PERFORM add_dependency(
+                source_type,
+                parse_resource_key(source_variant_key, 'name'),
+                parse_resource_key(source_variant_key, 'variant'),
+                label_type,
+                item ->> 'name',
+                item ->> 'variant'
+            );
+        END LOOP;
+    END IF;
 END;
 $$;
 
@@ -303,59 +341,59 @@ $$;
 CREATE FUNCTION process_ts_variant(
     ts_key TEXT,
     ts_value TEXT
-)
-RETURNS VOID
+) 
+RETURNS void
 LANGUAGE plpgsql
 AS $$
 DECLARE
     ts_type       INT := 6;  -- Resource type for TS_VARIANT
-provider_type INT := 8;  -- Resource type for provider
-label_type    INT := 5;  -- Resource type for label_variant
-feature_type  INT := 4;  -- Resource type for feature_variant
-message       JSONB;     -- Parsed Message JSON
-item          JSONB;     -- Individual item in lists
+    provider_type INT := 8;  -- Resource type for provider
+    label_type    INT := 5;  -- Resource type for label_variant
+    feature_type  INT := 4;  -- Resource type for feature_variant
+    message       JSONB;     -- Parsed Message JSON
+    item          JSONB;     -- Individual item in lists
 BEGIN
     -- Extract the Message field as JSON
     message := (ts_value::jsonb ->> 'Message')::jsonb;
 
--- Add an edge from TS_VARIANT to its provider
-IF (message ->> 'provider') IS NOT NULL THEN
-        PERFORM insert_edge(
+    -- Add an edge from TS_VARIANT to its provider
+    IF (message ->> 'provider') IS NOT NULL THEN
+        PERFORM add_dependency(
             provider_type,
             message ->> 'provider',
             '',
             ts_type,
-            extract_resource_details(ts_key, 2),
-            extract_resource_details(ts_key, 3)
+            parse_resource_key(ts_key, 'name'),
+            parse_resource_key(ts_key, 'variant')
         );
-END IF;
+    END IF;
 
--- Add an edge from TS_VARIANT to its label
-IF message ->> 'label' IS NOT NULL THEN
-        PERFORM insert_edge(
+    -- Add an edge from TS_VARIANT to its label
+    IF message ->> 'label' IS NOT NULL THEN
+        PERFORM add_dependency(
             label_type,
             ((message ->> 'label')::jsonb) ->> 'name',
             ((message ->> 'label')::jsonb) ->> 'variant',
             ts_type,
-            extract_resource_details(ts_key, 2),
-            extract_resource_details(ts_key, 3)
+            parse_resource_key(ts_key, 'name'),
+            parse_resource_key(ts_key, 'variant')
         );
-END IF;
+    END IF;
 
--- Add edges for features
-IF message -> 'features' IS NOT NULL THEN
+    -- Add edges for features
+    IF message -> 'features' IS NOT NULL THEN
         FOR item IN SELECT jsonb_array_elements(message -> 'features')
-                               LOOP
-                        PERFORM insert_edge(
-                            feature_type,
-                            item ->> 'name',
-                            item ->> 'variant',
-                            ts_type,
-                            extract_resource_details(ts_key, 2),
-                            extract_resource_details(ts_key, 3)
-                        );
-END LOOP;
-END IF;
+        LOOP
+            PERFORM add_dependency(
+                feature_type,
+                item ->> 'name',
+                item ->> 'variant',
+                ts_type,
+                parse_resource_key(ts_key, 'name'),
+                parse_resource_key(ts_key, 'variant')
+            );
+        END LOOP;
+    END IF;
 END;
 $$;
 
@@ -369,8 +407,12 @@ DROP FUNCTION IF EXISTS process_ts_variant(text, text);
 DROP FUNCTION IF EXISTS process_source_variant(text, text);
 DROP FUNCTION IF EXISTS process_label_variant(text, text);
 DROP FUNCTION IF EXISTS process_feature_variant(text, text);
-DROP FUNCTION IF EXISTS generate_resource_name(integer, text, text);
-DROP FUNCTION IF EXISTS extract_resource_details(text, integer);
-DROP FUNCTION IF EXISTS insert_edge(integer, text, text, integer, text, text);
+DROP FUNCTION IF EXISTS create_resource_key(integer, text, text);
+DROP FUNCTION IF EXISTS parse_resource_key(text, resource_component);
+DROP FUNCTION IF EXISTS add_dependency(integer, text, text, integer, text, text);
+
+-- Drop table
+DROP TABLE IF EXISTS resource_component;
+
 
 -- +goose StatementEnd

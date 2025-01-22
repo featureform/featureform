@@ -69,7 +69,7 @@ BEGIN
 END;
 $$;
 
-CREATE FUNCTION add_dependency(
+CREATE FUNCTION add_edge(
     from_type integer,        -- Resource type of the source
     from_name text,           -- Resource name of the source
     from_variant text,        -- Resource variant of the source
@@ -135,7 +135,7 @@ BEGIN
 
     -- Add an edge from FEATURE_VARIANT to its provider
     IF (message ->> 'provider') IS NOT NULL THEN
-        PERFORM add_dependency(
+        PERFORM add_edge(
             provider_type,
             message ->> 'provider',
             '',
@@ -149,7 +149,7 @@ BEGIN
     IF message -> 'trainingsets' IS NOT NULL THEN
         FOR item IN SELECT jsonb_array_elements(message -> 'trainingsets')
         LOOP
-            PERFORM add_dependency(
+            PERFORM add_edge(
                 feature_type,
                 parse_resource_key(feature_variant_key, 'name'),
                 parse_resource_key(feature_variant_key, 'variant'),
@@ -162,7 +162,7 @@ BEGIN
 
     -- Add an edge from FEATURE_VARIANT to its source
     IF message -> 'source' IS NOT NULL THEN
-        PERFORM add_dependency(
+        PERFORM add_edge(
             source_type,
             ((message -> 'source')::jsonb) ->> 'name',
             ((message -> 'source')::jsonb) ->> 'variant',
@@ -192,7 +192,7 @@ BEGIN
 
     -- Add edge to provider
     IF (message ->> 'provider') IS NOT NULL THEN
-        PERFORM add_dependency(
+        PERFORM add_edge(
             provider_type,
             message ->> 'provider',
             '',
@@ -206,7 +206,7 @@ BEGIN
     IF message -> 'trainingsets' IS NOT NULL THEN
         FOR item IN SELECT jsonb_array_elements(message -> 'trainingsets')
         LOOP
-            PERFORM add_dependency(
+            PERFORM add_edge(
                 label_type,
                 parse_resource_key(label_variant_key, 'name'),
                 parse_resource_key(label_variant_key, 'variant'),
@@ -219,7 +219,7 @@ BEGIN
 
     -- Add edge to source
     IF message -> 'source' IS NOT NULL THEN
-        PERFORM add_dependency(
+        PERFORM add_edge(
             source_type,
             ((message -> 'source')::jsonb) ->> 'name',
             ((message -> 'source')::jsonb) ->> 'variant',
@@ -253,7 +253,7 @@ BEGIN
 
     -- Add an edge from SOURCE_VARIANT to its provider
     IF (message ->> 'provider') IS NOT NULL THEN
-        PERFORM add_dependency(
+        PERFORM add_edge(
             provider_type,
             message ->> 'provider',
             '',
@@ -267,7 +267,7 @@ BEGIN
     IF message -> 'transformation' -> 'SQLTransformation' -> 'source' IS NOT NULL THEN
         FOR item IN SELECT jsonb_array_elements(message -> 'transformation' -> 'SQLTransformation' -> 'source')
         LOOP
-            PERFORM add_dependency(
+            PERFORM add_edge(
                 source_type,
                 item ->> 'name',
                 item ->> 'variant',
@@ -279,7 +279,7 @@ BEGIN
     ELSIF message -> 'transformation' -> 'DFTransformation' -> 'inputs' IS NOT NULL THEN
         FOR item IN SELECT jsonb_array_elements(message -> 'transformation' -> 'DFTransformation' -> 'inputs')
         LOOP
-            PERFORM add_dependency(
+            PERFORM add_edge(
                 source_type,
                 item ->> 'name',
                 item ->> 'variant',
@@ -294,7 +294,7 @@ BEGIN
     IF message -> 'features' IS NOT NULL THEN
         FOR item IN SELECT jsonb_array_elements(message -> 'features')
         LOOP
-            PERFORM add_dependency(
+            PERFORM add_edge(
                 source_type,
                 parse_resource_key(source_variant_key, 'name'),
                 parse_resource_key(source_variant_key, 'variant'),
@@ -309,7 +309,7 @@ BEGIN
     IF message -> 'trainingsets' IS NOT NULL THEN
         FOR item IN SELECT jsonb_array_elements(message -> 'trainingsets')
         LOOP
-            PERFORM add_dependency(
+            PERFORM add_edge(
                 training_set_type,
                 parse_resource_key(source_variant_key, 'name'),
                 parse_resource_key(source_variant_key, 'variant'),
@@ -324,7 +324,7 @@ BEGIN
     IF message -> 'labels' IS NOT NULL THEN
         FOR item IN SELECT jsonb_array_elements(message -> 'labels')
         LOOP
-            PERFORM add_dependency(
+            PERFORM add_edge(
                 source_type,
                 parse_resource_key(source_variant_key, 'name'),
                 parse_resource_key(source_variant_key, 'variant'),
@@ -358,7 +358,7 @@ BEGIN
 
     -- Add an edge from TS_VARIANT to its provider
     IF (message ->> 'provider') IS NOT NULL THEN
-        PERFORM add_dependency(
+        PERFORM add_edge(
             provider_type,
             message ->> 'provider',
             '',
@@ -370,7 +370,7 @@ BEGIN
 
     -- Add an edge from TS_VARIANT to its label
     IF message ->> 'label' IS NOT NULL THEN
-        PERFORM add_dependency(
+        PERFORM add_edge(
             label_type,
             ((message ->> 'label')::jsonb) ->> 'name',
             ((message ->> 'label')::jsonb) ->> 'variant',
@@ -384,7 +384,7 @@ BEGIN
     IF message -> 'features' IS NOT NULL THEN
         FOR item IN SELECT jsonb_array_elements(message -> 'features')
         LOOP
-            PERFORM add_dependency(
+            PERFORM add_edge(
                 feature_type,
                 item ->> 'name',
                 item ->> 'variant',
@@ -409,7 +409,7 @@ DROP FUNCTION IF EXISTS process_label_variant(text, text);
 DROP FUNCTION IF EXISTS process_feature_variant(text, text);
 DROP FUNCTION IF EXISTS create_resource_key(integer, text, text);
 DROP FUNCTION IF EXISTS parse_resource_key(text, resource_component);
-DROP FUNCTION IF EXISTS add_dependency(integer, text, text, integer, text, text);
+DROP FUNCTION IF EXISTS add_edge(integer, text, text, integer, text, text);
 
 -- Drop table
 DROP TABLE IF EXISTS resource_component;

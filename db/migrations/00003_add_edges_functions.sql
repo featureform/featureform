@@ -20,7 +20,7 @@ BEGIN
     -- Split the key by '__' and ensure proper array length
     parts := string_to_array(resource_key, '__');
     IF array_length(parts, 1) < 2 THEN
-        RETURN NULL;
+        RAISE EXCEPTION 'Invalid resource key format: %. Expected at least 2 parts separated by "__"', resource_key;
     END IF;
 
     CASE component

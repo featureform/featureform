@@ -11,9 +11,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/featureform/logging"
 	"github.com/featureform/provider/provider_schema"
-	"time"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
@@ -282,41 +283,41 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.L
 
 	logger.Infow("Successfully deleted feature at location", "location", featureLocation)
 
-	var featureProvider *metadata.Provider // this is the inference store
 	if featureToDelete.Provider() != "" {
-		featureProvider, err = featureToDelete.FetchProvider(t.metadata, context.Background())
+		inferenceStore, err := featureToDelete.FetchProvider(t.metadata, context.Background())
 		if err != nil {
 			logger.Errorw("Failed to fetch inference store", "error", err)
 			return err
 		}
-	}
 
-	logger.Debugw("Attempting to delete feature from online store", "name", nv.Name, "variant", nv.Variant)
-	if featureProvider != nil {
-		logger.Debugw("Deleting feature from online store")
-		onlineProvider, err := provider.Get(pt.Type(featureProvider.Type()), featureProvider.SerializedConfig())
-		if err != nil {
-			logger.Errorw("Failed to get online provider", "error", err)
-			return err
-		}
-		casted, err := onlineProvider.AsOnlineStore()
-		if err != nil {
-			logger.Errorw("Failed to cast provider as online store", "error", err)
-			return err
-		}
-
-		onlineDeleteErr := casted.DeleteTable(nv.Name, nv.Variant)
-		if onlineDeleteErr != nil {
-			var notFoundErr *fferr.DatasetNotFoundError
-			if errors.As(onlineDeleteErr, &notFoundErr) {
-				logger.Infow("Table not found in online store, continuing...")
-				// continuing
-			} else {
-				logger.Errorw("Failed to delete feature from online store", "error", onlineDeleteErr)
-				return onlineDeleteErr
+		if inferenceStore == nil {
+			logger.Debugw("Feature does not contain inference store, skipping deletion from online store")
+		} else {
+			logger.Debugw("Attempting to delete feature from online store", "name", nv.Name, "variant", nv.Variant)
+			onlineProvider, err := provider.Get(pt.Type(inferenceStore.Type()), inferenceStore.SerializedConfig())
+			if err != nil {
+				logger.Errorw("Failed to get online provider", "error", err)
+				return err
 			}
+			casted, err := onlineProvider.AsOnlineStore()
+			if err != nil {
+				logger.Errorw("Failed to cast provider as online store", "error", err)
+				return err
+			}
+
+			onlineDeleteErr := casted.DeleteTable(nv.Name, nv.Variant)
+			if onlineDeleteErr != nil {
+				var notFoundErr *fferr.DatasetNotFoundError
+				if errors.As(onlineDeleteErr, &notFoundErr) {
+					logger.Infow("Table not found in online store, continuing...")
+					// continuing
+				} else {
+					logger.Errorw("Failed to delete feature from online store", "error", onlineDeleteErr)
+					return onlineDeleteErr
+				}
+			}
+			logger.Info("Deleted feature from online store")
 		}
-		logger.Info("Deleted feature from online store")
 	}
 
 	if err := t.metadata.FinalizeDelete(context.Background(), resID); err != nil {

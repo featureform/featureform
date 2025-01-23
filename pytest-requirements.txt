@@ -17,3 +17,4 @@ python-dotenv
 s3transfer
 urllib3
 psutil
+snowflake-connector-python

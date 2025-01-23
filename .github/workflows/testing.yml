@@ -496,7 +496,6 @@ jobs:
         if: github.ref != 'refs/heads/main'
         working-directory: ./tests/end_to_end/
         env:
-          FF_TIMESTAMP_VARIANT: "false"
           FF_GET_EQUIVALENT_VARIANTS: "false"
         run: behavex -t '~@wip' -t '~@long' -t '~@av' --no-capture --no-logcapture --no-capture-stderr --parallel-processes 5 --parallel-scheme scenario
 
@@ -504,7 +503,6 @@ jobs:
         if: github.ref == 'refs/heads/main'
         working-directory: ./tests/end_to_end/
         env:
-          FF_TIMESTAMP_VARIANT: "false"
           FF_GET_EQUIVALENT_VARIANTS: "false"
         run: behavex -t '~@wip' -t '~@av' --no-capture --no-logcapture --no-capture-stderr --parallel-processes 5 --parallel-scheme scenario
 
@@ -662,16 +660,16 @@ jobs:
         if: github.ref != 'refs/heads/main'
         working-directory: ./tests/end_to_end/
         env:
-          FF_TIMESTAMP_VARIANT: "true"
           FF_GET_EQUIVALENT_VARIANTS: "true"
+          FF_AUTOVARIANT_MICROSEC: "true"
         run: behavex -t '~@wip' -t '~@long' -t '@av' --no-capture --no-logcapture --no-capture-stderr --parallel-processes 5 --parallel-scheme scenario
 
       - name: Run Behavioral Tests with Autovariants
         if: github.ref == 'refs/heads/main'
         working-directory: ./tests/end_to_end/
         env:
-          FF_TIMESTAMP_VARIANT: "true"
           FF_GET_EQUIVALENT_VARIANTS: "true"
+          FF_AUTOVARIANT_MICROSEC: "true"
         run: behavex -t '~@wip' -t '@av'  --no-capture --no-logcapture --no-capture-stderr --parallel-processes 5 --parallel-scheme scenario
 
       - name: Archive behave test results with Autovariants
@@ -826,8 +824,8 @@ jobs:
       - name: Run End to End Pytests
         working-directory: ./tests/end_to_end/pytest
         env:
-          FF_TIMESTAMP_VARIANT: "true"
           FF_GET_EQUIVALENT_VARIANTS: "true"
+          FF_AUTOVARIANT_MICROSEC: "true"
           REDIS_HOST: "172.17.0.1"
         run: pytest -vv -s -n 5 --no-cov
 

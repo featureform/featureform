@@ -5,12 +5,14 @@
 #  Copyright 2024 FeatureForm Inc.
 #
 
-from dataclasses import dataclass
-from enum import Enum, auto
-from featureform.proto import metadata_pb2 as pb
-from typeguard import typechecked
-from os import path
+from enum import Enum
 from fnmatch import fnmatch
+from os import path
+
+from dataclasses import dataclass
+from typeguard import typechecked
+
+from featureform.proto import metadata_pb2 as pb
 
 
 class ScalarType(str, Enum):

@@ -56,7 +56,7 @@ func (t *TrainingSetTask) Run() error {
 		return err
 	}
 
-	store, getStoreErr := getStore(t.BaseTask, t.metadata, ts, logger)
+	store, getStoreErr := getStore(ctx, t.BaseTask, t.metadata, ts, logger)
 	if getStoreErr != nil {
 		return getStoreErr
 	}
@@ -179,7 +179,7 @@ func (t *TrainingSetTask) handleDeletion(ctx context.Context, tsId metadata.Reso
 		return err
 	}
 	logger.Debugw("Deleting training set at location", "location", trainingSetTable)
-	store, getStoreErr := getStore(t.BaseTask, t.metadata, tsToDelete, logger)
+	store, getStoreErr := getStore(ctx, t.BaseTask, t.metadata, tsToDelete, logger)
 	if getStoreErr != nil {
 		logger.Errorw("Failed to get store", "error", getStoreErr)
 		return getStoreErr
@@ -204,6 +204,7 @@ func (t *TrainingSetTask) handleDeletion(ctx context.Context, tsId metadata.Reso
 
 	logger.Debugw("Finalizing delete")
 	if err := t.metadata.FinalizeDelete(ctx, tsId); err != nil {
+		logger.Errorw("Failed to finalize delete", "error", err)
 		return err
 	}
 

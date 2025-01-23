@@ -71,7 +71,7 @@ func (t *SourceTask) Run() error {
 		logger.Errorw("Failed to get source variant", "error", err)
 		return err
 	}
-	sourceStore, err := getStore(t.BaseTask, t.metadata, source, logger)
+	sourceStore, err := getStore(ctx, t.BaseTask, t.metadata, source, logger)
 	if err != nil {
 		logger.Errorw("Failed to get store", "error", err)
 		return err
@@ -121,7 +121,7 @@ func (t *SourceTask) handleDeletion(ctx context.Context, resID metadata.Resource
 		}
 
 		logger.Debugw("Deleting source at location", "location", tfLocation, "error", tfLocationErr)
-		sourceStore, err := getStore(t.BaseTask, t.metadata, sourceToDelete, logger)
+		sourceStore, err := getStore(ctx, t.BaseTask, t.metadata, sourceToDelete, logger)
 		if err != nil {
 			logger.Errorw("Failed to get store", "error", err)
 			return err
@@ -140,10 +140,11 @@ func (t *SourceTask) handleDeletion(ctx context.Context, resID metadata.Resource
 	}
 
 	logger.Debugw("Deleting source metadata", "resource_id", resID)
-	finalizeDeleteErr := t.metadata.FinalizeDelete(ctx, resID)
-	if finalizeDeleteErr != nil {
-		logger.Errorw("Failed to finalize delete", "error", finalizeDeleteErr)
-		return finalizeDeleteErr
+
+	logger.Debugw("Finalizing delete")
+	if err := t.metadata.FinalizeDelete(ctx, resID); err != nil {
+		logger.Errorw("Failed to finalize delete", "error", err)
+		return err
 	}
 
 	logger.Infow("Source deleted", "resource_id", resID)

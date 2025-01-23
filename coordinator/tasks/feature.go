@@ -268,7 +268,7 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 	}
 
 	logger.Debugw("Getting offline store")
-	sourceStore, err := getStore(t.BaseTask, t.metadata, offlineStoreSource, logger)
+	sourceStore, err := getStore(ctx, t.BaseTask, t.metadata, offlineStoreSource, logger)
 	if err != nil {
 		logger.Errorw("Failed to get store", "error", err)
 		return err
@@ -324,7 +324,9 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 		}
 	}
 
+	logger.Debugw("Finalizing delete")
 	if err := t.metadata.FinalizeDelete(ctx, resID); err != nil {
+		logger.Errorw("Failed to finalize delete", "error", err)
 		return err
 	}
 

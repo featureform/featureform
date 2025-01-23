@@ -12,12 +12,12 @@ type providerFetcher interface {
 	FetchProvider(*metadata.Client, context.Context) (*metadata.Provider, error)
 }
 
-func getStore(baseTask BaseTask, client *metadata.Client, pf providerFetcher, logger logging.Logger) (provider.OfflineStore, error) {
+func getStore(ctx context.Context, baseTask BaseTask, client *metadata.Client, pf providerFetcher, logger logging.Logger) (provider.OfflineStore, error) {
 	if err := client.Tasks.AddRunLog(baseTask.taskDef.TaskId, baseTask.taskDef.ID, "Fetching Offline Store..."); err != nil {
 		logger.Warnw("Failed to add run log", "error", err)
 	}
 
-	providerEntry, err := pf.FetchProvider(client, context.Background())
+	providerEntry, err := pf.FetchProvider(client, ctx)
 	if err != nil {
 		logger.Errorw("Failed to fetch provider", "error", err)
 		return nil, err

@@ -1440,7 +1440,7 @@ func fileStoreGetTrainingSet(id ResourceID, store FileStore, logger *zap.Sugared
 	}
 	trainingSetExists, err := store.Exists(pl.NewFileLocation(filepath))
 	if !trainingSetExists {
-		return nil, fferr.NewTrainingSetNotFoundError(id.Name, id.Variant, fmt.Errorf(filepath.ToURI()))
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf(filepath.ToURI()))
 	}
 	if err != nil {
 		return nil, err

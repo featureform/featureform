@@ -268,7 +268,7 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 	}
 
 	logger.Debugw("Getting offline store")
-	sourceStore, err := getStore(t.BaseTask, t.metadata, offlineStoreSource)
+	sourceStore, err := getStore(t.BaseTask, t.metadata, offlineStoreSource, logger)
 	if err != nil {
 		logger.Errorw("Failed to get store", "error", err)
 		return err

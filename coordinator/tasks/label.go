@@ -67,7 +67,7 @@ func (t *LabelTask) Run() error {
 		return err
 	}
 
-	sourceStore, getStoreErr := getStore(t.BaseTask, t.metadata, source)
+	sourceStore, getStoreErr := getStore(ctx, t.BaseTask, t.metadata, source)
 	if getStoreErr != nil {
 		return getStoreErr
 	}
@@ -149,7 +149,7 @@ func (t *LabelTask) handleDeletion(ctx context.Context, resID metadata.ResourceI
 		return tableNameErr
 	}
 
-	sourceStore, err := getStore(t.BaseTask, t.metadata, labelToDelete)
+	sourceStore, err := getStore(t.BaseTask, t.metadata, labelToDelete, logger)
 	if err != nil {
 		logger.Errorw("Failed to get store", "error", err)
 		return err

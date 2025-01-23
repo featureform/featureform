@@ -4950,7 +4950,7 @@ class ResourceClient:
             print(
                 "Run `delete` on provider after pruning to remove provider from Featureform"
             )
-        print("Deleting resource async")
+        print("Pruning resource async")
 
     def _create_prune_request(
         self,

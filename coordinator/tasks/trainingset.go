@@ -68,8 +68,19 @@ func (t *TrainingSetTask) Run() error {
 	}(store)
 
 	providerResID := provider.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: provider.TrainingSet}
-	if _, err := store.GetTrainingSet(providerResID); err == nil {
-		return err
+
+	_, getTsError := store.GetTrainingSet(providerResID)
+	var datasetNotFoundError *fferr.DatasetNotFoundError
+	tsNotFound := errors.As(getTsError, &datasetNotFoundError)
+	if tsNotFound {
+		logger.Debugw("Training set not found in store, creating new training set", "resource_id", providerResID)
+	} else {
+		if getTsError != nil {
+			logger.Errorw("Failed to get training set", "error", getTsError)
+			return getTsError
+		}
+		logger.Debugw("Training set already exists")
+		return nil
 	}
 
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for dependencies to complete..."); err != nil {

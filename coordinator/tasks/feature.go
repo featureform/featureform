@@ -301,6 +301,7 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.L
 		}
 		casted, err := onlineProvider.AsOnlineStore()
 		if err != nil {
+			logger.Errorw("Failed to cast provider as online store", "error", err)
 			return err
 		}
 

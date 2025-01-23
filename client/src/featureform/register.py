@@ -12,7 +12,7 @@ import warnings
 from abc import ABC
 from collections.abc import Iterable
 from datetime import timedelta
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union, get_args
 
 import dill
 
@@ -4886,19 +4886,9 @@ class ResourceClient:
                 set_run("")
             clear_state()
 
-    DeletableResource = Union[
-        FeatureColumnResource,
-        SubscriptableTransformation,
-        LabelColumnResource,
-        TrainingSetVariant,
-        ColumnSourceRegistrar,
-        OnlineProvider,
-        OfflineProvider,
-    ]
-
     def delete(
         self,
-        source: Union[DeletableResource, str],  #  TODO: get this typing correct
+        source: Union["DeletableResourceObjects", str],
         variant: Optional[str] = None,
         resource_type: Optional[ResourceType] = None,
     ):
@@ -4946,7 +4936,7 @@ class ResourceClient:
 
     def prune(
         self,
-        source: Union[DeletableResource, str],  # TODO: get this typing correct
+        source: Union["DeletableResourceObjects", str],  # TODO: get this typing correct
         variant: Optional[str] = None,
         resource_type: Optional[ResourceType] = None,
     ):
@@ -4964,7 +4954,7 @@ class ResourceClient:
 
     def _create_prune_request(
         self,
-        source: Union[DeletableResource, str],
+        source: Union["DeletableResourceObjects", str],
         variant: Optional[str] = None,
         resource_type: Optional[ResourceType] = None,
     ) -> metadata_pb2.PruneResourceRequest:
@@ -4974,7 +4964,7 @@ class ResourceClient:
 
     def _create_delete_request(
         self,
-        source: Union[DeletableResource, str],
+        source: Union["DeletableResourceObjects", str],
         variant: Optional[str] = None,
         resource_type: Optional[ResourceType] = None,
     ) -> metadata_pb2.MarkForDeletionRequest:
@@ -4984,7 +4974,7 @@ class ResourceClient:
 
     def _build_resource_id(
         self,
-        source: Union[DeletableResource, str],
+        source: Union["DeletableResourceObjects", str],
         variant: Optional[str] = None,
         resource_type: Optional[ResourceType] = None,
     ) -> metadata_pb2.ResourceID:
@@ -4995,6 +4985,9 @@ class ResourceClient:
                 raise ValueError(
                     "resource_type must be specified if source is a string"
                 )
+
+            if not ResourceType.is_deletable(resource_type):
+                raise ValueError("resource_type must be deletable")
 
             if resource_type == ResourceType.PROVIDER:
                 return metadata_pb2.ResourceID(
@@ -5016,21 +5009,8 @@ class ResourceClient:
                 resource_type=ResourceType.PROVIDER.to_proto(),
             )
 
-        # For other DeletableResource types
-        # TODO do this with typing
-        if not isinstance(
-            source,
-            (
-                FeatureColumnResource,
-                SubscriptableTransformation,
-                LabelColumnResource,
-                TrainingSetVariant,
-                ColumnSourceRegistrar,
-                OnlineProvider,
-                OfflineProvider,
-            ),
-        ):
-            raise ValueError("source is not deletable")
+        if not isinstance(source, get_args(DeletableResourceObjects)):
+            raise ValueError("resource is not deletable")
 
         name, variant = source.name_variant()
         return metadata_pb2.ResourceID(
@@ -6256,6 +6236,17 @@ def entity(cls):
                 resource.entity = entity
                 resource.register()
     return cls
+
+
+DeletableResourceObjects = Union[
+    FeatureColumnResource,
+    SubscriptableTransformation,
+    LabelColumnResource,
+    TrainingSetVariant,
+    ColumnSourceRegistrar,
+    OnlineProvider,
+    OfflineProvider,
+]
 
 
 global_registrar = Registrar()

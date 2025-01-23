@@ -964,6 +964,12 @@ func DeleteTableTest(t *testing.T, tester offlineSqlTest) {
 	if err := tester.storeTester.CreateDatabase(dbName); err != nil {
 		t.Fatalf("could not create database: %v", err)
 	}
+	t.Cleanup(func() {
+		if err := tester.storeTester.DropDatabase(dbName); err != nil {
+			t.Fatalf("could not drop database: %v", err)
+		}
+	})
+
 	// Create the table
 	tableName := "DUMMY_TABLE"
 	sqlLocation := location.NewSQLLocationWithDBSchemaTable(dbName, "PUBLIC", tableName).(*location.SQLLocation)

@@ -260,6 +260,22 @@ class ResourceType(Enum):
     def to_string(self) -> str:
         return self.name.replace("_", " ").title()
 
+    @classmethod
+    def is_deletable(cls, resource_type):
+        return resource_type in [
+            # cls.USER,
+            cls.PROVIDER,
+            cls.SOURCE_VARIANT,
+            # cls.ENTITY,
+            cls.FEATURE_VARIANT,
+            # cls.ONDEMAND_FEATURE,
+            cls.LABEL_VARIANT,
+            cls.TRAININGSET_VARIANT,
+            # cls.SCHEDULE,
+            # cls.MODEL,
+            cls.TRANSFORMATION,
+        ]
+
 
 @typechecked
 @dataclass

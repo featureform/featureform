@@ -81,9 +81,9 @@ func (t *FeatureTask) Run() error {
 		return err
 	}
 
-	var featureProvider *metadata.Provider // this is the inference store
+	var inferenceStore *metadata.Provider
 	if feature.Provider() != "" {
-		featureProvider, err = feature.FetchProvider(t.metadata, context.Background())
+		inferenceStore, err = feature.FetchProvider(t.metadata, context.Background())
 		if err != nil {
 			return err
 		}
@@ -164,27 +164,29 @@ func (t *FeatureTask) Run() error {
 		},
 	}
 
-	if featureProvider != nil {
-		materializedRunnerConfig.OnlineType = pt.Type(featureProvider.Type())
-		materializedRunnerConfig.OnlineConfig = featureProvider.SerializedConfig()
+	if inferenceStore != nil {
+		materializedRunnerConfig.OnlineType = pt.Type(inferenceStore.Type())
+		materializedRunnerConfig.OnlineConfig = inferenceStore.SerializedConfig()
 	} else {
 		materializedRunnerConfig.OnlineType = pt.NONE
 	}
 
-	isImportToS3Enabled, err := t.checkS3Import(featureProvider)
+	isImportToS3Enabled, err := t.checkS3Import(inferenceStore)
 	if err != nil {
 		return err
 	}
 
 	supportsDirectCopy := false
 	var onlineStore provider.OnlineStore
-	if featureProvider != nil {
-		onlineProvider, err := provider.Get(pt.Type(featureProvider.Type()), featureProvider.SerializedConfig())
+	if inferenceStore != nil {
+		onlineProvider, err := provider.Get(pt.Type(inferenceStore.Type()), inferenceStore.SerializedConfig())
 		if err != nil {
+			logger.Errorw("Failed to get online provider", "error", err)
 			return err
 		}
 		casted, err := onlineProvider.AsOnlineStore()
 		if err != nil {
+			logger.Errorw("Failed to cast provider as online store", "error", err)
 			return err
 		}
 		onlineStore = casted
@@ -313,7 +315,7 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.L
 				return onlineDeleteErr
 			}
 		}
-		logger.Debugw("Deleted feature from online store", "name", nv.Name, "variant", nv.Variant)
+		logger.Info("Deleted feature from online store")
 	}
 
 	if err := t.metadata.FinalizeDelete(context.Background(), resID); err != nil {

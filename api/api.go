@@ -122,7 +122,7 @@ func (serv *MetadataServer) PruneResource(ctx context.Context, req *pb.PruneReso
 func (serv *MetadataServer) MarkForDeletion(ctx context.Context, req *pb.MarkForDeletionRequest) (*pb.MarkForDeletionResponse, error) {
 	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
 	logger = logger.WithResource(logging.ResourceTypeFromProto(req.ResourceId.ResourceType), req.ResourceId.Resource.Name, req.ResourceId.Resource.Variant)
-	logger.Infow("Deleting Resource")
+	logger.Infow("Marking Resource for Deletion")
 
 	out, err := serv.meta.MarkForDeletion(ctx, req)
 	if err != nil {

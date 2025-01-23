@@ -28,6 +28,7 @@ type LabelTask struct {
 }
 
 func (t *LabelTask) Run() error {
+	_, ctx, logger := t.logger.InitializeRequestID(context.TODO())
 	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
 		return fferr.NewInternalErrorf("cannot create a label from target type: %s", t.taskDef.TargetType)
@@ -39,13 +40,13 @@ func (t *LabelTask) Run() error {
 		return err
 	}
 	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.LABEL_VARIANT}
-	logger := t.logger.WithResource(logging.LabelVariant, resID.Name, resID.Variant)
+	logger = t.logger.WithResource(logging.LabelVariant, resID.Name, resID.Variant)
 
 	if t.isDelete {
-		return t.handleDeletion(resID, logger)
+		return t.handleDeletion(ctx, resID, logger)
 	}
 
-	label, err := t.metadata.GetLabelVariant(context.Background(), nameVariant)
+	label, err := t.metadata.GetLabelVariant(ctx, nameVariant)
 	if err != nil {
 		return err
 	}
@@ -127,10 +128,10 @@ func (t *LabelTask) Run() error {
 	return nil
 }
 
-func (t *LabelTask) handleDeletion(resID metadata.ResourceID, logger logging.Logger) error {
+func (t *LabelTask) handleDeletion(ctx context.Context, resID metadata.ResourceID, logger logging.Logger) error {
 	logger.Infow("Deleting label")
 	labelToDelete, err := t.metadata.GetStagedForDeletionLabelVariant(
-		context.Background(),
+		ctx,
 		metadata.NameVariant{
 			Name:    resID.Name,
 			Variant: resID.Variant,
@@ -168,7 +169,7 @@ func (t *LabelTask) handleDeletion(resID metadata.ResourceID, logger logging.Log
 
 	logger.Infow("Successfully deleted label at location", "location", labelLocation)
 
-	if err := t.metadata.FinalizeDelete(context.Background(), resID); err != nil {
+	if err := t.metadata.FinalizeDelete(ctx, resID); err != nil {
 		return err
 	}
 

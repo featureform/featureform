@@ -34,15 +34,16 @@ type FeatureTask struct {
 }
 
 func (t *FeatureTask) Run() error {
+	_, ctx, logger := t.logger.InitializeRequestID(context.TODO())
 	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
 		return fferr.NewInternalErrorf("cannot create a feature from target type: %s", t.taskDef.TargetType)
 	}
 
-	logger := t.logger.WithResource(logging.FeatureVariant, nv.Name, nv.Variant)
+	logger = t.logger.WithResource(logging.FeatureVariant, nv.Name, nv.Variant)
 	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.FEATURE_VARIANT}
 	if t.isDelete {
-		return t.handleDeletion(resID, logger)
+		return t.handleDeletion(ctx, resID, logger)
 	}
 
 	logger.Info("Running feature materialization job on resource: ", nv)
@@ -50,7 +51,7 @@ func (t *FeatureTask) Run() error {
 		return err
 	}
 
-	feature, err := t.metadata.GetFeatureVariant(context.Background(), metadata.NameVariant{Name: nv.Name, Variant: nv.Variant})
+	feature, err := t.metadata.GetFeatureVariant(ctx, metadata.NameVariant{Name: nv.Name, Variant: nv.Variant})
 	if err != nil {
 		return err
 	}
@@ -69,7 +70,7 @@ func (t *FeatureTask) Run() error {
 		return err
 	}
 
-	sourceProvider, err := source.FetchProvider(t.metadata, context.Background())
+	sourceProvider, err := source.FetchProvider(t.metadata, ctx)
 	if err != nil {
 		return err
 	}
@@ -84,7 +85,7 @@ func (t *FeatureTask) Run() error {
 
 	var inferenceStore *metadata.Provider
 	if feature.Provider() != "" {
-		inferenceStore, err = feature.FetchProvider(t.metadata, context.Background())
+		inferenceStore, err = feature.FetchProvider(t.metadata, ctx)
 		if err != nil {
 			return err
 		}
@@ -237,7 +238,7 @@ func (t *FeatureTask) Run() error {
 	return nil
 }
 
-func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.Logger) error {
+func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.ResourceID, logger logging.Logger) error {
 	logger.Infow("Deleting feature")
 	featureTableName, tableNameErr := provider_schema.ResourceToTableName(provider_schema.Materialization, resID.Name, resID.Variant)
 	if tableNameErr != nil {
@@ -245,7 +246,8 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.L
 		return tableNameErr
 	}
 	featureLocation := pl.NewSQLLocation(featureTableName)
-	logger.Debugw("Deleting feature at location", "location", featureLocation)
+	logger = logger.With("location", featureLocation)
+	logger.Debugw("Deleting feature at location")
 
 	nv := metadata.NameVariant{
 		Name:    resID.Name,
@@ -253,17 +255,19 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.L
 	}
 
 	logger.Debugw("Fetching feature that's staged for deletion")
-	featureToDelete, err := t.metadata.GetStagedForDeletionFeatureVariant(context.Background(), nv)
+	featureToDelete, err := t.metadata.GetStagedForDeletionFeatureVariant(ctx, nv)
 	if err != nil {
+		logger.Errorw("Failed to fetch feature staged for deletion", "error", err)
 		return err
 	}
 
-	offlineStoreSource, err := featureToDelete.FetchSource(t.metadata, context.Background()) // ths is the offline store
+	offlineStoreSource, err := featureToDelete.FetchSource(t.metadata, ctx)
 	if err != nil {
 		logger.Errorw("Failed to fetch source", "error", err)
 		return err
 	}
 
+	logger.Debugw("Getting offline store")
 	sourceStore, err := getStore(t.BaseTask, t.metadata, offlineStoreSource)
 	if err != nil {
 		logger.Errorw("Failed to get store", "error", err)
@@ -284,7 +288,7 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.L
 	logger.Infow("Successfully deleted feature at location", "location", featureLocation)
 
 	if featureToDelete.Provider() != "" {
-		inferenceStore, err := featureToDelete.FetchProvider(t.metadata, context.Background())
+		inferenceStore, err := featureToDelete.FetchProvider(t.metadata, ctx)
 		if err != nil {
 			logger.Errorw("Failed to fetch inference store", "error", err)
 			return err
@@ -320,7 +324,7 @@ func (t *FeatureTask) handleDeletion(resID metadata.ResourceID, logger logging.L
 		}
 	}
 
-	if err := t.metadata.FinalizeDelete(context.Background(), resID); err != nil {
+	if err := t.metadata.FinalizeDelete(ctx, resID); err != nil {
 		return err
 	}
 

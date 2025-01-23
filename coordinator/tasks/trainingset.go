@@ -30,13 +30,14 @@ type TrainingSetTask struct {
 }
 
 func (t *TrainingSetTask) Run() error {
+	_, ctx, logger := t.logger.InitializeRequestID(context.TODO())
 	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
 		return fferr.NewInternalErrorf("cannot create a source from target type: %s", t.taskDef.TargetType)
 	}
 
 	tsId := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.TRAINING_SET_VARIANT}
-	logger := t.logger.WithResource(logging.TrainingSetVariant, tsId.Name, tsId.Variant)
+	logger = t.logger.WithResource(logging.TrainingSetVariant, tsId.Name, tsId.Variant)
 	logger.Info("Running training set job on resource")
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Starting Training Set Creation..."); err != nil {
 		return err
@@ -47,10 +48,10 @@ func (t *TrainingSetTask) Run() error {
 	}
 
 	if t.isDelete {
-		return t.handleDeletion(tsId, logger)
+		return t.handleDeletion(ctx, tsId, logger)
 	}
 
-	ts, err := t.metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{Name: nv.Name, Variant: nv.Variant})
+	ts, err := t.metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: nv.Name, Variant: nv.Variant})
 	if err != nil {
 		return err
 	}
@@ -91,7 +92,7 @@ func (t *TrainingSetTask) Run() error {
 	featureList := make([]provider.ResourceID, len(features))
 	for i, feature := range features {
 		featureList[i] = provider.ResourceID{Name: feature.Name, Variant: feature.Variant, Type: provider.Feature}
-		featureResource, err := t.metadata.GetFeatureVariant(context.Background(), feature)
+		featureResource, err := t.metadata.GetFeatureVariant(ctx, feature)
 		if err != nil {
 			return err
 		}
@@ -100,11 +101,11 @@ func (t *TrainingSetTask) Run() error {
 		if err != nil {
 			return err
 		}
-		_, err = t.AwaitPendingFeature(metadata.NameVariant{Name: feature.Name, Variant: feature.Variant})
+		_, err = t.AwaitPendingFeature(ctx, metadata.NameVariant{Name: feature.Name, Variant: feature.Variant})
 		if err != nil {
 			return err
 		}
-		featureSourceMappings[i], err = t.getFeatureSourceMapping(featureResource, sourceVariant)
+		featureSourceMappings[i], err = t.getFeatureSourceMapping(ctx, featureResource, sourceVariant)
 		if err != nil {
 			return err
 		}
@@ -121,7 +122,7 @@ func (t *TrainingSetTask) Run() error {
 		}
 	}
 
-	label, err := ts.FetchLabel(t.metadata, context.Background())
+	label, err := ts.FetchLabel(t.metadata, ctx)
 	if err != nil {
 		return err
 	}
@@ -130,11 +131,11 @@ func (t *TrainingSetTask) Run() error {
 	if err != nil {
 		return err
 	}
-	label, err = t.AwaitPendingLabel(metadata.NameVariant{Name: label.Name(), Variant: label.Variant()})
+	label, err = t.AwaitPendingLabel(ctx, metadata.NameVariant{Name: label.Name(), Variant: label.Variant()})
 	if err != nil {
 		return err
 	}
-	labelSourceMapping, err := t.getLabelSourceMapping(label)
+	labelSourceMapping, err := t.getLabelSourceMapping(ctx, label)
 	if err != nil {
 		return err
 	}
@@ -160,9 +161,9 @@ func (t *TrainingSetTask) Run() error {
 	return t.runTrainingSetJob(trainingSetDef, store)
 }
 
-func (t *TrainingSetTask) handleDeletion(tsId metadata.ResourceID, logger logging.Logger) error {
+func (t *TrainingSetTask) handleDeletion(ctx context.Context, tsId metadata.ResourceID, logger logging.Logger) error {
 	logger.Debugw("Deleting training set", "resource_id", tsId)
-	tsToDelete, err := t.metadata.GetStagedForDeletionTrainingSetVariant(context.Background(),
+	tsToDelete, err := t.metadata.GetStagedForDeletionTrainingSetVariant(ctx,
 		metadata.NameVariant{
 			Name:    tsId.Name,
 			Variant: tsId.Variant,
@@ -202,16 +203,16 @@ func (t *TrainingSetTask) handleDeletion(tsId metadata.ResourceID, logger loggin
 	}
 
 	logger.Debugw("Finalizing delete")
-	if err := t.metadata.FinalizeDelete(context.Background(), tsId); err != nil {
+	if err := t.metadata.FinalizeDelete(ctx, tsId); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (t *TrainingSetTask) getLabelSourceMapping(label *metadata.LabelVariant) (provider.SourceMapping, error) {
+func (t *TrainingSetTask) getLabelSourceMapping(ctx context.Context, label *metadata.LabelVariant) (provider.SourceMapping, error) {
 	logger := t.logger.With("Label", label.Name(), "variant", label.Variant())
-	labelProvider, err := label.FetchProvider(t.metadata, context.Background())
+	labelProvider, err := label.FetchProvider(t.metadata, ctx)
 	if err != nil {
 		return provider.SourceMapping{}, err
 	}
@@ -241,9 +242,9 @@ func (t *TrainingSetTask) getLabelSourceMapping(label *metadata.LabelVariant) (p
 }
 
 // **NOTE**: Given a feature's provider will always be an online store, we actually need its source's provider to grab the data for the training set.
-func (t *TrainingSetTask) getFeatureSourceMapping(feature *metadata.FeatureVariant, source *metadata.SourceVariant) (provider.SourceMapping, error) {
+func (t *TrainingSetTask) getFeatureSourceMapping(ctx context.Context, feature *metadata.FeatureVariant, source *metadata.SourceVariant) (provider.SourceMapping, error) {
 	logger := t.logger.With("Feature", feature.Name(), "variant", feature.Variant())
-	sourceProvider, err := source.FetchProvider(t.metadata, context.Background())
+	sourceProvider, err := source.FetchProvider(t.metadata, ctx)
 	if err != nil {
 		return provider.SourceMapping{}, err
 	}
@@ -272,10 +273,10 @@ func (t *TrainingSetTask) getFeatureSourceMapping(feature *metadata.FeatureVaria
 	}, nil
 }
 
-func (t *TrainingSetTask) AwaitPendingFeature(featureNameVariant metadata.NameVariant) (*metadata.FeatureVariant, error) {
+func (t *TrainingSetTask) AwaitPendingFeature(ctx context.Context, featureNameVariant metadata.NameVariant) (*metadata.FeatureVariant, error) {
 	featureStatus := scheduling.PENDING
 	for featureStatus != scheduling.READY {
-		feature, err := t.metadata.GetFeatureVariant(context.Background(), featureNameVariant)
+		feature, err := t.metadata.GetFeatureVariant(ctx, featureNameVariant)
 		if err != nil {
 			return nil, err
 		}
@@ -289,13 +290,13 @@ func (t *TrainingSetTask) AwaitPendingFeature(featureNameVariant metadata.NameVa
 		}
 		time.Sleep(1 * time.Second)
 	}
-	return t.metadata.GetFeatureVariant(context.Background(), featureNameVariant)
+	return t.metadata.GetFeatureVariant(ctx, featureNameVariant)
 }
 
-func (t *TrainingSetTask) AwaitPendingLabel(labelNameVariant metadata.NameVariant) (*metadata.LabelVariant, error) {
+func (t *TrainingSetTask) AwaitPendingLabel(ctx context.Context, labelNameVariant metadata.NameVariant) (*metadata.LabelVariant, error) {
 	labelStatus := scheduling.PENDING
 	for labelStatus != scheduling.READY {
-		label, err := t.metadata.GetLabelVariant(context.Background(), labelNameVariant)
+		label, err := t.metadata.GetLabelVariant(ctx, labelNameVariant)
 		if err != nil {
 			return nil, err
 		}
@@ -309,7 +310,7 @@ func (t *TrainingSetTask) AwaitPendingLabel(labelNameVariant metadata.NameVarian
 		}
 		time.Sleep(1 * time.Second)
 	}
-	return t.metadata.GetLabelVariant(context.Background(), labelNameVariant)
+	return t.metadata.GetLabelVariant(ctx, labelNameVariant)
 }
 
 // TODO: (Erik) expand to handle other provider types and fully qualified table names (i.e. with database and schema)

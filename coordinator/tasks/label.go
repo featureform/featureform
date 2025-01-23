@@ -67,7 +67,7 @@ func (t *LabelTask) Run() error {
 		return err
 	}
 
-	sourceStore, getStoreErr := getStore(ctx, t.BaseTask, t.metadata, source)
+	sourceStore, getStoreErr := getStore(t.BaseTask, t.metadata, source, logger)
 	if getStoreErr != nil {
 		return getStoreErr
 	}

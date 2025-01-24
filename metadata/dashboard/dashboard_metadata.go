@@ -2850,7 +2850,7 @@ func (m *MetadataServer) GetStreamIterator(ctx context.Context, source, variant 
 	m.logger.Info("Fetching the data stream...")
 	flightStream, err := client.DoGet(ctx, ticket)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch data from proxy: %w", err)
+		return nil, fmt.Errorf("failed to fetch data for source (%s) and variant (%s) from proxy: %w", err)
 	}
 
 	m.logger.Info("Creating the record reader.")
@@ -2875,7 +2875,7 @@ func (m *MetadataServer) GetStreamIterator(ctx context.Context, source, variant 
 	}, nil
 }
 
-func (si *StreamIterator) Next() bool {
+func (si StreamIterator) Next() bool {
 	hasNext := si.recordReader.Next()
 	si.currentBatch = si.recordReader.Record()
 	if !hasNext {
@@ -2884,7 +2884,7 @@ func (si *StreamIterator) Next() bool {
 	return hasNext
 }
 
-func (si *StreamIterator) Values() [][]string {
+func (si StreamIterator) Values() [][]string {
 	if si.currentBatch == nil {
 		return [][]string{}
 	}
@@ -2905,7 +2905,7 @@ func (si *StreamIterator) Values() [][]string {
 	return rowMatrix
 }
 
-func (si *StreamIterator) Columns() []string {
+func (si StreamIterator) Columns() []string {
 	return si.columns
 }
 
@@ -2913,7 +2913,7 @@ func (si *StreamIterator) Err() error {
 	return si.recordReader.Err()
 }
 
-func (si *StreamIterator) Close() error {
+func (si StreamIterator) Close() error {
 	return si.client.Close()
 }
 

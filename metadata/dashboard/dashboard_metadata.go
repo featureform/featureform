@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/apache/arrow/go/v17/arrow"
+	"github.com/apache/arrow/go/v17/arrow/flight"
 	"github.com/featureform/fferr"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
@@ -34,6 +36,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var SearchClient search.Searcher
@@ -2737,6 +2741,170 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+func (m *MetadataServer) GetStream(c *gin.Context) {
+	source := c.Query("name")
+	variant := c.Query("variant")
+
+	m.logger.Infow("Processing streaming request: %s-%s, ", source, variant)
+
+	if source == "" || variant == "" {
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetStream - Could not find the name or variant query parameters"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	var limit int64 = 100 //default the size to 100
+	response := SourceDataResponse{
+		Columns: []string{},
+		Rows:    [][]string{},
+	}
+
+	iterator, err := m.GetStreamIterator(c.Request.Context(), source, variant, limit)
+	if err != nil {
+		fetchError := &FetchError{
+			StatusCode: http.StatusInternalServerError,
+			Type:       fmt.Sprintf("GetStream - %s", err.Error()),
+		}
+		m.logger.Errorw(fetchError.Error(), "Metadata error", fetchError)
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	defer iterator.Close()
+
+	m.logger.Info("Proxy connection established, iterating stream data...")
+	for iterator.Next() {
+		iterator.currentBatch = iterator.recordReader.Record()
+		dataMatrix := iterator.Values()
+		response.Rows = append(response.Rows, dataMatrix...)
+	}
+
+	for i, columnName := range iterator.Columns() {
+		cleanName := strings.ReplaceAll(columnName, "\"", "")
+		response.Columns = append(response.Columns, cleanName)
+		if i == MaxPreviewCols {
+			response.Columns = append(
+				response.Columns,
+				fmt.Sprintf("%d More Columns...", len(iterator.Columns())-MaxPreviewCols),
+			)
+			break
+		}
+	}
+
+	m.logger.Info("Stream complete, returning response...")
+	c.JSON(http.StatusOK, response)
+}
+
+// todox: need to pull this out
+type StreamIterator struct {
+	client       flight.Client
+	flightStream flight.FlightService_DoGetClient
+	recordReader *flight.Reader
+	currentBatch arrow.Record
+	columns      []string
+}
+
+func (m *MetadataServer) GetStreamIterator(ctx context.Context, source, variant string, limit int64) (*StreamIterator, error) {
+	// todox: update the proxyAddress to use env variables
+	proxyAddress := fmt.Sprintf("iceberg-proxy:%s", "8086")
+	m.logger.Infow("Received request, forwarding to iceberg-proxy at: %v", proxyAddress)
+	insecureOption := grpc.WithTransportCredentials(insecure.NewCredentials())
+	sizeOption := grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(20 * 1024 * 1024)) //20 MB
+
+	client, clientErr := flight.NewClientWithMiddleware(proxyAddress, nil, nil, insecureOption, sizeOption)
+	if clientErr != nil {
+		m.logger.Errorf("Failed to connect to the iceberg-proxy: %v", clientErr)
+		return nil, clientErr
+	}
+
+	m.logger.Info("Connection established! Preparing the ticket for the proxy...")
+	ticketData := map[string]interface{}{
+		"source":       source,
+		"variant":      variant,
+		"resourceType": "-",
+		"limit":        limit,
+	}
+
+	ticketBytes, err := json.Marshal(ticketData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ticket: %w", err)
+	}
+
+	ticket := &flight.Ticket{Ticket: ticketBytes}
+
+	m.logger.Info("Fetching the data stream...")
+	flightStream, err := client.DoGet(ctx, ticket)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch data from proxy: %w", err)
+	}
+
+	m.logger.Info("Creating the record reader.")
+	recordReader, err := flight.NewRecordReader(flightStream)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create record reader: %w", err)
+	}
+
+	// pull the column names
+	var columns []string
+	if recordReader.Schema() != nil {
+		for _, field := range recordReader.Schema().Fields() {
+			columns = append(columns, field.Name)
+		}
+	}
+
+	return &StreamIterator{
+		client:       client,
+		flightStream: flightStream,
+		recordReader: recordReader,
+		columns:      columns,
+	}, nil
+}
+
+func (si *StreamIterator) Next() bool {
+	hasNext := si.recordReader.Next()
+	si.currentBatch = si.recordReader.Record()
+	if !hasNext {
+		si.currentBatch = nil
+	}
+	return hasNext
+}
+
+func (si *StreamIterator) Values() [][]string {
+	if si.currentBatch == nil {
+		return [][]string{}
+	}
+	rowMatrix := make([][]string, si.currentBatch.NumRows())
+	fmt.Println("number of columns: ", si.currentBatch.NumCols())
+	fmt.Println("number of data rows: ", si.currentBatch.NumRows())
+
+	for i := 0; i < int(si.currentBatch.NumCols()); i++ {
+		currentCol := si.currentBatch.Column(i)
+
+		fmt.Println("current column DATA length: ", currentCol.Len())
+		for cr := 0; cr < currentCol.Len(); cr++ {
+			cellString := currentCol.ValueStr(cr)
+
+			if rowMatrix[cr] == nil {
+				rowMatrix[cr] = []string{}
+			}
+			rowMatrix[cr] = append(rowMatrix[cr], cellString)
+		}
+	}
+	return rowMatrix
+}
+
+func (si *StreamIterator) Columns() []string {
+	return si.columns
+}
+
+func (si *StreamIterator) Err() error {
+	return si.recordReader.Err()
+}
+
+func (si *StreamIterator) Close() error {
+	return si.client.Close()
+}
+
 func (m *MetadataServer) Start(port string, local bool) error {
 	router := gin.Default()
 	if local {
@@ -2765,6 +2933,7 @@ func (m *MetadataServer) Start(port string, local bool) error {
 	router.POST("/data/entities", m.GetEntityResources)
 	router.POST("/data/providers", m.GetProviderResources)
 	router.GET("/data/:type/prop/owners", m.GetTypeOwners)
+	router.GET("/data/stream", m.GetStream)
 
 	return router.Run(port)
 }

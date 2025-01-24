@@ -68,10 +68,10 @@ export const label_variant_columns = [
           <UserBubbleSvg
               height='20'
               width='20'
-              letter={row?.owner?.[0]?.toUpperCase()}
+              letter={row?.owner?.[0]?.toUpperCase() || '---'}
             />
             <Typography variant='body2' sx={{ marginLeft: 1 }}>
-              {row?.owner}
+              {row?.owner || 'Unknown Owner'}
             </Typography>
           </div>
         </div>

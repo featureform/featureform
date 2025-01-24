@@ -45,7 +45,7 @@ export const entity_columns = [
     sortable: false,
     filterable: false,
     renderCell: function (params) {
-      const featureCount = params.row?.features ? params.row.features.length : 0;
+      const featureCount = params.row?.feature?.length ?? 0;
       return (
         <Typography variant='body1' sx={{ marginLeft: 1 }}>
           {featureCount}

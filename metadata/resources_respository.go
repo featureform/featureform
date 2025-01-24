@@ -75,8 +75,9 @@ const (
 		WHERE key = $1;`
 )
 
+type AsyncDeletionHandler func(ctx context.Context, resId ResourceID) error
+
 type ResourcesRepository interface {
-	Type() ResourcesRepositoryType
 	MarkForDeletion(ctx context.Context, resourceID common.ResourceID, asyncDeletionHandler AsyncDeletionHandler) error
 	PruneResource(ctx context.Context, resourceID common.ResourceID, asyncDeletionHandler AsyncDeletionHandler) ([]common.ResourceID, error)
 	ResourceLookup
@@ -118,30 +119,28 @@ func NewResourcesRepositoryFromLookup(resourceLookup ResourceLookup) (ResourcesR
 		case storage.PSQLMetadataStorage:
 			conn, err := help.NewPSQLPoolConnection(help.NewMetadataPSQLConfigFromEnv())
 			if err != nil {
-				return nil, fmt.Errorf("failed to create PSQL connection: %w", err)
+				return nil, fferr.NewInternalErrorf("error creating PSQL connection: %v", err)
 			}
-			return NewSqlResourcesRepository(conn, logging.NewLogger("metadata"), lookup, DefaultResourcesRepoConfig()), nil
+			return NewSqlResourcesRepository(conn, lookup, DefaultResourcesRepoConfig()), nil
 
 		default:
-			return nil, fmt.Errorf("unsupported storage type: %T", lookup.Connection.Storage.Type())
+			return nil, fferr.NewInternalErrorf("unsupported storage type: %v", lookup.Connection.Storage.Type())
 		}
 
 	default:
-		return nil, fmt.Errorf("unsupported resource lookup type: %T", resourceLookup)
+		return nil, fferr.NewInternalErrorf("unsupported resource lookup type: %T", lookup)
 	}
 }
 
 type sqlResourcesRepository struct {
 	db     *pgxpool.Pool
-	logger logging.Logger
 	config SqlRepositoryConfig
 	ResourceLookup
 }
 
-func NewSqlResourcesRepository(db *pgxpool.Pool, logger logging.Logger, lookup ResourceLookup, config SqlRepositoryConfig) ResourcesRepository {
+func NewSqlResourcesRepository(db *pgxpool.Pool, lookup ResourceLookup, config SqlRepositoryConfig) ResourcesRepository {
 	return &sqlResourcesRepository{
 		db:             db,
-		logger:         logger,
 		config:         config,
 		ResourceLookup: lookup,
 	}
@@ -160,12 +159,13 @@ func (e *transactionError) Error() string {
 	return fmt.Sprintf("transaction error: %v", e.txErr)
 }
 
-func (r *sqlResourcesRepository) withTx(ctx context.Context, fn func(pgx.Tx) error) error {
+func (r *sqlResourcesRepository) withTx(ctx context.Context, logger logging.Logger, fn func(pgx.Tx) error) error {
 	ctx, cancel := context.WithTimeout(ctx, r.config.TransactionTimeout)
 	defer cancel()
 
 	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
+		logger.Errorw("error starting transaction", "error", err)
 		return err
 	}
 
@@ -177,11 +177,13 @@ func (r *sqlResourcesRepository) withTx(ctx context.Context, fn func(pgx.Tx) err
 				rollbackErr: rbErr,
 			}
 		}
+		logger.Errorw("error rolling back transaction", "error", txErr)
 		return txErr
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit transaction: %w", err)
+		logger.Errorw("error committing transaction", "error", err)
+		return fferr.NewInternalErrorf("commit transaction: %v", err)
 	}
 	return nil
 }
@@ -199,13 +201,82 @@ func (r *sqlResourcesRepository) Type() ResourcesRepositoryType {
 	return ResourcesRepositoryTypePsql
 }
 
-func (r *sqlResourcesRepository) PruneResource(ctx context.Context, resourceID common.ResourceID, asyncDeletionHandler AsyncDeletionHandler) ([]common.ResourceID, error) {
+func (r *sqlResourcesRepository) MarkForDeletion(ctx context.Context, resourceID common.ResourceID, deletionHandler AsyncDeletionHandler) error {
+	logger := logging.GetLoggerFromContext(ctx).
+		WithResource(resourceID.Type.ToLoggingResourceType(), resourceID.Name, resourceID.Variant).
+		With("function", "MarkForDeletion")
+
+	return r.withRetry(ctx, logger, func() error {
+		return r.withTx(ctx, logger, func(tx pgx.Tx) error {
+			if err := r.checkDependencies(ctx, tx, resourceID, logger); err != nil {
+				logger.Errorw("error checking dependencies", "error", err)
+				return err
+			}
+
+			status, err := r.getStatus(ctx, tx, resourceID, logger)
+			if err != nil {
+				logger.Errorw("error getting status", "error", err)
+				return err
+			}
+
+			if status != scheduling.READY && status != scheduling.CREATED {
+				return retry.Unrecoverable(fferr.NewInternalErrorf(
+					"cannot delete resource %s %s (%s) because it is not in READY or CREATED status",
+					resourceID.Type, resourceID.Name, resourceID.Variant,
+				))
+			}
+
+			if err := r.markDeleted(ctx, tx, resourceID, logger); err != nil {
+				logger.Errorw("error marking for deletion", "error", err)
+				return err
+			}
+
+			if err := r.deleteEdges(ctx, tx, resourceID, logger); err != nil {
+				logger.Errorw("error deleting edges", "error", err)
+				return err
+			}
+
+			if err := r.deleteFromParent(ctx, tx, resourceID, logger); err != nil {
+				logger.Errorw("error deleting from parent", "error", err)
+				return err
+			}
+
+			resId := ResourceID{Name: resourceID.Name, Variant: resourceID.Variant, Type: ResourceType(resourceID.Type)}
+			resource, err := r.Lookup(ctx, resId)
+			if err != nil {
+				logger.Errorw("error looking up resource", "error", err)
+				return err
+			}
+
+			if needsJob(resource) {
+				if err := deletionHandler(ctx, resId); err != nil {
+					logger.Errorw("error executing deletion handler", "error", err)
+					return err
+				}
+			} else {
+				if err := r.hardDelete(ctx, tx, resourceID, logger); err != nil {
+					logger.Errorw("error hard deleting", "error", err)
+					return err
+				}
+			}
+			logger.Debugf("resource successfully %s marked for deletion", resourceID)
+			return nil
+		})
+	})
+}
+
+func (r *sqlResourcesRepository) PruneResource(
+	ctx context.Context,
+	resourceID common.ResourceID,
+	asyncDeletionHandler AsyncDeletionHandler,
+) ([]common.ResourceID, error) {
 	var deletedResources []common.ResourceID
-	logger := r.logger.WithResource(resourceID.Type.ToLoggingResourceType(), resourceID.Name, resourceID.Variant).
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(resourceID.Type.ToLoggingResourceType(), resourceID.Name, resourceID.Variant).
 		With("function", "prune")
 
-	err := r.withRetry(ctx, func() error {
-		return r.withTx(ctx, func(tx pgx.Tx) error {
+	err := r.withRetry(ctx, logger, func() error {
+		return r.withTx(ctx, logger, func(tx pgx.Tx) error {
 			resId := ResourceID{Name: resourceID.Name, Variant: resourceID.Variant, Type: ResourceType(resourceID.Type)}
 			_, err := r.Lookup(ctx, resId)
 			if err != nil {
@@ -215,8 +286,9 @@ func (r *sqlResourcesRepository) PruneResource(ctx context.Context, resourceID c
 
 			// Step 1: Get all dependencies
 			logger.Debugf("Getting dependencies for %s", resourceID)
-			deps, err := r.GetDependencies(ctx, tx, resourceID)
+			deps, err := r.GetDependencies(ctx, tx, resourceID, logger)
 			if err != nil {
+				logger.Errorw("error getting dependencies", "error", err)
 				return err
 			}
 
@@ -234,7 +306,7 @@ func (r *sqlResourcesRepository) PruneResource(ctx context.Context, resourceID c
 			// Step 2: Ensure all dependencies are in READY status
 			logger.Debugf("Checking dependencies are ready for %s", resourceID)
 			for _, dep := range deps {
-				status, err := r.getStatus(ctx, tx, dep)
+				status, err := r.getStatus(ctx, tx, dep, logger)
 				if err != nil {
 					logger.Errorw("error getting status for dependency", "dependency", dep, "error", err)
 					return err
@@ -251,7 +323,7 @@ func (r *sqlResourcesRepository) PruneResource(ctx context.Context, resourceID c
 			// Step 3: Mark all dependencies for deletion
 			logger.Debugf("marking dependencies for deletion for %s", resourceID)
 			for _, dep := range deps {
-				if err := r.markDeleted(ctx, tx, dep); err != nil {
+				if err := r.markDeleted(ctx, tx, dep, logger); err != nil {
 					logger.Errorf("error marking %s for deletion: %v", dep, err)
 					return err
 				}
@@ -260,7 +332,7 @@ func (r *sqlResourcesRepository) PruneResource(ctx context.Context, resourceID c
 			// Step 4: Delete edges associated with dependencies
 			logger.Debugf("deleting edges for %s", resourceID)
 			for _, dep := range deps {
-				if err := r.deleteEdges(ctx, tx, dep); err != nil {
+				if err := r.deleteEdges(ctx, tx, dep, logger); err != nil {
 					logger.Errorf("error deleting edges for %s: %v", dep, err)
 					return err
 				}
@@ -268,7 +340,7 @@ func (r *sqlResourcesRepository) PruneResource(ctx context.Context, resourceID c
 
 			for _, dep := range deps {
 				logger.Debugf("deleting from parent for %s", resourceID)
-				if err := r.deleteFromParent(ctx, tx, dep); err != nil {
+				if err := r.deleteFromParent(ctx, tx, dep, logger); err != nil {
 					logger.Errorf("error deleting from parent for %s: %v", resourceID, err)
 					return err
 				}
@@ -291,6 +363,7 @@ func (r *sqlResourcesRepository) PruneResource(ctx context.Context, resourceID c
 				}
 			}
 
+			logger.Debugf("resource %s successfully pruned", resourceID)
 			return nil
 		})
 	})
@@ -301,70 +374,7 @@ func (r *sqlResourcesRepository) PruneResource(ctx context.Context, resourceID c
 	return deletedResources, nil
 }
 
-type AsyncDeletionHandler func(ctx context.Context, resId ResourceID) error
-
-func (r *sqlResourcesRepository) MarkForDeletion(ctx context.Context, resourceID common.ResourceID, deletionHandler AsyncDeletionHandler) error {
-	logger := r.logger.WithResource(resourceID.Type.ToLoggingResourceType(), resourceID.Name, resourceID.Variant).
-		With("function", "MarkForDeletion")
-	return r.withRetry(ctx, func() error {
-		return r.withTx(ctx, func(tx pgx.Tx) error {
-			if err := r.checkDependencies(ctx, tx, resourceID); err != nil {
-				logger.Errorw("error checking dependencies", "error", err)
-				return err
-			}
-
-			status, err := r.getStatus(ctx, tx, resourceID)
-			if err != nil {
-				logger.Errorw("error getting status", "error", err)
-				return err
-			}
-
-			if status != scheduling.READY && status != scheduling.CREATED {
-				return retry.Unrecoverable(fferr.NewInternalErrorf(
-					"cannot delete resource %s %s (%s) because it is not in READY or CREATED status",
-					resourceID.Type, resourceID.Name, resourceID.Variant,
-				))
-			}
-
-			if err := r.markDeleted(ctx, tx, resourceID); err != nil {
-				logger.Errorw("error marking for deletion", "error", err)
-				return err
-			}
-
-			if err := r.deleteEdges(ctx, tx, resourceID); err != nil {
-				logger.Errorw("error deleting edges", "error", err)
-				return err
-			}
-
-			if err := r.deleteFromParent(ctx, tx, resourceID); err != nil {
-				logger.Errorw("error deleting from parent", "error", err)
-				return err
-			}
-
-			resId := ResourceID{Name: resourceID.Name, Variant: resourceID.Variant, Type: ResourceType(resourceID.Type)}
-			resource, err := r.Lookup(ctx, resId)
-			if err != nil {
-				logger.Errorw("error looking up resource", "error", err)
-				return err
-			}
-
-			if needsJob(resource) {
-				if err := deletionHandler(ctx, resId); err != nil {
-					logger.Errorw("error executing deletion handler", "error", err)
-					return err
-				}
-			} else {
-				if err := r.hardDelete(ctx, tx, resourceID); err != nil {
-					logger.Errorw("error hard deleting", "error", err)
-					return err
-				}
-			}
-			return nil
-		})
-	})
-}
-
-func (r *sqlResourcesRepository) withRetry(ctx context.Context, operation func() error) error {
+func (r *sqlResourcesRepository) withRetry(ctx context.Context, logger logging.Logger, operation func() error) error {
 	return retry.Do(
 		operation,
 		retry.Attempts(r.config.Attempts),    // Number of attempts
@@ -373,7 +383,7 @@ func (r *sqlResourcesRepository) withRetry(ctx context.Context, operation func()
 		retry.DelayType(retry.BackOffDelay),  // Exponential backoff
 		retry.RetryIf(isRetryableError),      // Only retry on specific errors
 		retry.OnRetry(func(n uint, err error) {
-			r.logger.Debugw("retrying after error",
+			logger.Debugw("retrying after error",
 				"attempt", n+1,
 				"error", err,
 				"backoff_duration", time.Duration(float64(r.config.InitialBackoff)*math.Pow(2, float64(n))),
@@ -399,10 +409,11 @@ func needsJob(res Resource) bool {
 	return false
 }
 
-func (r *sqlResourcesRepository) GetDependencies(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID) ([]common.ResourceID, error) {
+func (r *sqlResourcesRepository) GetDependencies(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID, logger logging.Logger) ([]common.ResourceID, error) {
 	var dependencies []common.ResourceID
 	rows, err := tx.Query(ctx, getDependencies, resourceID.Type, resourceID.Name, resourceID.Variant)
 	if err != nil {
+		logger.Errorw("error getting dependencies", "error", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -414,7 +425,8 @@ func (r *sqlResourcesRepository) GetDependencies(ctx context.Context, tx pgx.Tx,
 
 		// Scan each row into local variables
 		if err := rows.Scan(&depType, &depName, &depVariant); err != nil {
-			return nil, fmt.Errorf("failed to scan dependency row: %w", err)
+			logger.Errorw("error scanning dependency row", "error", err)
+			return nil, fferr.NewInternalErrorf("error scanning dependency row: %v", err)
 		}
 
 		// Append the result to the dependencies slice
@@ -427,17 +439,19 @@ func (r *sqlResourcesRepository) GetDependencies(ctx context.Context, tx pgx.Tx,
 
 	// Check for any errors during iteration
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating over dependency rows: %w", err)
+		logger.Errorw("error iterating through dependencies", "error", err)
+		return nil, fferr.NewInternalErrorf("error iterating through dependencies: %v", err)
 	}
 
 	return dependencies, nil
 }
 
-func (r *sqlResourcesRepository) checkDependencies(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID) error {
+func (r *sqlResourcesRepository) checkDependencies(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID, logger logging.Logger) error {
 	var dependencyCount int
 	if err := tx.QueryRow(ctx, sqlCountDirectDependencies,
 		resourceID.Type, resourceID.Name, resourceID.Variant).Scan(&dependencyCount); err != nil {
-		return fmt.Errorf("count dependencies: %w", err)
+		logger.Errorw("error counting direct dependencies", "error", err)
+		return fferr.NewInternalErrorf("error counting direct dependencies: %v", err
 	}
 
 	if dependencyCount > 0 {
@@ -449,14 +463,15 @@ func (r *sqlResourcesRepository) checkDependencies(ctx context.Context, tx pgx.T
 	return nil
 }
 
-func (r *sqlResourcesRepository) hardDelete(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID) error {
+func (r *sqlResourcesRepository) hardDelete(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID, logger logging.Logger) error {
 	if _, err := tx.Exec(ctx, deleteSql, resourceID.ToKey()); err != nil {
-		return fmt.Errorf("delete resource: %w", err)
+		logger.Errorw("error deleting resource", "error", err)
+		return fferr.NewInternalErrorf("error deleting resource %s: %v", resourceID.ToKey(), err
 	}
 	return nil
 }
 
-func (r *sqlResourcesRepository) getStatus(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID) (scheduling.Status, error) {
+func (r *sqlResourcesRepository) getStatus(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID, logger logging.Logger) (scheduling.Status, error) {
 	// 1. Attempt to get the latest task status first
 	const taskStatusQuery = `
 			WITH task_info AS (
@@ -505,7 +520,8 @@ func (r *sqlResourcesRepository) getStatus(ctx context.Context, tx pgx.Tx, resou
 	// 2. Try to get the task status
 	err := tx.QueryRow(ctx, taskStatusQuery, resourceID.ToKey()).Scan(&taskStatus)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return scheduling.NO_STATUS, fmt.Errorf("failed to get task status for resource %s: %w", resourceID.ToKey(), err)
+		logger.Errorw("error getting task status", "error", err)
+		return scheduling.NO_STATUS, fferr.NewInternalErrorf("failed to get task status for resource %s: %v", resourceID.ToKey(), err)
 	}
 
 	// 3. If task status is found, return it
@@ -528,7 +544,8 @@ func (r *sqlResourcesRepository) getStatus(ctx context.Context, tx pgx.Tx, resou
 		if errors.Is(err, pgx.ErrNoRows) {
 			return scheduling.NO_STATUS, nil
 		}
-		return scheduling.NO_STATUS, fmt.Errorf("failed to get direct status for resource %s: %w", resourceID.ToKey(), err)
+		logger.Errorw("error getting direct status", "error", err)
+		return scheduling.NO_STATUS, fferr.NewInternalErrorf("failed to get direct status for resource %s: %v", resourceID.ToKey(), err)
 	}
 
 	if directStatus.Valid {
@@ -538,7 +555,7 @@ func (r *sqlResourcesRepository) getStatus(ctx context.Context, tx pgx.Tx, resou
 	return scheduling.NO_STATUS, nil
 }
 
-func (r *sqlResourcesRepository) markDeleted(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID) error {
+func (r *sqlResourcesRepository) markDeleted(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID, logger logging.Logger) error {
 	var deletedKey string
 	if err := tx.QueryRow(ctx, sqlMarkAsDeleted, resourceID.ToKey()).Scan(&deletedKey); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -547,25 +564,26 @@ func (r *sqlResourcesRepository) markDeleted(ctx context.Context, tx pgx.Tx, res
 				resourceID.ToKey(),
 			))
 		}
+		logger.Errorf("error marking as deleted %s: %v", resourceID.ToKey(), err)
 		return fferr.NewInternalErrorf("mark as deleted %s: %v", resourceID.ToKey(), err)
 	}
 	return nil
 }
 
-func (r *sqlResourcesRepository) deleteEdges(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID) error {
-	if _, err := tx.Exec(ctx, sqlDeleteFromEdges,
-		resourceID.Type, resourceID.Name, resourceID.Variant); err != nil {
-		return fmt.Errorf("delete edges: %w", err)
+func (r *sqlResourcesRepository) deleteEdges(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID, logger logging.Logger) error {
+	if _, err := tx.Exec(ctx, sqlDeleteFromEdges, resourceID.Type, resourceID.Name, resourceID.Variant); err != nil {
+		logger.Errorw("error deleting edges", "error", err)
+		return fferr.NewInternalErrorf("error deleting edges for resource %s: %v", resourceID, err)
 	}
 	return nil
 }
 
 // add a delete from parent
-func (r *sqlResourcesRepository) deleteFromParent(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID) error {
+func (r *sqlResourcesRepository) deleteFromParent(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID, logger logging.Logger) error {
 	parent, hasParent := resourceID.Parent()
 	if hasParent {
 		if _, err := tx.Exec(ctx, deleteFromParent, parent.ToKey(), resourceID.Variant); err != nil {
-			r.logger.Errorw("error deleting from parent", "parent", parent, "resource", resourceID, "error", err)
+			logger.Errorw("error deleting from parent", "parent", parent, "resource", resourceID, "error", err)
 			return fferr.NewInternalErrorf("could not delete from parent %s: %v", parent, err)
 		}
 	}
@@ -581,7 +599,7 @@ func NewInMemoryResourcesRepository(lookup ResourceLookup) ResourcesRepository {
 }
 
 func (r *inMemoryResourcesRepository) MarkForDeletion(ctx context.Context, resourceID common.ResourceID, deletionHandler AsyncDeletionHandler) error {
-	return nil
+	return fferr.NewInternalErrorf("mark for deletion not supported in memory")
 }
 
 func (r *inMemoryResourcesRepository) Type() ResourcesRepositoryType {
@@ -589,5 +607,5 @@ func (r *inMemoryResourcesRepository) Type() ResourcesRepositoryType {
 }
 
 func (r *inMemoryResourcesRepository) PruneResource(ctx context.Context, resourceID common.ResourceID, deletionHandler AsyncDeletionHandler) ([]common.ResourceID, error) {
-	return nil, nil
+	return nil, fferr.NewInternalErrorf("prune resource not supported in memory")
 }

@@ -1928,6 +1928,7 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	}
 	resourcesRepo, err := NewResourcesRepositoryFromLookup(&baseLookup)
 	if err != nil {
+		config.Logger.Errorw("Failed to create resources repository", "error", err)
 		return nil, err
 	}
 
@@ -2373,11 +2374,6 @@ func (serv *MetadataServer) MarkForDeletion(ctx context.Context, request *pb.Mar
 	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
 	logger.Infow("Deleting resource", "resource_id", request.ResourceId)
 
-	if serv.resourcesRepository.Type() == ResourcesRepositoryTypeMemory {
-		logger.Infow("Deletion not supported for memory repository")
-		return &pb.MarkForDeletionResponse{}, fferr.NewInternalErrorf("Deletion not supported for memory repository")
-	}
-
 	resId := common.ResourceID{Name: request.ResourceId.Resource.Name, Variant: request.ResourceId.Resource.Variant, Type: common.ResourceType(request.ResourceId.ResourceType)}
 	notCommonResId := ResourceID{Name: resId.Name, Variant: resId.Variant, Type: ResourceType(resId.Type)}
 
@@ -2387,7 +2383,7 @@ func (serv *MetadataServer) MarkForDeletion(ctx context.Context, request *pb.Mar
 		return &pb.MarkForDeletionResponse{}, err
 	}
 
-	isDeletableErr := serv.isDeletable(ctx, resource)
+	isDeletableErr := serv.isDeletable(ctx, resource, logger)
 	if isDeletableErr != nil {
 		logger.Errorw("Could not delete resource", "error", isDeletableErr.Error())
 		return &pb.MarkForDeletionResponse{}, isDeletableErr
@@ -2500,7 +2496,7 @@ func (serv *MetadataServer) GetStagedForDeletionResource(ctx context.Context, re
 	return &pb.GetStagedForDeletionResourceResponse{ResourceVariant: rv}, nil
 }
 
-func (serv *MetadataServer) isDeletable(ctx context.Context, resource Resource) error {
+func (serv *MetadataServer) isDeletable(ctx context.Context, resource Resource, logger logging.Logger) error {
 	// we can only delete snowflake resource variants
 
 	// cast resource to source variant

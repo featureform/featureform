@@ -75,7 +75,7 @@ const (
 		WHERE key = $1;`
 )
 
-type AsyncDeletionHandler func(ctx context.Context, resId ResourceID) error
+type AsyncDeletionHandler func(ctx context.Context, resId ResourceID, logger logging.Logger) error
 
 type ResourcesRepository interface {
 	MarkForDeletion(ctx context.Context, resourceID common.ResourceID, asyncDeletionHandler AsyncDeletionHandler) error
@@ -249,7 +249,7 @@ func (r *sqlResourcesRepository) MarkForDeletion(ctx context.Context, resourceID
 			}
 
 			if needsJob(resource) {
-				if err := deletionHandler(ctx, resId); err != nil {
+				if err := deletionHandler(ctx, resId, logger); err != nil {
 					logger.Errorw("error executing deletion handler", "error", err)
 					return err
 				}
@@ -356,7 +356,7 @@ func (r *sqlResourcesRepository) PruneResource(
 					return err
 				}
 				if needsJob(resource) {
-					if err := asyncDeletionHandler(ctx, resId); err != nil {
+					if err := asyncDeletionHandler(ctx, resId, logger); err != nil {
 						logger.Errorf("error executing deletion handler for %s: %v", dep, err)
 						return err
 					}

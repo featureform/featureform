@@ -35,12 +35,15 @@ type FeatureTask struct {
 
 func (t *FeatureTask) Run() error {
 	_, ctx, logger := t.logger.InitializeRequestID(context.TODO())
+	logger.Infow("Running Feature Task")
 	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
 		return fferr.NewInternalErrorf("cannot create a feature from target type: %s", t.taskDef.TargetType)
 	}
 
-	logger = t.logger.WithResource(logging.FeatureVariant, nv.Name, nv.Variant)
+	logger = logger.WithResource(logging.FeatureVariant, nv.Name, nv.Variant).
+		With("task_id", t.taskDef.TaskId, "task_run_id", t.taskDef.ID)
+
 	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.FEATURE_VARIANT}
 	if t.isDelete {
 		logger.Debugw("Handling deletion")
@@ -97,7 +100,7 @@ func (t *FeatureTask) Run() error {
 		return typeErr
 	}
 
-	logger.Debugw("Getting feature's source location", "name", source.Name(), "variant", source.Variant())
+	logger.Debugw("Getting feature's source location")
 	var sourceLocation pl.Location
 	var sourceLocationErr error
 	if source.IsSQLTransformation() || source.IsDFTransformation() {
@@ -109,7 +112,8 @@ func (t *FeatureTask) Run() error {
 	if sourceLocationErr != nil {
 		return sourceLocationErr
 	}
-	logger.Debugw("Feature's source location", "location", sourceLocation, "location_type", sourceLocation.Type())
+	logger = logger.With("source_location", sourceLocation, "source_location_type", sourceLocation.Type())
+	logger.Debugw("Feature's source location")
 	featID := provider.ResourceID{
 		Name:    nv.Name,
 		Variant: nv.Variant,
@@ -271,14 +275,14 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 		return err
 	}
 
-	logger.Debugw("Getting offline store")
-	sourceStore, err := getStore(ctx, t.BaseTask, t.metadata, offlineStoreSource, logger)
+	logger.Debug("Getting offline store")
+	sourceStore, err := getOfflineStore(ctx, t.BaseTask, t.metadata, offlineStoreSource, logger)
 	if err != nil {
 		logger.Errorw("Failed to get store", "error", err)
 		return err
 	}
 
-	logger.Debugw("Deleting feature from offline store")
+	logger.Debug("Deleting feature from offline store")
 	if deleteErr := sourceStore.Delete(featureLocation); deleteErr != nil {
 		var notFoundErr *fferr.DatasetNotFoundError
 		if errors.As(deleteErr, &notFoundErr) {
@@ -289,7 +293,7 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 		}
 	}
 
-	logger.Infow("Successfully deleted feature at location", "location", featureLocation)
+	logger.Infow("Successfully deleted feature at location")
 
 	deleteFromOnlineStoreErr := t.deleteFromOnlineStore(ctx, featureToDelete, logger, nv)
 	if deleteFromOnlineStoreErr != nil {
@@ -307,42 +311,49 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 }
 
 func (t *FeatureTask) deleteFromOnlineStore(ctx context.Context, featureToDelete *metadata.FeatureVariant, logger logging.Logger, nv metadata.NameVariant) error {
-	if featureToDelete.Provider() != "" {
-		inferenceStore, err := featureToDelete.FetchProvider(t.metadata, ctx)
-		if err != nil {
-			logger.Errorw("Failed to fetch inference store", "error", err)
-			return err
-		}
+	if featureToDelete.Provider() == "" {
+		logger.Debugw("Feature does not contain inference store, skipping deletion from online store")
+		return nil
+	}
 
-		if inferenceStore == nil {
-			logger.Debugw("Feature does not contain inference store, skipping deletion from online store")
+	logger = logger.With("online_provider", featureToDelete.Provider())
+
+	inferenceStore, err := featureToDelete.FetchProvider(t.metadata, ctx)
+	if err != nil {
+		logger.Errorw("Failed to fetch inference store", "error", err)
+		return err
+	}
+
+	if inferenceStore == nil {
+		logger.Errorw("Received nil inference store but feature contains provider")
+		return fferr.NewInternalErrorf("received nil inference store but feature contains provider")
+	}
+
+	logger.Debugw("Attempting to delete feature from online store", "name", nv.Name, "variant", nv.Variant)
+	onlineProvider, err := provider.Get(pt.Type(inferenceStore.Type()), inferenceStore.SerializedConfig())
+	if err != nil {
+		logger.Errorw("Failed to get online provider", "error", err)
+		return err
+	}
+	casted, err := onlineProvider.AsOnlineStore()
+	if err != nil {
+		logger.Errorw("Failed to cast provider as online store", "error", err)
+		return err
+	}
+
+	onlineDeleteErr := casted.DeleteTable(nv.Name, nv.Variant)
+	if onlineDeleteErr != nil {
+		var notFoundErr *fferr.DatasetNotFoundError
+		if errors.As(onlineDeleteErr, &notFoundErr) {
+			logger.Infow("Table not found in online store, continuing...")
+			// continuing
 		} else {
-			logger.Debugw("Attempting to delete feature from online store", "name", nv.Name, "variant", nv.Variant)
-			onlineProvider, err := provider.Get(pt.Type(inferenceStore.Type()), inferenceStore.SerializedConfig())
-			if err != nil {
-				logger.Errorw("Failed to get online provider", "error", err)
-				return err
-			}
-			casted, err := onlineProvider.AsOnlineStore()
-			if err != nil {
-				logger.Errorw("Failed to cast provider as online store", "error", err)
-				return err
-			}
-
-			onlineDeleteErr := casted.DeleteTable(nv.Name, nv.Variant)
-			if onlineDeleteErr != nil {
-				var notFoundErr *fferr.DatasetNotFoundError
-				if errors.As(onlineDeleteErr, &notFoundErr) {
-					logger.Infow("Table not found in online store, continuing...")
-					// continuing
-				} else {
-					logger.Errorw("Failed to delete feature from online store", "error", onlineDeleteErr)
-					return onlineDeleteErr
-				}
-			}
-			logger.Info("Deleted feature from online store")
+			logger.Errorw("Failed to delete feature from online store", "error", onlineDeleteErr)
+			return onlineDeleteErr
 		}
 	}
+	logger.Info("Deleted feature from online store")
+
 	return nil
 }
 

@@ -115,10 +115,12 @@ func (lookup MemoryResourceLookup) Lookup(ctx context.Context, id ResourceID, op
 func (lookup MemoryResourceLookup) Delete(ctx context.Context, id ResourceID) error {
 	logger := logging.NewLogger("lookup")
 	key := createKey(id)
-	logger.Infow("Delete", "key", key)
+	logger = logger.With("key", key)
+	logger.Infow("Delete key")
 	_, err := lookup.Connection.Delete(key)
 	if err != nil {
-		return fferr.NewKeyNotFoundError(key, err)
+		logger.Errorw("Failed to delete key", "error", err)
+		return err
 	}
 	return nil
 }

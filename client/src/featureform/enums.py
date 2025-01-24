@@ -263,9 +263,6 @@ class ResourceType(Enum):
         return self.name.replace("_", " ").title()
 
     @classmethod
-    def
-
-    @classmethod
     def is_deletable(cls, resource_type):
         return resource_type in [
             # cls.USER,

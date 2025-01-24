@@ -31,8 +31,6 @@ import (
 	db "github.com/jackc/pgx/v4"
 )
 
-var sqlLogger = logging.NewLogger("sql")
-
 func sanitize(ident string) string {
 	return db.Identifier{ident}.Sanitize()
 }
@@ -396,7 +394,7 @@ func (store *sqlOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema
 		return nil, err
 	}
 
-	location, _ := pl.NewSQLLocationWithDBSchemaTable(dbName, schemaName, name).(*pl.SQLLocation)
+	location, _ := pl.NewFullyQualifiedSQLLocation(dbName, schemaName, name).(*pl.SQLLocation)
 	return &sqlPrimaryTable{
 		db:           db,
 		name:         name, // TODO get rid of this and just use location
@@ -486,7 +484,7 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 	if err != nil {
 		return nil, err
 	}
-	sqlLocation := pl.NewSQLLocationWithDBSchemaTable(dbName, schemaName, name).(*pl.SQLLocation)
+	sqlLocation := pl.NewFullyQualifiedSQLLocation(dbName, schemaName, name).(*pl.SQLLocation)
 
 	return &sqlPrimaryTable{
 		db:           store.db,

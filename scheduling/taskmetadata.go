@@ -9,7 +9,6 @@ package scheduling
 
 import (
 	"fmt"
-	"github.com/featureform/logging"
 	"sort"
 	"time"
 
@@ -27,8 +26,6 @@ import (
 const (
 	EmptyList int = iota
 )
-
-var logger = logging.NewLogger("taskmetadata")
 
 type TaskMetadataList []TaskMetadata
 

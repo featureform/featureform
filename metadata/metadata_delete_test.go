@@ -31,7 +31,7 @@ func NewMetadataPSQLConfigForTesting() helpers.PSQLConfig {
 
 func startServPsql(t *testing.T) (*MetadataServer, string) {
 	metadataPsqlConfig := NewMetadataPSQLConfigForTesting()
-	manager, err := scheduling.NewPSQLTaskMetadataManager(metadataPsqlConfig)
+	manager, err := scheduling.NewPSQLTaskMetadataManager(metadataPsqlConfig, logging.NewTestLogger(t))
 	if err != nil {
 		t.Fatalf(err.Error())
 	}

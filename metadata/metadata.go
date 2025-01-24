@@ -20,35 +20,29 @@ import (
 	"strings"
 	"time"
 
-	"github.com/featureform/metadata/common"
-	"github.com/featureform/storage/query"
-
-	"github.com/featureform/metadata/equivalence"
-
 	mapset "github.com/deckarep/golang-set/v2"
-
-	"github.com/featureform/filestore"
-	"github.com/featureform/helpers/interceptors"
-	"github.com/featureform/logging"
-	"github.com/featureform/scheduling"
+	"github.com/pkg/errors"
+	"golang.org/x/exp/slices"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
+	tspb "google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/filestore"
+	"github.com/featureform/helpers/interceptors"
 	"github.com/featureform/helpers/notifications"
-	schproto "github.com/featureform/scheduling/proto"
-
-	"github.com/pkg/errors"
-
-	"golang.org/x/exp/slices"
-
+	"github.com/featureform/logging"
+	"github.com/featureform/metadata/common"
+	"github.com/featureform/metadata/equivalence"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/metadata/search"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	ptypes "github.com/featureform/provider/types"
-	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
-	tspb "google.golang.org/protobuf/types/known/timestamppb"
+	"github.com/featureform/scheduling"
+	schproto "github.com/featureform/scheduling/proto"
+	"github.com/featureform/storage/query"
 )
 
 const TIME_FORMAT = time.RFC1123
@@ -103,6 +97,7 @@ func (r ResourceType) ToLoggingResourceType() logging.ResourceType {
 	case MODEL:
 		return logging.Model
 	default:
+		logging.GlobalLogger.DPanic("Unknown resource type", "resource-type", r)
 		return ""
 
 	}
@@ -2408,8 +2403,7 @@ func (serv *MetadataServer) MarkForDeletion(ctx context.Context, request *pb.Mar
 	return &pb.MarkForDeletionResponse{}, nil
 }
 
-func (serv *MetadataServer) deletionTaskStarter(ctx context.Context, resId ResourceID) error {
-	logger := serv.Logger.WithResource(logging.ResourceType(resId.Type), resId.Name, resId.Variant)
+func (serv *MetadataServer) deletionTaskStarter(ctx context.Context, resId ResourceID, logger logging.Logger) error {
 	logger.Infow("Handling resource deletion")
 
 	// Create deletion job for resources that need it
@@ -2585,14 +2579,15 @@ func (serv *MetadataServer) validateLabelDeletion(ctx context.Context, lv *label
 
 func (serv *MetadataServer) FinalizeDeletion(ctx context.Context, request *pb.FinalizeDeletionRequest) (*pb.FinalizeDeletionResponse, error) {
 	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
-	logger.Infow("Finalizing resource deletion", "resource_id", request.ResourceId)
+	logger = logger.WithResource(logging.ResourceType(request.ResourceId.ResourceType), request.ResourceId.Resource.Name, request.ResourceId.Resource.Variant)
+	logger.Infow("Finalizing resource deletion")
 	resId := ResourceID{Name: request.ResourceId.Resource.Name, Variant: request.ResourceId.Resource.Variant, Type: ResourceType(request.ResourceId.ResourceType)}
-
 	if err := serv.lookup.Delete(ctx, resId); err != nil {
 		logger.Error("Could not delete resource", "error", err.Error())
 		return nil, err
 	}
 
+	logger.Info("Successfully Finalized Delete")
 	return &pb.FinalizeDeletionResponse{}, nil
 }
 

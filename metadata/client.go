@@ -458,7 +458,6 @@ func (def LabelDef) ResourceType() ResourceType {
 	return LABEL_VARIANT
 }
 
-// Create To ResourceID func
 func (def LabelDef) ResourceID() ResourceID {
 	return ResourceID{
 		Name:    def.Name,
@@ -636,7 +635,6 @@ func (def TrainingSetDef) ResourceType() ResourceType {
 	return TRAINING_SET_VARIANT
 }
 
-// Create To ResourceID func
 func (def TrainingSetDef) ResourceID() ResourceID {
 	return ResourceID{
 		Name:    def.Name,
@@ -881,7 +879,6 @@ func (def SourceDef) ResourceType() ResourceType {
 	return SOURCE_VARIANT
 }
 
-// Create To ResourceID func
 func (def SourceDef) ResourceID() ResourceID {
 	return ResourceID{
 		Name:    def.Name,
@@ -1085,7 +1082,6 @@ func (def UserDef) ResourceType() ResourceType {
 	return USER
 }
 
-// Create To ResourceID func
 func (def UserDef) ResourceID() ResourceID {
 	return ResourceID{
 		Name: def.Name,
@@ -1138,6 +1134,10 @@ func (client *Client) ListProviders(ctx context.Context) ([]*Provider, error) {
 }
 
 func (client *Client) GetProvider(ctx context.Context, provider string) (*Provider, error) {
+	if provider == "" {
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("provider cannot be empty"))
+	}
+
 	providerList, err := client.GetProviders(ctx, []string{provider})
 	if err != nil {
 		return nil, err
@@ -1372,7 +1372,7 @@ func (client *Client) GetStagedForDeletionSourceVariant(ctx context.Context, id 
 	variant := res.GetSourceVariant()
 	if variant == nil {
 		logger.Error("Resource is not a source variant")
-		return nil, fmt.Errorf("staged resource is not a source variant")
+		return nil, fferr.NewInternalErrorf("staged resource is not a source variant")
 	}
 	return WrapProtoSourceVariant(variant), nil
 }
@@ -1394,7 +1394,7 @@ func (client *Client) GetStagedForDeletionTrainingSetVariant(ctx context.Context
 	variant := res.GetTrainingSetVariant()
 	if variant == nil {
 		logger.Error("Resource is not a training set variant")
-		return nil, fmt.Errorf("staged resource is not a training set variant")
+		return nil, fferr.NewInternalErrorf("staged resource is not a training set variant")
 	}
 	return WrapProtoTrainingSetVariant(variant), nil
 }
@@ -1472,7 +1472,6 @@ func (def ModelDef) ResourceType() ResourceType {
 	return MODEL
 }
 
-// Create To ResourceID func
 func (def ModelDef) ResourceID() ResourceID {
 	return ResourceID{
 		Name: def.Name,
@@ -3049,7 +3048,7 @@ func (variant *SourceVariant) GetPrimaryLocation() (pl.Location, error) {
 	}
 	switch pt := variant.serialized.GetPrimaryData().GetLocation().(type) {
 	case *pb.PrimaryData_Table:
-		return pl.NewSQLLocationWithDBSchemaTable(
+		return pl.NewFullyQualifiedSQLLocation(
 			pt.Table.GetDatabase(),
 			pt.Table.GetSchema(),
 			pt.Table.GetName(),
@@ -3075,7 +3074,7 @@ func (variant *SourceVariant) GetTransformationLocation() (pl.Location, error) {
 	switch pt := variant.serialized.GetTransformation().GetLocation().(type) {
 	case *pb.Transformation_Table:
 		table := pt.Table.GetName()
-		return pl.NewSQLLocationWithDBSchemaTable(pt.Table.GetDatabase(), pt.Table.GetSchema(), table), nil
+		return pl.NewFullyQualifiedSQLLocation(pt.Table.GetDatabase(), pt.Table.GetSchema(), table), nil
 		//return pl.NewSQLLocation(table), nil
 	case *pb.Transformation_Filestore:
 		fp := filestore.FilePath{}

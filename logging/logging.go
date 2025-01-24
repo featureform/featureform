@@ -84,6 +84,7 @@ func ResourceTypeFromProto(resourceType proto.ResourceType) ResourceType {
 	case proto.ResourceType_LABEL_VARIANT:
 		return LabelVariant
 	default:
+		GlobalLogger.Errorw("Unknown resource type", "resource-type", resourceType)
 		return ""
 	}
 }
@@ -119,15 +120,15 @@ func (logger Logger) withRequestID(id RequestID) Logger {
 	valuesWithRequestID := logger.appendValueMap(map[string]interface{}{"request-id": id})
 	return Logger{
 		SugaredLogger: logger.SugaredLogger.With("request-id", id),
-		id:     id,
-		values: valuesWithRequestID,
+		id:            id,
+		values:        valuesWithRequestID,
 	}
 }
 
 func (logger Logger) With(args ...interface{}) Logger {
 	if len(args)%2 != 0 {
-	    GlobalLogger.Errorw("Odd number of arguments passed to With. Skipping.", "args", args)
-	    return logger
+		GlobalLogger.Errorw("Odd number of arguments passed to With. Skipping.", "args", args)
+		return logger
 	}
 	valueMap := make(map[string]interface{})
 	for i := 0; i < len(args); i += 2 {
@@ -139,12 +140,12 @@ func (logger Logger) With(args ...interface{}) Logger {
 			)
 			return logger
 		}
-		valueMap[str] = args[i + 1]
+		valueMap[str] = args[i+1]
 	}
 	return Logger{
 		SugaredLogger: logger.SugaredLogger.With(args...),
-		id:     logger.id,
-		values: logger.appendValueMap(valueMap),
+		id:            logger.id,
+		values:        logger.appendValueMap(valueMap),
 	}
 }
 

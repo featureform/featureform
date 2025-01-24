@@ -96,17 +96,19 @@ func (psql *psqlStorageImplementation) Get(key string, opts ...query.Query) (str
 		Value: key,
 	})
 
-	psql.logger.Infow("Getting key with options", "options", opts, "table", psql.tableName)
+	logger := psql.logger.With("key", key, "options", opts, "table", psql.tableName)
+	logger.Infow("Getting key with options")
 	qry, err := sqlgen.NewListQuery(psql.tableName, opts, query.SQLColumn{Column: "value"})
 	if err != nil {
-		psql.logger.Errorw("qry builder failed", "error", err)
+		logger.Errorw("qry builder failed", "error", err)
 		return "", err
 	}
 
 	qryStr, args, err := qry.Compile()
-	psql.logger.Debugw("get: compiled query", "query", qryStr, "args", args)
+	logger = logger.With("query", qryStr, "args", args)
+	logger.Debugw("get: compiled query", "query", qryStr, "args", args)
 	if err != nil {
-		psql.logger.Errorw("Failed to compile get query", "error", err, "query", qryStr)
+		logger.Errorw("Failed to compile get query", "error", err)
 		return "", err
 	}
 	row := psql.db.QueryRow(context.Background(), qryStr, args...)
@@ -114,7 +116,7 @@ func (psql *psqlStorageImplementation) Get(key string, opts ...query.Query) (str
 	var value string
 	if err := row.Scan(&value); err != nil {
 		psql.logger.Errorw("Failed to scan row", "error", err)
-		return "", fferr.NewInternalErrorf("failed to get key %s: %w", key, err)
+		return "", fferr.NewInternalErrorf("failed to get key %s: %v", key, err)
 	}
 
 	return value, nil
@@ -122,22 +124,24 @@ func (psql *psqlStorageImplementation) Get(key string, opts ...query.Query) (str
 
 func (psql *psqlStorageImplementation) List(prefix string, opts ...query.Query) (map[string]string, error) {
 	opts = append(opts, query.KeyPrefix{Prefix: prefix})
-	psql.logger.Infow("Listing keys with options", "options", opts, "table", psql.tableName)
+	logger := psql.logger.With("prefix", prefix, "options", opts, "table", psql.tableName)
+	logger.Infow("Listing keys with options")
 	qry, err := sqlgen.NewListQuery(psql.tableName, opts)
 	if err != nil {
 		psql.logger.Errorw("List failed", "error", err)
 		return nil, err
 	}
 	qryStr, args, err := qry.Compile()
-	psql.logger.Debugw("List: Compiled query", "query", qryStr, "args", args)
+	logger = logger.With("query", qryStr, "args", args)
+	logger.Debugw("List: Compiled query")
 	if err != nil {
-		psql.logger.Errorw("Failed to compile list query", "error", err, "query", qry)
+		logger.Errorw("Failed to compile list query", "error", err)
 		return nil, err
 	}
 	rows, err := psql.db.Query(context.TODO(), qryStr, args...)
 	if err != nil {
-		psql.logger.Errorw("List failed", "error", err)
-		return nil, fferr.NewInternalErrorf("failed to list keys with prefix %s: %w", prefix, err)
+		logger.Errorw("List failed", "error", err)
+		return nil, fferr.NewInternalErrorf("failed to list keys with prefix %s: %v", prefix, err)
 	}
 
 	result := make(map[string]string)

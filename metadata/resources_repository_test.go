@@ -156,13 +156,16 @@ func TestDeleteProvider(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify the provider is marked for deletion
-		_, err = testServer.repo.Lookup(ctx, ResourceID{
+		res, err := testServer.repo.Lookup(ctx, ResourceID{
 			Name: "mockOfflineToDelete",
 			Type: PROVIDER,
 		}, DeleteLookupOption{DeletedOnly})
 
 		var keyNotFoundErr *fferr.KeyNotFoundError
 		require.ErrorAs(t, err, &keyNotFoundErr)
+		require.NotNil(t, res)
+		require.Equal(t, res.ID().Name, "mockOfflineToDelete")
+
 	})
 
 	t.Run("Delete non-existent provider", func(t *testing.T) {

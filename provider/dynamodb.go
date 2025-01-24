@@ -372,7 +372,7 @@ func (store *dynamodbOnlineStore) CheckHealth() (bool, error) {
 }
 
 func (store dynamodbOnlineStore) Delete(location pl.Location) error {
-	return fferr.NewInternalErrorf("delete not implemented")
+	return fferr.NewInternalErrorf("delete not implemented as dynamodb doesn't support location")
 }
 
 // TODO(simba) Make this work with Serialize V1

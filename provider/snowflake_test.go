@@ -600,14 +600,14 @@ func CrossDatabaseJoinTest(t *testing.T, tester offlineSqlTest) {
 	})
 
 	tableName1 := "DUMMY_TABLE"
-	sqlLocation := location.NewSQLLocationWithDBSchemaTable(dbName, "PUBLIC", tableName1).(*location.SQLLocation)
+	sqlLocation := location.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", tableName1).(*location.SQLLocation)
 	records, err := createDummyTable(tester.storeTester, *sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	tableName2 := "DUMMY_TABLE2"
-	sqlLocation2 := location.NewSQLLocationWithDBSchemaTable(dbName2, "PUBLIC", tableName2).(*location.SQLLocation)
+	sqlLocation2 := location.NewFullyQualifiedSQLLocation(dbName2, "PUBLIC", tableName2).(*location.SQLLocation)
 	records2, err := createDummyTable(tester.storeTester, *sqlLocation2, 10)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
@@ -674,14 +674,14 @@ func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester offlineSqlTest) {
 
 	// Create the first table
 	tableName := "DUMMY_TABLE"
-	sqlLocation := location.NewSQLLocationWithDBSchemaTable("", schemaName1, tableName).(*location.SQLLocation)
+	sqlLocation := location.NewFullyQualifiedSQLLocation("", schemaName1, tableName).(*location.SQLLocation)
 	records, err := createDummyTable(tester.storeTester, *sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	// Create the second table using the same table name
-	sqlLocation2 := location.NewSQLLocationWithDBSchemaTable("", schemaName2, tableName).(*location.SQLLocation)
+	sqlLocation2 := location.NewFullyQualifiedSQLLocation("", schemaName2, tableName).(*location.SQLLocation)
 	records2, err := createDummyTable(tester.storeTester, *sqlLocation2, 10)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
@@ -730,7 +730,7 @@ func RegisterTableInDifferentDatabaseTest(t *testing.T, storeTester offlineSqlTe
 
 	// Create the table
 	tableName := "DUMMY_TABLE"
-	sqlLocation := location.NewSQLLocationWithDBSchemaTable(dbName, schemaName, tableName).(*location.SQLLocation)
+	sqlLocation := location.NewFullyQualifiedSQLLocation(dbName, schemaName, tableName).(*location.SQLLocation)
 	records, err := createDummyTable(storeTester.storeTester, *sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
@@ -756,7 +756,7 @@ func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester of
 
 	// Create the table
 	tableName := "DUMMY_TABLE"
-	sqlLocation := location.NewSQLLocationWithDBSchemaTable("", schemaName, tableName).(*location.SQLLocation)
+	sqlLocation := location.NewFullyQualifiedSQLLocation("", schemaName, tableName).(*location.SQLLocation)
 	records, err := createDummyTable(storeTester.storeTester, *sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
@@ -972,7 +972,7 @@ func DeleteTableTest(t *testing.T, tester offlineSqlTest) {
 
 	// Create the table
 	tableName := "DUMMY_TABLE"
-	sqlLocation := location.NewSQLLocationWithDBSchemaTable(dbName, "PUBLIC", tableName).(*location.SQLLocation)
+	sqlLocation := location.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", tableName).(*location.SQLLocation)
 	_, err := createDummyTable(tester.storeTester, *sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
@@ -987,7 +987,7 @@ func DeleteNotExistingTableTest(t *testing.T, tester offlineSqlTest) {
 	if err := tester.storeTester.CreateDatabase(dbName); err != nil {
 		t.Fatalf("could not create database: %v", err)
 	}
-	loc := location.NewSQLLocationWithDBSchemaTable(dbName, "PUBLIC", "NOT_EXISTING_TABLE").(*location.SQLLocation)
+	loc := location.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", "NOT_EXISTING_TABLE").(*location.SQLLocation)
 	deleteErr := tester.storeTester.Delete(loc)
 	if deleteErr == nil {
 		t.Fatalf("expected error deleting table")

@@ -50,6 +50,7 @@ func (r ResourceType) ToLoggingResourceType() logging.ResourceType {
 	case MODEL:
 		return logging.Model
 	default:
+		logging.GlobalLogger.DPanic("Unknown resource type", "resource-type", r)
 		return ""
 
 	}

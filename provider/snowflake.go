@@ -187,7 +187,7 @@ func (sf *snowflakeOfflineStore) RegisterResourceFromSourceTable(id ResourceID, 
 			query:        sf.sqlOfflineStore.query,
 			providerType: pt.SnowflakeOffline,
 		},
-		location: pl.NewSQLLocationWithDBSchemaTable(snowflakeConfig.Database, snowflakeConfig.Schema, tableName),
+		location: pl.NewFullyQualifiedSQLLocation(snowflakeConfig.Database, snowflakeConfig.Schema, tableName),
 	}, nil
 }
 
@@ -212,7 +212,7 @@ func (sf *snowflakeOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, 
 	if schema == "" {
 		schema = "PUBLIC"
 	}
-	loc := pl.NewSQLLocationWithDBSchemaTable(config.Database, schema, tableName)
+	loc := pl.NewFullyQualifiedSQLLocation(config.Database, schema, tableName)
 
 	if exists, err := sf.sqlOfflineStore.tableExists(loc); err != nil {
 		return nil, err

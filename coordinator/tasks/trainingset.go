@@ -31,13 +31,16 @@ type TrainingSetTask struct {
 
 func (t *TrainingSetTask) Run() error {
 	_, ctx, logger := t.logger.InitializeRequestID(context.TODO())
+	logger.Info("Running training set task")
 	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
+		logger.Errorw("cannot create a source from target type", "type", t.taskDef.TargetType)
 		return fferr.NewInternalErrorf("cannot create a source from target type: %s", t.taskDef.TargetType)
 	}
 
 	tsId := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.TRAINING_SET_VARIANT}
-	logger = t.logger.WithResource(logging.TrainingSetVariant, tsId.Name, tsId.Variant)
+	logger = t.logger.WithResource(logging.TrainingSetVariant, tsId.Name, tsId.Variant).
+		With("task_id", t.taskDef.TaskId, "task_run_id", t.taskDef.ID)
 	logger.Info("Running training set job on resource")
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Starting Training Set Creation..."); err != nil {
 		return err
@@ -57,7 +60,7 @@ func (t *TrainingSetTask) Run() error {
 		return err
 	}
 
-	store, getStoreErr := getStore(ctx, t.BaseTask, t.metadata, ts, logger)
+	store, getStoreErr := getOfflineStore(ctx, t.BaseTask, t.metadata, ts, logger)
 	if getStoreErr != nil {
 		return getStoreErr
 	}
@@ -180,7 +183,7 @@ func (t *TrainingSetTask) handleDeletion(ctx context.Context, tsId metadata.Reso
 		return err
 	}
 	logger.Debugw("Deleting training set at location", "location", trainingSetTable)
-	store, getStoreErr := getStore(ctx, t.BaseTask, t.metadata, tsToDelete, logger)
+	store, getStoreErr := getOfflineStore(ctx, t.BaseTask, t.metadata, tsToDelete, logger)
 	if getStoreErr != nil {
 		logger.Errorw("Failed to get store", "error", getStoreErr)
 		return getStoreErr
@@ -327,7 +330,7 @@ func (t *TrainingSetTask) getResourceLocation(provider *metadata.Provider, table
 		}
 		// TODO: (Erik) determine if we want to use the Catalog location instead of SQL location; technically,
 		// Snowflake references tables in a catalog no differently than it does other table types.
-		location = pl.NewSQLLocationWithDBSchemaTable(config.Database, config.Schema, tableName)
+		location = pl.NewFullyQualifiedSQLLocation(config.Database, config.Schema, tableName)
 	default:
 		t.logger.Errorw("unsupported provider type: %s", provider.Type())
 	}

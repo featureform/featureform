@@ -738,6 +738,7 @@ func getTrainingSetDatasetTS(storeType pt.Type, storeConfig pc.SerializedConfig)
 				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "SWELL_PERIOD_SEC", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "SWELL_PERIOD_SEC", TimestampColumn: "MEASURED_ON"}},
 				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WIND_SPEED_KTS", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "WIND_SPEED_KTS", TimestampColumn: "MEASURED_ON"}},
 			},
+			Type: metadata.DynamicTrainingSet,
 		},
 	}
 }
@@ -821,6 +822,7 @@ func getTrainingSetFeaturesTSLabelsNoTS(storeType pt.Type, storeConfig pc.Serial
 				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "SWELL_PERIOD_SEC", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "SWELL_PERIOD_SEC", TimestampColumn: "MEASURED_ON"}},
 				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WIND_SPEED_KTS", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "WIND_SPEED_KTS", TimestampColumn: "MEASURED_ON"}},
 			},
+			Type: metadata.DynamicTrainingSet,
 		},
 	}
 }
@@ -915,6 +917,7 @@ func getTrainingSetDatasetFeaturesNoTSLabelTS(storeType pt.Type, storeConfig pc.
 				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "WEIGHT_KG"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "WEIGHT_KG"}},
 				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "HEIGHT_CM"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "HEIGHT_CM"}},
 			},
+			Type: metadata.DynamicTrainingSet,
 		},
 	}
 }
@@ -995,6 +998,7 @@ func getTrainingSetDatasetNoTS(storeType pt.Type, storeConfig pc.SerializedConfi
 				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "FAV_SPOT"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "FAV_SPOT"}},
 				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "MOST_USED_BOARD_TYPE"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "MOST_USED_BOARD_TYPE"}},
 			},
+			Type: metadata.DynamicTrainingSet,
 		},
 	}
 }

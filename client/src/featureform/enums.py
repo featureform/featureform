@@ -404,3 +404,37 @@ class SnowflakeSessionParamKey(Enum):
     @classmethod
     def validate_key(cls, key: str) -> bool:
         return key.lower() in cls._value2member_map_
+
+
+class TrainingSetType(Enum):
+    # Dynamic training sets are updated when new rows are added to upstream tables;
+    # mechanism of update will depend on the offline provider (e.g. Snowflake uses dynamic tables).
+    DYNAMIC = pb.TrainingSetType.TRAINING_SET_TYPE_DYNAMIC
+    # Static training sets are not updated when new rows are added to upstream tables; they are
+    # created as regular tables and are not updated.
+    STATIC = pb.TrainingSetType.TRAINING_SET_TYPE_STATIC
+    # View training sets are created as views and are only evaluated when queried by a user
+    # (e.g. when fetching the training set for model training).
+    VIEW = pb.TrainingSetType.TRAINING_SET_TYPE_VIEW
+
+    @classmethod
+    def from_proto(cls, proto_value):
+        try:
+            return cls(proto_value)
+        except ValueError:
+            return None
+
+    def to_proto(self):
+        return self.value
+
+    def to_string(self):
+        return self.name
+
+    @classmethod
+    def from_string(cls, value):
+        try:
+            return cls[value.upper()]
+        except KeyError:
+            raise ValueError(f"Training Set Type value not supported: {value}")
+        except AttributeError:
+            raise ValueError(f"Training Set Type value required: received {value}")

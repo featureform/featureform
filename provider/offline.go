@@ -173,6 +173,7 @@ type TrainingSetDef struct {
 	FeatureSourceMappings   []SourceMapping
 	LagFeatures             []LagFeatureDef
 	ResourceSnowflakeConfig *metadata.ResourceSnowflakeConfig
+	Type                    metadata.TrainingSetType
 }
 
 type TrainingSetDefJSON struct {

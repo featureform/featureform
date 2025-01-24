@@ -57,6 +57,7 @@ func (t *SourceTask) Run() error {
 	logger = logger.WithResource(logging.SourceVariant, resID.Name, resID.Variant)
 
 	if t.isDelete {
+		logger.Debugw("Handling deletion")
 		return t.handleDeletion(ctx, resID, logger)
 	}
 
@@ -105,7 +106,7 @@ func (t *SourceTask) handleDeletion(ctx context.Context, resID metadata.Resource
 		metadata.NameVariant{
 			Name:    resID.Name,
 			Variant: resID.Variant,
-		})
+		}, logger)
 	if stagedDeleteErr != nil {
 		logger.Errorw("Failed to get staged for deletion source variant", "error", stagedDeleteErr)
 		return stagedDeleteErr

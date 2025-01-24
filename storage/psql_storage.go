@@ -85,6 +85,7 @@ func (psql *psqlStorageImplementation) Set(key string, value string) error {
 
 func (psql *psqlStorageImplementation) Get(key string, opts ...query.Query) (string, error) {
 	if key == "" {
+		psql.logger.Errorw("Cannot get an empty key")
 		return "", fferr.NewInvalidArgumentErrorf("cannot get an empty key")
 	}
 
@@ -98,19 +99,21 @@ func (psql *psqlStorageImplementation) Get(key string, opts ...query.Query) (str
 	psql.logger.Infow("Getting key with options", "options", opts, "table", psql.tableName)
 	qry, err := sqlgen.NewListQuery(psql.tableName, opts, query.SQLColumn{Column: "value"})
 	if err != nil {
+		psql.logger.Errorw("qry builder failed", "error", err)
 		return "", err
 	}
 
 	qryStr, args, err := qry.Compile()
 	psql.logger.Debugw("get: compiled query", "query", qryStr, "args", args)
 	if err != nil {
+		psql.logger.Errorw("Failed to compile get query", "error", err, "query", qryStr)
 		return "", err
 	}
 	row := psql.db.QueryRow(context.Background(), qryStr, args...)
 
 	var value string
-	err = row.Scan(&value)
-	if err != nil {
+	if err := row.Scan(&value); err != nil {
+		psql.logger.Errorw("Failed to scan row", "error", err)
 		return "", fferr.NewInternalErrorf("failed to get key %s: %w", key, err)
 	}
 

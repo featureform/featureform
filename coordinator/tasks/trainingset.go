@@ -48,6 +48,7 @@ func (t *TrainingSetTask) Run() error {
 	}
 
 	if t.isDelete {
+		logger.Debugw("Handling deletion")
 		return t.handleDeletion(ctx, tsId, logger)
 	}
 
@@ -162,12 +163,12 @@ func (t *TrainingSetTask) Run() error {
 }
 
 func (t *TrainingSetTask) handleDeletion(ctx context.Context, tsId metadata.ResourceID, logger logging.Logger) error {
-	logger.Debugw("Deleting training set", "resource_id", tsId)
+	logger.Info("Deleting training set", "resource_id", tsId)
 	tsToDelete, err := t.metadata.GetStagedForDeletionTrainingSetVariant(ctx,
 		metadata.NameVariant{
 			Name:    tsId.Name,
 			Variant: tsId.Variant,
-		})
+		}, logger)
 	if err != nil {
 		logger.Errorw("Failed to get training set to delete", "error", err)
 		return err

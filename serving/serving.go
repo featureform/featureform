@@ -853,10 +853,12 @@ func (serv *FeatureServer) getOfflineResourceLocation(ctx context.Context, name,
 		serv.Logger.Infow("Getting Training Set Provider", "name", name, "variant", variant)
 		ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 		if err != nil {
+			serv.Logger.Errorw("Failed to get training set variant", "Error", err)
 			return "", err
 		}
 		providerEntry, err = ts.FetchProvider(serv.Metadata, ctx)
 		if err != nil {
+			serv.Logger.Errorw("Failed to fetch provider", "Error", err)
 			return "", err
 		}
 		resource = ts
@@ -864,10 +866,12 @@ func (serv *FeatureServer) getOfflineResourceLocation(ctx context.Context, name,
 		serv.Logger.Infow("Getting Label Provider", "name", name, "variant", variant)
 		l, err := serv.Metadata.GetLabelVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 		if err != nil {
+			serv.Logger.Errorw("Failed to get label variant", "Error", err)
 			return "", err
 		}
 		providerEntry, err = l.FetchProvider(serv.Metadata, ctx)
 		if err != nil {
+			serv.Logger.Errorw("Failed to fetch provider", "Error", err)
 			return "", err
 		}
 		resource = l
@@ -875,10 +879,12 @@ func (serv *FeatureServer) getOfflineResourceLocation(ctx context.Context, name,
 		serv.Logger.Infow("Getting Feature Provider", "name", name, "variant", variant)
 		f, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 		if err != nil {
+			serv.Logger.Errorw("Failed to get feature variant", "Error", err)
 			return "", err
 		}
 		providerEntry, err = f.FetchProvider(serv.Metadata, ctx)
 		if err != nil {
+			serv.Logger.Errorw("Failed to fetch provider", "Error", err)
 			return "", err
 		}
 		resource = f

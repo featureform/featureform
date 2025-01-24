@@ -368,6 +368,10 @@ func (lookup EtcdResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 }
 
 func (lookup EtcdResourceLookup) Lookup(ctx context.Context, id ResourceID, opts ...ResourceLookupOption) (Resource, error) {
+	if len(opts) > 0 {
+		return nil, fferr.NewInvalidArgumentErrorf("options not supported")
+	}
+
 	logger := logging.GetLoggerFromContext(ctx)
 	key := createKey(id)
 	logger.Infow("Get", "key", key)
@@ -465,8 +469,7 @@ func (lookup EtcdResourceLookup) SetSchedule(ctx context.Context, id ResourceID,
 }
 
 func (lookup EtcdResourceLookup) Delete(ctx context.Context, id ResourceID) error {
-	// not implemented
-	return nil
+	return fferr.NewInternalErrorf("not implemented")
 }
 
 func (lookup EtcdResourceLookup) Set(ctx context.Context, id ResourceID, res Resource) error {
@@ -538,6 +541,10 @@ func (lookup EtcdResourceLookup) ListForType(ctx context.Context, t ResourceType
 }
 
 func (lookup EtcdResourceLookup) ListVariants(ctx context.Context, t ResourceType, name string, opts ...ResourceLookupOption) ([]Resource, error) {
+	if len(opts) > 0 {
+		return nil, fferr.NewInvalidArgumentErrorf("options not supported")
+	}
+
 	resources := make([]Resource, 0)
 	resp, err := lookup.Connection.GetWithPrefix(variantLookupPrefix(t, name))
 	if err != nil {

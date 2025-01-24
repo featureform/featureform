@@ -68,18 +68,6 @@ func NewMetadataPSQLConfigFromEnv() PSQLConfig {
 	return config
 }
 
-func NewMetadataPSQLConfigForTesting() PSQLConfig {
-	config := PSQLConfig{
-		Host:     "localhost",
-		User:     "postgres",
-		Password: "password",
-		Port:     "5432",
-		DBName:   "postgres",
-		SSLMode:  GetEnv("POSTGRES_SSL_MODE", "disable"),
-	}
-	return config
-}
-
 type PSQLConfig struct {
 	Host     string
 	Port     string

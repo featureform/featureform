@@ -1179,7 +1179,6 @@ func (def ProviderDef) ResourceType() ResourceType {
 	return PROVIDER
 }
 
-// Create To ResourceID func
 func (def ProviderDef) ResourceID() ResourceID {
 	return ResourceID{
 		Name: def.Name,
@@ -1356,61 +1355,104 @@ func (client *Client) GetModels(ctx context.Context, models []string) ([]*Model,
 	return client.parseModelStream(stream)
 }
 
-func (client *Client) GetStagedForDeletionSourceVariant(ctx context.Context, id NameVariant) (*SourceVariant, error) {
+func (client *Client) GetStagedForDeletionSourceVariant(ctx context.Context, id NameVariant, logger logging.Logger) (*SourceVariant, error) {
+	logger = logger.With("name", id.Name, "variant", id.Variant, "type", SOURCE_VARIANT)
+	logger.Debug("Getting staged source variant for deletion")
+
 	res, err := client.GetStagedForDeletionResource(ctx, ResourceID{
 		Name:    id.Name,
 		Variant: id.Variant,
 		Type:    SOURCE_VARIANT,
 	})
 	if err != nil {
+		logger.Errorw("Failed to get staged resource", "error", err)
 		return nil, err
 	}
-	return WrapProtoSourceVariant(res.GetSourceVariant()), nil
+
+	variant := res.GetSourceVariant()
+	if variant == nil {
+		logger.Error("Resource is not a source variant")
+		return nil, fmt.Errorf("staged resource is not a source variant")
+	}
+	return WrapProtoSourceVariant(variant), nil
 }
 
-func (client *Client) GetStagedForDeletionTrainingSetVariant(ctx context.Context, id NameVariant) (*TrainingSetVariant, error) {
+func (client *Client) GetStagedForDeletionTrainingSetVariant(ctx context.Context, id NameVariant, logger logging.Logger) (*TrainingSetVariant, error) {
+	logger = logger.With("name", id.Name, "variant", id.Variant, "type", TRAINING_SET_VARIANT)
+	logger.Debug("Getting staged training set variant for deletion")
+
 	res, err := client.GetStagedForDeletionResource(ctx, ResourceID{
 		Name:    id.Name,
 		Variant: id.Variant,
 		Type:    TRAINING_SET_VARIANT,
 	})
 	if err != nil {
+		logger.Errorw("Failed to get staged resource", "error", err)
 		return nil, err
 	}
-	return WrapProtoTrainingSetVariant(res.GetTrainingSetVariant()), nil
+
+	variant := res.GetTrainingSetVariant()
+	if variant == nil {
+		logger.Error("Resource is not a training set variant")
+		return nil, fmt.Errorf("staged resource is not a training set variant")
+	}
+	return WrapProtoTrainingSetVariant(variant), nil
 }
 
-func (client *Client) GetStagedForDeletionFeatureVariant(ctx context.Context, id NameVariant) (*FeatureVariant, error) {
+func (client *Client) GetStagedForDeletionFeatureVariant(ctx context.Context, id NameVariant, logger logging.Logger) (*FeatureVariant, error) {
+	logger = logger.With("name", id.Name, "variant", id.Variant, "type", FEATURE_VARIANT)
+	logger.Debug("Getting staged feature variant for deletion")
+
 	res, err := client.GetStagedForDeletionResource(ctx, ResourceID{
 		Name:    id.Name,
 		Variant: id.Variant,
 		Type:    FEATURE_VARIANT,
 	})
 	if err != nil {
+		logger.Errorw("Failed to get staged resource", "error", err)
 		return nil, err
 	}
-	return WrapProtoFeatureVariant(res.GetFeatureVariant()), nil
+
+	variant := res.GetFeatureVariant()
+	if variant == nil {
+		logger.Error("Resource is not a feature variant")
+		return nil, fmt.Errorf("staged resource is not a feature variant")
+	}
+	return WrapProtoFeatureVariant(variant), nil
 }
 
-func (client *Client) GetStagedForDeletionLabelVariant(ctx context.Context, id NameVariant) (*LabelVariant, error) {
+func (client *Client) GetStagedForDeletionLabelVariant(ctx context.Context, id NameVariant, logger logging.Logger) (*LabelVariant, error) {
+	logger = logger.With("name", id.Name, "variant", id.Variant, "type", LABEL_VARIANT)
+	logger.Debug("Getting staged label variant for deletion")
+
 	res, err := client.GetStagedForDeletionResource(ctx, ResourceID{
 		Name:    id.Name,
 		Variant: id.Variant,
 		Type:    LABEL_VARIANT,
 	})
 	if err != nil {
+		logger.Errorw("Failed to get staged resource", "error", err)
 		return nil, err
 	}
-	return WrapProtoLabelVariant(res.GetLabelVariant()), nil
+
+	variant := res.GetLabelVariant()
+	if variant == nil {
+		logger.Error("Resource is not a label variant")
+		return nil, fmt.Errorf("staged resource is not a label variant")
+	}
+	return WrapProtoLabelVariant(variant), nil
 }
 
 func (client *Client) GetStagedForDeletionResource(ctx context.Context, id ResourceID) (*pb.ResourceVariant, error) {
-	client.Logger.Debugw("Getting staged for deletion resource", "id", id)
+	logger := logging.GetLoggerFromContext(ctx).With("name", id.Name, "variant", id.Variant, "type", id.Type)
+	logger.Debug("Getting staged resource for deletion")
+
 	nameVariant := pb.NameVariant{Name: id.Name, Variant: id.Variant}
 	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: id.Type.Serialized()}
 
 	resp, err := client.GrpcConn.GetStagedForDeletionResource(ctx, &pb.GetStagedForDeletionResourceRequest{ResourceId: &resourceID})
 	if err != nil {
+		logger.Errorw("Failed to get staged resource", "error", err)
 		return nil, err
 	}
 
@@ -3186,17 +3228,6 @@ func (client *Client) GetResourceDAG(ctx context.Context, resource Resource) (Re
 	}
 
 	return dag, nil
-}
-
-// SetResourceStatus
-func (client *Client) SetResourceStatus(ctx context.Context, resource Resource, status scheduling.Status, message string) error {
-	_, err := client.GrpcConn.SetResourceStatus(ctx, &pb.SetStatusRequest{
-		ResourceId: resource.ID().Proto(),
-		Status: &pb.ResourceStatus{
-			Status: status.Proto(),
-		},
-	})
-	return err
 }
 
 func (client *Client) Close() {

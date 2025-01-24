@@ -87,7 +87,6 @@ func (ts *TestMetadataServer) SeedResources(ctx context.Context, resources []Res
 
 // set resource to ready
 func (ts *TestMetadataServer) SetResourcesReady(ctx context.Context, resourceIDs []ResourceID) {
-	// This is soooooooo ugly
 	for _, id := range resourceIDs {
 		if id.Type == PROVIDER {
 			_, err := ts.server.SetResourceStatus(ctx, &pb.SetStatusRequest{

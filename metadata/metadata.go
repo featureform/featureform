@@ -337,20 +337,20 @@ type ResourceLookupOption interface {
 const DeleteLookupOptionType ResourceLookupType = "Deletion"
 
 type DeleteLookupOption struct {
-	deletionMode DeletionMode
+	DeletionMode DeletionMode
 }
 
 func (opt DeleteLookupOption) Type() ResourceLookupType {
 	return DeleteLookupOptionType
 }
 
-type ResourceLookupOptions struct {
-	deletionMode DeletionMode
+type parsedResourceLookupConfig struct {
+	DeletionMode DeletionMode
 }
 
-func NewResourceLookupOptions(opts ...ResourceLookupOption) (ResourceLookupOptions, error) {
-	ro := ResourceLookupOptions{
-		deletionMode: ExcludeDeleted, // default
+func parseResourceLookupOptions(opts ...ResourceLookupOption) (parsedResourceLookupConfig, error) {
+	ro := parsedResourceLookupConfig{
+		DeletionMode: ExcludeDeleted, // default
 	}
 
 	deletionOptionSet := false
@@ -370,17 +370,17 @@ func NewResourceLookupOptions(opts ...ResourceLookupOption) (ResourceLookupOptio
 				return ro, fferr.NewInternalErrorf("failed to cast DeletionResourceLookupType option")
 			}
 
-			ro.deletionMode = dlo.deletionMode
+			ro.DeletionMode = dlo.DeletionMode
 		}
 	}
 
 	return ro, nil
 }
 
-func (opt ResourceLookupOptions) generateQueryOpts() []query.Query {
+func (opt parsedResourceLookupConfig) generateQueryOpts() []query.Query {
 	var queryOpts []query.Query
 
-	switch opt.deletionMode {
+	switch opt.DeletionMode {
 	case ExcludeDeleted:
 		// Only include non-deleted resources (deleted timestamp is NULL)
 		queryOpts = append(queryOpts, query.ValueEquals{
@@ -403,13 +403,12 @@ func (opt ResourceLookupOptions) generateQueryOpts() []query.Query {
 
 type ResourceLookup interface {
 	Lookup(context.Context, ResourceID, ...ResourceLookupOption) (Resource, error)
-	//Lookup(context.Context, ResourceID, ResourceLookupOpts) (Resource, error)
-	Has(context.Context, ResourceID) (bool, error) // add is delete
+	Has(context.Context, ResourceID) (bool, error)
 	Set(context.Context, ResourceID, Resource) error
-	Submap(context.Context, []ResourceID) (ResourceLookup, error)                                    // add is delete
-	ListForType(context.Context, ResourceType) ([]Resource, error)                                   // add is delete
-	List(context.Context) ([]Resource, error)                                                        // add is delete
-	ListVariants(context.Context, ResourceType, string, ...ResourceLookupOption) ([]Resource, error) // add is delete
+	Submap(context.Context, []ResourceID) (ResourceLookup, error)
+	ListForType(context.Context, ResourceType) ([]Resource, error)
+	List(context.Context) ([]Resource, error)
+	ListVariants(context.Context, ResourceType, string, ...ResourceLookupOption) ([]Resource, error)
 	HasJob(context.Context, ResourceID) (bool, error)
 	SetJob(context.Context, ResourceID, string) error
 	SetStatus(context.Context, ResourceID, *pb.ResourceStatus) error
@@ -463,6 +462,10 @@ func (wrapper SearchWrapper) Set(ctx context.Context, id ResourceID, res Resourc
 type LocalResourceLookup map[ResourceID]Resource
 
 func (lookup LocalResourceLookup) Lookup(ctx context.Context, id ResourceID, opts ...ResourceLookupOption) (Resource, error) {
+	if len(opts) > 0 {
+		return nil, fferr.NewInternalErrorf("lookup options not supported for local resource lookup")
+	}
+
 	logger := logging.GetLoggerFromContext(ctx)
 	res, has := lookup[id]
 	if !has {
@@ -509,6 +512,10 @@ func (lookup LocalResourceLookup) ListForType(ctx context.Context, t ResourceTyp
 }
 
 func (lookup LocalResourceLookup) ListVariants(ctx context.Context, t ResourceType, name string, opts ...ResourceLookupOption) ([]Resource, error) {
+	if len(opts) > 0 {
+		return nil, fferr.NewInternalErrorf("lookup options not supported for local resource lookup")
+	}
+
 	resources := make([]Resource, 0)
 	for id, res := range lookup {
 		if id.Type == t && id.Name == name {
@@ -563,8 +570,7 @@ func (lookup LocalResourceLookup) HasJob(ctx context.Context, id ResourceID) (bo
 }
 
 func (lookup LocalResourceLookup) Delete(ctx context.Context, id ResourceID) error {
-	delete(lookup, id)
-	return nil
+	return fferr.NewInternalErrorf("not implemented")
 }
 
 type sourceResource struct {
@@ -1931,6 +1937,9 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 		config.Logger.Errorw("Failed to create resources repository", "error", err)
 		return nil, err
 	}
+	if resourcesRepo == nil {
+		return nil, fferr.NewInternalErrorf("resourcesRepository is nil")
+	}
 
 	return &MetadataServer{
 		lookup:              wrappedLookup,
@@ -2356,18 +2365,18 @@ func (serv *MetadataServer) PruneResource(ctx context.Context, request *pb.Prune
 	logger.Debugw("Pruning resource", "resource_id", request.ResourceId, "notCommonResId", notCommonResId)
 
 	logger.Debugw("looking up resource to delete", "resource_id", resId)
-	_, err := serv.lookup.Lookup(ctx, notCommonResId)
-	if err != nil {
-		logger.Errorw("pruning: could not find resource to delete", "error", err.Error())
+	if _, err := serv.lookup.Lookup(ctx, notCommonResId); err != nil {
+		logger.Errorw("could not find resource to delete", "error", err.Error())
 		return &pb.PruneResourceResponse{}, err
 	}
 
-	_, err = serv.resourcesRepository.PruneResource(ctx, resId, serv.deletionTaskStarter)
-	if err != nil {
+	if _, err := serv.resourcesRepository.PruneResource(ctx, resId, serv.deletionTaskStarter); err != nil {
+		logger.Errorw("could not delete resource", "error", err.Error())
 		return nil, err
 	}
 
-	return &pb.PruneResourceResponse{}, err
+	logger.Info("Successfully pruned resource")
+	return &pb.PruneResourceResponse{}, nil
 }
 
 func (serv *MetadataServer) MarkForDeletion(ctx context.Context, request *pb.MarkForDeletionRequest) (*pb.MarkForDeletionResponse, error) {
@@ -2395,6 +2404,7 @@ func (serv *MetadataServer) MarkForDeletion(ctx context.Context, request *pb.Mar
 		return &pb.MarkForDeletionResponse{}, deleteErr
 	}
 
+	logger.Info("Successfully marked resource for deletion")
 	return &pb.MarkForDeletionResponse{}, nil
 }
 
@@ -2514,20 +2524,21 @@ func (serv *MetadataServer) isDeletable(ctx context.Context, resource Resource, 
 
 	switch r := resource.(type) {
 	case *trainingSetVariantResource:
-		return serv.validateTrainingSetDeletion(ctx, r)
+		return serv.validateTrainingSetDeletion(ctx, r, logger)
 	case *sourceVariantResource:
-		return serv.validateSourceDeletion(ctx, r)
+		return serv.validateSourceDeletion(ctx, r, logger)
 	case *featureVariantResource:
-		return serv.validateFeatureDeletion(ctx, r)
+		return serv.validateFeatureDeletion(ctx, r, logger)
 	case *labelVariantResource:
-		return serv.validateLabelDeletion(ctx, r)
+		return serv.validateLabelDeletion(ctx, r, logger)
 	}
 	return nil
 }
 
-func (serv *MetadataServer) validateProviderType(ctx context.Context, providerName string) error {
+func (serv *MetadataServer) checkProviderSupportsDelete(ctx context.Context, providerName string, logger logging.Logger) error {
 	provider, err := serv.lookup.Lookup(ctx, ResourceID{Name: providerName, Type: PROVIDER})
 	if err != nil {
+		logger.Errorf("Could not find provider %s", providerName)
 		return err
 	}
 
@@ -2542,33 +2553,34 @@ func (serv *MetadataServer) validateProviderType(ctx context.Context, providerNa
 	return nil
 }
 
-func (serv *MetadataServer) validateTrainingSetDeletion(ctx context.Context, ts *trainingSetVariantResource) error {
+func (serv *MetadataServer) validateTrainingSetDeletion(ctx context.Context, ts *trainingSetVariantResource, logger logging.Logger) error {
 	wrapped := WrapProtoTrainingSetVariant(ts.serialized)
 	serv.Logger.Debugw("Check provider for deletion", "provider", wrapped.Provider())
-	return serv.validateProviderType(ctx, wrapped.Provider())
+	return serv.checkProviderSupportsDelete(ctx, wrapped.Provider(), logger)
 }
 
-func (serv *MetadataServer) validateSourceDeletion(ctx context.Context, sv *sourceVariantResource) error {
+func (serv *MetadataServer) validateSourceDeletion(ctx context.Context, sv *sourceVariantResource, logger logging.Logger) error {
 	wrapped := WrapProtoSourceVariant(sv.serialized)
 	serv.Logger.Debugw("Check provider for deletion", "provider", wrapped.Provider())
 
-	if err := serv.validateProviderType(ctx, wrapped.Provider()); err != nil {
+	if err := serv.checkProviderSupportsDelete(ctx, wrapped.Provider(), logger); err != nil {
+		logger.Errorw("Provider does not support deletion", "error", err.Error())
 		return err
 	}
 
 	return nil
 }
 
-func (serv *MetadataServer) validateFeatureDeletion(ctx context.Context, fv *featureVariantResource) error {
+func (serv *MetadataServer) validateFeatureDeletion(ctx context.Context, fv *featureVariantResource, logger logging.Logger) error {
 	wrapped := WrapProtoFeatureVariant(fv.serialized)
 	serv.Logger.Debugw("Check provider for deletion", "provider", wrapped.Provider())
-	return serv.validateProviderType(ctx, wrapped.Provider())
+	return serv.checkProviderSupportsDelete(ctx, wrapped.Provider(), logger)
 }
 
-func (serv *MetadataServer) validateLabelDeletion(ctx context.Context, lv *labelVariantResource) error {
+func (serv *MetadataServer) validateLabelDeletion(ctx context.Context, lv *labelVariantResource, logger logging.Logger) error {
 	wrapped := WrapProtoLabelVariant(lv.serialized)
 	serv.Logger.Debugw("Check provider for deletion", "provider", wrapped.Provider())
-	return serv.validateProviderType(ctx, wrapped.Provider())
+	return serv.checkProviderSupportsDelete(ctx, wrapped.Provider(), logger)
 }
 
 func (serv *MetadataServer) FinalizeDeletion(ctx context.Context, request *pb.FinalizeDeletionRequest) (*pb.FinalizeDeletionResponse, error) {
@@ -2576,8 +2588,8 @@ func (serv *MetadataServer) FinalizeDeletion(ctx context.Context, request *pb.Fi
 	logger.Infow("Finalizing resource deletion", "resource_id", request.ResourceId)
 	resId := ResourceID{Name: request.ResourceId.Resource.Name, Variant: request.ResourceId.Resource.Variant, Type: ResourceType(request.ResourceId.ResourceType)}
 
-	err := serv.lookup.Delete(ctx, resId)
-	if err != nil {
+	if err := serv.lookup.Delete(ctx, resId); err != nil {
+		logger.Error("Could not delete resource", "error", err.Error())
 		return nil, err
 	}
 
@@ -3513,7 +3525,9 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 		// Can improve on this by linking the request to a specific run but that requires
 		// additional changes
 		if serv.needsJob(resource) {
+			loggerWithResource.Debugw("Getting status from tasks")
 			if _, err := serv.getStatusFromTasks(ctx, resource); err != nil {
+				loggerWithResource.Errorw("Error getting status from tasks", "error", err)
 				return err
 			}
 		}

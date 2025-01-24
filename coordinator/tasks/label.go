@@ -43,6 +43,7 @@ func (t *LabelTask) Run() error {
 	logger = t.logger.WithResource(logging.LabelVariant, resID.Name, resID.Variant)
 
 	if t.isDelete {
+		logger.Debugw("Handling deletion")
 		return t.handleDeletion(ctx, resID, logger)
 	}
 
@@ -136,6 +137,7 @@ func (t *LabelTask) handleDeletion(ctx context.Context, resID metadata.ResourceI
 			Name:    resID.Name,
 			Variant: resID.Variant,
 		},
+		logger,
 	)
 	if err != nil {
 		logger.Errorw("Failed to get staged for deletion label", "error", err)
@@ -156,18 +158,19 @@ func (t *LabelTask) handleDeletion(ctx context.Context, resID metadata.ResourceI
 	}
 
 	labelLocation := pl.NewSQLLocation(labelTableName)
+	logger = logger.With("location", labelLocation)
 
-	logger.Debugw("Deleting label at location", "location", labelLocation)
+	logger.Debugw("Deleting label at location")
 	if deleteErr := sourceStore.Delete(labelLocation); deleteErr != nil {
 		var notFoundErr *fferr.DatasetNotFoundError
 		if errors.As(deleteErr, &notFoundErr) {
-			logger.Infow("Table doesn't exist at location, continuing...", "location", labelLocation)
+			logger.Infow("Table doesn't exist at location, continuing...")
 		} else {
 			return deleteErr
 		}
 	}
 
-	logger.Infow("Successfully deleted label at location", "location", labelLocation)
+	logger.Infow("Successfully deleted label at location")
 
 	logger.Debugw("Finalizing delete")
 	if err := t.metadata.FinalizeDelete(ctx, resID); err != nil {

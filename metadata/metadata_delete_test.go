@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"github.com/featureform/fferr"
+	"github.com/featureform/helpers"
 	"github.com/stretchr/testify/require"
 	"net"
 	"testing"
 
-	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
 	pc "github.com/featureform/provider/provider_config"
@@ -17,8 +17,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func NewMetadataPSQLConfigForTesting() helpers.PSQLConfig {
+	config := helpers.PSQLConfig{
+		Host:     helpers.GetEnv("POSTGRES_HOST", "localhost"),
+		User:     helpers.GetEnv("POSTGRES_USER", "postgres"),
+		Password: helpers.GetEnv("POSTGRES_PASSWORD", "password"),
+		Port:     helpers.GetEnv("POSTGRES_PORT", "5432"),
+		DBName:   helpers.GetEnv("POSTGRES_DB", "postgres"),
+		SSLMode:  helpers.GetEnv("POSTGRES_SSL_MODE", "disable"),
+	}
+	return config
+}
+
 func startServPsql(t *testing.T) (*MetadataServer, string) {
-	metadataPsqlConfig := help.NewMetadataPSQLConfigForTesting()
+	metadataPsqlConfig := NewMetadataPSQLConfigForTesting()
 	manager, err := scheduling.NewPSQLTaskMetadataManager(metadataPsqlConfig)
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -171,6 +183,7 @@ func TestMetadataDelete(t *testing.T) {
 			Status: pb.ResourceStatus_READY,
 		},
 	})
+	require.NoError(t, err)
 
 	_, err = serv.SetResourceStatus(context.Background(), &pb.SetStatusRequest{
 		ResourceId: &pb.ResourceID{
@@ -183,6 +196,7 @@ func TestMetadataDelete(t *testing.T) {
 			Status: pb.ResourceStatus_READY,
 		},
 	})
+	require.NoError(t, err)
 
 	_, err = serv.SetResourceStatus(context.Background(), &pb.SetStatusRequest{
 		ResourceId: &pb.ResourceID{
@@ -195,6 +209,7 @@ func TestMetadataDelete(t *testing.T) {
 			Status: pb.ResourceStatus_READY,
 		},
 	})
+	require.NoError(t, err)
 
 	t.Run("delete provider with no dependencies", func(t *testing.T) {
 		// try to delete the online provider

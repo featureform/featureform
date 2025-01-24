@@ -56,7 +56,6 @@ SELECT DISTINCT
     dc.to_resource_name,
     dc.to_resource_variant
 FROM dependency_chain dc
-WHERE depth < 500; -- Ensure recursion depth does not exceed the limit
 
 -- Note: Explicit cycle detection logic is handled in the WHERE clause above
 END;

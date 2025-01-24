@@ -5,23 +5,14 @@
 #  Copyright 2024 FeatureForm Inc.
 #
 
-import ast
-import inspect
-import os
-import warnings
-from abc import ABC
 from collections.abc import Iterable
 from datetime import timedelta
-from typing import Callable, Dict, List, Optional, Tuple, Union, get_args
-
-import dill
+from typing import Dict, List, Optional, Union, get_args
 
 import pandas as pd
-from dataclasses import dataclass, field
-from typeguard import typechecked
+import logging
 
-from . import feature_flag
-from .exceptions import InvalidSQLQuery
+from .enums import ResourceType
 from .get import *
 from .grpc_client import GrpcClient
 from .list import *
@@ -32,10 +23,9 @@ from .resources import *
 from .search import search
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
-from .types import pd_to_ff_datatype, VectorType
+from .types import VectorType, pd_to_ff_datatype
 from .variant_names_generator import get_current_timestamp_variant
 from .variant_names_generator import get_random_name
-from .enums import ResourceType
 
 NameVariant = Tuple[str, str]
 
@@ -4989,6 +4979,7 @@ class ResourceClient:
             if not ResourceType.is_deletable(resource_type):
                 raise ValueError("resource_type must be deletable")
 
+            # handle resources without variants
             if resource_type == ResourceType.PROVIDER:
                 return metadata_pb2.ResourceID(
                     resource=metadata_pb2.NameVariant(name=source),

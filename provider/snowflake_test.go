@@ -558,7 +558,7 @@ func TestSnowflakeDelete(t *testing.T) {
 	}
 	tester := getConfiguredTester(t, true)
 	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
-		// "DeleteTableTest": DeleteTableTest,
+		"DeleteTableTest":            DeleteTableTest,
 		"DeleteNotExistingTableTest": DeleteNotExistingTableTest,
 	}
 	for name, testCase := range testCases {

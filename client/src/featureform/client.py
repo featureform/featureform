@@ -30,7 +30,6 @@ from .register import (
     SourceRegistrar,
     SubscriptableTransformation,
     TrainingSetVariant,
-    ColumnResource,
     global_registrar,
     register_user,
 )

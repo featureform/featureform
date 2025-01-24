@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"context"
+	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
@@ -33,6 +34,11 @@ func getStore(ctx context.Context, baseTask BaseTask, client *metadata.Client, p
 	if err != nil {
 		logger.Errorw("Retrieved provider is not an offline store", "provider-type", p.Type(), "error", err)
 		return nil, err
+	}
+
+	if store == nil {
+		logger.Errorw("Offline store is nil", "provider-type", p.Type())
+		return nil, fferr.NewInternalErrorf("offline store is nil")
 	}
 
 	return store, nil

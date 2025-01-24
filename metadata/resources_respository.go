@@ -451,7 +451,7 @@ func (r *sqlResourcesRepository) checkDependencies(ctx context.Context, tx pgx.T
 	if err := tx.QueryRow(ctx, sqlCountDirectDependencies,
 		resourceID.Type, resourceID.Name, resourceID.Variant).Scan(&dependencyCount); err != nil {
 		logger.Errorw("error counting direct dependencies", "error", err)
-		return fferr.NewInternalErrorf("error counting direct dependencies: %v", err
+		return fferr.NewInternalErrorf("error counting direct dependencies: %v", err)
 	}
 
 	if dependencyCount > 0 {
@@ -466,7 +466,7 @@ func (r *sqlResourcesRepository) checkDependencies(ctx context.Context, tx pgx.T
 func (r *sqlResourcesRepository) hardDelete(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID, logger logging.Logger) error {
 	if _, err := tx.Exec(ctx, deleteSql, resourceID.ToKey()); err != nil {
 		logger.Errorw("error deleting resource", "error", err)
-		return fferr.NewInternalErrorf("error deleting resource %s: %v", resourceID.ToKey(), err
+		return fferr.NewInternalErrorf("error deleting resource %s: %v", resourceID.ToKey(), err)
 	}
 	return nil
 }

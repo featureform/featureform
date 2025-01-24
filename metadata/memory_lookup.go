@@ -81,7 +81,7 @@ func (lookup MemoryResourceLookup) Lookup(ctx context.Context, id ResourceID, op
 	key := createKey(id)
 	logger.Infow("Get", "key", key)
 
-	options, err := NewResourceLookupOptions(opts...)
+	options, err := parseResourceLookupOptions(opts...)
 	logger.Debugw("Resource lookup options", "options", options)
 	if err != nil {
 		logger.Errorw("Failed to create resource lookup options", "error", err)
@@ -266,7 +266,7 @@ func (lookup MemoryResourceLookup) ListVariants(ctx context.Context, t ResourceT
 	resources := make([]Resource, 0)
 	logger.Infow("list variants with prefix", "type", t, "name", name)
 
-	options, err := NewResourceLookupOptions(opts...)
+	options, err := parseResourceLookupOptions(opts...)
 	if err != nil {
 		logger.Errorw("Failed to create resource lookup options", "error", err)
 		return nil, err

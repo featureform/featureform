@@ -43,6 +43,7 @@ func (t *FeatureTask) Run() error {
 	logger = t.logger.WithResource(logging.FeatureVariant, nv.Name, nv.Variant)
 	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.FEATURE_VARIANT}
 	if t.isDelete {
+		logger.Debugw("Handling deletion")
 		return t.handleDeletion(ctx, resID, logger)
 	}
 
@@ -122,7 +123,8 @@ func (t *FeatureTask) Run() error {
 		TS:          tmpSchema.TS,
 		SourceTable: sourceLocation,
 	}
-	logger.Debugw("Creating Resource Table", "id", featID, "schema", schema)
+	logger = logger.With("schema", schema)
+	logger.Debugw("Creating Resource Table")
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Registering Feature from dataset..."); err != nil {
 		return err
 	}
@@ -130,12 +132,13 @@ func (t *FeatureTask) Run() error {
 	if _, err := sourceStore.RegisterResourceFromSourceTable(featID, schema); err != nil {
 		return err
 	}
-	logger.Debugw("Resource Table Created", "id", featID, "schema", schema)
+	logger.Debugw("Resource Table Created")
 
 	maxJobDurationEnv := helpers.GetEnv("MAX_JOB_DURATION", "48h")
 	maxJobDuration, err := time.ParseDuration(maxJobDurationEnv)
 
 	if err != nil {
+		logger.Errorw("Failed to parse MAX_JOB_DURATION", "error", err)
 		return fferr.NewInternalErrorf("could not parse MAX_JOB_DURATION: %v", err)
 	}
 
@@ -255,12 +258,13 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 	}
 
 	logger.Debugw("Fetching feature that's staged for deletion")
-	featureToDelete, err := t.metadata.GetStagedForDeletionFeatureVariant(ctx, nv)
+	featureToDelete, err := t.metadata.GetStagedForDeletionFeatureVariant(ctx, nv, logger)
 	if err != nil {
 		logger.Errorw("Failed to fetch feature staged for deletion", "error", err)
 		return err
 	}
 
+	logger.Debugf("Deleting feature at location")
 	offlineStoreSource, err := featureToDelete.FetchSource(t.metadata, ctx)
 	if err != nil {
 		logger.Errorw("Failed to fetch source", "error", err)
@@ -287,6 +291,22 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 
 	logger.Infow("Successfully deleted feature at location", "location", featureLocation)
 
+	deleteFromOnlineStoreErr := t.deleteFromOnlineStore(ctx, featureToDelete, logger, nv)
+	if deleteFromOnlineStoreErr != nil {
+		logger.Errorw("Failed to delete feature from online store", "error", deleteFromOnlineStoreErr)
+		return deleteFromOnlineStoreErr
+	}
+
+	logger.Debugw("Finalizing delete")
+	if err := t.metadata.FinalizeDelete(ctx, resID); err != nil {
+		logger.Errorw("Failed to finalize delete", "error", err)
+		return err
+	}
+
+	return nil
+}
+
+func (t *FeatureTask) deleteFromOnlineStore(ctx context.Context, featureToDelete *metadata.FeatureVariant, logger logging.Logger, nv metadata.NameVariant) error {
 	if featureToDelete.Provider() != "" {
 		inferenceStore, err := featureToDelete.FetchProvider(t.metadata, ctx)
 		if err != nil {
@@ -323,13 +343,6 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 			logger.Info("Deleted feature from online store")
 		}
 	}
-
-	logger.Debugw("Finalizing delete")
-	if err := t.metadata.FinalizeDelete(ctx, resID); err != nil {
-		logger.Errorw("Failed to finalize delete", "error", err)
-		return err
-	}
-
 	return nil
 }
 

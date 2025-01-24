@@ -9,6 +9,7 @@ import os
 
 import pytest
 import featureform as ff
+import snowflake.connector
 
 
 @pytest.fixture(scope="module")
@@ -43,3 +44,20 @@ def snowflake_transactions_dataset(client, snowflake_fixture):
     client.apply(asynchronous=False, verbose=True)
 
     return transactions
+
+
+@pytest.fixture(scope="module")
+def snowflake_connector_fixture():
+    conn = snowflake.connector.connect(
+        user=os.getenv("SNOWFLAKE_USERNAME", None),
+        password=os.getenv("SNOWFLAKE_PASSWORD", None),
+        account=f"{os.getenv('SNOWFLAKE_ORG', None)}-{os.getenv('SNOWFLAKE_ACCOUNT', None)}",
+        warehouse="COMPUTE_WH",
+        database="DEMO",
+        schema="PUBLIC",
+        session_parameters={
+            "CLIENT_TELEMETRY_ENABLED": False,
+        },
+    )
+
+    return conn

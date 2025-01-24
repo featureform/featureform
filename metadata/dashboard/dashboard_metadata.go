@@ -2850,7 +2850,7 @@ func (m *MetadataServer) GetStreamIterator(ctx context.Context, source, variant 
 	m.logger.Info("Fetching the data stream...")
 	flightStream, err := client.DoGet(ctx, ticket)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch data for source (%s) and variant (%s) from proxy: %w", err)
+		return nil, fmt.Errorf("failed to fetch data for source (%s) and variant (%s) from proxy: %w", source, variant, err)
 	}
 
 	m.logger.Info("Creating the record reader.")

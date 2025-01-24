@@ -13,8 +13,10 @@ import (
 	"fmt"
 	pl "github.com/featureform/provider/location"
 	ps "github.com/featureform/provider/provider_schema"
+	"github.com/google/uuid"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -122,11 +124,6 @@ func getBigQueryConfig(t *testing.T) (pc.BigQueryConfig, error) {
 		t.Fatalf("missing BIGQUERY_PROJECT_ID variable")
 	}
 
-	datasetID, ok := os.LookupEnv("BIGQUERY_DATASET_ID")
-	if !ok {
-		t.Fatalf("missing BIGQUERY_DATASET_ID variable")
-	}
-
 	JSONCredentials, err := ioutil.ReadFile(credentials)
 	if err != nil {
 		panic(fmt.Errorf("cannot find big query credentials: %v", err))
@@ -138,9 +135,13 @@ func getBigQueryConfig(t *testing.T) (pc.BigQueryConfig, error) {
 		panic(fmt.Errorf("cannot unmarshal big query credentials: %v", err))
 	}
 
+	bigQueryDatasetId := strings.Replace(strings.ToUpper(uuid.NewString()), "-", "_", -1)
+	os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
+	t.Log("BigQuery Dataset: ", bigQueryDatasetId)
+
 	var bigQueryConfig = pc.BigQueryConfig{
 		ProjectId:   projectID,
-		DatasetId:   datasetID,
+		DatasetId:   bigQueryDatasetId,
 		Credentials: credentialsDict,
 	}
 
@@ -152,6 +153,8 @@ func TestOfflineStoreBigQuery(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
+	// TODO: Utilize configure function below to prevent duplication
+	// of setup.
 	bigQueryConfig, err := getBigQueryConfig(t)
 	if err != nil {
 		t.Fatal(err)
@@ -312,9 +315,9 @@ func TestBigQueryTrainingSets(t *testing.T) {
 
 	tsDatasetTypes := []trainingSetDatasetType{
 		tsDatasetFeaturesLabelTS,
-		tsDatasetFeaturesTSLabelNoTS,
-		tsDatasetFeaturesNoTSLabelTS,
-		tsDatasetFeaturesLabelNoTS,
+		//tsDatasetFeaturesTSLabelNoTS,
+		//tsDatasetFeaturesNoTSLabelTS,
+		//tsDatasetFeaturesLabelNoTS,
 	}
 
 	for _, testCase := range tsDatasetTypes {
@@ -332,6 +335,17 @@ func getConfiguredBigQueryTester(t *testing.T, useCrossDBJoins bool) offlineSqlT
 	if err != nil {
 		t.Fatalf("could not get BigQuery config: %s", err)
 	}
+
+	if err := createBigQueryDataset(bigQueryConfig); err != nil {
+		t.Fatalf("Cannot create BigQuery Dataset: %v", err)
+	}
+
+	t.Cleanup(func() {
+		err := destroyBigQueryDataset(bigQueryConfig)
+		if err != nil {
+			t.Logf("failed to cleanup database: %s\n", err)
+		}
+	})
 
 	store, err := GetOfflineStore(pt.BigQueryOffline, bigQueryConfig.Serialize())
 

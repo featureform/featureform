@@ -126,12 +126,20 @@ func (pt *bqPrimaryTable) NumRows() (int64, error) {
 	return n[0].(int64), nil
 }
 
+func (pt *bqPrimaryTable) getTableName() string {
+	return fmt.Sprintf("%s.%s", pt.table.DatasetID, pt.table.TableID)
+}
+
+func (pt *bqPrimaryTable) upsertQuery(columns string, placeholder string) string {
+	return fmt.Sprintf("INSERT INTO `%s` ( %s ) VALUES ( %s )", pt.getTableName(), columns, placeholder)
+}
+
 func (pt *bqPrimaryTable) Write(rec GenericRecord) error {
 	tb := pt.name
 	recordsParameter, columns, columnsString := pt.getNonNullRecords(rec)
 
 	placeholder := pt.query.createValuePlaceholderString(columns)
-	upsertQuery := pt.query.upsertQuery(tb, columnsString, placeholder)
+	upsertQuery := pt.upsertQuery(columnsString, placeholder)
 
 	bqQ := pt.client.Query(upsertQuery)
 	bqQ.Parameters = recordsParameter
@@ -311,10 +319,6 @@ func (q defaultBQQueries) primaryTableCreate(name string, columnString string) s
 	return query
 }
 
-func (q defaultBQQueries) upsertQuery(tb string, columns string, placeholder string) string {
-	return fmt.Sprintf("INSERT INTO `%s` ( %s ) VALUES ( %s )", q.getTableName(tb), columns, placeholder)
-}
-
 func (q defaultBQQueries) createValuePlaceholderString(columns []TableColumn) string {
 	placeholders := make([]string, 0)
 	for range columns {
@@ -327,13 +331,24 @@ func (q defaultBQQueries) newBQOfflineTable(name string, columnType string) stri
 	return fmt.Sprintf("CREATE TABLE `%s` (entity STRING, value %s, ts TIMESTAMP, insert_ts TIMESTAMP)", q.getTableName(name), columnType)
 }
 
-func (q defaultBQQueries) materializationCreate(tableName string, resultName string) string {
-	query := fmt.Sprintf(
-		"CREATE TABLE `%s` AS (SELECT entity, value, ts, row_number() over(ORDER BY entity) as row_number FROM "+
-			"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts DESC, insert_ts DESC) "+
-			"AS rn FROM `%s`) t WHERE rn=1)", q.getTableName(tableName), q.getTableName(resultName))
+func (q defaultBQQueries) materializationCreate(tableName string, schema ResourceSchema, resourceLocation pl.SQLLocation) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("CREATE OR REPLACE TABLE %s AS ", tableName))
 
-	return query
+	tsSelectStmt := fmt.Sprintf("`%s` AS ts", schema.TS)
+	tsOrderByStmt := fmt.Sprintf("ORDER BY `%s` DESC", schema.TS)
+	if schema.TS == "" {
+		tsSelectStmt = "TIMESTAMP_SECONDS(0) AS ts"
+		tsOrderByStmt = ""
+	}
+
+	cteFormat := "WITH OrderedSource AS (SELECT `%s` AS entity, `%s` AS value, %s, ROW_NUMBER() OVER (PARTITION BY `%s` %s) AS rn FROM %s) "
+	cteClause := fmt.Sprintf(cteFormat, schema.Entity, schema.Value, tsSelectStmt, schema.Entity, tsOrderByStmt, q.getTableNameFromLocation(resourceLocation))
+
+	sb.WriteString(cteClause)
+	sb.WriteString("SELECT entity, value, ts, ROW_NUMBER() OVER (ORDER BY (entity)) AS row_number FROM OrderedSource WHERE rn = 1")
+
+	return sb.String()
 }
 
 func (q defaultBQQueries) materializationIterateSegment(tableName string, start int64, end int64) string {
@@ -349,6 +364,7 @@ func (q *defaultBQQueries) getTablePrefix() string {
 }
 
 func (q *defaultBQQueries) setTablePrefix(prefix string) {
+	// TODO: Have this also update DatasetID and other relevant variables inside `defaultBQQueries`.
 	q.TablePrefix = prefix
 }
 
@@ -575,12 +591,17 @@ func (q defaultBQQueries) trainingRowSelect(columns string, trainingSetName stri
 	return fmt.Sprintf("SELECT %s FROM `%s`", columns, q.getTableName(trainingSetName))
 }
 
-func (q defaultBQQueries) primaryTableRegister(tableName string, sourceName string) string {
-	return fmt.Sprintf("CREATE VIEW `%s` AS SELECT * FROM `%s`", q.getTableName(tableName), q.getTableName(sourceName))
+func (q defaultBQQueries) primaryTableRegister(tableName string, sourceLocation pl.SQLLocation) string {
+	return fmt.Sprintf("CREATE VIEW `%s` AS SELECT * FROM `%s`", q.getTableName(tableName), q.getTableNameFromLocation(sourceLocation))
 }
 
 func (q defaultBQQueries) getTableName(tableName string) string {
 	return fmt.Sprintf("%s.%s", q.getTablePrefix(), tableName)
+}
+
+func (q defaultBQQueries) getTableNameFromLocation(location pl.SQLLocation) string {
+	// Schema intentionally ignored, as BigQuery does not have a concept of a schema.
+	return fmt.Sprintf("%s.%s.%s", q.getProjectId(), location.GetDatabase(), location.GetTable())
 }
 
 func (q defaultBQQueries) getProjectId() string {
@@ -880,6 +901,11 @@ func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, table
 	})
 	logger.Infow("Registering primary from source table")
 
+	sqlLocation, isSqlLocation := tableLocation.(*pl.SQLLocation)
+	if !isSqlLocation {
+		return nil, fferr.NewInvalidArgumentErrorf("source table %s is not a SQLLocation, actual: %T", tableLocation, tableLocation)
+	}
+
 	if err := id.check(Primary); err != nil {
 		logger.Errorw("Resource type is not primary", "err", err)
 		return nil, err
@@ -898,7 +924,7 @@ func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, table
 		logger.Errorw("Mapping id to table name", "err", err)
 		return nil, err
 	}
-	query := store.query.primaryTableRegister(tableName, tableLocation.Location())
+	query := store.query.primaryTableRegister(tableName, *sqlLocation)
 
 	bqQ := store.client.Query(query)
 	job, err := bqQ.Run(store.query.getContext())
@@ -1125,17 +1151,24 @@ func (store *bqOfflineStore) CreateMaterialization(id ResourceID, opts Materiali
 	if id.Type != Feature {
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("received %s; only features can be materialized", id.Type.String()))
 	}
-	resTable, err := store.getbqResourceTable(id)
-	if err != nil {
-		return nil, err
+
+	sqlLocation, isSqlLocation := opts.Schema.SourceTable.(*pl.SQLLocation)
+	if !isSqlLocation {
+		return nil, fferr.NewInvalidArgumentErrorf("source table is not an SQL location")
 	}
+	//resTable, err := store.getbqResourceTable(id)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
 	matTableName, err := store.getMaterializationTableName(id)
 	if err != nil {
 		return nil, err
 	}
-	materializeQry := store.query.materializationCreate(matTableName, resTable.name)
+	// BigQuery requires the table name to be prefixed with a dataset when creating a new table.
+	matTableName = fmt.Sprintf("%s.%s", store.query.DatasetId, matTableName)
+	materializeQry := store.query.materializationCreate(matTableName, opts.Schema, *sqlLocation)
 
 	bqQ := store.client.Query(materializeQry)
 	_, err = bqQ.Read(store.query.getContext())
@@ -1540,6 +1573,9 @@ func (store *bqOfflineStore) newBigQueryPrimaryTable(client *bigquery.Client, na
 	if err != nil {
 		return nil, fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 	}
+
+	// TODO: Initialize table here.
+
 	return &bqPrimaryTable{
 		client: client,
 		name:   name,

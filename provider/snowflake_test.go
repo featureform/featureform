@@ -729,14 +729,27 @@ func RegisterTableInDifferentDatabaseTest(t *testing.T, storeTester offlineSqlTe
 }
 
 func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester offlineSqlTest) {
+	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
+
+	err := storeTester.storeTester.CreateDatabase(dbName)
+	if err != nil {
+		t.Fatalf("could not create database: %v", err)
+	}
+
+	t.Cleanup(func() {
+		if err := storeTester.storeTester.DropDatabase(dbName); err != nil {
+			t.Fatalf("could not drop database: %v", err)
+		}
+	})
+
 	schemaName := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	if err := storeTester.storeTester.CreateSchema("", schemaName); err != nil {
+	if err := storeTester.storeTester.CreateSchema(dbName, schemaName); err != nil {
 		t.Fatalf("could not create schema: %v", err)
 	}
 
 	// Create the table
 	tableName := "DUMMY_TABLE"
-	sqlLocation := location.NewSQLLocationWithDBSchemaTable("", schemaName, tableName).(*location.SQLLocation)
+	sqlLocation := location.NewSQLLocationWithDBSchemaTable(dbName, schemaName, tableName).(*location.SQLLocation)
 	records, err := createDummyTable(storeTester.storeTester, *sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)

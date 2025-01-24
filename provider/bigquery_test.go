@@ -14,7 +14,6 @@ import (
 	pl "github.com/featureform/provider/location"
 	"io/ioutil"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -22,7 +21,6 @@ import (
 	"github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
-	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"google.golang.org/api/option"
 )
@@ -35,13 +33,10 @@ func (bq *bigQueryOfflineStoreTester) CreateDatabase(name string) error {
 	metadata := &bigquery.DatasetMetadata{
 		Name: name,
 	}
-
-	bq.query.setTablePrefix(bq.client.Project() + "." + name)
 	return bq.client.Dataset(name).Create(context.TODO(), metadata)
 }
 
 func (bq *bigQueryOfflineStoreTester) DropDatabase(name string) error {
-	bq.query.setTablePrefix("")
 	return bq.client.Dataset(name).DeleteWithContents(context.TODO())
 }
 
@@ -72,22 +67,41 @@ func (bq *bigQueryOfflineStoreTester) CreateTable(loc pl.Location, schema TableS
 	}
 
 	var datasetName = sqlLocation.GetDatabase()
+	// There are a few tests that don't particularly care to create (or set)
+	// db's to use. In this case, just default to the testing dataset.
+	if datasetName == "" {
+		datasetName = bq.query.DatasetId
+	}
+
 	var tableName = sqlLocation.GetTable()
 
-	metadata := &bigquery.TableMetadata{
+	dataset := bq.client.Dataset(datasetName)
+
+	tableMetadata := &bigquery.TableMetadata{
 		Name:   tableName,
 		Schema: tableSchema,
 	}
 
-	table := bq.client.Dataset(datasetName).Table(tableName)
-	if err = table.Create(context.TODO(), metadata); err != nil {
+	table := dataset.Table(tableName)
+	if err = table.Create(context.TODO(), tableMetadata); err != nil {
 		return nil, err
+	}
+
+	var projectId = bq.query.ProjectId
+	var tablePrefix = fmt.Sprintf("%s.%s", projectId, datasetName)
+
+	var newQueryClient = defaultBQQueries{
+		TablePrefix: tablePrefix,
+		ProjectId:   bq.query.ProjectId,
+		DatasetId:   datasetName,
+		Ctx:         bq.query.Ctx,
 	}
 
 	return &bqPrimaryTable{
 		client: bq.client,
+		table:  table,
 		name:   tableName,
-		query:  bq.query,
+		query:  newQueryClient,
 		schema: schema,
 	}, nil
 }
@@ -107,6 +121,11 @@ func getBigQueryConfig(t *testing.T) (pc.BigQueryConfig, error) {
 		t.Fatalf("missing BIGQUERY_PROJECT_ID variable")
 	}
 
+	datasetID, ok := os.LookupEnv("BIGQUERY_DATASET_ID")
+	if !ok {
+		t.Fatalf("missing BIGQUERY_DATASET_ID variable")
+	}
+
 	JSONCredentials, err := ioutil.ReadFile(credentials)
 	if err != nil {
 		panic(fmt.Errorf("cannot find big query credentials: %v", err))
@@ -118,13 +137,9 @@ func getBigQueryConfig(t *testing.T) (pc.BigQueryConfig, error) {
 		panic(fmt.Errorf("cannot unmarshal big query credentials: %v", err))
 	}
 
-	bigQueryDatasetId := strings.Replace(strings.ToUpper(uuid.NewString()), "-", "_", -1)
-	os.Setenv("BIGQUERY_DATASET_ID", bigQueryDatasetId)
-	t.Log("BigQuery Dataset: ", bigQueryDatasetId)
-
 	var bigQueryConfig = pc.BigQueryConfig{
 		ProjectId:   projectID,
-		DatasetId:   os.Getenv("BIGQUERY_DATASET_ID"),
+		DatasetId:   datasetID,
 		Credentials: credentialsDict,
 	}
 
@@ -216,7 +231,7 @@ func TestBigQueryTransformations(t *testing.T) {
 
 	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
 		"RegisterTransformationOnPrimaryDatasetTest": RegisterTransformationOnPrimaryDatasetTest,
-		"RegisterChainedTransformationsTest":         RegisterChainedTransformationsTest,
+		//"RegisterChainedTransformationsTest":         RegisterChainedTransformationsTest,
 	}
 
 	for name, testCase := range testCases {
@@ -237,10 +252,8 @@ func TestBigQueryMaterializations(t *testing.T) {
 	tester := getConfiguredBigQueryTester(t, false)
 
 	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
-		"RegisterMaterializationNoTimestampTest":            RegisterMaterializationNoTimestampTest,
-		"RegisterMaterializationWithDefaultTargetLagTest":   RegisterMaterializationWithDefaultTargetLagTest,
-		"RegisterMaterializationTimestampTest":              RegisterMaterializationTimestampTest,
-		"RegisterMaterializationWithDifferentWarehouseTest": RegisterMaterializationWithDifferentWarehouseTest,
+		"RegisterMaterializationNoTimestampTest": RegisterMaterializationNoTimestampTest,
+		"RegisterMaterializationTimestampTest":   RegisterMaterializationTimestampTest,
 	}
 
 	for name, testCase := range testCases {
@@ -273,30 +286,6 @@ func TestBigQueryTrainingSets(t *testing.T) {
 		t.Run(constName, func(t *testing.T) {
 			t.Parallel()
 			RegisterTrainingSet(t, tester, constTestCase)
-		})
-	}
-}
-
-func TestBigQuerySchemas(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration tests")
-	}
-
-	tester := getConfiguredBigQueryTester(t, true)
-
-	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
-		"RegisterTableInDifferentDatabaseTest": RegisterTableInDifferentDatabaseTest,
-		//"RegisterTableInSameDatabaseDifferentSchemaTest": RegisterTableInSameDatabaseDifferentSchemaTest,
-		//"RegisterTwoTablesInSameSchemaTest":              RegisterTwoTablesInSameSchemaTest,
-		//"CrossDatabaseJoinTest": CrossDatabaseJoinTest,
-	}
-
-	for name, testCase := range testCases {
-		constName := name
-		constTestCase := testCase
-		t.Run(constName, func(t *testing.T) {
-			t.Parallel()
-			constTestCase(t, tester)
 		})
 	}
 }

@@ -149,7 +149,7 @@ func newTestSQLTransformationData(storeType pt.Type, storeConfig pc.SerializedCo
 	loc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_WIND_DATA_TABLE")
 	sqlLoc := loc.(*pl.SQLLocation)
 	tableLoc := sqlLoc.TableLocation()
-	queryFmt := "SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)"
+	queryFmt := "SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)"
 	idCreator := newIDCreator("test")
 	return testSQLTransformationData{
 		schema: TableSchema{
@@ -167,7 +167,7 @@ func newTestSQLTransformationData(storeType pt.Type, storeConfig pc.SerializedCo
 					ValueType: types.Float64,
 				},
 				{
-					Name:      "FETCH",
+					Name:      "FETCH_VALUE",
 					ValueType: types.Float64,
 				},
 				{
@@ -319,7 +319,7 @@ func newTestSQLMaterializationData(useTimestamp bool) testSQLMaterializationData
 					ValueType: types.Float64,
 				},
 				{
-					Name:      "FETCH",
+					Name:      "FETCH_VALUE",
 					ValueType: types.Float64,
 				},
 				{

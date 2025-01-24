@@ -2874,13 +2874,10 @@ func (si *StreamIterator) Values() [][]string {
 		return [][]string{}
 	}
 	rowMatrix := make([][]string, si.currentBatch.NumRows())
-	fmt.Println("number of columns: ", si.currentBatch.NumCols())
-	fmt.Println("number of data rows: ", si.currentBatch.NumRows())
 
 	for i := 0; i < int(si.currentBatch.NumCols()); i++ {
 		currentCol := si.currentBatch.Column(i)
 
-		fmt.Println("current column DATA length: ", currentCol.Len())
 		for cr := 0; cr < currentCol.Len(); cr++ {
 			cellString := currentCol.ValueStr(cr)
 

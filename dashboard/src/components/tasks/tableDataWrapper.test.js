@@ -45,6 +45,7 @@ describe('Task table data wrapper tests', () => {
   const CLEAR_ICON_ID = 'clearIcon';
   const DEFAULT_PARAMS = {
     searchText: '',
+    variantSearch: '',
     sortBy: 'DATE',
     status: 'ALL',
     pageSize: 15,

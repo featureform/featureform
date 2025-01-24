@@ -8,11 +8,14 @@
 import React from 'react';
 import TableDataWrapper from './tableDataWrapper';
 
-export default function TaskRunsPage() {
+export default function TaskRunsPage({
+  name = '',
+  variant = '',
+}) {
   return (
-    <>
+    <PageContainer>
       <h3>Task Runs</h3>
-      <TableDataWrapper />
-    </>
+      <TableDataWrapper taskName={name} taskVariant={variant}/>
+    </PageContainer>
   );
 }

@@ -2805,9 +2805,24 @@ type StreamIterator struct {
 }
 
 func (m *MetadataServer) GetStreamIterator(ctx context.Context, source, variant string, limit int64) (*StreamIterator, error) {
-	// todox: update the proxyAddress to use env variables
-	proxyAddress := fmt.Sprintf("iceberg-proxy:%s", "8086")
-	m.logger.Infow("Received request, forwarding to iceberg-proxy at: %v", proxyAddress)
+	proxyHost := help.GetEnv("ICEBERG_PROXY_HOST", "localhost")
+	proxyPort := help.GetEnv("ICEBERG_PROXY_PORT", "8086")
+
+	if proxyHost == "" {
+		envErr := fmt.Errorf("missing ICEBERG_PROXY_HOST env variable")
+		m.logger.Error(envErr.Error())
+		return nil, fferr.NewInternalError(envErr)
+	}
+
+	if proxyPort == "" {
+		envErr := fmt.Errorf("missing ICEBERG_PROXY_PORT env variable")
+		m.logger.Error(envErr.Error())
+		return nil, fferr.NewInternalError(envErr)
+	}
+
+	proxyAddress := fmt.Sprintf("%s:%s", proxyHost, proxyPort)
+	m.logger.Infow("Received stream request, forwarding to iceberg-proxy at: %s", proxyAddress)
+
 	insecureOption := grpc.WithTransportCredentials(insecure.NewCredentials())
 	sizeOption := grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(20 * 1024 * 1024)) //20 MB
 

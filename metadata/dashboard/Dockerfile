@@ -30,7 +30,7 @@ COPY ./schema ./schema
 COPY ./storage ./storage
 COPY ./lib/ ./lib/
 COPY ./filestore/ ./filestore/
-COPY ./metadata/*.go ./metadata/
+COPY ./metadata/ ./metadata/
 COPY ./helpers/ ./helpers/
 COPY ./integrations/ ./integrations/
 COPY ./lib/ ./lib/
@@ -40,10 +40,6 @@ COPY ./serving/ ./serving/
 COPY ./kubernetes/ ./kubernetves/
 COPY ./types/ ./types/
 COPY ./provider/ ./provider/
-COPY ./metadata/dashboard/ ./metadata/dashboard/
-COPY ./metadata/search/ ./metadata/search/
-COPY ./metadata/equivalence/ ./metadata/equivalence/
-COPY ./metadata/common/ ./metadata/common/
 COPY ./provider/provider_config/ ./provider/provider_config/
 COPY ./provider/provider_type/ ./provider/provider_type/
 COPY ./config/ ./config/

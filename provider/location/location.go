@@ -82,10 +82,10 @@ func (f FullyQualifiedObject) String() string {
 	parts := []string{}
 
 	// Only add database and schema if they are not empty
-	if f.Database != "" && f.Schema != "" {
+	// One example is BigQuery, where there's no concept of a schema.
+	if f.Database != "" {
 		parts = append(parts, f.Database)
 	}
-
 	if f.Schema != "" {
 		parts = append(parts, f.Schema)
 	}

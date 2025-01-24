@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	pl "github.com/featureform/provider/location"
+	ps "github.com/featureform/provider/provider_schema"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -222,6 +223,42 @@ func destroyBigQueryDataset(c pc.BigQueryConfig) error {
 	return err
 }
 
+func RegisterBigQueryChainedTransformationsTest(t *testing.T, tester offlineSqlTest) {
+	test := newSQLTransformationTest(tester.storeTester, tester.useSchema, tester.transformationQuery)
+	_ = initSqlPrimaryDataset(t, test.tester, test.data.location, test.data.schema, test.data.records)
+	if err := test.tester.CreateTransformation(test.data.config); err != nil {
+		t.Fatalf("could not create transformation: %v", err)
+	}
+	// CHAIN `SELECT *` TRANSFORMATION ON 1ST TRANSFORMATION
+	// Create chained transformation resource ID and table name
+	id := ResourceID{Name: "DUMMY_TABLE_TF2", Variant: "test", Type: Transformation}
+	table, err := ps.ResourceToTableName(Transformation.String(), id.Name, id.Variant)
+	if err != nil {
+		t.Fatalf("could not get transformation table: %v", err)
+	}
+	// Get the table name of the first transformation and create a SQL location for sanitization
+	srcDataset, err := ps.ResourceToTableName(Transformation.String(), test.data.config.TargetTableID.Name, test.data.config.TargetTableID.Variant)
+	if err != nil {
+		t.Fatalf("could not get transformation table name from resource ID: %v", err)
+	}
+	// TODO: Nicer way of doing this.
+	srcLoc := pl.NewSQLLocationWithDBSchemaTable(test.tester.(*bigQueryOfflineStoreTester).query.DatasetId, "", srcDataset).(*pl.SQLLocation)
+	// Copy the original config and modify the query and source mapping
+	config := test.data.config
+	config.TargetTableID = id
+	config.Query = fmt.Sprintf("SELECT * FROM `%s`", srcLoc.TableLocation())
+	config.SourceMapping[0].Location = pl.NewSQLLocation(table)
+	// Create, get and assert the chained transformation
+	if err := test.tester.CreateTransformation(config); err != nil {
+		t.Fatalf("could not create transformation: %v", err)
+	}
+	actual, err := test.tester.GetTransformationTable(id)
+	if err != nil {
+		t.Fatalf("could not get transformation table: %v", err)
+	}
+	test.data.Assert(t, actual)
+}
+
 func TestBigQueryTransformations(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
@@ -230,8 +267,8 @@ func TestBigQueryTransformations(t *testing.T) {
 	tester := getConfiguredBigQueryTester(t, false)
 
 	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
-		"RegisterTransformationOnPrimaryDatasetTest": RegisterTransformationOnPrimaryDatasetTest,
-		//"RegisterChainedTransformationsTest":         RegisterChainedTransformationsTest,
+		//"RegisterTransformationOnPrimaryDatasetTest": RegisterTransformationOnPrimaryDatasetTest,
+		"RegisterChainedTransformationsTest": RegisterBigQueryChainedTransformationsTest,
 	}
 
 	for name, testCase := range testCases {
@@ -305,7 +342,9 @@ func getConfiguredBigQueryTester(t *testing.T, useCrossDBJoins bool) offlineSqlT
 	offlineStoreTester := &bigQueryOfflineStoreTester{store.(*bqOfflineStore)}
 
 	return offlineSqlTest{
-		storeTester:      offlineStoreTester,
-		testCrossDbJoins: useCrossDBJoins,
+		storeTester:         offlineStoreTester,
+		testCrossDbJoins:    useCrossDBJoins,
+		useSchema:           false,
+		transformationQuery: "SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, TIMESTAMP(timestamp) as date FROM %s GROUP BY location_id, TIMESTAMP(timestamp)",
 	}
 }

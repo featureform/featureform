@@ -27,8 +27,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func newSQLTransformationTest(tester offlineSqlStoreTester) *sqlTransformationTester {
-	data := newTestSQLTransformationData(tester.Type(), tester.Config())
+func newSQLTransformationTest(tester offlineSqlStoreTester, useSchema bool, transformationQuery string) *sqlTransformationTester {
+	data := newTestSQLTransformationData(tester.Type(), tester.Config(), useSchema, transformationQuery)
 	return &sqlTransformationTester{
 		tester: tester,
 		data:   data,
@@ -89,9 +89,10 @@ func initSqlPrimaryDataset(t *testing.T, tester offlineSqlStoreDatasetTester, lo
 	})
 
 	schemaName := sqlLoc.GetSchema()
-	if schemaName == "" {
-		t.Fatalf("expected schema name to be non-empty")
-	}
+	// TODO: Incorporate check for `useSchema`.
+	//if schemaName == "" {
+	//	t.Fatalf("expected schema name to be non-empty")
+	//}
 	if err := tester.CreateSchema(dbName, schemaName); err != nil {
 		t.Fatalf("could not create schema: %v", err)
 	}
@@ -143,13 +144,16 @@ func (a idCreator) create(t OfflineResourceType, name string) ResourceID {
 	}
 }
 
-func newTestSQLTransformationData(storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTransformationData {
+func newTestSQLTransformationData(storeType pt.Type, storeConfig pc.SerializedConfig, useSchema bool, transformationQuery string) testSQLTransformationData {
 	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	if !useSchema {
+		schema = ""
+	}
 	loc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_WIND_DATA_TABLE")
 	sqlLoc := loc.(*pl.SQLLocation)
 	tableLoc := sqlLoc.TableLocation()
-	queryFmt := "SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)"
+	queryFmt := transformationQuery
 	idCreator := newIDCreator("test")
 	return testSQLTransformationData{
 		schema: TableSchema{
@@ -281,10 +285,15 @@ func (d testSQLTransformationData) Assert(t *testing.T, actual PrimaryTable) {
 		t.Fatalf("could not get iterator: %v", err)
 	}
 
+	var expectedMap = map[string]GenericRecord{}
+	for i := 0; i < len(d.expected); i++ {
+		expectedMap[d.expected[i][entityIdx].(string)] = d.expected[i]
+	}
+
 	i := 0
 	for itr.Next() {
 		actual := itr.Values()
-		expected := d.expected[i]
+		expected := expectedMap[actual[entityIdx].(string)]
 		assert.Equal(t, expected[entityIdx].(string), actual[entityIdx].(string), "expected same entity")
 		assert.Equal(t, expected[avgWindSpeedIdx].(float64), actual[avgWindSpeedIdx].(float64), "expected same value for col 2")
 		assert.Equal(t, expected[avgWindDurationIdx].(float64), actual[avgWindDurationIdx].(float64), "expected same value for col 3")

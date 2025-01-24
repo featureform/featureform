@@ -768,7 +768,7 @@ func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester of
 }
 
 func RegisterTransformationOnPrimaryDatasetTest(t *testing.T, tester offlineSqlTest) {
-	test := newSQLTransformationTest(tester.storeTester)
+	test := newSQLTransformationTest(tester.storeTester, tester.useSchema, tester.transformationQuery)
 	_ = initSqlPrimaryDataset(t, test.tester, test.data.location, test.data.schema, test.data.records)
 	if err := test.tester.CreateTransformation(test.data.config); err != nil {
 		t.Fatalf("could not create transformation: %v", err)
@@ -781,7 +781,7 @@ func RegisterTransformationOnPrimaryDatasetTest(t *testing.T, tester offlineSqlT
 }
 
 func RegisterChainedTransformationsTest(t *testing.T, tester offlineSqlTest) {
-	test := newSQLTransformationTest(tester.storeTester)
+	test := newSQLTransformationTest(tester.storeTester, tester.useSchema, tester.transformationQuery)
 	_ = initSqlPrimaryDataset(t, test.tester, test.data.location, test.data.schema, test.data.records)
 	if err := test.tester.CreateTransformation(test.data.config); err != nil {
 		t.Fatalf("could not create transformation: %v", err)
@@ -1142,7 +1142,9 @@ func getConfiguredTester(t *testing.T, useCrossDBJoins bool) offlineSqlTest {
 	offlineStoreTester := &snowflakeOfflineStoreTester{store.(*snowflakeOfflineStore)}
 
 	return offlineSqlTest{
-		storeTester:      offlineStoreTester,
-		testCrossDbJoins: useCrossDBJoins,
+		storeTester:         offlineStoreTester,
+		testCrossDbJoins:    useCrossDBJoins,
+		useSchema:           true,
+		transformationQuery: "SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)",
 	}
 }

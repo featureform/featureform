@@ -55,7 +55,7 @@ SELECT DISTINCT
     dc.to_resource_proto_type,
     dc.to_resource_name,
     dc.to_resource_variant
-FROM dependency_chain dc
+FROM dependency_chain dc;
 
 -- Note: Explicit cycle detection logic is handled in the WHERE clause above
 END;

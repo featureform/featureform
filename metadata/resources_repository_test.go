@@ -155,7 +155,7 @@ func TestDeleteProvider(t *testing.T) {
 		}, testServer.server.deletionTaskStarter)
 		require.NoError(t, err)
 
-		// Verify the provider is marked for deletion
+		// Verify the provider is deleted
 		res, err := testServer.repo.Lookup(ctx, ResourceID{
 			Name: "mockOfflineToDelete",
 			Type: PROVIDER,
@@ -163,8 +163,7 @@ func TestDeleteProvider(t *testing.T) {
 
 		var keyNotFoundErr *fferr.KeyNotFoundError
 		require.ErrorAs(t, err, &keyNotFoundErr)
-		require.NotNil(t, res)
-		require.Equal(t, res.ID().Name, "mockOfflineToDelete")
+		require.Nil(t, res)
 
 	})
 

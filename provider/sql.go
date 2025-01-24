@@ -260,6 +260,10 @@ func (store *sqlOfflineStore) CheckHealth() (bool, error) {
 	return true, nil
 }
 
+func (store sqlOfflineStore) Delete(location pl.Location) error {
+	return fferr.NewInternalErrorf("delete not implemented")
+}
+
 func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
 	logger := logging.NewLogger("sql").WithProvider(store.Type().String(), "SQL")
 	logger.Debugw("Registering resource from source table", "id", id, "schema", schema, "options", opts)
@@ -390,7 +394,7 @@ func (store *sqlOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema
 		return nil, err
 	}
 
-	location, _ := pl.NewSQLLocationWithDBSchemaTable(dbName, schemaName, name).(*pl.SQLLocation)
+	location, _ := pl.NewFullyQualifiedSQLLocation(dbName, schemaName, name).(*pl.SQLLocation)
 	return &sqlPrimaryTable{
 		db:           db,
 		name:         name, // TODO get rid of this and just use location
@@ -480,7 +484,7 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 	if err != nil {
 		return nil, err
 	}
-	sqlLocation := pl.NewSQLLocationWithDBSchemaTable(dbName, schemaName, name).(*pl.SQLLocation)
+	sqlLocation := pl.NewFullyQualifiedSQLLocation(dbName, schemaName, name).(*pl.SQLLocation)
 
 	return &sqlPrimaryTable{
 		db:           store.db,

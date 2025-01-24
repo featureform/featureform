@@ -20,6 +20,7 @@ from .enums import FileFormat, DataResourceType, RefreshMode, Initialize
 from .proto import metadata_pb2 as pb
 from .register import (
     FeatureColumnResource,
+    LabelColumnResource,
     FileStoreProvider,
     OfflineSQLProvider,
     OfflineSparkProvider,
@@ -228,7 +229,9 @@ class Client(ResourceClient, ServingClient):
             source, variant = source.name_variant()
 
         if not isinstance(source, str) or not isinstance(variant, str):
-            raise ValueError("Both 'source' and 'variant' must be strings or values from SourceRegistrar.")
+            raise ValueError(
+                "Both 'source' and 'variant' must be strings or values from SourceRegistrar."
+            )
 
         ticket_data = {
             "source": source,
@@ -241,8 +244,10 @@ class Client(ResourceClient, ServingClient):
         host, port = self._host.split(":")
         if port != "443":
             # is single docker mode, point directly to proxy port
-            port = "8086" 
-        flight_address = f"{protocol}://{host}:{port}/arrow.flight.protocol.FlightService/"
+            port = "8086"
+        flight_address = (
+            f"{protocol}://{host}:{port}/arrow.flight.protocol.FlightService/"
+        )
         print(f"Flight server address: {flight_address}")
 
         print("Client initializing...")
@@ -405,7 +410,14 @@ class Client(ResourceClient, ServingClient):
 
     def location(
         self,
-        source: Union[SourceRegistrar, SubscriptableTransformation, str],
+        source: Union[
+            SourceRegistrar,
+            SubscriptableTransformation,
+            FeatureColumnResource,
+            LabelColumnResource,
+            TrainingSetVariant,
+            str,
+        ],
         variant: Optional[str] = None,
         resource_type: Optional[DataResourceType] = None,
     ):
@@ -430,6 +442,14 @@ class Client(ResourceClient, ServingClient):
             name = source.name
             variant = source.variant
             resource_type = DataResourceType.TRAINING_SET
+        elif isinstance(source, FeatureColumnResource):
+            name = source.name
+            variant = source.variant
+            resource_type = DataResourceType.FEATURE
+        elif isinstance(source, LabelColumnResource):
+            name = source.name
+            variant = source.variant
+            resource_type = DataResourceType.LABEL
         elif isinstance(source, str):
             name = source
             if variant is None:

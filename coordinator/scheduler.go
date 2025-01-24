@@ -60,6 +60,7 @@ func (c *Scheduler) Start() error {
 		}
 
 		runs, err := c.Metadata.Tasks.GetUnfinishedRuns()
+		c.Logger.Debugf("Fetched all unfinished runs: %v", runs)
 		if err != nil {
 			c.Logger.Error(err.Error())
 		}

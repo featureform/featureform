@@ -5,12 +5,14 @@
 #  Copyright 2024 FeatureForm Inc.
 #
 
-from dataclasses import dataclass
 from enum import Enum
-from featureform.proto import metadata_pb2 as pb
-from typeguard import typechecked
-from os import path
 from fnmatch import fnmatch
+from os import path
+
+from dataclasses import dataclass
+from typeguard import typechecked
+
+from featureform.proto import metadata_pb2 as pb
 
 
 class ScalarType(str, Enum):
@@ -237,8 +239,44 @@ class ResourceType(Enum):
     MODEL = 10
     TRANSFORMATION = 11
 
+    @classmethod
+    def _get_proto_map(cls):
+        return {
+            cls.NO_TYPE: None,
+            cls.USER: pb.ResourceType.USER,
+            cls.PROVIDER: pb.ResourceType.PROVIDER,
+            cls.SOURCE_VARIANT: pb.ResourceType.SOURCE_VARIANT,
+            cls.ENTITY: pb.ResourceType.ENTITY,
+            cls.FEATURE_VARIANT: pb.ResourceType.FEATURE_VARIANT,
+            cls.ONDEMAND_FEATURE: pb.ResourceType.FEATURE_VARIANT,
+            cls.LABEL_VARIANT: pb.ResourceType.LABEL_VARIANT,
+            cls.TRAININGSET_VARIANT: pb.ResourceType.TRAINING_SET_VARIANT,
+            cls.SCHEDULE: None,
+            cls.MODEL: pb.ResourceType.MODEL,
+            cls.TRANSFORMATION: pb.ResourceType.SOURCE_VARIANT,
+        }
+
+    def to_proto(self):
+        return self._get_proto_map()[self]
+
     def to_string(self) -> str:
         return self.name.replace("_", " ").title()
+
+    @classmethod
+    def is_deletable(cls, resource_type):
+        return resource_type in [
+            # cls.USER,
+            cls.PROVIDER,
+            cls.SOURCE_VARIANT,
+            # cls.ENTITY,
+            cls.FEATURE_VARIANT,
+            # cls.ONDEMAND_FEATURE,
+            cls.LABEL_VARIANT,
+            cls.TRAININGSET_VARIANT,
+            # cls.SCHEDULE,
+            # cls.MODEL,
+            cls.TRANSFORMATION,
+        ]
 
 
 @typechecked

@@ -807,19 +807,12 @@ func (serv *FeatureServer) GetResourceLocation(ctx context.Context, req *pb.Reso
 	resourceType := req.GetType()
 	serv.Logger.Infow("Getting the Resource Location:", "Name", name, "Variant", variant, "Type", resourceType)
 
-	var location string
-	var err error
-	if provider.OfflineResourceType(resourceType) == provider.Feature {
-		location, err = serv.getOnlineResourceLocation(ctx, name, variant, resourceType)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		location, err = serv.getOfflineResourceLocation(ctx, name, variant, resourceType)
-		if err != nil {
-			return nil, err
-		}
+	location, err := serv.getOfflineResourceLocation(ctx, name, variant, resourceType)
+	if err != nil {
+		return nil, err
 	}
+
+	// TODO: implement online resource location
 
 	return &pb.ResourceLocation{
 		Location: location,
@@ -860,13 +853,41 @@ func (serv *FeatureServer) getOfflineResourceLocation(ctx context.Context, name,
 		serv.Logger.Infow("Getting Training Set Provider", "name", name, "variant", variant)
 		ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 		if err != nil {
+			serv.Logger.Errorw("Failed to get training set variant", "Error", err)
 			return "", err
 		}
 		providerEntry, err = ts.FetchProvider(serv.Metadata, ctx)
 		if err != nil {
+			serv.Logger.Errorw("Failed to fetch provider", "Error", err)
 			return "", err
 		}
 		resource = ts
+	case provider.Label:
+		serv.Logger.Infow("Getting Label Provider", "name", name, "variant", variant)
+		l, err := serv.Metadata.GetLabelVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
+		if err != nil {
+			serv.Logger.Errorw("Failed to get label variant", "Error", err)
+			return "", err
+		}
+		providerEntry, err = l.FetchProvider(serv.Metadata, ctx)
+		if err != nil {
+			serv.Logger.Errorw("Failed to fetch provider", "Error", err)
+			return "", err
+		}
+		resource = l
+	case provider.Feature:
+		serv.Logger.Infow("Getting Feature Provider", "name", name, "variant", variant)
+		f, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
+		if err != nil {
+			serv.Logger.Errorw("Failed to get feature variant", "Error", err)
+			return "", err
+		}
+		providerEntry, err = f.FetchProvider(serv.Metadata, ctx)
+		if err != nil {
+			serv.Logger.Errorw("Failed to fetch provider", "Error", err)
+			return "", err
+		}
+		resource = f
 	default:
 		return "", fferr.NewInvalidResourceTypeError(name, variant, fferr.ResourceType(metadata.ResourceType(resourceType).String()), fmt.Errorf("invalid resource type"))
 	}

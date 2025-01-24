@@ -2404,7 +2404,7 @@ func (serv *MetadataServer) MarkForDeletion(ctx context.Context, request *pb.Mar
 }
 
 func (serv *MetadataServer) deletionTaskStarter(ctx context.Context, resId ResourceID, logger logging.Logger) error {
-	logger.Infow("Handling resource deletion")
+	logger.Infow("Handling async deletion tasks")
 
 	// Create deletion job for resources that need it
 	taskTarget := scheduling.NameVariant{
@@ -2426,6 +2426,7 @@ func (serv *MetadataServer) deletionTaskStarter(ctx context.Context, resId Resou
 	}
 
 	if slices.Contains(needsJobList, resId.Type) {
+		logger.Debugf("Creating deletion task for resource %s", resId.String())
 		taskName := fmt.Sprintf("Deleting Resource %s", resId.String())
 		trigger := scheduling.OnApplyTrigger{TriggerName: "Apply"}
 
@@ -2540,10 +2541,12 @@ func (serv *MetadataServer) checkProviderSupportsDelete(ctx context.Context, pro
 	t := providerResource.serialized.Type
 	serv.Logger.Debugw("Provider type", "type", t)
 
-	// we can only delete snowflake provider for now
-	if t != pt.SnowflakeOffline.String() {
-		return fferr.NewInternalErrorf("Resource is not deletable because it is not a snowflake provider")
+	// Use the centralized validation logic for supported operations
+	if err := ValidateProviderOperation(OperationDelete, t); err != nil {
+		logger.Errorw("Provider type does not support delete", "type", t, "error", err)
+		return err
 	}
+
 	return nil
 }
 

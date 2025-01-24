@@ -34,8 +34,8 @@ func (t *TrainingSetTask) Run() error {
 	logger.Info("Running training set task")
 	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
-		logger.Errorw("cannot create a source from target type", "type", t.taskDef.TargetType)
-		return fferr.NewInternalErrorf("cannot create a source from target type: %s", t.taskDef.TargetType)
+		logger.Errorw("cannot create a training set from target type", "type", t.taskDef.TargetType)
+		return fferr.NewInternalErrorf("cannot create a training set from target type: %s", t.taskDef.TargetType)
 	}
 
 	tsId := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.TRAINING_SET_VARIANT}

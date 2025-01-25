@@ -2745,7 +2745,7 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 	source := c.Query("name")
 	variant := c.Query("variant")
 
-	m.logger.Infow("Processing streaming request: %s-%s, ", source, variant)
+	m.logger.Infof("Processing streaming request: %s-%s, ", source, variant)
 
 	if source == "" || variant == "" {
 		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetStream - Could not find the name or variant query parameters"}
@@ -2776,7 +2776,20 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 	for iterator.Next() {
 		iterator.currentBatch = iterator.recordReader.Record()
 		dataMatrix := iterator.Values()
-		response.Rows = append(response.Rows, dataMatrix...)
+		// extract the interface data
+		for _, dataRow := range dataMatrix {
+			stringArray, ok := dataRow.([]string) // expect string array
+			if !ok {
+				fetchError := &FetchError{
+					StatusCode: http.StatusInternalServerError,
+					Type:       "GetStream - Datarow type assert",
+				}
+				m.logger.Errorw("unable to type assert data row: %v", dataRow)
+				c.JSON(fetchError.StatusCode, fetchError.Error())
+				break
+			}
+			response.Rows = append(response.Rows, stringArray)
+		}
 	}
 
 	for i, columnName := range iterator.Columns() {
@@ -2821,7 +2834,7 @@ func (m *MetadataServer) GetStreamIterator(ctx context.Context, source, variant 
 	}
 
 	proxyAddress := fmt.Sprintf("%s:%s", proxyHost, proxyPort)
-	m.logger.Infow("Received stream request, forwarding to iceberg-proxy at: %s", proxyAddress)
+	m.logger.Infof("Received stream request, forwarding to iceberg-proxy at: %s", proxyAddress)
 
 	insecureOption := grpc.WithTransportCredentials(insecure.NewCredentials())
 	sizeOption := grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(20 * 1024 * 1024)) //20 MB
@@ -2884,11 +2897,11 @@ func (si StreamIterator) Next() bool {
 	return hasNext
 }
 
-func (si StreamIterator) Values() [][]string {
+func (si StreamIterator) Values() provider.GenericRecord {
 	if si.currentBatch == nil {
-		return [][]string{}
+		return nil
 	}
-	rowMatrix := make([][]string, si.currentBatch.NumRows())
+	rowMatrix := make(provider.GenericRecord, si.currentBatch.NumRows())
 
 	for i := 0; i < int(si.currentBatch.NumCols()); i++ {
 		currentCol := si.currentBatch.Column(i)
@@ -2899,7 +2912,7 @@ func (si StreamIterator) Values() [][]string {
 			if rowMatrix[cr] == nil {
 				rowMatrix[cr] = []string{}
 			}
-			rowMatrix[cr] = append(rowMatrix[cr], cellString)
+			rowMatrix[cr] = append(rowMatrix[cr].([]string), cellString)
 		}
 	}
 	return rowMatrix

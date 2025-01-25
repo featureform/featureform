@@ -2804,7 +2804,7 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 		}
 	}
 
-	m.logger.Info("Stream complete, returning response...")
+	m.logger.Info("Stream complete, returning response.")
 	c.JSON(http.StatusOK, response)
 }
 
@@ -2866,7 +2866,7 @@ func (m *MetadataServer) GetStreamIterator(ctx context.Context, source, variant 
 		return nil, fmt.Errorf("failed to fetch data for source (%s) and variant (%s) from proxy: %w", source, variant, err)
 	}
 
-	m.logger.Info("Creating the record reader.")
+	m.logger.Info("Creating the record reader...")
 	recordReader, err := flight.NewRecordReader(flightStream)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create record reader: %w", err)

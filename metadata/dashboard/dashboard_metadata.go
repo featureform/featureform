@@ -2760,7 +2760,7 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 		Rows:    [][]string{},
 	}
 
-	iterator, err := m.GetStreamIterator(c.Request.Context(), source, variant, limit)
+	iterator, err := GetStreamIterator(c.Request.Context(), source, variant, limit)
 	if err != nil {
 		fetchError := &FetchError{
 			StatusCode: http.StatusInternalServerError,
@@ -2815,37 +2815,40 @@ type StreamIterator struct {
 	recordReader *flight.Reader
 	currentBatch arrow.Record
 	columns      []string
+	logger       logging.Logger
 }
 
-func (m *MetadataServer) GetStreamIterator(ctx context.Context, source, variant string, limit int64) (*StreamIterator, error) {
+func GetStreamIterator(ctx context.Context, source, variant string, limit int64) (*StreamIterator, error) {
 	proxyHost := help.GetEnv("ICEBERG_PROXY_HOST", "localhost")
 	proxyPort := help.GetEnv("ICEBERG_PROXY_PORT", "8086")
 
+	baseLogger := logging.NewLogger("stream-iterator")
+
 	if proxyHost == "" {
 		envErr := fmt.Errorf("missing ICEBERG_PROXY_HOST env variable")
-		m.logger.Error(envErr.Error())
+		baseLogger.Error(envErr.Error())
 		return nil, fferr.NewInternalError(envErr)
 	}
 
 	if proxyPort == "" {
 		envErr := fmt.Errorf("missing ICEBERG_PROXY_PORT env variable")
-		m.logger.Error(envErr.Error())
+		baseLogger.Error(envErr.Error())
 		return nil, fferr.NewInternalError(envErr)
 	}
 
 	proxyAddress := fmt.Sprintf("%s:%s", proxyHost, proxyPort)
-	m.logger.Infof("Received stream request, forwarding to iceberg-proxy at: %s", proxyAddress)
+	baseLogger.Infof("Received stream request, forwarding to iceberg-proxy at: %s", proxyAddress)
 
 	insecureOption := grpc.WithTransportCredentials(insecure.NewCredentials())
 	sizeOption := grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(20 * 1024 * 1024)) //20 MB
 
 	client, clientErr := flight.NewClientWithMiddleware(proxyAddress, nil, nil, insecureOption, sizeOption)
 	if clientErr != nil {
-		m.logger.Errorf("Failed to connect to the iceberg-proxy: %v", clientErr)
+		baseLogger.Errorf("Failed to connect to the iceberg-proxy: %v", clientErr)
 		return nil, clientErr
 	}
 
-	m.logger.Info("Connection established! Preparing the ticket for the proxy...")
+	baseLogger.Info("Connection established! Preparing the ticket for the proxy...")
 	ticketData := map[string]interface{}{
 		"source":       source,
 		"variant":      variant,
@@ -2860,13 +2863,13 @@ func (m *MetadataServer) GetStreamIterator(ctx context.Context, source, variant 
 
 	ticket := &flight.Ticket{Ticket: ticketBytes}
 
-	m.logger.Info("Fetching the data stream...")
+	baseLogger.Info("Fetching the data stream...")
 	flightStream, err := client.DoGet(ctx, ticket)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch data for source (%s) and variant (%s) from proxy: %w", source, variant, err)
 	}
 
-	m.logger.Info("Creating the record reader...")
+	baseLogger.Info("Creating the record reader...")
 	recordReader, err := flight.NewRecordReader(flightStream)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create record reader: %w", err)
@@ -2885,6 +2888,7 @@ func (m *MetadataServer) GetStreamIterator(ctx context.Context, source, variant 
 		flightStream: flightStream,
 		recordReader: recordReader,
 		columns:      columns,
+		logger:       baseLogger,
 	}, nil
 }
 
@@ -2922,7 +2926,7 @@ func (si StreamIterator) Columns() []string {
 	return si.columns
 }
 
-func (si *StreamIterator) Err() error {
+func (si StreamIterator) Err() error {
 	return si.recordReader.Err()
 }
 

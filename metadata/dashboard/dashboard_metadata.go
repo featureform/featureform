@@ -2774,7 +2774,6 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 
 	m.logger.Info("Proxy connection established, iterating stream data...")
 	for iterator.Next() {
-		iterator.currentBatch = iterator.recordReader.Record()
 		dataMatrix := iterator.Values()
 		// extract the interface data
 		for _, dataRow := range dataMatrix {
@@ -2892,7 +2891,7 @@ func GetStreamIterator(ctx context.Context, source, variant string, limit int64)
 	}, nil
 }
 
-func (si StreamIterator) Next() bool {
+func (si *StreamIterator) Next() bool {
 	hasNext := si.recordReader.Next()
 	si.currentBatch = si.recordReader.Record()
 	if !hasNext {

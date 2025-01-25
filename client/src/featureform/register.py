@@ -4786,7 +4786,7 @@ class Registrar:
                 f"Invalid features type: {type(features)} "
                 "Features must be entered as a list of name-variant tuples (e.g. [('feature1', 'quickstart'), ('feature2', 'quickstart')]) or a list of FeatureColumnResource instances."
             )
-        if not isinstance(label, (tuple, str, LabelColumnResource)):
+        if not isinstance(label, (tuple, str, LabelColumnResource, LabelVariant)):
             raise ValueError(
                 f"Invalid label type: {type(label)} "
                 "Label must be entered as a name-variant tuple (e.g. ('fraudulent', 'quickstart')), a resource name, or an instance of LabelColumnResource."
@@ -4809,8 +4809,19 @@ class Registrar:
             raise ValueError("A training-set must have at least one feature")
         if isinstance(label, str):
             label = (label, self.__run)
-        if not isinstance(label, LabelColumnResource) and label[1] == "":
+        elif isinstance(label, LabelVariant):
+            label = (
+                label.name,
+                (
+                    self.__run
+                    if label.name_variant()[1] == ""
+                    else label.name_variant()[1]
+                ),
+            )
+        elif isinstance(label, tuple) and label[1] == "":
             label = (label[0], self.__run)
+        elif not isinstance(label, LabelColumnResource) and label[1] == "":
+            label = (label.name, self.__run)
 
         processed_features = []
         for feature in features:

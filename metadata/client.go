@@ -2351,17 +2351,38 @@ func WrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
 }
 
 func (variant *LabelVariant) ToShallowMap() LabelVariantResource {
+	logger := logging.GlobalLogger.WithResource(logging.LabelVariant, variant.Name(), variant.Variant())
+	loc, err := variant.Location()
+	if err != nil {
+		logger.Errorw("Failed to get location", "error", err)
+	}
+	locMap := make(map[string]string)
+	locMap["Value"] = loc.ValueColumn
+	locMap["TS"] = loc.TimestampColumn
+	entityCols := make([]string, len(loc.Mappings))
+	entities := make([]string, len(loc.Mappings))
+	if len(loc.Mappings) == 1 {
+		entityCols[0] = loc.Mappings[0].EntityColumn
+	} else {
+		for i, mapping := range loc.Mappings {
+			entityCols[i] = fmt.Sprintf("%s:%s", mapping.Name, mapping.EntityColumn)
+		}
+	}
+	// TODO: The entity pill in the dashboard is clickable so we cannot add both entity names
+	entities[0] = loc.Mappings[0].Name
+	locMap["Source"] = ""
+	locMap["Entity"] = strings.Join(entityCols, ", ")
 	return LabelVariantResource{
 		Created:     variant.Created(),
 		Description: variant.Description(),
-		Entity:      variant.Entity(),
+		Entity:      strings.Join(entities, ", "),
 		Name:        variant.Name(),
 		DataType:    typeString(variant),
 		Variant:     variant.Variant(),
 		Owner:       variant.Owner(),
 		Provider:    variant.Provider(),
 		Source:      variant.Source(),
-		Location:    columnsToMap(variant.LocationColumns().(ResourceVariantColumns)),
+		Location:    locMap,
 		Status:      variant.Status().String(),
 		Error:       variant.Error(),
 		Tags:        variant.Tags(),

@@ -2807,7 +2807,7 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// todox: need to pull this out
+// todox: need to pull this out. to proxy?
 type StreamIterator struct {
 	client       flight.Client
 	flightStream flight.FlightService_DoGetClient

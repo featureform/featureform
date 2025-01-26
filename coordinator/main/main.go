@@ -8,65 +8,65 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	"github.com/featureform/config"
+	"github.com/featureform/config/bootstrap"
 	"github.com/featureform/coordinator"
-
-	"github.com/featureform/scheduling"
-
 	"github.com/featureform/coordinator/spawner"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 func main() {
-	etcdHost := help.GetEnv("ETCD_HOST", "localhost")
-	etcdPort := help.GetEnv("ETCD_PORT", "2379")
-	etcdUrl := fmt.Sprintf("%s:%s", etcdHost, etcdPort)
+	initTimeout := time.Second * 15
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")
 	metadataUrl := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	useK8sRunner := help.GetEnv("K8S_RUNNER_ENABLE", "false")
-	managerType := help.GetEnv("FF_STATE_PROVIDER", "ETCD")
-	fmt.Printf("connecting to etcd: %s\n", etcdUrl)
-	fmt.Printf("connecting to metadata: %s\n", metadataUrl)
-	etcdConfig := clientv3.Config{
-		Endpoints:   []string{etcdUrl},
-		Username:    help.GetEnv("ETCD_USERNAME", "root"),
-		Password:    help.GetEnv("ETCD_PASSWORD", "secretpassword"),
-		DialTimeout: time.Second * 1,
-	}
-
-	cli, err := clientv3.New(etcdConfig)
-	if err != nil {
-		fmt.Println("Failed to connect to ETCD. Continuing...")
-	}
-
-	defer func(cli *clientv3.Client) {
-		err := cli.Close()
-		if err != nil {
-			panic(fmt.Errorf("failed to close etcd client: %w", err))
-		}
-	}(cli)
 	logger := logging.NewLogger("coordinator")
 	defer logger.Sync()
-	client, err := metadata.NewClient(metadataUrl, logger)
+	logger.Info("Parsing Featureform App Config")
+	appConfig, err := config.Get(logger)
 	if err != nil {
-		logger.Errorw("Failed to connect: %v", err)
+		logger.Errorw("Invalid App Config", "err", err)
 		panic(err)
 	}
-	logger.Debug("Connected to Metadata")
-	var spawnerInstance spawner.JobSpawner
-	if useK8sRunner == "false" {
-		spawnerInstance = &spawner.MemoryJobSpawner{}
-	} else {
-		spawnerInstance = &spawner.KubernetesJobSpawner{EtcdConfig: etcdConfig}
+	ctx, cancelFn := context.WithTimeout(context.Background(), initTimeout)
+	defer cancelFn()
+	initCtx := logger.AttachToContext(ctx)
+	logger.Info("Created initialization context with timeout", "timeout", initTimeout)
+	logger.Debug("Creating initializer")
+	init, err := bootstrap.NewInitializer(appConfig)
+	if err != nil {
+		logger.Errorw("Failed to bootstrap service from config", "err", err)
+		panic(err)
+	}
+	defer logger.LogIfErr("Failed to close service-level resources", init.Close())
+
+	logger.Infof("connecting to metadata: %s\n", metadataUrl)
+	// TODO add context to this client
+	client, err := metadata.NewClient(metadataUrl, logger)
+	if err != nil {
+		logger.Errorw("Failed to connect to metadata: %v", err)
+		panic(err)
 	}
 
-	manager, err := scheduling.NewTaskMetadataManagerFromEnv(scheduling.TaskMetadataManagerType(managerType))
+	logger.Debug("Getting job spawner")
+	var spawnerInstance spawner.JobSpawner
+	if useK8sRunner == "false" {
+		logger.Debug("Using go-routine job spawner")
+		spawnerInstance = &spawner.MemoryJobSpawner{}
+	} else {
+		logger.Errorw("K8s job spawner no longer supported")
+		panic("K8s Job Spawner no longer supported")
+	}
+
+	logger.Debug("Getting task metadata manager")
+	manager, err := init.GetOrCreateTaskMetadataManager(initCtx)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -75,6 +75,7 @@ func main() {
 		TaskPollInterval: func() time.Duration {
 			interval, err := time.ParseDuration(help.GetEnv("TASK_POLL_INTERVAL", "1s"))
 			if err != nil {
+				logger.Errorw("Invalid TASK_POLL_INTERVAL")
 				panic(err.Error())
 			}
 			return interval
@@ -82,6 +83,7 @@ func main() {
 		TaskStatusSyncInterval: func() time.Duration {
 			interval, err := time.ParseDuration(help.GetEnv("TASK_STATUS_SYNC_INTERVAL", "1h"))
 			if err != nil {
+				logger.Errorw("Invalid TASK_STATUS_SYNC_INTERVAL")
 				panic(err.Error())
 			}
 			return interval
@@ -89,13 +91,16 @@ func main() {
 		DependencyPollInterval: func() time.Duration {
 			interval, err := time.ParseDuration(help.GetEnv("TASK_DEPENDENCY_POLL_INTERVAL", "1s"))
 			if err != nil {
+				logger.Errorw("Invalid TASK_DEPENDENCY_POLL_INTERVAL")
 				panic(err.Error())
 			}
 			return interval
 		}(),
 	}
 
+	logger.Info("Dependencies created. Starting Scheduler...")
 	scheduler := coordinator.NewScheduler(client, logger, spawnerInstance, manager.Storage.Locker, config)
+
 	err = scheduler.Start()
 	if err != nil {
 		panic(err.Error())

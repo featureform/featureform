@@ -12,12 +12,13 @@ import (
 	"fmt"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/helpers"
+	"github.com/featureform/helpers/etcd"
 	"github.com/featureform/storage/query"
+
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func NewETCDStorageImplementation(config helpers.ETCDConfig) (metadataStorageImplementation, error) {
+func NewETCDStorageImplementation(config etcd.Config) (metadataStorageImplementation, error) {
 	client, err := clientv3.New(clientv3.Config{
 		Endpoints: []string{config.URL()},
 		Username:  config.Username,

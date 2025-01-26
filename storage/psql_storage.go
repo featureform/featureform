@@ -10,62 +10,41 @@ package storage
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/featureform/fferr"
-	"github.com/featureform/helpers"
+	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
 	"github.com/featureform/storage/query"
 	"github.com/featureform/storage/sqlgen"
-	"github.com/jackc/pgx/v4/pgxpool"
-	_ "github.com/lib/pq"
-	"strings"
 )
 
-func NewPSQLStorageImplementation(config helpers.PSQLConfig, tableName string) (metadataStorageImplementation, error) {
-	db, err := helpers.NewPSQLPoolConnection(config)
-	if err != nil {
-		return nil, err
-	}
-
-	connection, err := db.Acquire(context.Background())
-	if err != nil {
-		return nil, fferr.NewInternalErrorf("failed to acquire connection from the database pool: %w", err)
-	}
-
-	err = connection.Ping(context.Background())
-	if err != nil {
-		return nil, fferr.NewInternalErrorf("failed to ping the database: %w", err)
-	}
-
+func NewPSQLStorageImplementation(ctx context.Context, db *postgres.Pool, tableName string) (metadataStorageImplementation, error) {
 	indexName := "ff_key_pattern"
-	sanitizedName := helpers.SanitizePostgres(tableName)
-	// Create a table to store the key-value pairs.
+	sanitizedName := postgres.Sanitize(tableName)
+	// Create a table to store the key-value pairs
 	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (key VARCHAR(2048) PRIMARY KEY, value TEXT, marked_for_deletion_at TIMESTAMP default null)", sanitizedName)
-	_, err = db.Exec(context.Background(), tableCreationSQL)
-	if err != nil {
+	if _, err := db.Exec(ctx, tableCreationSQL); err != nil {
 		return nil, fferr.NewInternalErrorf("failed to create table %s: %w", sanitizedName, err)
 	}
 
 	// Add a text index to use for LIKE queries
 	indexCreationSQL := fmt.Sprintf("CREATE INDEX %s ON %s (key text_pattern_ops);", indexName, sanitizedName)
-	_, err = db.Exec(context.Background(), indexCreationSQL)
-	if err != nil {
+	if _, err := db.Exec(ctx, indexCreationSQL); err != nil {
 		// Index probably aleady exists, ignore the error
 		fmt.Printf("failed to create index %s on %s: %v", indexName, sanitizedName, err)
 	}
 
 	return &psqlStorageImplementation{
-		db:         db,
-		tableName:  tableName,
-		connection: connection,
-		logger:     logging.NewLogger("psql_storage"),
+		db:        db,
+		tableName: tableName,
 	}, nil
 }
 
 type psqlStorageImplementation struct {
-	db         *pgxpool.Pool
-	tableName  string
-	connection *pgxpool.Conn
-	logger     logging.Logger
+	db        *postgres.Pool
+	tableName string
+	logger    logging.Logger // TODO remove and pass in ctx
 }
 
 func (psql *psqlStorageImplementation) Set(key string, value string) error {
@@ -257,17 +236,16 @@ func (psql *psqlStorageImplementation) Delete(key string) (string, error) {
 }
 
 func (psql *psqlStorageImplementation) Close() {
-	psql.connection.Release()
-	psql.db.Close()
+	// No-op
 }
 
 // SQL Queries
 func (psql *psqlStorageImplementation) setQuery() string {
-	return fmt.Sprintf("INSERT INTO %s (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", helpers.SanitizePostgres(psql.tableName))
+	return fmt.Sprintf("INSERT INTO %s (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", postgres.Sanitize(psql.tableName))
 }
 
 func (psql *psqlStorageImplementation) deleteQuery() string {
-	return fmt.Sprintf("DELETE FROM %s WHERE key = $1 RETURNING value", helpers.SanitizePostgres(psql.tableName))
+	return fmt.Sprintf("DELETE FROM %s WHERE key = $1 RETURNING value", postgres.Sanitize(psql.tableName))
 }
 
 func (psql *psqlStorageImplementation) Type() MetadataStorageType {

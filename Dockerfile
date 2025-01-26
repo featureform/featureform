@@ -123,14 +123,6 @@ RUN apt-get install -y nodejs
 # Install MeiliSearch
 RUN curl -L https://install.meilisearch.com | sh
 
-# Setup Etcd
-RUN git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
-WORKDIR /app/etcd
-RUN go mod download
-RUN ./build
-WORKDIR /app
-RUN ETCD_UNSUPPORTED_ARCH=arm64 ./etcd/bin/etcd --version
-
 # Install and initialize internal postgres for app state
 RUN apt-get update && apt-get install -y postgresql postgresql-contrib
 USER postgres

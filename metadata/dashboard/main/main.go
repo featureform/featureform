@@ -8,19 +8,40 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"time"
 
+	"github.com/featureform/config"
+	"github.com/featureform/config/bootstrap"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	dm "github.com/featureform/metadata/dashboard"
 	"github.com/featureform/metadata/search"
-	"github.com/featureform/scheduling"
-	"go.uber.org/zap"
 )
 
 func main() {
-	logger := logging.WrapZapLogger(zap.NewExample().Sugar())
+	initTimeout := time.Second * 15
+	logger := logging.NewLogger("coordinator")
+	defer logger.Sync()
+	logger.Info("Parsing Featureform App Config")
+	appConfig, err := config.Get(logger)
+	if err != nil {
+		logger.Errorw("Invalid App Config", "err", err)
+		panic(err)
+	}
+	logger.Info("Created initialization context with timeout", "timeout", initTimeout)
+	ctx, cancelFn := context.WithTimeout(context.Background(), initTimeout)
+	defer cancelFn()
+	initCtx := logger.AttachToContext(ctx)
+	logger.Debug("Creating initializer")
+	init, err := bootstrap.NewInitializer(appConfig)
+	if err != nil {
+		logger.Errorw("Failed to bootstrap service from config", "err", err)
+		panic(err)
+	}
+	defer logger.LogIfErr("Failed to close service-level resources", init.Close())
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")
 	searchHost := help.GetEnv("MEILISEARCH_HOST", "localhost")
@@ -44,9 +65,8 @@ func main() {
 		logger.Panicw("Failed to connect", "error", err)
 	}
 
-	managerType := help.GetEnv("FF_STATE_PROVIDER", "ETCD")
-
-	manager, err := scheduling.NewTaskMetadataManagerFromEnv(scheduling.TaskMetadataManagerType(managerType))
+	logger.Info("Getting task metadata manager")
+	manager, err := init.GetOrCreateTaskMetadataManager(initCtx)
 	if err != nil {
 		panic(err.Error())
 	}

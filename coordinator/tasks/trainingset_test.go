@@ -21,16 +21,16 @@ import (
 )
 
 func TestTrainingSetTaskRun(t *testing.T) {
-	logger := logging.NewTestLogger(t)
+	ctx, logger := logging.NewTestContextAndLogger(t)
 
-	serv, addr := startServ(t)
+	serv, addr := startServ(t, ctx, logger)
 	defer serv.Stop()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
 		panic(err)
 	}
 
-	preReqTaskRuns := createPreqTrainingSetResources(t, client)
+	preReqTaskRuns := createPreqTrainingSetResources(t, ctx, client)
 
 	for _, run := range preReqTaskRuns {
 		err = client.Tasks.SetRunStatus(run.TaskId, run.ID, scheduling.RUNNING, nil)
@@ -43,7 +43,7 @@ func TestTrainingSetTaskRun(t *testing.T) {
 		}
 	}
 
-	err = client.CreateTrainingSetVariant(context.Background(), metadata.TrainingSetDef{
+	err = client.CreateTrainingSetVariant(ctx, metadata.TrainingSetDef{
 		Name:     "trainingSetName",
 		Variant:  "trainingSetVariant",
 		Owner:    "mockOwner",
@@ -88,15 +88,15 @@ func TestTrainingSetTaskRun(t *testing.T) {
 	}
 }
 
-func createPreqTrainingSetResources(t *testing.T, client *metadata.Client) []scheduling.TaskRunMetadata {
-	err := client.CreateUser(context.Background(), metadata.UserDef{
+func createPreqTrainingSetResources(t *testing.T, ctx context.Context, client *metadata.Client) []scheduling.TaskRunMetadata {
+	err := client.CreateUser(ctx, metadata.UserDef{
 		Name: "mockOwner",
 	})
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	err = client.CreateProvider(context.Background(), metadata.ProviderDef{
+	err = client.CreateProvider(ctx, metadata.ProviderDef{
 		Name: "mockProvider",
 		Type: pt.MemoryOffline.String(),
 	})
@@ -124,7 +124,7 @@ func createPreqTrainingSetResources(t *testing.T, client *metadata.Client) []sch
 		return nil
 	}
 
-	err = client.CreateSourceVariant(context.Background(), metadata.SourceDef{
+	err = client.CreateSourceVariant(ctx, metadata.SourceDef{
 		Name:    "sourceName",
 		Variant: "sourceVariant",
 		Definition: metadata.PrimaryDataSource{
@@ -139,14 +139,14 @@ func createPreqTrainingSetResources(t *testing.T, client *metadata.Client) []sch
 		t.Fatalf(err.Error())
 	}
 
-	err = client.CreateEntity(context.Background(), metadata.EntityDef{
+	err = client.CreateEntity(ctx, metadata.EntityDef{
 		Name: "mockEntity",
 	})
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	err = client.CreateFeatureVariant(context.Background(), metadata.FeatureDef{
+	err = client.CreateFeatureVariant(ctx, metadata.FeatureDef{
 		Name:    "featureName",
 		Variant: "featureVariant",
 		Owner:   "mockOwner",
@@ -162,7 +162,7 @@ func createPreqTrainingSetResources(t *testing.T, client *metadata.Client) []sch
 		t.Fatalf(err.Error())
 	}
 
-	err = client.CreateLabelVariant(context.Background(), metadata.LabelDef{
+	err = client.CreateLabelVariant(ctx, metadata.LabelDef{
 		Name:     "labelName",
 		Variant:  "labelVariant",
 		Owner:    "mockOwner",

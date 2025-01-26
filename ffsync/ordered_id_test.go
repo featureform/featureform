@@ -14,6 +14,10 @@ import (
 	"time"
 
 	"github.com/featureform/helpers"
+	"github.com/featureform/helpers/etcd"
+	"github.com/featureform/helpers/postgres"
+	"github.com/featureform/logging"
+
 	_ "github.com/lib/pq"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
@@ -52,7 +56,7 @@ func TestOrderedIdGenerator(t *testing.T) {
 	testCases := []struct {
 		name      string
 		shortTest bool
-		createGen func() (OrderedIdGenerator, error)
+		createGen func(t *testing.T) (OrderedIdGenerator, error)
 		deferFunc func(generator OrderedIdGenerator, t *testing.T)
 	}{
 		{
@@ -82,7 +86,7 @@ func TestOrderedIdGenerator(t *testing.T) {
 			deferFunc: func(generator OrderedIdGenerator, t *testing.T) {
 				// Clean up the RDS table
 				pg := generator.(*pgIdGenerator)
-				_, err := pg.db.Exec(context.Background(), fmt.Sprintf("DROP TABLE IF EXISTS %s", pg.tableName))
+				_, err := pg.connPool.Exec(context.Background(), fmt.Sprintf("DROP TABLE IF EXISTS %s", pg.tableName))
 				if err != nil {
 					t.Errorf("failed to drop table %s: %v", pg.tableName, err)
 				}
@@ -96,18 +100,19 @@ func TestOrderedIdGenerator(t *testing.T) {
 			if !tc.shortTest && testing.Short() {
 				t.Skip()
 			}
-			generator, err := tc.createGen()
+			ctx := context.Background()
+			generator, err := tc.createGen(t)
 			if err != nil {
 				t.Fatalf("failed to create %s ID generator: %v", tc.name, err)
 			}
 			defer tc.deferFunc(generator, t)
 
-			prevId, err := generator.NextId("testNamespace")
+			prevId, err := generator.NextId(ctx, "testNamespace")
 			if err != nil {
 				t.Errorf("failed to get next id: %v", err)
 			}
 
-			diffNamespaceId, err := generator.NextId("diffNamespace")
+			diffNamespaceId, err := generator.NextId(ctx, "diffNamespace")
 			if err != nil {
 				t.Errorf("failed to get next id: %v", err)
 			}
@@ -117,7 +122,7 @@ func TestOrderedIdGenerator(t *testing.T) {
 			}
 
 			for i := 0; i < 10; i++ {
-				id, err := generator.NextId("testNamespace")
+				id, err := generator.NextId(ctx, "testNamespace")
 				if err != nil {
 					t.Errorf("failed to get next id: %v", err)
 				}
@@ -131,14 +136,14 @@ func TestOrderedIdGenerator(t *testing.T) {
 	}
 }
 
-func createMemoryIdGenerator() (OrderedIdGenerator, error) {
+func createMemoryIdGenerator(t *testing.T) (OrderedIdGenerator, error) {
 	return NewMemoryOrderedIdGenerator()
 }
 
-func createETCDIdGenerator() (OrderedIdGenerator, error) {
+func createETCDIdGenerator(t *testing.T) (OrderedIdGenerator, error) {
 	etcdHost := helpers.GetEnv("ETCD_HOST", "localhost")
 
-	etcdConfig := helpers.ETCDConfig{
+	etcdConfig := etcd.Config{
 		Host:        etcdHost,
 		Port:        etcdPort,
 		DialTimeout: time.Second * 5,
@@ -147,7 +152,7 @@ func createETCDIdGenerator() (OrderedIdGenerator, error) {
 	return NewETCDOrderedIdGenerator(etcdConfig)
 }
 
-func createPSQLIdGenerator() (OrderedIdGenerator, error) {
+func createPSQLIdGenerator(t *testing.T) (OrderedIdGenerator, error) {
 	var host, username, password, port, dbName, sslMode string
 
 	if *useEnv {
@@ -166,7 +171,7 @@ func createPSQLIdGenerator() (OrderedIdGenerator, error) {
 		sslMode = "disable"
 	}
 
-	config := helpers.PSQLConfig{
+	cfg := postgres.Config{
 		Host:     host,
 		Port:     port,
 		User:     username,
@@ -174,6 +179,10 @@ func createPSQLIdGenerator() (OrderedIdGenerator, error) {
 		DBName:   dbName,
 		SSLMode:  sslMode,
 	}
-
-	return NewPSQLOrderedIdGenerator(config)
+	ctx := logging.NewTestContext(t)
+	pool, err := postgres.NewPool(ctx, cfg)
+	if err != nil {
+		t.Fatalf("Failed to create postgres pool with config: %v . Err: %v", cfg, err)
+	}
+	return NewPSQLOrderedIdGenerator(ctx, pool)
 }

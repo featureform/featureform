@@ -8,12 +8,13 @@
 package ffsync
 
 import (
-	"context"
 	"fmt"
 	"github.com/jonboulle/clockwork"
 	"testing"
 
 	"github.com/featureform/helpers"
+	"github.com/featureform/helpers/postgres"
+	"github.com/featureform/logging"
 )
 
 func TestPSQLLocker(t *testing.T) {
@@ -38,7 +39,7 @@ func TestPSQLLocker(t *testing.T) {
 		sslMode = "disable"
 	}
 
-	config := helpers.PSQLConfig{
+	cfg := postgres.Config{
 		Host:     host,
 		Port:     port,
 		User:     username,
@@ -46,8 +47,13 @@ func TestPSQLLocker(t *testing.T) {
 		DBName:   dbName,
 		SSLMode:  sslMode,
 	}
+	ctx := logging.NewTestContext(t)
+	pool, err := postgres.NewPool(ctx, cfg)
+	if err != nil {
+		t.Fatalf("Failed to create postgres pool with config: %v . Err: %v", cfg, err)
+	}
 
-	locker, err := NewPSQLLocker(config)
+	locker, err := NewPSQLLocker(ctx, pool)
 	if err != nil {
 		t.Fatalf("Failed to create PSQL locker: %v", err)
 	}
@@ -59,7 +65,7 @@ func TestPSQLLocker(t *testing.T) {
 	defer func() {
 		rLocker := locker.(*psqlLocker)
 
-		_, err := rLocker.db.Exec(context.Background(), fmt.Sprintf("DROP TABLE IF EXISTS %s", rLocker.tableName))
+		_, err := rLocker.connPool.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s", rLocker.tableName))
 		if err != nil {
 			t.Fatalf("Failed to drop table: %v", err)
 		}

@@ -12,8 +12,13 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
+	"github.com/featureform/fferr"
 	"github.com/featureform/helpers"
+	"github.com/featureform/helpers/etcd"
+	"github.com/featureform/helpers/postgres"
+	"github.com/featureform/logging"
 )
 
 // image paths
@@ -52,10 +57,6 @@ func getSparkLocalScriptPath() string {
 
 func ShouldSkipSparkHealthCheck() bool {
 	return helpers.GetEnvBool("SKIP_SPARK_HEALTH_CHECK", false)
-}
-
-func ShouldUseDebugLogging() bool {
-	return helpers.GetEnvBool("FEATUREFORM_DEBUG_LOGGING", false)
 }
 
 func CreateSparkScriptConfig() (SparkFileConfigs, error) {
@@ -120,4 +121,157 @@ func GetMaterializeWithTimestampQueryPath() string {
 
 func GetSlackChannelId() string {
 	return helpers.GetEnv("SLACK_CHANNEL_ID", "") //no meaningful fallback ID
+}
+
+func init() {
+}
+
+type StateProviderType string
+
+const (
+	StateProviderNIL      StateProviderType = ""
+	NoStateProvider       StateProviderType = "memory"
+	PostgresStateProvider StateProviderType = "psql"
+	EtcdStateProvider     StateProviderType = "etcd"
+)
+
+var AllStateProviderTypes = []StateProviderType{
+	NoStateProvider, PostgresStateProvider, EtcdStateProvider,
+}
+
+var cached *FeatureformApp
+var cachedErr error
+
+// Used to make cached a singleton
+var parseOnce = &sync.Once{}
+
+func Get(logger logging.Logger) (*FeatureformApp, error) {
+	parseOnce.Do(func() {
+		logger.Info("Parsing Featureform app config")
+		cached, cachedErr = parseFeatureformApp(logger)
+	})
+	logger.Debug("Returning Featureform app config")
+	return cached, cachedErr
+}
+
+func parseFeatureformApp(logger logging.Logger) (*FeatureformApp, fferr.Error) {
+	cfg := FeatureformApp{}
+	if err := parseStateProvider(logger, &cfg); err != nil {
+		logger.Errorw("Failed to parse state backend", "err", err)
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+func parseStateProvider(logger logging.Logger, cfg *FeatureformApp) fferr.Error {
+	stateEnv := "FF_STATE_PROVIDER"
+	logger.Debug("Looking up state provider from env")
+	stateProviderStr, has := os.LookupEnv(stateEnv)
+	if !has {
+		err := fferr.NewMissingConfigEnv(stateEnv)
+		logger.Errorf("%s", err.Error())
+		return err
+	}
+	stateProvider := StateProviderType(stateProviderStr)
+	stateLogger := logger.With("state-provider", stateProvider)
+	stateLogger.Infow("Using state provider from env")
+	cfg.StateProviderType = stateProvider
+	switch stateProvider {
+	case NoStateProvider:
+		stateLogger.Debug("Using memory state, nothing to parse")
+		return nil
+		// Do nothing
+	case PostgresStateProvider:
+		logger.Debug("Parsing Postgres config from env")
+		psqlCfg, err := parsePostgres(stateLogger)
+		if err != nil {
+			logger.Errorw("Failed to parse postgres config", "err", err)
+			return err
+		}
+		cfg.Postgres = psqlCfg
+	case EtcdStateProvider:
+		logger.Warn("ETCD state backend is deprecated, switch to PSQL")
+		logger.Debug("Parsing Etcd config from env")
+		etcdCfg, err := parseEtcd(stateLogger)
+		if err != nil {
+			logger.Errorw("Failed to parse etcd config", "err", err)
+			return err
+		}
+		cfg.Etcd = etcdCfg
+	default:
+		stateLogger.Errorw("Invalid state provider")
+		return fferr.NewInvalidConfigEnv(
+			stateEnv, stateProviderStr, AllStateProviderTypes,
+		)
+	}
+	return nil
+}
+
+func parsePostgres(logger logging.Logger) (*postgres.Config, fferr.Error) {
+	defaultEnvs := map[string]string{
+		"PSQL_HOST":     "localhost",
+		"PSQL_PORT":     "5432",
+		"PSQL_USER":     "postgres",
+		"PSQL_PASSWORD": "password",
+		"PSQL_DB":       "postgres",
+		"PSQL_SSLMODE":  "disable",
+	}
+	logger.Debugw("Parsing Postgres config from env.")
+	envs := make(map[string]string)
+	for env, defVal := range defaultEnvs {
+		val, has := os.LookupEnv(env)
+		if has {
+			envs[env] = val
+		} else {
+			logger.Infof("Env %s not set, using default value %s.", env, defVal)
+			envs[env] = defVal
+		}
+	}
+	cfg := postgres.Config{
+		Host:     envs["PSQL_HOST"],
+		Port:     envs["PSQL_PORT"],
+		User:     envs["PSQL_USER"],
+		Password: envs["PSQL_PASSWORD"],
+		DBName:   envs["PSQL_DB"],
+		SSLMode:  envs["PSQL_SSLMODE"],
+	}
+	logger.Infow("Postgres config parsed from env", "config", cfg.Redacted())
+	return &cfg, nil
+}
+
+func parseEtcd(logger logging.Logger) (*etcd.Config, fferr.Error) {
+	defaultEnvs := map[string]string{
+		"ETCD_HOST":     "localhost",
+		"ETCD_PORT":     "2379",
+		"ETCD_USERNAME": "",
+		"ETCD_PASSWORD": "",
+	}
+	logger.Debugw("Parsing Etcd config from env.")
+	envs := make(map[string]string)
+	for env, defVal := range defaultEnvs {
+		val, has := os.LookupEnv(env)
+		if has {
+			envs[env] = val
+		} else {
+			logger.Infof("Env %s not set, using default value %s.", env, defVal)
+			envs[env] = defVal
+		}
+	}
+	cfg := etcd.Config{
+		Host:     envs["ETCD_HOST"],
+		Port:     envs["ETCD_PORT"],
+		Username: envs["ETCD_USERNAME"],
+		Password: envs["ETCD_PASSWORD"],
+	}
+	logger.Infow("Etcd config parsed from env", "config", cfg.Redacted())
+	return &cfg, nil
+}
+
+// TODO(simba) Move all envs into this Config
+type FeatureformApp struct {
+	StateProviderType StateProviderType
+	// This will only be set when StateProviderType is PostgresStateProvider
+	Postgres *postgres.Config
+	// This will only be set when StateProviderType is EtcdStateProvider
+	Etcd *etcd.Config
 }

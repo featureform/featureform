@@ -8,25 +8,46 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/featureform/config"
+	"github.com/featureform/config/bootstrap"
+	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/metadata/search"
-	"github.com/featureform/scheduling"
-
-	"github.com/featureform/helpers"
 )
 
 func main() {
-	logger := logging.NewLogger("metadata")
+	initTimeout := time.Second * 15
 	addr := helpers.GetEnv("METADATA_PORT", "8080")
 	enableSearch := helpers.GetEnv("ENABLE_SEARCH", "true")
 
-	managerType := helpers.GetEnv("FF_STATE_PROVIDER", string(scheduling.ETCDMetadataManager))
+	logger := logging.NewLogger("metadata")
+	defer logger.Sync()
+	logger.Info("Parsing Featureform App Config")
+	appConfig, err := config.Get(logger)
+	if err != nil {
+		logger.Errorw("Invalid App Config", "err", err)
+		panic(err)
+	}
+	logger.Info("Created initialization context with timeout", "timeout", initTimeout)
+	ctx, cancelFn := context.WithTimeout(context.Background(), initTimeout)
+	defer cancelFn()
+	initCtx := logger.AttachToContext(ctx)
+	logger.Debug("Creating initializer")
+	init, err := bootstrap.NewInitializer(appConfig)
+	if err != nil {
+		logger.Errorw("Failed to bootstrap service from config", "err", err)
+		panic(err)
+	}
+	defer logger.LogIfErr("Failed to close service-level resources", init.Close())
 
-	manager, err := scheduling.NewTaskMetadataManagerFromEnv(scheduling.TaskMetadataManagerType(managerType))
+	logger.Info("Getting task metadata manager")
+	manager, err := init.GetOrCreateTaskMetadataManager(initCtx)
 	if err != nil {
 		panic(err.Error())
 	}

@@ -8,6 +8,10 @@
 import React from 'react';
 import TableDataWrapper from './tableDataWrapper';
 
+const PageContainer = styled('div')(() => ({
+  padding: 20,
+}));
+
 export default function TaskRunsPage({
   name = '',
   variant = '',

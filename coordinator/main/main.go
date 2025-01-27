@@ -48,7 +48,6 @@ func main() {
 	defer logger.LogIfErr("Failed to close service-level resources", init.Close())
 
 	logger.Infof("connecting to metadata: %s\n", metadataUrl)
-	// TODO add context to this client
 	client, err := metadata.NewClient(metadataUrl, logger)
 	if err != nil {
 		logger.Errorw("Failed to connect to metadata: %v", err)

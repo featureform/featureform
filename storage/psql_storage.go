@@ -20,11 +20,13 @@ import (
 )
 
 func NewPSQLStorageImplementation(ctx context.Context, db *postgres.Pool, tableName string) (metadataStorageImplementation, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	indexName := "ff_key_pattern"
 	sanitizedName := postgres.Sanitize(tableName)
 	// Create a table to store the key-value pairs
 	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (key VARCHAR(2048) PRIMARY KEY, value TEXT, marked_for_deletion_at TIMESTAMP default null)", sanitizedName)
 	if _, err := db.Exec(ctx, tableCreationSQL); err != nil {
+		logger.Errorw("Failed to create table", "table-name", sanitizedName, "err", err)
 		return nil, fferr.NewInternalErrorf("failed to create table %s: %w", sanitizedName, err)
 	}
 
@@ -32,12 +34,13 @@ func NewPSQLStorageImplementation(ctx context.Context, db *postgres.Pool, tableN
 	indexCreationSQL := fmt.Sprintf("CREATE INDEX %s ON %s (key text_pattern_ops);", indexName, sanitizedName)
 	if _, err := db.Exec(ctx, indexCreationSQL); err != nil {
 		// Index probably aleady exists, ignore the error
-		fmt.Printf("failed to create index %s on %s: %v", indexName, sanitizedName, err)
+		logger.Warnf("failed to create index %s on %s: %v", indexName, sanitizedName, err)
 	}
 
 	return &psqlStorageImplementation{
 		db:        db,
 		tableName: tableName,
+		logger:    logger,
 	}, nil
 }
 

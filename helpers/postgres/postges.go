@@ -17,6 +17,7 @@ import (
 	"github.com/featureform/logging"
 	"github.com/featureform/logging/redacted"
 
+	"github.com/avast/retry-go/v4"
 	psql "github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -66,8 +67,43 @@ func NewPool(ctx context.Context, config Config) (*Pool, error) {
 		logger.Errorw("Failed to parse postgres config", "err", err)
 		return nil, err
 	}
+	// Ensure the context has a timeout
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		defaultTimeout := 2 * time.Second
+		logger.Infof(
+			"Connecting to Postgres pool has no deadline, defaulting to %v",
+			defaultTimeout,
+		)
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, defaultTimeout)
+		defer cancel()
+	}
+	connectAttempt := 0
+	var pool *Pool
+	retryErr := retry.Do(
+		func() error {
+			connectAttempt++
+			logger = logger.With("psql-connect-attempt", connectAttempt)
+			var err error
+			pool, err = newPool(ctx, logger, poolConfig)
+			return err
+		},
+		retry.Context(ctx),                // Respect the context's timeout/cancellation
+		retry.Delay(100*time.Millisecond), // Wait time between retries
+		retry.MaxDelay(1*time.Second),     // Maximum delay (optional)
+		retry.Attempts(0),                 // Unlimited retries (until the context times out)
+		retry.LastErrorOnly(true),         // Only return the last error
+	)
+	ctxTimedOutBeforeFirstAttempt := pool == nil
+	if retryErr != nil || ctxTimedOutBeforeFirstAttempt {
+		logger.Errorw("Timed out connecting to Postgres", "err", retryErr)
+		return nil, retryErr
+	}
+	return pool, nil
+}
 
-	logger.Debug("Connecting to pool")
+func newPool(ctx context.Context, logger logging.Logger, poolConfig *pgxpool.Config) (*Pool, error) {
+	logger.Debug("Attempting to connect to pool")
 	db, err := pgxpool.ConnectConfig(ctx, poolConfig)
 	if err != nil {
 		logger.Errorw("Failed to connect to postgres pool", "err", err)

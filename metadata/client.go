@@ -3207,8 +3207,6 @@ func (entity *Entity) Properties() Properties {
 func NewClient(host string, logger logging.Logger) (*Client, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		// grpc.WithUnaryInterceptor(fferr.UnaryClientInterceptor()),
-		// grpc.WithStreamInterceptor(fferr.StreamClientInterceptor()),
 	}
 	conn, err := grpc.Dial(host, opts...)
 	if err != nil {

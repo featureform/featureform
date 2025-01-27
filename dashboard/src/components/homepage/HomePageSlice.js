@@ -12,23 +12,7 @@ const homePageSlice = createSlice({
   initialState: {
     features: [
       {
-        type: 'TrainingSet',
-        disabled: false,
-      },
-      {
-        type: 'Feature',
-        disabled: false,
-      },
-      {
-        type: 'Entity',
-        disabled: false,
-      },
-      {
-        type: 'Label',
-        disabled: false,
-      },
-      {
-        type: 'Model',
+        type: 'Provider',
         disabled: false,
       },
       {
@@ -36,7 +20,23 @@ const homePageSlice = createSlice({
         disabled: false,
       },
       {
-        type: 'Provider',
+        type: 'Feature',
+        disabled: false,
+      },
+      {
+        type: 'Label',
+        disabled: false,
+      },
+      {
+        type: 'Entity',
+        disabled: false,
+      },
+      {
+        type: 'TrainingSet',
+        disabled: false,
+      },
+      {
+        type: 'Model',
         disabled: false,
       },
     ],

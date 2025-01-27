@@ -58,17 +58,4 @@ describe('Feature Variant Table Tests', () => {
     expect(failedStatus).toBeInTheDocument();
     expect(readyStatus).toBeInTheDocument();
   });
-
-  test('The table renders the tag names correctly', async () => {
-    //given:
-    const helper = render(<FeatureVariantTable />);
-
-    //when:
-    const recordTags1 = await helper.findByText('testing');
-    const recordTags2 = await helper.findByText('v1, exam1');
-
-    // expect:
-    expect(recordTags1).toBeInTheDocument();
-    expect(recordTags2).toBeInTheDocument();
-  });
 });

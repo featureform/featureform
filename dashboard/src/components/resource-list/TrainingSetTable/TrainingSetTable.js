@@ -13,8 +13,8 @@ import BaseFilterPanel from '../BaseFilterPanel';
 import { MainContainer, GridContainer, StyledDataGrid } from '../BaseColumnTable';
 
 const ProviderImage = styled('img')({
-  width: '4.0em',
-  height: '2.5em',
+  width: '2.5em',
+  height: '2em',
 });
 
 export const training_set_columns = [
@@ -29,7 +29,7 @@ export const training_set_columns = [
   },
   {
     field: 'name',
-    headerName: 'Name',
+    headerName: 'Name (Variant)',
     flex: 1,
     editable: false,
     sortable: false,
@@ -37,25 +37,19 @@ export const training_set_columns = [
     hide: false,
     renderCell: function ({ row }) {
       return (
-        <Typography variant='body2' sx={{ marginLeft: 1 }}>
-          <strong>{row?.name}</strong>
-        </Typography>
-      );
-    },
-  },
-  {
-    field: 'variant',
-    headerName: 'Variant',
-    flex: 1,
-    editable: false,
-    sortable: false,
-    filterable: false,
-    hide: false,
-    renderCell: function ({ row }) {
-      return (
-        <Typography variant='body2' sx={{ marginLeft: 1 }}>
-          <strong>{row?.variant}</strong>
-        </Typography>
+        <div>
+          <div style={{ display: 'flex' }}>
+            <Typography variant='body2' sx={{ marginLeft: 1 }}>
+              <strong>{row?.name}</strong>
+            </Typography>
+          </div>
+
+          <div style={{ display: 'flex' }}>
+          <Typography variant='body2' sx={{ marginLeft: 1, fontSize: '0.75rem' }}>
+          ({row?.variant})
+          </Typography>
+          </div>
+        </div>
       );
     },
   },
@@ -68,11 +62,10 @@ export const training_set_columns = [
     filterable: false,
     hide: false,
     renderCell: function ({ row }) {
+      const providerTxt = row?.provider || row?.providerType || 'Local';
       const provider =
         providerLogoMap[row?.providerType?.toUpperCase()] ??
         providerLogoMap['LOCAL_ONLINE'];
-
-      const providerTxt = row?.provider || row?.providerType || 'Local';
       return (
         <>
           <ProviderImage alt={row?.providerType} src={provider} />
@@ -83,12 +76,28 @@ export const training_set_columns = [
       );
     },
   },
-  // Add label
+  {
+    field: 'labelName',
+    headerName: 'Label',
+    flex: 1,
+    editable: false,
+    sortable: false,
+    filterable: false,
+    renderCell: function ({ row }) {
+      const DEFAULT_LABEL = 'N/A';
+      const labelName = row?.label?.Name || DEFAULT_LABEL;
+      return (
+        <Typography variant='body2' sx={{ marginLeft: 1 }} aria-label={`Label: ${labelName}`}>
+          {labelName}
+        </Typography>
+      );
+    },
+  },
   {
     field: 'status',
     headerName: 'Status',
     flex: 0,
-    width: 350,
+    width: 300,
     editable: false,
     sortable: false,
     filterable: false,

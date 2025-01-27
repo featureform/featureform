@@ -7,6 +7,7 @@
 
 import React from 'react';
 import TableDataWrapper from './tableDataWrapper';
+import { styled } from '@mui/system';
 
 const PageContainer = styled('div')(() => ({
   padding: 20,

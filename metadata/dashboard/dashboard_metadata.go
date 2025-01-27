@@ -688,6 +688,11 @@ type GetTrainingSetVariantListResp struct {
 	Data  []metadata.TrainingSetVariantResource `json:"data"`
 }
 
+type GetModelListResp struct {
+	Count int                      `json:"count"`
+	Data  []metadata.ModelResource `json:"data"`
+}
+
 func (m *MetadataServer) getCountAndResources(resourceType metadata.ResourceType, pageSize, offset int, filterOpts ...query.Query) (int, []metadata.Resource, error) {
 	queryList := m.getResourceQuery(resourceType.String())
 	queryList = append(queryList, filterOpts...)
@@ -1010,7 +1015,12 @@ func (m *MetadataServer) GetTrainingSetVariantResources(c *gin.Context) {
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
-
+	//pull the provider name - type map
+	providerMap, mapErr := m.getProviderNameTypeMap()
+	if mapErr != nil {
+		// log but continue
+		m.logger.Errorf("an error occurred pulling the provider name - type map: %v", mapErr)
+	}
 	variantList := make([]metadata.TrainingSetVariantResource, len(variantResources))
 	for i, parsedVariant := range variantResources {
 		deserialized := parsedVariant.Proto()
@@ -1021,12 +1031,65 @@ func (m *MetadataServer) GetTrainingSetVariantResources(c *gin.Context) {
 		}
 		wrappedVariant := metadata.WrapProtoTrainingSetVariant(trainingSetVariant)
 		shallowVariant := wrappedVariant.ToShallowMap()
+		//check in the providerMap association
+		providerType, mapOk := providerMap[shallowVariant.Provider]
+		if mapOk {
+			shallowVariant.ProviderType = providerType
+		}
 		variantList[i] = shallowVariant
 	}
 
 	resp := GetTrainingSetVariantListResp{
 		Count: count,
 		Data:  variantList,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+type ModelFilters struct {
+	SearchTxt    string   `json:"SearchTxt"`
+	Tags         []string `json:"Tags"`
+	Labels       []string `json:"Labels"`
+	Features     []string `json:"Features"`
+	TrainingSets []string `json:"TrainingSets"`
+	PageSize     int      `json:"pageSize"`
+	Offset       int      `json:"offset"`
+}
+
+func (m *MetadataServer) GetModelResources(c *gin.Context) {
+	var filterBody ModelFilters
+	if bindErr := c.BindJSON(&filterBody); bindErr != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, bindErr, c, "Error binding the request body")
+		m.logger.Errorw(fetchError.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	filterOpts := m.buildModelFilterOpts(filterBody)
+	resourceType := metadata.MODEL
+
+	count, resources, err := m.getCountAndResources(resourceType, filterBody.PageSize, filterBody.Offset, filterOpts...)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "Failed to get count or list")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	resourceList := make([]metadata.ModelResource, len(resources))
+	for i, parsedResource := range resources {
+		deserialized := parsedResource.Proto()
+		model, ok := deserialized.(*pb.Model)
+		if !ok {
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedResource.ID().String())
+			continue
+		}
+		wrappedModel := metadata.WrapProtoModel(model)
+		shallowModel := wrappedModel.ToShallowMap()
+
+		resourceList[i] = shallowModel
+	}
+
+	resp := GetModelListResp{
+		Count: count,
+		Data:  resourceList,
 	}
 	c.JSON(http.StatusOK, resp)
 }
@@ -1038,6 +1101,46 @@ func convertToAny[T any](slice []T) []any {
 		converted[i] = v
 	}
 	return converted
+}
+
+func (m *MetadataServer) buildModelFilterOpts(filterBody ModelFilters) []query.Query {
+	filterOpts := []query.Query{}
+	usingV1Filters := false
+
+	if filterBody.SearchTxt != "" {
+		m.logger.Debugw("buildModelFilterOpts - adding a search txt filter: ", filterBody.SearchTxt)
+		filterOpts = append(filterOpts, query.ValueLike{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "name"}},
+				Type: query.String,
+			},
+			Value: filterBody.SearchTxt,
+		})
+	}
+
+	if len(filterBody.Tags) > 0 {
+		m.logger.Debugw("buildModelFilterOpts - adding a tag list filter: ", filterBody.Tags)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ArrayContains{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "tags"}, {Key: "tag"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Tags),
+		})
+	}
+
+	if usingV1Filters {
+		m.logger.Debugw("GetMetadataList - Using v1 filters, adding SerializedVersion clause (=1)")
+		filterOpts = append(filterOpts, query.ValueEquals{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: serializedVersion}},
+				Type: query.String,
+			},
+			Value: serializedV1,
+		})
+	}
+	return filterOpts
 }
 
 func (m *MetadataServer) GetMetadataList(c *gin.Context) {
@@ -2784,6 +2887,7 @@ func (m *MetadataServer) Start(port string, local bool) error {
 	router.POST("/data/training-sets/variants", m.GetTrainingSetVariantResources)
 	router.POST("/data/entities", m.GetEntityResources)
 	router.POST("/data/providers", m.GetProviderResources)
+	router.POST("/data/models", m.GetModelResources)
 	router.GET("/data/:type/prop/owners", m.GetTypeOwners)
 
 	return router.Run(port)

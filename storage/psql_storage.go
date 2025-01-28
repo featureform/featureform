@@ -44,20 +44,20 @@ func NewPSQLStorageImplementation(ctx context.Context, db *postgres.Pool, tableN
 		logger.Warnf("failed to create index %s on %s: %v", indexName, sanitizedName, err)
 	}
 
-	return &psqlStorageImplementation{
+	return &PSQLStorageImplementation{
 		db:        db,
 		tableName: tableName,
 		logger:    logger,
 	}, nil
 }
 
-type psqlStorageImplementation struct {
+type PSQLStorageImplementation struct {
 	db        *postgres.Pool
 	tableName string
 	logger    logging.Logger // TODO remove and pass in ctx
 }
 
-func (psql *psqlStorageImplementation) Set(key string, value string) error {
+func (psql *PSQLStorageImplementation) Set(key string, value string) error {
 	if key == "" {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("cannot set an empty key"))
 	}
@@ -72,7 +72,7 @@ func (psql *psqlStorageImplementation) Set(key string, value string) error {
 	return nil
 }
 
-func (psql *psqlStorageImplementation) Get(key string, opts ...query.Query) (string, error) {
+func (psql *PSQLStorageImplementation) Get(key string, opts ...query.Query) (string, error) {
 	if key == "" {
 		psql.logger.Errorw("Cannot get an empty key")
 		return "", fferr.NewInvalidArgumentErrorf("cannot get an empty key")
@@ -111,7 +111,7 @@ func (psql *psqlStorageImplementation) Get(key string, opts ...query.Query) (str
 	return value, nil
 }
 
-func (psql *psqlStorageImplementation) List(prefix string, opts ...query.Query) (map[string]string, error) {
+func (psql *PSQLStorageImplementation) List(prefix string, opts ...query.Query) (map[string]string, error) {
 	opts = append(opts, query.KeyPrefix{Prefix: prefix})
 	logger := psql.logger.With("prefix", prefix, "options", opts, "table", psql.tableName)
 	logger.Infow("Listing keys with options")
@@ -146,7 +146,7 @@ func (psql *psqlStorageImplementation) List(prefix string, opts ...query.Query) 
 	return result, nil
 }
 
-func (psql *psqlStorageImplementation) Count(prefix string, opts ...query.Query) (int, error) {
+func (psql *PSQLStorageImplementation) Count(prefix string, opts ...query.Query) (int, error) {
 	opts = append(opts, query.KeyPrefix{Prefix: prefix})
 	psql.logger.Infow("Counting keys with options", "options", opts, "table", psql.tableName)
 	qry, err := sqlgen.NewListQuery(psql.tableName, opts)
@@ -167,7 +167,7 @@ func (psql *psqlStorageImplementation) Count(prefix string, opts ...query.Query)
 	return cnt, nil
 }
 
-func (psql *psqlStorageImplementation) ListColumn(prefix string, columns []query.Column, opts ...query.Query) ([]map[string]interface{}, error) {
+func (psql *PSQLStorageImplementation) ListColumn(prefix string, columns []query.Column, opts ...query.Query) ([]map[string]interface{}, error) {
 	opts = append(opts, query.KeyPrefix{Prefix: prefix})
 	psql.logger.Infow("Listing computed columns with options", "options", opts, "table", psql.tableName)
 	qry, err := sqlgen.NewListQuery(psql.tableName, opts, columns...)
@@ -226,7 +226,7 @@ func (psql *psqlStorageImplementation) ListColumn(prefix string, columns []query
 	return results, nil
 }
 
-func (psql *psqlStorageImplementation) Delete(key string) (string, error) {
+func (psql *PSQLStorageImplementation) Delete(key string) (string, error) {
 	if key == "" {
 		return "", fferr.NewInvalidArgumentError(fmt.Errorf("cannot delete empty key"))
 	}
@@ -245,19 +245,23 @@ func (psql *psqlStorageImplementation) Delete(key string) (string, error) {
 	return value, nil
 }
 
-func (psql *psqlStorageImplementation) Close() {
+func (psql *PSQLStorageImplementation) Pool() *postgres.Pool {
+	return psql.db
+}
+
+func (psql *PSQLStorageImplementation) Close() {
 	// No-op
 }
 
 // SQL Queries
-func (psql *psqlStorageImplementation) setQuery() string {
+func (psql *PSQLStorageImplementation) setQuery() string {
 	return fmt.Sprintf("INSERT INTO %s (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", postgres.Sanitize(psql.tableName))
 }
 
-func (psql *psqlStorageImplementation) deleteQuery() string {
+func (psql *PSQLStorageImplementation) deleteQuery() string {
 	return fmt.Sprintf("DELETE FROM %s WHERE key = $1 RETURNING value", postgres.Sanitize(psql.tableName))
 }
 
-func (psql *psqlStorageImplementation) Type() MetadataStorageType {
+func (psql *PSQLStorageImplementation) Type() MetadataStorageType {
 	return PSQLMetadataStorage
 }

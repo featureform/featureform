@@ -22,7 +22,6 @@ import (
 
 	"cloud.google.com/go/dataproc/v2/apiv1/dataprocpb"
 	dbjobs "github.com/databricks/databricks-sdk-go/service/jobs"
-
 )
 
 const RedactedString = "<FF_REDACTED>"
@@ -68,13 +67,14 @@ func (cmd *Command) CompileDataprocServerless(projectID, region string) *datapro
 	}
 }
 
-func (cmd *Command) CompileDatabricks() dbjobs.JobTaskSettings {
+func (cmd *Command) CompileDatabricks() dbjobs.Task {
 	list := cmd.Configs.ToSparkFlagsList()
 	nativeFlags, scriptFlags := list.SeparateNativeFlags()
 	scriptArgs := append(cmd.ScriptArgs, scriptFlags.SparkStringFlags()...)
-	task := dbjobs.JobTaskSettings{
+	task := dbjobs.Task{
 		SparkPythonTask: &dbjobs.SparkPythonTask{
-			PythonFile: cmd.Script.ToURI(),
+			// Dbrix must run out of DBFS and not S3
+			PythonFile: fmt.Sprintf("dbfs:/tmp/%s", cmd.Script.Key()),
 			Parameters: scriptArgs,
 		},
 	}
@@ -165,7 +165,7 @@ func (flags NativeFlags) ApplyToDataprocServerless(batch *dataprocpb.Batch) {
 	}
 }
 
-func (flags NativeFlags) ApplyToDatabricks(job *dbjobs.JobTaskSettings) {
+func (flags NativeFlags) ApplyToDatabricks(job *dbjobs.Task) {
 	for _, flag := range flags {
 		flag.ApplyToDatabricks(job)
 	}
@@ -235,7 +235,7 @@ type NativeFlagStringer interface {
 	// Apply a flag to Dataproc serverless
 	ApplyToDataprocServerless(*dataprocpb.Batch)
 	// Apply a flag to Databricks
-	ApplyToDatabricks(*dbjobs.JobTaskSettings)
+	ApplyToDatabricks(*dbjobs.Task)
 	FlagStringer
 }
 
@@ -296,7 +296,7 @@ func (flag NativeConfigFlag) ApplyToDataprocServerless(batch *dataprocpb.Batch) 
 	batch.RuntimeConfig.Properties[flag.Key] = flag.Value
 }
 
-func (flag NativeConfigFlag) ApplyToDatabricks(settings *dbjobs.JobTaskSettings) {
+func (flag NativeConfigFlag) ApplyToDatabricks(settings *dbjobs.Task) {
 	logging.GlobalLogger.Warnw("Ignoring native conf flags to databricks", "key", flag.Key)
 }
 
@@ -369,7 +369,7 @@ func (flag PackagesFlag) ApplyToDataprocServerless(batch *dataprocpb.Batch) {
 	batch.RuntimeConfig.Properties["spark.jars.packages"] = strings.Join(flag.Packages, ",")
 }
 
-func (flag PackagesFlag) ApplyToDatabricks(settings *dbjobs.JobTaskSettings) {
+func (flag PackagesFlag) ApplyToDatabricks(settings *dbjobs.Task) {
 	logging.GlobalLogger.Warnw("Ignoring packages in databricks", "packages", flag.Packages)
 }
 
@@ -473,7 +473,7 @@ func (flag IncludePyScript) ApplyToDataprocServerless(batch *dataprocpb.Batch) {
 	pyspark.PythonFileUris = append(pyspark.PythonFileUris, flag.Path.ToURI())
 }
 
-func (flag IncludePyScript) ApplyToDatabricks(settings *dbjobs.JobTaskSettings) {
+func (flag IncludePyScript) ApplyToDatabricks(settings *dbjobs.Task) {
 	logging.GlobalLogger.Warnw("Unable to include pyscript to databricks", "script", flag.Path.ToURI())
 }
 
@@ -577,7 +577,7 @@ func (flag DeployFlag) ApplyToDataprocServerless(batch *dataprocpb.Batch) {
 	)
 }
 
-func (flag DeployFlag) ApplyToDatabricks(settings *dbjobs.JobTaskSettings) {
+func (flag DeployFlag) ApplyToDatabricks(settings *dbjobs.Task) {
 	logging.GlobalLogger.Warnw("Unable to include deploy flag in databricks", "deploy-mode", flag.Mode.SparkArg())
 }
 
@@ -1160,7 +1160,7 @@ func (flag MasterFlag) ApplyToDataprocServerless(batch *dataprocpb.Batch) {
 	)
 }
 
-func (flag MasterFlag) ApplyToDatabricks(settings *dbjobs.JobTaskSettings) {
+func (flag MasterFlag) ApplyToDatabricks(settings *dbjobs.Task) {
 	logging.GlobalLogger.Warnw("Unable to include master flag in databricks", "master-flag", flag.Master)
 }
 

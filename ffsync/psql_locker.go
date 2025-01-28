@@ -220,7 +220,7 @@ func (l *psqlLocker) Unlock(ctx context.Context, key Key) error {
 		return fferr.NewInternalErrorf(errMsg)
 	}
 
-	psqlKey, ok := key.(psqlKey)
+	psqlKey, ok := key.(*psqlKey)
 	if !ok {
 		errMsg := fmt.Sprintf("Trying to unlock key %#v as a psqlKey, wrong type.", key)
 		logger.Error(errMsg)

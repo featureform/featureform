@@ -9,25 +9,30 @@ package provider
 
 import (
 	"context"
+	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/featureform/fferr"
+	"github.com/featureform/filestore"
+	"github.com/featureform/logging"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/spark"
+
 	re "github.com/avast/retry-go/v4"
 	"github.com/databricks/databricks-sdk-go"
+	"github.com/databricks/databricks-sdk-go/apierr"
 	dbClient "github.com/databricks/databricks-sdk-go/client"
 	dbConfig "github.com/databricks/databricks-sdk-go/config"
 	"github.com/databricks/databricks-sdk-go/retries"
 	"github.com/databricks/databricks-sdk-go/service/compute"
+	dbfs "github.com/databricks/databricks-sdk-go/service/files"
 	"github.com/databricks/databricks-sdk-go/service/jobs"
-	"github.com/featureform/fferr"
-	"github.com/featureform/filestore"
-	"github.com/featureform/logging"
-	pl "github.com/featureform/provider/location"
-	pc "github.com/featureform/provider/provider_config"
-	pt "github.com/featureform/provider/provider_type"
-	"github.com/featureform/provider/spark"
 	"github.com/google/uuid"
 )
 
@@ -127,7 +132,7 @@ func (db *DatabricksExecutor) RunSparkJob(cmd *spark.Command, store SparkFileSto
 	task.ExistingClusterId = db.cluster
 	jobToRun, err := db.client.Jobs.Create(ctx, jobs.CreateJob{
 		Name:  fmt.Sprintf("%s-%s", opts.JobName, id),
-		Tasks: []jobs.JobTaskSettings{task},
+		Tasks: []jobs.Task{task},
 	})
 	if err != nil {
 		logger.Errorw("could not create job", "error", err)
@@ -168,41 +173,8 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStoreV2) error {
 		logger.Errorw("could not set local script path", "error", err)
 		return err
 	}
-	sparkRemoteScriptPath, err := store.CreateFilePath(db.files.RemoteScriptPath, false)
-	if err != nil {
-		logger.Errorw("could not create remote script path", "error", err)
-		return err
-	}
-	pythonLocalInitScriptPath := &filestore.LocalFilepath{}
-	if err := pythonLocalInitScriptPath.SetKey(db.files.PythonLocalInitPath); err != nil {
-		logger.Errorw("could not set python local init script path", "error", err)
-		return err
-	}
-	pythonRemoteInitScriptPath := db.files.PythonRemoteInitPath
-
-	err = readAndUploadFile(sparkLocalScriptPath, sparkRemoteScriptPath, store)
-	if err != nil {
+	if err := db.readAndUploadFileDBFS(sparkLocalScriptPath, db.files.RemoteScriptPath); err != nil {
 		logger.Errorw("could not upload spark script", "error", err)
-		return err
-	}
-	sparkExists, err := store.Exists(pl.NewFileLocation(sparkRemoteScriptPath))
-	if err != nil || !sparkExists {
-		logger.Errorw("spark script does not exist", "error", err)
-		return err
-	}
-	remoteInitScriptPathWithPrefix, err := store.CreateFilePath(pythonRemoteInitScriptPath, false)
-	if err != nil {
-		logger.Errorw("could not create remote init script path", "error", err)
-		return err
-	}
-	err = readAndUploadFile(pythonLocalInitScriptPath, remoteInitScriptPathWithPrefix, store)
-	if err != nil {
-		logger.Errorw("could not upload python init script", "error", err)
-		return err
-	}
-	initExists, err := store.Exists(pl.NewFileLocation(remoteInitScriptPathWithPrefix))
-	if err != nil || !initExists {
-		logger.Errorw("python init script does not exist", "error", err)
 		return err
 	}
 	return nil
@@ -211,6 +183,7 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStoreV2) error {
 func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {
 	ctx := context.Background()
 
+	jobIdStr := fmt.Sprintf("%d", jobId)
 	runRequest := jobs.ListRunsRequest{
 		JobId: jobId,
 	}
@@ -218,37 +191,78 @@ func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {
 	runs, err := db.client.Jobs.ListRunsAll(ctx, runRequest)
 	if err != nil {
 		wrapped := fferr.NewExecutionError(pt.SparkOffline.String(), fmt.Errorf("could not get runs for job: %v", err))
-		wrapped.AddDetail("job_id", fmt.Sprint(jobId))
+		wrapped.AddDetail("job_id", jobIdStr)
 		wrapped.AddDetail("executor_type", "Databricks")
 		return nil, wrapped
 	}
 
 	if len(runs) == 0 {
 		wrapped := fferr.NewInternalError(fmt.Errorf("no runs found for job"))
-		wrapped.AddDetail("job_id", fmt.Sprint(jobId))
+		wrapped.AddDetail("job_id", jobIdStr)
 		wrapped.AddDetail("executor_type", "Databricks")
 		return nil, wrapped
 	}
 	runID := runs[0].RunId
-	request := jobs.GetRunRequest{
-		RunId: runID,
-	}
-
-	// in order to get the status of the run output, we need to
-	// use API v2.0 instead of v2.1. The version 2.1 does not allow
-	// for getting the run output for multiple tasks. The following code
-	// leverages version 2.0 of the API to get the run output.
-	// we have created a github issue on the databricks-sdk-go repo
-	// https://github.com/databricks/databricks-sdk-go/issues/375
-	var runOutput jobs.RunOutput
-	path := "/api/2.0/jobs/runs/get-output"
-	err = db.errorMessageClient.Do(ctx, http.MethodGet, path, request, &runOutput)
+	run, err := db.client.Jobs.GetRun(ctx, jobs.GetRunRequest{IncludeHistory: true, RunId: runID})
 	if err != nil {
-		wrapped := fferr.NewExecutionError(pt.SparkOffline.String(), fmt.Errorf("could not get run output for job: %v", err))
-		wrapped.AddDetail("job_id", fmt.Sprint(jobId))
+		wrapped := fferr.NewExecutionError("Databricks", fmt.Errorf("could not get run for job: %v", err))
+		wrapped.AddDetail("job_id", jobIdStr)
 		wrapped.AddDetail("executor_type", "Databricks")
 		return nil, wrapped
 	}
+	task := run.Tasks[0]
+	// use task.RunId to get output for the task
+	output, err := db.client.Jobs.GetRunOutputByRunId(ctx, task.RunId)
+	if err != nil {
+		wrapped := fferr.NewExecutionError(pt.SparkOffline.String(), fmt.Errorf("could not get task output for job: %v", err))
+		wrapped.AddDetail("job_id", jobIdStr)
+		wrapped.AddDetail("task_id", fmt.Sprintf("%d", task.RunId))
+		wrapped.AddDetail("executor_type", "Databricks")
+		return nil, wrapped
+	}
+	return fferr.NewExecutionError("Databricks", errors.New(output.Error)), nil
+}
 
-	return fmt.Errorf("%s", runOutput.Error), nil
+func (db *DatabricksExecutor) readAndUploadFileDBFS(
+	localPath filestore.Filepath, remotePathKey string,
+) error {
+	// TODO continue to move this further up the stack
+	ctx := context.Background()
+	remotePath := fmt.Sprintf("dbfs:/tmp/%s", remotePathKey)
+	logger := logging.GlobalLogger.With(
+		"fromPath", localPath.ToURI(),
+		"toPath", remotePath,
+		"store", "DBFS-databricks",
+	)
+	_, getErr := db.client.Dbfs.GetStatus(ctx, dbfs.GetStatusRequest{
+		Path: remotePath,
+	})
+	if getErr != nil {
+		// Check if it's a "RESOURCE_DOES_NOT_EXIST" / 404 error
+		var apiErr *apierr.APIError
+		if errors.As(getErr, &apiErr) && apiErr.StatusCode != http.StatusNotFound {
+			logger.Errorw("Failed to query DBFS for our script file", "err", getErr)
+			return fferr.NewInternalError(getErr)
+		}
+		logger.Infow("File doesn't exist, creating now")
+	}
+
+	data, err := os.ReadFile(localPath.Key())
+	if err != nil {
+		logger.Errorw("Failed to read local file", "error", err)
+		return fferr.NewInternalError(err)
+	}
+
+	encoded := base64.StdEncoding.EncodeToString(data)
+	writeErr := db.client.Dbfs.Put(ctx, dbfs.Put{
+		Path:      remotePath,
+		Overwrite: true,
+		Contents:  encoded,
+	})
+	if writeErr != nil {
+		logger.Errorw("Failed to write to remote path", "error", writeErr)
+		return fferr.NewInternalError(writeErr)
+	}
+	logger.Infow("Copied local file to remote filestore")
+	return nil
 }

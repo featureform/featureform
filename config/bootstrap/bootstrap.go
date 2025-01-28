@@ -51,9 +51,11 @@ func (i *Initializer) GetOrCreatePostgresPool(ctx context.Context) (*postgres.Po
 		}
 		i.pg, i.pgErr = postgres.NewPool(ctx, *i.config.Postgres)
 		if i.pgErr != nil {
-			logger.Info("Failed to initialize postgres from app config", "err", i.pgErr)
+			logger.Errorw("Failed to initialize postgres from app config", "err", i.pgErr)
+			return
 		} else {
 			logger.Info("Successfully initialized postgres from app config")
+			return
 		}
 	})
 	return i.pg, i.pgErr

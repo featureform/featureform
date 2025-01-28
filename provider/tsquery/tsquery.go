@@ -195,7 +195,7 @@ func (j windowJoin) ToSQL(index int) string {
   SELECT
     %s as ts,
     l.entity,
-	l.label,
+    l.label,
 
 `,
 		index,

@@ -344,7 +344,7 @@ def test_register_spark():
     spark_credentials = SparkCredentials(
         master="local",
         deploy_mode="client",
-        python_version="3.8",
+        python_version="3.9",
     )
 
     aws_creds = AWSStaticCredentials(
@@ -376,7 +376,7 @@ def test_register_spark_catalog():
     spark_credentials = SparkCredentials(
         master="local",
         deploy_mode="client",
-        python_version="3.8",
+        python_version="3.9",
     )
 
     aws_creds = AWSStaticCredentials(

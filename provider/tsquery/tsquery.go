@@ -301,7 +301,7 @@ func (j windowJoins) SelectSQL(config QueryConfig) string {
 
 	var sb strings.Builder
 
-	for i, _ := range j.windows {
+	for i := range j.windows {
 		sb.WriteString(fmt.Sprintf(`
 LEFT JOIN feature_%d_filtered f%d USING (ts, entity)
 `,

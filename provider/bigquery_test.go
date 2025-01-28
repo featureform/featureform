@@ -155,44 +155,6 @@ func getBigQueryConfig(t *testing.T) (pc.BigQueryConfig, error) {
 	return bigQueryConfig, nil
 }
 
-func TestOfflineStoreBigQuery(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration tests")
-	}
-
-	// TODO: Utilize configure function below to prevent duplication
-	// of setup.
-	bigQueryConfig, err := getBigQueryConfig(t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	serialBQConfig := bigQueryConfig.Serialize()
-
-	if err := createBigQueryDataset(bigQueryConfig); err != nil {
-		t.Fatalf("Cannot create BigQuery Dataset: %v", err)
-	}
-
-	t.Cleanup(func() {
-		err := destroyBigQueryDataset(bigQueryConfig)
-		if err != nil {
-			t.Logf("failed to cleanup database: %s\n", err)
-		}
-	})
-
-	store, err := GetOfflineStore(pt.BigQueryOffline, serialBQConfig)
-	if err != nil {
-		t.Fatalf("could not initialize store: %s\n", err)
-	}
-
-	test := OfflineStoreTest{
-		t:     t,
-		store: store,
-	}
-	test.Run()
-	test.RunSQL()
-}
-
 func createBigQueryDataset(c pc.BigQueryConfig) error {
 	sCreds, err := json.Marshal(c.Credentials)
 	if err != nil {

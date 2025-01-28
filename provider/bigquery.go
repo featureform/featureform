@@ -1586,10 +1586,11 @@ func (store *bqOfflineStore) newBigQueryPrimaryTable(client *bigquery.Client, na
 		return nil, fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 	}
 
-	// TODO: Initialize table here.
+	table := store.client.Dataset(store.query.getDatasetId()).Table(name)
 
 	return &bqPrimaryTable{
 		client: client,
+		table:  table,
 		name:   name,
 		schema: schema,
 		query:  store.query,

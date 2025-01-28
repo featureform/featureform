@@ -278,7 +278,6 @@ func (j windowJoins) HeaderSQL(config QueryConfig) string {
   FROM %s%s%s
 ),
 `,
-		// TODO: Above escape should be configurable
 		j.ts,
 		j.entity,
 		j.label,

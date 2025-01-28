@@ -60,14 +60,14 @@ func (test *OfflineStoreTest) Run() {
 		"TrainingSets":            testTrainingSet,
 		"TrainingSetUpdate":       testTrainingSetUpdate,
 		"BatchFeatures":           testBatchFeature,
-		// "TrainingSetLag":          testLagFeaturesTrainingSet,
-		"TrainingSetInvalidID":   testGetTrainingSetInvalidResourceID,
-		"GetUnknownTrainingSet":  testGetUnknownTrainingSet,
-		"InvalidTrainingSetDefs": testInvalidTrainingSetDefs,
-		"LabelTableNotFound":     testLabelTableNotFound,
-		"FeatureTableNotFound":   testFeatureTableNotFound,
-		"TrainingDefShorthand":   testTrainingSetDefShorthand,
-		"ResourceLocation":       testResourceLocation,
+		"TrainingSetLag":          testLagFeaturesTrainingSet,
+		"TrainingSetInvalidID":    testGetTrainingSetInvalidResourceID,
+		"GetUnknownTrainingSet":   testGetUnknownTrainingSet,
+		"InvalidTrainingSetDefs":  testInvalidTrainingSetDefs,
+		"LabelTableNotFound":      testLabelTableNotFound,
+		"FeatureTableNotFound":    testFeatureTableNotFound,
+		"TrainingDefShorthand":    testTrainingSetDefShorthand,
+		"ResourceLocation":        testResourceLocation,
 	}
 
 	for name, fn := range testFns {

@@ -167,37 +167,6 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 			expectedErr: false,
 			expectedSQL: `SELECT f1.swell_direction AS "feature__swell_direction__variant", f1.wind_speed_kt AS "feature__wave_height_ft__variant", f1.swell_period_sec AS "feature__swell_period_sec__variant", l.wave_power_kj AS label FROM "DEMO2"."CORRECTNESS"."surf_conditions_features_ts" l  ASOF JOIN "DEMO2"."CORRECTNESS"."surf_conditions_features_ts" f1 MATCH_CONDITION(l.measured_on >= f1.measured_on) ON(l.location_id = f1.location_id);`,
 		},
-		{
-			name:    "All features and label use timestamps, and no ASOF operator",
-			useAsOf: false,
-			lbl: labelTable{
-				Entity:             "location_id",
-				Value:              "wave_height",
-				TS:                 "observed_on",
-				SanitizedTableName: "`testing-352123.0FD08336_26DC_45BE_AC4D_F63FA277D2A4.featureform_resource_label__wave_height__test`",
-				//SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"wave_height_labels_ts\"",
-			},
-			fts: []featureTable{
-				{
-					Entity:             "location_id",
-					Values:             []string{"swell_direction"},
-					TS:                 "measured_on",
-					SanitizedTableName: "`testing-352123.DB_05FED.TEST_FEATURES_SURF_READINGS_TABLE`",
-					//SanitizedTableName: "\"DEMO\".\"CORRECTNESS\".\"surf_conditions_features_ts\"",
-					ColumnAliases: []string{"feature__swell_direction__variant"},
-				},
-				{
-					Entity:             "location_id",
-					Values:             []string{"wave_power_kj"},
-					TS:                 "measured_on",
-					SanitizedTableName: "`testing-352123.DB_05FED.TEST_FEATURES_SURF_READINGS_TABLE`",
-					//SanitizedTableName: "\"DEMO\".\"CORRECTNESS\".\"surf_conditions_features_ts\"",
-					ColumnAliases: []string{"feature__wave_power_kj__variant"},
-				},
-			},
-			expectedErr: false,
-			expectedSQL: `SELECT f1.swell_direction AS "feature__swell_direction__variant", f1.wave_power_kj AS "feature__wave_power_kj__variant", f1.swell_period_sec AS "feature__swell_period_sec__variant", l.wave_height_ft AS label FROM "DEMO2"."CORRECTNESS"."wave_height_labels_ts" l  ASOF JOIN "DEMO2"."CORRECTNESS"."surf_conditions_features_ts" f1 MATCH_CONDITION(l.observed_on >= f1.measured_on) ON(l.location_id = f1.location_id);`,
-		},
 	}
 
 	for _, c := range cases {
@@ -207,7 +176,7 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 				for _, ft := range c.fts {
 					builder.AddFeature(ft)
 				}
-				if err := builder.Compile(c.useAsOf); (err != nil) != c.expectedErr {
+				if err := builder.Compile(); (err != nil) != c.expectedErr {
 					t.Errorf("Expected no error, got %v", err)
 				}
 				sql := builder.ToSQL()

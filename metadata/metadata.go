@@ -2219,12 +2219,16 @@ func (serv *MetadataServer) Serve() error {
 	if err != nil {
 		return fferr.NewInternalErrorf("cannot listen to server address %s", serv.address)
 	}
-	return serv.ServeOnListener(lis)
+	return serv.serveOnListener(lis)
 }
 
 func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
 	serv.globalMtx.RLock()
 	defer serv.globalMtx.RUnlock()
+	return serv.serveOnListener(lis)
+}
+
+func (serv *MetadataServer) serveOnListener(lis net.Listener) error {
 	if lis == nil {
 		serv.Logger.Errorw("Can't serve on a nil listener")
 		return fferr.NewInternalErrorf("Can't serve metadata server on a NIL port/listerner")

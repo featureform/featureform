@@ -1348,7 +1348,7 @@ func (bq *bqOfflineStore) buildTrainingSetQuery(tableName string, def TrainingSe
 	ts := tsq.NewTrainingSet(queryConfig, params)
 	sql, err := ts.CompileSQL()
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	sb.WriteString(sql)
 	return sb.String(), nil

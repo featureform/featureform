@@ -51,10 +51,9 @@ type BQOfflineStoreConfig struct {
 }
 
 type defaultBQQueries struct {
-	TablePrefix string
-	ProjectId   string
-	DatasetId   string
-	Ctx         context.Context
+	ProjectId string
+	DatasetId string
+	Ctx       context.Context
 }
 
 type bqGenericTableIterator struct {
@@ -281,28 +280,7 @@ func (q defaultBQQueries) viewExists(viewName string) string {
 	return fmt.Sprintf("SELECT COUNT(*) AS total FROM `%s.INFORMATION_SCHEMA.TABLES` WHERE table_type='VIEW' AND table_name='%s'", q.getTablePrefix(), viewName)
 }
 
-func (q defaultBQQueries) determineColumnType(valueType types.ValueType) (string, error) {
-	switch valueType {
-	case types.Int:
-		return "INTEGER", nil
-	case types.Int32, types.Int64:
-		return "BIGINT", nil
-	case types.Float32, types.Float64:
-		return "FLOAT64", nil
-	case types.String:
-		return "STRING", nil
-	case types.Bool:
-		return "BOOLEAN", nil
-	case types.Timestamp:
-		return "TIMESTAMP", nil
-	case types.NilType:
-		return "STRING", nil
-	default:
-		return "", fferr.NewDataTypeNotFoundErrorf(valueType, "cannot find column type for value type")
-	}
-}
-
-func (q defaultBQQueries) determineNativeColumnType(valueType types.ValueType) (bigquery.FieldType, error) {
+func (q defaultBQQueries) determineColumnType(valueType types.ValueType) (bigquery.FieldType, error) {
 	switch valueType {
 	case types.Int, types.Int32, types.Int64:
 		return bigquery.IntegerFieldType, nil
@@ -367,12 +345,12 @@ func (q defaultBQQueries) getNumRowsQuery(tableName string) string {
 }
 
 func (q *defaultBQQueries) getTablePrefix() string {
-	return q.TablePrefix
+	return fmt.Sprintf("%s.%s", q.ProjectId, q.DatasetId)
 }
 
-func (q *defaultBQQueries) setTablePrefix(prefix string) {
-	// TODO: Have this also update DatasetID and other relevant variables inside `defaultBQQueries`.
-	q.TablePrefix = prefix
+func (q *defaultBQQueries) setTablePrefix(project string, dataset string) {
+	q.ProjectId = project
+	q.DatasetId = dataset
 }
 
 func (q *defaultBQQueries) setContext() {
@@ -470,7 +448,7 @@ func (q defaultBQQueries) monitorJob(job *bigquery.Job) error {
 }
 
 func (q defaultBQQueries) transformationCreate(name string, query string) string {
-	qry := fmt.Sprintf("CREATE TABLE `%s` AS %s", q.getTableName(name), query)
+	qry := fmt.Sprintf("CREATE VIEW `%s` AS %s", q.getTableName(name), query)
 	return qry
 }
 
@@ -849,7 +827,6 @@ func bigQueryOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		ProjectId: sc.ProjectId,
 		DatasetId: sc.DatasetId,
 	}
-	queries.setTablePrefix(fmt.Sprintf("%s.%s", sc.ProjectId, sc.DatasetId))
 	queries.setContext()
 
 	sgConfig := BQOfflineStoreConfig{
@@ -1132,7 +1109,7 @@ func (store *bqOfflineStore) newbqOfflineTable(client *bigquery.Client, name str
 	if err != nil {
 		return nil, err
 	}
-	tableCreateQry := store.query.newBQOfflineTable(name, columnType)
+	tableCreateQry := store.query.newBQOfflineTable(name, string(columnType))
 	bqQ := client.Query(tableCreateQry)
 	_, err = bqQ.Read(store.query.getContext())
 	if err != nil {
@@ -1164,10 +1141,6 @@ func (store *bqOfflineStore) CreateMaterialization(id ResourceID, opts Materiali
 	if !isSqlLocation {
 		return nil, fferr.NewInvalidArgumentErrorf("source table is not an SQL location")
 	}
-	//resTable, err := store.getbqResourceTable(id)
-	//if err != nil {
-	//	return nil, err
-	//}
 
 	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
 	matTableName, err := store.getMaterializationTableName(id)

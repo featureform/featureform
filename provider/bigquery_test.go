@@ -69,7 +69,7 @@ func (bq *bigQueryOfflineStoreTester) CreateTable(loc pl.Location, schema TableS
 	var tableSchema bigquery.Schema
 
 	for _, col := range schema.Columns {
-		columnType, err := bq.query.determineNativeColumnType(col.ValueType)
+		columnType, err := bq.query.determineColumnType(col.ValueType)
 		if err != nil {
 			return nil, err
 		}
@@ -101,14 +101,10 @@ func (bq *bigQueryOfflineStoreTester) CreateTable(loc pl.Location, schema TableS
 		return nil, err
 	}
 
-	var projectId = bq.query.ProjectId
-	var tablePrefix = fmt.Sprintf("%s.%s", projectId, datasetName)
-
 	var newQueryClient = defaultBQQueries{
-		TablePrefix: tablePrefix,
-		ProjectId:   bq.query.ProjectId,
-		DatasetId:   datasetName,
-		Ctx:         bq.query.Ctx,
+		ProjectId: bq.query.ProjectId,
+		DatasetId: datasetName,
+		Ctx:       bq.query.Ctx,
 	}
 
 	return &bqPrimaryTable{

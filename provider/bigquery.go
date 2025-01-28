@@ -1365,8 +1365,13 @@ func (bq *bqOfflineStore) buildTrainingSetQuery(tableName string, def TrainingSe
 	if err != nil {
 		return "", err
 	}
-	ts := tsq.NewTrainingSet(params)
-	sql, err := ts.CompileSQL(false)
+
+	queryConfig := tsq.QueryConfig{
+		UseAsOfJoin: false,
+		QuoteChar:   "`",
+	}
+	ts := tsq.NewTrainingSet(queryConfig, params)
+	sql, err := ts.CompileSQL()
 	if err != nil {
 		return "", nil
 	}

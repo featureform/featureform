@@ -269,14 +269,16 @@ func (j windowJoins) HeaderSQL(config QueryConfig) string {
     %s as ts,
     %s as entity,
     %s AS label,
-  FROM `+"`%s`"+`
+  FROM %s%s%s
 ),
 `,
 		// TODO: Above escape should be configurable
 		j.ts,
 		j.entity,
 		j.label,
+		config.QuoteChar,
 		j.labelTable,
+		config.QuoteChar,
 	))
 	joins := make([]string, len(j.windows))
 	for i, join := range j.windows {
@@ -506,7 +508,7 @@ func (b *trainingSetQueryBuilder) ToSQL() string {
 	// SELECT
 	sb.WriteString(fmt.Sprintf("SELECT %s, l.%s AS label ", b.columns.ToSQL(), b.labelTable.Value))
 	// FROM
-	sb.WriteString(fmt.Sprintf("FROM %s l ", b.labelTable.SanitizedTableName))
+	sb.WriteString(fmt.Sprintf("FROM %s%s%s l ", b.config.QuoteChar, b.labelTable.SanitizedTableName, b.config.QuoteChar))
 	// JOIN(s)
 	sb.WriteString(b.joins.ToSQL(b.config))
 	sb.WriteString(";")

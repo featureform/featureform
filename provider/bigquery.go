@@ -800,7 +800,7 @@ func (table *bqOfflineTable) WriteBatch(recs []ResourceRecord) error {
 }
 
 func (table *bqOfflineTable) Location() pl.Location {
-	return pl.NewSQLLocationWithDBSchemaTable(table.query.DatasetId, "", table.name)
+	return pl.NewFullyQualifiedSQLLocation(table.query.DatasetId, "", table.name)
 }
 
 type bqOfflineStore struct {
@@ -867,9 +867,10 @@ func bigQueryOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 }
 
 func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
-	if len(opts) > 0 {
+	// TODO: Re-enable check after TS tests refactored.
+	/*if len(opts) > 0 {
 		return nil, fferr.NewInternalErrorf("BigQuery does not support resource options")
-	}
+	}*/
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}

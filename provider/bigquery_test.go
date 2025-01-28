@@ -237,6 +237,19 @@ func destroyBigQueryDataset(c pc.BigQueryConfig) error {
 	return err
 }
 
+func RegisterBigQueryTransformationOnPrimaryDatasetTest(t *testing.T, tester offlineSqlTest) {
+	test := newSQLTransformationTest(tester.storeTester, false, tester.transformationQuery)
+	_ = initSqlPrimaryDataset(t, test.tester, test.data.location, test.data.schema, test.data.records)
+	if err := test.tester.CreateTransformation(test.data.config); err != nil {
+		t.Fatalf("could not create transformation: %v", err)
+	}
+	actual, err := test.tester.GetTransformationTable(test.data.config.TargetTableID)
+	if err != nil {
+		t.Fatalf("could not get transformation table: %v", err)
+	}
+	test.data.Assert(t, actual)
+}
+
 func RegisterBigQueryChainedTransformationsTest(t *testing.T, tester offlineSqlTest) {
 	test := newSQLTransformationTest(tester.storeTester, tester.useSchema, tester.transformationQuery)
 	_ = initSqlPrimaryDataset(t, test.tester, test.data.location, test.data.schema, test.data.records)
@@ -281,8 +294,8 @@ func TestBigQueryTransformations(t *testing.T) {
 	tester := getConfiguredBigQueryTester(t, false)
 
 	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
-		//"RegisterTransformationOnPrimaryDatasetTest": RegisterTransformationOnPrimaryDatasetTest,
-		"RegisterChainedTransformationsTest": RegisterBigQueryChainedTransformationsTest,
+		"RegisterTransformationOnPrimaryDatasetTest": RegisterBigQueryTransformationOnPrimaryDatasetTest,
+		"RegisterChainedTransformationsTest":         RegisterBigQueryChainedTransformationsTest,
 	}
 
 	for name, testCase := range testCases {
@@ -326,9 +339,9 @@ func TestBigQueryTrainingSets(t *testing.T) {
 
 	tsDatasetTypes := []trainingSetDatasetType{
 		tsDatasetFeaturesLabelTS,
-		//tsDatasetFeaturesTSLabelNoTS,
-		//tsDatasetFeaturesNoTSLabelTS,
-		//tsDatasetFeaturesLabelNoTS,
+		tsDatasetFeaturesTSLabelNoTS,
+		tsDatasetFeaturesNoTSLabelTS,
+		tsDatasetFeaturesLabelNoTS,
 	}
 
 	for _, testCase := range tsDatasetTypes {

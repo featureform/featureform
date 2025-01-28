@@ -47,7 +47,7 @@ func NewPSQLLocker(ctx context.Context, connPool *postgres.Pool) (Locker, error)
 
 	// Create a table to store the locks
 	tableCreationSQL := createTableQuery(tableName)
-	logger.Debugw("Creating logger table if not exists", "query", tableCreationSQL)
+	logger.Debugw("Creating locker table if not exists", "query", tableCreationSQL)
 	if _, err := connPool.Exec(ctx, tableCreationSQL); err != nil {
 		errMsg := "failed to create psql locker table"
 		logger.Errorw(errMsg, "err", err)
@@ -77,7 +77,7 @@ func (l *psqlLocker) runLockQuery(
 	validTime := nowTime.Add(validTimePeriod.Duration())
 	logger.With("lock-query", lockQuery, "lock-now-time", nowTime, "lock-valid-time", validTime)
 	logger.Debug("Running lock query")
-	if r, err := l.connPool.Exec(ctx, lockQuery, owner, key, nowTime, validTime); err != nil {
+	if r, err := l.connPool.Exec(ctx, lockQuery, owner, key, validTime, nowTime); err != nil {
 		logger.Error("Failed to lock key")
 		return fferr.NewInternalErrorf("failed to lock key %s: %v", key, err)
 	} else if r.RowsAffected() == 0 {
@@ -205,7 +205,8 @@ func (l *psqlLocker) updateLockTime(key *psqlKey, logger logging.Logger) {
 
 func (l *psqlLocker) Unlock(ctx context.Context, key Key) error {
 	logger := l.logger.WithRequestIDFromContext(ctx).With(
-		"unlock-key", key,
+		"unlock-key-owner", key.Owner(),
+		"unlock-key-key", key.Key(),
 	)
 	logger.Debug("Unlocking key")
 	if key == nil {

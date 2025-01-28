@@ -172,7 +172,6 @@ COPY --from=runner /app/dashboard ./dashboard
 
 ENV SERVING_PORT="8082"
 ENV SERVING_HOST="0.0.0.0"
-ENV ETCD_ARCH=""
 ENV MEILI_LOG_LEVEL="WARN"
 ENV FEATUREFORM_HOST="localhost"
 ENV FF_STATE_PROVIDER="psql"

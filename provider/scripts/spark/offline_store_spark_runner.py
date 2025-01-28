@@ -988,6 +988,7 @@ def get_source_df(source, credentials, is_update, spark):
         else:
             raise Exception(f"Unsupported table format: {table_format} for {location}")
     elif location_type == "sql" and source.get("provider") == "SNOWFLAKE_OFFLINE":
+        print(f"Reading Snowflake table: {location}")
         options = {
             "sfURL": credentials.get("sfURL"),
             "sfUser": credentials.get("sfUser"),

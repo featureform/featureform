@@ -59,6 +59,10 @@ func ShouldSkipSparkHealthCheck() bool {
 	return helpers.GetEnvBool("SKIP_SPARK_HEALTH_CHECK", false)
 }
 
+func ShouldUseDBFS() bool {
+	return helpers.GetEnvBool("SHOULD_USE_DBFS", false)
+}
+
 func CreateSparkScriptConfig() (SparkFileConfigs, error) {
 	remoteScriptPath, err := createSparkRemoteScriptPath()
 	if err != nil {

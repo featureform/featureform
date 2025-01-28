@@ -173,7 +173,7 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStoreV2) error {
 		logger.Errorw("could not set local script path", "error", err)
 		return err
 	}
-	if config.ShouldUseDBFS {
+	if config.ShouldUseDBFS() {
 		logger.Info("Copying run script to DBFS")
 		if err := db.readAndUploadFileDBFS(sparkLocalScriptPath, db.files.RemoteScriptPath); err != nil {
 			logger.Errorw("could not upload spark script", "error", err)
@@ -243,6 +243,7 @@ func (db *DatabricksExecutor) readAndUploadFileDBFS(
 ) error {
 	// TODO continue to move context further up the stack
 	ctx := context.Background()
+	// TODO move this formating out of here
 	remotePath := fmt.Sprintf("dbfs:/tmp/%s", remotePathKey)
 	logger := logging.GlobalLogger.With(
 		"fromPath", localPath.ToURI(),

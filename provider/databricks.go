@@ -226,7 +226,7 @@ func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {
 func (db *DatabricksExecutor) readAndUploadFileDBFS(
 	localPath filestore.Filepath, remotePathKey string,
 ) error {
-	// TODO continue to move this further up the stack
+	// TODO continue to move context further up the stack
 	ctx := context.Background()
 	remotePath := fmt.Sprintf("dbfs:/tmp/%s", remotePathKey)
 	logger := logging.GlobalLogger.With(

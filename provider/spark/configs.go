@@ -71,10 +71,17 @@ func (cmd *Command) CompileDatabricks() dbjobs.Task {
 	list := cmd.Configs.ToSparkFlagsList()
 	nativeFlags, scriptFlags := list.SeparateNativeFlags()
 	scriptArgs := append(cmd.ScriptArgs, scriptFlags.SparkStringFlags()...)
+	var pyFile string
+	if config.ShouldUseDBFS() {
+		// In this case, we assume the script has been copied to dbfs already
+		// TODO(simba) move tihs formatting elsewhere
+		pyFile = fmt.Sprintf("dbfs:/tmp/%s", cmd.Script.Key())
+	} else {
+		pyFile = cmd.Script.ToURI()
+	}
 	task := dbjobs.Task{
 		SparkPythonTask: &dbjobs.SparkPythonTask{
-			// Dbrix must run out of DBFS and not S3
-			PythonFile: fmt.Sprintf("dbfs:/tmp/%s", cmd.Script.Key()),
+			PythonFile: pyFile,
 			Parameters: scriptArgs,
 		},
 	}

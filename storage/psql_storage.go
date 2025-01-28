@@ -24,10 +24,17 @@ func NewPSQLStorageImplementation(ctx context.Context, db *postgres.Pool, tableN
 	indexName := "ff_key_pattern"
 	sanitizedName := postgres.Sanitize(tableName)
 	// Create a table to store the key-value pairs
-	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (key VARCHAR(2048) PRIMARY KEY, value TEXT, marked_for_deletion_at TIMESTAMP default null)", sanitizedName)
+	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (key VARCHAR(2048) PRIMARY KEY, value TEXT)", sanitizedName)
 	if _, err := db.Exec(ctx, tableCreationSQL); err != nil {
 		logger.Errorw("Failed to create table", "table-name", sanitizedName, "err", err)
 		return nil, fferr.NewInternalErrorf("failed to create table %s: %w", sanitizedName, err)
+	}
+
+	// This column is used in deletion
+	addClm := fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS marked_for_deletion_at TIMESTAMP DEFAULT null", sanitizedName)
+	if _, err := db.Exec(ctx, addClm); err != nil {
+		logger.Errorw("Failed to add deletion column", "table-name", sanitizedName, "err", err)
+		return nil, fferr.NewInternalErrorf("failed to add deletion column to %s: %w", sanitizedName, err)
 	}
 
 	// Add a text index to use for LIKE queries

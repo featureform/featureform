@@ -217,16 +217,7 @@ func parsePostgres(logger logging.Logger) (*postgres.Config, fferr.Error) {
 		"PSQL_SSLMODE":  "disable",
 	}
 	logger.Debugw("Parsing Postgres config from env.")
-	envs := make(map[string]string)
-	for env, defVal := range defaultEnvs {
-		val, has := os.LookupEnv(env)
-		if has {
-			envs[env] = val
-		} else {
-			logger.Infof("Env %s not set, using default value %s.", env, defVal)
-			envs[env] = defVal
-		}
-	}
+	envs := fillEnvMap(logger, defaultEnvs)
 	cfg := postgres.Config{
 		Host:     envs["PSQL_HOST"],
 		Port:     envs["PSQL_PORT"],
@@ -246,17 +237,7 @@ func parseEtcd(logger logging.Logger) (*etcd.Config, fferr.Error) {
 		"ETCD_USERNAME": "",
 		"ETCD_PASSWORD": "",
 	}
-	logger.Debugw("Parsing Etcd config from env.")
-	envs := make(map[string]string)
-	for env, defVal := range defaultEnvs {
-		val, has := os.LookupEnv(env)
-		if has {
-			envs[env] = val
-		} else {
-			logger.Infof("Env %s not set, using default value %s.", env, defVal)
-			envs[env] = defVal
-		}
-	}
+	envs := fillEnvMap(logger, defaultEnvs)
 	cfg := etcd.Config{
 		Host:     envs["ETCD_HOST"],
 		Port:     envs["ETCD_PORT"],
@@ -265,6 +246,24 @@ func parseEtcd(logger logging.Logger) (*etcd.Config, fferr.Error) {
 	}
 	logger.Infow("Etcd config parsed from env", "config", cfg.Redacted())
 	return &cfg, nil
+}
+
+func fillEnvMap(logger logging.Logger, defaultEnvs map[string]string) map[string]string {
+	envs := make(map[string]string)
+	for env, defVal := range defaultEnvs {
+		envs[env] = getEnvWithDefault(logger, env, defVal)
+	}
+	return envs
+}
+
+func getEnvWithDefault(logger logging.Logger, env, defVal string) string {
+	val, has := os.LookupEnv(env)
+	if has {
+		return val
+	} else {
+		logger.Infof("Env %s not set, using default value %s.", env, defVal)
+		return defVal
+	}
 }
 
 // TODO(simba) Move all envs into this Config

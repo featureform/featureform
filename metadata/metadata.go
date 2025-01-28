@@ -2412,7 +2412,7 @@ func (serv *MetadataServer) deletionTaskStarter(ctx context.Context, resId Resou
 		Variant:      resId.Variant,
 		ResourceType: resId.Type.String(),
 	}
-	task, err := serv.taskManager.CreateTask("delete-task", scheduling.ResourceDeletion, taskTarget)
+	task, err := serv.taskManager.CreateTask(ctx, "delete-task", scheduling.ResourceDeletion, taskTarget)
 	if err != nil {
 		logger.Errorw("unable to create deletion task", "error", err)
 		return err
@@ -2430,7 +2430,7 @@ func (serv *MetadataServer) deletionTaskStarter(ctx context.Context, resId Resou
 		taskName := fmt.Sprintf("Deleting Resource %s", resId.String())
 		trigger := scheduling.OnApplyTrigger{TriggerName: "Apply"}
 
-		taskRun, err := serv.taskManager.CreateTaskRun(taskName, task.ID, trigger)
+		taskRun, err := serv.taskManager.CreateTaskRun(ctx, taskName, task.ID, trigger)
 		if err != nil {
 			logger.Errorw("unable to create task run",
 				"task_name", taskName,

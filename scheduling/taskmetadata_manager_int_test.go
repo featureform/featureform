@@ -8,7 +8,6 @@
 package scheduling
 
 import (
-	"github.com/featureform/logging"
 	"testing"
 
 	help "github.com/featureform/helpers"

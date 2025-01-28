@@ -40,6 +40,7 @@ func getConfig(connectionString string, logger logging.Logger) (*pgxpool.Config,
 		return nil, fferr.NewConnectionError(connectionString, err)
 	}
 
+	// TODO properly handle defaults
 	dbConfig.MaxConns = defaultMaxConns
 	dbConfig.MinConns = defaultMinConns
 	dbConfig.MaxConnLifetime = defaultMaxConnLifetime

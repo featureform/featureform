@@ -12,6 +12,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/featureform/fferr"
 	"os"
 	"reflect"
 	"strings"
@@ -275,7 +276,7 @@ func TestSnowflakeTrainingSets(t *testing.T) {
 		constTestCase := testCase
 		t.Run(constName, func(t *testing.T) {
 			t.Parallel()
-			RegisterTrainingSet(t, tester, constTestCase, &ResourceSnowflakeConfigOption{})
+			RegisterTrainingSet(t, tester, constTestCase)
 		})
 	}
 }
@@ -551,6 +552,25 @@ func TestSnowflakeDeserializeLegacyCredentials(t *testing.T) {
 	}
 }
 
+func TestSnowflakeDelete(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+	tester := getConfiguredTester(t, true)
+	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
+		"DeleteTableTest":            DeleteTableTest,
+		"DeleteNotExistingTableTest": DeleteNotExistingTableTest,
+	}
+	for name, testCase := range testCases {
+		constName := name
+		constTestCase := testCase
+		t.Run(constName, func(t *testing.T) {
+			t.Parallel()
+			constTestCase(t, tester)
+		})
+	}
+}
+
 // TEST FUNCTION
 
 func CrossDatabaseJoinTest(t *testing.T, tester offlineSqlTest) {
@@ -580,14 +600,14 @@ func CrossDatabaseJoinTest(t *testing.T, tester offlineSqlTest) {
 	})
 
 	tableName1 := "DUMMY_TABLE"
-	sqlLocation := location.NewSQLLocationWithDBSchemaTable(dbName, "PUBLIC", tableName1).(*location.SQLLocation)
+	sqlLocation := location.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", tableName1).(*location.SQLLocation)
 	records, err := createDummyTable(tester.storeTester, *sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	tableName2 := "DUMMY_TABLE2"
-	sqlLocation2 := location.NewSQLLocationWithDBSchemaTable(dbName2, "PUBLIC", tableName2).(*location.SQLLocation)
+	sqlLocation2 := location.NewFullyQualifiedSQLLocation(dbName2, "PUBLIC", tableName2).(*location.SQLLocation)
 	records2, err := createDummyTable(tester.storeTester, *sqlLocation2, 10)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
@@ -654,14 +674,14 @@ func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester offlineSqlTest) {
 
 	// Create the first table
 	tableName := "DUMMY_TABLE"
-	sqlLocation := location.NewSQLLocationWithDBSchemaTable("", schemaName1, tableName).(*location.SQLLocation)
+	sqlLocation := location.NewFullyQualifiedSQLLocation("", schemaName1, tableName).(*location.SQLLocation)
 	records, err := createDummyTable(tester.storeTester, *sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	// Create the second table using the same table name
-	sqlLocation2 := location.NewSQLLocationWithDBSchemaTable("", schemaName2, tableName).(*location.SQLLocation)
+	sqlLocation2 := location.NewFullyQualifiedSQLLocation("", schemaName2, tableName).(*location.SQLLocation)
 	records2, err := createDummyTable(tester.storeTester, *sqlLocation2, 10)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
@@ -710,7 +730,7 @@ func RegisterTableInDifferentDatabaseTest(t *testing.T, storeTester offlineSqlTe
 
 	// Create the table
 	tableName := "DUMMY_TABLE"
-	sqlLocation := location.NewSQLLocationWithDBSchemaTable(dbName, schemaName, tableName).(*location.SQLLocation)
+	sqlLocation := location.NewFullyQualifiedSQLLocation(dbName, schemaName, tableName).(*location.SQLLocation)
 	records, err := createDummyTable(storeTester.storeTester, *sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
@@ -729,27 +749,14 @@ func RegisterTableInDifferentDatabaseTest(t *testing.T, storeTester offlineSqlTe
 }
 
 func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester offlineSqlTest) {
-	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
-
-	err := storeTester.storeTester.CreateDatabase(dbName)
-	if err != nil {
-		t.Fatalf("could not create database: %v", err)
-	}
-
-	t.Cleanup(func() {
-		if err := storeTester.storeTester.DropDatabase(dbName); err != nil {
-			t.Fatalf("could not drop database: %v", err)
-		}
-	})
-
 	schemaName := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	if err := storeTester.storeTester.CreateSchema(dbName, schemaName); err != nil {
+	if err := storeTester.storeTester.CreateSchema("", schemaName); err != nil {
 		t.Fatalf("could not create schema: %v", err)
 	}
 
 	// Create the table
 	tableName := "DUMMY_TABLE"
-	sqlLocation := location.NewSQLLocationWithDBSchemaTable(dbName, schemaName, tableName).(*location.SQLLocation)
+	sqlLocation := location.NewFullyQualifiedSQLLocation("", schemaName, tableName).(*location.SQLLocation)
 	records, err := createDummyTable(storeTester.storeTester, *sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
@@ -768,7 +775,8 @@ func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester of
 }
 
 func RegisterTransformationOnPrimaryDatasetTest(t *testing.T, tester offlineSqlTest) {
-	test := newSQLTransformationTest(tester.storeTester, tester.useSchema, tester.transformationQuery)
+	transformationQuery := "SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)"
+	test := newSQLTransformationTest(tester.storeTester, true, transformationQuery)
 	_ = initSqlPrimaryDataset(t, test.tester, test.data.location, test.data.schema, test.data.records)
 	if err := test.tester.CreateTransformation(test.data.config); err != nil {
 		t.Fatalf("could not create transformation: %v", err)
@@ -781,7 +789,8 @@ func RegisterTransformationOnPrimaryDatasetTest(t *testing.T, tester offlineSqlT
 }
 
 func RegisterChainedTransformationsTest(t *testing.T, tester offlineSqlTest) {
-	test := newSQLTransformationTest(tester.storeTester, tester.useSchema, tester.transformationQuery)
+	transformationQuery := "SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)"
+	test := newSQLTransformationTest(tester.storeTester, true, transformationQuery)
 	_ = initSqlPrimaryDataset(t, test.tester, test.data.location, test.data.schema, test.data.records)
 	if err := test.tester.CreateTransformation(test.data.config); err != nil {
 		t.Fatalf("could not create transformation: %v", err)
@@ -931,12 +940,12 @@ func RegisterMaterializationWithDifferentWarehouseTest(t *testing.T, tester offl
 	matTest.data.Assert(t, matIncr, isIncremental)
 }
 
-func RegisterTrainingSet(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType, resourceOpts ...ResourceOption) {
+func RegisterTrainingSet(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType) {
 	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
 
-	res, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.labelID, tsTest.data.labelResourceSchema, resourceOpts...)
+	res, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.labelID, tsTest.data.labelResourceSchema, &ResourceSnowflakeConfigOption{})
 	if err != nil {
 		t.Fatalf("could not register label table: %v", err)
 	}
@@ -949,6 +958,45 @@ func RegisterTrainingSet(t *testing.T, tester offlineSqlTest, tsDatasetType trai
 		t.Fatalf("could not get training set: %v", err)
 	}
 	tsTest.data.Assert(t, ts)
+}
+
+func DeleteTableTest(t *testing.T, tester offlineSqlTest) {
+	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
+	t.Logf("Database Name1: %s\n", dbName)
+	if err := tester.storeTester.CreateDatabase(dbName); err != nil {
+		t.Fatalf("could not create database: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := tester.storeTester.DropDatabase(dbName); err != nil {
+			t.Fatalf("could not drop database: %v", err)
+		}
+	})
+
+	// Create the table
+	tableName := "DUMMY_TABLE"
+	sqlLocation := location.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", tableName).(*location.SQLLocation)
+	_, err := createDummyTable(tester.storeTester, *sqlLocation, 3)
+	if err != nil {
+		t.Fatalf("could not create table: %v", err)
+	}
+	if err := tester.storeTester.Delete(sqlLocation); err != nil {
+		t.Fatalf("could not delete table: %v", err)
+	}
+}
+func DeleteNotExistingTableTest(t *testing.T, tester offlineSqlTest) {
+	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
+	t.Logf("Database Name1: %s\n", dbName)
+	if err := tester.storeTester.CreateDatabase(dbName); err != nil {
+		t.Fatalf("could not create database: %v", err)
+	}
+	loc := location.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", "NOT_EXISTING_TABLE").(*location.SQLLocation)
+	deleteErr := tester.storeTester.Delete(loc)
+	if deleteErr == nil {
+		t.Fatalf("expected error deleting table")
+	}
+	if _, ok := deleteErr.(*fferr.DatasetNotFoundError); !ok {
+		t.Fatalf("expected DatasetNotFoundError")
+	}
 }
 
 // HELPER FUNCTIONS
@@ -1003,32 +1051,22 @@ func verifyPrimaryTable(t *testing.T, primary PrimaryTable, records []GenericRec
 		t.Fatalf("Could not get generic iterator: %v", err)
 	}
 
-	if iterator.Columns()[0] != "ID" {
-		// TODO: Remove this
-		t.Fatalf("expected ID as first column")
-	}
-	rowsSeen := 0
+	i := 0
 	for iterator.Next() {
-		valuesIter := iterator.Values()
-		id := valuesIter[0].(int)
-		for j, v := range valuesIter {
+		for j, v := range iterator.Values() {
 			// NOTE: we're handling float64 differently hear given the values returned by Snowflake have less precision
 			// and therefore are not equal unless we round them; if tests require handling of other types, we can add
 			// additional cases here, otherwise the default case will cover all other types
 			switch v.(type) {
 			case float64:
-				assert.True(t, floatsAreClose(v.(float64), records[id][j].(float64), floatTolerance), "expected same values")
+				assert.True(t, floatsAreClose(v.(float64), records[i][j].(float64), floatTolerance), "expected same values")
 			case time.Time:
-				assert.Equal(t, records[id][j].(time.Time).Truncate(time.Microsecond), v.(time.Time).Truncate(time.Microsecond), "expected same values")
+				assert.Equal(t, records[i][j].(time.Time).Truncate(time.Microsecond), v.(time.Time).Truncate(time.Microsecond), "expected same values")
 			default:
-				assert.Equal(t, v, records[id][j], "expected same values")
+				assert.Equal(t, v, records[i][j], "expected same values")
 			}
 		}
-		rowsSeen++
-	}
-
-	if rowsSeen != int(numRows) {
-		t.Fatalf("incorrect number of rows: expected %d, got %d", numRows, rowsSeen)
+		i++
 	}
 }
 
@@ -1142,9 +1180,7 @@ func getConfiguredTester(t *testing.T, useCrossDBJoins bool) offlineSqlTest {
 	offlineStoreTester := &snowflakeOfflineStoreTester{store.(*snowflakeOfflineStore)}
 
 	return offlineSqlTest{
-		storeTester:         offlineStoreTester,
-		testCrossDbJoins:    useCrossDBJoins,
-		useSchema:           true,
-		transformationQuery: "SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)",
+		storeTester:      offlineStoreTester,
+		testCrossDbJoins: useCrossDBJoins,
 	}
 }

@@ -6,27 +6,16 @@
 //
 
 import { Typography } from '@mui/material';
-import { styled } from '@mui/system';
 import { useRouter } from 'next/router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { providerLogoMap } from '../../../api/resources';
 import { useDataAPI } from '../../../hooks/dataAPI';
-import {
-  GridContainer,
-  MainContainer,
-  StyledDataGrid,
-} from '../BaseColumnTable';
+import { MainContainer, GridContainer, StyledDataGrid, STATUS_COLORS } from '../BaseColumnTable';
 import BaseFilterPanel from '../BaseFilterPanel';
 import { isMatchingDefault } from '../DatasetTable/DatasetTable';
 import { ConnectionSvg } from '../icons/Connections';
 import { UserBubbleSvg } from '../icons/Owner';
 import NoDataMessage from '../NoDataMessage';
 import FilterPanel from './FilterPanel';
-
-const ProviderImage = styled('img')({
-  width: '4.0em',
-  height: '2.5em',
-});
 
 export const label_variant_columns = [
   {
@@ -40,63 +29,7 @@ export const label_variant_columns = [
   },
   {
     field: 'name',
-    headerName: 'Name',
-    flex: 1,
-    editable: false,
-    sortable: false,
-    filterable: false,
-    hide: false,
-    renderCell: function ({ row }) {
-      return (
-        <Typography variant='body2' sx={{ marginLeft: 1 }}>
-          <strong>{row?.name}</strong>
-        </Typography>
-      );
-    },
-  },
-  {
-    field: 'variant',
-    headerName: 'Variant',
-    flex: 1,
-    editable: false,
-    sortable: false,
-    filterable: false,
-    hide: false,
-    renderCell: function ({ row }) {
-      return (
-        <Typography variant='body2' sx={{ marginLeft: 1 }}>
-          <strong>{row?.variant}</strong>
-        </Typography>
-      );
-    },
-  },
-  {
-    field: 'provider',
-    headerName: 'Provider',
-    flex: 1,
-    editable: false,
-    sortable: false,
-    filterable: false,
-    hide: false,
-    renderCell: function ({ row }) {
-      const provider =
-        providerLogoMap[row?.providerType?.toUpperCase()] ??
-        providerLogoMap['LOCAL_ONLINE'];
-
-      const providerTxt = row?.provider || row?.providerType || 'Local';
-      return (
-        <>
-          <ProviderImage alt={row?.providerType} src={provider} />
-          <Typography variant='body2' sx={{ marginLeft: 1 }}>
-            {providerTxt}
-          </Typography>
-        </>
-      );
-    },
-  },
-  {
-    field: 'tags',
-    headerName: 'Tags',
+    headerName: 'Name (Variant)',
     flex: 1,
     editable: false,
     sortable: false,
@@ -106,13 +39,39 @@ export const label_variant_columns = [
       return (
         <div>
           <div style={{ display: 'flex' }}>
-            <Typography variant='body2'>
-              <strong>Entity:</strong> {row?.entity}
+            <Typography variant='body2' sx={{ marginLeft: 1 }}>
+              <strong>{row?.name}</strong>
             </Typography>
           </div>
           <div style={{ display: 'flex' }}>
-            <Typography variant='body2'>
-              <strong>Tags:</strong> {sanitizeTags(row?.tags)}
+          <Typography variant='body2' sx={{ marginLeft: 1, fontSize: '0.75rem' }}>
+          ({row?.variant})
+        </Typography>
+          </div>
+        </div>
+      );
+    },
+  },
+  {
+    field: 'owner',
+    headerName: 'Owner',
+    flex: 0,
+    width: 350,
+    editable: false,
+    sortable: false,
+    filterable: false,
+    hide: false,
+    renderCell: function ({ row }) {
+      return (
+        <div>
+          <div style={{ display: 'flex' }}>
+          <UserBubbleSvg
+              height='20'
+              width='20'
+              letter={row?.owner?.[0]?.toUpperCase() || '---'}
+            />
+            <Typography variant='body2' sx={{ marginLeft: 1 }}>
+              {row?.owner || 'Unknown Owner'}
             </Typography>
           </div>
         </div>
@@ -128,47 +87,21 @@ export const label_variant_columns = [
     sortable: false,
     filterable: false,
     renderCell: function ({ row }) {
-      const readyFill = '#6DDE6A';
-      let result = '#DA1E28';
+      let result = STATUS_COLORS.ERROR;
       if (row?.status && row?.status === 'READY') {
-        result = readyFill;
+        result = STATUS_COLORS.READY;
       }
       return (
-        <div>
           <div style={{ display: 'flex' }}>
             <ConnectionSvg fill={result} height='20' width='20' />
             <Typography variant='body2' sx={{ marginLeft: 1 }}>
               {row?.status}
             </Typography>
-          </div>
-          <div style={{ display: 'flex' }}>
-            <UserBubbleSvg
-              height='20'
-              width='20'
-              letter={row?.owner?.[0]?.toUpperCase()}
-            />
-            <Typography variant='body2' sx={{ marginLeft: 1 }}>
-              {row?.owner}
-            </Typography>
-          </div>
-        </div>
+          </div>     
       );
     },
   },
 ];
-
-function sanitizeTags(tags = [], maxLength = 25) {
-  if (!tags || tags.length === 0) return '';
-  //join all the tags together
-  const formattedTags = tags.join(', ');
-
-  //if the length is longer than max, chop 3 characters and add the ellipse
-  if (formattedTags.length > maxLength) {
-    return `${formattedTags.substring(0, maxLength - 3)}...`;
-  }
-
-  return formattedTags;
-}
 
 const DEFAULT_FILTERS = Object.freeze({
   SearchTxt: '',

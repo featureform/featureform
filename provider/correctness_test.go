@@ -151,7 +151,7 @@ func newTestSQLTransformationData(storeType pt.Type, storeConfig pc.SerializedCo
 	if !useSchema {
 		schema = ""
 	}
-	loc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_WIND_DATA_TABLE")
+	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_WIND_DATA_TABLE")
 	sqlLoc := loc.(*pl.SQLLocation)
 	tableLoc := sqlLoc.TableLocation()
 	queryFmt := transformationQuery
@@ -310,7 +310,7 @@ func (d testSQLTransformationData) Assert(t *testing.T, actual PrimaryTable) {
 func newTestSQLMaterializationData(useTimestamp bool) testSQLMaterializationData {
 	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_WIND_DATA_TABLE")
+	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_WIND_DATA_TABLE")
 	idCreator := newIDCreator("test")
 	data := testSQLMaterializationData{
 		id: idCreator.create(Feature, ""),
@@ -329,7 +329,7 @@ func newTestSQLMaterializationData(useTimestamp bool) testSQLMaterializationData
 					ValueType: types.Float64,
 				},
 				{
-					Name:      "FETCH_VALUE",
+					Name:      "FETCH",
 					ValueType: types.Float64,
 				},
 				{
@@ -654,8 +654,8 @@ func (data testSQLTrainingSetData) HashStruct(v interface{}) ([]byte, error) {
 func getTrainingSetDatasetTS(storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_FEATURES_SURF_READINGS_TABLE")
-	labelLoc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_LABEL_WAVE_HEIGHT_TABLE")
+	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_FEATURES_SURF_READINGS_TABLE")
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_LABEL_WAVE_HEIGHT_TABLE")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "wave_height_training_set")
 	labelID := idCreator.create(Label, "wave_height")
@@ -750,8 +750,8 @@ func getTrainingSetDatasetTS(storeType pt.Type, storeConfig pc.SerializedConfig)
 func getTrainingSetFeaturesTSLabelsNoTS(storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_FEATURES_SURF_READINGS_TABLE")
-	labelLoc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_LABEL_LOC_LEVEL_TABLE")
+	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_FEATURES_SURF_READINGS_TABLE")
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_LABEL_LOC_LEVEL_TABLE")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "location_level_training_set")
 	labelID := idCreator.create(Label, "location_level")
@@ -833,8 +833,8 @@ func getTrainingSetFeaturesTSLabelsNoTS(storeType pt.Type, storeConfig pc.Serial
 func getTrainingSetDatasetFeaturesNoTSLabelTS(storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_FEATURES_SURFERS_TABLE")
-	labelLoc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_LABEL_RIDES_TABLE")
+	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_FEATURES_SURFERS_TABLE")
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_LABEL_RIDES_TABLE")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "successful_rides_training_set")
 	labelID := idCreator.create(Label, "successful_rides")
@@ -926,8 +926,8 @@ func getTrainingSetDatasetFeaturesNoTSLabelTS(storeType pt.Type, storeConfig pc.
 func getTrainingSetDatasetNoTS(storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_FEATURES_FAV_SPOT_TABLE")
-	labelLoc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_LABEL_SURFER_LEVEL_TABLE")
+	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_FEATURES_FAV_SPOT_TABLE")
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_LABEL_SURFER_LEVEL_TABLE")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "surfer_level_training_set")
 	labelID := idCreator.create(Label, "surfer_level")

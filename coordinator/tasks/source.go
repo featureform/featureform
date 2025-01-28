@@ -9,6 +9,7 @@ package tasks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -44,7 +45,7 @@ type tableMapping struct {
 func (t *SourceTask) Run() error {
 	_, ctx, logger := t.logger.InitializeRequestID(context.TODO())
 	t.ctx = ctx
-	logger.Debugw("Running source task")
+	logger.Infow("Running source task")
 	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
 		errMsg := fmt.Sprintf("cannot create a source from target type: %s", t.taskDef.TargetType)
@@ -52,52 +53,31 @@ func (t *SourceTask) Run() error {
 		return fferr.NewInternalErrorf(errMsg)
 	}
 
-	t.logger.Info("Running register source job on resource: ", nv)
+	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.SOURCE_VARIANT}
+	logger = logger.WithResource(logging.SourceVariant, resID.Name, resID.Variant).
+		With("task_id", t.taskDef.TaskId, "task_run_id", t.taskDef.ID)
+
+	if t.isDelete {
+		logger.Debugw("Handling deletion")
+		return t.handleDeletion(ctx, resID, logger)
+	}
+
+	logger.Infof("Running source task")
 	err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Metadata...")
 	if err != nil {
 		logger.Warnw("Failed to add run log \"Fetching metadata\" Continuing.", "error", err)
 	}
+
 	source, err := t.metadata.GetSourceVariant(ctx, metadata.NameVariant{nv.Name, nv.Variant})
 	if err != nil {
-		logger.Errorw("Failed to get source variant", "namevariant", nv, "error", err)
+		logger.Errorw("Failed to get source variant", "error", err)
 		return err
 	}
-	if err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Provider..."); err != nil {
-		logger.Warnw("Failed to add run log \"Fetching provider\" Continuing.", "error", err)
-	}
-	sourceProvider, err := source.FetchProvider(t.metadata, ctx)
+	sourceStore, err := getOfflineStore(ctx, t.BaseTask, t.metadata, source, logger)
 	if err != nil {
-		logger.Errorw("Failed to fetch provider metadata", "namevariant", nv, "error", err)
+		logger.Errorw("Failed to get store", "error", err)
 		return err
 	}
-	if err := t.metadata.Tasks.AddRunLog(
-		t.taskDef.TaskId,
-		t.taskDef.ID,
-		fmt.Sprintf("Initializing Offline Store: %s...", sourceProvider.Type()),
-	); err != nil {
-		logger.Warnw("Failed to add run log \"Initializing store\" Continuing.", "error", err)
-		return err
-	}
-	p, err := provider.Get(pt.Type(sourceProvider.Type()), sourceProvider.SerializedConfig())
-	if err != nil {
-		logger.Errorw("Failed to get offline store", "config", sourceProvider.SerializedConfig(), "error", err)
-		return err
-	}
-	sourceStore, err := p.AsOfflineStore()
-	if err != nil {
-		logger.Errorw(
-			"Retrieved provider is not an offline store",
-			"provider-type", sourceProvider.Type(), "error", err,
-		)
-		return err
-	}
-	defer func(sourceStore provider.OfflineStore) {
-		err := sourceStore.Close()
-		if err != nil {
-			logger.Errorf("could not close offline store: %v", err)
-		}
-	}(sourceStore)
-	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.SOURCE_VARIANT}
 	logger = logger.With(
 		"resource_id", resID,
 		"is_primary", source.IsPrimaryData(),
@@ -107,32 +87,86 @@ func (t *SourceTask) Run() error {
 	switch {
 	case source.IsSQLTransformation():
 		logger.Info("Running SQL transformation job")
-		return t.runSQLTransformationJob(source, resID, sourceStore)
+		return t.runSQLTransformationJob(source, resID, sourceStore, logger)
 	case source.IsDFTransformation():
 		logger.Info("Running DF transformation job")
-		return t.runDFTransformationJob(source, resID, sourceStore)
+		return t.runDFTransformationJob(source, resID, sourceStore, logger)
 	case source.IsPrimaryData():
 		logger.Info("Running primary table job")
-		return t.runPrimaryTableJob(source, resID, sourceStore)
+		return t.runPrimaryTableJob(source, resID, sourceStore, logger)
 	default:
 		logger.Error("Unknown source type")
 		return fferr.NewInternalErrorf("source type not implemented")
 	}
 }
 
+func (t *SourceTask) handleDeletion(ctx context.Context, resID metadata.ResourceID, logger logging.Logger) error {
+	logger.Infow("Deleting source")
+	sourceToDelete, stagedDeleteErr := t.metadata.GetStagedForDeletionSourceVariant(
+		ctx,
+		metadata.NameVariant{
+			Name:    resID.Name,
+			Variant: resID.Variant,
+		}, logger)
+	if stagedDeleteErr != nil {
+		logger.Errorw("Failed to get staged for deletion source variant", "error", stagedDeleteErr)
+		return stagedDeleteErr
+	}
+
+	if sourceToDelete.IsPrimaryData() {
+		logger.Infow("Can't delete primary data table", "resource_id", resID)
+	} else {
+		tfLocation, tfLocationErr := sourceToDelete.GetTransformationLocation()
+		if tfLocationErr != nil {
+			logger.Errorw("Failed to get transformation location", "error", tfLocationErr)
+			return tfLocationErr
+		}
+
+		logger.Debugw("Deleting source at location", "location", tfLocation, "error", tfLocationErr)
+		sourceStore, err := getOfflineStore(ctx, t.BaseTask, t.metadata, sourceToDelete, logger)
+		if err != nil {
+			logger.Errorw("Failed to get store", "error", err)
+			return err
+		}
+
+		deleteErr := sourceStore.Delete(tfLocation)
+		if deleteErr != nil {
+			var notFoundErr *fferr.DatasetNotFoundError
+			if errors.As(deleteErr, &notFoundErr) {
+				logger.Infow("Table doesn't exist at location, continuing...", "location", tfLocation)
+			} else {
+				logger.Errorw("Failed to delete source", "error", deleteErr)
+				return deleteErr
+			}
+		}
+	}
+
+	logger.Debugw("Deleting source metadata", "resource_id", resID)
+
+	logger.Debugw("Finalizing delete")
+	if err := t.metadata.FinalizeDelete(ctx, resID); err != nil {
+		logger.Errorw("Failed to finalize delete", "error", err)
+		return err
+	}
+
+	logger.Infow("Source deleted", "resource_id", resID)
+	return nil
+}
+
 func (t *SourceTask) runSQLTransformationJob(
 	transformSource *metadata.SourceVariant,
 	resID metadata.ResourceID,
 	offlineStore provider.OfflineStore,
+	logger logging.Logger,
 ) error {
-	t.logger.Info("Running SQL transformation job on resource: ", resID)
+	logger.Info("Running SQL transformation job on resource: ", resID)
 	err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Queries...")
 	if err != nil {
 		return err
 	}
 	templateString := transformSource.SQLTransformationQuery()
 	sources := transformSource.SQLTransformationSources() // sources contains all the sources including the incremental sources too
-	t.logger.Debugw("SQL transform sources", "sources", sources)
+	logger.Debugw("SQL transform sources", "sources", sources)
 
 	if err := t.metadata.Tasks.AddRunLog(
 		t.taskDef.TaskId,
@@ -154,20 +188,20 @@ func (t *SourceTask) runSQLTransformationJob(
 		return err
 	}
 
-	sourceTableMapping, err := t.mapNameVariantsToTables(sources, t.logger)
-	t.logger.Debugw("Source Table Mapping", "mapping", sourceTableMapping)
+	sourceTableMapping, err := t.mapNameVariantsToTables(sources, logger)
+	logger.Debugw("Source Table Mapping", "mapping", sourceTableMapping)
 	if err != nil {
 		return err
 	}
 
 	sourceMapping, err := getSourceMapping(templateString, sourceTableMapping)
-	t.logger.Debugw("Source Mapping", "mapping", sourceMapping)
+	logger.Debugw("Source Mapping", "mapping", sourceMapping)
 	if err != nil {
 		return err
 	}
 
 	var query string
-	query, err = templateReplace(templateString, sourceTableMapping, offlineStore, t.logger)
+	query, err = templateReplace(templateString, sourceTableMapping, offlineStore, logger)
 	if err != nil {
 		return err
 	}
@@ -184,7 +218,7 @@ func (t *SourceTask) runSQLTransformationJob(
 		resourceSnowflakeConfig = tempConfig
 	}
 
-	t.logger.Debugw("Created transformation query", "query", query)
+	logger.Debugw("Created transformation query", "query", query)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
 	transformationConfig := provider.TransformationConfig{
 		Type:           provider.SQLTransformation,
@@ -200,8 +234,8 @@ func (t *SourceTask) runSQLTransformationJob(
 		SparkFlags:              transformSource.SparkFlags(),
 		ResourceSnowflakeConfig: resourceSnowflakeConfig,
 	}
-	t.logger.Debugw("Transformation Config", "config", transformationConfig)
-	if err := t.runTransformationJob(transformationConfig, offlineStore); err != nil {
+	logger.Debugw("Transformation Config", "config", transformationConfig)
+	if err := t.runTransformationJob(transformationConfig, offlineStore, logger); err != nil {
 		return err
 	}
 
@@ -212,15 +246,16 @@ func (t *SourceTask) runDFTransformationJob(
 	transformSource *metadata.SourceVariant,
 	resID metadata.ResourceID,
 	offlineStore provider.OfflineStore,
+	logger logging.Logger,
 ) error {
-	t.logger.Info("Running DF transformation job on resource: ", resID)
+	logger.Info("Running DF transformation job on resource: ", resID)
 	err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Queries...")
 	if err != nil {
 		return err
 	}
 	code := transformSource.DFTransformationQuery()
 	sources := transformSource.DFTransformationSources()
-	t.logger.Debugw("SQL transform sources", "sources", sources)
+	logger.Debugw("SQL transform sources", "sources", sources)
 
 	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for dependent jobs to complete...")
 	if err != nil {
@@ -237,7 +272,7 @@ func (t *SourceTask) runDFTransformationJob(
 		return err
 	}
 
-	sourceMap, err := t.mapNameVariantsToTables(sources, t.logger)
+	sourceMap, err := t.mapNameVariantsToTables(sources, logger)
 	if err != nil {
 		return err
 	}
@@ -247,7 +282,7 @@ func (t *SourceTask) runDFTransformationJob(
 		return err
 	}
 
-	t.logger.Debugw("Created transformation query")
+	logger.Debugw("Created transformation query")
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Transformation}
 	transformationConfig := provider.TransformationConfig{
 		Type:           provider.DFTransformation,
@@ -261,19 +296,19 @@ func (t *SourceTask) runDFTransformationJob(
 		LastRunTimestamp: t.lastSuccessfulTask.EndTime.UTC(),
 		IsUpdate:         t.isUpdate,
 	}
-	t.logger.Debugw("Transformation Config", "config", transformationConfig)
+	logger.Debugw("Transformation Config", "config", transformationConfig)
 
-	if err := t.runTransformationJob(transformationConfig, offlineStore); err != nil {
+	if err := t.runTransformationJob(transformationConfig, offlineStore, logger); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (t *SourceTask) runTransformationJob(transformationConfig provider.TransformationConfig, offlineStore provider.OfflineStore) error {
-	t.logger.Debugw("Starting transformation")
+func (t *SourceTask) runTransformationJob(transformationConfig provider.TransformationConfig, offlineStore provider.OfflineStore, logger logging.Logger) error {
+	logger.Debugw("Starting transformation")
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Starting Transformation..."); err != nil {
-		t.logger.Errorw("Unable to add run log", "error", err)
+		logger.Errorw("Unable to add run log", "error", err)
 		// We can continue without the run log
 	}
 	type transformFnType func(provider.TransformationConfig, ...provider.TransformationOption) error
@@ -290,7 +325,7 @@ func (t *SourceTask) runTransformationJob(transformationConfig provider.Transfor
 
 	supportsAsyncOpt, err := offlineStore.SupportsTransformationOption(provider.ResumableTransformation)
 	if err != nil {
-		t.logger.Errorw("Unable to verify if offline store supports async options", "error", err)
+		logger.Errorw("Unable to verify if offline store supports async options", "error", err)
 		return err
 	}
 
@@ -299,7 +334,7 @@ func (t *SourceTask) runTransformationJob(transformationConfig provider.Transfor
 	isResuming := lastResumeID != ptypes.NilResumeID
 	maxWait := transformationConfig.MaxJobDuration
 	if isResuming {
-		t.logger.Infow("Resuming transformation", "resume_id", lastResumeID)
+		logger.Infow("Resuming transformation", "resume_id", lastResumeID)
 		resumeOpt, err := provider.ResumeOptionWithID(lastResumeID, maxWait)
 		if err != nil {
 			return err
@@ -310,23 +345,23 @@ func (t *SourceTask) runTransformationJob(transformationConfig provider.Transfor
 	}
 	if !supportsAsyncOpt && isResuming {
 		// This is only possible if the provider used to support resumes and doesn't anymore
-		t.logger.DPanicw("Unable to resume, re-running task", "resume_id", lastResumeID)
+		logger.DPanicw("Unable to resume, re-running task", "resume_id", lastResumeID)
 	}
 	if supportsAsyncOpt {
-		t.logger.Debugw("Running transformation with async option")
+		logger.Debugw("Running transformation with async option")
 		if err := transformFn(transformationConfig, asyncOpt); err != nil {
-			t.logger.Errorw("Transform failed with asyncOpt set", "error", err)
+			logger.Errorw("Transform failed with asyncOpt set", "error", err)
 		}
 		waiter = asyncOpt
 	} else {
-		t.logger.Debugw("Running transformation without async option")
+		logger.Debugw("Running transformation without async option")
 		transformationWatcher := &runner.SyncWatcher{
 			ResultSync:  &runner.ResultSync{},
 			DoneChannel: make(chan interface{}),
 		}
 		go func() {
 			if err := transformFn(transformationConfig); err != nil {
-				t.logger.Errorw("Transform failed, ending watch", "error", err)
+				logger.Errorw("Transform failed, ending watch", "error", err)
 				transformationWatcher.EndWatch(err)
 				return
 			}
@@ -335,18 +370,18 @@ func (t *SourceTask) runTransformationJob(transformationConfig provider.Transfor
 		waiter = transformationWatcher
 	}
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for Transformation to complete..."); err != nil {
-		t.logger.Errorw("Unable to add run log", "error", err)
+		logger.Errorw("Unable to add run log", "error", err)
 		// We can continue without the run log
 	}
-	t.logger.Infow("Waiting For Transformation Completion")
+	logger.Infow("Waiting For Transformation Completion")
 	if err := waiter.Wait(); err != nil {
-		t.logger.Errorw("Transformation failed")
+		logger.Errorw("Transformation failed")
 		return err
 	}
-	t.logger.Infow("Transformation Complete")
+	logger.Infow("Transformation Complete")
 
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Transformation Complete."); err != nil {
-		t.logger.Errorw("Unable to add run log", "error", err)
+		logger.Errorw("Unable to add run log", "error", err)
 		// We can continue without the run log
 	}
 	return nil
@@ -356,8 +391,9 @@ func (t *SourceTask) runPrimaryTableJob(
 	source *metadata.SourceVariant,
 	resID metadata.ResourceID,
 	offlineStore provider.OfflineStore,
+	logger logging.Logger,
 ) error {
-	t.logger.Info("Running primary table job on resource: ", resID)
+	logger.Info("Running primary table job on resource: ", resID)
 	providerResourceID := provider.ResourceID{Name: resID.Name, Variant: resID.Variant, Type: provider.Primary}
 	if !source.IsPrimaryData() {
 		return fferr.NewInvalidArgumentErrorf("%s is not a primary table", source.Name())
@@ -420,12 +456,12 @@ func (t *SourceTask) mapNameVariantsToTables(
 			if err != nil {
 				return nil, err
 			}
-			t.logger.Debugw("Transformation source", "source", source.Name(), "variant", source.Variant())
+			logger.Debugw("Transformation source", "source", source.Name(), "variant", source.Variant())
 			transformationLocation, err := source.GetTransformationLocation()
 			if err != nil {
 				return nil, err
 			}
-			t.logger.Debugw("Transformation Location", "location", transformationLocation.Location(), "location_type", fmt.Sprintf("%T", transformationLocation))
+			logger.Debugw("Transformation Location", "location", transformationLocation.Location(), "location_type", fmt.Sprintf("%T", transformationLocation))
 			tblMapping.location = transformationLocation
 		} else if (isSparkOrK8sOfflineStore || isBigQueryOrClickhouseOfflineStore) && source.IsPrimaryData() {
 			logger.Debugw("Primary Data Source on Spark, BigQuery or ClickHouse", "source", source.Name(), "variant", source.Variant(), "provider_type", sourceProvider.Type())
@@ -434,7 +470,7 @@ func (t *SourceTask) mapNameVariantsToTables(
 				return nil, err
 			}
 			tblMapping.location = primaryLocation
-			t.logger.Debugw("Primary Location", "location", primaryLocation.Location(), "location_type", fmt.Sprintf("%T", primaryLocation))
+			logger.Debugw("Primary Location", "location", primaryLocation.Location(), "location_type", fmt.Sprintf("%T", primaryLocation))
 			// Spark and K8s, BigQuery, and Clickhouse use GetPrimaryTableName for primary table names for transformations
 			// Spark and K8s use the primary table name to identify the metadata file location on filestore.
 			// BigQuery and Clickhouse have not been updated to use viewless Primaries.

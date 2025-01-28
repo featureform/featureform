@@ -17,6 +17,7 @@ import TrainingSetTable from '../resource-list/TrainingSetTable/TrainingSetTable
 import EntityTable from '../resource-list/EntityTable/EntityTable';
 import ProviderTable from '../resource-list/ProviderTable/ProviderTable';
 import ResourceList from '../resource-list/ResourceList';
+import ModelTable from '../resource-list/ModelTable/ModelTable';
 
 const apiHandle = new ResourcesAPI();
 
@@ -44,6 +45,9 @@ const DataPage = ({ type }) => {
       break;
     case resourceType === 'TrainingSet':
       body = <TrainingSetTable />;
+      break;
+    case resourceType === 'Model':
+      body = <ModelTable />;
       break;
     case !!resourceType:
       body = <ResourceList api={apiHandle} type={resourceType} />;

@@ -7,12 +7,13 @@
 
 import {
   Accordion,
+  Box,
   Divider,
   FormControlLabel,
   TextField,
   Typography,
 } from '@mui/material';
-import { Box, styled } from '@mui/system';
+import { styled } from '@mui/system';
 import React, { useState } from 'react';
 import { FEATUREFORM_DARK_GRAY } from '../../styles/theme';
 
@@ -86,11 +87,13 @@ export const BaseFilterPanel = ({
       sx={{
         flexDirection: 'column',
         backgroundColor: FILTER_PANEL_GREY,
-        width: 240,
-        minHeight: '100vh',
+        width: 240, 
+        height: {xs: 'calc(100vh - 56px)',
+          sm: '100vh'
+        }, 
+        overflow: 'auto', 
         paddingLeft: 3,
-      }}
-    >
+      }}>
       <Typography
         data-testid='filter-heading'
         variant='subtitle2'

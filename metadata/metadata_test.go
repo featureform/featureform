@@ -585,6 +585,7 @@ func startServNoPanic(t *testing.T) (*MetadataServer, string) {
 		Logger:      logging.WrapZapLogger(logger.Sugar()),
 		TaskManager: manager,
 	}
+
 	serv, err := NewMetadataServer(config)
 	if err != nil {
 		panic(err)

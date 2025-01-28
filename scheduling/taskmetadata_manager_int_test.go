@@ -8,6 +8,7 @@
 package scheduling
 
 import (
+	"github.com/featureform/logging"
 	"testing"
 
 	help "github.com/featureform/helpers"
@@ -47,7 +48,7 @@ func TestGetEmptyTasksWithPSQL(t *testing.T) {
 		SSLMode:  help.GetEnv("POSTGRES_SSL_MODE", "disable"),
 	}
 
-	manager, err := NewPSQLTaskMetadataManager(psqlConfig)
+	manager, err := NewPSQLTaskMetadataManager(psqlConfig, logging.NewTestLogger(t))
 	if err != nil {
 		t.Fatalf(err.Error())
 	}

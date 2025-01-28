@@ -68,7 +68,7 @@ func NewSQLLocation(table string) Location {
 	return &SQLLocation{table: table}
 }
 
-func NewSQLLocationWithDBSchemaTable(database, schema, table string) Location {
+func NewFullyQualifiedSQLLocation(database, schema, table string) Location {
 	return &SQLLocation{database: database, schema: schema, table: table}
 }
 

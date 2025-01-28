@@ -521,6 +521,10 @@ func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 	return true, nil
 }
 
+func (sf SparkOfflineStore) Delete(location pl.Location) error {
+	return fferr.NewInternalErrorf("delete not implemented")
+}
+
 func (store *SparkOfflineStore) getHealthCheckCSVBytes() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	w := csv.NewWriter(buf)
@@ -908,10 +912,6 @@ func (spark *SparkOfflineStore) outputLocation(targetTableID ResourceID) (pl.Loc
 			return nil, err
 		}
 		return pl.NewFileLocation(fp), nil
-	}
-	_, isEMR := spark.Executor.(*EMRExecutor)
-	if !isEMR {
-		return nil, fferr.NewInternalErrorf("AWS Glue is only supported on EMR")
 	}
 	tableName, err := ps.ResourceToCatalogTableName(targetTableID.Type.String(), targetTableID.Name, targetTableID.Variant)
 	if err != nil {
@@ -1350,7 +1350,7 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID, opts Materi
 func (spark *SparkOfflineStore) directCopyMaterialize(id ResourceID, opts MaterializationOptions) error {
 	online := opts.DirectCopyTo
 	logger := spark.Logger.With("resource_id", id, "online_store_type", fmt.Sprintf("%T", online))
-	logger.Debugf("Running direct copy materialization")
+	logger.Debug("Running direct copy materialization")
 	if err := id.check(Feature); err != nil {
 		logger.Error("Attempted to create a materialization of a non feature resource")
 		return err
@@ -1367,6 +1367,7 @@ func (spark *SparkOfflineStore) directCopyMaterialize(id ResourceID, opts Materi
 		logger.Error(errStr)
 		return fferr.NewInternalErrorf(errStr)
 	}
+	logger.Debug("Got resource schema", "ResourceSchema", schema)
 	sourceTable := schema.SourceTable
 	tableFormat := ""
 	if sourceTable.Type() == pl.CatalogLocationType {

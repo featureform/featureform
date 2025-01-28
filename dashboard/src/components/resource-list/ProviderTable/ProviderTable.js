@@ -10,11 +10,7 @@ import { useRouter } from 'next/router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { providerLogos } from '../../../api/resources';
 import { useDataAPI } from '../../../hooks/dataAPI';
-import {
-  GridContainer,
-  MainContainer,
-  StyledDataGrid,
-} from '../BaseColumnTable';
+import { MainContainer, GridContainer, StyledDataGrid, STATUS_COLORS } from '../BaseColumnTable';
 import BaseFilterPanel from '../BaseFilterPanel';
 import { isMatchingDefault } from '../DatasetTable/DatasetTable';
 import { ConnectionSvg } from '../icons/Connections';
@@ -206,15 +202,14 @@ export const provider_columns = [
     sortable: false,
     filterable: false,
     renderCell: function (params) {
-      const connectedFill = '#6DDE6A';
-      let result = '#DA1E28';
+      let result = STATUS_COLORS.ERROR;
       if (params?.row?.status === PROVIDER_STATUS.READY) {
-        result = connectedFill;
+        result = STATUS_COLORS.READY;
       } else if (
         params?.row?.status === PROVIDER_STATUS.CREATED &&
         FILE_STORE_TYPES.includes(params?.row?.['provider-type'])
       ) {
-        result = connectedFill;
+        result = STATUS_COLORS.READY;
       }
 
       //connection
@@ -228,7 +223,7 @@ export const provider_columns = [
           <div style={{ display: 'flex' }}>
             <ConnectionSvg fill={result} height='20' width='20' />
             <Typography variant='body2' sx={{ marginLeft: 1 }}>
-              Status: {result === connectedFill ? 'Connected' : 'Disconnected'}
+              Status: {result === STATUS_COLORS.READY ? 'Connected' : 'Disconnected'}
             </Typography>
           </div>
           <div style={{ display: 'flex' }}>

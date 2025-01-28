@@ -1,5 +1,4 @@
-import { Typography, Chip } from '@mui/material';
-import { Box } from '@mui/system';
+import { Typography } from '@mui/material';
 import { useRouter } from 'next/router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useDataAPI } from '../../../hooks/dataAPI';
@@ -8,7 +7,7 @@ import { ConnectionSvg } from '../icons/Connections';
 import NoDataMessage from '../NoDataMessage';
 import FilterPanel from './FilterPanel';
 import BaseFilterPanel from '../BaseFilterPanel';
-import { MainContainer, GridContainer, StyledDataGrid } from '../BaseColumnTable';
+import { MainContainer, GridContainer, StyledDataGrid , STATUS_COLORS} from '../BaseColumnTable';
 
 export const entity_columns = [
   {
@@ -32,40 +31,41 @@ export const entity_columns = [
       return (
         <>
           <Typography variant='body1' sx={{ marginLeft: 1 }}>
-            {params.row?.name}
+            <strong>{params.row?.name}</strong>
           </Typography>
         </>
       );
     },
   },
   {
-    field: 'tags',
-    headerName: 'Tags',
+    field: 'featureCount',
+    headerName: 'Features',
     flex: 1,
     editable: false,
     sortable: false,
     filterable: false,
-    hide: false,
     renderCell: function (params) {
+      const featureCount = params.row?.feature?.length ?? 0;
       return (
-        <>
-          <Box>
-            {params.row?.tags?.slice(0, 3).map((tag) => (
-              <Chip
-                label={tag}
-                key={tag}
-                data-testid={tag + 'id'}
-                sx={{
-                  margin: '0.1em',
-                  border: '1px solid #F2BB51',
-                  color: '#F2BB51',
-                  cursor: 'pointer',
-                }}
-                variant='outlined'
-              />
-            ))}
-          </Box>
-        </>
+        <Typography variant='body1' sx={{ marginLeft: 1 }}>
+          {featureCount}
+        </Typography>
+      );
+    },
+  },
+  {
+    field: 'labelCount',
+    headerName: 'Labels',
+    flex: 1,
+    editable: false,
+    sortable: false,
+    filterable: false,
+    renderCell: function (params) {
+      const labelCount = params.row?.labels ? params.row.labels.length : 0;
+      return (
+        <Typography variant='body1' sx={{ marginLeft: 1 }}>
+          {labelCount}
+        </Typography>
       );
     },
   },
@@ -77,13 +77,12 @@ export const entity_columns = [
     sortable: false,
     filterable: false,
     renderCell: function (params) {
-      const readyFill = '#6DDE6A';
-      let result = '#DA1E28';
+      let result = STATUS_COLORS.ERROR;
       if (
         params?.row?.status &&
         ['READY', 'CREATED'].includes(params?.row?.status)
       ) {
-        result = readyFill;
+        result = STATUS_COLORS.READY;
       }
       return (
         <div style={{ display: 'flex' }}>

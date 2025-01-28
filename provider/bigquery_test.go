@@ -256,7 +256,7 @@ func RegisterBigQueryChainedTransformationsTest(t *testing.T, tester offlineSqlT
 		t.Fatalf("could not get transformation table name from resource ID: %v", err)
 	}
 	// TODO: Nicer way of doing this.
-	srcLoc := pl.NewSQLLocationWithDBSchemaTable(test.tester.(*bigQueryOfflineStoreTester).query.DatasetId, "", srcDataset).(*pl.SQLLocation)
+	srcLoc := pl.NewFullyQualifiedSQLLocation(test.tester.(*bigQueryOfflineStoreTester).query.DatasetId, "", srcDataset).(*pl.SQLLocation)
 	// Copy the original config and modify the query and source mapping
 	config := test.data.config
 	config.TargetTableID = id
@@ -325,8 +325,8 @@ func TestBigQueryTrainingSets(t *testing.T) {
 	tester := getConfiguredBigQueryTester(t, false)
 
 	tsDatasetTypes := []trainingSetDatasetType{
-		//tsDatasetFeaturesLabelTS,
-		tsDatasetFeaturesTSLabelNoTS,
+		tsDatasetFeaturesLabelTS,
+		//tsDatasetFeaturesTSLabelNoTS,
 		//tsDatasetFeaturesNoTSLabelTS,
 		//tsDatasetFeaturesLabelNoTS,
 	}

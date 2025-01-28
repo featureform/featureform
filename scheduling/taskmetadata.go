@@ -215,6 +215,8 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 
 	startTime := time.Now().UTC()
 
+	isDelete := parentTask.TaskType == ResourceDeletion
+
 	metadata := TaskRunMetadata{
 		ID:             TaskRunID(uintID),
 		TaskId:         taskID,
@@ -226,6 +228,7 @@ func (m *TaskMetadataManager) CreateTaskRun(name string, taskID TaskID, trigger 
 		Status:         PENDING,
 		StartTime:      startTime,
 		LastSuccessful: lastSuccess,
+		IsDelete:       isDelete,
 	}
 
 	runs.Runs = append(runs.Runs, TaskRunSimple{RunID: metadata.ID, DateCreated: startTime})

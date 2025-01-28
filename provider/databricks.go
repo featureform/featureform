@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/featureform/config"
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	"github.com/featureform/logging"
@@ -181,7 +182,7 @@ func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStoreV2) error {
 		}
 	} else {
 		logger.Debug("Not copying file to DBFS")
-		sparkRemoteScriptPath, err := sparkPythonFileURI(store, e.logger)
+		sparkRemoteScriptPath, err := sparkPythonFileURI(store, logger)
 		if err != nil {
 			logger.Errorw("Failed to get remote script path during init", "err", err)
 			return err

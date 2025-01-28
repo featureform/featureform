@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/featureform/config"
 	"github.com/featureform/filestore"
 	"github.com/featureform/helpers/stringset"
 	"github.com/featureform/logging"

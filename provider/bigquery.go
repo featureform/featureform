@@ -585,8 +585,15 @@ func (q defaultBQQueries) getTableName(tableName string) string {
 }
 
 func (q defaultBQQueries) getTableNameFromLocation(location pl.SQLLocation) string {
+	// Some locations passed in don't have database or schema assigned, and assume
+	// that it'll be the same configured on the client.
+	dataset := location.GetDatabase()
+	if dataset == "" {
+		dataset = q.getDatasetId()
+	}
+
 	// Schema intentionally ignored, as BigQuery does not have a concept of a schema.
-	return fmt.Sprintf("%s.%s.%s", q.getProjectId(), location.GetDatabase(), location.GetTable())
+	return fmt.Sprintf("%s.%s.%s", q.getProjectId(), dataset, location.GetTable())
 }
 
 func (q defaultBQQueries) getProjectId() string {

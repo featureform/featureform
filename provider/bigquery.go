@@ -1370,6 +1370,7 @@ func (bq *bqOfflineStore) buildTrainingSetQuery(tableName string, def TrainingSe
 	queryConfig := tsq.QueryConfig{
 		UseAsOfJoin: false,
 		QuoteChar:   "`",
+		QuoteTable:  true,
 	}
 	ts := tsq.NewTrainingSet(queryConfig, params)
 	sql, err := ts.CompileSQL()

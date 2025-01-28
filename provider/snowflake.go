@@ -398,6 +398,7 @@ func (sf snowflakeOfflineStore) buildTrainingSetQuery(def TrainingSetDef) (strin
 	queryConfig := tsq.QueryConfig{
 		UseAsOfJoin: true,
 		QuoteChar:   "\"",
+		QuoteTable:  false,
 	}
 	ts := tsq.NewTrainingSet(queryConfig, params)
 	return ts.CompileSQL()

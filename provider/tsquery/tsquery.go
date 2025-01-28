@@ -20,6 +20,7 @@ const (
 type QueryConfig struct {
 	UseAsOfJoin bool
 	QuoteChar   string
+	QuoteTable  bool
 }
 
 type BuilderParams struct {
@@ -161,10 +162,10 @@ func (j leftJoins) ToSQL(config QueryConfig) string {
 type cols []col
 
 // ToSQL returns the SQL representation of the columns, comma-separated.
-func (c cols) ToSQL() string {
+func (c cols) ToSQL(config QueryConfig) string {
 	cols := make([]string, len(c))
 	for i, col := range c {
-		cols[i] = col.ToSQL()
+		cols[i] = col.ToSQL(config)
 	}
 	return strings.Join(cols, ", ")
 }
@@ -263,6 +264,11 @@ func (j windowJoins) HeaderSQL(config QueryConfig) string {
 		return ""
 	}
 
+	quoteChar := ""
+	if config.QuoteTable {
+		quoteChar = config.QuoteChar
+	}
+
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf(`WITH labels AS (
   SELECT
@@ -276,9 +282,9 @@ func (j windowJoins) HeaderSQL(config QueryConfig) string {
 		j.ts,
 		j.entity,
 		j.label,
-		config.QuoteChar,
+		quoteChar,
 		j.labelTable,
-		config.QuoteChar,
+		quoteChar,
 	))
 	joins := make([]string, len(j.windows))
 	for i, join := range j.windows {
@@ -365,9 +371,8 @@ type col struct {
 }
 
 // ToSQL returns the SQL representation of the column, with the table alias, column name, and column alias.
-func (c col) ToSQL() string {
-	// TODO: Make escape configurable
-	return fmt.Sprintf("%s.%s AS `%s`", c.tableAlias, c.val, c.colAlias)
+func (c col) ToSQL(config QueryConfig) string {
+	return fmt.Sprintf("%s.%s AS %s%s%s", c.tableAlias, c.val, config.QuoteChar, c.colAlias, config.QuoteChar)
 }
 
 // pitTrainingSetQueryBuilder represents a point-in-time training set query builder.
@@ -431,19 +436,26 @@ func (b *pitTrainingSetQueryBuilder) Compile() error {
 
 // ToSQL returns the SQL representation of the point-in-time training set query builder.
 func (b *pitTrainingSetQueryBuilder) ToSQL() string {
+	quoteChar := ""
+	if b.config.QuoteTable {
+		quoteChar = b.config.QuoteChar
+	}
+
 	var sb strings.Builder
 	// WINDOW (Alternative to ASOF on platforms that don't support it)
 	sb.WriteString(b.windowJoins.HeaderSQL(b.config))
 	// SELECT
-	sb.WriteString(fmt.Sprintf("SELECT %s, l.%s AS label", b.columns.ToSQL(), b.labelTable.Value))
+	sb.WriteString(fmt.Sprintf("SELECT %s, l.%s AS label", b.columns.ToSQL(b.config), b.labelTable.Value))
 	// FROM
-	sb.WriteString(fmt.Sprintf(" FROM %s%s%s l ", b.config.QuoteChar, b.labelTable.SanitizedTableName, b.config.QuoteChar))
+	sb.WriteString(fmt.Sprintf(" FROM %s%s%s l ", quoteChar, b.labelTable.SanitizedTableName, quoteChar))
 	// JOIN(s)
 	sb.WriteString(b.leftJoins.ToSQL(b.config))
 	sb.WriteString(" ")
 	sb.WriteString(b.asOfJoins.ToSQL(b.config))
-	sb.WriteString(" ")
-	sb.WriteString(b.windowJoins.SelectSQL(b.config))
+	if len(b.windowJoins.windows) > 0 {
+		sb.WriteString(" ")
+		sb.WriteString(b.windowJoins.SelectSQL(b.config))
+	}
 	sb.WriteString(";")
 	return sb.String()
 }
@@ -502,13 +514,18 @@ func (b *trainingSetQueryBuilder) Compile() error {
 
 // ToSQL returns the SQL representation of the training set query builder.
 func (b *trainingSetQueryBuilder) ToSQL() string {
+	quoteChar := ""
+	if b.config.QuoteTable {
+		quoteChar = b.config.QuoteChar
+	}
+
 	var sb strings.Builder
 	// CTE(s)
 	sb.WriteString(b.ctes.ToSQL(b.config))
 	// SELECT
-	sb.WriteString(fmt.Sprintf("SELECT %s, l.%s AS label ", b.columns.ToSQL(), b.labelTable.Value))
+	sb.WriteString(fmt.Sprintf("SELECT %s, l.%s AS label ", b.columns.ToSQL(b.config), b.labelTable.Value))
 	// FROM
-	sb.WriteString(fmt.Sprintf("FROM %s%s%s l ", b.config.QuoteChar, b.labelTable.SanitizedTableName, b.config.QuoteChar))
+	sb.WriteString(fmt.Sprintf("FROM %s%s%s l ", quoteChar, b.labelTable.SanitizedTableName, quoteChar))
 	// JOIN(s)
 	sb.WriteString(b.joins.ToSQL(b.config))
 	sb.WriteString(";")

@@ -275,7 +275,7 @@ func TestSnowflakeTrainingSets(t *testing.T) {
 		constTestCase := testCase
 		t.Run(constName, func(t *testing.T) {
 			t.Parallel()
-			RegisterTrainingSet(t, tester, constTestCase)
+			RegisterTrainingSet(t, tester, constTestCase, &ResourceSnowflakeConfigOption{})
 		})
 	}
 }
@@ -931,12 +931,12 @@ func RegisterMaterializationWithDifferentWarehouseTest(t *testing.T, tester offl
 	matTest.data.Assert(t, matIncr, isIncremental)
 }
 
-func RegisterTrainingSet(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType) {
+func RegisterTrainingSet(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType, resourceOpts ...ResourceOption) {
 	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
 
-	res, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.labelID, tsTest.data.labelResourceSchema, &ResourceSnowflakeConfigOption{})
+	res, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.labelID, tsTest.data.labelResourceSchema, resourceOpts...)
 	if err != nil {
 		t.Fatalf("could not register label table: %v", err)
 	}

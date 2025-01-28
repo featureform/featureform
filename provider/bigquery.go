@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/featureform/logging"
+	tsq "github.com/featureform/provider/tsquery"
 	"strings"
 	"time"
 
@@ -238,12 +239,18 @@ func newBigQueryGenericTableIterator(it *bigquery.RowIterator, query defaultBQQu
 
 func (q defaultBQQueries) registerResources(client *bigquery.Client, tableName string, schema ResourceSchema, timestamp bool) error {
 	var query string
+
+	var sourceLocation, isSqlLocation = schema.SourceTable.(*pl.SQLLocation)
+	if !isSqlLocation {
+		return fferr.NewInvalidArgumentErrorf("source table is not an SQL location, actual %T", schema.SourceTable.Location())
+	}
+
 	if timestamp {
 		query = fmt.Sprintf("CREATE VIEW `%s` AS SELECT `%s` as entity, `%s` as value, `%s` as ts, CURRENT_TIMESTAMP() as insert_ts FROM `%s`", q.getTableName(tableName),
-			schema.Entity, schema.Value, schema.TS, q.getTableName(schema.SourceTable.Location()))
+			schema.Entity, schema.Value, schema.TS, q.getTableNameFromLocation(*sourceLocation))
 	} else {
 		query = fmt.Sprintf("CREATE VIEW `%s` AS SELECT `%s` as entity, `%s` as value, PARSE_TIMESTAMP('%%Y-%%m-%%d %%H:%%M:%%S +0000 UTC', '%s') as ts, CURRENT_TIMESTAMP() as insert_ts FROM `%s`", q.getTableName(tableName),
-			schema.Entity, schema.Value, time.UnixMilli(0).UTC(), q.getTableName(schema.SourceTable.Location()))
+			schema.Entity, schema.Value, time.UnixMilli(0).UTC(), q.getTableNameFromLocation(*sourceLocation))
 	}
 
 	bqQ := client.Query(query)
@@ -793,7 +800,7 @@ func (table *bqOfflineTable) WriteBatch(recs []ResourceRecord) error {
 }
 
 func (table *bqOfflineTable) Location() pl.Location {
-	return pl.NewSQLLocation(table.name)
+	return pl.NewSQLLocationWithDBSchemaTable(table.query.DatasetId, "", table.name)
 }
 
 type bqOfflineStore struct {
@@ -1350,21 +1357,42 @@ func (store *bqOfflineStore) materializationExists(id MaterializationID) (bool, 
 	}
 }
 
-func (store *bqOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
+func (bq *bqOfflineStore) buildTrainingSetQuery(tableName string, def TrainingSetDef) (string, error) {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("CREATE OR REPLACE TABLE `%s.%s` AS ", bq.query.DatasetId, tableName))
+
+	params, err := bq.adaptTsDefToBuilderParams(def)
+	if err != nil {
+		return "", err
+	}
+	ts := tsq.NewTrainingSet(params)
+	sql, err := ts.CompileSQL(false)
+	if err != nil {
+		return "", nil
+	}
+	sb.WriteString(sql)
+	return sb.String(), nil
+}
+
+func (bq *bqOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	if err := def.check(); err != nil {
 		return err
 	}
-	label, err := store.getbqResourceTable(def.Label)
+	tableName, err := bq.getTrainingSetName(def.ID)
 	if err != nil {
 		return err
 	}
-	tableName, err := store.getTrainingSetName(def.ID)
+	query, err := bq.buildTrainingSetQuery(tableName, def)
 	if err != nil {
 		return err
+	}
+	qry := bq.client.Query(query)
+	_, err = qry.Read(bq.query.getContext())
+	if err != nil {
+		return fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 	}
 
-	err = store.query.trainingSetCreate(store, def, tableName, label.name)
-	return err
+	return nil
 }
 
 func (store *bqOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
@@ -1606,4 +1634,42 @@ func (store *bqOfflineStore) getTrainingSetName(id ResourceID) (string, error) {
 		return "", err
 	}
 	return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
+}
+
+// **NOTE:** As the name suggests, this method is adapts the TrainingSetDef to the BuilderParams to avoid
+// using TrainingSetDef directly in the tsquery package, which would create a circular dependency. In the future,
+// we should move TrainingSetDef to the provider/types package to avoid this issue.
+func (bq *bqOfflineStore) adaptTsDefToBuilderParams(def TrainingSetDef) (tsq.BuilderParams, error) {
+	lblCols := def.LabelSourceMapping.Columns
+	lblLoc, isSQLLocation := def.LabelSourceMapping.Location.(*pl.SQLLocation)
+	if !isSQLLocation {
+		return tsq.BuilderParams{}, fferr.NewInternalErrorf("label location is not an SQL location")
+	}
+	lblTableName := bq.query.getTableNameFromLocation(*lblLoc)
+
+	ftCols := make([]metadata.ResourceVariantColumns, len(def.FeatureSourceMappings))
+	ftTableNames := make([]string, len(def.FeatureSourceMappings))
+	ftNameVariants := make([]metadata.ResourceID, len(def.FeatureSourceMappings))
+
+	for i, ft := range def.FeatureSourceMappings {
+		ftCols[i] = ft.Columns
+		ftLoc, isSQLLocation := ft.Location.(*pl.SQLLocation)
+		if !isSQLLocation {
+			return tsq.BuilderParams{}, fferr.NewInternalErrorf("feature location is not an SQL location")
+		}
+		ftTableNames[i] = bq.query.getTableNameFromLocation(*ftLoc)
+		id := def.Features[i]
+		ftNameVariants[i] = metadata.ResourceID{
+			Name:    id.Name,
+			Variant: id.Variant,
+			Type:    metadata.FEATURE_VARIANT,
+		}
+	}
+	return tsq.BuilderParams{
+		LabelColumns:           lblCols,
+		SanitizedLabelTable:    lblTableName,
+		FeatureColumns:         ftCols,
+		SanitizedFeatureTables: ftTableNames,
+		FeatureNameVariants:    ftNameVariants,
+	}, nil
 }

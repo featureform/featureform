@@ -373,7 +373,7 @@ func (sf snowflakeOfflineStore) buildTrainingSetQuery(def TrainingSetDef) (strin
 	}
 	sf.logger.Debugw("Training set builder params", "params", params)
 	ts := tsq.NewTrainingSet(params)
-	return ts.CompileSQL()
+	return ts.CompileSQL(true)
 }
 
 // **NOTE:** As the name suggests, this method is adapts the TrainingSetDef to the BuilderParams to avoid

@@ -88,13 +88,13 @@ func (ftm featureTableMap) Keys() []string {
 // CompileSQL compiles the label and feature tables into a single SQL query
 // that uses LEFT JOINs, ASOF JOINs and/or CTEs to create a training set
 // based on the presence or absence of timestamps in the label and feature tables.
-func (t TrainingSet) CompileSQL() (string, error) {
+func (t TrainingSet) CompileSQL(useAsOf bool) (string, error) {
 	if t.labelTable.TS != "" {
 		builder := &pitTrainingSetQueryBuilder{labelTable: t.labelTable, featureTableMap: make(map[string]*featureTable)}
 		for _, ft := range t.featureTables {
 			builder.AddFeature(ft)
 		}
-		if err := builder.Compile(); err != nil {
+		if err := builder.Compile(useAsOf); err != nil {
 			return "", err
 		}
 		return builder.ToSQL(), nil
@@ -166,6 +166,226 @@ func (j asOfJoins) ToSQL() string {
 	return strings.Join(joins, " ")
 }
 
+// asOfJoin represents an ASOF JOIN between the label and feature tables.
+type windowJoin struct {
+	ft *featureTable
+}
+
+//WITH
+//  -- 1) Base: labels
+//  labels AS (
+//    SELECT
+//      TS,
+//      ENTITY,
+//      VALUE AS label
+//    FROM `testing-352123.C87AA626_45DD_4533_B276_B95DE6F3B92D.featureform_resource_label__wave_height__test`
+//  ),
+//
+//  -- 2) First Feature Table
+//  features1_prep AS (
+//    SELECT
+//      ts,
+//      l.ENTITY,
+//      l.label,
+//
+//      -- Example columns from features1
+//      f1.SWELL_DIRECTION     AS feature_swell_direction,
+//      f1.WAVE_POWER_KJ       AS feature_wave_power,
+//
+//      ROW_NUMBER() OVER (
+//        PARTITION BY l.ENTITY, l.TS
+//        ORDER BY f1.MEASURED_ON DESC
+//      ) AS rn
+//    FROM labels l
+//    LEFT JOIN `testing-352123.DB_FF140.TEST_FEATURES_SURF_READINGS_TABLE` f1
+//      ON l.ENTITY = f1.LOCATION_ID
+//      AND f1.MEASURED_ON <= l.TS
+//  ),
+//  features1_final AS (
+//    SELECT
+//      TS,
+//      ENTITY,
+//      label,
+//
+//      -- Only the columns you want from features1
+//      feature_swell_direction,
+//      feature_wave_power
+//    FROM features1_prep
+//    WHERE rn = 1
+//  ),
+//
+//  -- 3) Second Feature Table
+//  features2_prep AS (
+//    SELECT
+//      l.TS,
+//      l.ENTITY,
+//      l.label,
+//
+//      -- Example columns from features2
+//      f2.SWELL_PERIOD_SEC  AS feature_swell_period,
+//      f2.WIND_SPEED_KTS    AS feature_wind_speed,
+//
+//      ROW_NUMBER() OVER (
+//        PARTITION BY l.ENTITY, l.TS
+//        ORDER BY f2.MEASURED_ON DESC
+//      ) AS rn
+//    FROM labels l
+//    LEFT JOIN `testing-352123.DB_FF140.TEST_FEATURES_SURF_READINGS_TABLE` f2
+//      ON l.ENTITY = f2.LOCATION_ID
+//      AND f2.MEASURED_ON <= l.TS
+//  ),
+//  features2_final AS (
+//    SELECT
+//      TS,
+//      ENTITY,
+//      label,
+//
+//      -- Only the columns you want from features2
+//      feature_swell_period,
+//      feature_wind_speed
+//    FROM features2_prep
+//    WHERE rn = 1
+//  )
+//
+//-- 4) Combine all in a single SELECT with multiple LEFT JOINs
+//SELECT
+//  l.label,
+//
+//  -- From features1
+//  f1.feature_swell_direction  AS feature__swell_direction__test,
+//  f1.feature_wave_power       AS feature__wave_power__test,
+//
+//  -- From features2
+//  f2.feature_swell_period     AS feature__swell_period__test,
+//  f2.feature_wind_speed       AS feature__wind_speed__test
+//
+//FROM labels l
+//LEFT JOIN features1_final f1
+//  USING (TS, ENTITY)
+//LEFT JOIN features2_final f2
+//  USING (TS, ENTITY)
+//;
+
+// ToSQL creates an ASOF JOIN between the label and feature tables.
+func (j windowJoin) ToSQL(index int) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf(
+		`feature_%d AS (
+  SELECT
+    %s as ts,
+    l.entity,
+	l.label,
+
+`,
+		index,
+		j.ft.TS,
+	))
+
+	for i, _ := range j.ft.Values {
+		sb.WriteString(fmt.Sprintf("    %s,\n", j.ft.Values[i]))
+	}
+
+	sb.WriteString(fmt.Sprintf(`
+    ROW_NUMBER() OVER (
+        PARTITION BY l.entity, l.ts
+        ORDER BY f%d.%s DESC
+    ) AS rn
+    FROM labels l
+    LEFT JOIN %s f%d
+      ON l.entity = f%d.%s
+      AND f%d.%s <= l.ts
+  ),`,
+		index,
+		j.ft.TS,
+		j.ft.SanitizedTableName,
+		index,
+		index,
+		j.ft.Entity,
+		index,
+		j.ft.TS,
+	))
+
+	sb.WriteString(fmt.Sprintf(`
+feature_%d_filtered AS (
+  SELECT
+    ts,
+    entity,
+    label,
+
+`,
+		index,
+	))
+
+	for i, _ := range j.ft.Values {
+		sb.WriteString(fmt.Sprintf("    %s,\n", j.ft.Values[i]))
+	}
+
+	sb.WriteString(fmt.Sprintf(`
+  FROM feature_%d
+  WHERE rn=1
+)`,
+		index,
+	))
+
+	return sb.String()
+}
+
+type windowJoins struct {
+	windows    []windowJoin
+	ts         string
+	entity     string
+	label      string
+	labelTable string
+}
+
+func (j windowJoins) HeaderSQL() string {
+	if len(j.windows) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf(`WITH labels AS (
+  SELECT
+    %s as ts,
+    %s as entity,
+    %s AS label,
+  FROM `+"`%s`"+`
+),
+`,
+		// TODO: Above escape should be configurable
+		j.ts,
+		j.entity,
+		j.label,
+		j.labelTable,
+	))
+	joins := make([]string, len(j.windows))
+	for i, join := range j.windows {
+		joins[i] = join.ToSQL(i + 1)
+	}
+	sb.WriteString(strings.Join(joins, ",\n"))
+	sb.WriteString("\n")
+	return sb.String()
+}
+
+func (j windowJoins) SelectSQL() string {
+	if len(j.windows) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+
+	for i, _ := range j.windows {
+		sb.WriteString(fmt.Sprintf(`
+LEFT JOIN feature_%d_filtered f%d USING (ts, entity)
+`,
+			i+1,
+			i+1,
+		))
+	}
+
+	return sb.String()
+}
+
 // cte represents a common table expression for the case when the label
 // does not have a timestamp column, but the feature table does.
 type cte struct {
@@ -224,7 +444,8 @@ type col struct {
 
 // ToSQL returns the SQL representation of the column, with the table alias, column name, and column alias.
 func (c col) ToSQL() string {
-	return fmt.Sprintf("%s.%s AS \"%s\"", c.tableAlias, c.val, c.colAlias)
+	// TODO: Make escape configurable
+	return fmt.Sprintf("%s.%s AS `%s`", c.tableAlias, c.val, c.colAlias)
 }
 
 // pitTrainingSetQueryBuilder represents a point-in-time training set query builder.
@@ -234,6 +455,7 @@ type pitTrainingSetQueryBuilder struct {
 	columns         cols
 	leftJoins       leftJoins
 	asOfJoins       asOfJoins
+	windowJoins     windowJoins
 }
 
 // addFeature adds a feature table to the point-in-time training set query builder; if a feature uses
@@ -251,11 +473,19 @@ func (b *pitTrainingSetQueryBuilder) AddFeature(tbl featureTable) {
 }
 
 // Compile compiles the point-in-time training set query builder by creating columns, LEFT JOINs, and ASOF JOINs structs.
-func (b *pitTrainingSetQueryBuilder) Compile() error {
+func (b *pitTrainingSetQueryBuilder) Compile(useAsOf bool) error {
+	b.windowJoins = windowJoins{
+		ts:         b.labelTable.TS,
+		entity:     b.labelTable.Entity,
+		label:      b.labelTable.Value,
+		labelTable: b.labelTable.SanitizedTableName,
+	}
+
 	for i, k := range b.featureTableMap.Keys() {
 		ft := b.featureTableMap[k]
 		ftAlias := fmt.Sprintf("f%d", i+1)
 		// COLUMNS
+
 		for i, val := range ft.Values {
 			if err := validateFeatureTable(*ft); err != nil {
 				return err
@@ -264,7 +494,11 @@ func (b *pitTrainingSetQueryBuilder) Compile() error {
 		}
 		// JOINS
 		if ft.TS != "" && b.labelTable.TS != "" {
-			b.asOfJoins = append(b.asOfJoins, asOfJoin{alias: ftAlias, ft: ft, lblEntity: b.labelTable.Entity, lblTS: b.labelTable.TS})
+			if useAsOf {
+				b.asOfJoins = append(b.asOfJoins, asOfJoin{alias: ftAlias, ft: ft, lblEntity: b.labelTable.Entity, lblTS: b.labelTable.TS})
+			} else {
+				b.windowJoins.windows = append(b.windowJoins.windows, windowJoin{ft: ft})
+			}
 		} else {
 			b.leftJoins = append(b.leftJoins, leftJoin{alias: ftAlias, ft: ft, lblEntity: b.labelTable.Entity})
 		}
@@ -275,14 +509,19 @@ func (b *pitTrainingSetQueryBuilder) Compile() error {
 // ToSQL returns the SQL representation of the point-in-time training set query builder.
 func (b pitTrainingSetQueryBuilder) ToSQL() string {
 	var sb strings.Builder
+	// WINDOW (Alternative to ASOF on platforms that don't support it)
+	sb.WriteString(b.windowJoins.HeaderSQL())
 	// SELECT
 	sb.WriteString(fmt.Sprintf("SELECT %s, l.%s AS label", b.columns.ToSQL(), b.labelTable.Value))
 	// FROM
-	sb.WriteString(fmt.Sprintf(" FROM %s l ", b.labelTable.SanitizedTableName))
+	sb.WriteString(fmt.Sprintf(" FROM `%s` l ", b.labelTable.SanitizedTableName))
+	// TODO: Escape above properly
 	// JOIN(s)
 	sb.WriteString(b.leftJoins.ToSQL())
 	sb.WriteString(" ")
 	sb.WriteString(b.asOfJoins.ToSQL())
+	sb.WriteString(" ")
+	sb.WriteString(b.windowJoins.SelectSQL())
 	sb.WriteString(";")
 	return sb.String()
 }

@@ -10,10 +10,12 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	pl "github.com/featureform/provider/location"
 	ps "github.com/featureform/provider/provider_schema"
 	"github.com/google/uuid"
+	"google.golang.org/api/googleapi"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -36,7 +38,16 @@ func (bq *bigQueryOfflineStoreTester) CreateDatabase(name string) error {
 	metadata := &bigquery.DatasetMetadata{
 		Name: name,
 	}
-	return bq.client.Dataset(name).Create(context.TODO(), metadata)
+	if err := bq.client.Dataset(name).Create(context.TODO(), metadata); err != nil {
+		// If the dataset already exists, we just ignore the error (there are a few
+		// tests that init data in the same dataset).
+		var apiErr *googleapi.Error
+		if !(errors.As(err, &apiErr) && apiErr.Code == 409) {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (bq *bigQueryOfflineStoreTester) DropDatabase(name string) error {
@@ -314,8 +325,8 @@ func TestBigQueryTrainingSets(t *testing.T) {
 	tester := getConfiguredBigQueryTester(t, false)
 
 	tsDatasetTypes := []trainingSetDatasetType{
-		tsDatasetFeaturesLabelTS,
-		//tsDatasetFeaturesTSLabelNoTS,
+		//tsDatasetFeaturesLabelTS,
+		tsDatasetFeaturesTSLabelNoTS,
 		//tsDatasetFeaturesNoTSLabelTS,
 		//tsDatasetFeaturesLabelNoTS,
 	}

@@ -202,7 +202,7 @@ func (j windowJoin) ToSQL(index int) string {
 		j.ft.TS,
 	))
 
-	for i, _ := range j.ft.Values {
+	for i := range j.ft.Values {
 		sb.WriteString(fmt.Sprintf("    %s,\n", j.ft.Values[i]))
 	}
 
@@ -237,7 +237,7 @@ feature_%d_filtered AS (
 		index,
 	))
 
-	for i, _ := range j.ft.Values {
+	for i := range j.ft.Values {
 		sb.WriteString(fmt.Sprintf("    %s,\n", j.ft.Values[i]))
 	}
 

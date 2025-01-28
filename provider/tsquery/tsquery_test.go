@@ -7,15 +7,13 @@ import (
 func TestNewTrainingSetQueryBuilder(t *testing.T) {
 	cases := []struct {
 		name        string
-		useAsOf     bool
 		lbl         labelTable
 		fts         []featureTable
 		expectedErr bool
 		expectedSQL string
 	}{
 		{
-			name:    "All features and label use timestamps",
-			useAsOf: true,
+			name: "All features and label use timestamps",
 			lbl: labelTable{
 				Entity:             "location_id",
 				Value:              "wave_height_ft",
@@ -49,8 +47,7 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 			expectedSQL: `SELECT f1.swell_direction AS "feature__swell_direction__variant", f1.wave_power_kj AS "feature__wave_power_kj__variant", f1.swell_period_sec AS "feature__swell_period_sec__variant", l.wave_height_ft AS label FROM "DEMO2"."CORRECTNESS"."wave_height_labels_ts" l  ASOF JOIN "DEMO2"."CORRECTNESS"."surf_conditions_features_ts" f1 MATCH_CONDITION(l.observed_on >= f1.measured_on) ON(l.location_id = f1.location_id);`,
 		},
 		{
-			name:    "Some features don't use timestamps and label use timestamps",
-			useAsOf: true,
+			name: "Some features don't use timestamps and label use timestamps",
 			lbl: labelTable{
 				Entity:             "location_id",
 				Value:              "wave_height_ft",
@@ -76,8 +73,7 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 			expectedSQL: `SELECT f1.swell_direction AS "feature__swell_direction__variant", f2.wave_power_kj AS "feature__wave_power_kj__variant", l.wave_height_ft AS label FROM "DEMO2"."CORRECTNESS"."wave_height_labels_ts" l LEFT JOIN "DEMO2"."CORRECTNESS"."surf_conditions_features_ts" f1 ON l.location_id = f1.location_id ASOF JOIN "DEMO2"."CORRECTNESS"."surf_conditions_features_ts" f2 MATCH_CONDITION(l.observed_on >= f2.measured_on) ON(l.location_id = f2.location_id);`,
 		},
 		{
-			name:    "All features use timestamps and label does not",
-			useAsOf: true,
+			name: "All features use timestamps and label does not",
 			lbl: labelTable{
 				Entity:             "location_id",
 				Value:              "level",
@@ -110,8 +106,7 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 			expectedSQL: `WITH f1_cte AS (SELECT location_id, wave_height_ft, wave_power_kj, swell_period_sec, measured_on ,ROW_NUMBER() OVER (PARTITION BY location_id ORDER BY measured_on DESC) AS rn  FROM "DEMO2"."CORRECTNESS"."wave_conditions_features_ts" ) SELECT f1_cte.wave_height_ft AS "feature__wave_height_ft__variant", f1_cte.wave_power_kj AS "feature__wave_power_kj__variant", f1_cte.swell_period_sec AS "feature__swell_period_sec__variant", l.level AS label FROM "DEMO2"."CORRECTNESS"."location_level_labels_no_ts" l LEFT JOIN f1_cte ON l.location_id = f1_cte.location_id AND f1_cte.rn = 1;`,
 		},
 		{
-			name:    "Neither features nor label use timestamps",
-			useAsOf: true,
+			name: "Neither features nor label use timestamps",
 			lbl: labelTable{
 				Entity:             "surfer_id",
 				Value:              "skill_level",
@@ -163,6 +158,13 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surf_conditions_features_ts\"",
 					ColumnAliases:      []string{"feature__wave_height_ft__variant"},
 				},
+				{
+					Entity:             "location_id",
+					Values:             []string{"swell_period_sec"},
+					TS:                 "measured_on",
+					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surf_conditions_features_ts\"",
+					ColumnAliases:      []string{"feature__swell_period_sec__variant"},
+				},
 			},
 			expectedErr: false,
 			expectedSQL: `SELECT f1.swell_direction AS "feature__swell_direction__variant", f1.wind_speed_kt AS "feature__wave_height_ft__variant", f1.swell_period_sec AS "feature__swell_period_sec__variant", l.wave_power_kj AS label FROM "DEMO2"."CORRECTNESS"."surf_conditions_features_ts" l  ASOF JOIN "DEMO2"."CORRECTNESS"."surf_conditions_features_ts" f1 MATCH_CONDITION(l.measured_on >= f1.measured_on) ON(l.location_id = f1.location_id);`,
@@ -172,7 +174,11 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			if c.lbl.TS != "" {
-				builder := &pitTrainingSetQueryBuilder{labelTable: c.lbl, featureTableMap: make(map[string]*featureTable), config: QueryConfig{UseAsOfJoin: true, QuoteChar: "\"", QuoteTable: false}}
+				builder := &pitTrainingSetQueryBuilder{
+					labelTable:      c.lbl,
+					featureTableMap: make(map[string]*featureTable),
+					config:          QueryConfig{UseAsOfJoin: true, QuoteChar: "\"", QuoteTable: false},
+				}
 				for _, ft := range c.fts {
 					builder.AddFeature(ft)
 				}
@@ -184,7 +190,11 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 					t.Errorf("Expected SQL:\n%s\nGot:\n%s", c.expectedSQL, sql)
 				}
 			} else {
-				builder := &trainingSetQueryBuilder{labelTable: c.lbl, featureTableMap: make(map[string]*featureTable), config: QueryConfig{UseAsOfJoin: true, QuoteChar: "\"", QuoteTable: false}}
+				builder := &trainingSetQueryBuilder{
+					labelTable:      c.lbl,
+					featureTableMap: make(map[string]*featureTable),
+					config:          QueryConfig{UseAsOfJoin: true, QuoteChar: "\"", QuoteTable: false},
+				}
 				for _, ft := range c.fts {
 					builder.AddFeature(ft)
 				}

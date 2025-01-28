@@ -1896,8 +1896,6 @@ type MetadataServer struct {
 	schproto.UnimplementedTasksServer
 	slackNotifier       notifications.SlackNotifier
 	resourcesRepository ResourcesRepository
-	// globalMtx is used when changing any of the values in this struct
-	globalMtx sync.RWMutex
 }
 
 func (serv *MetadataServer) CreateTaskRun(ctx context.Context, request *schproto.CreateRunRequest) (*schproto.RunID, error) {
@@ -2210,8 +2208,6 @@ func (serv *MetadataServer) SetRunEndTime(ctx context.Context, update *schproto.
 }
 
 func (serv *MetadataServer) Serve() error {
-	serv.globalMtx.Lock()
-	defer serv.globalMtx.Unlock()
 	if serv.grpcServer != nil {
 		return fferr.NewInternalErrorf("server already running")
 	}
@@ -2223,8 +2219,6 @@ func (serv *MetadataServer) Serve() error {
 }
 
 func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
-	serv.globalMtx.RLock()
-	defer serv.globalMtx.RUnlock()
 	return serv.serveOnListener(lis)
 }
 
@@ -2243,8 +2237,6 @@ func (serv *MetadataServer) serveOnListener(lis net.Listener) error {
 }
 
 func (serv *MetadataServer) GracefulStop() error {
-	serv.globalMtx.Lock()
-	defer serv.globalMtx.Unlock()
 	if serv.grpcServer == nil {
 		return fferr.NewInternalErrorf("server not running")
 	}
@@ -2255,8 +2247,6 @@ func (serv *MetadataServer) GracefulStop() error {
 }
 
 func (serv *MetadataServer) Stop() error {
-	serv.globalMtx.Lock()
-	defer serv.globalMtx.Unlock()
 	if serv.grpcServer == nil {
 		return fferr.NewInternalError(fmt.Errorf("server not running"))
 	}

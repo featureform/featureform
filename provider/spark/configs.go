@@ -75,7 +75,7 @@ func (cmd *Command) CompileDatabricks() dbjobs.Task {
 	var pyFile string
 	if config.ShouldUseDBFS() {
 		// In this case, we assume the script has been copied to dbfs already
-		// TODO(simba) move tihs formatting elsewhere
+		// TODO(simba) move this formatting elsewhere
 		pyFile = fmt.Sprintf("dbfs:/tmp/%s", cmd.Script.Key())
 	} else {
 		pyFile = cmd.Script.ToURI()

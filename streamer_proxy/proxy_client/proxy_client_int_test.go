@@ -124,12 +124,18 @@ func arrayFrom(memoryAlloc memory.Allocator, a interface{}, valids []bool) arrow
 }
 
 func TestFlightServer_GetStreamProxyClient(t *testing.T) {
-	// prep flight server
+	// prep flight server and env
 	grpcServer := grpc.NewServer()
-	listener, listenErr := net.Listen("tcp", "localhost:9191") // todox: need to update port dynamically
+	listener, listenErr := net.Listen("tcp", "localhost:0")
 	if listenErr != nil {
 		t.Fatalf("Failed to bind address to :%s", listenErr)
 	}
+
+	// pull the os assigned port
+	testPort := listener.Addr().(*net.TCPAddr).Port
+
+	t.Setenv("ICEBERG_PROXY_HOST", "localhost")
+	t.Setenv("ICEBERG_PROXY_PORT", fmt.Sprintf("%d", testPort))
 
 	// start the proxy flight server
 	f := flightServer{}
@@ -144,9 +150,6 @@ func TestFlightServer_GetStreamProxyClient(t *testing.T) {
 	}()
 
 	defer grpcServer.Stop()
-
-	t.Setenv("ICEBERG_PROXY_HOST", "localhost")
-	t.Setenv("ICEBERG_PROXY_PORT", "9191")
 
 	// get proxy client
 	proxyClient, proxyErr := GetStreamProxyClient(context.Background(), "some_name", "some_variant", -1)

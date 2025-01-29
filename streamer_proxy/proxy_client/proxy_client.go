@@ -25,7 +25,7 @@ type StreamProxyClient struct {
 	logger       logging.Logger
 }
 
-func GetStreamProxyClient(ctx context.Context, source, variant string, limit int64) (*StreamProxyClient, error) {
+func GetStreamProxyClient(ctx context.Context, source, variant string, limit int) (*StreamProxyClient, error) {
 	proxyHost := help.GetEnv("ICEBERG_PROXY_HOST", "localhost")
 	proxyPort := help.GetEnv("ICEBERG_PROXY_PORT", "8086")
 

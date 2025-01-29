@@ -141,15 +141,19 @@ func TestFlightServer_GetStreamProxyClient(t *testing.T) {
 	f := flightServer{}
 	// todo: make the records part of the flight server?
 	flight.RegisterFlightServiceServer(grpcServer, &f)
+	done := make(chan struct{})
 	go func() {
 		servErr := grpcServer.Serve(listener)
 		if servErr != nil {
-			fmt.Println("oops")
-			panic("server died")
+			fmt.Println("Server shutdown with an error: ", servErr)
 		}
+		close(done)
 	}()
 
-	defer grpcServer.Stop()
+	defer func() {
+		grpcServer.Stop()
+		<-done
+	}()
 
 	// get proxy client
 	proxyClient, proxyErr := GetStreamProxyClient(context.Background(), "some_name", "some_variant", -1)

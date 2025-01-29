@@ -45,6 +45,7 @@ describe('Task table data wrapper tests', () => {
   const CLEAR_ICON_ID = 'clearIcon';
   const DEFAULT_PARAMS = {
     searchText: '',
+    variantSearch: '',
     sortBy: 'DATE',
     status: 'ALL',
     pageSize: 15,
@@ -149,4 +150,27 @@ describe('Task table data wrapper tests', () => {
     //then: the api is invoked twice. on initial load and refresh
     expect(dataAPIMock.getTaskRuns).toHaveBeenCalledTimes(2);
   });
+
+  test('Initial load sends both name and variant from router query params', async () => {
+    //given:
+    const helper = render(
+      <ThemeProvider theme={TEST_THEME}>
+        <TableDataWrapper taskName="test-name" taskVariant="test-variant" />
+      </ThemeProvider>
+    );
+
+    //when: component loads and makes initial request
+    await helper.findByTestId(SEARCH_INPUT_ID);
+
+    //then: the api is called with both name and variant params
+    expect(dataAPIMock.getTaskRuns).toHaveBeenCalledTimes(1);
+    expect(dataAPIMock.getTaskRuns).toHaveBeenCalledWith({
+      ...DEFAULT_PARAMS,
+      searchText: 'test-name',
+      variantSearch: 'test-variant'
+    });
+  });
+
 });
+
+

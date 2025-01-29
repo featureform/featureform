@@ -2623,11 +2623,12 @@ type TaskRunItem struct {
 }
 
 type PaginateRequest struct {
-	Status     string `json:"status"`
-	SearchText string `json:"searchtext"`
-	SortBy     string `json:"sortBy"`
-	PageSize   int    `json:"pageSize"`
-	Offset     int    `json:"offset"`
+	Status        string `json:"status"`
+	SearchText    string `json:"searchText"`
+	VariantSearch string `json:"variantSearch"`
+	SortBy        string `json:"sortBy"`
+	PageSize      int    `json:"pageSize"`
+	Offset        int    `json:"offset"`
 }
 
 func (m MetadataServer) getResourceQuery(prefix string) []query.Query {
@@ -2661,7 +2662,26 @@ func (m MetadataServer) getTaskRunsQuery(requestBody PaginateRequest, isCount bo
 		}
 	}
 
-	if requestBody.SearchText != "" {
+	if requestBody.VariantSearch != "" && requestBody.SearchText != "" {
+		nameSearch := query.ValueEquals{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "target", IsJsonString: true}, {Key: "name"}},
+				Type: query.String,
+			},
+			Value: requestBody.SearchText,
+		}
+		queryList = append(queryList, nameSearch)
+
+		variantSearch := query.ValueEquals{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "target", IsJsonString: true}, {Key: "variant"}},
+				Type: query.String,
+			},
+			Value: requestBody.VariantSearch,
+		}
+		queryList = append(queryList, variantSearch)
+
+	} else if requestBody.SearchText != "" {
 		search := query.ValueLike{
 			Column: query.JSONColumn{
 				Path: []query.JSONPathStep{{Key: "target", IsJsonString: true}, {Key: "name"}},

@@ -43,6 +43,24 @@ func GetStreamProxyClient(ctx context.Context, source, variant string, limit int
 		return nil, fferr.NewInternalError(envErr)
 	}
 
+	if source == "" {
+		sourceErr := fmt.Errorf("missing 'source' param value")
+		baseLogger.Error(sourceErr.Error())
+		return nil, fferr.NewInternalError(sourceErr)
+	}
+
+	if variant == "" {
+		variantErr := fmt.Errorf("missing 'variant' param value")
+		baseLogger.Error(variantErr.Error())
+		return nil, fferr.NewInternalError(variantErr)
+	}
+
+	if limit < 0 {
+		limitErr := fmt.Errorf("limit value (%d) is less than 0", limit)
+		baseLogger.Error(limitErr.Error())
+		return nil, fferr.NewInternalError(limitErr)
+	}
+
 	proxyAddress := fmt.Sprintf("%s:%s", proxyHost, proxyPort)
 	baseLogger.Infof("Received stream request, forwarding to iceberg-proxy at: %s", proxyAddress)
 

@@ -13,6 +13,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/helpers"
@@ -160,11 +161,31 @@ func Get(logger logging.Logger) (*FeatureformApp, error) {
 
 func parseFeatureformApp(logger logging.Logger) (*FeatureformApp, fferr.Error) {
 	cfg := FeatureformApp{}
+	if err := parseInitConfig(logger, &cfg); err != nil {
+		logger.Errorw("Failed to parse init config", "err", err)
+		return nil, err
+	}
 	if err := parseStateProvider(logger, &cfg); err != nil {
 		logger.Errorw("Failed to parse state backend", "err", err)
 		return nil, err
 	}
 	return &cfg, nil
+}
+
+func parseInitConfig(logger logging.Logger, cfg *FeatureformApp) fferr.Error {
+	initTimeout := "FF_INIT_TIMEOUT"
+	defaultTimeout := time.Second * 15
+	logger.Debug("Looking up init timeout from env")
+	timeout, err := helpers.LookupEnvDuration(initTimeout)
+	if _, ok := err.(*helpers.EnvNotFound); ok {
+		logger.Infof("ENV FF_INIT_TIMEOUT not found falling back to %v", defaultTimeout)
+		timeout = defaultTimeout
+	} else if err != nil {
+		logger.Infof("Unable to parse FF_INIT_TIMEOUT: %v. Falling back to %v", err, defaultTimeout)
+		timeout = defaultTimeout
+	}
+	cfg.InitTimeout = timeout
+	return nil
 }
 
 func parseStateProvider(logger logging.Logger, cfg *FeatureformApp) fferr.Error {
@@ -272,6 +293,9 @@ func getEnvWithDefault(logger logging.Logger, env, defVal string) string {
 
 // TODO(simba) Move all envs into this Config
 type FeatureformApp struct {
+	// InitTimeout specifies how long the service has to initialize
+	InitTimeout time.Duration
+	// StateProviderType specifies where app-state is to be stored
 	StateProviderType StateProviderType
 	// This will only be set when StateProviderType is PostgresStateProvider
 	Postgres *postgres.Config

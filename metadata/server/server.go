@@ -11,7 +11,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/featureform/config"
 	"github.com/featureform/config/bootstrap"
@@ -22,7 +21,6 @@ import (
 )
 
 func main() {
-	initTimeout := time.Second * 15
 	addr := helpers.GetEnv("METADATA_PORT", "8080")
 	enableSearch := helpers.GetEnv("ENABLE_SEARCH", "true")
 
@@ -34,6 +32,7 @@ func main() {
 		logger.Errorw("Invalid App Config", "err", err)
 		panic(err)
 	}
+	initTimeout := appConfig.InitTimeout
 	logger.Info("Created initialization context with timeout", "timeout", initTimeout)
 	ctx, cancelFn := context.WithTimeout(context.Background(), initTimeout)
 	defer cancelFn()

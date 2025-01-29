@@ -22,7 +22,6 @@ import (
 )
 
 func main() {
-	initTimeout := time.Second * 15
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")
 	metadataUrl := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
@@ -35,6 +34,7 @@ func main() {
 		logger.Errorw("Invalid App Config", "err", err)
 		panic(err)
 	}
+	initTimeout := appConfig.InitTimeout
 	ctx, cancelFn := context.WithTimeout(context.Background(), initTimeout)
 	defer cancelFn()
 	initCtx := logger.AttachToContext(ctx)

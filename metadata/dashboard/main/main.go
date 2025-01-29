@@ -10,7 +10,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/featureform/config"
 	"github.com/featureform/config/bootstrap"
@@ -22,7 +21,6 @@ import (
 )
 
 func main() {
-	initTimeout := time.Second * 15
 	logger := logging.NewLogger("coordinator")
 	defer logger.Sync()
 	logger.Info("Parsing Featureform App Config")
@@ -31,6 +29,7 @@ func main() {
 		logger.Errorw("Invalid App Config", "err", err)
 		panic(err)
 	}
+	initTimeout := appConfig.InitTimeout
 	logger.Info("Created initialization context with timeout", "timeout", initTimeout)
 	ctx, cancelFn := context.WithTimeout(context.Background(), initTimeout)
 	defer cancelFn()

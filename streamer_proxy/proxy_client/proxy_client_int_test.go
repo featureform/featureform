@@ -171,6 +171,6 @@ func TestFlightServer_GetStreamProxyClient(t *testing.T) {
 	assert.Equal(t, values[1], []string{"false", "43", "asma"})
 	assert.Equal(t, values[2], []string{"true", "60", "derek"})
 	assert.Equal(t, values[3], []string{"false", "18", "tony"})
-	assert.False(t, proxyClient.Next(), "Subsequent call to next() should be false")
+	assert.False(t, proxyClient.Next(), "Final call to next() should be false")
 
 }

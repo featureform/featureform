@@ -3,25 +3,26 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 //
 // Copyright 2024 FeatureForm Inc.
-//
-
 package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"strings"
 
-	"encoding/json"
-
-	"github.com/apache/arrow/go/v17/arrow/flight"
+	"github.com/featureform/fferr"
+	fs "github.com/featureform/filestore"
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
+	pc "github.com/featureform/provider/provider_config"
+
+	"github.com/apache/arrow/go/v17/arrow/flight"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -40,27 +41,6 @@ type TicketData struct {
 	Variant      string `json:"variant"`
 	ResourceType string `json:"resourceType"`
 	Limit        int    `json:"limit"`
-}
-
-type AWSConfig struct {
-	AccessKeyID string `json:"AccessKeyId"`
-	SecretKey   string `json:"SecretKey"`
-	Type        string `json:"Type"`
-}
-
-type ExecutorConfig struct {
-	ClusterName   string    `json:"ClusterName"`
-	ClusterRegion string    `json:"ClusterRegion"`
-	Credentials   AWSConfig `json:"Credentials"`
-}
-
-type GlueConfig struct {
-	AssumeRoleArn string `json:"AssumeRoleArn"`
-}
-
-type ConfigData struct {
-	ExecutorConfig ExecutorConfig `json:"ExecutorConfig"`
-	GlueConfig     GlueConfig     `json:"GlueConfig"`
 }
 
 // pulls the client ticket's location and hydrates with additional entries
@@ -115,6 +95,13 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 		gps.logger.Error("error when invoking sourceVariant.GetPrimaryLocation()", "error", locationErr)
 		return nil, locationErr
 	}
+
+	if location == nil {
+		err := fmt.Errorf("location is nil after GetPrimaryLocation")
+		gps.logger.Error(err)
+		return nil, err
+	}
+
 	parts := strings.Split(location.Location(), ".")
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 		splitErr := fmt.Errorf("invalid location format, expected 'namespace.table' but got: %s", location.Location())
@@ -124,6 +111,11 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 	namespace := parts[0]
 	table := parts[1]
 
+	// validate limit
+	if ticketData.Limit == 0 {
+		ticketData.Limit = two_million_record_limit
+	}
+
 	//pull the provider
 	provider, providerErr := gps.metadata.GetProvider(context.TODO(), sourceVariant.Provider())
 	if providerErr != nil {
@@ -131,26 +123,53 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 		return nil, providerErr
 	}
 
-	var config ConfigData
-	jsonErr := json.Unmarshal(provider.SerializedConfig(), &config)
-	if jsonErr != nil {
-		gps.logger.Error("could not deserialize the provider config", "error", jsonErr)
-		return nil, jsonErr
+	config := &pc.SparkConfig{}
+	if err := config.Deserialize(provider.SerializedConfig()); err != nil {
+		gps.logger.Error("could not deserialize the provider config", "error", err)
+		return nil, err
 	}
-
-	// validate limit
-	if ticketData.Limit == 0 {
-		ticketData.Limit = two_million_record_limit
+	if config.GlueConfig == nil {
+		errMsg := "Streamer only supports GlueCatalog"
+		gps.logger.Error(errMsg)
+		return nil, fferr.NewInternalErrorf(errMsg)
 	}
-
+	roleArn := config.GlueConfig.AssumeRoleArn
+	if config.StoreType != fs.S3 {
+		errMsg := fmt.Sprintf("Store type not supported by streamer: %s", config.StoreType)
+		gps.logger.Error(errMsg)
+		return nil, fferr.NewInternalErrorf(errMsg)
+	}
+	var creds pc.AWSStaticCredentials
+	if roleArn == "" {
+		// Grab creds from store
+		s3Config, ok := config.StoreConfig.(*pc.S3FileStoreConfig)
+		if !ok {
+			errMsg := fmt.Sprintf(
+				"Invalid Spark Config. StoreType is %s but StoreConfig is %T",
+				config.StoreType, config.StoreConfig,
+			)
+			gps.logger.Error(errMsg)
+			return nil, fferr.NewInternalErrorf(errMsg)
+		}
+		staticCreds, ok := s3Config.Credentials.(pc.AWSStaticCredentials)
+		if !ok {
+			errMsg := fmt.Sprintf(
+				"If Glue is not using AssumeRoleArn then S3 must have static creds but has %T",
+				s3Config.Credentials,
+			)
+			gps.logger.Error(errMsg)
+			return nil, fferr.NewInternalErrorf(errMsg)
+		}
+		creds = staticCreds
+	}
 	hydratedTicketData := map[string]any{
 		"catalog":                  "default",
 		"namespace":                namespace,
 		"table":                    table,
-		"client.region":            config.ExecutorConfig.ClusterRegion,
-		"client.access-key-id":     config.ExecutorConfig.Credentials.AccessKeyID,
-		"client.secret-access-key": config.ExecutorConfig.Credentials.SecretKey,
-		"client.role-arn":          config.GlueConfig.AssumeRoleArn,
+		"client.region":            config.GlueConfig.Region,
+		"client.access-key-id":     creds.AccessKeyId,
+		"client.secret-access-key": creds.SecretKey,
+		"client.role-arn":          roleArn,
 		"limit":                    ticketData.Limit,
 	}
 

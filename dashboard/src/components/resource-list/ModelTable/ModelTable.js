@@ -1,23 +1,15 @@
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/.
-//
-// Copyright 2024 FeatureForm Inc.
-//
-
 import { Typography } from '@mui/material';
 import { useRouter } from 'next/router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useDataAPI } from '../../../hooks/dataAPI';
-import { MainContainer, GridContainer, StyledDataGrid, STATUS_COLORS } from '../BaseColumnTable';
-import BaseFilterPanel from '../BaseFilterPanel';
 import { isMatchingDefault } from '../DatasetTable/DatasetTable';
 import { ConnectionSvg } from '../icons/Connections';
-import { UserBubbleSvg } from '../icons/Owner';
 import NoDataMessage from '../NoDataMessage';
 import FilterPanel from './FilterPanel';
+import BaseFilterPanel from '../BaseFilterPanel';
+import { MainContainer, GridContainer, StyledDataGrid, STATUS_COLORS } from '../BaseColumnTable';
 
-export const label_variant_columns = [
+export const model_columns = [
   {
     field: 'id',
     headerName: 'id',
@@ -29,7 +21,7 @@ export const label_variant_columns = [
   },
   {
     field: 'name',
-    headerName: 'Name (Variant)',
+    headerName: 'Name',
     flex: 1,
     editable: false,
     sortable: false,
@@ -37,44 +29,27 @@ export const label_variant_columns = [
     hide: false,
     renderCell: function ({ row }) {
       return (
-        <div>
-          <div style={{ display: 'flex' }}>
-            <Typography variant='body2' sx={{ marginLeft: 1 }}>
-              <strong>{row?.name}</strong>
-            </Typography>
-          </div>
-          <div style={{ display: 'flex' }}>
-          <Typography variant='body2' sx={{ marginLeft: 1, fontSize: '0.75rem' }}>
-          ({row?.variant})
+        <Typography variant='body2' sx={{ marginLeft: 1 }}>
+          <strong>{row?.name}</strong>
         </Typography>
-          </div>
-        </div>
       );
     },
   },
   {
-    field: 'owner',
-    headerName: 'Owner',
-    flex: 0,
-    width: 350,
+    field: 'tags',
+    headerName: 'Tags',
+    flex: 1,
     editable: false,
     sortable: false,
     filterable: false,
     hide: false,
     renderCell: function ({ row }) {
       return (
-        <div>
           <div style={{ display: 'flex' }}>
-          <UserBubbleSvg
-              height='20'
-              width='20'
-              letter={row?.owner?.[0]?.toUpperCase() || '---'}
-            />
-            <Typography variant='body2' sx={{ marginLeft: 1 }}>
-              {row?.owner || 'Unknown Owner'}
+            <Typography variant='body2'>
+              {sanitizeTags(row?.tags)}
             </Typography>
           </div>
-        </div>
       );
     },
   },
@@ -88,7 +63,7 @@ export const label_variant_columns = [
     filterable: false,
     renderCell: function ({ row }) {
       let result = STATUS_COLORS.ERROR;
-      if (row?.status && row?.status === 'READY') {
+      if (row?.status && row?.status === 'CREATED') {
         result = STATUS_COLORS.READY;
       }
       return (
@@ -97,16 +72,27 @@ export const label_variant_columns = [
             <Typography variant='body2' sx={{ marginLeft: 1 }}>
               {row?.status}
             </Typography>
-          </div>     
+          </div>
       );
     },
   },
 ];
 
+function sanitizeTags(tags = [], maxLength = 25) {
+  if (!tags || tags.length === 0) return '';
+  //join all the tags together
+  const formattedTags = tags.join(', ');
+
+  //if the length is longer than max, chop 3 characters and add the ellipse
+  if (formattedTags.length > maxLength) {
+    return `${formattedTags.substring(0, maxLength - 3)}...`;
+  }
+
+  return formattedTags;
+}
+
 const DEFAULT_FILTERS = Object.freeze({
   SearchTxt: '',
-  Owners: [],
-  Statuses: [],
   Tags: [],
   pageSize: 10,
   offset: 0,
@@ -114,9 +100,8 @@ const DEFAULT_FILTERS = Object.freeze({
 
 const CHECK_BOX_LIMIT = 8;
 
-export const LabelVariantTable = () => {
+export const ModelTable = () => {
   const [tags, setTags] = useState([]);
-  const [owners, setOwners] = useState([]);
   const [filters, setFilters] = useState({
     ...DEFAULT_FILTERS,
   });
@@ -131,13 +116,13 @@ export const LabelVariantTable = () => {
     const getResources = async () => {
       setIsLoading(true);
       try {
-        let resp = await dataAPI.getLabelVariants(filters);
+        let resp = await dataAPI.getModels(filters);
         if (resp) {
           setRows(resp.data?.length ? resp.data : []);
           setTotalRowCount(resp.count);
         }
       } catch (error) {
-        console.error('Error fetching labels', error);
+        console.error('Error fetching models', error);
       } finally {
         setIsLoading(false);
       }
@@ -147,17 +132,9 @@ export const LabelVariantTable = () => {
 
   useEffect(() => {
     const getCheckBoxLists = async () => {
-      const [allTags, allOwners] = await Promise.all([
-        dataAPI.getTypeTags('labels'),
-        dataAPI.getTypeOwners('labels'),
-      ]);
-
+      let allTags = await dataAPI.getTypeTags('models');
       if (allTags) {
         setTags(allTags.slice(0, CHECK_BOX_LIMIT));
-      }
-
-      if (allOwners) {
-        setOwners(allOwners.slice(0, CHECK_BOX_LIMIT));
       }
     };
     getCheckBoxLists();
@@ -192,35 +169,36 @@ export const LabelVariantTable = () => {
     [filters]
   );
 
-  const redirect = (name = '', variant = '') => {
-    if (name && variant) {
-      router.push(`/labels/${name}?variant=${variant}`);
+  const redirect = (name = '') => {
+    if (name) {
+      router.push(`/models/${name}`);
     }
   };
+
   return (
     <>
       <MainContainer>
-        <BaseFilterPanel onTextFieldEnter={onTextFieldEnter}>
-          <FilterPanel
-            filters={filters}
-            tags={tags}
-            owners={owners}
-            onCheckBoxChange={checkBoxFilterChange}
-          />
-        </BaseFilterPanel>
+      <BaseFilterPanel aria-label="Model filters" onTextFieldEnter={onTextFieldEnter}>
+        <FilterPanel
+          aria-label="Model tag filters"
+          filters={filters}
+          tags={tags}
+          onCheckBoxChange={checkBoxFilterChange}
+        />
+      </BaseFilterPanel>
         <GridContainer>
-          <h3>{'Labels'}</h3>
+          <h3>{'Models'}</h3>
           {loading ? (
             <div data-testid='loadingGrid'>
               <StyledDataGrid
                 disableVirtualization
-                aria-label={'Labels'}
+                aria-label={'Models'}
                 autoHeight
                 density='compact'
                 loading={loading}
                 rows={[]}
                 rowCount={0}
-                columns={label_variant_columns}
+                columns={model_columns}
                 hideFooterSelectedRowCount
                 disableColumnFilter
                 disableColumnMenu
@@ -232,9 +210,9 @@ export const LabelVariantTable = () => {
           ) : (
             <StyledDataGrid
               disableVirtualization
-              aria-label={'Label'}
+              aria-label={'Models'}
               rows={rows}
-              columns={label_variant_columns}
+              columns={model_columns}
               density='compact'
               rowHeight={80}
               hideFooterSelectedRowCount
@@ -249,7 +227,7 @@ export const LabelVariantTable = () => {
               components={{
                 NoRowsOverlay: () => (
                   <NoDataMessage
-                    type={'Label'}
+                    type={'Model'}
                     usingFilters={!isMatchingDefault(DEFAULT_FILTERS, filters)}
                   />
                 ),
@@ -261,10 +239,10 @@ export const LabelVariantTable = () => {
               onRowClick={(params, event) => {
                 event?.preventDefault();
                 if (params?.row?.name) {
-                  redirect(params.row.name, params.row.variant);
+                  redirect(params.row.name);
                 }
               }}
-              getRowId={(row) => row.variant + row.name}
+              getRowId={(row) => row.name}
             />
           )}
         </GridContainer>
@@ -273,4 +251,4 @@ export const LabelVariantTable = () => {
   );
 };
 
-export default LabelVariantTable;
+export default ModelTable;

@@ -9,17 +9,16 @@ import (
 	"time"
 
 	"github.com/avast/retry-go/v4"
-	"github.com/featureform/scheduling"
-	"github.com/featureform/storage"
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v4"
 	"golang.org/x/exp/slices"
 
 	"github.com/featureform/fferr"
-	help "github.com/featureform/helpers"
+	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata/common"
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/featureform/scheduling"
+	"github.com/featureform/storage"
 )
 
 type ResourcesRepositoryType string
@@ -117,11 +116,11 @@ func NewResourcesRepositoryFromLookup(resourceLookup ResourceLookup) (ResourcesR
 			return NewInMemoryResourcesRepository(lookup), nil
 
 		case storage.PSQLMetadataStorage:
-			conn, err := help.NewPSQLPoolConnection(help.NewMetadataPSQLConfigFromEnv())
-			if err != nil {
-				return nil, fferr.NewInternalErrorf("error creating PSQL connection: %v", err)
+			psql, ok := lookup.Connection.Storage.(*storage.PSQLStorageImplementation)
+			if !ok {
+				return nil, fferr.NewInternalErrorf("Storage type is PSQL but cast failed")
 			}
-			return NewSqlResourcesRepository(conn, lookup, DefaultResourcesRepoConfig()), nil
+			return NewSqlResourcesRepository(psql.Pool(), lookup, DefaultResourcesRepoConfig()), nil
 
 		default:
 			return nil, fferr.NewInternalErrorf("unsupported storage type: %v", lookup.Connection.Storage.Type())
@@ -133,12 +132,12 @@ func NewResourcesRepositoryFromLookup(resourceLookup ResourceLookup) (ResourcesR
 }
 
 type sqlResourcesRepository struct {
-	db     *pgxpool.Pool
+	db     *postgres.Pool
 	config SqlRepositoryConfig
 	ResourceLookup
 }
 
-func NewSqlResourcesRepository(db *pgxpool.Pool, lookup ResourceLookup, config SqlRepositoryConfig) ResourcesRepository {
+func NewSqlResourcesRepository(db *postgres.Pool, lookup ResourceLookup, config SqlRepositoryConfig) ResourcesRepository {
 	return &sqlResourcesRepository{
 		db:             db,
 		config:         config,

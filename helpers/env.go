@@ -12,6 +12,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 )
 
 // GetEnv Takes a environment variable key and returns the value if it exists.
@@ -30,6 +31,26 @@ func MustGetTestingEnv(t *testing.T, key string) string {
 		t.Fatalf("ENV %s not set", key)
 	}
 	return value
+}
+
+type EnvNotFound struct {
+	Key string
+}
+
+func (err *EnvNotFound) Error() string {
+	return fmt.Sprintf("ENV %s not found", err.Key)
+}
+
+func LookupEnvDuration(key string) (time.Duration, error) {
+	value, has := os.LookupEnv(key)
+	if !has {
+		return time.Duration(0), &EnvNotFound{key}
+	}
+	duration, err := time.ParseDuration(value)
+	if err != nil {
+		return time.Duration(0), err
+	}
+	return duration, nil
 }
 
 func getEnvGeneric(key string, fallback interface{}, converter func(string) (interface{}, error)) interface{} {

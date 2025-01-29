@@ -29,7 +29,6 @@ import (
 	ptypes "github.com/featureform/provider/types"
 	s "github.com/featureform/scheduling"
 	"github.com/stretchr/testify/mock"
-	"go.uber.org/zap/zaptest"
 )
 
 func uintID(id uint) ffsync.Uint64OrderedId {
@@ -39,7 +38,7 @@ func uintID(id uint) ffsync.Uint64OrderedId {
 type MyMockedKey struct {
 }
 
-func (k MyMockedKey) ID() string {
+func (k MyMockedKey) Owner() string {
 	return ""
 }
 
@@ -150,7 +149,7 @@ func NewExecutor(locker ffsync.Locker, client metadata.Client, logger logging.Lo
 func TestExecutorRunLocked(t *testing.T) {
 	locker := new(MyMockedLocker)
 	taskClient := new(MyMockedTaskClient)
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+	logger := logging.NewTestLogger(t)
 
 	expectedTaskErr := fferr.NewKeyAlreadyLockedError("/tasklock/1", "/tasklock/1", nil)
 	locker.On("Lock", "/tasklock/1", false).Return(expectedTaskErr)
@@ -174,7 +173,7 @@ func TestExecutorRunLocked(t *testing.T) {
 func TestExecutorRunFetchFailed(t *testing.T) {
 	locker := new(MyMockedLocker)
 	taskClient := new(MyMockedTaskClient)
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+	logger := logging.NewTestLogger(t)
 
 	expectedErr := fferr.NewInternalErrorf("Failed to fetch task run")
 	locker.On("Lock", "/tasklock/1", false).Return(nil)
@@ -198,7 +197,7 @@ func TestExecutorRunFetchFailed(t *testing.T) {
 func TestExecutorRunComplete(t *testing.T) {
 	locker := new(MyMockedLocker)
 	taskClient := new(MyMockedTaskClient)
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+	logger := logging.NewTestLogger(t)
 
 	locker.On("Lock", "/tasklock/1", false).Return(nil)
 	locker.On("Lock", "/runlock/1", false).Return(nil)
@@ -266,7 +265,7 @@ func createDag(t *testing.T) s.TaskDAG {
 func TestExecutorWaitForFailedDependencies(t *testing.T) {
 	locker := new(MyMockedLocker)
 	taskClient := new(MyMockedTaskClient)
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+	logger := logging.NewTestLogger(t)
 
 	locker.On("Lock", "/tasklock/1", false).Return(nil)
 	locker.On("Lock", "/runlock/1", false).Return(nil)
@@ -339,7 +338,7 @@ func TestExecutorWaitForFailedDependencies(t *testing.T) {
 func TestExecutorWaitForCancelledDependencies(t *testing.T) {
 	locker := new(MyMockedLocker)
 	taskClient := new(MyMockedTaskClient)
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+	logger := logging.NewTestLogger(t)
 
 	locker.On("Lock", "/tasklock/1", false).Return(nil)
 	locker.On("Lock", "/runlock/1", false).Return(nil)
@@ -457,7 +456,7 @@ func TestExecutorCancelTask(t *testing.T) {
 	t.Skip("Need to resolve a nil pointer error with the channel")
 	locker := new(MyMockedLocker)
 	taskClient := new(MyMockedTaskClient)
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+	logger := logging.NewTestLogger(t)
 
 	locker.On("Lock", "/tasklock/1", false).Return(nil)
 	locker.On("Lock", "/runlock/1", false).Return(nil)
@@ -508,7 +507,7 @@ func TestExecutorCancelTask(t *testing.T) {
 func TestExecutorSucceedTask(t *testing.T) {
 	locker := new(MyMockedLocker)
 	taskClient := new(MyMockedTaskClient)
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+	logger := logging.NewTestLogger(t)
 
 	locker.On("Lock", "/tasklock/1", false).Return(nil)
 	locker.On("Lock", "/runlock/1", false).Return(nil)
@@ -546,14 +545,13 @@ func TestExecutorSucceedTask(t *testing.T) {
 	}
 }
 
-func startServ(t *testing.T) (*metadata.MetadataServer, string) {
-	manager, err := s.NewMemoryTaskMetadataManager()
+func startServ(ctx context.Context, t *testing.T) (*metadata.MetadataServer, string) {
+	manager, err := s.NewMemoryTaskMetadataManager(ctx)
 	if err != nil {
 		panic(err.Error())
 	}
-	logger := zaptest.NewLogger(t)
 	config := &metadata.Config{
-		Logger:      logging.WrapZapLogger(logger.Sugar()),
+		Logger:      logging.GetLoggerFromContext(ctx),
 		TaskManager: manager,
 	}
 	serv, err := metadata.NewMetadataServer(config)
@@ -574,13 +572,13 @@ func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 }
 
 func TestSourceTaskRun(t *testing.T) {
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+	ctx, logger := logging.NewTestContextAndLogger(t)
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	serv, addr := startServ(t)
+	serv, addr := startServ(ctx, t)
 	defer serv.Stop()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
@@ -591,7 +589,7 @@ func TestSourceTaskRun(t *testing.T) {
 
 	createSourcePreqResources(t, client)
 
-	err = client.CreateSourceVariant(context.Background(), metadata.SourceDef{
+	err = client.CreateSourceVariant(ctx, metadata.SourceDef{
 		Name:    "sourceName",
 		Variant: "sourceVariant",
 		Definition: metadata.PrimaryDataSource{
@@ -656,13 +654,13 @@ func createSourcePreqResources(t *testing.T, client *metadata.Client) {
 }
 
 func TestLabelTaskRun(t *testing.T) {
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+	ctx, logger := logging.NewTestContextAndLogger(t)
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	serv, addr := startServ(t)
+	serv, addr := startServ(ctx, t)
 	defer serv.Stop()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
@@ -684,7 +682,7 @@ func TestLabelTaskRun(t *testing.T) {
 
 	e := NewExecutor(&locker, *client, logger)
 
-	err = client.CreateLabelVariant(context.Background(), metadata.LabelDef{
+	err = client.CreateLabelVariant(ctx, metadata.LabelDef{
 		Name:     "labelName",
 		Variant:  "labelVariant",
 		Owner:    "mockOwner",
@@ -809,13 +807,13 @@ func createPreqLabelResources(t *testing.T, client *metadata.Client) s.TaskRunMe
 }
 
 func TestFeatureTaskRun(t *testing.T) {
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+	ctx, logger := logging.NewTestContextAndLogger(t)
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	serv, addr := startServ(t)
+	serv, addr := startServ(ctx, t)
 	defer serv.Stop()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
@@ -837,7 +835,7 @@ func TestFeatureTaskRun(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	err = client.CreateFeatureVariant(context.Background(), metadata.FeatureDef{
+	err = client.CreateFeatureVariant(ctx, metadata.FeatureDef{
 		Name:    "featureName",
 		Variant: "featureVariant",
 		Owner:   "mockOwner",
@@ -875,13 +873,13 @@ func TestFeatureTaskRun(t *testing.T) {
 }
 
 func TestTrainingSetTaskRun(t *testing.T) {
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+	ctx, logger := logging.NewTestContextAndLogger(t)
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	serv, addr := startServ(t)
+	serv, addr := startServ(ctx, t)
 	defer serv.Stop()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
@@ -903,7 +901,7 @@ func TestTrainingSetTaskRun(t *testing.T) {
 		}
 	}
 
-	err = client.CreateTrainingSetVariant(context.Background(), metadata.TrainingSetDef{
+	err = client.CreateTrainingSetVariant(ctx, metadata.TrainingSetDef{
 		Name:     "trainingSetName",
 		Variant:  "trainingSetVariant",
 		Owner:    "mockOwner",
@@ -940,13 +938,13 @@ func TestTrainingSetTaskRun(t *testing.T) {
 }
 
 func TestTrainingSetLastRun(t *testing.T) {
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+	ctx, logger := logging.NewTestContextAndLogger(t)
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	serv, addr := startServ(t)
+	serv, addr := startServ(ctx, t)
 	defer serv.Stop()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
@@ -1158,13 +1156,13 @@ func createPreqTrainingSetResources(t *testing.T, client *metadata.Client) []s.T
 }
 
 func TestTaskRecovery(t *testing.T) {
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+	ctx, logger := logging.NewTestContextAndLogger(t)
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	serv, addr := startServ(t)
+	serv, addr := startServ(ctx, t)
 	defer serv.Stop()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
@@ -1175,7 +1173,7 @@ func TestTaskRecovery(t *testing.T) {
 
 	createSourcePreqResources(t, client)
 
-	err = client.CreateSourceVariant(context.Background(), metadata.SourceDef{
+	err = client.CreateSourceVariant(ctx, metadata.SourceDef{
 		// Using namevariant make (panic) leverages a conditional in the memory offline store implementation
 		// in provider/offline.go
 		Name:    "make",

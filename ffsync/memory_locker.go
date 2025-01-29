@@ -24,13 +24,13 @@ import (
 const memoryLoggerKey = "memoryLogger"
 
 type memoryKey struct {
-	id   string
-	key  string
-	Done chan error
+	owner string
+	key   string
+	Done  chan error
 }
 
-func (k memoryKey) ID() string {
-	return k.id
+func (k memoryKey) Owner() string {
+	return k.owner
 }
 
 func (k memoryKey) Key() string {
@@ -133,13 +133,13 @@ func (m *memoryLocker) Lock(ctx context.Context, key string, wait bool) (Key, er
 		return nil, err
 	}
 
-	id := uuid.New().String()
+	owner := uuid.New().String()
 
 	doneChannel := make(chan error)
-	lockKey := &memoryKey{id: id, key: key, Done: doneChannel}
+	lockKey := &memoryKey{owner: owner, key: key, Done: doneChannel}
 
 	lock := LockInformation{
-		ID:   id,
+		ID:   owner,
 		Key:  key,
 		Date: m.clock.Now().UTC(),
 	}
@@ -207,7 +207,7 @@ func (m *memoryLocker) updateLockTime(key *memoryKey) {
 			if !ok {
 				return
 			}
-			if lock.ID == key.id {
+			if lock.ID == key.Owner() {
 				lock.Date = m.clock.Now().UTC()
 				// Update lock time
 				m.lockedItems.Store(key.key, lock)
@@ -241,14 +241,14 @@ func (m *memoryLocker) Unlock(ctx context.Context, key Key) error {
 		return fferr.NewInternalError(fmt.Errorf("could not cast lock information"))
 	}
 
-	if keyLock.ID != key.ID() {
+	if keyLock.ID != key.Owner() {
 		err := fferr.NewKeyAlreadyLockedError(key.Key(), keyLock.ID, fmt.Errorf("attempting to unlock with incorrect key"))
 		err.AddDetail("expected key", keyLock.ID)
-		err.AddDetail("received key", key.ID())
+		err.AddDetail("received key", key.Owner())
 		return err
 	}
 
-	logger.Debugw("Deleting Key", "id", key.ID())
+	logger.Debugw("Deleting Key", "owner", key.Owner())
 	m.lockedItems.Delete(key.Key())
 
 	mKey, ok := key.(*memoryKey)
@@ -257,7 +257,7 @@ func (m *memoryLocker) Unlock(ctx context.Context, key Key) error {
 	}
 	close(mKey.Done)
 
-	logger.Debugw("Key Unlocked Key", "id", key.ID())
+	logger.Debugw("Key Unlocked Key", "id", key.Owner())
 	return nil
 }
 

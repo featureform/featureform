@@ -1883,7 +1883,7 @@ class Registrar:
         self.__default_owner = ""
         self.__variant_prefix = ""
         if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
-            self.__run = get_current_timestamp_variant(self.__variant_prefix)
+            self.__run = get_current_timestamp_variant(prefix=self.__variant_prefix)
         else:
             self.__run = get_random_name()
 
@@ -2020,7 +2020,7 @@ class Registrar:
         """
         if run == "":
             if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
-                self.__run = get_current_timestamp_variant(self.__variant_prefix)
+                self.__run = get_current_timestamp_variant(prefix=self.__variant_prefix)
             else:
                 self.__run = get_random_name()
         else:

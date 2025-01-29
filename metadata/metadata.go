@@ -1905,7 +1905,7 @@ func (serv *MetadataServer) CreateTaskRun(ctx context.Context, request *schproto
 		return nil, err
 	}
 
-	rid, err := serv.taskManager.CreateTaskRun(request.Name, tid, scheduling.OnApplyTrigger{TriggerName: "apply"})
+	rid, err := serv.taskManager.CreateTaskRun(ctx, request.Name, tid, scheduling.OnApplyTrigger{TriggerName: "apply"})
 	if err != nil {
 		return nil, err
 	}
@@ -2214,10 +2214,18 @@ func (serv *MetadataServer) Serve() error {
 	if err != nil {
 		return fferr.NewInternalErrorf("cannot listen to server address %s", serv.address)
 	}
-	return serv.ServeOnListener(lis)
+	return serv.serveOnListener(lis)
 }
 
 func (serv *MetadataServer) ServeOnListener(lis net.Listener) error {
+	return serv.serveOnListener(lis)
+}
+
+func (serv *MetadataServer) serveOnListener(lis net.Listener) error {
+	if lis == nil {
+		serv.Logger.Errorw("Can't serve on a nil listener")
+		return fferr.NewInternalErrorf("Can't serve metadata server on a NIL port/listerner")
+	}
 	serv.listener = lis
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(interceptors.UnaryServerErrorInterceptor), grpc.StreamInterceptor(interceptors.StreamServerErrorInterceptor))
 	pb.RegisterMetadataServer(grpcServer, serv)
@@ -2320,7 +2328,7 @@ func (serv *MetadataServer) SetResourceStatus(ctx context.Context, req *pb.SetSt
 }
 
 func (serv *MetadataServer) ListFeatures(request *pb.ListRequest, stream pb.Metadata_ListFeaturesServer) error {
-	ctx := logging.AttachRequestID(request.RequestId, stream.Context(), serv.Logger)
+	ctx := logging.AttachRequestID(logging.RequestID(request.RequestId), stream.Context(), serv.Logger)
 	logging.GetLoggerFromContext(ctx).Info("Opened List Features stream")
 	return serv.genericList(ctx, FEATURE, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Feature))
@@ -2328,14 +2336,14 @@ func (serv *MetadataServer) ListFeatures(request *pb.ListRequest, stream pb.Meta
 }
 
 func (serv *MetadataServer) CreateFeatureVariant(ctx context.Context, variantRequest *pb.FeatureVariantRequest) (*pb.Empty, error) {
-	ctx = logging.AttachRequestID(variantRequest.RequestId, ctx, serv.Logger)
+	ctx = logging.AttachRequestID(logging.RequestID(variantRequest.RequestId), ctx, serv.Logger)
 	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.FeatureVariant, variantRequest.FeatureVariant.Name, variantRequest.FeatureVariant.Variant)
 	logger.Info("Creating Feature Variant")
 
 	variant := variantRequest.FeatureVariant
 	variant.Created = tspb.New(time.Now())
 	taskTarget := scheduling.NameVariant{Name: variant.Name, Variant: variant.Variant, ResourceType: FEATURE_VARIANT.String()}
-	task, err := serv.taskManager.CreateTask("mytask", scheduling.ResourceCreation, taskTarget)
+	task, err := serv.taskManager.CreateTask(ctx, "mytask", scheduling.ResourceCreation, taskTarget)
 	if err != nil {
 		return nil, err
 	}
@@ -2412,7 +2420,7 @@ func (serv *MetadataServer) deletionTaskStarter(ctx context.Context, resId Resou
 		Variant:      resId.Variant,
 		ResourceType: resId.Type.String(),
 	}
-	task, err := serv.taskManager.CreateTask("delete-task", scheduling.ResourceDeletion, taskTarget)
+	task, err := serv.taskManager.CreateTask(ctx, "delete-task", scheduling.ResourceDeletion, taskTarget)
 	if err != nil {
 		logger.Errorw("unable to create deletion task", "error", err)
 		return err
@@ -2430,7 +2438,7 @@ func (serv *MetadataServer) deletionTaskStarter(ctx context.Context, resId Resou
 		taskName := fmt.Sprintf("Deleting Resource %s", resId.String())
 		trigger := scheduling.OnApplyTrigger{TriggerName: "Apply"}
 
-		taskRun, err := serv.taskManager.CreateTaskRun(taskName, task.ID, trigger)
+		taskRun, err := serv.taskManager.CreateTaskRun(ctx, taskName, task.ID, trigger)
 		if err != nil {
 			logger.Errorw("unable to create task run",
 				"task_name", taskName,
@@ -2611,7 +2619,7 @@ func (serv *MetadataServer) GetFeatureVariants(stream pb.Metadata_GetFeatureVari
 }
 
 func (serv *MetadataServer) ListLabels(request *pb.ListRequest, stream pb.Metadata_ListLabelsServer) error {
-	ctx := logging.AttachRequestID(request.RequestId, stream.Context(), serv.Logger)
+	ctx := logging.AttachRequestID(logging.RequestID(request.RequestId), stream.Context(), serv.Logger)
 	logging.GetLoggerFromContext(ctx).Info("Opened List Labels stream")
 	return serv.genericList(ctx, LABEL, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Label))
@@ -2619,14 +2627,14 @@ func (serv *MetadataServer) ListLabels(request *pb.ListRequest, stream pb.Metada
 }
 
 func (serv *MetadataServer) CreateLabelVariant(ctx context.Context, variantRequest *pb.LabelVariantRequest) (*pb.Empty, error) {
-	ctx = logging.AttachRequestID(variantRequest.RequestId, ctx, serv.Logger)
+	ctx = logging.AttachRequestID(logging.RequestID(variantRequest.RequestId), ctx, serv.Logger)
 	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.LabelVariant, variantRequest.LabelVariant.Name, variantRequest.LabelVariant.Variant)
 	logger.Info("Creating Label Variant")
 
 	variant := variantRequest.LabelVariant
 	variant.Created = tspb.New(time.Now())
 	taskTarget := scheduling.NameVariant{Name: variant.Name, Variant: variant.Variant, ResourceType: LABEL_VARIANT.String()}
-	task, err := serv.taskManager.CreateTask("mytask", scheduling.ResourceCreation, taskTarget)
+	task, err := serv.taskManager.CreateTask(ctx, "mytask", scheduling.ResourceCreation, taskTarget)
 	if err != nil {
 		logger.Errorw("Failed to create task", "error", err)
 		return nil, err
@@ -2661,7 +2669,7 @@ func (serv *MetadataServer) GetLabelVariants(stream pb.Metadata_GetLabelVariants
 }
 
 func (serv *MetadataServer) ListTrainingSets(request *pb.ListRequest, stream pb.Metadata_ListTrainingSetsServer) error {
-	ctx := logging.AttachRequestID(request.RequestId, stream.Context(), serv.Logger)
+	ctx := logging.AttachRequestID(logging.RequestID(request.RequestId), stream.Context(), serv.Logger)
 	logging.GetLoggerFromContext(ctx).Info("Opened List Training Sets stream")
 	return serv.genericList(ctx, TRAINING_SET, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.TrainingSet))
@@ -2669,7 +2677,7 @@ func (serv *MetadataServer) ListTrainingSets(request *pb.ListRequest, stream pb.
 }
 
 func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, variantRequest *pb.TrainingSetVariantRequest) (*pb.Empty, error) {
-	ctx = logging.AttachRequestID(variantRequest.RequestId, ctx, serv.Logger)
+	ctx = logging.AttachRequestID(logging.RequestID(variantRequest.RequestId), ctx, serv.Logger)
 	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.TrainingSetVariant, variantRequest.TrainingSetVariant.Name, variantRequest.TrainingSetVariant.Variant)
 	logger.Info("Creating TrainingSet Variant")
 
@@ -2680,7 +2688,7 @@ func (serv *MetadataServer) CreateTrainingSetVariant(ctx context.Context, varian
 	}
 	variant.Created = tspb.New(time.Now())
 	taskTarget := scheduling.NameVariant{Name: variant.Name, Variant: variant.Variant, ResourceType: TRAINING_SET_VARIANT.String()}
-	task, err := serv.taskManager.CreateTask("mytask", scheduling.ResourceCreation, taskTarget)
+	task, err := serv.taskManager.CreateTask(ctx, "mytask", scheduling.ResourceCreation, taskTarget)
 	if err != nil {
 		return nil, err
 	}
@@ -2715,7 +2723,7 @@ func (serv *MetadataServer) GetTrainingSetVariants(stream pb.Metadata_GetTrainin
 }
 
 func (serv *MetadataServer) ListSources(request *pb.ListRequest, stream pb.Metadata_ListSourcesServer) error {
-	ctx := logging.AttachRequestID(request.RequestId, stream.Context(), serv.Logger)
+	ctx := logging.AttachRequestID(logging.RequestID(request.RequestId), stream.Context(), serv.Logger)
 	logging.GetLoggerFromContext(ctx).Info("Opened List Sources stream")
 	return serv.genericList(ctx, SOURCE, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Source))
@@ -2723,21 +2731,23 @@ func (serv *MetadataServer) ListSources(request *pb.ListRequest, stream pb.Metad
 }
 
 func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variantRequest *pb.SourceVariantRequest) (*pb.Empty, error) {
-	ctx = logging.AttachRequestID(variantRequest.RequestId, ctx, serv.Logger)
+	ctx = logging.AttachRequestID(logging.RequestID(variantRequest.RequestId), ctx, serv.Logger)
 	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.SourceVariant, variantRequest.SourceVariant.Name, variantRequest.SourceVariant.Variant)
-	logger.Info("Creating Source Variant", "source_name", variantRequest.SourceVariant.Name, "source_variant", variantRequest.SourceVariant.Variant)
+	logger.Info("Creating Source Variant")
 
 	variant := variantRequest.SourceVariant
 	variant.Created = tspb.New(time.Now())
 	taskTarget := scheduling.NameVariant{Name: variant.Name, Variant: variant.Variant, ResourceType: SOURCE_VARIANT.String()}
-	task, err := serv.taskManager.CreateTask("mytask", scheduling.ResourceCreation, taskTarget)
+	logger.Debug("Creating task for source variant")
+	task, err := serv.taskManager.CreateTask(ctx, "mytask", scheduling.ResourceCreation, taskTarget)
 	if err != nil {
 		logger.Errorw("failed to create task", "error", err)
 		return nil, err
 	}
 	variant.TaskIdList = []string{task.ID.String()}
 	if _, isTransformation := variant.Definition.(*pb.SourceVariant_Transformation); isTransformation {
-		if err := serv.addTransformationLocation(ctx, variant); err != nil {
+		logger.Debug("Adding transformation location to proto")
+		if err := serv.addTransformationLocation(ctx, variant, logger); err != nil {
 			logger.Errorw("failed to add transformation location", "error", err)
 			return nil, err
 		}
@@ -2756,8 +2766,9 @@ func (serv *MetadataServer) CreateSourceVariant(ctx context.Context, variantRequ
 
 // addTransformationLocation adds the location to the transformation field of the source variant given the client
 // isn't capable of populating the location field properly. Given metadata is the source of truth and "upstream"
-func (serv *MetadataServer) addTransformationLocation(ctx context.Context, sv *pb.SourceVariant) error {
-	logger := serv.Logger.With("source_name", sv.Name, "source_variant", sv.Variant)
+func (serv *MetadataServer) addTransformationLocation(
+	ctx context.Context, sv *pb.SourceVariant, logger logging.Logger,
+) error {
 	if sv.GetTransformation() == nil {
 		logger.Warn("Transformation not set on source variant")
 		return nil
@@ -2767,41 +2778,45 @@ func (serv *MetadataServer) addTransformationLocation(ctx context.Context, sv *p
 		return nil
 	}
 	providerName := sv.GetProvider()
-	logger.Debugw("Looking up provider for transformation location", "provider", providerName)
+	logger = logger.With("provider", providerName)
+	logger.Debug("Looking up provider for transformation location")
 	providerResource, err := serv.lookup.Lookup(ctx, ResourceID{Name: providerName, Type: PROVIDER})
 	if err != nil {
-		logger.Errorw("Failed to lookup provider resource", "provider", providerName, "error", err)
+		logger.Errorw("Failed to lookup provider resource", "error", err)
 		return err
 	}
-	logger.Debugw("Provider for transformation location", "provider", providerName)
+	logger.Debug("Provider for transformation location")
 	providerProto, isProviderProto := providerResource.Proto().(*pb.Provider)
 	if !isProviderProto {
-		logger.Errorw("Provider resource is not a provider proto", "provider", providerResource.Proto())
+		logger.Errorw("Provider resource is not a provider proto")
 		return fferr.NewInternalErrorf("provider resource is not a provider proto")
 	}
+	logger.Debug("Getting localizer")
 	localizer, err := GetLocalizer(pt.Type(providerProto.GetType()), providerProto.GetSerializedConfig())
 	if err != nil {
-		logger.Errorw("Failed to get localizer", "provider", providerName, "error", err)
+		logger.Errorw("Failed to get localizer", "error", err)
 		return err
 	}
+	logger.Debug("Localizing source")
 	location, err := localizer.Localize(sv)
 	if err != nil {
 		logger.Errorw("Failed to localize transformation location", "provider", providerName, "error", err)
 		return err
 	}
-	logger.Debugw("Localized transformation location", "location", location.Location(), "type", location.Type())
+	logger = logger.With("location", location.Location(), "location-type", location.Type())
+	logger.Debugw("Localized transformation location")
 	transformation := sv.GetTransformation()
 
 	switch lt := location.(type) {
 	case *pl.SQLLocation:
-		logger.Debugw("Adding SQL location to transformation", "location", lt.Location())
+		logger.Debugw("Added SQL location to transformation")
 		transformation.Location = &pb.Transformation_Table{
 			Table: &pb.SQLTable{
 				Name: lt.Location(),
 			},
 		}
 	case *pl.CatalogLocation:
-		logger.Debugw("Adding catalog location to transformation", "database", lt.Database(), "table", lt.Table())
+		logger.Debugw("Added catalog location to transformation", "database", lt.Database(), "table", lt.Table())
 		transformation.Location = &pb.Transformation_Catalog{
 			Catalog: &pb.CatalogTable{
 				Database:    lt.Database(),
@@ -2810,7 +2825,7 @@ func (serv *MetadataServer) addTransformationLocation(ctx context.Context, sv *p
 			},
 		}
 	case *pl.FileStoreLocation:
-		logger.Debugw("Adding filestore location to transformation", "path", lt.Filepath().ToURI())
+		logger.Debugw("Added filestore location to transformation", "path", lt.Filepath().ToURI())
 		transformation.Location = &pb.Transformation_Filestore{
 			Filestore: &pb.FileStoreTable{
 				Path: lt.Filepath().ToURI(),
@@ -2840,7 +2855,7 @@ func (serv *MetadataServer) GetSourceVariants(stream pb.Metadata_GetSourceVarian
 		if !isSourceVariant {
 			return fferr.NewInternalErrorf("expected source variant, got %T", msg)
 		}
-		if err := serv.sourceVariantBackwardsCompatibility(ctx, sv); err != nil {
+		if err := serv.sourceVariantBackwardsCompatibility(ctx, sv, logger); err != nil {
 			return err
 		}
 		return stream.Send(sv)
@@ -2851,8 +2866,8 @@ func (serv *MetadataServer) GetSourceVariants(stream pb.Metadata_GetSourceVarian
 // were created before the expansion of location type into `CatalogTable` and `FileStoreTable` (i.e. PR #1109); for primary
 // sources, it achieves this by checking the location "name" to see if it stars with `glue://`, for Iceberg catalog locations,
 // or `s3://` or `s3a://`, for S3 filestore locations and updating the source variant's location to the new format.
-func (serv *MetadataServer) sourceVariantBackwardsCompatibility(ctx context.Context, sv *pb.SourceVariant) error {
-	logger := serv.Logger.With("source_name", sv.Name, "source_variant", sv.Variant)
+func (serv *MetadataServer) sourceVariantBackwardsCompatibility(ctx context.Context, sv *pb.SourceVariant, logger logging.Logger) error {
+	logger = logger.WithResource(logging.SourceVariant, sv.Name, sv.Variant)
 	logger.Debug("Checking source variant for backwards compatibility")
 	switch def := sv.GetDefinition().(type) {
 	case *pb.SourceVariant_PrimaryData:
@@ -2922,14 +2937,14 @@ func (serv *MetadataServer) sourceVariantBackwardsCompatibility(ctx context.Cont
 		logger.Debug("Backfilling transformation location")
 		// addTransformationLocation already works to handle new transformations, so we just need to call it here
 		// on existing transformations to ensure they are correctly backfilled.
-		if err := serv.addTransformationLocation(ctx, sv); err != nil {
+		if err := serv.addTransformationLocation(ctx, sv, logger); err != nil {
 			return err
 		}
 	default:
 		return fferr.NewInternalErrorf("unknown source variant definition type: %T", def)
 	}
 	id := ResourceID{Name: sv.Name, Variant: sv.Variant, Type: SOURCE_VARIANT}
-	logger.Debugw("Setting source variant", "id", id)
+	logger.Debugw("Setting updated source variant")
 	if err := serv.lookup.Set(ctx, id, &sourceVariantResource{sv}); err != nil {
 		logger.Errorw("Failed to set source variant", "id", id, "error", err)
 		return err
@@ -2939,7 +2954,7 @@ func (serv *MetadataServer) sourceVariantBackwardsCompatibility(ctx context.Cont
 }
 
 func (serv *MetadataServer) ListUsers(request *pb.ListRequest, stream pb.Metadata_ListUsersServer) error {
-	ctx := logging.AttachRequestID(request.RequestId, stream.Context(), serv.Logger)
+	ctx := logging.AttachRequestID(logging.RequestID(request.RequestId), stream.Context(), serv.Logger)
 	logging.GetLoggerFromContext(ctx).Info("Opened List Users stream")
 	return serv.genericList(ctx, USER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.User))
@@ -2947,7 +2962,7 @@ func (serv *MetadataServer) ListUsers(request *pb.ListRequest, stream pb.Metadat
 }
 
 func (serv *MetadataServer) CreateUser(ctx context.Context, userRequest *pb.UserRequest) (*pb.Empty, error) {
-	ctx = logging.AttachRequestID(userRequest.RequestId, ctx, serv.Logger)
+	ctx = logging.AttachRequestID(logging.RequestID(userRequest.RequestId), ctx, serv.Logger)
 	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.User, userRequest.User.Name, logging.NoVariant)
 	logger.Info("Creating User")
 	return serv.genericCreate(ctx, &userResource{userRequest.User}, nil)
@@ -2962,7 +2977,7 @@ func (serv *MetadataServer) GetUsers(stream pb.Metadata_GetUsersServer) error {
 }
 
 func (serv *MetadataServer) ListProviders(request *pb.ListRequest, stream pb.Metadata_ListProvidersServer) error {
-	ctx := logging.AttachRequestID(request.RequestId, stream.Context(), serv.Logger)
+	ctx := logging.AttachRequestID(logging.RequestID(request.RequestId), stream.Context(), serv.Logger)
 	logging.GetLoggerFromContext(ctx).Info("Opened List Providers stream")
 	return serv.genericList(ctx, PROVIDER, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Provider))
@@ -2970,7 +2985,7 @@ func (serv *MetadataServer) ListProviders(request *pb.ListRequest, stream pb.Met
 }
 
 func (serv *MetadataServer) CreateProvider(ctx context.Context, providerRequest *pb.ProviderRequest) (*pb.Empty, error) {
-	ctx = logging.AttachRequestID(providerRequest.RequestId, ctx, serv.Logger)
+	ctx = logging.AttachRequestID(logging.RequestID(providerRequest.RequestId), ctx, serv.Logger)
 	logger := logging.GetLoggerFromContext(ctx).
 		WithResource("provider", providerRequest.Provider.Name, "").
 		WithProvider(providerRequest.Provider.Type, providerRequest.Provider.Name)
@@ -2987,7 +3002,7 @@ func (serv *MetadataServer) GetProviders(stream pb.Metadata_GetProvidersServer) 
 }
 
 func (serv *MetadataServer) ListEntities(request *pb.ListRequest, stream pb.Metadata_ListEntitiesServer) error {
-	ctx := logging.AttachRequestID(request.RequestId, stream.Context(), serv.Logger)
+	ctx := logging.AttachRequestID(logging.RequestID(request.RequestId), stream.Context(), serv.Logger)
 	logging.GetLoggerFromContext(ctx).Info("Opened List Entities stream")
 	return serv.genericList(ctx, ENTITY, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Entity))
@@ -2995,7 +3010,7 @@ func (serv *MetadataServer) ListEntities(request *pb.ListRequest, stream pb.Meta
 }
 
 func (serv *MetadataServer) CreateEntity(ctx context.Context, entityRequest *pb.EntityRequest) (*pb.Empty, error) {
-	ctx = logging.AttachRequestID(entityRequest.RequestId, ctx, serv.Logger)
+	ctx = logging.AttachRequestID(logging.RequestID(entityRequest.RequestId), ctx, serv.Logger)
 	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.Entity, entityRequest.Entity.Name, logging.NoVariant)
 	logger.Info("Creating Entity")
 	return serv.genericCreate(ctx, &entityResource{entityRequest.Entity}, nil)
@@ -3010,7 +3025,7 @@ func (serv *MetadataServer) GetEntities(stream pb.Metadata_GetEntitiesServer) er
 }
 
 func (serv *MetadataServer) ListModels(request *pb.ListRequest, stream pb.Metadata_ListModelsServer) error {
-	ctx := logging.AttachRequestID(request.RequestId, stream.Context(), serv.Logger)
+	ctx := logging.AttachRequestID(logging.RequestID(request.RequestId), stream.Context(), serv.Logger)
 	logging.GetLoggerFromContext(ctx).Info("Opened List Models stream")
 	return serv.genericList(ctx, MODEL, func(msg proto.Message) error {
 		return stream.Send(msg.(*pb.Model))
@@ -3018,7 +3033,7 @@ func (serv *MetadataServer) ListModels(request *pb.ListRequest, stream pb.Metada
 }
 
 func (serv *MetadataServer) CreateModel(ctx context.Context, modelRequest *pb.ModelRequest) (*pb.Empty, error) {
-	ctx = logging.AttachRequestID(modelRequest.RequestId, ctx, serv.Logger)
+	ctx = logging.AttachRequestID(logging.RequestID(modelRequest.RequestId), ctx, serv.Logger)
 	logger := logging.GetLoggerFromContext(ctx).WithResource(logging.Model, modelRequest.Model.Name, logging.NoVariant)
 	logger.Info("Creating Model")
 	return serv.genericCreate(ctx, &modelResource{modelRequest.Model}, nil)
@@ -3034,7 +3049,7 @@ func (serv *MetadataServer) GetModels(stream pb.Metadata_GetModelsServer) error 
 
 // Run updates resources that have already been applied.
 func (serv *MetadataServer) Run(ctx context.Context, req *pb.RunRequest) (*pb.Empty, error) {
-	ctx = logging.AttachRequestID(req.RequestId, ctx, serv.Logger)
+	ctx = logging.AttachRequestID(logging.RequestID(req.RequestId), ctx, serv.Logger)
 	baseLogger := logging.GetLoggerFromContext(ctx)
 	baseLogger.Infow("Running resource variants", "num", len(req.Variants))
 	for _, variant := range req.Variants {
@@ -3074,7 +3089,7 @@ func (serv *MetadataServer) createTaskRuns(ctx context.Context, id ResourceID, t
 		trigger := scheduling.OnApplyTrigger{TriggerName: "Run"}
 		taskName := fmt.Sprintf("Create Resource %s (%s)", id.Name, id.Variant)
 		// This creates task runs to be picked up by the coordinator.
-		taskRun, err := serv.taskManager.CreateTaskRun(taskName, taskId, trigger)
+		taskRun, err := serv.taskManager.CreateTaskRun(ctx, taskName, taskId, trigger)
 		if err != nil {
 			logger.Errorw("unable to create task run", "task name", taskName, "task ID", taskId, "trigger", trigger.TriggerName, "error", err)
 			return err
@@ -3086,7 +3101,7 @@ func (serv *MetadataServer) createTaskRuns(ctx context.Context, id ResourceID, t
 
 // GetEquivalent attempts to find an equivalent resource based on the provided ResourceVariant.
 func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.GetEquivalentRequest) (*pb.ResourceVariant, error) {
-	ctx = logging.AttachRequestID(req.RequestId, ctx, serv.Logger)
+	ctx = logging.AttachRequestID(logging.RequestID(req.RequestId), ctx, serv.Logger)
 	logging.GetLoggerFromContext(ctx).Infow("Getting Equivalent Resource Variant", "resource", req.Variant.Resource)
 	// todox: need to decide how to handle username. won't be availlable in OSS
 	return serv.getEquivalent(ctx, req, true, "default")
@@ -3237,67 +3252,75 @@ type initParentFn func(name, variant string) Resource
 
 func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, init initParentFn) (*pb.Empty, error) {
 	logger := logging.GetLoggerFromContext(ctx).WithResource(res.ID().Type.ToLoggingResourceType(), res.ID().Name, res.ID().Variant)
-	logger.Debugw("Creating Generic Resource: ", res.ID().Name, res.ID().Variant)
+	logger.Debug("Creating Generic Resource")
 
 	id := res.ID()
+	logger.Debug("Checking if resource is named safely")
 	if err := resourceNamedSafely(id); err != nil {
 		logger.Errorw("Resource name is not valid", "error", err)
 		return nil, err
 	}
-	existing, err := serv.lookup.Lookup(ctx, id)
-	if _, isResourceError := err.(*fferr.KeyNotFoundError); err != nil && !isResourceError {
+	logger.Debug("Getting existing resource if it already exists")
+	existing, err := serv.lookup.Lookup(logger.AttachToContext(ctx), id)
+	if _, isKeyNotFoundErr := err.(*fferr.KeyNotFoundError); err != nil && !isKeyNotFoundErr {
 		logger.Errorw("Error looking up resource", "resource ID", id, "error", err)
-		// TODO: consider checking the GRPCError interface to avoid double wrapping error
 		return nil, fferr.NewInternalError(err)
 	}
-
 	if existing != nil {
-		err = serv.validateExisting(res, existing)
-		if err != nil {
+		logger.Debug("Resource exists, validating...")
+		if err := serv.validateExisting(logger.AttachToContext(ctx), res, existing); err != nil {
 			logger.Errorw("ID exists but is not equivalent", "error", err)
 			return nil, err
 		}
+		logger.Debug("Updating existing resource")
 		if err := existing.Update(serv.lookup, res); err != nil {
 			logger.Errorw("Error updating existing resource", "error", err)
 			return nil, err
 		}
 		res = existing
+	} else {
+		logger.Info("Resource does not exist, creating now")
 	}
 
 	// Create the parent first. Better to have a hanging parent than a hanging dependency.
-
+	logger.Debug("Checking if ID has parent")
 	parentId, hasParent := id.Parent()
 	if hasParent {
-		parentExists, err := serv.lookup.Has(ctx, parentId)
-		if err != nil {
-			logger.Errorw("Unable to check if parent exists", "parent-id", parentId, "error", err)
+		logger = logger.With("parent-id", parentId)
+		parent, err := serv.lookup.Lookup(logger.AttachToContext(ctx), parentId)
+		_, isParentNotFoundErr := err.(*fferr.KeyNotFoundError)
+		if err != nil && !isParentNotFoundErr {
+			logger.Errorw("Unable to check if parent exists", "error", err)
 			return nil, err
 		}
-
-		if !parentExists {
-			logger.Debug("Parent does not exist, creating new parent")
+		parentFound := !isParentNotFoundErr
+		logger.With("parent-found", parentFound)
+		if !parentFound {
 			parent := init(id.Name, id.Variant)
-			logger.Infow("Parent ID", "Parent ID", parent.ID().String())
-			err = serv.lookup.Set(ctx, parentId, parent)
+			logger.Debug("Parent does not exist, creating new parent")
+			err = serv.lookup.Set(logger.AttachToContext(ctx), parentId, parent)
 			if err != nil {
-				logger.Errorw("Unable to create new parent", "parent-id", parentId, "error", err)
+				logger.Errorw("Unable to create new parent", "error", err)
 				return nil, err
 			}
 		} else {
-			if err := serv.setDefaultVariant(ctx, parentId, res.ID().Variant); err != nil {
-				logger.Errorw("Error setting default variant", "parent-id", parentId, "variant", res.ID().Variant, "error", err)
+			logger.Debug("Parent exists, setting default variant")
+			if err := serv.setDefaultVariant(logger.AttachToContext(ctx), parent, res.ID().Variant); err != nil {
+				logger.Errorw("Error setting default variant", "error", err)
 				return nil, err
 			}
 		}
 	}
 
-	if err := serv.lookup.Set(ctx, id, res); err != nil {
+	logger.Debug("Writing resource to storage")
+	if err := serv.lookup.Set(logger.AttachToContext(ctx), id, res); err != nil {
 		logger.Errorw("Error setting resource to lookup", "error", err)
 		return nil, err
 	}
+	logger.Info("Wrote resource to storage")
 
 	if serv.needsJob(res) && existing == nil {
-		logger.Info("Creating Job")
+		logger.Info("Creating tasks")
 		var taskIDs []scheduling.TaskID
 		if r, ok := res.(resourceTaskImplementation); ok {
 			taskIDs, err = r.TaskIDs()
@@ -3309,10 +3332,10 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 
 		// This logic is going to get removed. Currently exists to support the old coordinator logic.
 		for _, id := range taskIDs {
-			logger.Info("Creating Job", res.ID().Name, res.ID().Variant)
+			logger.Info("Creating task run")
 			trigger := scheduling.OnApplyTrigger{TriggerName: "Apply"}
 			taskName := fmt.Sprintf("Create Resource %s (%s)", res.ID().Name, res.ID().Variant)
-			taskRun, err := serv.taskManager.CreateTaskRun(taskName, id, trigger)
+			taskRun, err := serv.taskManager.CreateTaskRun(ctx, taskName, id, trigger)
 			if err != nil {
 				logger.Errorw("unable to create task run", "task name", taskName, "task ID", id, "trigger", trigger.TriggerName, "error", err)
 				return nil, err
@@ -3322,79 +3345,74 @@ func (serv *MetadataServer) genericCreate(ctx context.Context, res Resource, ini
 
 	}
 	if existing == nil {
-		if err := serv.propagateChange(ctx, res); err != nil {
-			logger.Errorw("Propagate change error", "error", err)
+		logger.Debug("Propogating change")
+		if err := serv.propagateChange(logger.AttachToContext(ctx), res); err != nil {
+			logger.Errorw("Failed to propogate change", "error", err)
 			return nil, err
 		}
 	}
 	return &pb.Empty{}, nil
 }
 
-func (serv *MetadataServer) setDefaultVariant(ctx context.Context, id ResourceID, defaultVariant string) error {
+func (serv *MetadataServer) setDefaultVariant(ctx context.Context, parent Resource, defaultVariant string) error {
 	logger := logging.GetLoggerFromContext(ctx)
-	parent, err := serv.lookup.Lookup(ctx, id)
-	if err != nil {
-		logger.Errorw("Unable to lookup parent", "parent-id", id, "error", err)
-		return err
-	}
+	logger.With("new-default-variant", defaultVariant)
+	logger.Debug("Setting default variant")
 	var parentResource Resource
 	if resource, ok := parent.(*sourceResource); ok {
+		logger.Debug("Parent is source")
 		resource.serialized.DefaultVariant = defaultVariant
 		parentResource = resource
 	}
 	if resource, ok := parent.(*labelResource); ok {
+		logger.Debug("Parent is label")
 		resource.serialized.DefaultVariant = defaultVariant
 		parentResource = resource
 	}
 	if resource, ok := parent.(*featureResource); ok {
+		logger.Debug("Parent is feature")
 		resource.serialized.DefaultVariant = defaultVariant
 		parentResource = resource
 	}
 	if resource, ok := parent.(*trainingSetResource); ok {
+		logger.Debug("Parent is training set")
 		resource.serialized.DefaultVariant = defaultVariant
 		parentResource = resource
 	}
-	logger.Debugw("set default variant for source", "source", parent.ID().Name, "source type", parent.ID().Type, "variant", defaultVariant)
-	err = serv.lookup.Set(ctx, id, parentResource)
-	if err != nil {
-		logger.Errorw("unable to set default variant", "parent-id", id, "error", err)
+	logger.Debug("Writing parent back")
+	if err := serv.lookup.Set(logger.AttachToContext(ctx), parent.ID(), parentResource); err != nil {
+		logger.Errorw("Unable to set default variant")
 		return err
 	}
+	logger.Debug("Successfully set default variant")
 	return nil
 }
-func (serv *MetadataServer) validateExisting(newRes Resource, existing Resource) error {
+func (serv *MetadataServer) validateExisting(ctx context.Context, newRes Resource, existing Resource) error {
 	// It's possible we found a resource with the same name and variant but different contents, if different contents
 	// we'll let the user know to ideally use a different variant
 	// i.e. user tries to register transformation with same name and variant but different definition.
-	_, isResourceVariant := newRes.(ResourceVariant)
-	if isResourceVariant {
-		isEquivalent, err := serv.isEquivalent(newRes, existing)
+	logger := logging.GetLoggerFromContext(ctx)
+	logger.Debug("Checking if new resource is equivalent to the existing one to avoid breaking immutability")
+	newResVariant, newIsVariant := newRes.(ResourceVariant)
+	existingVariant, existingIsVariant := existing.(ResourceVariant)
+	if newIsVariant != existingIsVariant {
+		logger.Errorw("Resource change breaks immutability, one does not support ResourceVariant")
+		return fferr.NewResourceChangedError(newRes.ID().Name, newRes.ID().Variant, fferr.ResourceType(newRes.ID().Type), nil)
+	}
+	if existingIsVariant && newIsVariant {
+		logger.Debug("Running isEquivalent")
+		isEquivalent, err := newResVariant.IsEquivalent(existingVariant)
 		if err != nil {
-			return err
+			logger.Errorw("Unable to check if resource change breaks immutability", "err", err)
+			return fferr.NewInternalError(err)
 		}
 		if !isEquivalent {
+			logger.Error("Resource change breaks immutability")
 			return fferr.NewResourceChangedError(newRes.ID().Name, newRes.ID().Variant, fferr.ResourceType(newRes.ID().Type), nil)
 		}
 	}
+	logger.Debug("Resource doesn't implement isEquivalent, it can be overwritten")
 	return nil
-}
-
-func (serv *MetadataServer) isEquivalent(newRes Resource, existing Resource) (bool, error) {
-	serv.Logger.Debugw("Checking resource variant equivalence", "newRes", newRes.Proto(), "existing", existing.Proto())
-
-	resVariant, ok := newRes.(ResourceVariant)
-	if !ok {
-		return false, nil
-	}
-	existingVariant, ok := existing.(ResourceVariant)
-	if !ok {
-		return false, nil
-	}
-	isEquivalent, err := resVariant.IsEquivalent(existingVariant)
-	if err != nil {
-		return false, fferr.NewInternalError(err)
-	}
-	return isEquivalent, nil
 }
 
 func (serv *MetadataServer) propagateChange(ctx context.Context, newRes Resource) error {
@@ -3488,7 +3506,7 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 				Name: req.GetName().Name,
 				Type: t,
 			}
-			ctx = logging.AttachRequestID(req.GetRequestId(), ctx, logger)
+			ctx = logging.AttachRequestID(logging.RequestID(req.GetRequestId()), ctx, logger)
 			loggerWithResource = logging.GetLoggerFromContext(ctx).WithResource(id.Type.ToLoggingResourceType(), id.Name, logging.NoVariant)
 		case variantStream:
 			req, err := casted.Recv()
@@ -3506,7 +3524,7 @@ func (serv *MetadataServer) genericGet(ctx context.Context, stream interface{}, 
 				Variant: req.GetNameVariant().Variant,
 				Type:    t,
 			}
-			ctx = logging.AttachRequestID(req.GetRequestId(), ctx, logger)
+			ctx = logging.AttachRequestID(logging.RequestID(req.GetRequestId()), ctx, logger)
 			loggerWithResource = logging.GetLoggerFromContext(ctx).WithResource(id.Type.ToLoggingResourceType(), id.Name, id.Variant)
 		default:
 			logger.Errorw("Invalid Stream for Get", "type", fmt.Sprintf("%T", casted))
@@ -3595,18 +3613,19 @@ func (serv *MetadataServer) GetResourceDAG(ctx context.Context, r Resource) (Res
 
 // Resource Variant structs for Dashboard
 type TrainingSetVariantResource struct {
-	Created     time.Time                           `json:"created"`
-	Description string                              `json:"description"`
-	Name        string                              `json:"name"`
-	Owner       string                              `json:"owner"`
-	Provider    string                              `json:"provider"`
-	Variant     string                              `json:"variant"`
-	Label       NameVariant                         `json:"label"`
-	Features    map[string][]FeatureVariantResource `json:"features"`
-	Status      string                              `json:"status"`
-	Error       string                              `json:"error"`
-	Tags        Tags                                `json:"tags"`
-	Properties  Properties                          `json:"properties"`
+	Created      time.Time                           `json:"created"`
+	Description  string                              `json:"description"`
+	Name         string                              `json:"name"`
+	Owner        string                              `json:"owner"`
+	Provider     string                              `json:"provider"`
+	ProviderType string                              `json:"providerType"`
+	Variant      string                              `json:"variant"`
+	Label        NameVariant                         `json:"label"`
+	Features     map[string][]FeatureVariantResource `json:"features"`
+	Status       string                              `json:"status"`
+	Error        string                              `json:"error"`
+	Tags         Tags                                `json:"tags"`
+	Properties   Properties                          `json:"properties"`
 }
 
 type FeatureVariantResource struct {
@@ -3703,6 +3722,18 @@ type ProviderResource struct {
 	Error            string                                  `json:"error"`
 	Tags             Tags                                    `json:"tags"`
 	Properties       Properties                              `json:"properties"`
+}
+
+type ModelResource struct {
+	Name         string                                  `json:"name"`
+	Type         string                                  `json:"type"`
+	Description  string                                  `json:"description"`
+	Features     map[string][]FeatureVariantResource     `json:"features"`
+	Labels       map[string][]LabelVariantResource       `json:"labels"`
+	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
+	Status       string                                  `json:"status"`
+	Tags         Tags                                    `json:"tags"`
+	Properties   Properties                              `json:"properties"`
 }
 
 func getSourceString(variant *SourceVariant) string {

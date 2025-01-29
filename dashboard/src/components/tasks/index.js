@@ -7,12 +7,20 @@
 
 import React from 'react';
 import TableDataWrapper from './tableDataWrapper';
+import { styled } from '@mui/system';
 
-export default function TaskRunsPage() {
+const PageContainer = styled('div')(() => ({
+  padding: 20,
+}));
+
+export default function TaskRunsPage({
+  name = '',
+  variant = '',
+}) {
   return (
-    <>
+    <PageContainer>
       <h3>Task Runs</h3>
-      <TableDataWrapper />
-    </>
+      <TableDataWrapper taskName={name} taskVariant={variant}/>
+    </PageContainer>
   );
 }

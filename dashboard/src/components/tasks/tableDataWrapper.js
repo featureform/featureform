@@ -23,7 +23,6 @@ import {
   Typography,
 } from '@mui/material';
 import { styled } from '@mui/system';
-import { useRouter } from 'next/router';
 import React, { useEffect, useState } from 'react';
 import { useDataAPI } from '../../hooks/dataAPI';
 import { WHITE } from '../../styles/theme';
@@ -85,9 +84,10 @@ const Root = styled('div')(() => ({
   },
 }));
 
-export default function TableDataWrapper() {
-  const router = useRouter();
-  const { name: queryName } = router.query;
+export default function TableDataWrapper({
+  taskName = '',
+  taskVariant = '',
+}) {
   const dataAPI = useDataAPI();
   const FILTER_STATUS_ALL = 'ALL';
   const FILTER_STATUS_ACTIVE = 'ACTIVE';
@@ -100,18 +100,19 @@ export default function TableDataWrapper() {
   const DEFAULT_PARAMS = Object.freeze({
     status: FILTER_STATUS_ALL,
     sortBy: SORT_DATE,
-    searchText: '',
+    searchText: '', // For search by task name
+    variantSearch: '',
     pageSize: 15,
     offset: 0,
   });
-
-  const initialSearchTxt = queryName ?? '';
+  
   const [searchParams, setSearchParams] = useState({
     ...DEFAULT_PARAMS,
-    searchText: initialSearchTxt,
+    searchText: taskName,
+    variantSearch: taskVariant,
   });
 
-  const [searchQuery, setSearchQuery] = useState(initialSearchTxt);
+  const [searchQuery, setSearchQuery] = useState(taskName);
   const [totalCount, setTotalCount] = useState(0);
   const [taskRunList, setTaskRunList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -150,7 +151,7 @@ export default function TableDataWrapper() {
   };
 
   const handleSearch = (searchArg = '') => {
-    setSearchParams({ ...searchParams, searchText: searchArg });
+    setSearchParams({ ...searchParams, searchText: searchArg, variantSearch: '' });
     setLoading(true);
   };
 

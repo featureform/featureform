@@ -6,10 +6,13 @@
 //
 
 import React from 'react';
+import { useRouter } from 'next/router';
 import TaskRunsPage from '../../src/components/tasks';
 
 const TaskRunsPageRoute = () => {
-  return <TaskRunsPage />;
+  const router = useRouter();
+  const { name, variant } = router.query;
+  return <TaskRunsPage name={name} variant={variant}/>;
 };
 
 export default TaskRunsPageRoute;

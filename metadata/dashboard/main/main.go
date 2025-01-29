@@ -21,7 +21,7 @@ import (
 )
 
 func main() {
-	logger := logging.NewLogger("coordinator")
+	logger := logging.NewLogger("dashboard-metadata")
 	defer logger.Sync()
 	logger.Info("Parsing Featureform App Config")
 	appConfig, err := config.Get(logger)

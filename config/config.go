@@ -128,9 +128,6 @@ func GetSlackChannelId() string {
 	return helpers.GetEnv("SLACK_CHANNEL_ID", "") //no meaningful fallback ID
 }
 
-func init() {
-}
-
 type StateProviderType string
 
 const (

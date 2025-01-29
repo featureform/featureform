@@ -226,6 +226,13 @@ func (db *DatabricksExecutor) getErrorMessage(jobId int64) (error, error) {
 		wrapped.AddDetail("executor_type", "Databricks")
 		return nil, wrapped
 	}
+	if len(run.Tasks) == 0 {
+		innerErr := fmt.Errorf("no tasks found for job run %d", runID)
+		noTasksErr := fferr.NewExecutionError("Databricks", innerErr)
+		noTasksErr.AddDetail("job_id", jobIdStr)
+		noTasksErr.AddDetail("executor_type", "Databricks")
+		return nil, noTasksErr
+	}
 	task := run.Tasks[0]
 	// use task.RunId to get output for the task
 	output, err := db.client.Jobs.GetRunOutputByRunId(ctx, task.RunId)

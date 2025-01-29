@@ -11,6 +11,7 @@ import (
 	"github.com/apache/arrow/go/v17/arrow/flight"
 	"github.com/apache/arrow/go/v17/arrow/ipc"
 	"github.com/apache/arrow/go/v17/arrow/memory"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -27,7 +28,7 @@ type flightServer struct {
 
 func (f *flightServer) DoGet(ticket *flight.Ticket, fs flight.FlightService_DoGetServer) error {
 	ticketData := string(ticket.GetTicket())
-	fmt.Println("received ticket data: ", ticketData) // todox: delete
+	fmt.Println("received ticket data: ", ticketData) // todox: use logger
 	recordSlice, ok := Records["students"]
 	if !ok {
 		return status.Error(codes.NotFound, "flight not found")
@@ -42,7 +43,6 @@ func (f *flightServer) DoGet(ticket *flight.Ticket, fs flight.FlightService_DoGe
 }
 
 func init() {
-	fmt.Println("asdf")
 	Records["students"] = createStudentRecords()
 
 	for k := range Records {
@@ -124,6 +124,7 @@ func arrayFrom(memoryAlloc memory.Allocator, a interface{}, valids []bool) arrow
 }
 
 func TestFlightServer(t *testing.T) {
+	// prep flight server
 	grpcServer := grpc.NewServer()
 	listener, err := net.Listen("tcp", "localhost:9191") // todox: need to update port dynamically
 	if err != nil {
@@ -132,6 +133,7 @@ func TestFlightServer(t *testing.T) {
 
 	// start the proxy flight server
 	f := flightServer{}
+	// todo: make the records part of the flight server?
 	flight.RegisterFlightServiceServer(grpcServer, &f)
 	go func() {
 		servErr := grpcServer.Serve(listener)
@@ -143,20 +145,23 @@ func TestFlightServer(t *testing.T) {
 
 	defer grpcServer.Stop()
 
-	fmt.Println(len(Records))
-
 	t.Setenv("ICEBERG_PROXY_HOST", "localhost")
 	t.Setenv("ICEBERG_PROXY_PORT", "9191")
 
-	iterator, err := GetStreamProxyClient(context.TODO(), "some", "some", 100)
+	// get proxy client
+	proxyClient, err := GetStreamProxyClient(context.Background(), "some_name", "some_variant", -1)
+	initialNext := proxyClient.Next()
 
-	// todox: delete this
-	fmt.Println(iterator.Columns())
-	fmt.Println(iterator.Next())
-	fmt.Println(iterator.Values())
+	assert.True(t, initialNext)
+	assert.Len(t, proxyClient.Columns(), 3)
+	assert.Equal(t, proxyClient.Columns(), []string{"graduated", "ages", "names"})
 
-	// todox: need to assert the returned columns and values.
-	// also include the schema in the proxy client?
+	values := proxyClient.Values()
+	assert.Equal(t, values[0], []string{"true", "20", "neo"})
+	assert.Equal(t, values[1], []string{"false", "43", "asma"})
+	assert.Equal(t, values[2], []string{"true", "60", "derek"})
+	assert.Equal(t, values[3], []string{"false", "18", "tony"})
+	assert.False(t, proxyClient.Next(), "Subsequent call to next() should be false")
 
 	if err != nil {
 		fmt.Println("explode")

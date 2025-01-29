@@ -8,21 +8,21 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/scheduling"
-	"go.uber.org/zap"
 )
 
 func main() {
-	sugaredLogger := zap.NewExample().Sugar()
-	logger := logging.WrapZapLogger(sugaredLogger)
+	logger := logging.NewLogger("local-metadata")
+	ctx := logger.AttachToContext(context.Background())
 	addr := help.GetEnv("METADATA_PORT", "8080")
 
-	meta, err := scheduling.NewMemoryTaskMetadataManager()
+	meta, err := scheduling.NewMemoryTaskMetadataManager(ctx)
 	config := &metadata.Config{
 		Logger:      logger,
 		Address:     fmt.Sprintf(":%s", addr),

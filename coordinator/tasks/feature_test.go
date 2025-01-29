@@ -18,16 +18,16 @@ import (
 )
 
 func TestFeatureTaskRun(t *testing.T) {
-	logger := logging.NewTestLogger(t)
+	ctx, logger := logging.NewTestContextAndLogger(t)
 
-	serv, addr := startServ(t)
+	serv, addr := startServ(t, ctx, logger)
 	defer serv.Stop()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
 		panic(err)
 	}
 
-	sourceTaskRun := createPreqResources(t, client)
+	sourceTaskRun := createPreqResources(t, ctx, client)
 	t.Log("Source Run:", sourceTaskRun)
 
 	err = client.Tasks.SetRunStatus(sourceTaskRun.TaskId, sourceTaskRun.ID, scheduling.RUNNING, nil)

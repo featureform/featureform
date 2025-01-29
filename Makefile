@@ -533,10 +533,10 @@ test_e2e_behave:
 	echo "Starting end to end tests"
 	pytest -vv -s tests/end_to_end/pytest
 
-	export FF_TIMESTAMP_VARIANT="false" && export FF_GET_EQUIVALENT_VARIANTS: "false"
+	export FF_GET_EQUIVALENT_VARIANTS: "false"
 	behavex -t '~@wip' -t '~@long' -t '~@av' --no-capture --no-logcapture --no-capture-stderr --parallel-processes 5 --parallel-scheme scenario
 
-	export FF_TIMESTAMP_VARIANT="true" && export FF_GET_EQUIVALENT_VARIANTS: "true"
+	export FF_GET_EQUIVALENT_VARIANTS: "true"
 	behavex -t '~@wip' -t '~@long' -t '@av' --no-capture --no-logcapture --no-capture-stderr --parallel-processes 5 --parallel-scheme scenario
 
 test_e2e: test_e2e_pytest test_e2e_behave

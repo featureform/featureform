@@ -7,6 +7,7 @@
 
 import random
 from datetime import datetime
+from . import feature_flag
 
 # 140 adjectives
 left = [
@@ -504,8 +505,11 @@ def get_random_name(sep="_"):
         return name
 
 
-def get_current_timestamp_variant(prefix="", sep="_"):
+def get_current_timestamp_variant(prefix="", sep="_", inclue_micro=False):
     # Explore variant names and what's allowed for different providers
     # current_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-    current_timestamp = datetime.now().strftime("%Y-%m-%dt%H-%M-%S")
+    fmt = "%Y-%m-%dt%H-%M-%S"
+    if feature_flag.is_enabled("FF_AUTOVARIANT_MICROSEC", False):
+        fmt += "_%f"
+    current_timestamp = datetime.now().strftime(fmt)
     return current_timestamp if prefix == "" else f"{prefix}{sep}{current_timestamp}"

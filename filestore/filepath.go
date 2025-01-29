@@ -83,7 +83,7 @@ type Filepath interface {
 	// This naming technically conflicts with the standard definition of "scheme," which
 	// is only the protocol _without_ the domain and port (i.e. authority); however, given
 	// we're not using these components independently and there's no single term to denote
-	// <SCHEME>://<HOST>:<PORT>, we're using "scheme" to encompass all three.
+	// <SCHEME><HOST>:<PORT>, we're using "scheme" to encompass all three.
 	Scheme() string
 	SetScheme(scheme string) error
 
@@ -177,10 +177,10 @@ type FilePath struct {
 
 func (fp *FilePath) Clone() Filepath {
 	return &FilePath{
-		scheme: fp.scheme,
-		bucket: fp.bucket,
-		key: fp.key,
-		isDir: fp.isDir,
+		scheme:  fp.scheme,
+		bucket:  fp.bucket,
+		key:     fp.key,
+		isDir:   fp.isDir,
 		isValid: fp.isValid,
 	}
 }
@@ -397,7 +397,7 @@ type AzureFilepath struct {
 func (azure *AzureFilepath) Clone() Filepath {
 	return &AzureFilepath{
 		StorageAccount: azure.StorageAccount,
-		FilePath: *azure.FilePath.Clone().(*FilePath),
+		FilePath:       *azure.FilePath.Clone().(*FilePath),
 	}
 }
 
@@ -476,10 +476,10 @@ type GCSFilepath struct {
 func NewGCSFilepath(bucket, key string, isDir bool) (*GCSFilepath, error) {
 	path := &GCSFilepath{
 		FilePath{
-			scheme: GSPrefix,
-			bucket: bucket,
-			key: key,
-			isDir: isDir,
+			scheme:  GSPrefix,
+			bucket:  bucket,
+			key:     key,
+			isDir:   isDir,
 			isValid: false,
 		},
 	}

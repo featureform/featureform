@@ -77,9 +77,10 @@ func (lookup MemoryResourceLookup) deserialize(value []byte) (EtcdRow, error) {
 }
 
 func (lookup MemoryResourceLookup) Lookup(ctx context.Context, id ResourceID, opts ...ResourceLookupOption) (Resource, error) {
-	logger := logging.NewLogger("lookup")
+	logger := logging.GetLoggerFromContext(ctx)
 	key := createKey(id)
-	logger.Infow("Get", "key", key)
+	logger.With("lookup-key", key)
+	logger.Info("Performing lookup on DB")
 
 	options, err := parseResourceLookupOptions(opts...)
 	logger.Debugw("Resource lookup options", "options", options)
@@ -91,24 +92,28 @@ func (lookup MemoryResourceLookup) Lookup(ctx context.Context, id ResourceID, op
 	logger.Debugw("Query options", "options", qOpts, "key", key, "id", id)
 	resp, err := lookup.Connection.Get(key, qOpts...)
 	if err != nil || len(resp) == 0 {
+		logger.Debug("Key not found")
 		return nil, fferr.NewKeyNotFoundError(key, err)
 	}
-	logger.Infow("Deserialize", "key", key)
+	logger.Debug("Deserializing key")
 	msg, err := lookup.deserialize([]byte(resp))
 	if err != nil {
+		logger.Errorw("Failed to deserialize resource from DB", "err", err)
 		return nil, err
 	}
-	logger.Infow("Create empty resource", "key", key)
+	logger.Debug("Create empty resource")
 	resType, err := CreateEmptyResource(msg.ResourceType)
 	if err != nil {
+		logger.Errorw("Failed to create empty resource", "err", err)
 		return nil, err
 	}
-	logger.Infow("Parse resource", "key", key)
+	logger.Debug("Parsing resource")
 	resource, err := ParseResource(msg, resType)
 	if err != nil {
+		logger.Errorw("Failed to parse resource from DB", "err", err)
 		return nil, err
 	}
-	logger.Infow("Return", "key", key)
+	logger.Info("DB lookup successful")
 	return resource, nil
 }
 

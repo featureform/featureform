@@ -123,7 +123,7 @@ func arrayFrom(memoryAlloc memory.Allocator, a interface{}, valids []bool) arrow
 	}
 }
 
-func TestFlightServer(t *testing.T) {
+func TestFlightServer_GetStreamProxyClient(t *testing.T) {
 	// prep flight server
 	grpcServer := grpc.NewServer()
 	listener, listenErr := net.Listen("tcp", "localhost:9191") // todox: need to update port dynamically

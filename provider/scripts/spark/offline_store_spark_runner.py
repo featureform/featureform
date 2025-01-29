@@ -1001,6 +1001,20 @@ def get_source_df(source, credentials, is_update, spark):
 
         timestamp_column = source.get("timestampColumnName")
         return source_df
+    elif location_type == "sql" and source.get("provider") == "BIGQUERY_OFFLINE":
+        print(f"Reading Bigquery table: {location}")
+        projId = credentials.get("bqProjectId")
+        datasetId = credentials.get("bqDatasetId")
+        options = {
+            "credentials": credentials.get("bqCreds"),
+            "parentProject": projId,
+            "viewsEnabled": "true",
+            "table": f"{projId}.{datasetId}.{location}",
+        }
+        source_df = spark.read.format("bigquery").options(**options).load()
+
+        timestamp_column = source.get("timestampColumnName")
+        return source_df
     elif location_type == "filestore":
         file_extension = Path(location).suffix
         is_directory = file_extension == ""

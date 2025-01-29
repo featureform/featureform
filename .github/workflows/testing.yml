@@ -118,7 +118,6 @@ jobs:
             ,testing/s3
             ,testing/bigquery
             ,testing/gcs
-            ,testing/etcd
             ,testing/redis
             ,testing/meilisearch
             ,testing/pinecone
@@ -135,7 +134,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version: "1.22"
           check-latest: true
           cache-dependency-path: |
             go.sum
@@ -197,15 +196,6 @@ jobs:
           ls provider
           pwd
 
-      - name: Install ETCD
-        run: |
-          git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
-          cd etcd
-          ./build
-          export PATH="$PATH:`pwd`/bin"
-          etcd --version
-          etcd --logger=zap &
-
       - name: Run HDFS
         run: |
           # git clone https://github.com/rancavil/hadoop-single-node-cluster.git
@@ -258,9 +248,12 @@ jobs:
           ls -la
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.21
+          go-version: "1.22"
+          check-latest: true
+          cache-dependency-path: |
+            go.sum
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -416,9 +409,12 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.21
+          go-version: "1.22"
+          check-latest: true
+          cache-dependency-path: |
+            go.sum
 
       - uses: actions/setup-python@v5
         with:
@@ -452,7 +448,6 @@ jobs:
             ,testing/s3
             ,testing/bigquery
             ,testing/gcs
-            ,testing/etcd
             ,testing/redis
             ,testing/meilisearch
             ,testing/pinecone
@@ -579,9 +574,12 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.21
+          go-version: "1.22"
+          check-latest: true
+          cache-dependency-path: |
+            go.sum
 
       - uses: actions/setup-python@v5
         with:
@@ -615,7 +613,6 @@ jobs:
             ,testing/s3
             ,testing/bigquery
             ,testing/gcs
-            ,testing/etcd
             ,testing/redis
             ,testing/meilisearch
             ,testing/pinecone
@@ -638,7 +635,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Run Container
-        run: docker run -d --name featureform -p 7878:7878 -p 80:80 -p 8085:8085 -p 8086:8086 -e FEATUREFORM_DEBUG_LOGGING=true -e FF_STATE_PROVIDER=etcd featureform
+        run: docker run -d --name featureform -p 7878:7878 -p 80:80 -p 8085:8085 -p 8086:8086 -e FEATUREFORM_DEBUG_LOGGING=true -e FF_STATE_PROVIDER=psql featureform
 
       - name: Setup Proto
         run: ./gen_grpc.sh
@@ -742,9 +739,12 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.21
+          go-version: "1.22"
+          check-latest: true
+          cache-dependency-path: |
+            go.sum
 
       - uses: actions/setup-python@v5
         with:
@@ -778,7 +778,6 @@ jobs:
             ,testing/s3
             ,testing/bigquery
             ,testing/gcs
-            ,testing/etcd
             ,testing/redis
             ,testing/meilisearch
             ,testing/pinecone
@@ -801,7 +800,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Run Container
-        run: docker run -d --name featureform -p 7878:7878 -p 80:80 -p 8085:8085 -p 8086:8086 -e FEATUREFORM_DEBUG_LOGGING=true -e FF_STATE_PROVIDER=etcd featureform
+        run: docker run -d --name featureform -p 7878:7878 -p 80:80 -p 8085:8085 -p 8086:8086 -e FEATUREFORM_DEBUG_LOGGING=true -e FF_STATE_PROVIDER=psql featureform
 
       - name: Setup Proto
         run: ./gen_grpc.sh

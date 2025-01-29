@@ -126,9 +126,9 @@ func arrayFrom(memoryAlloc memory.Allocator, a interface{}, valids []bool) arrow
 func TestFlightServer(t *testing.T) {
 	// prep flight server
 	grpcServer := grpc.NewServer()
-	listener, err := net.Listen("tcp", "localhost:9191") // todox: need to update port dynamically
-	if err != nil {
-		t.Fatalf("Failed to bind address to :%s", err)
+	listener, listenErr := net.Listen("tcp", "localhost:9191") // todox: need to update port dynamically
+	if listenErr != nil {
+		t.Fatalf("Failed to bind address to :%s", listenErr)
 	}
 
 	// start the proxy flight server
@@ -149,7 +149,10 @@ func TestFlightServer(t *testing.T) {
 	t.Setenv("ICEBERG_PROXY_PORT", "9191")
 
 	// get proxy client
-	proxyClient, err := GetStreamProxyClient(context.Background(), "some_name", "some_variant", -1)
+	proxyClient, proxyErr := GetStreamProxyClient(context.Background(), "some_name", "some_variant", -1)
+	if proxyErr != nil {
+		t.Fatalf("An error occurred calling GetStreamProxyClient(): %v", proxyErr)
+	}
 	initialNext := proxyClient.Next()
 
 	assert.True(t, initialNext)
@@ -163,8 +166,4 @@ func TestFlightServer(t *testing.T) {
 	assert.Equal(t, values[3], []string{"false", "18", "tony"})
 	assert.False(t, proxyClient.Next(), "Subsequent call to next() should be false")
 
-	if err != nil {
-		fmt.Println("explode")
-		panic("haha")
-	}
 }

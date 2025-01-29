@@ -10,18 +10,20 @@ package metadata
 import (
 	"testing"
 
+	"github.com/featureform/logging"
 	ptypes "github.com/featureform/provider/types"
 	s "github.com/featureform/scheduling"
 )
 
 func TestSetRunID(t *testing.T) {
-	serv, addr := startServ(t)
+	ctx, logger := logging.NewTestContextAndLogger(t)
+	serv, addr := startServ(t, ctx, logger)
 	defer serv.GracefulStop()
-	client := client(t, addr)
+	client := client(t, ctx, logger, addr)
 	taskClient := client.Tasks
 
 	target := s.NameVariant{Name: "a", Variant: "b", ResourceType: "test"}
-	task, err := serv.taskManager.CreateTask("mytask", s.ResourceCreation, target)
+	task, err := serv.taskManager.CreateTask(ctx, "mytask", s.ResourceCreation, target)
 	if err != nil {
 		t.Fatalf("Failed to create task: %s", err)
 	}

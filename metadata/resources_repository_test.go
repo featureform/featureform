@@ -3,24 +3,27 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/featureform/fferr"
+	"github.com/featureform/helpers/postgres"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata/common"
 	pb "github.com/featureform/metadata/proto"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
-	"github.com/jackc/pgx/v4/pgxpool"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 type TestResourcesRepository struct {
 	repo *sqlResourcesRepository
-	db   *pgxpool.Pool
+	db   *postgres.Pool
 }
 
 // NewTestResourcesRepository wraps an existing sqlResourcesRepository for testing.
-func NewTestResourcesRepository(repo *sqlResourcesRepository, db *pgxpool.Pool) *TestResourcesRepository {
+func NewTestResourcesRepository(repo *sqlResourcesRepository, db *postgres.Pool) *TestResourcesRepository {
 	return &TestResourcesRepository{
 		repo: repo,
 		db:   db,
@@ -28,7 +31,7 @@ func NewTestResourcesRepository(repo *sqlResourcesRepository, db *pgxpool.Pool) 
 }
 
 // resetDatabase clears all data from tables for a clean test run.
-func resetDatabase(db *pgxpool.Pool) error {
+func resetDatabase(db *postgres.Pool) error {
 	queries := []string{
 		"TRUNCATE TABLE edges CASCADE;",
 		"TRUNCATE TABLE ff_task_metadata CASCADE;",
@@ -55,11 +58,11 @@ type TestMetadataServer struct {
 	t *testing.T
 }
 
-func newTestMetadataServer(t *testing.T) *TestMetadataServer {
+func newTestMetadataServer(t *testing.T, ctx context.Context, logger logging.Logger) *TestMetadataServer {
 	t.Helper()
 
 	// Start the MetadataServer
-	serv, addr := startServPsql(t)
+	serv, addr := startServPsql(t, ctx, logger)
 
 	// Cast the server's repository to sqlResourcesRepository
 	sqlRepo, ok := serv.resourcesRepository.(*sqlResourcesRepository)
@@ -69,7 +72,7 @@ func newTestMetadataServer(t *testing.T) *TestMetadataServer {
 	testRepo := NewTestResourcesRepository(sqlRepo, sqlRepo.db)
 
 	// Initialize gRPC client
-	cli := client(t, addr)
+	cli := client(t, ctx, logger, addr)
 
 	return &TestMetadataServer{
 		server:                  serv,
@@ -129,10 +132,10 @@ func TestDeleteProvider(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
-	ctx := context.Background()
+	ctx, logger := logging.NewTestContextAndLogger(t)
 
 	// Initialize the test server once for all subtests
-	testServer := newTestMetadataServer(t)
+	testServer := newTestMetadataServer(t, ctx, logger)
 	defer testServer.Close()
 
 	// Define reusable resources and IDs
@@ -199,10 +202,10 @@ func TestDeletePrimary(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
-	ctx := context.Background()
+	ctx, logger := logging.NewTestContextAndLogger(t)
 
 	// Initialize the test server once for all subtests
-	testServer := newTestMetadataServer(t)
+	testServer := newTestMetadataServer(t, ctx, logger)
 	defer testServer.Close()
 
 	// Define reusable resources and IDs
@@ -431,9 +434,9 @@ func TestDeleteDag(t *testing.T) {
 		},
 	}
 
+	ctx, logger := logging.NewTestContextAndLogger(t)
 	// Initialize the test server once for all subtests
-	ctx := context.Background()
-	testServer := newTestMetadataServer(t)
+	testServer := newTestMetadataServer(t, ctx, logger)
 	defer testServer.Close()
 
 	resourceIds := make([]ResourceID, 0)
@@ -662,8 +665,8 @@ func TestPrune(t *testing.T) {
 	}
 
 	// Initialize the test server once for all subtests
-	ctx := context.Background()
-	testServer := newTestMetadataServer(t)
+	ctx, logger := logging.NewTestContextAndLogger(t)
+	testServer := newTestMetadataServer(t, ctx, logger)
 	defer testServer.Close()
 
 	resourceIds := make([]ResourceID, 0)

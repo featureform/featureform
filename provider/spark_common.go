@@ -49,6 +49,7 @@ func sparkPythonFileURI(store SparkFileStoreV2, logger logging.Logger) (filestor
 		logger.Errorw("Failed to parse remote script path", "path", rawPath)
 		return nil, err
 	}
+	// TODO (simba) make this a bool
 	// Need to replace s3a:// with s3:// for the script name
 	// to be correctly interpreted by Spark
 	if sparkScriptPath.Scheme() == filestore.S3APrefix {
@@ -243,8 +244,7 @@ func readAndUploadFile(filePath filestore.Filepath, storePath filestore.Filepath
 	}
 
 	pythonScriptBytes := make([]byte, fileStats.Size())
-	_, err = f.Read(pythonScriptBytes)
-	if err != nil {
+	if _, err = f.Read(pythonScriptBytes); err != nil {
 		logger.Errorw("Failed to read local file for copy", "error", err)
 		return fferr.NewInternalError(err)
 	}

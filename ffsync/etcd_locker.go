@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/helpers"
+	"github.com/featureform/helpers/etcd"
 	"github.com/featureform/logging"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
@@ -29,7 +29,7 @@ type etcdKey struct {
 	session   *concurrency.Session
 }
 
-func (k etcdKey) ID() string {
+func (k etcdKey) Owner() string {
 	return k.id
 }
 
@@ -37,7 +37,7 @@ func (k etcdKey) Key() string {
 	return k.key
 }
 
-func NewETCDLocker(config helpers.ETCDConfig) (Locker, error) {
+func NewETCDLocker(config etcd.Config) (Locker, error) {
 	client, err := clientv3.New(clientv3.Config{
 		Endpoints: []string{config.URL()},
 		Username:  config.Username,

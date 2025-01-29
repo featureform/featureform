@@ -18,9 +18,10 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/helpers"
-	"github.com/jackc/pgx/v4/pgxpool"
-	_ "github.com/lib/pq"
+	"github.com/featureform/helpers/etcd"
+	"github.com/featureform/helpers/postgres"
+	"github.com/featureform/logging"
+
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
 )
@@ -73,7 +74,7 @@ func (id Uint64OrderedId) MarshalJSON() ([]byte, error) {
 }
 
 type OrderedIdGenerator interface {
-	NextId(namespace string) (OrderedId, error)
+	NextId(ctx context.Context, namespace string) (OrderedId, error)
 	Close()
 }
 
@@ -89,7 +90,7 @@ type memoryIdGenerator struct {
 	mu       sync.Mutex
 }
 
-func (m *memoryIdGenerator) NextId(namespace string) (OrderedId, error) {
+func (m *memoryIdGenerator) NextId(ctx context.Context, namespace string) (OrderedId, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -108,7 +109,7 @@ func (m *memoryIdGenerator) Close() {
 	// No-op
 }
 
-func NewETCDOrderedIdGenerator(config helpers.ETCDConfig) (OrderedIdGenerator, error) {
+func NewETCDOrderedIdGenerator(config etcd.Config) (OrderedIdGenerator, error) {
 	timeout := func() time.Duration {
 		if config.DialTimeout == 0 {
 			return 5 * time.Second
@@ -136,7 +137,7 @@ type etcdIdGenerator struct {
 	ctx    context.Context
 }
 
-func (etcd *etcdIdGenerator) NextId(namespace string) (OrderedId, error) {
+func (etcd *etcdIdGenerator) NextId(ctx context.Context, namespace string) (OrderedId, error) {
 	if namespace == "" {
 		return nil, fferr.NewInternalError(fmt.Errorf("cannot generate ID for empty namespace"))
 	}
@@ -190,71 +191,68 @@ func (etcd *etcdIdGenerator) Close() {
 	etcd.client.Close()
 }
 
-func NewPSQLOrderedIdGenerator(config helpers.PSQLConfig) (OrderedIdGenerator, error) {
+func NewPSQLOrderedIdGenerator(
+	ctx context.Context, connPool *postgres.Pool,
+) (OrderedIdGenerator, error) {
 	const tableName = "ff_ordered_id"
-
-	db, err := helpers.NewPSQLPoolConnection(config)
-	if err != nil {
-		return nil, err
-	}
-
-	// acquire a connection pool
-	connection, err := db.Acquire(context.Background())
-	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("failed to acquire connection from the database pool: %w", err))
-	}
-
-	// ping the database
-	err = connection.Ping(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("failed to ping the database: %w", err)
-	}
-
+	logger := logging.GetLoggerFromContext(ctx).WithValues(map[string]any{
+		"ordered-id-table-name": tableName,
+	})
 	// Create the id table if it doesn't exist
-	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (namespace VARCHAR(2048) PRIMARY KEY, current_id BIGINT)", helpers.SanitizePostgres(tableName))
-	_, err = db.Exec(context.Background(), tableCreationSQL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create table %s: %w", tableName, err)
+	// TODO(ali) move this to goose
+	logger.Info("Creating ordered id table in postgres if it doesn't exist")
+	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (namespace VARCHAR(2048) PRIMARY KEY, current_id BIGINT)", postgres.Sanitize(tableName))
+	logger.Debugw("OrderedID table creation query", "query", tableCreationSQL)
+	if _, err := connPool.Exec(context.Background(), tableCreationSQL); err != nil {
+		logger.Errorw(
+			"Failed to create OrderedID table in postgres",
+			"query", tableCreationSQL, "error", err,
+		)
+		return nil, fferr.NewInternalErrorf("failed to create table %s: %w", tableName, err)
 	}
-
+	logger.Infow("Successfully created OrderedIDGenerator for postgres")
 	return &pgIdGenerator{
-		db:         db,
-		tableName:  tableName,
-		connection: connection,
+		connPool:  connPool,
+		tableName: tableName,
+		logger:    logger,
 	}, nil
 }
 
 type pgIdGenerator struct {
-	db         *pgxpool.Pool
-	tableName  string
-	connection *pgxpool.Conn
+	connPool  *postgres.Pool
+	tableName string
+	logger    logging.Logger
 }
 
-func (pg *pgIdGenerator) NextId(namespace string) (OrderedId, error) {
+func (pg *pgIdGenerator) NextId(ctx context.Context, namespace string) (OrderedId, error) {
+	logger := pg.logger.WithRequestIDFromContext(ctx).With("ordered-id-namespace", namespace)
+	logger.Debug("Getting next ordered ID from postgres")
 	if namespace == "" {
-		return nil, fmt.Errorf("cannot generate ID for empty namespace")
+		errMsg := "cannot generate ID for empty namespace"
+		logger.Error(errMsg)
+		return nil, fferr.NewInternalErrorf(errMsg)
 	}
 
 	var nextId int64
 	upsertIdQuery := pg.upsertIdQuery()
-	err := pg.db.QueryRow(context.Background(), upsertIdQuery, namespace, 1).Scan(&nextId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update key %s: %w", namespace, err)
+	logger.Debugw("Running next ID postgres query", "query", upsertIdQuery)
+	if err := pg.connPool.QueryRow(ctx, upsertIdQuery, namespace, 1).Scan(&nextId); err != nil {
+		errMsg := "failed to get next ID in namespace"
+		logger.Errorw(errMsg, "err", err)
+		return nil, fferr.NewInternalErrorf("%s %s: %w", errMsg, namespace, err)
 	}
-
+	logger.Debugw("Got next ID", "next-id", nextId)
 	id := Uint64OrderedId(nextId)
-
 	return id, nil
 }
 
 func (pg *pgIdGenerator) Close() {
-	pg.connection.Release()
-	pg.db.Close()
+	// No-op
 }
 
 // SQL Queries
 func (pg *pgIdGenerator) upsertIdQuery() string {
-	sanitizedTableName := helpers.SanitizePostgres(pg.tableName)
+	sanitizedTableName := postgres.Sanitize(pg.tableName)
 	return fmt.Sprintf("INSERT INTO %s (namespace, current_id) VALUES ($1, $2) ON CONFLICT (namespace) DO UPDATE SET current_id = %s.current_id + 1 RETURNING current_id", sanitizedTableName, sanitizedTableName)
 }
 

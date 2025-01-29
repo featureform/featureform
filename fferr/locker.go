@@ -29,6 +29,9 @@ func NewKeyAlreadyLockedError(key string, lockId string, err error) *KeyAlreadyL
 }
 
 func IsKeyAlreadyLockedError(err error) bool {
+	if err == nil {
+		return false
+	}
 	if _, ok := err.(*KeyAlreadyLockedError); ok {
 		return true
 	} else {

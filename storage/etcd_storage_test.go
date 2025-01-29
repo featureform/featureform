@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/featureform/helpers"
+	"github.com/featureform/helpers/etcd"
 )
 
 func TestETCDMetadataStorage(t *testing.T) {
@@ -21,7 +22,7 @@ func TestETCDMetadataStorage(t *testing.T) {
 	etcdHost := helpers.GetEnv("ETCD_HOST", "localhost")
 	etcdPort := helpers.GetEnv("ETCD_PORT", "2379")
 
-	etcdConfig := helpers.ETCDConfig{
+	etcdConfig := etcd.Config{
 		Host:     etcdHost,
 		Port:     etcdPort,
 		Username: "root",

@@ -23,6 +23,45 @@ type flightServer struct {
 	Logger  logging.Logger
 }
 
+func startProxyServer(t *testing.T, recordSlice []arrow.Record, schema *arrow.Schema) (func(), error) {
+	// prep flight server and env
+	grpcServer := grpc.NewServer()
+	listener, listenErr := net.Listen("tcp", "localhost:0")
+	if listenErr != nil {
+		t.Fatalf("Failed to bind address to :%s", listenErr)
+	}
+
+	// pull the os assigned port
+	testPort := listener.Addr().(*net.TCPAddr).Port
+
+	t.Setenv("ICEBERG_PROXY_HOST", "localhost")
+	t.Setenv("ICEBERG_PROXY_PORT", fmt.Sprintf("%d", testPort))
+
+	// start the proxy flight server
+	f := flightServer{
+		Records: recordSlice,
+		Schema:  *schema,
+		Logger:  logging.NewTestLogger(t),
+	}
+
+	flight.RegisterFlightServiceServer(grpcServer, &f)
+	done := make(chan struct{})
+	go func() {
+		t.Logf("Starting test flight server on port: %d", testPort)
+		servErr := grpcServer.Serve(listener)
+		if servErr != nil {
+			t.Logf("Server shutdown with an error: %v", servErr)
+		}
+		close(done)
+	}()
+
+	cleanUp := func() {
+		grpcServer.Stop()
+		<-done
+	}
+	return cleanUp, nil
+}
+
 func (f *flightServer) DoGet(ticket *flight.Ticket, fs flight.FlightService_DoGetServer) error {
 	ticketData := string(ticket.GetTicket())
 	f.Logger.Infof("received ticket data: %v", ticketData)
@@ -124,40 +163,11 @@ func TestClient_GetStreamProxyClient_Success(t *testing.T) {
 	}
 	recordSlice := createRecords(schema, metadata, mask, data)
 
-	// prep flight server and env
-	grpcServer := grpc.NewServer()
-	listener, listenErr := net.Listen("tcp", "localhost:0")
-	if listenErr != nil {
-		t.Fatalf("Failed to bind address to :%s", listenErr)
+	cleanUp, startErr := startProxyServer(t, recordSlice, schema)
+	if startErr != nil {
+		t.Fatalf("could not setup proxy server. error: %v", startErr)
 	}
-
-	// pull the os assigned port
-	testPort := listener.Addr().(*net.TCPAddr).Port
-
-	t.Setenv("ICEBERG_PROXY_HOST", "localhost")
-	t.Setenv("ICEBERG_PROXY_PORT", fmt.Sprintf("%d", testPort))
-
-	// start the proxy flight server
-	f := flightServer{
-		Records: recordSlice,
-		Schema:  *schema,
-		Logger:  logging.NewTestLogger(t),
-	}
-
-	flight.RegisterFlightServiceServer(grpcServer, &f)
-	done := make(chan struct{})
-	go func() {
-		servErr := grpcServer.Serve(listener)
-		if servErr != nil {
-			fmt.Println("Server shutdown with an error: ", servErr)
-		}
-		close(done)
-	}()
-
-	defer func() {
-		grpcServer.Stop()
-		<-done
-	}()
+	defer cleanUp()
 
 	// get proxy client
 	proxyClient, proxyErr := GetStreamProxyClient(context.Background(), "some_name", "some_variant", 10)
@@ -233,37 +243,11 @@ func TestClient_MultipleRecordBatches(t *testing.T) {
 
 			recordSlice := createRecords(schema, arrow.Metadata{}, nil, data)
 
-			// start the server
-			grpcServer := grpc.NewServer()
-			listener, listenErr := net.Listen("tcp", "localhost:0")
-			if listenErr != nil {
-				t.Fatalf("Failed to bind address: %s", listenErr)
+			cleanUp, startErr := startProxyServer(t, recordSlice, schema)
+			if startErr != nil {
+				t.Fatalf("could not setup proxy server. error: %v", startErr)
 			}
-
-			// prep the env
-			testPort := listener.Addr().(*net.TCPAddr).Port
-
-			t.Setenv("ICEBERG_PROXY_HOST", "localhost")
-			t.Setenv("ICEBERG_PROXY_PORT", fmt.Sprintf("%d", testPort))
-
-			f := flightServer{
-				Records: recordSlice,
-				Schema:  *schema,
-				Logger:  logging.NewTestLogger(t),
-			}
-			flight.RegisterFlightServiceServer(grpcServer, &f)
-			done := make(chan struct{})
-			go func() {
-				servErr := grpcServer.Serve(listener)
-				if servErr != nil {
-					fmt.Println("Server shutdown with an error: ", servErr)
-				}
-				close(done)
-			}()
-			defer func() {
-				grpcServer.Stop()
-				<-done
-			}()
+			defer cleanUp()
 
 			// get the proxy client
 			proxyClient, proxyErr := GetStreamProxyClient(context.Background(), "some_name", "some_variant", 10)
@@ -315,39 +299,11 @@ func TestClient_SchemaMismatch(t *testing.T) {
 
 	recordSlice := createRecords(schema, arrow.Metadata{}, nil, data)
 
-	grpcServer := grpc.NewServer()
-	listener, listenErr := net.Listen("tcp", "localhost:0")
-	if listenErr != nil {
-		t.Fatalf("Failed to bind address to :%s", listenErr)
+	cleanUp, startErr := startProxyServer(t, recordSlice, schema)
+	if startErr != nil {
+		t.Fatalf("could not setup proxy server. error: %v", startErr)
 	}
-
-	// pull the os assigned port
-	testPort := listener.Addr().(*net.TCPAddr).Port
-
-	t.Setenv("ICEBERG_PROXY_HOST", "localhost")
-	t.Setenv("ICEBERG_PROXY_PORT", fmt.Sprintf("%d", testPort))
-
-	// start the proxy flight server
-	f := flightServer{
-		Records: recordSlice,
-		Schema:  *schema,
-		Logger:  logging.NewTestLogger(t),
-	}
-
-	flight.RegisterFlightServiceServer(grpcServer, &f)
-	done := make(chan struct{})
-	go func() {
-		servErr := grpcServer.Serve(listener)
-		if servErr != nil {
-			fmt.Println("Server shutdown with an error: ", servErr)
-		}
-		close(done)
-	}()
-
-	defer func() {
-		grpcServer.Stop()
-		<-done
-	}()
+	defer cleanUp()
 
 	proxyClient, proxyErr := GetStreamProxyClient(context.Background(), "some_name", "some_variant", 10)
 	assert.NoError(t, proxyErr)
@@ -367,39 +323,11 @@ func TestClient_LargeData_StressTest(t *testing.T) {
 
 	recordSlice := createRecords(schema, arrow.Metadata{}, nil, [][]interface{}{{largeData}})
 
-	grpcServer := grpc.NewServer()
-	listener, listenErr := net.Listen("tcp", "localhost:0")
-	if listenErr != nil {
-		t.Fatalf("Failed to bind address to :%s", listenErr)
+	cleanUp, startErr := startProxyServer(t, recordSlice, schema)
+	if startErr != nil {
+		t.Fatalf("could not setup proxy server. error: %v", startErr)
 	}
-
-	// pull the os assigned port
-	testPort := listener.Addr().(*net.TCPAddr).Port
-
-	t.Setenv("ICEBERG_PROXY_HOST", "localhost")
-	t.Setenv("ICEBERG_PROXY_PORT", fmt.Sprintf("%d", testPort))
-
-	// start the proxy flight server
-	f := flightServer{
-		Records: recordSlice,
-		Schema:  *schema,
-		Logger:  logging.NewTestLogger(t),
-	}
-
-	flight.RegisterFlightServiceServer(grpcServer, &f)
-	done := make(chan struct{})
-	go func() {
-		servErr := grpcServer.Serve(listener)
-		if servErr != nil {
-			fmt.Println("Server shutdown with an error: ", servErr)
-		}
-		close(done)
-	}()
-
-	defer func() {
-		grpcServer.Stop()
-		<-done
-	}()
+	defer cleanUp()
 
 	proxyClient, proxyErr := GetStreamProxyClient(context.Background(), "some_name", "some_variant", 10)
 	assert.NoError(t, proxyErr)
@@ -420,22 +348,11 @@ func TestClient_EmptyData(t *testing.T) {
 	// no data to return
 	recordSlice := createRecords(schema, arrow.Metadata{}, nil, [][]interface{}{})
 
-	grpcServer := grpc.NewServer()
-	listener, _ := net.Listen("tcp", "localhost:0")
-
-	testPort := listener.Addr().(*net.TCPAddr).Port
-	t.Setenv("ICEBERG_PROXY_HOST", "localhost")
-	t.Setenv("ICEBERG_PROXY_PORT", fmt.Sprintf("%d", testPort))
-
-	// start the server
-	f := flightServer{
-		Records: recordSlice,
-		Schema:  *schema,
-		Logger:  logging.NewTestLogger(t),
+	cleanUp, startErr := startProxyServer(t, recordSlice, schema)
+	if startErr != nil {
+		t.Fatalf("could not setup proxy server. error: %v", startErr)
 	}
-	flight.RegisterFlightServiceServer(grpcServer, &f)
-	go grpcServer.Serve(listener)
-	defer grpcServer.Stop()
+	defer cleanUp()
 
 	someName, someVariant := "some_name", "some_variant"
 	_, proxyErr := GetStreamProxyClient(context.Background(), someName, someVariant, 10)

@@ -92,7 +92,7 @@ func arrayFrom(memoryAlloc memory.Allocator, a interface{}, valids []bool) arrow
 	}
 }
 
-func TestFlightServer_GetStreamProxyClient_Success(t *testing.T) {
+func TestClient_GetStreamProxyClient_Success(t *testing.T) {
 	// define the schema, metadata, mask, and data chunks
 	schema := arrow.NewSchema(
 		[]arrow.Field{
@@ -168,7 +168,7 @@ func TestFlightServer_GetStreamProxyClient_Success(t *testing.T) {
 
 }
 
-func TestFlightServer_MultipleRecordBatches(t *testing.T) {
+func TestClient_MultipleRecordBatches(t *testing.T) {
 	tests := []struct {
 		name          string
 		batches       [][]int32
@@ -282,7 +282,7 @@ func TestFlightServer_MultipleRecordBatches(t *testing.T) {
 	}
 }
 
-func TestFlightServer_ConnectionFailure(t *testing.T) {
+func TestClient_ConnectionFailure(t *testing.T) {
 	t.Setenv("ICEBERG_PROXY_HOST", "localhost")
 	t.Setenv("ICEBERG_PROXY_PORT", "9999") // Invalid port, with no server available to connect to
 

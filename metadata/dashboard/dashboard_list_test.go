@@ -422,6 +422,10 @@ func (m *MockVariantsStore) Get(key string, opts ...query.Query) (string, error)
 	return "", nil
 }
 
+func (m *MockVariantsStore) GetWithOpts(key string, opts ...query.Query) (string, error) {
+	return "", nil
+}
+
 func (m *MockVariantsStore) List(prefix string, opts ...query.Query) (map[string]string, error) {
 	//intercept the opts param
 	m.Opts = opts

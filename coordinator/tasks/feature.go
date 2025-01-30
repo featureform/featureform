@@ -251,6 +251,14 @@ func (t *FeatureTask) Run() error {
 	return nil
 }
 
+type offlineProviderGetter struct {
+	fv *metadata.FeatureVariant
+}
+
+func (o *offlineProviderGetter) FetchProvider(metadataClient *metadata.Client, ctx context.Context) (*metadata.Provider, error) {
+	return o.fv.FetchOfflineStoreProvider(metadataClient, ctx)
+}
+
 func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.ResourceID, logger logging.Logger) error {
 	logger.Infow("Deleting feature")
 	featureTableName, tableNameErr := provider_schema.ResourceToTableName(provider_schema.Materialization, resID.Name, resID.Variant)
@@ -275,27 +283,30 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 	}
 
 	logger.Debugf("Deleting feature at location")
-	offlineStoreSource, err := featureToDelete.FetchSource(t.metadata, ctx)
-	if err != nil {
-		logger.Errorw("Failed to fetch source", "error", err)
-		return err
-	}
+	offlineStoreLocations := featureToDelete.GetOfflineStoreLocations()
 
 	logger.Debug("Getting offline store")
-	sourceStore, err := getOfflineStore(ctx, t.BaseTask, t.metadata, offlineStoreSource, logger)
+	sourceStore, err := getOfflineStore(ctx, t.BaseTask, t.metadata, &offlineProviderGetter{fv: featureToDelete}, logger)
 	if err != nil {
 		logger.Errorw("Failed to get store", "error", err)
 		return err
 	}
 
 	logger.Debug("Deleting feature from offline store")
-	if deleteErr := sourceStore.Delete(featureLocation); deleteErr != nil {
-		var notFoundErr *fferr.DatasetNotFoundError
-		if errors.As(deleteErr, &notFoundErr) {
-			logger.Infow("Table doesn't exist at location, continuing...", "location", featureLocation)
-		} else {
-			logger.Errorw("Failed to delete feature from offline store", "error", deleteErr)
-			return deleteErr
+	for _, offlineStoreLocation := range offlineStoreLocations {
+		proto, fromProtoErr := pl.FromProto(offlineStoreLocation)
+		if fromProtoErr != nil {
+			logger.Errorw("Failed to convert location to proto", "error", fromProtoErr)
+			return fromProtoErr
+		}
+		if deleteErr := sourceStore.Delete(proto); deleteErr != nil {
+			var notFoundErr *fferr.DatasetNotFoundError
+			if errors.As(deleteErr, &notFoundErr) {
+				logger.Infow("Table doesn't exist at location, continuing...", "location", featureLocation)
+			} else {
+				logger.Errorw("Failed to delete feature from offline store", "error", deleteErr)
+				return deleteErr
+			}
 		}
 	}
 

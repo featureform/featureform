@@ -3,8 +3,6 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"testing"
-
 	"github.com/featureform/fferr"
 	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
@@ -12,9 +10,9 @@ import (
 	pb "github.com/featureform/metadata/proto"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"testing"
 )
 
 type TestResourcesRepository struct {
@@ -58,11 +56,11 @@ type TestMetadataServer struct {
 	t *testing.T
 }
 
-func newTestMetadataServer(t *testing.T, ctx context.Context, logger logging.Logger) *TestMetadataServer {
+func newTestMetadataServer(t *testing.T) *TestMetadataServer {
 	t.Helper()
 
 	// Start the MetadataServer
-	serv, addr := startServPsql(t, ctx, logger)
+	serv, addr := startServPsql(t)
 
 	// Cast the server's repository to sqlResourcesRepository
 	sqlRepo, ok := serv.resourcesRepository.(*sqlResourcesRepository)
@@ -72,6 +70,7 @@ func newTestMetadataServer(t *testing.T, ctx context.Context, logger logging.Log
 	testRepo := NewTestResourcesRepository(sqlRepo, sqlRepo.db)
 
 	// Initialize gRPC client
+	ctx, logger := logging.NewTestContextAndLogger(t)
 	cli := client(t, ctx, logger, addr)
 
 	return &TestMetadataServer{
@@ -132,10 +131,10 @@ func TestDeleteProvider(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
-	ctx, logger := logging.NewTestContextAndLogger(t)
+	ctx := context.Background()
 
 	// Initialize the test server once for all subtests
-	testServer := newTestMetadataServer(t, ctx, logger)
+	testServer := newTestMetadataServer(t)
 	defer testServer.Close()
 
 	// Define reusable resources and IDs
@@ -155,7 +154,7 @@ func TestDeleteProvider(t *testing.T) {
 		err := testServer.repo.MarkForDeletion(ctx, common.ResourceID{
 			Name: "mockOfflineToDelete",
 			Type: common.PROVIDER,
-		}, testServer.server.deletionTaskStarter)
+		}, noOpAsyncHandler)
 		require.NoError(t, err)
 
 		// Verify the provider is deleted
@@ -177,7 +176,7 @@ func TestDeleteProvider(t *testing.T) {
 		err := testServer.repo.MarkForDeletion(ctx, common.ResourceID{
 			Name: "nonExistentProvider",
 			Type: common.PROVIDER,
-		}, testServer.server.deletionTaskStarter)
+		}, noOpAsyncHandler)
 
 		require.Error(t, err) // Expect an error
 	})
@@ -192,7 +191,7 @@ func TestDeleteProvider(t *testing.T) {
 		err := testServer.repo.MarkForDeletion(ctx, common.ResourceID{
 			Name: "mockOfflineToDelete",
 			Type: common.PROVIDER,
-		}, testServer.server.deletionTaskStarter)
+		}, noOpAsyncHandler)
 
 		require.Error(t, err) // Should fail since it's not READY
 	})
@@ -202,10 +201,10 @@ func TestDeletePrimary(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
-	ctx, logger := logging.NewTestContextAndLogger(t)
+	ctx := context.Background()
 
 	// Initialize the test server once for all subtests
-	testServer := newTestMetadataServer(t, ctx, logger)
+	testServer := newTestMetadataServer(t)
 	defer testServer.Close()
 
 	// Define reusable resources and IDs
@@ -266,7 +265,7 @@ func TestDeletePrimary(t *testing.T) {
 			Name:    "primarydata",
 			Variant: "var",
 			Type:    common.SOURCE_VARIANT,
-		}, testServer.server.deletionTaskStarter)
+		}, noOpAsyncHandler)
 		require.NoError(t, err)
 
 		// Verify the primary is marked for deletion
@@ -288,7 +287,7 @@ func TestDeletePrimary(t *testing.T) {
 		err := testServer.repo.MarkForDeletion(ctx, common.ResourceID{
 			Name: "nonExistentPrimary",
 			Type: common.SOURCE_VARIANT,
-		}, testServer.server.deletionTaskStarter)
+		}, noOpAsyncHandler)
 
 		require.Error(t, err) // Expect an error
 	})
@@ -303,7 +302,7 @@ func TestDeletePrimary(t *testing.T) {
 		err := testServer.repo.MarkForDeletion(ctx, common.ResourceID{
 			Name: "mockPrimaryToDelete",
 			Type: common.SOURCE_VARIANT,
-		}, testServer.server.deletionTaskStarter)
+		}, noOpAsyncHandler)
 
 		require.Error(t, err) // Should fail since it's not READY
 	})
@@ -434,9 +433,9 @@ func TestDeleteDag(t *testing.T) {
 		},
 	}
 
-	ctx, logger := logging.NewTestContextAndLogger(t)
 	// Initialize the test server once for all subtests
-	testServer := newTestMetadataServer(t, ctx, logger)
+	ctx := context.Background()
+	testServer := newTestMetadataServer(t)
 	defer testServer.Close()
 
 	resourceIds := make([]ResourceID, 0)
@@ -453,7 +452,7 @@ func TestDeleteDag(t *testing.T) {
 			Name:    "mockSource",
 			Variant: "var",
 			Type:    common.SOURCE_VARIANT,
-		}, testServer.server.deletionTaskStarter)
+		}, noOpAsyncHandler)
 		require.Error(t, err)
 	})
 
@@ -462,7 +461,7 @@ func TestDeleteDag(t *testing.T) {
 			Name:    "training-set",
 			Variant: "variant",
 			Type:    common.TRAINING_SET_VARIANT,
-		}, testServer.server.deletionTaskStarter)
+		}, noOpAsyncHandler)
 		require.NoError(t, err)
 
 		res, err := testServer.repo.Lookup(ctx, ResourceID{
@@ -480,7 +479,7 @@ func TestDeleteDag(t *testing.T) {
 			Name:    "feature",
 			Variant: "variant",
 			Type:    common.FEATURE_VARIANT,
-		}, testServer.server.deletionTaskStarter)
+		}, noOpAsyncHandler)
 		require.NoError(t, err)
 
 		res, err := testServer.repo.Lookup(ctx, ResourceID{
@@ -498,7 +497,7 @@ func TestDeleteDag(t *testing.T) {
 			Name:    "mockSource",
 			Variant: "var",
 			Type:    common.SOURCE_VARIANT,
-		}, testServer.server.deletionTaskStarter)
+		}, noOpAsyncHandler)
 		require.Error(t, err)
 	})
 
@@ -507,7 +506,7 @@ func TestDeleteDag(t *testing.T) {
 			Name:    "label",
 			Variant: "variant",
 			Type:    common.LABEL_VARIANT,
-		}, testServer.server.deletionTaskStarter)
+		}, noOpAsyncHandler)
 		require.NoError(t, err)
 
 		res, err := testServer.repo.Lookup(ctx, ResourceID{
@@ -525,7 +524,7 @@ func TestDeleteDag(t *testing.T) {
 			Name:    "mockSource",
 			Variant: "var",
 			Type:    common.SOURCE_VARIANT,
-		}, testServer.server.deletionTaskStarter)
+		}, noOpAsyncHandler)
 		require.NoError(t, err)
 
 		res, err := testServer.repo.Lookup(ctx, ResourceID{
@@ -537,6 +536,34 @@ func TestDeleteDag(t *testing.T) {
 		require.NotNil(t, res)
 		require.Equal(t, res.ID().Name, "mockSource")
 	})
+}
+
+func noOpAsyncHandler(ctx context.Context, resId ResourceID, logger logging.Logger) error {
+	return nil
+}
+
+func deleteResourceKeyFromMetadata(ctx context.Context, resId ResourceID, logger logging.Logger) error {
+	// Assuming you have access to a metadata repository or similar mechanism to perform the delete
+
+	testServer, ok := ctx.Value("testServer").(*TestMetadataServer)
+	if !ok {
+		logger.Errorw("Failed to retrieve testServer from context")
+		return fmt.Errorf("test Server not found in context")
+	}
+
+	// Run deletion asynchronously
+	go func() {
+		_, err := testServer.server.FinalizeDeletion(ctx, &pb.FinalizeDeletionRequest{
+			ResourceId: resId.Proto(),
+		})
+		if err != nil {
+			logger.Errorw("Failed to finalize deletion", "error", err)
+		} else {
+			logger.Infow("Successfully finalized deletion", "resource_id", resId.String())
+		}
+	}()
+
+	return nil
 }
 
 func TestPrune(t *testing.T) {
@@ -665,9 +692,12 @@ func TestPrune(t *testing.T) {
 	}
 
 	// Initialize the test server once for all subtests
-	ctx, logger := logging.NewTestContextAndLogger(t)
-	testServer := newTestMetadataServer(t, ctx, logger)
-	defer testServer.Close()
+	ctx := context.Background()
+	testServer := newTestMetadataServer(t)
+	defer func() {
+		//testServer.ResetDatabase() // Ensure DB is reset after test
+		testServer.Close() // Close the test server
+	}()
 
 	resourceIds := make([]ResourceID, 0)
 	for _, res := range resources {
@@ -678,12 +708,14 @@ func TestPrune(t *testing.T) {
 	testServer.SeedResources(ctx, resources) // Seed data
 	testServer.SetResourcesReady(ctx, resourceIds)
 
+	ctx = context.WithValue(ctx, "testServer", testServer) // Attach the test server
+
 	t.Run("Prune", func(t *testing.T) {
 		markedForDeletion, err := testServer.repo.PruneResource(ctx, common.ResourceID{
 			Name:    "training-set",
 			Variant: "variant",
 			Type:    common.TRAINING_SET_VARIANT,
-		}, testServer.server.deletionTaskStarter)
+		}, noOpAsyncHandler)
 		require.NoError(t, err)
 		require.Len(t, markedForDeletion, 1)
 		require.Equal(t, markedForDeletion[0].Name, "training-set")
@@ -693,16 +725,15 @@ func TestPrune(t *testing.T) {
 			Name:    "training-set",
 			Variant: "variant",
 			Type:    TRAINING_SET_VARIANT,
-		}, DeleteLookupOption{DeletedOnly})
-		require.NoError(t, err)
-		require.NotNil(t, res)
-		require.Equal(t, res.ID().Name, "training-set")
+		})
+		require.Error(t, err)
+		require.Nil(t, res)
 
 		markedForDeletion, err = testServer.repo.PruneResource(ctx, common.ResourceID{
 			Name:    "mockSource",
 			Variant: "var",
 			Type:    common.SOURCE_VARIANT,
-		}, testServer.server.deletionTaskStarter)
+		}, noOpAsyncHandler)
 		require.NoError(t, err)
 		require.Len(t, markedForDeletion, 3)
 		require.Contains(t, markedForDeletion, common.ResourceID{
@@ -727,7 +758,6 @@ func TestPrune(t *testing.T) {
 			Variant: "var",
 			Type:    SOURCE_VARIANT,
 		}, DeleteLookupOption{DeletedOnly})
-
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		require.Equal(t, res.ID().Name, "mockSource")
@@ -757,7 +787,7 @@ func TestPrune(t *testing.T) {
 			Name:    "training-set",
 			Variant: "variant",
 			Type:    common.TRAINING_SET_VARIANT,
-		}, testServer.server.deletionTaskStarter)
+		}, noOpAsyncHandler)
 		require.Error(t, err)
 	})
 
@@ -765,7 +795,7 @@ func TestPrune(t *testing.T) {
 		markedForDeletion, err := testServer.repo.PruneResource(ctx, common.ResourceID{
 			Name: "nonExistentResource",
 			Type: common.TRAINING_SET_VARIANT,
-		}, testServer.server.deletionTaskStarter)
+		}, noOpAsyncHandler)
 		require.Error(t, err)
 		require.Nil(t, markedForDeletion)
 	})

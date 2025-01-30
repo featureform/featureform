@@ -135,49 +135,48 @@ func (pt *bqPrimaryTable) upsertQuery(columns string, placeholder string) string
 }
 
 func (pt *bqPrimaryTable) Write(rec GenericRecord) error {
-	tb := pt.name
-	recordsParameter, columns, columnsString := pt.getNonNullRecords(rec)
+	return pt.WriteBatch([]GenericRecord{rec})
+}
 
-	placeholder := pt.query.createValuePlaceholderString(columns)
-	upsertQuery := pt.upsertQuery(columnsString, placeholder)
+// mapSaver is used solely for WriteBatch, which creates a bigquery.Inserter.
+// This inserter takes in a struct that implements the ValueSaver interface,
+// whose only method is the Save method below.
+type mapSaver struct {
+	record map[string]interface{}
+}
 
-	bqQ := pt.client.Query(upsertQuery)
-	bqQ.Parameters = recordsParameter
+func (ms *mapSaver) Save() (map[string]bigquery.Value, string, error) {
+	record := make(map[string]bigquery.Value)
 
-	if _, err := bqQ.Read(pt.query.getContext()); err != nil {
-		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
-		wrapped.AddDetail("table_name", tb)
-		return wrapped
+	for k, v := range ms.record {
+		record[k] = v
 	}
 
-	return nil
+	return record, "", nil
 }
 
 func (pt *bqPrimaryTable) WriteBatch(recs []GenericRecord) error {
+	var rows []*mapSaver
+
 	for _, rec := range recs {
-		if err := pt.Write(rec); err != nil {
-			return err
-		}
+		var record = pt.getNonNullRecords(rec)
+		rows = append(rows, &mapSaver{record})
 	}
-	return nil
+
+	return pt.table.Inserter().Put(context.TODO(), rows)
 }
 
-func (pt *bqPrimaryTable) getNonNullRecords(rec GenericRecord) ([]bigquery.QueryParameter, []TableColumn, string) {
-	recordsParameter := make([]bigquery.QueryParameter, 0)
-	recordColumns := make([]TableColumn, 0)
-	selectedColumns := make([]string, 0)
+func (pt *bqPrimaryTable) getNonNullRecords(rec GenericRecord) map[string]interface{} {
+	records := make(map[string]interface{})
+
 	for i, r := range rec {
 		if r == nil {
 			continue
 		}
-		recordsParameter = append(recordsParameter, bigquery.QueryParameter{Value: r})
-		recordColumns = append(recordColumns, pt.schema.Columns[i])
-		selectedColumns = append(selectedColumns, pt.schema.Columns[i].Name)
+		records[pt.schema.Columns[i].Name] = r
 	}
 
-	columns := strings.Join(selectedColumns, ",")
-
-	return recordsParameter, recordColumns, columns
+	return records
 }
 
 func (it *bqGenericTableIterator) Next() bool {

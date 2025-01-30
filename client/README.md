@@ -9,7 +9,7 @@ Featureform’s Python client is a SDK for defining, managing and serving resour
 
 ## Requirements
 
-* Python 3.7-3.10 (Untested with version 3.11)
+* Python 3.9-3.12
 
 ## Setting Up Your Local Development Environment
 
@@ -75,4 +75,3 @@ With steps 1-5 successfully completed, you should have the `featureform` CLI com
 ```
 
 To further verify that your setup is complete and correct, you may optionally walk through the [Quickstart](https://docs.featureform.com/quickstart-local) tutorial. You may put the `definitions.py` file at the root of the project, which won’t be ignored by Git, or use a URL to a file (e.g. hosted on GitHub).
-

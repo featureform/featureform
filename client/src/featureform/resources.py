@@ -35,7 +35,7 @@ NameVariant = Tuple[str, str]
 
 # Constants for Pyspark Versions
 MAJOR_VERSION = "3"
-MINOR_VERSIONS = ["7", "8", "9", "10", "11"]
+MINOR_VERSIONS = ["9", "10", "11", "12"]
 
 
 @typechecked
@@ -3443,7 +3443,7 @@ class SparkCredentials:
         Args:
             master (str): The hostname of the Spark cluster. (The same that would be passed to `spark-submit`).
             deploy_mode (str): The deploy mode of the Spark cluster. (The same that would be passed to `spark-submit`).
-            python_version (str): The Python version running on the cluster. Supports 3.7-3.11
+            python_version (str): The Python version running on the cluster. Supports 3.9-3.12
             core_site_path (str): The path to the core-site.xml file. (For Yarn clusters only)
             yarn_site_path (str): The path to the yarn-site.xml file. (For Yarn clusters only)
         """
@@ -3482,16 +3482,16 @@ class SparkCredentials:
             major, minor = version.split(".")
         else:
             raise Exception(
-                "Please specify your Python version on the Spark cluster. Accepted formats: Major.Minor or Major.Minor.Patch; ex. '3.7' or '3.7.16"
+                "Please specify your Python version on the Spark cluster. Accepted formats: Major.Minor or Major.Minor.Patch; ex. '3.9' or '3.9.16"
             )
 
         if major != MAJOR_VERSION or minor not in MINOR_VERSIONS:
             raise Exception(
-                f"The Python version {version} is not supported. Currently, supported versions are 3.7-3.10."
+                f"The Python version {version} is not supported. Currently, supported versions are 3.9-3.12."
             )
 
         """
-        The Python versions on the Docker image are 3.7.16, 3.8.16, 3.9.16, 3.10.10, and 3.11.2.
+        The Python versions on the Docker image are 3.9.16, 3.10.10, and 3.11.2.
         This conditional statement sets the patch number based on the minor version. 
         """
         if minor == "10":

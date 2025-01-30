@@ -326,7 +326,7 @@ def test_with_paths(core_site_path, yarn_site_path):
     config = {
         "master": "yarn",
         "deploy_mode": "client",
-        "python_version": "3.7.16",
+        "python_version": "3.9",
         "core_site_path": core_site_path,
         "yarn_site_path": yarn_site_path,
     }
@@ -337,7 +337,7 @@ def test_with_paths(core_site_path, yarn_site_path):
 def test_without_paths():
     config = {
         "master": "yarn",
-        "python_version": "3.7.16",
+        "python_version": "3.9",
         "deploy_mode": "client",
     }
     with pytest.raises(Exception):
@@ -347,7 +347,7 @@ def test_without_paths():
 def test_with_missing_core_site_path(yarn_site_path):
     config = {
         "master": "yarn",
-        "python_version": "3.7.16",
+        "python_version": "3.9",
         "yarn_site_path": yarn_site_path,
         "deploy_mode": "client",
     }
@@ -358,7 +358,7 @@ def test_with_missing_core_site_path(yarn_site_path):
 def test_with_missing_yarn_site_path(core_site_path):
     config = {
         "master": "yarn",
-        "python_version": "3.7.16",
+        "python_version": "3.9",
         "core_site_path": core_site_path,
         "deploy_mode": "client",
     }
@@ -370,7 +370,7 @@ def test_with_non_yarn_master(core_site_path, yarn_site_path):
     config = {
         "master": "local",
         "deploy_mode": "client",
-        "python_version": "3.7.16",
+        "python_version": "3.9",
         "core_site_path": core_site_path,
         "yarn_site_path": yarn_site_path,
     }

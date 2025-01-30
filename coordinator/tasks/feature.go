@@ -276,7 +276,7 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 
 	logger.Debugf("Deleting feature at location")
 	offlineStoreLocations := featureToDelete.GetOfflineStoreLocations()
-
+	logger = logger.With("offline_store_locations", offlineStoreLocations)
 	logger.Debug("Getting offline store")
 	sourceStore, err := getOfflineStore(ctx, t.BaseTask, t.metadata, &offlineProviderFeatureAdapter{feature: featureToDelete}, logger)
 	if err != nil {
@@ -284,7 +284,7 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 		return err
 	}
 
-	logger.Debug("Deleting feature from offline store")
+	logger.Debugf("Deleting %d locations", len(offlineStoreLocations))
 	for _, offlineStoreLocation := range offlineStoreLocations {
 		proto, fromProtoErr := pl.FromProto(offlineStoreLocation)
 		if fromProtoErr != nil {
@@ -302,8 +302,7 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 		}
 	}
 
-	logger.Infow("Successfully deleted feature at location")
-
+	logger.Infow("Successfully deleted feature at locations")
 	deleteFromOnlineStoreErr := t.deleteFromOnlineStore(ctx, featureToDelete, logger, nv)
 	if deleteFromOnlineStoreErr != nil {
 		logger.Errorw("Failed to delete feature from online store", "error", deleteFromOnlineStoreErr)
@@ -320,13 +319,13 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 }
 
 func (t *FeatureTask) deleteFromOnlineStore(ctx context.Context, featureToDelete *metadata.FeatureVariant, logger logging.Logger, nv metadata.NameVariant) error {
+	logger.Debugw("Deleting feature from online store")
 	if featureToDelete.Provider() == "" {
 		logger.Debugw("Feature does not contain inference store, skipping deletion from online store")
 		return nil
 	}
 
 	logger = logger.With("online_provider", featureToDelete.Provider())
-
 	inferenceStore, err := featureToDelete.FetchProvider(t.metadata, ctx)
 	if err != nil {
 		logger.Errorw("Failed to fetch inference store", "error", err)

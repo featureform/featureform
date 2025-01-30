@@ -238,6 +238,125 @@ class OfflineSQLProvider(OfflineProvider):
             and self.__registrar == __value.__registrar
         )
 
+    def register_label(
+        self,
+        name: str,
+        entity_mappings: List[dict],
+        value_type: ScalarType,
+        dataset: "SubscriptableTransformation",
+        value_column: str,
+        timestamp_column: Optional[str] = None,
+        variant: str = "",
+        description: str = "",
+        owner: Union[str, UserRegistrar] = "",
+        resource_snowflake_config: Optional[ResourceSnowflakeConfig] = None,
+        tags: Optional[List[str]] = None,
+        properties: Optional[dict] = None,
+    ):
+        """
+        Register a multi-entity label on a SQL provider (currently only supported for Snowflake).
+
+        **Examples**:
+
+        ``` py
+        snowflake = client.get_provider("my_snowflake")
+        label = snowflake.register_label(
+            name="total_purchase_amount",
+            entity_mappings=[{"column": "user_id", "entity": "user"}, {"column": "product_id", "entity": "product"}],
+            value_type=ff.Float32,
+            dataset=purchases,
+            value_column="final_total",
+        )
+        ```
+
+        Args:
+            name (str): Name of the label
+            entity_mappings (List[dict]): A list of dictionaries mapping entity columns to entity names
+            value_type (ScalarType): The type of the label
+            dataset: The dataset the label is derived from
+            value_column (str): The column in the dataset that contains the label values
+            timestamp_column (str, optional): The column in the dataset that contains the timestamp
+            variant (str, optional): The variant of the label
+            description (str, optional): Description of the label
+            owner (Union[str, UserRegistrar], optional): Owner
+            resource_snowflake_config (ResourceSnowflakeConfig, optional): Snowflake specific configuration
+            tags (List[str], optional): Tags
+            properties (dict, optional): Properties
+
+        Returns:
+            label (LabelVariant): The label variant instance
+        """
+        if self.__provider.config.type() != "SNOWFLAKE_OFFLINE":
+            raise ValueError(
+                "Registering labels on SQL offline providers is currently only supported for Snowflake"
+            )
+        if variant == "":
+            variant = self.__registrar.get_run()
+
+        if not isinstance(entity_mappings, list) or len(entity_mappings) == 0:
+            raise ValueError("entity_mappings must be a non-empty list")
+
+        mappings = []
+        for m in entity_mappings:
+            if not isinstance(m, dict):
+                raise ValueError("entity_mappings must be a list of dictionaries")
+            column = m.get("column")
+            if not column:
+                raise ValueError("missing entity column in mapping")
+            entity = m.get("entity")
+            if not entity:
+                raise ValueError("missing entity name in mapping")
+            mappings.append(
+                EntityMapping(
+                    name=entity,
+                    entity_column=column,
+                )
+            )
+
+        if not ScalarType.has_value(value_type) and not isinstance(
+            value_type, ScalarType
+        ):
+            raise ValueError(
+                f"Invalid type for label {name} ({variant}). Must be a ScalarType or one of {ScalarType.get_values()}"
+            )
+        if isinstance(value_type, ScalarType):
+            value_type = value_type.value
+
+        if not hasattr(dataset, "name_variant"):
+            raise ValueError("Dataset must have a name_variant method")
+
+        source = dataset.name_variant()
+
+        if not value_column:
+            raise ValueError("value_column must be provided")
+
+        tags, properties = set_tags_properties(tags, properties)
+        if not isinstance(owner, str):
+            owner = owner.name()
+        if owner == "":
+            owner = self.__registrar.must_get_default_owner()
+
+        label = LabelVariant(
+            name=name,
+            variant=variant,
+            source=source,
+            value_type=value_type,
+            owner=owner,
+            description=description,
+            tags=tags,
+            properties=properties,
+            entity="",
+            location=EntityMappings(
+                mappings=mappings,
+                value_column=value_column,
+                timestamp_column=timestamp_column,
+            ),
+            resource_snowflake_config=resource_snowflake_config,
+        )
+
+        self.__registrar.add_resource(label)
+        return label
+
 
 class OfflineSparkProvider(OfflineProvider):
     def __init__(self, registrar, provider):

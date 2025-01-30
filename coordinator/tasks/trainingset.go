@@ -230,20 +230,43 @@ func (t *TrainingSetTask) getLabelSourceMapping(ctx context.Context, label *meta
 	if err != nil {
 		return provider.SourceMapping{}, err
 	}
-	return provider.SourceMapping{
+	srcMapping := provider.SourceMapping{
 		Source:         labelSource,
 		ProviderType:   pt.Type(labelProvider.Type()),
 		ProviderConfig: labelProvider.SerializedConfig(),
 		Location:       labelLocation,
-		// Given a label will always be created as a resource table, which uses stable naming conventions for columns,
-		// we can hardcode the column names here. **NOTE**: if we used label.LocationColumns() here, we would get
-		// the column names from the source table, and not the resource table.
-		Columns: metadata.ResourceVariantColumns{
-			Entity: "entity",
-			Value:  "value",
-			TS:     "ts",
-		},
-	}, nil
+	}
+
+	loc, err := label.Location()
+	if err != nil {
+		t.logger.Errorw("could not get label location", "label", label.Name(), "variant", label.Variant(), "error", err)
+		return provider.SourceMapping{}, err
+	}
+	// Given a label will always be created as a resource table, which uses stable naming conventions for columns,
+	// we can hardcode the column names for both single-entity and multi-entity labels to "value" for the VALUE column
+	// and "ts" for the TS column. For multi-entity labels, whereas the entity column for single-entity labels is simply
+	// "entity", we will use "entity_<entity_name>" for multi-entity labels, so this translation is done here prior to
+	// running the training set job so that all source mappings are consistent prior to being use in CreateTrainingSet.
+	//**NOTE**: if we used label.LocationColumns() here, we would get
+	// the column names from the source table, and not the resource table.
+	t.logger.Debugw("Label entity mappings", "mappings", loc)
+	srcMapping.EntityMappings = &metadata.EntityMappings{
+		Mappings:        make([]metadata.EntityMapping, len(loc.Mappings)),
+		ValueColumn:     "value",
+		TimestampColumn: "ts",
+	}
+	for i, mapping := range loc.Mappings {
+		entityCol := fmt.Sprintf("entity_%s", mapping.Name)
+		if label.IsLegacyLocation() {
+			entityCol = "entity"
+		}
+		srcMapping.EntityMappings.Mappings[i] = metadata.EntityMapping{
+			Name:         mapping.Name,
+			EntityColumn: entityCol,
+		}
+	}
+	t.logger.Debugw("Label source mapping", "mapping", srcMapping)
+	return srcMapping, nil
 }
 
 // **NOTE**: Given a feature's provider will always be an online store, we actually need its source's provider to grab the data for the training set.
@@ -274,7 +297,12 @@ func (t *TrainingSetTask) getFeatureSourceMapping(ctx context.Context, feature *
 		ProviderType:   pt.Type(sourceProvider.Type()),
 		ProviderConfig: sourceProvider.SerializedConfig(),
 		Location:       featureLocation,
-		Columns:        cols,
+		Columns:        &cols,
+		EntityMappings: &metadata.EntityMappings{
+			Mappings: []metadata.EntityMapping{
+				{Name: feature.Entity(), EntityColumn: cols.Entity},
+			},
+		},
 	}, nil
 }
 

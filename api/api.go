@@ -19,34 +19,26 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
-	"github.com/featureform/fferr"
-	"github.com/featureform/helpers"
-	"github.com/featureform/logging"
-
-	pt "github.com/featureform/provider/provider_type"
-
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
-
 	"google.golang.org/grpc/reflection"
 	grpc_status "google.golang.org/grpc/status"
 
-	"google.golang.org/grpc/credentials/insecure"
-
-	"google.golang.org/grpc"
-
+	"github.com/featureform/fferr"
 	"github.com/featureform/health"
+	"github.com/featureform/helpers"
 	help "github.com/featureform/helpers"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
 	srv "github.com/featureform/proto"
 	"github.com/featureform/provider"
+	pt "github.com/featureform/provider/provider_type"
 )
 
 type ApiServer struct {

@@ -2876,7 +2876,7 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 		return
 	}
 
-	var limit int64 = 100 //default the size to 100
+	var limit int = 100 //default the size to 100
 	response := SourceDataResponse{
 		Columns: []string{},
 		Rows:    [][]string{},

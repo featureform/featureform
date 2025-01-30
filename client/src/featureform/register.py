@@ -76,10 +76,6 @@ class OfflineProvider:
     def name(self) -> str:
         return self.__provider.name
 
-    # for testing
-    def _provider(self):
-        return self.__provider
-
     def __eq__(self, __value: object) -> bool:
         assert isinstance(__value, OfflineProvider)
         return self.__provider == __value.__provider

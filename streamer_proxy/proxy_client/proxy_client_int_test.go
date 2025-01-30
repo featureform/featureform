@@ -11,6 +11,7 @@ import (
 	"github.com/apache/arrow/go/v17/arrow/flight"
 	"github.com/apache/arrow/go/v17/arrow/ipc"
 	"github.com/apache/arrow/go/v17/arrow/memory"
+	"github.com/featureform/logging"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 )
@@ -19,11 +20,12 @@ type flightServer struct {
 	flight.BaseFlightServer
 	Records []arrow.Record
 	Schema  arrow.Schema
+	Logger  logging.Logger
 }
 
 func (f *flightServer) DoGet(ticket *flight.Ticket, fs flight.FlightService_DoGetServer) error {
 	ticketData := string(ticket.GetTicket())
-	fmt.Println("received ticket data: ", ticketData) // todox: use logger
+	f.Logger.Infof("received ticket data: %v", ticketData)
 	recordSlice := f.Records
 	writer := flight.NewRecordWriter(fs, ipc.WithSchema(&f.Schema))
 	for _, r := range recordSlice {
@@ -139,6 +141,7 @@ func TestClient_GetStreamProxyClient_Success(t *testing.T) {
 	f := flightServer{
 		Records: recordSlice,
 		Schema:  *schema,
+		Logger:  logging.NewTestLogger(t),
 	}
 
 	flight.RegisterFlightServiceServer(grpcServer, &f)
@@ -246,6 +249,7 @@ func TestClient_MultipleRecordBatches(t *testing.T) {
 			f := flightServer{
 				Records: recordSlice,
 				Schema:  *schema,
+				Logger:  logging.NewTestLogger(t),
 			}
 			flight.RegisterFlightServiceServer(grpcServer, &f)
 			done := make(chan struct{})
@@ -327,6 +331,7 @@ func TestClient_SchemaMismatch(t *testing.T) {
 	f := flightServer{
 		Records: recordSlice,
 		Schema:  *schema,
+		Logger:  logging.NewTestLogger(t),
 	}
 
 	flight.RegisterFlightServiceServer(grpcServer, &f)
@@ -378,6 +383,7 @@ func TestClient_LargeData_StressTest(t *testing.T) {
 	f := flightServer{
 		Records: recordSlice,
 		Schema:  *schema,
+		Logger:  logging.NewTestLogger(t),
 	}
 
 	flight.RegisterFlightServiceServer(grpcServer, &f)
@@ -425,6 +431,7 @@ func TestClient_EmptyData(t *testing.T) {
 	f := flightServer{
 		Records: recordSlice,
 		Schema:  *schema,
+		Logger:  logging.NewTestLogger(t),
 	}
 	flight.RegisterFlightServiceServer(grpcServer, &f)
 	go grpcServer.Serve(listener)

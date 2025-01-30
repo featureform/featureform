@@ -13,24 +13,17 @@ import (
 	"github.com/apache/arrow/go/v17/arrow/memory"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type flightServer struct {
 	flight.BaseFlightServer
-	Records     map[string][]arrow.Record
-	RecordNames []string
+	Records []arrow.Record
 }
 
 func (f *flightServer) DoGet(ticket *flight.Ticket, fs flight.FlightService_DoGetServer) error {
 	ticketData := string(ticket.GetTicket())
 	fmt.Println("received ticket data: ", ticketData) // todox: use logger
-	recordSlice, ok := f.Records["students"]
-	if !ok {
-		return status.Error(codes.NotFound, "flight not found")
-	}
-
+	recordSlice := f.Records
 	writer := flight.NewRecordWriter(fs, ipc.WithSchema(recordSlice[0].Schema()))
 	for _, r := range recordSlice {
 		writer.Write(r)
@@ -39,39 +32,26 @@ func (f *flightServer) DoGet(ticket *flight.Ticket, fs flight.FlightService_DoGe
 	return nil
 }
 
-func createStudentRecords() []arrow.Record {
+// helper function so each test can create its own records to store in the temp server
+func createRecords(schema *arrow.Schema, metadata arrow.Metadata, mask []bool, data [][]interface{}) []arrow.Record {
 	memoryAlloc := memory.NewGoAllocator()
 
-	arrowMeta := arrow.NewMetadata(
-		[]string{"randomKey1", "randomKey2"},
-		[]string{"randomeValue1", "randomValue2"},
-	)
-
-	schema := arrow.NewSchema(
-		[]arrow.Field{
-			{Name: "graduated", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
-			{Name: "ages", Type: arrow.PrimitiveTypes.Int32, Nullable: true},
-			{Name: "names", Type: arrow.BinaryTypes.String, Nullable: true},
-		}, &arrowMeta,
-	)
-
-	mask := []bool{true, true, true, true, false} // one is masked
-	chunks := [][]arrow.Array{
-		{
-			arrayFrom(memoryAlloc, []bool{true, false, true, false, true}, mask),
-			arrayFrom(memoryAlloc, []int32{20, 43, 60, 18, 25}, mask),
-			arrayFrom(memoryAlloc, []string{"neo", "asma", "derek", "tony", "bill"}, mask),
-		},
+	// create the metadata
+	if metadata.Len() > 0 {
+		schema = arrow.NewSchema(schema.Fields(), &metadata)
 	}
 
-	defer func() {
-		for _, chunk := range chunks {
-			for _, col := range chunk {
-				col.Release()
-			}
+	// convert data chunks into arrow arrays
+	chunks := make([][]arrow.Array, len(data))
+	for i, rowData := range data {
+		columnArrays := make([]arrow.Array, len(rowData))
+		for j, colData := range rowData {
+			columnArrays[j] = arrayFrom(memoryAlloc, colData, mask)
 		}
-	}()
+		chunks[i] = columnArrays
+	}
 
+	// add the records
 	recordSlice := make([]arrow.Record, len(chunks))
 	for i, chunk := range chunks {
 		recordSlice[i] = array.NewRecord(schema, chunk, -1)
@@ -112,7 +92,29 @@ func arrayFrom(memoryAlloc memory.Allocator, a interface{}, valids []bool) arrow
 	}
 }
 
-func TestFlightServer_GetStreamProxyClient(t *testing.T) {
+func TestFlightServer_GetStreamProxyClient_Success(t *testing.T) {
+	// define the schema, metadata, mask, and data chunks
+	schema := arrow.NewSchema(
+		[]arrow.Field{
+			{Name: "graduated", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
+			{Name: "ages", Type: arrow.PrimitiveTypes.Int32, Nullable: true},
+			{Name: "names", Type: arrow.BinaryTypes.String, Nullable: true},
+		}, nil,
+	)
+	metadata := arrow.NewMetadata(
+		[]string{"randomKey1", "randomKey2"},
+		[]string{"randomValue1", "randomValue2"},
+	)
+	mask := []bool{true, true, true, true, false}
+	data := [][]interface{}{
+		{
+			[]bool{true, false, true, false, true},
+			[]int32{20, 43, 60, 18, 25},
+			[]string{"neo", "asma", "derek", "tony", "bill"},
+		},
+	}
+	recordSlice := createRecords(schema, metadata, mask, data)
+
 	// prep flight server and env
 	grpcServer := grpc.NewServer()
 	listener, listenErr := net.Listen("tcp", "localhost:0")
@@ -128,10 +130,9 @@ func TestFlightServer_GetStreamProxyClient(t *testing.T) {
 
 	// start the proxy flight server
 	f := flightServer{
-		Records:     map[string][]arrow.Record{"students": createStudentRecords()},
-		RecordNames: []string{"students"},
+		Records: recordSlice,
 	}
-	// todo: make the records part of the flight server?
+
 	flight.RegisterFlightServiceServer(grpcServer, &f)
 	done := make(chan struct{})
 	go func() {
@@ -167,7 +168,7 @@ func TestFlightServer_GetStreamProxyClient(t *testing.T) {
 
 }
 
-func TestFlightServer_MultipleRecordBatches2(t *testing.T) {
+func TestFlightServer_MultipleRecordBatches(t *testing.T) {
 	tests := []struct {
 		name          string
 		batches       [][]int32
@@ -240,8 +241,7 @@ func TestFlightServer_MultipleRecordBatches2(t *testing.T) {
 			t.Setenv("ICEBERG_PROXY_PORT", fmt.Sprintf("%d", testPort))
 
 			f := flightServer{
-				Records:     map[string][]arrow.Record{"students": recordSlice},
-				RecordNames: []string{"students"},
+				Records: recordSlice,
 			}
 			flight.RegisterFlightServiceServer(grpcServer, &f)
 			done := make(chan struct{})

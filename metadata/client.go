@@ -260,6 +260,17 @@ type ResourceVariantColumns struct {
 	Source string
 }
 
+type EntityMapping struct {
+	Name         string
+	EntityColumn string
+}
+
+type EntityMappings struct {
+	Mappings        []EntityMapping
+	ValueColumn     string
+	TimestampColumn string
+}
+
 func (c ResourceVariantColumns) SerializeFeatureColumns() *pb.FeatureVariant_Columns {
 	return &pb.FeatureVariant_Columns{
 		Columns: &pb.Columns{
@@ -1767,6 +1778,18 @@ func (fn fetchMaxJobDurationFn) MaxJobDuration() time.Duration {
 	return duration.AsDuration()
 }
 
+type entityGetter interface {
+	GetEntity() string
+}
+
+type fetchEntityFn struct {
+	getter entityGetter
+}
+
+func (fn fetchEntityFn) Entity() string {
+	return fn.getter.GetEntity()
+}
+
 type Feature struct {
 	serialized *pb.Feature
 	variantsFns
@@ -2271,6 +2294,7 @@ type LabelVariant struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
+	fetchEntityFn
 }
 
 func WrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
@@ -2283,6 +2307,7 @@ func WrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
 		protoStringer:        protoStringer{serialized},
 		fetchTagsFn:          fetchTagsFn{serialized},
 		fetchPropertiesFn:    fetchPropertiesFn{serialized},
+		fetchEntityFn:        fetchEntityFn{serialized},
 	}
 }
 
@@ -2343,8 +2368,43 @@ func (variant *LabelVariant) Error() string {
 	return ""
 }
 
-func (variant *LabelVariant) Location() interface{} {
-	return variant.serialized.GetLocation()
+func (variant *LabelVariant) IsLegacyLocation() bool {
+	loc := variant.serialized.GetLocation()
+	if _, isColumnsLocations := loc.(*pb.LabelVariant_Columns); isColumnsLocations {
+		return true
+	}
+	return false
+}
+
+// Location returns either Columns, which is now deprecated but could still be in use in users storage provider, or EntityMappings.
+func (variant *LabelVariant) Location() (EntityMappings, error) {
+	logger := logging.GlobalLogger.With("label_name", variant.Name(), "label_variant", variant.Name())
+	switch loc := variant.serialized.GetLocation().(type) {
+	case *pb.LabelVariant_Columns:
+		logger.Debugw("Using deprecated location type", "location", loc)
+		return EntityMappings{
+			Mappings:        []EntityMapping{{Name: variant.Entity(), EntityColumn: loc.Columns.Entity}},
+			ValueColumn:     loc.Columns.Value,
+			TimestampColumn: loc.Columns.Ts,
+		}, nil
+	case *pb.LabelVariant_EntityMappings:
+		logger.Debugw("Using entity mappings location type", "location", loc)
+		mappings := make([]EntityMapping, 0)
+		for _, mapping := range loc.EntityMappings.Mappings {
+			mappings = append(mappings, EntityMapping{
+				Name:         mapping.Name,
+				EntityColumn: mapping.EntityColumn,
+			})
+		}
+		return EntityMappings{
+			Mappings:        mappings,
+			ValueColumn:     loc.EntityMappings.ValueColumn,
+			TimestampColumn: loc.EntityMappings.TimestampColumn,
+		}, nil
+	default:
+		logger.Errorw("Unknown or unsupported location type", "location", loc)
+		return EntityMappings{}, fferr.NewInternalErrorf("Unknown or unsupported location type %T", loc)
+	}
 }
 
 func (variant *LabelVariant) isTable() bool {
@@ -2352,12 +2412,18 @@ func (variant *LabelVariant) isTable() bool {
 }
 
 func (variant *LabelVariant) LocationColumns() interface{} {
+	logger := logging.GlobalLogger.With("label_name", variant.Name(), "label_variant", variant.Name())
 	src := variant.serialized.GetColumns()
+	if src == nil {
+		logger.Errorw("Columns location is nil")
+		return nil
+	}
 	columns := ResourceVariantColumns{
 		Entity: src.Entity,
 		Value:  src.Value,
 		TS:     src.Ts,
 	}
+	logger.Debugw("Deprecated location columns", "columns", columns)
 	return columns
 }
 

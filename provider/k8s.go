@@ -950,7 +950,7 @@ func fileStoreGetResourceTable(id ResourceID, store FileStore, logger *zap.Sugar
 			resourceSchema.SourceTable = pl.NewFileLocation(src)
 		}
 	}
-	logger.Debugw("Successfully fetched resource table", "id", id)
+	logger.Debugw("Successfully fetched resource table", "id", id, "schema", resourceSchema)
 	return &BlobOfflineTable{schema: resourceSchema, store: store}, nil
 }
 

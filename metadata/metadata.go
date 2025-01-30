@@ -1122,6 +1122,7 @@ func (resource *labelVariantResource) Schedule() string {
 }
 
 func (resource *labelVariantResource) Dependencies(ctx context.Context, lookup ResourceLookup) (ResourceLookup, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	serialized := resource.serialized
 	// dependencies for a label variant are different depending on the computation mode
 	depIds := []ResourceID{
@@ -1138,10 +1139,6 @@ func (resource *labelVariantResource) Dependencies(ctx context.Context, lookup R
 			Type: PROVIDER,
 		},
 		{
-			Name: serialized.Entity,
-			Type: ENTITY,
-		},
-		{
 			Name: serialized.Provider,
 			Type: PROVIDER,
 		},
@@ -1155,6 +1152,25 @@ func (resource *labelVariantResource) Dependencies(ctx context.Context, lookup R
 				Type:    SOURCE_VARIANT,
 			},
 		)
+	}
+	switch loc := serialized.GetLocation().(type) {
+	case *pb.LabelVariant_Columns:
+		depIds = append(depIds, ResourceID{
+			Name: serialized.Entity,
+			Type: ENTITY,
+		})
+	case *pb.LabelVariant_EntityMappings:
+		for _, m := range loc.EntityMappings.Mappings {
+			depIds = append(depIds, ResourceID{
+				Name: m.Name,
+				Type: ENTITY,
+			})
+		}
+	case *pb.LabelVariant_Stream:
+		// There's nothing to be done here; however, we don't want the match on stream to result in an error.
+		logger.Debugw("stream location type detected for label variant resource", "location", loc)
+	default:
+		return nil, fferr.NewInternalErrorf("unknown location type %T", loc)
 	}
 	deps, err := lookup.Submap(ctx, depIds)
 	if err != nil {
@@ -1464,6 +1480,7 @@ func (resource *trainingSetVariantResource) Owner() string {
 }
 
 func (resource *trainingSetVariantResource) Validate(ctx context.Context, lookup ResourceLookup) error {
+	logger := logging.GetLoggerFromContext(ctx)
 	resId := ResourceID{Name: resource.serialized.Label.Name, Variant: resource.serialized.Label.Variant, Type: LABEL_VARIANT}
 	label, err := lookup.Lookup(ctx, resId)
 	if err != nil {
@@ -1473,7 +1490,21 @@ func (resource *trainingSetVariantResource) Validate(ctx context.Context, lookup
 	if !isLabelVariant {
 		return fferr.NewDatasetNotFoundError(resource.ID().Name, resource.ID().Variant, fmt.Errorf("label variant not found"))
 	}
-	entityMap := map[string]struct{}{labelVariant.serialized.Entity: {}}
+	entityMap := make(map[string]struct{})
+	loc := labelVariant.serialized.GetLocation()
+	switch loc := loc.(type) {
+	case *pb.LabelVariant_Columns:
+		entityMap[labelVariant.serialized.Entity] = struct{}{}
+	case *pb.LabelVariant_EntityMappings:
+		for _, mapping := range loc.EntityMappings.Mappings {
+			entityMap[mapping.Name] = struct{}{}
+		}
+	case *pb.LabelVariant_Stream:
+		// There's nothing to be done here; however, we don't want the match on stream to result in an error.
+		logger.Debugw("stream location type detected for training set variant resource", "location", loc)
+	default:
+		return fferr.NewInternalErrorf("unknown location type %T", loc)
+	}
 	for _, feature := range resource.serialized.Features {
 		fvResId := ResourceID{Name: feature.Name, Variant: feature.Variant, Type: FEATURE_VARIANT}
 		featureResource, err := lookup.Lookup(ctx, fvResId)

@@ -281,3 +281,14 @@ func TestFlightServer_MultipleRecordBatches(t *testing.T) {
 		})
 	}
 }
+
+func TestFlightServer_ConnectionFailure(t *testing.T) {
+	t.Setenv("ICEBERG_PROXY_HOST", "localhost")
+	t.Setenv("ICEBERG_PROXY_PORT", "9999") // Invalid port, with no server available to connect to
+
+	someName, someVariant := "some_name", "some_variant"
+	_, proxyErr := GetStreamProxyClient(context.Background(), someName, someVariant, 10)
+
+	assert.Error(t, proxyErr, "Expected error when connecting to an invalid Flight server")
+	assert.ErrorContainsf(t, proxyErr, proxyErr.Error(), "failed to fetch data for source (%s) and variant (%s) from proxy", someName, someVariant)
+}

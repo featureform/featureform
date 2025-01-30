@@ -135,8 +135,16 @@ def test_snowflake_multi_entity_label_registration(
     )
 
 
+@pytest.mark.parametrize(
+    "ts_type",
+    [
+        ff.TrainingSetType.DYNAMIC,
+        ff.TrainingSetType.STATIC,
+        ff.TrainingSetType.VIEW,
+    ],
+)
 def test_snowflake_training_set_registration(
-    ff_client, redis_fixture, snowflake_fixture, snowflake_transactions_dataset
+    ff_client, redis_fixture, snowflake_fixture, snowflake_transactions_dataset, ts_type
 ):
     @snowflake_fixture.sql_transformation(inputs=[snowflake_transactions_dataset])
     def snowflake_avg_transactions_ts(tbl):
@@ -160,6 +168,7 @@ def test_snowflake_training_set_registration(
         name="snowflake_training_set",
         features=[SnowflakeUser.avg_transactions_ts],
         label=SnowflakeUser.fraudulent_ts,
+        type=ts_type,
     )
 
     ff_client.apply(asynchronous=False, verbose=True)

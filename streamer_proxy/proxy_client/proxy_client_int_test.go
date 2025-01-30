@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/array"
@@ -47,10 +48,10 @@ func startProxyServer(t *testing.T, recordSlice []arrow.Record, schema *arrow.Sc
 	flight.RegisterFlightServiceServer(grpcServer, &f)
 	done := make(chan struct{})
 	go func() {
-		t.Logf("Starting test flight server on port: %d", testPort)
+		t.Logf("Test flight server starting on port: %d", testPort)
 		servErr := grpcServer.Serve(listener)
 		if servErr != nil {
-			t.Logf("Server shutdown with an error: %v", servErr)
+			t.Logf("Test flight server shutdown with an error: %v", servErr)
 		}
 		close(done)
 	}()
@@ -58,6 +59,7 @@ func startProxyServer(t *testing.T, recordSlice []arrow.Record, schema *arrow.Sc
 	cleanUp := func() {
 		grpcServer.Stop()
 		<-done
+		t.Log("Test flight server stopped successfully")
 	}
 	return cleanUp, nil
 }
@@ -329,6 +331,7 @@ func TestClient_LargeData_StressTest(t *testing.T) {
 	}
 	defer cleanUp()
 
+	start := time.Now()
 	proxyClient, proxyErr := GetStreamProxyClient(context.Background(), "some_name", "some_variant", 10)
 	assert.NoError(t, proxyErr)
 
@@ -337,6 +340,8 @@ func TestClient_LargeData_StressTest(t *testing.T) {
 		count += len(proxyClient.Values())
 	}
 
+	elapsed := time.Since(start)
+	t.Logf("TestClient_LargeData_StressTest() took %s to process %d rows", elapsed, count)
 	assert.Equal(t, int(dataSize), count, "Large dataset should be read completely, the client returned missing data in the stream!")
 }
 

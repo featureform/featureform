@@ -5,7 +5,6 @@
 // Copyright 2024 FeatureForm Inc.
 //
 
-import { Box, Chip } from '@mui/material';
 import Typography from '@mui/material/Typography';
 import { useRouter } from 'next/router';
 import { useDataAPI } from '../../hooks/dataAPI';
@@ -143,7 +142,7 @@ const DEFAULT_FILTERS = Object.freeze({
 export const SearchTable = () => {
   const [filters, setFilters] = useState({...DEFAULT_FILTERS});
   const router = useRouter();
-  const { q } = router.query;
+  const q = router.query?.q || '';
 
   const [rows, setRows] = useState([]);
   const [loading, setIsLoading] = useState(false);

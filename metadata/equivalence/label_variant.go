@@ -8,12 +8,49 @@
 package equivalence
 
 import (
+	"reflect"
+
 	"github.com/featureform/fferr"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/provider/types"
 	"github.com/google/go-cmp/cmp"
-	"reflect"
 )
+
+type entityMapping struct {
+	Name         string
+	EntityColumn string
+}
+
+type entityMappings struct {
+	Mappings        []entityMapping
+	ValueColumn     string
+	TimestampColumn string
+}
+
+func entityMappingsFromProto(proto *pb.EntityMappings) entityMappings {
+	if proto == nil {
+		return entityMappings{}
+	}
+
+	mappings := make([]entityMapping, 0)
+	if proto.Mappings != nil {
+		for _, mapping := range proto.Mappings {
+			if mapping == nil {
+				continue
+			}
+			mappings = append(mappings, entityMapping{
+				Name:         mapping.Name,
+				EntityColumn: mapping.EntityColumn,
+			})
+		}
+	}
+
+	return entityMappings{
+		Mappings:        mappings,
+		ValueColumn:     proto.ValueColumn,
+		TimestampColumn: proto.TimestampColumn,
+	}
+}
 
 type labelVariant struct {
 	Name                    string
@@ -22,6 +59,7 @@ type labelVariant struct {
 	Entity                  string
 	Type                    types.ValueType
 	ResourceSnowflakeConfig resourceSnowflakeConfig
+	EntityMappings          entityMappings
 }
 
 func LabelVariantFromProto(proto *pb.LabelVariant) (labelVariant, error) {
@@ -36,6 +74,7 @@ func LabelVariantFromProto(proto *pb.LabelVariant) (labelVariant, error) {
 		Entity:                  proto.Entity,
 		Type:                    valueType,
 		ResourceSnowflakeConfig: resourceSnowflakeConfigFromProto(proto.ResourceSnowflakeConfig),
+		EntityMappings:          entityMappingsFromProto(proto.GetEntityMappings()),
 	}, nil
 }
 
@@ -51,7 +90,9 @@ func (l labelVariant) IsEquivalent(other Equivalencer) bool {
 				l1.Source.IsEquivalent(l2.Source) &&
 				l1.Entity == l2.Entity &&
 				l1.Type == l2.Type &&
-				reflect.DeepEqual(l1.ResourceSnowflakeConfig, l2.ResourceSnowflakeConfig)
+				reflect.DeepEqual(l1.Columns, l2.Columns) &&
+				reflect.DeepEqual(l1.ResourceSnowflakeConfig, l2.ResourceSnowflakeConfig) &&
+				reflect.DeepEqual(l1.EntityMappings, l2.EntityMappings)
 		}),
 	}
 

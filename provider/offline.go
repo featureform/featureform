@@ -173,6 +173,7 @@ type TrainingSetDef struct {
 	FeatureSourceMappings   []SourceMapping
 	LagFeatures             []LagFeatureDef
 	ResourceSnowflakeConfig *metadata.ResourceSnowflakeConfig
+	Type                    metadata.TrainingSetType
 }
 
 type TrainingSetDefJSON struct {
@@ -220,7 +221,8 @@ type SourceMapping struct {
 	ProviderConfig      pc.SerializedConfig
 	TimestampColumnName string
 	Location            pl.Location
-	Columns             metadata.ResourceVariantColumns
+	Columns             *metadata.ResourceVariantColumns
+	EntityMappings      *metadata.EntityMappings
 }
 
 type SourceMappingJSON struct {
@@ -728,18 +730,20 @@ type Dataset interface {
 }
 
 type ResourceSchema struct {
-	Entity      string
-	Value       string
-	TS          string
-	SourceTable pl.Location
+	Entity         string
+	Value          string
+	TS             string
+	EntityMappings metadata.EntityMappings
+	SourceTable    pl.Location
 }
 
 type ResourceSchemaJSON struct {
-	Entity       string          `json:"Entity"`
-	Value        string          `json:"Value"`
-	TS           string          `json:"TS"`
-	SourceTable  json.RawMessage `json:"SourceTable"`
-	LocationType pl.LocationType `json:"LocationType"`
+	Entity         string                  `json:"Entity"`
+	Value          string                  `json:"Value"`
+	TS             string                  `json:"TS"`
+	SourceTable    json.RawMessage         `json:"SourceTable"`
+	LocationType   pl.LocationType         `json:"LocationType"`
+	EntityMappings metadata.EntityMappings `json:"EntityMappings"`
 }
 
 func (schema *ResourceSchema) Serialize() ([]byte, error) {
@@ -753,11 +757,12 @@ func (schema *ResourceSchema) Serialize() ([]byte, error) {
 	}
 
 	data := ResourceSchemaJSON{
-		Entity:       schema.Entity,
-		Value:        schema.Value,
-		TS:           schema.TS,
-		SourceTable:  json.RawMessage(locationData),
-		LocationType: schema.SourceTable.Type(),
+		Entity:         schema.Entity,
+		Value:          schema.Value,
+		TS:             schema.TS,
+		SourceTable:    json.RawMessage(locationData),
+		LocationType:   schema.SourceTable.Type(),
+		EntityMappings: schema.EntityMappings,
 	}
 
 	return json.Marshal(data)
@@ -773,6 +778,7 @@ func (schema *ResourceSchema) Deserialize(config []byte) error {
 	schema.Entity = data.Entity
 	schema.Value = data.Value
 	schema.TS = data.TS
+	schema.EntityMappings = data.EntityMappings
 
 	var location pl.Location
 	switch data.LocationType {
@@ -802,18 +808,36 @@ type TableSchema struct {
 }
 
 func (r ResourceSchema) Validate() error {
-	unsetFields := make([]string, 0)
-	if r.Entity == "" {
-		unsetFields = append(unsetFields, "Entity")
-	}
-	if r.Value == "" {
-		unsetFields = append(unsetFields, "Value")
-	}
-	if r.SourceTable == nil || r.SourceTable.Location() == "" {
-		unsetFields = append(unsetFields, "SourceTable")
-	}
-	if len(unsetFields) > 0 {
-		return fferr.NewInvalidArgumentError(fmt.Errorf("missing required fields: %v", unsetFields))
+	if len(r.EntityMappings.Mappings) == 0 {
+		unsetFields := make([]string, 0)
+		if r.Entity == "" {
+			unsetFields = append(unsetFields, "Entity")
+		}
+		if r.Value == "" {
+			unsetFields = append(unsetFields, "Value")
+		}
+		if r.SourceTable == nil || r.SourceTable.Location() == "" {
+			unsetFields = append(unsetFields, "SourceTable")
+		}
+		if len(unsetFields) > 0 {
+			return fferr.NewInvalidArgumentError(fmt.Errorf("missing required fields: %v", unsetFields))
+		}
+	} else {
+		errMessages := make([]string, 0)
+		for idx, m := range r.EntityMappings.Mappings {
+			if m.Name == "" {
+				errMessages = append(errMessages, fmt.Sprintf("missing EntityMappings[%d].Name", idx))
+			}
+			if m.EntityColumn == "" {
+				errMessages = append(errMessages, fmt.Sprintf("missing EntityMappings[%d].EntityColumn", idx))
+			}
+		}
+		if r.EntityMappings.ValueColumn == "" {
+			errMessages = append(errMessages, "missing EntityMappings.ValueColumn")
+		}
+		if len(errMessages) > 0 {
+			return fferr.NewInvalidArgumentError(fmt.Errorf("invalid EntityMappings: %v", errMessages))
+		}
 	}
 	return nil
 }

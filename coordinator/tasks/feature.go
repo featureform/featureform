@@ -126,6 +126,12 @@ func (t *FeatureTask) Run() error {
 		Value:       tmpSchema.Value,
 		TS:          tmpSchema.TS,
 		SourceTable: sourceLocation,
+		EntityMappings: metadata.EntityMappings{
+			Mappings: []metadata.EntityMapping{
+				{Name: feature.Entity(), EntityColumn: tmpSchema.Entity},
+			},
+			ValueColumn: tmpSchema.Value,
+		},
 	}
 	logger = logger.With("schema", schema)
 	logger.Debugw("Creating Resource Table")

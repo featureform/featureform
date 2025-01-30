@@ -105,7 +105,12 @@ func testCreateTrainingSet(store *SparkOfflineStore) error {
 	if err != nil {
 		return err
 	}
-	testResourceSchema := ResourceSchema{"name", "age", "registered", pl.NewFileLocation(fp)}
+	testResourceSchema := ResourceSchema{
+		Entity:      "name",
+		Value:       "age",
+		TS:          "registered",
+		SourceTable: pl.NewFileLocation(fp),
+	}
 	testFeatureResource := sparkSafeRandomID(Feature)
 	table, err := store.RegisterResourceFromSourceTable(testFeatureResource, testResourceSchema)
 	if err != nil {
@@ -119,7 +124,12 @@ func testCreateTrainingSet(store *SparkOfflineStore) error {
 		return fmt.Errorf("Did not properly register table")
 	}
 	testLabelResource := sparkSafeRandomID(Label)
-	testLabelResourceSchema := ResourceSchema{"name", "winner", "registered", pl.NewFileLocation(fp)}
+	testLabelResourceSchema := ResourceSchema{
+		Entity:      "name",
+		Value:       "winner",
+		TS:          "registered",
+		SourceTable: pl.NewFileLocation(fp),
+	}
 	labelTable, err := store.RegisterResourceFromSourceTable(testLabelResource, testLabelResourceSchema)
 	fetchedLabel, err := store.GetResourceTable(testLabelResource)
 	if err != nil {
@@ -194,7 +204,12 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 	testResourceName := "test_name_materialize"
 	testResourceVariant := uuid.New().String()
 	testResource := ResourceID{testResourceName, testResourceVariant, Feature}
-	testResourceSchema := ResourceSchema{"name", "age", "registered", fpLocation}
+	testResourceSchema := ResourceSchema{
+		Entity:      "name",
+		Value:       "age",
+		TS:          "registered",
+		SourceTable: fpLocation,
+	}
 	table, err := store.RegisterResourceFromSourceTable(testResource, testResourceSchema)
 	if err != nil {
 		return err
@@ -332,7 +347,12 @@ func testRegisterResource(store *SparkOfflineStore) error {
 	fpLocation := pl.NewFileLocation(fp)
 	resourceVariantName := uuid.New().String()
 	testResource := ResourceID{"test_name", resourceVariantName, Feature}
-	testResourceSchema := ResourceSchema{"name", "age", "registered", fpLocation}
+	testResourceSchema := ResourceSchema{
+		Entity:      "name",
+		Value:       "age",
+		TS:          "registered",
+		SourceTable: fpLocation,
+	}
 	table, err := store.RegisterResourceFromSourceTable(testResource, testResourceSchema)
 	if err != nil {
 		return err
@@ -749,7 +769,12 @@ func registerRandomResourceGiveTablePath(
 	fpLocation := pl.NewFileLocation(fp)
 	var schema ResourceSchema
 	if timestamp {
-		schema = ResourceSchema{"entity", "value", "ts", fpLocation}
+		schema = ResourceSchema{
+			Entity:      "entity",
+			Value:       "value",
+			TS:          "ts",
+			SourceTable: fpLocation,
+		}
 	} else {
 		schema = ResourceSchema{Entity: "entity", Value: "value", SourceTable: fpLocation}
 	}
@@ -773,7 +798,12 @@ func registerRandomResourceGiveTable(id ResourceID, store *SparkOfflineStore, ta
 
 	var schema ResourceSchema
 	if timestamp {
-		schema = ResourceSchema{"entity", "value", "ts", fpLocation}
+		schema = ResourceSchema{
+			Entity:      "entity",
+			Value:       "value",
+			TS:          "ts",
+			SourceTable: fpLocation,
+		}
 	} else {
 		schema = ResourceSchema{Entity: "entity", Value: "value", SourceTable: fpLocation}
 	}
@@ -797,7 +827,12 @@ func registerRandomResource(id ResourceID, store *SparkOfflineStore) error {
 		return err
 	}
 	fpLocation := pl.NewFileLocation(fp)
-	schema := ResourceSchema{"entity", "value", "ts", fpLocation}
+	schema := ResourceSchema{
+		Entity:      "entity",
+		Value:       "value",
+		TS:          "ts",
+		SourceTable: fpLocation,
+	}
 	_, regErr := store.RegisterResourceFromSourceTable(id, schema)
 	if regErr != nil {
 		return regErr
@@ -1699,20 +1734,20 @@ func TestTrainingSetCreate(t *testing.T) {
 	}
 	testFeatureSchemas := []ResourceSchema{
 		{
-			Entity: "entity",
-			Value:  "feature_value_1",
-			TS:     "ts",
+			Entity:         "entity",
+			Value:          "feature_value_1",
+			TS:             "ts",
+			EntityMappings: metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "user", EntityColumn: "entity"}}},
 		},
 		{
-			Entity: "entity",
-			Value:  "feature_value_2",
-			TS:     "ts",
+			Entity:         "entity",
+			Value:          "feature_value_2",
+			TS:             "ts",
+			EntityMappings: metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "user", EntityColumn: "entity"}}},
 		},
 	}
 	testLabelSchema := ResourceSchema{
-		Entity: "entity",
-		Value:  "label_value",
-		TS:     "ts",
+		EntityMappings: metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "user", EntityColumn: "entity"}}, ValueColumn: "label_value", TimestampColumn: "ts"},
 	}
 	queries := defaultPythonOfflineQueries{}
 	trainingSetQuery := queries.trainingSetCreate(testTrainingSetDef, testFeatureSchemas, testLabelSchema)

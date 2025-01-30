@@ -8,10 +8,11 @@
 package equivalence
 
 import (
-	pb "github.com/featureform/metadata/proto"
-	"google.golang.org/protobuf/types/known/durationpb"
 	"testing"
 	"time"
+
+	pb "github.com/featureform/metadata/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -143,6 +144,28 @@ func TestTrainingSetVariantIsEquivalent(t *testing.T) {
 			},
 			expected: false,
 		},
+		{
+			name: "Different TrainingSetTypes",
+			ts1: trainingSetVariant{
+				Name: "set1",
+				Features: []nameVariant{
+					{Name: "feature1", Variant: "v1"},
+					{Name: "feature2", Variant: "v1"},
+				},
+				Label: nameVariant{Name: "label1", Variant: "v1"},
+				Type:  dynamicTrainingSet,
+			},
+			ts2: trainingSetVariant{
+				Name: "set1",
+				Features: []nameVariant{
+					{Name: "feature1", Variant: "v1"},
+					{Name: "feature2", Variant: "v1"},
+				},
+				Label: nameVariant{Name: "label1", Variant: "v1"},
+				Type:  viewTrainingSet,
+			},
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -264,6 +287,7 @@ func TestTrainingSetVariantFromProto(t *testing.T) {
 						Initialize:  pb.Initialize_INITIALIZE_ON_SCHEDULE,
 					},
 				},
+				Type: pb.TrainingSetType_TRAINING_SET_TYPE_DYNAMIC,
 			},
 			expected: trainingSetVariant{
 				Name: "test_variant",
@@ -288,6 +312,7 @@ func TestTrainingSetVariantFromProto(t *testing.T) {
 						Initialize:  "INITIALIZE_ON_SCHEDULE",
 					},
 				},
+				Type: dynamicTrainingSet,
 			},
 		},
 		{
@@ -308,6 +333,7 @@ func TestTrainingSetVariantFromProto(t *testing.T) {
 					},
 				},
 				ResourceSnowflakeConfig: nil, // explicitly nil
+				Type:                    pb.TrainingSetType_TRAINING_SET_TYPE_DYNAMIC,
 			},
 			expected: trainingSetVariant{
 				Name: "no_snowflake",
@@ -325,10 +351,83 @@ func TestTrainingSetVariantFromProto(t *testing.T) {
 					},
 				},
 				ResourceSnowflakeConfig: resourceSnowflakeConfig{}, // empty config
+				Type:                    dynamicTrainingSet,
 			},
 		},
 		{
 			name: "minimal training set variant",
+			input: &pb.TrainingSetVariant{
+				Name: "minimal_variant",
+				Features: []*pb.NameVariant{
+					{Name: "feature1"},
+				},
+				Label: &pb.NameVariant{
+					Name: "label",
+				},
+				Type: pb.TrainingSetType_TRAINING_SET_TYPE_DYNAMIC,
+			},
+			expected: trainingSetVariant{
+				Name: "minimal_variant",
+				Features: []nameVariant{
+					{Name: "feature1"},
+				},
+				Label: nameVariant{
+					Name: "label",
+				},
+				ResourceSnowflakeConfig: resourceSnowflakeConfig{}, // empty config
+				Type:                    dynamicTrainingSet,
+			},
+		},
+		{
+			name: "static training set variant",
+			input: &pb.TrainingSetVariant{
+				Name: "minimal_variant",
+				Features: []*pb.NameVariant{
+					{Name: "feature1"},
+				},
+				Label: &pb.NameVariant{
+					Name: "label",
+				},
+				Type: pb.TrainingSetType_TRAINING_SET_TYPE_STATIC,
+			},
+			expected: trainingSetVariant{
+				Name: "minimal_variant",
+				Features: []nameVariant{
+					{Name: "feature1"},
+				},
+				Label: nameVariant{
+					Name: "label",
+				},
+				ResourceSnowflakeConfig: resourceSnowflakeConfig{}, // empty config
+				Type:                    staticTrainingSet,
+			},
+		},
+		{
+			name: "view training set variant",
+			input: &pb.TrainingSetVariant{
+				Name: "minimal_variant",
+				Features: []*pb.NameVariant{
+					{Name: "feature1"},
+				},
+				Label: &pb.NameVariant{
+					Name: "label",
+				},
+				Type: pb.TrainingSetType_TRAINING_SET_TYPE_VIEW,
+			},
+			expected: trainingSetVariant{
+				Name: "minimal_variant",
+				Features: []nameVariant{
+					{Name: "feature1"},
+				},
+				Label: nameVariant{
+					Name: "label",
+				},
+				ResourceSnowflakeConfig: resourceSnowflakeConfig{}, // empty config
+				Type:                    viewTrainingSet,
+			},
+		},
+		{
+			name: "unset training set type",
 			input: &pb.TrainingSetVariant{
 				Name: "minimal_variant",
 				Features: []*pb.NameVariant{
@@ -348,6 +447,7 @@ func TestTrainingSetVariantFromProto(t *testing.T) {
 				},
 				ResourceSnowflakeConfig: resourceSnowflakeConfig{}, // empty config
 			},
+			wantErr: true,
 		},
 	}
 

@@ -1029,6 +1029,31 @@ class ResourceSnowflakeConfig:
             warehouse=self.warehouse,
         )
 
+    @classmethod
+    def from_proto(
+        cls, config: pb.ResourceSnowflakeConfig
+    ) -> "ResourceSnowflakeConfig":
+        return cls(
+            dynamic_table_config=(
+                SnowflakeDynamicTableConfig(
+                    target_lag=config.dynamic_table_config.target_lag,
+                    refresh_mode=(
+                        RefreshMode.from_proto(config.dynamic_table_config.refresh_mode)
+                        if config.dynamic_table_config.refresh_mode
+                        else None
+                    ),
+                    initialize=(
+                        Initialize.from_proto(config.dynamic_table_config.initialize)
+                        if config.dynamic_table_config.initialize
+                        else None
+                    ),
+                )
+                if config.dynamic_table_config
+                else None
+            ),
+            warehouse=config.warehouse,
+        )
+
 
 @typechecked
 @dataclass
@@ -2059,6 +2084,14 @@ class ResourceColumnMapping:
             ts=self.timestamp,
         )
 
+    def to_entity_mappings_proto(self, entity_name: str) -> pb.EntityMappings:
+        mapping = pb.EntityMapping(name=entity_name, entity_column=self.entity)
+        return pb.EntityMappings(
+            mappings=[mapping],
+            value_column=self.value,
+            timestamp_column=self.timestamp,
+        )
+
 
 ResourceLocation = ResourceColumnMapping
 
@@ -2523,6 +2556,34 @@ class Label:
 
 @typechecked
 @dataclass
+class EntityMapping:
+    name: str
+    entity_column: str
+
+    def to_proto(self):
+        return pb.EntityMapping(
+            name=self.name,
+            entity_column=self.entity_column,
+        )
+
+
+@typechecked
+@dataclass
+class EntityMappings:
+    mappings: List[EntityMapping]
+    value_column: str
+    timestamp_column: Optional[str] = None
+
+    def to_proto(self):
+        return pb.EntityMappings(
+            mappings=[m.to_proto() for m in self.mappings],
+            value_column=self.value_column,
+            timestamp_column=self.timestamp_column,
+        )
+
+
+@typechecked
+@dataclass
 class LabelVariant(ResourceVariant):
     name: str
     source: Any
@@ -2530,7 +2591,7 @@ class LabelVariant(ResourceVariant):
     entity: str
     owner: str
     description: str
-    location: ResourceLocation
+    location: Union[ResourceLocation, EntityMappings]
     variant: str
     tags: Optional[list] = None
     properties: Optional[dict] = None
@@ -2566,6 +2627,28 @@ class LabelVariant(ResourceVariant):
         )
         label = next(stub.GetLabelVariants(iter([name_variant])))
 
+        loc_type = label.WhichOneof("location")
+        location = None
+        if loc_type == "columns":
+            location = ResourceColumnMapping(
+                entity=label.columns.entity,
+                value=label.columns.value,
+                timestamp=label.columns.ts,
+            )
+        elif loc_type == "entity_mappings":
+            location = EntityMappings(
+                mappings=[
+                    EntityMapping(m.name, m.entity_column)
+                    for m in label.entity_mappings.mappings
+                ],
+                value_column=label.entity_mappings.value_column,
+                timestamp_column=(
+                    label.entity_mappings.timestamp_column
+                    if label.entity_mappings.timestamp_column
+                    else None
+                ),
+            )
+
         return LabelVariant(
             name=label.name,
             variant=label.variant,
@@ -2574,7 +2657,7 @@ class LabelVariant(ResourceVariant):
             entity=label.entity,
             owner=label.owner,
             provider=label.provider,
-            location=ResourceColumnMapping("", "", ""),
+            location=location,
             description=label.description,
             tags=list(label.tags.tag),
             properties={k: v for k, v in label.properties.property.items()},
@@ -2586,29 +2669,39 @@ class LabelVariant(ResourceVariant):
     def _get_and_set_equivalent_variant(self, req_id, stub):
         if hasattr(self.source, "name_variant"):
             self.source = self.source.name_variant()
-        serialized = pb.LabelVariantRequest(
-            label_variant=pb.LabelVariant(
-                name=self.name,
-                variant=self.variant,
-                source=pb.NameVariant(
-                    name=self.source[0],
-                    variant=self.source[1],
-                ),
-                provider=self.provider,
-                type=self.value_type.to_proto(),
-                entity=self.entity,
-                owner=self.owner,
-                description=self.description,
-                columns=self.location.proto(),
-                tags=pb.Tags(tag=self.tags),
-                properties=Properties(self.properties).serialized,
-                status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
-                resource_snowflake_config=(
-                    self.resource_snowflake_config.to_proto()
-                    if self.resource_snowflake_config
-                    else None
-                ),
+        label_variant = pb.LabelVariant(
+            name=self.name,
+            variant=self.variant,
+            source=pb.NameVariant(
+                name=self.source[0],
+                variant=self.source[1],
             ),
+            provider=self.provider,
+            type=self.value_type.to_proto(),
+            entity=self.entity,
+            owner=self.owner,
+            description=self.description,
+            tags=pb.Tags(tag=self.tags),
+            properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+            resource_snowflake_config=(
+                self.resource_snowflake_config.to_proto()
+                if self.resource_snowflake_config
+                else None
+            ),
+        )
+        if isinstance(self.location, ResourceLocation):
+            label_variant.entity_mappings.CopyFrom(
+                self.location.to_entity_mappings_proto(self.entity)
+            )
+        elif isinstance(self.location, EntityMappings):
+            label_variant.entity_mappings.CopyFrom(self.location.to_proto())
+        else:
+            raise ValueError(
+                f"Invalid location type {type(self.location)} for LabelVariant {self.name}"
+            )
+        serialized = pb.LabelVariantRequest(
+            label_variant=label_variant,
             request_id="",
         )
 
@@ -2758,6 +2851,7 @@ class TrainingSetVariant(ResourceVariant):
     error: Optional[str] = None
     server_status: Optional[ServerStatus] = None
     resource_snowflake_config: Optional[ResourceSnowflakeConfig] = None
+    type: TrainingSetType = field(default=TrainingSetType.DYNAMIC)
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -2819,6 +2913,10 @@ class TrainingSetVariant(ResourceVariant):
             properties={k: v for k, v in ts.properties.property.items()},
             error=ts.status.error_message,
             server_status=ServerStatus.from_proto(ts.status),
+            resource_snowflake_config=ResourceSnowflakeConfig.from_proto(
+                ts.resource_snowflake_config
+            ),
+            type=TrainingSetType.from_proto(ts.type),
         )
 
     def _get_and_set_equivalent_variant(self, req_id, stub):
@@ -2863,6 +2961,7 @@ class TrainingSetVariant(ResourceVariant):
                     if self.resource_snowflake_config
                     else None
                 ),
+                type=self.type.to_proto(),
             ),
             request_id="",
         )

@@ -260,6 +260,17 @@ type ResourceVariantColumns struct {
 	Source string
 }
 
+type EntityMapping struct {
+	Name         string
+	EntityColumn string
+}
+
+type EntityMappings struct {
+	Mappings        []EntityMapping
+	ValueColumn     string
+	TimestampColumn string
+}
+
 func (c ResourceVariantColumns) SerializeFeatureColumns() *pb.FeatureVariant_Columns {
 	return &pb.FeatureVariant_Columns{
 		Columns: &pb.Columns{
@@ -629,6 +640,7 @@ type TrainingSetDef struct {
 	Features    NameVariants
 	Tags        Tags
 	Properties  Properties
+	Type        TrainingSetType
 }
 
 func (def TrainingSetDef) ResourceType() ResourceType {
@@ -657,6 +669,7 @@ func (def TrainingSetDef) Serialize(requestID logging.RequestID) *pb.TrainingSet
 			Schedule:    def.Schedule,
 			Tags:        &pb.Tags{Tag: def.Tags},
 			Properties:  def.Properties.Serialize(),
+			Type:        TrainingSetTypeToProto(def.Type),
 		},
 		RequestId: requestID.String(),
 	}
@@ -1767,6 +1780,18 @@ func (fn fetchMaxJobDurationFn) MaxJobDuration() time.Duration {
 	return duration.AsDuration()
 }
 
+type entityGetter interface {
+	GetEntity() string
+}
+
+type fetchEntityFn struct {
+	getter entityGetter
+}
+
+func (fn fetchEntityFn) Entity() string {
+	return fn.getter.GetEntity()
+}
+
 type Feature struct {
 	serialized *pb.Feature
 	variantsFns
@@ -2271,6 +2296,7 @@ type LabelVariant struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
+	fetchEntityFn
 }
 
 func WrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
@@ -2283,6 +2309,7 @@ func WrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
 		protoStringer:        protoStringer{serialized},
 		fetchTagsFn:          fetchTagsFn{serialized},
 		fetchPropertiesFn:    fetchPropertiesFn{serialized},
+		fetchEntityFn:        fetchEntityFn{serialized},
 	}
 }
 
@@ -2343,8 +2370,43 @@ func (variant *LabelVariant) Error() string {
 	return ""
 }
 
-func (variant *LabelVariant) Location() interface{} {
-	return variant.serialized.GetLocation()
+func (variant *LabelVariant) IsLegacyLocation() bool {
+	loc := variant.serialized.GetLocation()
+	if _, isColumnsLocations := loc.(*pb.LabelVariant_Columns); isColumnsLocations {
+		return true
+	}
+	return false
+}
+
+// Location returns either Columns, which is now deprecated but could still be in use in users storage provider, or EntityMappings.
+func (variant *LabelVariant) Location() (EntityMappings, error) {
+	logger := logging.GlobalLogger.With("label_name", variant.Name(), "label_variant", variant.Name())
+	switch loc := variant.serialized.GetLocation().(type) {
+	case *pb.LabelVariant_Columns:
+		logger.Debugw("Using deprecated location type", "location", loc)
+		return EntityMappings{
+			Mappings:        []EntityMapping{{Name: variant.Entity(), EntityColumn: loc.Columns.Entity}},
+			ValueColumn:     loc.Columns.Value,
+			TimestampColumn: loc.Columns.Ts,
+		}, nil
+	case *pb.LabelVariant_EntityMappings:
+		logger.Debugw("Using entity mappings location type", "location", loc)
+		mappings := make([]EntityMapping, 0)
+		for _, mapping := range loc.EntityMappings.Mappings {
+			mappings = append(mappings, EntityMapping{
+				Name:         mapping.Name,
+				EntityColumn: mapping.EntityColumn,
+			})
+		}
+		return EntityMappings{
+			Mappings:        mappings,
+			ValueColumn:     loc.EntityMappings.ValueColumn,
+			TimestampColumn: loc.EntityMappings.TimestampColumn,
+		}, nil
+	default:
+		logger.Errorw("Unknown or unsupported location type", "location", loc)
+		return EntityMappings{}, fferr.NewInternalErrorf("Unknown or unsupported location type %T", loc)
+	}
 }
 
 func (variant *LabelVariant) isTable() bool {
@@ -2352,12 +2414,18 @@ func (variant *LabelVariant) isTable() bool {
 }
 
 func (variant *LabelVariant) LocationColumns() interface{} {
+	logger := logging.GlobalLogger.With("label_name", variant.Name(), "label_variant", variant.Name())
 	src := variant.serialized.GetColumns()
+	if src == nil {
+		logger.Errorw("Columns location is nil")
+		return nil
+	}
 	columns := ResourceVariantColumns{
 		Entity: src.Entity,
 		Value:  src.Value,
 		TS:     src.Ts,
 	}
+	logger.Debugw("Deprecated location columns", "columns", columns)
 	return columns
 }
 
@@ -2499,6 +2567,16 @@ func (variant *TrainingSetVariant) ResourceSnowflakeConfig() (*ResourceSnowflake
 	return getResourceSnowflakeConfig(variant.serialized)
 }
 
+func (variant *TrainingSetVariant) TrainingSetType() TrainingSetType {
+	logger := logging.GlobalLogger.Named("TrainingSetType")
+	typ, err := TrainingSetTypeFromProto(variant.serialized.GetType())
+	if err != nil {
+		logger.Errorw("Failed to get training set type; returning default DynamicTrainingSet", "error", err)
+		return DynamicTrainingSet
+	}
+	return typ
+}
+
 type Source struct {
 	serialized *pb.Source
 	variantsFns
@@ -2571,6 +2649,7 @@ func (arg KubernetesArgs) Type() TransformationArgType {
 
 type RefreshMode string
 type Initialize string
+type TrainingSetType string
 
 const (
 	AutoRefresh        RefreshMode = "AUTO" // Default
@@ -2579,6 +2658,10 @@ const (
 
 	InitializeOnCreate   Initialize = "ON_CREATE" // Default
 	InitializeOnSchedule Initialize = "ON_SCHEDULE"
+
+	DynamicTrainingSet TrainingSetType = "DYNAMIC"
+	StaticTrainingSet  TrainingSetType = "STATIC"
+	ViewTrainingSet    TrainingSetType = "VIEW"
 )
 
 func RefreshModeFromProto(proto pb.RefreshMode) (RefreshMode, error) {
@@ -2634,6 +2717,54 @@ func InitializeFromString(initialize string) (Initialize, error) {
 		return InitializeOnSchedule, nil
 	default:
 		return "", fferr.NewInvalidArgumentErrorf("Invalid initialize mode %s", initialize)
+	}
+}
+
+func TrainingSetTypeFromProto(proto pb.TrainingSetType) (TrainingSetType, error) {
+	logger := logging.GlobalLogger.Named("TrainingSetTypeFromProto")
+	var trainingSetType TrainingSetType
+	switch proto {
+	case pb.TrainingSetType_TRAINING_SET_TYPE_DYNAMIC:
+		trainingSetType = DynamicTrainingSet
+	case pb.TrainingSetType_TRAINING_SET_TYPE_STATIC:
+		trainingSetType = StaticTrainingSet
+	case pb.TrainingSetType_TRAINING_SET_TYPE_VIEW:
+		trainingSetType = ViewTrainingSet
+	case pb.TrainingSetType_TRAINING_SET_TYPE_UNSPECIFIED:
+		logger.DPanic("Training set type unspecified")
+		return trainingSetType, fferr.NewInvalidArgumentErrorf("Training set type unspecified")
+	default:
+		logger.DPanic("Unknown training set type", "proto", proto)
+		return trainingSetType, fferr.NewInternalErrorf("Unknown training set type %v", proto)
+	}
+	return trainingSetType, nil
+}
+
+func TrainingSetTypeFromString(trainingSetType string) (TrainingSetType, error) {
+	logger := logging.GlobalLogger.Named("TrainingSetTypeFromString")
+	switch trainingSetType {
+	case "DYNAMIC":
+		return DynamicTrainingSet, nil
+	case "STATIC":
+		return StaticTrainingSet, nil
+	case "VIEW":
+		return ViewTrainingSet, nil
+	default:
+		logger.DPanic("Invalid training set type", "trainingSetType", trainingSetType)
+		return "", fferr.NewInvalidArgumentErrorf("Invalid training set type %s", trainingSetType)
+	}
+}
+
+func TrainingSetTypeToProto(trainingSetType TrainingSetType) pb.TrainingSetType {
+	switch trainingSetType {
+	case DynamicTrainingSet:
+		return pb.TrainingSetType_TRAINING_SET_TYPE_DYNAMIC
+	case StaticTrainingSet:
+		return pb.TrainingSetType_TRAINING_SET_TYPE_STATIC
+	case ViewTrainingSet:
+		return pb.TrainingSetType_TRAINING_SET_TYPE_VIEW
+	default:
+		return pb.TrainingSetType_TRAINING_SET_TYPE_UNSPECIFIED
 	}
 }
 

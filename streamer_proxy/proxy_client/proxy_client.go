@@ -96,7 +96,10 @@ func GetStreamProxyClient(ctx context.Context, source, variant string, limit int
 
 	baseLogger.Info("Creating the record reader...")
 	recordReader, err := flight.NewRecordReader(flightStream)
-	if err != nil && err != io.EOF {
+	if err == io.EOF {
+		// initial connection ok, no data
+		return nil, fmt.Errorf("connection established, but no data available for source (%s) and variant (%s)", source, variant)
+	} else if err != nil {
 		return nil, fmt.Errorf("failed to create record reader: %w", err)
 	}
 

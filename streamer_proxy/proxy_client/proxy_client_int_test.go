@@ -18,13 +18,14 @@ import (
 type flightServer struct {
 	flight.BaseFlightServer
 	Records []arrow.Record
+	Schema  arrow.Schema
 }
 
 func (f *flightServer) DoGet(ticket *flight.Ticket, fs flight.FlightService_DoGetServer) error {
 	ticketData := string(ticket.GetTicket())
 	fmt.Println("received ticket data: ", ticketData) // todox: use logger
 	recordSlice := f.Records
-	writer := flight.NewRecordWriter(fs, ipc.WithSchema(recordSlice[0].Schema()))
+	writer := flight.NewRecordWriter(fs, ipc.WithSchema(&f.Schema))
 	for _, r := range recordSlice {
 		writer.Write(r)
 	}
@@ -137,6 +138,7 @@ func TestClient_GetStreamProxyClient_Success(t *testing.T) {
 	// start the proxy flight server
 	f := flightServer{
 		Records: recordSlice,
+		Schema:  *schema,
 	}
 
 	flight.RegisterFlightServiceServer(grpcServer, &f)
@@ -243,6 +245,7 @@ func TestClient_MultipleRecordBatches(t *testing.T) {
 
 			f := flightServer{
 				Records: recordSlice,
+				Schema:  *schema,
 			}
 			flight.RegisterFlightServiceServer(grpcServer, &f)
 			done := make(chan struct{})
@@ -291,7 +294,7 @@ func TestClient_ConnectionFailure(t *testing.T) {
 	_, proxyErr := GetStreamProxyClient(context.Background(), someName, someVariant, 10)
 
 	assert.Error(t, proxyErr, "Expected error when connecting to an invalid Flight server")
-	assert.ErrorContainsf(t, proxyErr, proxyErr.Error(), "failed to fetch data for source (%s) and variant (%s) from proxy", someName, someVariant)
+	assert.ErrorContainsf(t, proxyErr, fmt.Sprintf("failed to fetch data for source (%s) and variant (%s) from proxy", someName, someVariant), "")
 }
 
 func TestClient_SchemaMismatch(t *testing.T) {
@@ -323,6 +326,7 @@ func TestClient_SchemaMismatch(t *testing.T) {
 	// start the proxy flight server
 	f := flightServer{
 		Records: recordSlice,
+		Schema:  *schema,
 	}
 
 	flight.RegisterFlightServiceServer(grpcServer, &f)
@@ -340,12 +344,12 @@ func TestClient_SchemaMismatch(t *testing.T) {
 		<-done
 	}()
 
-	proxyClient, err := GetStreamProxyClient(context.Background(), "some_name", "some_variant", 10)
-	assert.NoError(t, err)
+	proxyClient, proxyErr := GetStreamProxyClient(context.Background(), "some_name", "some_variant", 10)
+	assert.NoError(t, proxyErr)
 	assert.NotEqual(t, proxyClient.Columns(), []string{"batch_id"}, "Schema should not match")
 }
 
-func TestFlightServer_LargeData_StressTest(t *testing.T) {
+func TestClient_LargeData_StressTest(t *testing.T) {
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "big_data", Type: arrow.PrimitiveTypes.Int32},
 	}, nil)
@@ -373,6 +377,7 @@ func TestFlightServer_LargeData_StressTest(t *testing.T) {
 	// start the proxy flight server
 	f := flightServer{
 		Records: recordSlice,
+		Schema:  *schema,
 	}
 
 	flight.RegisterFlightServiceServer(grpcServer, &f)
@@ -390,8 +395,8 @@ func TestFlightServer_LargeData_StressTest(t *testing.T) {
 		<-done
 	}()
 
-	proxyClient, err := GetStreamProxyClient(context.Background(), "some_name", "some_variant", 10)
-	assert.NoError(t, err)
+	proxyClient, proxyErr := GetStreamProxyClient(context.Background(), "some_name", "some_variant", 10)
+	assert.NoError(t, proxyErr)
 
 	count := 0
 	for proxyClient.Next() {
@@ -399,4 +404,35 @@ func TestFlightServer_LargeData_StressTest(t *testing.T) {
 	}
 
 	assert.Equal(t, int(dataSize), count, "Large dataset should be read completely, the client returned missing data in the stream!")
+}
+
+func TestClient_EmptyData(t *testing.T) {
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "empty_field", Type: arrow.PrimitiveTypes.Int32},
+	}, nil)
+
+	// no data to return
+	recordSlice := createRecords(schema, arrow.Metadata{}, nil, [][]interface{}{})
+
+	grpcServer := grpc.NewServer()
+	listener, _ := net.Listen("tcp", "localhost:0")
+
+	testPort := listener.Addr().(*net.TCPAddr).Port
+	t.Setenv("ICEBERG_PROXY_HOST", "localhost")
+	t.Setenv("ICEBERG_PROXY_PORT", fmt.Sprintf("%d", testPort))
+
+	// start the server
+	f := flightServer{
+		Records: recordSlice,
+		Schema:  *schema,
+	}
+	flight.RegisterFlightServiceServer(grpcServer, &f)
+	go grpcServer.Serve(listener)
+	defer grpcServer.Stop()
+
+	someName, someVariant := "some_name", "some_variant"
+	_, proxyErr := GetStreamProxyClient(context.Background(), someName, someVariant, 10)
+
+	assert.Error(t, proxyErr, "Expected error when connecting to an invalid Flight server")
+	assert.ErrorContainsf(t, proxyErr, fmt.Sprintf("connection established, but no data available for source (%s) and variant (%s)", someName, someVariant), "")
 }

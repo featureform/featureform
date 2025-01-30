@@ -251,14 +251,6 @@ func (t *FeatureTask) Run() error {
 	return nil
 }
 
-type offlineProviderGetter struct {
-	fv *metadata.FeatureVariant
-}
-
-func (o *offlineProviderGetter) FetchProvider(metadataClient *metadata.Client, ctx context.Context) (*metadata.Provider, error) {
-	return o.fv.FetchOfflineStoreProvider(metadataClient, ctx)
-}
-
 func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.ResourceID, logger logging.Logger) error {
 	logger.Infow("Deleting feature")
 	featureTableName, tableNameErr := provider_schema.ResourceToTableName(provider_schema.Materialization, resID.Name, resID.Variant)
@@ -286,7 +278,7 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 	offlineStoreLocations := featureToDelete.GetOfflineStoreLocations()
 
 	logger.Debug("Getting offline store")
-	sourceStore, err := getOfflineStore(ctx, t.BaseTask, t.metadata, &offlineProviderGetter{fv: featureToDelete}, logger)
+	sourceStore, err := getOfflineStore(ctx, t.BaseTask, t.metadata, &offlineProviderFeatureAdapter{feature: featureToDelete}, logger)
 	if err != nil {
 		logger.Errorw("Failed to get store", "error", err)
 		return err

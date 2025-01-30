@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"context"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -9,15 +10,24 @@ import (
 	pt "github.com/featureform/provider/provider_type"
 )
 
-type providerFetcher interface {
-	FetchProvider(*metadata.Client, context.Context) (*metadata.Provider, error)
+type offlineProviderFetcher interface {
+	FetchProvider(context.Context, *metadata.Client) (*metadata.Provider, error)
+}
+
+// an adapter to fetch an offline provider for a feature since feature's FetchProvider returns the online provider
+type offlineProviderFeatureAdapter struct {
+	feature *metadata.FeatureVariant
+}
+
+func (f *offlineProviderFeatureAdapter) FetchProvider(ctx context.Context, client *metadata.Client) (*metadata.Provider, error) {
+	return f.feature.FetchOfflineStoreProvider(client, ctx)
 }
 
 func getOfflineStore(
 	ctx context.Context,
 	baseTask BaseTask,
 	client *metadata.Client,
-	pf providerFetcher,
+	pf offlineProviderFetcher,
 	logger logging.Logger,
 ) (provider.OfflineStore, error) {
 	logMessage := "Fetching Provider..."
@@ -26,7 +36,7 @@ func getOfflineStore(
 	}
 
 	logger.Debugf("Fetching provider for task")
-	providerEntry, err := pf.FetchProvider(client, ctx)
+	providerEntry, err := pf.FetchProvider(ctx, client)
 	if err != nil {
 		logger.Errorw("Failed to fetch provider", "error", err)
 		return nil, err

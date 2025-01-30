@@ -865,12 +865,6 @@ func (serv *MetadataServer) ListEntities(listRequest *pb.ListRequest, stream pb.
 	}
 }
 
-func CensorProviderConfig(provider *pb.Provider) *pb.Provider {
-	censoredProvider := proto.Clone(provider).(*pb.Provider)
-	censoredProvider.SerializedConfig = []byte{}
-	return censoredProvider
-}
-
 func (serv *MetadataServer) ListProviders(listRequest *pb.ListRequest, stream pb.Api_ListProvidersServer) error {
 	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
 	logger.Infow("Listing Providers")

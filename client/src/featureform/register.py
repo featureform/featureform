@@ -6323,16 +6323,6 @@ def entity(cls):
     return cls
 
 
-@dataclass
-class Incremental:
-    resource: Resource
-
-
-@dataclass
-class Stream:
-    resource: Resource
-
-
 DeletableResourceObjects = Union[
     FeatureColumnResource,
     SubscriptableTransformation,

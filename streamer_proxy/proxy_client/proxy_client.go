@@ -156,5 +156,11 @@ func (si StreamProxyClient) Err() error {
 }
 
 func (si StreamProxyClient) Close() error {
+	if si.flightStream != nil {
+		closeErr := si.flightStream.CloseSend()
+		if closeErr != nil {
+			si.logger.Errorf("The flight stream CloseSend() returned an error: %v", closeErr)
+		}
+	}
 	return si.client.Close()
 }

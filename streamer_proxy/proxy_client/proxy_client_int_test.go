@@ -17,19 +17,16 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var (
-	Records     = make(map[string][]arrow.Record)
-	RecordNames []string
-)
-
 type flightServer struct {
 	flight.BaseFlightServer
+	Records     map[string][]arrow.Record
+	RecordNames []string
 }
 
 func (f *flightServer) DoGet(ticket *flight.Ticket, fs flight.FlightService_DoGetServer) error {
 	ticketData := string(ticket.GetTicket())
 	fmt.Println("received ticket data: ", ticketData) // todox: use logger
-	recordSlice, ok := Records["students"]
+	recordSlice, ok := f.Records["students"]
 	if !ok {
 		return status.Error(codes.NotFound, "flight not found")
 	}
@@ -40,14 +37,6 @@ func (f *flightServer) DoGet(ticket *flight.Ticket, fs flight.FlightService_DoGe
 	}
 
 	return nil
-}
-
-func init() {
-	Records["students"] = createStudentRecords()
-
-	for k := range Records {
-		RecordNames = append(RecordNames, k)
-	}
 }
 
 func createStudentRecords() []arrow.Record {
@@ -138,7 +127,10 @@ func TestFlightServer_GetStreamProxyClient(t *testing.T) {
 	t.Setenv("ICEBERG_PROXY_PORT", fmt.Sprintf("%d", testPort))
 
 	// start the proxy flight server
-	f := flightServer{}
+	f := flightServer{
+		Records:     map[string][]arrow.Record{"students": createStudentRecords()},
+		RecordNames: []string{"students"},
+	}
 	// todo: make the records part of the flight server?
 	flight.RegisterFlightServiceServer(grpcServer, &f)
 	done := make(chan struct{})
@@ -156,7 +148,7 @@ func TestFlightServer_GetStreamProxyClient(t *testing.T) {
 	}()
 
 	// get proxy client
-	proxyClient, proxyErr := GetStreamProxyClient(context.Background(), "some_name", "some_variant", -1)
+	proxyClient, proxyErr := GetStreamProxyClient(context.Background(), "some_name", "some_variant", 10)
 	if proxyErr != nil {
 		t.Fatalf("An error occurred calling GetStreamProxyClient(): %v", proxyErr)
 	}
@@ -173,4 +165,119 @@ func TestFlightServer_GetStreamProxyClient(t *testing.T) {
 	assert.Equal(t, values[3], []string{"false", "18", "tony"})
 	assert.False(t, proxyClient.Next(), "Final call to next() should be false")
 
+}
+
+func TestFlightServer_MultipleRecordBatches2(t *testing.T) {
+	tests := []struct {
+		name          string
+		batches       [][]int32
+		expectedRows  [][]string
+		expectedCalls int
+	}{
+		{
+			name: "Single batch of 3 records",
+			batches: [][]int32{
+				{1, 2, 3},
+			},
+			expectedRows: [][]string{
+				{"1"}, {"2"}, {"3"},
+			},
+			expectedCalls: 1,
+		},
+		{
+			name: "Double batch of 3 records",
+			batches: [][]int32{
+				{1, 2, 3},
+				{4, 5, 6},
+			},
+			expectedRows: [][]string{
+				{"1"}, {"2"}, {"3"},
+				{"4"}, {"5"}, {"6"},
+			},
+			expectedCalls: 2,
+		},
+		{
+			name: "Empty batch",
+			batches: [][]int32{
+				{},
+			},
+			expectedRows:  [][]string(nil),
+			expectedCalls: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			memoryAlloc := memory.NewGoAllocator()
+			schema := arrow.NewSchema(
+				[]arrow.Field{
+					{Name: "batch_id", Type: arrow.PrimitiveTypes.Int32},
+				}, nil,
+			)
+
+			// create the chunks
+			chunks := make([][]arrow.Array, len(tt.batches))
+			for i, batch := range tt.batches {
+				chunks[i] = []arrow.Array{arrayFrom(memoryAlloc, batch, nil)}
+			}
+
+			recordSlice := make([]arrow.Record, len(chunks))
+			for i, chunk := range chunks {
+				recordSlice[i] = array.NewRecord(schema, chunk, -1)
+			}
+
+			// start the server
+			grpcServer := grpc.NewServer()
+			listener, listenErr := net.Listen("tcp", "localhost:0")
+			if listenErr != nil {
+				t.Fatalf("Failed to bind address: %s", listenErr)
+			}
+
+			// prep the env
+			testPort := listener.Addr().(*net.TCPAddr).Port
+
+			t.Setenv("ICEBERG_PROXY_HOST", "localhost")
+			t.Setenv("ICEBERG_PROXY_PORT", fmt.Sprintf("%d", testPort))
+
+			f := flightServer{
+				Records:     map[string][]arrow.Record{"students": recordSlice},
+				RecordNames: []string{"students"},
+			}
+			flight.RegisterFlightServiceServer(grpcServer, &f)
+			done := make(chan struct{})
+			go func() {
+				servErr := grpcServer.Serve(listener)
+				if servErr != nil {
+					fmt.Println("Server shutdown with an error: ", servErr)
+				}
+				close(done)
+			}()
+			defer func() {
+				grpcServer.Stop()
+				<-done
+			}()
+
+			// get the proxy client
+			proxyClient, proxyErr := GetStreamProxyClient(context.Background(), "some_name", "some_variant", 10)
+			assert.NoError(t, proxyErr)
+
+			var actualRows [][]string
+			calls := 0
+			for proxyClient.Next() {
+				dataMatrix := proxyClient.Values()
+				for _, dataRow := range dataMatrix {
+					stringArray, ok := dataRow.([]string)
+					if !ok {
+						fmt.Println("The data row did not cast correctly")
+						t.FailNow()
+					}
+					actualRows = append(actualRows, stringArray)
+				}
+				calls++ // increment the calls for the test
+			}
+
+			assert.Equal(t, tt.expectedRows, actualRows, "Retrieved rows should match expected rows")
+			assert.Equal(t, tt.expectedCalls, calls, "Number of Next() calls should match expected count")
+		})
+	}
 }

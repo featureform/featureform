@@ -86,6 +86,12 @@ func arrayFrom(memoryAlloc memory.Allocator, a interface{}, valids []bool) arrow
 
 		bldr.AppendValues(a, valids)
 		return bldr.NewStringArray()
+	case []float64:
+		bldr := array.NewFloat64Builder(memoryAlloc)
+		defer bldr.Release()
+
+		bldr.AppendValues(a, valids)
+		return bldr.NewFloat64Array()
 
 	default:
 		panic(fmt.Errorf("arrdata: invalid data slice type %T", a))
@@ -291,4 +297,111 @@ func TestClient_ConnectionFailure(t *testing.T) {
 
 	assert.Error(t, proxyErr, "Expected error when connecting to an invalid Flight server")
 	assert.ErrorContainsf(t, proxyErr, proxyErr.Error(), "failed to fetch data for source (%s) and variant (%s) from proxy", someName, someVariant)
+}
+
+func TestClient_SchemaMismatch(t *testing.T) {
+	// define a "wrong" schema
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "wrong_field", Type: arrow.PrimitiveTypes.Float64},
+	}, nil)
+
+	data := [][]interface{}{
+		{
+			[]float64{1.1, 2.2, 3.3},
+		},
+	}
+
+	recordSlice := createRecords(schema, arrow.Metadata{}, nil, data)
+
+	grpcServer := grpc.NewServer()
+	listener, listenErr := net.Listen("tcp", "localhost:0")
+	if listenErr != nil {
+		t.Fatalf("Failed to bind address to :%s", listenErr)
+	}
+
+	// pull the os assigned port
+	testPort := listener.Addr().(*net.TCPAddr).Port
+
+	t.Setenv("ICEBERG_PROXY_HOST", "localhost")
+	t.Setenv("ICEBERG_PROXY_PORT", fmt.Sprintf("%d", testPort))
+
+	// start the proxy flight server
+	f := flightServer{
+		Records: recordSlice,
+	}
+
+	flight.RegisterFlightServiceServer(grpcServer, &f)
+	done := make(chan struct{})
+	go func() {
+		servErr := grpcServer.Serve(listener)
+		if servErr != nil {
+			fmt.Println("Server shutdown with an error: ", servErr)
+		}
+		close(done)
+	}()
+
+	defer func() {
+		grpcServer.Stop()
+		<-done
+	}()
+
+	proxyClient, err := GetStreamProxyClient(context.Background(), "some_name", "some_variant", 10)
+	assert.NoError(t, err)
+	assert.NotEqual(t, proxyClient.Columns(), []string{"batch_id"}, "Schema should not match")
+}
+
+func TestFlightServer_LargeData_StressTest(t *testing.T) {
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "big_data", Type: arrow.PrimitiveTypes.Int32},
+	}, nil)
+
+	dataSize := int32(20_000)
+	largeData := make([]int32, dataSize)
+	for i := int32(0); i < dataSize; i++ {
+		largeData[i] = i
+	}
+
+	recordSlice := createRecords(schema, arrow.Metadata{}, nil, [][]interface{}{{largeData}})
+
+	grpcServer := grpc.NewServer()
+	listener, listenErr := net.Listen("tcp", "localhost:0")
+	if listenErr != nil {
+		t.Fatalf("Failed to bind address to :%s", listenErr)
+	}
+
+	// pull the os assigned port
+	testPort := listener.Addr().(*net.TCPAddr).Port
+
+	t.Setenv("ICEBERG_PROXY_HOST", "localhost")
+	t.Setenv("ICEBERG_PROXY_PORT", fmt.Sprintf("%d", testPort))
+
+	// start the proxy flight server
+	f := flightServer{
+		Records: recordSlice,
+	}
+
+	flight.RegisterFlightServiceServer(grpcServer, &f)
+	done := make(chan struct{})
+	go func() {
+		servErr := grpcServer.Serve(listener)
+		if servErr != nil {
+			fmt.Println("Server shutdown with an error: ", servErr)
+		}
+		close(done)
+	}()
+
+	defer func() {
+		grpcServer.Stop()
+		<-done
+	}()
+
+	proxyClient, err := GetStreamProxyClient(context.Background(), "some_name", "some_variant", 10)
+	assert.NoError(t, err)
+
+	count := 0
+	for proxyClient.Next() {
+		count += len(proxyClient.Values())
+	}
+
+	assert.Equal(t, int(dataSize), count, "Large dataset should be read completely, the client returned missing data in the stream!")
 }

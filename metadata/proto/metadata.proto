@@ -338,26 +338,40 @@ message Label {
 }
 
 message LabelVariant {
-  string name = 1;
-  string variant = 2;
-  string description = 3;
-  NameVariant source = 5;
-  string entity = 6;
-  google.protobuf.Timestamp created = 7;
-  string owner = 8;
-  string provider = 9;
-  ResourceStatus status = 10;
-  repeated NameVariant trainingsets = 11;
-  oneof location {
-    Columns columns = 12;
-    Stream stream = 16;
-  }
-  Tags tags = 13;
-  Properties properties = 14;
-  string task_id = 15 [deprecated = true];
-  ValueType type = 18;
-  repeated string task_id_list = 17;
-  ResourceSnowflakeConfig resource_snowflake_config = 19;
+    string name = 1;
+    string variant = 2;
+    string description = 3;
+    NameVariant source = 5;
+    string entity = 6;
+    google.protobuf.Timestamp created = 7;
+    string owner = 8;
+    string provider = 9;
+    ResourceStatus status = 10;
+    repeated NameVariant trainingsets = 11;
+    oneof location {
+        // Use entity_mappings instead of columns to support multi-label entities,
+        // even if there's only a single label per entity
+        Columns columns = 12 [deprecated=true];
+        Stream stream = 16;
+        EntityMappings entity_mappings = 20;
+    }
+    Tags tags = 13;
+    Properties properties = 14;
+    string task_id = 15 [deprecated=true];
+    ValueType type = 18;
+    repeated string task_id_list = 17;
+    ResourceSnowflakeConfig resource_snowflake_config = 19;
+}
+
+message EntityMappings {
+    repeated EntityMapping mappings = 1;
+    string value_column = 2;
+    string timestamp_column = 3;
+}
+
+message EntityMapping {
+    string name = 1;
+    string entity_column = 2;
 }
 
 message LabelVariantRequest {
@@ -394,23 +408,24 @@ message TrainingSet {
 }
 
 message TrainingSetVariant {
-  string name = 1;
-  string variant = 2;
-  string description = 3;
-  string owner = 4;
-  google.protobuf.Timestamp created = 5;
-  string provider = 6;
-  ResourceStatus status = 7;
-  repeated NameVariant features = 8;
-  NameVariant label = 9;
-  google.protobuf.Timestamp last_updated = 13;
-  string schedule = 14;
-  repeated FeatureLag feature_lags = 15;
-  Tags tags = 16;
-  Properties properties = 17;
-  string task_id = 18 [deprecated = true];
-  repeated string task_id_list = 19;
-  ResourceSnowflakeConfig resource_snowflake_config = 20;
+    string name = 1;
+    string variant = 2;
+    string description = 3;
+    string owner = 4;
+    google.protobuf.Timestamp created = 5;
+    string provider = 6;
+    ResourceStatus status = 7;
+    repeated NameVariant features = 8;
+    NameVariant label = 9;
+    google.protobuf.Timestamp last_updated = 13;
+    string schedule = 14;
+    repeated FeatureLag feature_lags = 15;
+    Tags tags = 16;
+    Properties properties = 17;
+    string task_id = 18 [deprecated=true];
+    repeated string task_id_list = 19;
+    ResourceSnowflakeConfig resource_snowflake_config = 20;
+    TrainingSetType type = 21;
 }
 
 message TrainingSetVariantRequest {
@@ -712,4 +727,14 @@ message PruneResourceRequest {
 }
 
 message PruneResourceResponse {
+    string target_lag = 1;
+    RefreshMode refresh_mode = 2;
+    Initialize initialize = 3;
+}
+
+enum TrainingSetType {
+    TRAINING_SET_TYPE_UNSPECIFIED = 0;
+    TRAINING_SET_TYPE_DYNAMIC = 1;
+    TRAINING_SET_TYPE_STATIC = 2;
+    TRAINING_SET_TYPE_VIEW = 3;
 }

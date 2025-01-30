@@ -8,9 +8,10 @@
 package equivalence
 
 import (
+	"testing"
+
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/provider/types"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -114,11 +115,100 @@ func TestLabelVariantIsEquivalent(t *testing.T) {
 			lv2: labelVariant{
 				Name:    "Label1",
 				Source:  nameVariant{Name: "Source1", Variant: "v1"},
-				Columns: column{Entity: "Entity2", Value: "Value2", Ts: "TS2"}, // Different Columns
+				Columns: column{Entity: "Entity2", Value: "Value2", Ts: "TS2"},
 				Entity:  "Entity1",
 				Type:    types.Int8,
 			},
-			expected: true, // Columns are not compared
+			expected: false,
+		},
+		{
+			name: "Identical EntityMappings",
+			lv1: labelVariant{
+				Name:           "Label1",
+				Source:         nameVariant{Name: "Source1", Variant: "v1"},
+				EntityMappings: entityMappings{Mappings: []entityMapping{{Name: "Entity1", EntityColumn: "EntityColumn1"}}, ValueColumn: "ValueColumn1", TimestampColumn: "TimestampColumn1"},
+				Entity:         "Entity1",
+				Type:           types.Int8,
+			},
+			lv2: labelVariant{
+				Name:           "Label1",
+				Source:         nameVariant{Name: "Source1", Variant: "v1"},
+				EntityMappings: entityMappings{Mappings: []entityMapping{{Name: "Entity1", EntityColumn: "EntityColumn1"}}, ValueColumn: "ValueColumn1", TimestampColumn: "TimestampColumn1"},
+				Entity:         "Entity1",
+				Type:           types.Int8,
+			},
+			expected: true,
+		},
+		{
+			name: "Different EntityMappings (no common timestamp column)",
+			lv1: labelVariant{
+				Name:           "Label1",
+				Source:         nameVariant{Name: "Source1", Variant: "v1"},
+				EntityMappings: entityMappings{Mappings: []entityMapping{{Name: "Entity1", EntityColumn: "EntityColumn1"}}, ValueColumn: "ValueColumn1", TimestampColumn: "TimestampColumn1"},
+				Entity:         "Entity1",
+				Type:           types.Int8,
+			},
+			lv2: labelVariant{
+				Name:           "Label1",
+				Source:         nameVariant{Name: "Source1", Variant: "v1"},
+				EntityMappings: entityMappings{Mappings: []entityMapping{{Name: "Entity1", EntityColumn: "EntityColumn1"}}, ValueColumn: "ValueColumn1"},
+				Entity:         "Entity1",
+				Type:           types.Int8,
+			},
+			expected: false,
+		},
+		{
+			name: "Different EntityMappings (extra mapping)",
+			lv1: labelVariant{
+				Name:           "Label1",
+				Source:         nameVariant{Name: "Source1", Variant: "v1"},
+				EntityMappings: entityMappings{Mappings: []entityMapping{{Name: "Entity1", EntityColumn: "EntityColumn1"}, {Name: "Entity2", EntityColumn: "EntityColumn2"}}, ValueColumn: "ValueColumn1"},
+				Entity:         "Entity1",
+				Type:           types.Int8,
+			},
+			lv2: labelVariant{
+				Name:           "Label1",
+				Source:         nameVariant{Name: "Source1", Variant: "v1"},
+				EntityMappings: entityMappings{Mappings: []entityMapping{{Name: "Entity1", EntityColumn: "EntityColumn1"}}, ValueColumn: "ValueColumn1"},
+				Entity:         "Entity1",
+				Type:           types.Int8,
+			},
+			expected: false,
+		},
+		{
+			name: "Different EntityMappings (different value column)",
+			lv1: labelVariant{
+				Name:           "Label1",
+				Source:         nameVariant{Name: "Source1", Variant: "v1"},
+				EntityMappings: entityMappings{Mappings: []entityMapping{{Name: "Entity1", EntityColumn: "EntityColumn1"}}, ValueColumn: "ValueColumn1"},
+				Entity:         "Entity1",
+				Type:           types.Int8,
+			},
+			lv2: labelVariant{
+				Name:           "Label1",
+				Source:         nameVariant{Name: "Source1", Variant: "v1"},
+				EntityMappings: entityMappings{Mappings: []entityMapping{{Name: "Entity1", EntityColumn: "EntityColumn1"}}, ValueColumn: "ValueColumn2"},
+				Entity:         "Entity1",
+				Type:           types.Int8,
+			},
+			expected: false,
+		},
+		{
+			name: "Different EntityMappings (no entity mappings)",
+			lv1: labelVariant{
+				Name:           "Label1",
+				Source:         nameVariant{Name: "Source1", Variant: "v1"},
+				EntityMappings: entityMappings{Mappings: []entityMapping{{Name: "Entity1", EntityColumn: "EntityColumn1"}}, ValueColumn: "ValueColumn1"},
+				Entity:         "Entity1",
+				Type:           types.Int8,
+			},
+			lv2: labelVariant{
+				Name:   "Label1",
+				Source: nameVariant{Name: "Source1", Variant: "v1"},
+				Entity: "Entity1",
+				Type:   types.Int8,
+			},
+			expected: false,
 		},
 	}
 

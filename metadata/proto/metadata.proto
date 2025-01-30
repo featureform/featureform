@@ -753,35 +753,6 @@ message PruneResourceResponse {
     Initialize initialize = 3;
 }
 
-message MarkForDeletionRequest {
-  ResourceID resource_id = 1;
-}
-
-message MarkForDeletionResponse {
-}
-
-message FinalizeDeletionRequest {
-  ResourceID resource_id = 1;
-}
-
-message FinalizeDeletionResponse {
-}
-
-message GetStagedForDeletionResourceRequest {
-  ResourceID resource_id = 1;
-}
-
-message GetStagedForDeletionResourceResponse {
-  ResourceVariant resource_variant = 1;
-}
-
-message PruneResourceRequest {
-  ResourceID resource_id = 1;
-}
-
-message PruneResourceResponse {
-}
-
 enum TrainingSetType {
   TRAINING_SET_TYPE_UNSPECIFIED = 0;
   TRAINING_SET_TYPE_DYNAMIC = 1;

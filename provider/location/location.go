@@ -25,6 +25,7 @@ const (
 	SQLLocationType       LocationType = "sql"
 	FileStoreLocationType LocationType = "filestore"
 	CatalogLocationType   LocationType = "catalog"
+	KafkaLocationType     LocationType = "kafka"
 )
 
 type Location interface {

@@ -1952,29 +1952,26 @@ func (serv *MetadataServer) SyncUnfinishedRuns(ctx context.Context, empty *schpr
 }
 
 func NewMetadataServer(config *Config) (*MetadataServer, error) {
-	config.Logger.Infow("Creating new metadata server", "Address:", config.Address)
+	if config == nil {
+		return nil, fferr.NewInternalErrorf("config cannot be nil")
+	}
+
+	config.Logger.Infow("Creating new metadata server", "address", config.Address)
+
 	baseLookup := MemoryResourceLookup{config.TaskManager.Storage}
 	wrappedLookup, err := initializeLookup(config, &baseLookup, search.NewMeilisearch)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to initialize lookup: %w", err)
 	}
 
 	resourcesRepo, err := NewResourcesRepositoryFromLookup(&baseLookup)
 	if err != nil {
 		config.Logger.Errorw("Failed to create resources repository", "error", err)
-		return nil, err
-	}
-	if resourcesRepo == nil {
-		return nil, fferr.NewInternalErrorf("resourcesRepository is nil")
+		return nil, fmt.Errorf("failed to create resources repository: %w", err)
 	}
 
-	resourcesRepo, err := NewResourcesRepositoryFromLookup(&baseLookup)
-	if err != nil {
-		config.Logger.Errorw("Failed to create resources repository", "error", err)
-		return nil, err
-	}
 	if resourcesRepo == nil {
-		return nil, fferr.NewInternalErrorf("resourcesRepository is nil")
+		return nil, fferr.NewInternalErrorf("resources repository is nil")
 	}
 
 	return &MetadataServer{

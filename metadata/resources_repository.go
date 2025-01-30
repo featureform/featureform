@@ -70,13 +70,16 @@ const (
 		SELECT * FROM get_dependencies($1::integer, $2::text, $3::text);`
 
 	deleteSql = `-- name: Delete :exec
-		DELETE FROM ff_task_metadata
+		UPDATE ff_task_metadata
+		SET key = 'DELETED__' || key
 		WHERE key = $1;`
 )
 
 type AsyncDeletionHandler func(ctx context.Context, resId ResourceID, logger logging.Logger) error
 
 type ResourcesRepository interface {
+	Archive(ctx context.Context, resourceID common.ResourceID) error
+	GetDependencies(ctx context.Context, resourceID common.ResourceID) ([]common.ResourceID, error)
 	MarkForDeletion(ctx context.Context, resourceID common.ResourceID, asyncDeletionHandler AsyncDeletionHandler) error
 	PruneResource(ctx context.Context, resourceID common.ResourceID, asyncDeletionHandler AsyncDeletionHandler) ([]common.ResourceID, error)
 	ResourceLookup
@@ -108,6 +111,7 @@ func NewResourcesRepositoryFromLookup(resourceLookup ResourceLookup) (ResourcesR
 		return NewInMemoryResourcesRepository(lookup), nil
 
 	case *MemoryResourceLookup:
+
 		if lookup.Connection.Storage == nil {
 			return nil, fferr.NewInternalErrorf("MemoryResourceLookup.Storage is nil")
 		}
@@ -116,12 +120,8 @@ func NewResourcesRepositoryFromLookup(resourceLookup ResourceLookup) (ResourcesR
 			return NewInMemoryResourcesRepository(lookup), nil
 
 		case storage.PSQLMetadataStorage:
-			psql, ok := lookup.Connection.Storage.(*storage.PSQLStorageImplementation)
-			if !ok {
-				return nil, fferr.NewInternalErrorf("Storage type is PSQL but cast failed")
-			}
-			return NewSqlResourcesRepository(psql.Pool(), lookup, DefaultResourcesRepoConfig()), nil
-
+			psqlStorage := lookup.Connection.Storage.(*storage.PSQLStorageImplementation)
+			return NewSqlResourcesRepository(psqlStorage.Db, lookup, DefaultResourcesRepoConfig()), nil
 		default:
 			return nil, fferr.NewInternalErrorf("unsupported storage type: %v", lookup.Connection.Storage.Type())
 		}
@@ -198,6 +198,48 @@ func isRetryableError(err error) bool {
 
 func (r *sqlResourcesRepository) Type() ResourcesRepositoryType {
 	return ResourcesRepositoryTypePsql
+}
+
+func (r *sqlResourcesRepository) Archive(ctx context.Context, resourceID common.ResourceID) error {
+	logger := logging.GetLoggerFromContext(ctx).
+		WithResource(resourceID.Type.ToLoggingResourceType(), resourceID.Name, resourceID.Variant).
+		With("function", "archive")
+
+	err := r.withRetry(ctx, logger, func() error {
+		return r.withTx(ctx, logger, func(tx pgx.Tx) error {
+			if _, err := tx.Exec(ctx, deleteSql, resourceID.ToKey()); err != nil {
+				logger.Errorw("error archiving resource", "error", err)
+				return fferr.NewInternalErrorf("error archiving resource %s: %v", resourceID.ToKey(), err)
+			}
+
+			logger.Debugf("resource successfully %s archived", resourceID)
+			return nil
+		})
+	})
+	if err != nil {
+		logger.Errorw("error archiving resource", "error", err)
+	}
+	return err
+}
+
+func (r *sqlResourcesRepository) GetDependencies(ctx context.Context, resourceID common.ResourceID) ([]common.ResourceID, error) {
+	logger := logging.GetLoggerFromContext(ctx).
+		WithResource(resourceID.Type.ToLoggingResourceType(), resourceID.Name, resourceID.Variant).
+		With("function", "getDependencies")
+
+	var dependencies []common.ResourceID
+	err := r.withRetry(ctx, logger, func() error {
+		return r.withTx(ctx, logger, func(tx pgx.Tx) error {
+			var getDepsErr error
+			dependencies, getDepsErr = r.getDependencies(ctx, tx, resourceID, logger)
+			return getDepsErr
+		})
+	})
+	if err != nil {
+		logger.Errorw("error getting dependencies", "error", err)
+		return nil, err
+	}
+	return dependencies, nil
 }
 
 func (r *sqlResourcesRepository) MarkForDeletion(ctx context.Context, resourceID common.ResourceID, deletionHandler AsyncDeletionHandler) error {
@@ -284,8 +326,8 @@ func (r *sqlResourcesRepository) PruneResource(
 			}
 
 			// Step 1: Get all dependencies
-			logger.Debugf("Getting dependencies for %s", resourceID)
-			deps, err := r.GetDependencies(ctx, tx, resourceID, logger)
+			logger.Debugf("Getting dependencies")
+			deps, err := r.getDependencies(ctx, tx, resourceID, logger)
 			if err != nil {
 				logger.Errorw("error getting dependencies", "error", err)
 				return err
@@ -303,7 +345,7 @@ func (r *sqlResourcesRepository) PruneResource(
 			deletedResources = deps
 
 			// Step 2: Ensure all dependencies are in READY status
-			logger.Debugf("Checking dependencies are ready for %s", resourceID)
+			logger.Debugf("Checking dependencies are ready")
 			for _, dep := range deps {
 				status, err := r.getStatus(ctx, tx, dep, logger)
 				if err != nil {
@@ -320,7 +362,7 @@ func (r *sqlResourcesRepository) PruneResource(
 			}
 
 			// Step 3: Mark all dependencies for deletion
-			logger.Debugf("marking dependencies for deletion for %s", resourceID)
+			logger.Debugf("marking dependencies for deletion")
 			for _, dep := range deps {
 				if err := r.markDeleted(ctx, tx, dep, logger); err != nil {
 					logger.Errorf("error marking %s for deletion: %v", dep, err)
@@ -329,7 +371,7 @@ func (r *sqlResourcesRepository) PruneResource(
 			}
 
 			// Step 4: Delete edges associated with dependencies
-			logger.Debugf("deleting edges for %s", resourceID)
+			logger.Debugf("deleting edges")
 			for _, dep := range deps {
 				if err := r.deleteEdges(ctx, tx, dep, logger); err != nil {
 					logger.Errorf("error deleting edges for %s: %v", dep, err)
@@ -337,6 +379,8 @@ func (r *sqlResourcesRepository) PruneResource(
 				}
 			}
 
+			// Step 5: Delete from parent
+			logger.Debugf("deleting from parent for")
 			for _, dep := range deps {
 				logger.Debugf("deleting from parent for %s", resourceID)
 				if err := r.deleteFromParent(ctx, tx, dep, logger); err != nil {
@@ -348,21 +392,28 @@ func (r *sqlResourcesRepository) PruneResource(
 			// Step 5: Execute the async deletion handler for each resource
 			for _, dep := range deps {
 				resId := ResourceID{Name: dep.Name, Variant: dep.Variant, Type: ResourceType(dep.Type)}
-				logger.Debugf("executing async deletion handler for %s", resId)
+				//id dep.Type == common.FeatureVariant {
+
 				resource, err := r.Lookup(ctx, resId)
 				if err != nil {
-					logger.Errorf("error looking up %s: %v", resId, err)
+					logger.Errorw("error looking up resource", "error", err)
 					return err
 				}
+
 				if needsJob(resource) {
 					if err := asyncDeletionHandler(ctx, resId, logger); err != nil {
-						logger.Errorf("error executing deletion handler for %s: %v", dep, err)
+						logger.Errorw("error executing deletion handler", "error", err)
+						return err
+					}
+				} else {
+					if err := r.hardDelete(ctx, tx, resourceID, logger); err != nil {
+						logger.Errorw("error hard deleting", "error", err)
 						return err
 					}
 				}
 			}
 
-			logger.Debugf("resource %s successfully pruned", resourceID)
+			logger.Debugf("Resource successfully pruned")
 			return nil
 		})
 	})
@@ -408,7 +459,7 @@ func needsJob(res Resource) bool {
 	return false
 }
 
-func (r *sqlResourcesRepository) GetDependencies(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID, logger logging.Logger) ([]common.ResourceID, error) {
+func (r *sqlResourcesRepository) getDependencies(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID, logger logging.Logger) ([]common.ResourceID, error) {
 	var dependencies []common.ResourceID
 	rows, err := tx.Query(ctx, getDependencies, resourceID.Type, resourceID.Name, resourceID.Variant)
 	if err != nil {
@@ -607,4 +658,12 @@ func (r *inMemoryResourcesRepository) Type() ResourcesRepositoryType {
 
 func (r *inMemoryResourcesRepository) PruneResource(ctx context.Context, resourceID common.ResourceID, deletionHandler AsyncDeletionHandler) ([]common.ResourceID, error) {
 	return nil, fferr.NewInternalErrorf("prune resource not supported in memory")
+}
+
+func (r *inMemoryResourcesRepository) GetDependencies(ctx context.Context, resourceID common.ResourceID) ([]common.ResourceID, error) {
+	return nil, fferr.NewInternalErrorf("get dependencies not supported in memory")
+}
+
+func (r *inMemoryResourcesRepository) Archive(ctx context.Context, resourceID common.ResourceID) error {
+	return fferr.NewInternalErrorf("archive not supported in memory")
 }

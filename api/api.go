@@ -19,10 +19,11 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
-	"google.golang.org/protobuf/proto"
 
 	pt "github.com/featureform/provider/provider_type"
 
@@ -38,13 +39,14 @@ import (
 
 	"google.golang.org/grpc/credentials/insecure"
 
-	health "github.com/featureform/health"
+	"google.golang.org/grpc"
+
+	"github.com/featureform/health"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
 	srv "github.com/featureform/proto"
 	"github.com/featureform/provider"
-	"google.golang.org/grpc"
 )
 
 type ApiServer struct {
@@ -101,36 +103,6 @@ func (serv *MetadataServer) CreateUser(ctx context.Context, userRequest *pb.User
 		return nil, err
 	}
 
-	return out, nil
-}
-
-func (serv *MetadataServer) PruneResource(ctx context.Context, req *pb.PruneResourceRequest) (*pb.PruneResourceResponse, error) {
-	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
-	logger = logger.WithResource(logging.ResourceTypeFromProto(req.ResourceId.ResourceType), req.ResourceId.Resource.Name, req.ResourceId.Resource.Variant)
-	logger.Infow("Pruning Resource")
-
-	out, err := serv.meta.PruneResource(ctx, req)
-	if err != nil {
-		serv.Logger.Errorw("Failed to prune resource", "error", err)
-		return nil, err
-	}
-
-	logger.Infow("Successfully pruned resource")
-	return out, nil
-}
-
-func (serv *MetadataServer) MarkForDeletion(ctx context.Context, req *pb.MarkForDeletionRequest) (*pb.MarkForDeletionResponse, error) {
-	_, ctx, logger := serv.Logger.InitializeRequestID(ctx)
-	logger = logger.WithResource(logging.ResourceTypeFromProto(req.ResourceId.ResourceType), req.ResourceId.Resource.Name, req.ResourceId.Resource.Variant)
-	logger.Infow("Marking Resource for Deletion")
-
-	out, err := serv.meta.MarkForDeletion(ctx, req)
-	if err != nil {
-		serv.Logger.Errorw("Failed to mark resource for deletion", "error", err)
-		return nil, err
-	}
-
-	logger.Infow("Successfully marked resource for deletion")
 	return out, nil
 }
 

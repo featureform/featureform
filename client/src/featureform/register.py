@@ -216,6 +216,8 @@ class OfflineSQLProvider(OfflineProvider):
         schedule: str = "",
         tags: Optional[List[str]] = None,
         properties: Optional[Dict] = None,
+        resource_snowflake_config: Optional[ResourceSnowflakeConfig] = None,
+        type: TrainingSetType = TrainingSetType.DYNAMIC,
     ):
         return self.__registrar.register_training_set(
             name=name,
@@ -229,6 +231,8 @@ class OfflineSQLProvider(OfflineProvider):
             tags=tags if tags is not None else [],
             properties=properties if properties is not None else {},
             provider=self.name(),
+            resource_snowflake_config=resource_snowflake_config,
+            type=type,
         )
 
     def __eq__(self, __value: object) -> bool:
@@ -1646,9 +1650,7 @@ class FeatureColumnResource(ColumnResource):
             schedule=schedule,
             tags=tags,
             properties=properties,
-            resource_snowflake_config=set_resource_snowflake_config_defaults(
-                resource_snowflake_config
-            ),
+            resource_snowflake_config=resource_snowflake_config,
         )
 
 
@@ -4740,6 +4742,7 @@ class Registrar:
         properties: dict = {},
         provider: str = "",
         resource_snowflake_config: Optional[ResourceSnowflakeConfig] = None,
+        type: TrainingSetType = TrainingSetType.DYNAMIC,
     ):
         """Register a training set.
 
@@ -4823,9 +4826,8 @@ class Registrar:
             tags=tags,
             properties=properties,
             provider=provider,
-            resource_snowflake_config=set_resource_snowflake_config_defaults(
-                resource_snowflake_config
-            ),
+            resource_snowflake_config=resource_snowflake_config,
+            type=type,
         )
         self.map_client_object_to_resource(resource, resource)
         self.__resources.append(resource)
@@ -4847,33 +4849,6 @@ class Registrar:
         model = Model(name, description="", tags=tags, properties=properties)
         self.__resources.append(model)
         return model
-
-
-def set_resource_snowflake_config_defaults(
-    resource_snowflake_config: Union[ResourceSnowflakeConfig, None],
-) -> ResourceSnowflakeConfig:
-    # Features and trainging sets cannot use the default target lag of DOWNSTREAM because we
-    # need to ensure that if users serve features or create training sets, they should be up
-    # to date within the target lag period. If no configuration is provided, we set the target
-    # lag to ONE_DAY_TARGET_LAG.
-    if not resource_snowflake_config:
-        resource_snowflake_config = ResourceSnowflakeConfig(
-            dynamic_table_config=SnowflakeDynamicTableConfig(
-                target_lag=ONE_DAY_TARGET_LAG,
-                refresh_mode=RefreshMode.AUTO,
-                initialize=Initialize.ON_CREATE,
-            )
-        )
-    # If the user has provided the warehouse but not any dynamic table config, we set the
-    # SnowflakeDynamicTableConfig to the default values (i.e. ONE_DAY_TARGET_LAG).
-    elif not resource_snowflake_config.dynamic_table_config:
-        resource_snowflake_config.dynamic_table_config = SnowflakeDynamicTableConfig(
-            target_lag=ONE_DAY_TARGET_LAG,
-            refresh_mode=RefreshMode.AUTO,
-            initialize=Initialize.ON_CREATE,
-        )
-
-    return resource_snowflake_config
 
 
 class ResourceClient:

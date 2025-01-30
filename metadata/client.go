@@ -640,6 +640,7 @@ type TrainingSetDef struct {
 	Features    NameVariants
 	Tags        Tags
 	Properties  Properties
+	Type        TrainingSetType
 }
 
 func (def TrainingSetDef) ResourceType() ResourceType {
@@ -668,6 +669,7 @@ func (def TrainingSetDef) Serialize(requestID logging.RequestID) *pb.TrainingSet
 			Schedule:    def.Schedule,
 			Tags:        &pb.Tags{Tag: def.Tags},
 			Properties:  def.Properties.Serialize(),
+			Type:        TrainingSetTypeToProto(def.Type),
 		},
 		RequestId: requestID.String(),
 	}
@@ -2565,6 +2567,16 @@ func (variant *TrainingSetVariant) ResourceSnowflakeConfig() (*ResourceSnowflake
 	return getResourceSnowflakeConfig(variant.serialized)
 }
 
+func (variant *TrainingSetVariant) TrainingSetType() TrainingSetType {
+	logger := logging.GlobalLogger.Named("TrainingSetType")
+	typ, err := TrainingSetTypeFromProto(variant.serialized.GetType())
+	if err != nil {
+		logger.Errorw("Failed to get training set type; returning default DynamicTrainingSet", "error", err)
+		return DynamicTrainingSet
+	}
+	return typ
+}
+
 type Source struct {
 	serialized *pb.Source
 	variantsFns
@@ -2637,6 +2649,7 @@ func (arg KubernetesArgs) Type() TransformationArgType {
 
 type RefreshMode string
 type Initialize string
+type TrainingSetType string
 
 const (
 	AutoRefresh        RefreshMode = "AUTO" // Default
@@ -2645,6 +2658,10 @@ const (
 
 	InitializeOnCreate   Initialize = "ON_CREATE" // Default
 	InitializeOnSchedule Initialize = "ON_SCHEDULE"
+
+	DynamicTrainingSet TrainingSetType = "DYNAMIC"
+	StaticTrainingSet  TrainingSetType = "STATIC"
+	ViewTrainingSet    TrainingSetType = "VIEW"
 )
 
 func RefreshModeFromProto(proto pb.RefreshMode) (RefreshMode, error) {
@@ -2700,6 +2717,54 @@ func InitializeFromString(initialize string) (Initialize, error) {
 		return InitializeOnSchedule, nil
 	default:
 		return "", fferr.NewInvalidArgumentErrorf("Invalid initialize mode %s", initialize)
+	}
+}
+
+func TrainingSetTypeFromProto(proto pb.TrainingSetType) (TrainingSetType, error) {
+	logger := logging.GlobalLogger.Named("TrainingSetTypeFromProto")
+	var trainingSetType TrainingSetType
+	switch proto {
+	case pb.TrainingSetType_TRAINING_SET_TYPE_DYNAMIC:
+		trainingSetType = DynamicTrainingSet
+	case pb.TrainingSetType_TRAINING_SET_TYPE_STATIC:
+		trainingSetType = StaticTrainingSet
+	case pb.TrainingSetType_TRAINING_SET_TYPE_VIEW:
+		trainingSetType = ViewTrainingSet
+	case pb.TrainingSetType_TRAINING_SET_TYPE_UNSPECIFIED:
+		logger.DPanic("Training set type unspecified")
+		return trainingSetType, fferr.NewInvalidArgumentErrorf("Training set type unspecified")
+	default:
+		logger.DPanic("Unknown training set type", "proto", proto)
+		return trainingSetType, fferr.NewInternalErrorf("Unknown training set type %v", proto)
+	}
+	return trainingSetType, nil
+}
+
+func TrainingSetTypeFromString(trainingSetType string) (TrainingSetType, error) {
+	logger := logging.GlobalLogger.Named("TrainingSetTypeFromString")
+	switch trainingSetType {
+	case "DYNAMIC":
+		return DynamicTrainingSet, nil
+	case "STATIC":
+		return StaticTrainingSet, nil
+	case "VIEW":
+		return ViewTrainingSet, nil
+	default:
+		logger.DPanic("Invalid training set type", "trainingSetType", trainingSetType)
+		return "", fferr.NewInvalidArgumentErrorf("Invalid training set type %s", trainingSetType)
+	}
+}
+
+func TrainingSetTypeToProto(trainingSetType TrainingSetType) pb.TrainingSetType {
+	switch trainingSetType {
+	case DynamicTrainingSet:
+		return pb.TrainingSetType_TRAINING_SET_TYPE_DYNAMIC
+	case StaticTrainingSet:
+		return pb.TrainingSetType_TRAINING_SET_TYPE_STATIC
+	case ViewTrainingSet:
+		return pb.TrainingSetType_TRAINING_SET_TYPE_VIEW
+	default:
+		return pb.TrainingSetType_TRAINING_SET_TYPE_UNSPECIFIED
 	}
 }
 

@@ -1029,6 +1029,31 @@ class ResourceSnowflakeConfig:
             warehouse=self.warehouse,
         )
 
+    @classmethod
+    def from_proto(
+        cls, config: pb.ResourceSnowflakeConfig
+    ) -> "ResourceSnowflakeConfig":
+        return cls(
+            dynamic_table_config=(
+                SnowflakeDynamicTableConfig(
+                    target_lag=config.dynamic_table_config.target_lag,
+                    refresh_mode=(
+                        RefreshMode.from_proto(config.dynamic_table_config.refresh_mode)
+                        if config.dynamic_table_config.refresh_mode
+                        else None
+                    ),
+                    initialize=(
+                        Initialize.from_proto(config.dynamic_table_config.initialize)
+                        if config.dynamic_table_config.initialize
+                        else None
+                    ),
+                )
+                if config.dynamic_table_config
+                else None
+            ),
+            warehouse=config.warehouse,
+        )
+
 
 @typechecked
 @dataclass
@@ -2826,6 +2851,7 @@ class TrainingSetVariant(ResourceVariant):
     error: Optional[str] = None
     server_status: Optional[ServerStatus] = None
     resource_snowflake_config: Optional[ResourceSnowflakeConfig] = None
+    type: TrainingSetType = field(default=TrainingSetType.DYNAMIC)
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -2887,6 +2913,10 @@ class TrainingSetVariant(ResourceVariant):
             properties={k: v for k, v in ts.properties.property.items()},
             error=ts.status.error_message,
             server_status=ServerStatus.from_proto(ts.status),
+            resource_snowflake_config=ResourceSnowflakeConfig.from_proto(
+                ts.resource_snowflake_config
+            ),
+            type=TrainingSetType.from_proto(ts.type),
         )
 
     def _get_and_set_equivalent_variant(self, req_id, stub):
@@ -2931,6 +2961,7 @@ class TrainingSetVariant(ResourceVariant):
                     if self.resource_snowflake_config
                     else None
                 ),
+                type=self.type.to_proto(),
             ),
             request_id="",
         )

@@ -53,11 +53,7 @@ func (q snowflakeSQLQueries) materializationDrop(tableName string) string {
 	return fmt.Sprintf("DROP TABLE %s", sanitize(tableName))
 }
 
-func (q snowflakeSQLQueries) dynamicIcebergTableCreate(tableName, query string, config metadata.ResourceSnowflakeConfig) (string, error) {
-	if err := config.Validate(); err != nil {
-		return "", err
-	}
-
+func (q snowflakeSQLQueries) dynamicIcebergTableCreate(tableName, query string, config metadata.ResourceSnowflakeConfig) string {
 	var sb strings.Builder
 
 	sb.WriteString(fmt.Sprintf("CREATE OR REPLACE DYNAMIC ICEBERG TABLE %s ", sanitize(tableName)))
@@ -76,7 +72,32 @@ func (q snowflakeSQLQueries) dynamicIcebergTableCreate(tableName, query string, 
 	sb.WriteString(fmt.Sprintf("INITIALIZE = %s ", config.DynamicTableConfig.Initialize))
 	sb.WriteString(fmt.Sprintf("AS %s", query))
 
-	return sb.String(), nil
+	return sb.String()
+}
+
+func (q snowflakeSQLQueries) staticIcebergTableCreate(tableName, query string, config metadata.ResourceSnowflakeConfig) string {
+	var sb strings.Builder
+
+	sb.WriteString(fmt.Sprintf("CREATE ICEBERG TABLE %s ", sanitize(tableName)))
+	sb.WriteString(fmt.Sprintf("EXTERNAL_VOLUME = '%s' ", config.DynamicTableConfig.ExternalVolume))
+	sb.WriteString(CATALOG_CLAUSE)
+	sb.WriteString(fmt.Sprintf("BASE_LOCATION = '%s' ", config.DynamicTableConfig.BaseLocation))
+	// TODO: Investigate the following keywords:
+	// * [ CATALOG_SYNC = '<open_catalog_integration_name>']
+	// * [ STORAGE_SERIALIZATION_POLICY = { COMPATIBLE | OPTIMIZED } ]
+	// * [ CHANGE_TRACKING = { TRUE | FALSE } ]
+	sb.WriteString(fmt.Sprintf("AS %s", query))
+
+	return sb.String()
+}
+
+func (q snowflakeSQLQueries) viewCreate(tableName, query string) string {
+	var sb strings.Builder
+
+	sb.WriteString(fmt.Sprintf("CREATE VIEW %s ", sanitize(tableName)))
+	sb.WriteString(fmt.Sprintf("AS %s", query))
+
+	return sb.String()
 }
 
 func (q snowflakeSQLQueries) resourceTableAsQuery(schema ResourceSchema) (string, error) {

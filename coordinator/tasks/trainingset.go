@@ -160,6 +160,7 @@ func (t *TrainingSetTask) Run() error {
 		FeatureSourceMappings:   featureSourceMappings,
 		LagFeatures:             lagFeaturesList,
 		ResourceSnowflakeConfig: resourceSnowflakeConfig,
+		Type:                    ts.TrainingSetType(),
 	}
 
 	return t.runTrainingSetJob(trainingSetDef, store)

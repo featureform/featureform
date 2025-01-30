@@ -73,113 +73,132 @@ type snowflakeOfflineStore struct {
 }
 
 func (sf *snowflakeOfflineStore) CreateTransformation(config TransformationConfig, opts ...TransformationOption) error {
-	sf.logger.Debugw("Snowflake offline store creating transformation ...", "config", config)
+	logger := sf.logger.WithResource(logging.SourceVariant, config.TargetTableID.Name, config.TargetTableID.Variant).With("config", config)
+	logger.Info("Snowflake offline store creating transformation ...")
 	if len(opts) > 0 {
-		sf.logger.Errorw("Snowflake off does not support transformation options")
+		logger.Errorw("Snowflake off does not support transformation options")
 		return fferr.NewInternalErrorf("Snowflake off does not support transformation options")
 	}
 	tableName, err := sf.sqlOfflineStore.getTransformationTableName(config.TargetTableID)
 	if err != nil {
-		sf.logger.Errorw("Failed to get transformation table name", "error", err)
+		logger.Errorw("Failed to get transformation table name", "error", err)
 		return err
 	}
 	var snowflakeConfig pc.SnowflakeConfig
 	if err := snowflakeConfig.Deserialize(sf.sqlOfflineStore.Config()); err != nil {
-		sf.logger.Errorw("Failed to deserialize snowflake config", "error", err)
+		logger.Errorw("Failed to deserialize snowflake config", "error", err)
 		return err
 	}
+	logger.Debugw("Snowflake catalog config for SQL transformation", "catalog", snowflakeConfig.Catalog)
 	// Given our API design allows for users to define Dynamic Iceberg Table configurations at the catalog level, it's possible
 	// that config.SnowflakeDynamicTableConfig is nil. In this case, we'll create a new empty config to facilitate the merge with the catalog config.
 	resConfig := config.ResourceSnowflakeConfig
 	if resConfig == nil {
+		logger.Debugw("Resource table config for SQL transformation is empty")
 		resConfig = &metadata.ResourceSnowflakeConfig{}
 	}
+	logger.Debugw("Resource table config for SQL transformation before Merge with Snowflake Config", "config", resConfig)
 	if err := resConfig.Merge(&snowflakeConfig); err != nil {
-		sf.logger.Errorw("Failed to merge dynamic table config", "error", err)
+		logger.Errorw("Failed to merge dynamic table config", "error", err)
 		return err
 	}
-	query, err := sf.sfQueries.dynamicIcebergTableCreate(tableName, config.Query, *resConfig)
-	if err != nil {
-		sf.logger.Errorw("Failed to create dynamic iceberg table query", "error", err)
+	logger.Debugw("Resource table config for SQL transformation after Merge with Snowflake Config", "config", resConfig)
+	if err := resConfig.Validate(); err != nil {
+		logger.Errorw("Failed to validate dynamic table config", "error", err)
 		return err
 	}
-	sf.logger.Debugw("Creating Dynamic Iceberg Table for source", "query", query)
+	query := sf.sfQueries.dynamicIcebergTableCreate(tableName, config.Query, *resConfig)
+	logger.Debugw("Creating Dynamic Iceberg Table for source", "query", query)
 	if _, err := sf.sqlOfflineStore.db.Exec(query); err != nil {
+		logger.Errorw("Failed to create dynamic iceberg table", "error", err)
 		wrapped := fferr.NewResourceExecutionError(pt.SnowflakeOffline.String(), config.TargetTableID.Name, config.TargetTableID.Variant, fferr.ResourceType(config.TargetTableID.Type.String()), err)
-		sf.logger.Errorw("Failed to create dynamic iceberg table", "error", err)
 		return sf.handleErr(wrapped, err)
 	}
+	logger.Info("Successfully created transformation")
 	return nil
 }
 
 func (sf *snowflakeOfflineStore) UpdateTransformation(config TransformationConfig, opts ...TransformationOption) error {
+	sf.logger.Errorw("Snowflake Offline Store does not currently support updating transformations", "config", config, "opts", opts)
 	return fferr.NewInternalErrorf("Snowflake Offline Store does not currently support updating transformations")
 }
 
 // RegisterResourceFromSourceTable creates a new table in the database for labels, but not features. Unlike the sqlOfflineStore implementation, which
 // creates a resource table for features, there's no need here for the intermediate table between source transformation and materialization table.
 func (sf *snowflakeOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
-	sf.logger.Debugw("Snowflake offline store creating resource table...", "id", id, "schema", schema, "opts", opts)
+	logger := sf.logger.With("id", id, "schema", schema, "opts", opts)
+	logger.Info("Snowflake offline store creating resource table...")
 	if id.Type == Feature {
-		sf.logger.Debugw("Snowflake Offline Store does not support creating resource tables for features")
+		logger.Debugw("Snowflake Offline Store does not support creating resource tables for features")
 		return nil, nil
 	}
 	if err := id.check(Label); err != nil {
+		logger.Errorw("Failed to validate resource ID", "error", err)
 		return nil, err
 	}
 	if len(opts) == 0 || opts[0].Type() != SnowflakeDynamicTableResource {
+		logger.Errorw("Snowflake Offline Store requires Dynamic Table Resource Options")
 		return nil, fferr.NewInternalErrorf("Snowflake Offline Store requires Dynamic Table Resource Options")
 	}
 	opt, isSnowflakeConfigOpt := opts[0].(*ResourceSnowflakeConfigOption)
 	if !isSnowflakeConfigOpt {
+		logger.Errorw("Snowflake Offline Store requires Resource Config Options; received %T", opts[0])
 		return nil, fferr.NewInternalErrorf("Snowflake Offline Store requires Resource Config Options; received %T", opts[0])
 	}
 	tableConfig := opt.Config
 	if tableConfig == nil {
+		logger.Debugw("Resource table config for label resource is empty")
 		tableConfig = &metadata.SnowflakeDynamicTableConfig{}
 	}
+	logger.Debugw("Resource table config for label resource before Merge with Snowflake Config", "config", tableConfig)
 	resConfig := &metadata.ResourceSnowflakeConfig{
 		DynamicTableConfig: tableConfig,
 		Warehouse:          opt.Warehouse,
 	}
 	var snowflakeConfig pc.SnowflakeConfig
 	if err := snowflakeConfig.Deserialize(sf.sqlOfflineStore.Config()); err != nil {
-		sf.logger.Errorw("Failed to deserialize snowflake config", "error", err)
+		logger.Errorw("Failed to deserialize snowflake config", "error", err)
 		return nil, err
 	}
+	logger.Debugw("Snowflake catalog config for label resource", "config", snowflakeConfig.Catalog)
 	if err := resConfig.Merge(&snowflakeConfig); err != nil {
-		sf.logger.Errorw("Failed to merge dynamic table config", "error", err)
+		logger.Errorw("Failed to merge dynamic table config", "error", err)
 		return nil, err
 	}
+	logger.Debugw("Resource table config for label resource after Merge with Snowflake Config", "config", resConfig)
 	if exists, err := sf.sqlOfflineStore.tableExistsForResourceId(id); err != nil {
+		logger.Errorw("Failed to check if table exists", "error", err)
 		return nil, err
 	} else if exists {
+		logger.Errorw("Table already exists", "id", id)
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 	if err := schema.Validate(); err != nil {
-		sf.logger.Errorw("Failed to validate schema", "error", err)
+		logger.Errorw("Failed to validate schema", "error", err)
 		return nil, err
 	}
 	resourceAsQuery, err := sf.sfQueries.resourceTableAsQuery(schema)
 	if err != nil {
-		sf.logger.Errorw("Failed to create resource table as query", "error", err)
+		logger.Errorw("Failed to create resource table as query", "error", err)
 		return nil, err
 	}
 	tableName, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	if err != nil {
+		logger.Errorw("Failed to get resource table name", "error", err)
 		return nil, err
 	}
-	query, err := sf.sfQueries.dynamicIcebergTableCreate(tableName, resourceAsQuery, *resConfig)
-	if err != nil {
-		sf.logger.Errorw("Failed to create dynamic iceberg table query", "error", err)
+	if err := resConfig.Validate(); err != nil {
+		logger.Errorw("Failed to validate dynamic table config", "error", err)
 		return nil, err
 	}
-	sf.logger.Debugw("Creating Dynamic Iceberg Table for label variant", "query", query)
+	query := sf.sfQueries.dynamicIcebergTableCreate(tableName, resourceAsQuery, *resConfig)
+	logger.Debugw("Creating Dynamic Iceberg Table for label variant", "query", query)
 	if _, err := sf.sqlOfflineStore.db.Exec(query); err != nil {
+		logger.Errorw("Failed to create dynamic iceberg table", "error", err)
 		wrapped := fferr.NewResourceExecutionError(pt.SnowflakeOffline.String(), id.Name, id.Variant, fferr.LABEL_VARIANT, err)
-		sf.logger.Errorw("Failed to create dynamic iceberg table", "error", err)
 		return nil, sf.handleErr(wrapped, err)
 	}
+	logger.Info("Successfully created resource table")
 	return &snowflakeOfflineTable{
 		sqlOfflineTable: sqlOfflineTable{
 			db:           sf.sqlOfflineStore.db,
@@ -192,34 +211,41 @@ func (sf *snowflakeOfflineStore) RegisterResourceFromSourceTable(id ResourceID, 
 }
 
 func (sf *snowflakeOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
-	sf.logger.Debugw("Snowflake offline store getting resource table...", "id", id)
+	logger := sf.logger.WithResource(logging.LabelVariant, id.Name, id.Variant)
+	logger.Info("Snowflake offline store getting resource table...")
 	if id.Type == Feature {
-		sf.logger.Debugw("Snowflake Offline Store does not support resource tables for features")
+		logger.Debugw("Snowflake Offline Store does not support resource tables for features")
 		return nil, nil
 	}
 	if err := id.check(Label); err != nil {
+		logger.Errorw("Failed to validate resource ID", "error", err)
 		return nil, err
 	}
 	config := pc.SnowflakeConfig{}
 	if err := config.Deserialize(sf.sqlOfflineStore.Config()); err != nil {
+		logger.Errorw("Failed to deserialize snowflake config", "error", err)
 		return nil, err
 	}
 	tableName, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 	if err != nil {
+		logger.Errorw("Failed to get resource table name", "error", err)
 		return nil, err
 	}
 	var schema = config.Schema
 	if schema == "" {
+		logger.Debug("Schema is empty, defaulting to PUBLIC")
 		schema = "PUBLIC"
 	}
 	loc := pl.NewFullyQualifiedSQLLocation(config.Database, schema, tableName)
 
 	if exists, err := sf.sqlOfflineStore.tableExists(loc); err != nil {
+		logger.Errorw("Failed to check if table exists", "error", err)
 		return nil, err
 	} else if !exists {
+		logger.Errorw("Table does not exist", "location", loc.Location())
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
-
+	logger.Info("Successfully retrieved resource table")
 	return &snowflakeOfflineTable{
 		sqlOfflineTable: sqlOfflineTable{
 			db:           sf.sqlOfflineStore.db,
@@ -232,55 +258,55 @@ func (sf *snowflakeOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, 
 }
 
 func (sf *snowflakeOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+	logger := sf.logger.WithResource(logging.FeatureVariant, id.Name, id.Variant)
 	if err := id.check(Feature); err != nil {
+		logger.Errorw("Failed to validate resource ID", "error", err)
 		return nil, err
 	}
 	var snowflakeConfig pc.SnowflakeConfig
 	if err := snowflakeConfig.Deserialize(sf.sqlOfflineStore.Config()); err != nil {
-		sf.logger.Errorw("Failed to deserialize snowflake config", "error", err)
+		logger.Errorw("Failed to deserialize snowflake config", "error", err)
 		return nil, err
 	}
 	resConfig := opts.ResourceSnowflakeConfig
 	if resConfig == nil {
+		logger.Debugw("Resource table config for materialization is empty")
 		resConfig = &metadata.ResourceSnowflakeConfig{}
 	}
-	sf.logger.Debugw("Dynamic Table Config before Merge with Snowflake Config", "config", resConfig)
+	logger.Debugw("Dynamic Table Config before Merge with Snowflake Config", "config", resConfig)
 	if err := resConfig.Merge(&snowflakeConfig); err != nil {
-		sf.logger.Errorw("Failed to merge dynamic table config", "error", err)
+		logger.Errorw("Failed to merge dynamic table config", "error", err)
 		return nil, err
 	}
 
-	// It seems that Snowflake can mistakenly choose a full refresh for a query that's compliant
-	// with an incremental refresh, and given our materialization query has been written to be
-	// incremental, we're hardcoding INCREMENTAL here to avoid the issue where our materialization
-	// tables update fully.
-	resConfig.DynamicTableConfig.RefreshMode = metadata.IncrementalRefresh
-
-	sf.logger.Debugw(("Dynamic Table Config after Merge with Snowflake Config"), "config", resConfig)
+	logger.Debugw(("Dynamic Table Config after Merge with Snowflake Config"), "config", resConfig)
 	tableName, err := ps.ResourceToTableName(FeatureMaterialization.String(), id.Name, id.Variant)
 	if err != nil {
+		logger.Errorw("Failed to get materialization table name", "error", err)
 		return nil, err
 	}
 	if err := opts.Schema.Validate(); err != nil {
-		sf.logger.Errorw("Failed to validate schema", "error", err)
+		logger.Errorw("Failed to validate schema", "error", err)
 		return nil, err
 	}
 	sqlLoc, isSqlLoc := opts.Schema.SourceTable.(*pl.SQLLocation)
 	if !isSqlLoc {
+		logger.Errorw("Source table is not an SQL location", "location_type", fmt.Sprintf("%T", opts.Schema.SourceTable))
 		return nil, fferr.NewInvalidArgumentErrorf("source table is not an SQL location")
 	}
 	materializationAsQuery := sf.sfQueries.materializationCreateAsQuery(opts.Schema.Entity, opts.Schema.Value, opts.Schema.TS, SanitizeSqlLocation(sqlLoc.TableLocation()))
-	query, err := sf.sfQueries.dynamicIcebergTableCreate(tableName, materializationAsQuery, *resConfig)
-	if err != nil {
-		sf.logger.Errorw("Failed to create dynamic iceberg table query", "error", err)
+	if err := resConfig.Validate(); err != nil {
+		logger.Errorw("Failed to validate dynamic table config", "error", err)
 		return nil, err
 	}
-	sf.logger.Debugw("Creating Dynamic Iceberg Table for materialization", "query", query)
+	query := sf.sfQueries.dynamicIcebergTableCreate(tableName, materializationAsQuery, *resConfig)
+	logger.Debugw("Creating Dynamic Iceberg Table for materialization", "query", query)
 	if _, err := sf.sqlOfflineStore.db.Exec(query); err != nil {
+		logger.Errorw("Failed to create dynamic iceberg table", "error", err)
 		wrapped := fferr.NewResourceExecutionError(pt.SnowflakeOffline.String(), id.Name, id.Variant, fferr.FEATURE_MATERIALIZATION, err)
-		sf.logger.Errorw("Failed to create dynamic iceberg table", "error", err)
 		return nil, sf.handleErr(wrapped, err)
 	}
+	logger.Info("Successfully created materialization")
 	return &sqlMaterialization{
 		id:           MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant)),
 		db:           sf.sqlOfflineStore.db,
@@ -292,49 +318,73 @@ func (sf *snowflakeOfflineStore) CreateMaterialization(id ResourceID, opts Mater
 }
 
 func (sf *snowflakeOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+	sf.logger.Errorw("Snowflake Offline Store does not currently support updating materializations", "id", id, "opts", opts)
 	return nil, fferr.NewInternalErrorf("Snowflake Offline Store does not currently support updating materializations")
 }
 
 func (sf *snowflakeOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
+	logger := sf.logger.WithResource(logging.TrainingSetVariant, def.ID.Name, def.ID.Variant).With("training_set_type", def.Type)
+	logger.Debugw("Snowflake offline store creating training set ...")
 	if err := def.check(); err != nil {
+		logger.Errorw("Failed to validate training set definition", "error", err)
 		return err
 	}
 	var snowflakeConfig pc.SnowflakeConfig
 	if err := snowflakeConfig.Deserialize(sf.sqlOfflineStore.Config()); err != nil {
-		sf.logger.Errorw("Failed to deserialize snowflake config", "error", err)
+		logger.Errorw("Failed to deserialize snowflake config", "error", err)
 		return err
 	}
 	resConfig := def.ResourceSnowflakeConfig
 	if resConfig == nil {
+		logger.Debugw("Resource table config for training set is empty")
 		resConfig = &metadata.ResourceSnowflakeConfig{}
 	}
 	if err := resConfig.Merge(&snowflakeConfig); err != nil {
-		sf.logger.Errorw("Failed to merge dynamic table config", "error", err)
+		logger.Errorw("Failed to merge dynamic table config", "error", err)
 		return err
 	}
 	tableName, err := sf.sqlOfflineStore.getTrainingSetName(def.ID)
 	if err != nil {
+		logger.Errorw("Failed to get training set table name", "error", err)
 		return err
 	}
-	ts, err := sf.buildTrainingSetQuery(def)
+	tsQuery, err := sf.buildTrainingSetQuery(def)
 	if err != nil {
+		logger.Errorw("Failed to build training set query", "error", err)
 		return err
 	}
-	query, err := sf.sfQueries.dynamicIcebergTableCreate(tableName, ts, *resConfig)
-	if err != nil {
-		sf.logger.Errorw("Failed to create dynamic iceberg table query", "error", err)
-		return err
+	var ctaQuery string
+	switch def.Type {
+	case metadata.DynamicTrainingSet:
+		if err := resConfig.Validate(); err != nil {
+			logger.Errorw("Failed to validate dynamic table config", "error", err)
+			return err
+		}
+		ctaQuery = sf.sfQueries.dynamicIcebergTableCreate(tableName, tsQuery, *resConfig)
+	case metadata.StaticTrainingSet:
+		if err := resConfig.Validate(); err != nil {
+			logger.Errorw("Failed to validate dynamic table config", "error", err)
+			return err
+		}
+		ctaQuery = sf.sfQueries.staticIcebergTableCreate(tableName, tsQuery, *resConfig)
+	case metadata.ViewTrainingSet:
+		ctaQuery = sf.sfQueries.viewCreate(tableName, tsQuery)
+	default:
+		logger.Errorw("Unsupported training set type", "type", def.Type)
+		return fferr.NewInternalErrorf("Unsupported training set type: %v", def.Type)
 	}
-	sf.logger.Debugw("Creating Dynamic Iceberg Table for training set", "query", query)
-	if _, err := sf.sqlOfflineStore.db.Exec(query); err != nil {
+	logger.Debugw("Creating Dynamic Iceberg Table for training set", "query", ctaQuery)
+	if _, err := sf.sqlOfflineStore.db.Exec(ctaQuery); err != nil {
 		wrapped := fferr.NewResourceExecutionError(pt.SnowflakeOffline.String(), def.ID.Name, def.ID.Variant, fferr.TRAINING_SET_VARIANT, err)
-		sf.logger.Errorw("Failed to create dynamic iceberg table", "error", err)
+		logger.Errorw("Failed to create dynamic iceberg table", "error", err)
 		return sf.handleErr(wrapped, err)
 	}
+	logger.Info("Successfully created training set")
 	return nil
 }
 
 func (sf *snowflakeOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
+	sf.logger.Errorw("Snowflake Offline Store does not currently support updating training sets", "def", def)
 	return fferr.NewInternalErrorf("Snowflake Offline Store does not currently support updating training sets")
 }
 
@@ -347,24 +397,28 @@ func (sf *snowflakeOfflineStore) AsOfflineStore() (OfflineStore, error) {
 }
 
 func (sf snowflakeOfflineStore) Delete(location pl.Location) error {
+	logger := sf.logger.With("location", location.Location())
 	if exists, err := sf.sqlOfflineStore.tableExists(location); err != nil {
+		logger.Errorw("Failed to check if table exists", "error", err)
 		return err
 	} else if !exists {
+		logger.Errorw("Table does not exist")
 		return fferr.NewDatasetLocationNotFoundError(location.Location(), nil)
 	}
 
 	sqlLoc, isSqlLoc := location.(*pl.SQLLocation)
 	if !isSqlLoc {
+		logger.Errorw("Location is not an SQL location", "location_type", fmt.Sprintf("%T", location))
 		return fferr.NewInternalErrorf("location is not an SQL location")
 	}
 
 	query := sf.sfQueries.dropTableQuery(*sqlLoc)
-	sf.logger.Debugw("Deleting table", "query", query)
-
+	logger.Debugw("Dropping table", "query", query)
 	if _, err := sf.db.Exec(query); err != nil {
+		logger.Errorw("Failed to drop table", "error", err)
 		return sf.handleErr(fferr.NewExecutionError(pt.SnowflakeOffline.String(), err), err)
 	}
-
+	logger.Info("Successfully dropped table")
 	return nil
 }
 

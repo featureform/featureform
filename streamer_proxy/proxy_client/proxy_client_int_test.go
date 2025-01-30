@@ -215,23 +215,18 @@ func TestClient_MultipleRecordBatches(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			memoryAlloc := memory.NewGoAllocator()
 			schema := arrow.NewSchema(
 				[]arrow.Field{
 					{Name: "batch_id", Type: arrow.PrimitiveTypes.Int32},
 				}, nil,
 			)
 
-			// create the chunks
-			chunks := make([][]arrow.Array, len(tt.batches))
+			data := make([][]interface{}, len(tt.batches))
 			for i, batch := range tt.batches {
-				chunks[i] = []arrow.Array{arrayFrom(memoryAlloc, batch, nil)}
+				data[i] = []interface{}{batch}
 			}
 
-			recordSlice := make([]arrow.Record, len(chunks))
-			for i, chunk := range chunks {
-				recordSlice[i] = array.NewRecord(schema, chunk, -1)
-			}
+			recordSlice := createRecords(schema, arrow.Metadata{}, nil, data)
 
 			// start the server
 			grpcServer := grpc.NewServer()

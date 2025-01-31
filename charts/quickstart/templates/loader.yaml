@@ -1,0 +1,26 @@
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+#  Copyright 2024 FeatureForm Inc.
+#
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: featureform-quickstart-loader
+spec:
+  template:
+    spec:
+      containers:
+        - image: featureformenterprise/quickstart-loader:latest
+          name: featureform-quickstart-loader
+          env:
+            - name: HOST
+              value: "{{ .Release.Name }}-postgres"
+            - name: PORT
+              value: "5432"
+            - name: TEST_SIZE
+              value: "{{ .Values.global.data_size }}"
+      restartPolicy: Never
+  backoffLimit: 10

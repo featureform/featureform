@@ -539,30 +539,6 @@ func noOpAsyncHandler(ctx context.Context, resId ResourceID, logger logging.Logg
 	return nil
 }
 
-func deleteResourceKeyFromMetadata(ctx context.Context, resId ResourceID, logger logging.Logger) error {
-	// Assuming you have access to a metadata repository or similar mechanism to perform the delete
-
-	testServer, ok := ctx.Value("testServer").(*TestMetadataServer)
-	if !ok {
-		logger.Errorw("Failed to retrieve testServer from context")
-		return fmt.Errorf("test Server not found in context")
-	}
-
-	// Run deletion asynchronously
-	go func() {
-		_, err := testServer.server.FinalizeDeletion(ctx, &pb.FinalizeDeletionRequest{
-			ResourceId: resId.Proto(),
-		})
-		if err != nil {
-			logger.Errorw("Failed to finalize deletion", "error", err)
-		} else {
-			logger.Infow("Successfully finalized deletion", "resource_id", resId.String())
-		}
-	}()
-
-	return nil
-}
-
 func TestPrune(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")

@@ -624,8 +624,6 @@ const EntityPageView = ({
                     </ItemBox>
                   </ResourceItem>
                 ) : null}
-
-                {metadata['definition'] ? (
                   <div>
                     {(() => {
                       if (metadata['source-type'] === 'SQL Transformation') {
@@ -672,7 +670,6 @@ const EntityPageView = ({
                       }
                     })()}
                   </div>
-                ) : null}
                 {metadata['is-on-demand'] !== true &&
                   !['provider', 'entity', 'user'].includes(
                     metadata['type']?.toLowerCase()

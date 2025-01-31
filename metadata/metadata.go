@@ -2298,24 +2298,6 @@ func (sp LocalStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 	return lookup, nil
 }
 
-type EtcdStorageProvider struct {
-	Config EtcdConfig
-}
-
-func (sp EtcdStorageProvider) GetResourceLookup() (ResourceLookup, error) {
-	client, err := sp.Config.InitClient()
-	if err != nil {
-		return nil, err
-	}
-	lookup := EtcdResourceLookup{
-		Connection: EtcdStorage{
-			Client: client,
-		},
-	}
-
-	return lookup, nil
-}
-
 type Config struct {
 	Logger       logging.Logger
 	SearchParams *search.MeilisearchParams

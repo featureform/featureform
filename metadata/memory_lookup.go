@@ -47,7 +47,7 @@ func (lookup MemoryResourceLookup) serializeResource(res Resource) ([]byte, erro
 	if err != nil {
 		return nil, err
 	}
-	msg := EtcdRowTemp{
+	msg := StoredRowTemp{
 		ResourceType:      res.ID().Type,
 		Message:           string(p),
 		StorageType:       RESOURCE,
@@ -61,14 +61,14 @@ func (lookup MemoryResourceLookup) serializeResource(res Resource) ([]byte, erro
 	return serialMsg, nil
 }
 
-// Deserializes object into ETCD Storage Object
-func (lookup MemoryResourceLookup) deserialize(value []byte) (EtcdRow, error) {
-	var tmp EtcdRowTemp
+// Deserializes object into the Storage Object
+func (lookup MemoryResourceLookup) deserialize(value []byte) (StoredRow, error) {
+	var tmp StoredRowTemp
 	if err := json.Unmarshal(value, &tmp); err != nil {
-		return EtcdRow{}, errors.Wrap(err, fmt.Sprintf("failed to parse resource: %s", value))
+		return StoredRow{}, errors.Wrap(err, fmt.Sprintf("failed to parse resource: %s", value))
 	}
-	msg := EtcdRow{
-		ResourceType:      tmp.ResourceType,
+	msg := StoredRow{
+		ResourceType:      ResourceType(tmp.ResourceType),
 		StorageType:       tmp.StorageType,
 		Message:           tmp.Message,
 		SerializedVersion: tmp.SerializedVersion,

@@ -18,7 +18,6 @@ import (
 )
 
 var pgPort string
-var etcdPort string
 
 // Flag to enable whether to use env vars or built-in values for dockertest
 var useEnv = flag.Bool("use-env", false, "Use environment variables for ETCD configuration")
@@ -44,11 +43,6 @@ func initTestDocker() (*dockertest.Pool, []*dockertest.Resource) {
 
 	log.Printf("pg conection: %s", res.GetHostPort("5432/tcp"))
 	log.Printf("pg bound ip: %s", res.GetBoundIP("5432/tcp"))
-
-	res = tests.InitETCD(pool)
-	etcdPort = res.GetPort("2379/tcp")
-	res.Expire(120)
-	resources = append(resources, res)
 	return pool, resources
 }
 

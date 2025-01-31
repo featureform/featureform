@@ -17,7 +17,6 @@ import (
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/helpers"
-	"github.com/featureform/helpers/etcd"
 	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
 )
@@ -134,11 +133,10 @@ const (
 	StateProviderNIL      StateProviderType = ""
 	NoStateProvider       StateProviderType = "memory"
 	PostgresStateProvider StateProviderType = "psql"
-	EtcdStateProvider     StateProviderType = "etcd"
 )
 
 var AllStateProviderTypes = []StateProviderType{
-	NoStateProvider, PostgresStateProvider, EtcdStateProvider,
+	NoStateProvider, PostgresStateProvider,
 }
 
 var cached *FeatureformApp
@@ -211,15 +209,6 @@ func parseStateProvider(logger logging.Logger, cfg *FeatureformApp) fferr.Error 
 			return err
 		}
 		cfg.Postgres = psqlCfg
-	case EtcdStateProvider:
-		logger.Warn("ETCD state backend is deprecated, switch to PSQL")
-		logger.Debug("Parsing Etcd config from env")
-		etcdCfg, err := parseEtcd(stateLogger)
-		if err != nil {
-			logger.Errorw("Failed to parse etcd config", "err", err)
-			return err
-		}
-		cfg.Etcd = etcdCfg
 	default:
 		stateLogger.Errorw("Invalid state provider")
 		return fferr.NewInvalidConfigEnv(
@@ -252,24 +241,6 @@ func parsePostgres(logger logging.Logger) (*postgres.Config, fferr.Error) {
 	return &cfg, nil
 }
 
-func parseEtcd(logger logging.Logger) (*etcd.Config, fferr.Error) {
-	defaultEnvs := map[string]string{
-		"ETCD_HOST":     "localhost",
-		"ETCD_PORT":     "2379",
-		"ETCD_USERNAME": "",
-		"ETCD_PASSWORD": "",
-	}
-	envs := fillEnvMap(logger, defaultEnvs)
-	cfg := etcd.Config{
-		Host:     envs["ETCD_HOST"],
-		Port:     envs["ETCD_PORT"],
-		Username: envs["ETCD_USERNAME"],
-		Password: envs["ETCD_PASSWORD"],
-	}
-	logger.Infow("Etcd config parsed from env", "config", cfg.Redacted())
-	return &cfg, nil
-}
-
 func fillEnvMap(logger logging.Logger, defaultEnvs map[string]string) map[string]string {
 	envs := make(map[string]string)
 	for env, defVal := range defaultEnvs {
@@ -296,6 +267,4 @@ type FeatureformApp struct {
 	StateProviderType StateProviderType
 	// This will only be set when StateProviderType is PostgresStateProvider
 	Postgres *postgres.Config
-	// This will only be set when StateProviderType is EtcdStateProvider
-	Etcd *etcd.Config
 }

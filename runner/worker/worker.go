@@ -8,18 +8,14 @@
 package worker
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/featureform/coordinator/spawner"
 
 	"github.com/featureform/runner"
-	"github.com/google/uuid"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 )
 
@@ -38,21 +34,9 @@ func CreateAndRun() error {
 	if !ok {
 		return errors.New("NAME not set")
 	}
-	var etcdConf string
-	if !ok {
-		return errors.New("ETCD_CONFIG not set")
-	}
 	jobRunner, err := runner.Create(runner.RunnerName(name), []byte(config))
 	if err != nil {
 		return err
-	}
-	logger.Infof("Starting job for resource: %v", jobRunner.Resource())
-	if jobRunner.IsUpdateJob() {
-		logger.Info("This is an update job")
-		etcdConf, ok = os.LookupEnv("ETCD_CONFIG")
-		if !ok {
-			return errors.New("ETCD_CONFIG not set")
-		}
 	}
 	indexString, hasIndexEnv := os.LookupEnv("JOB_COMPLETION_INDEX")
 	indexRunner, isIndexRunner := jobRunner.(runner.IndexRunner)
@@ -83,33 +67,6 @@ func CreateAndRun() error {
 	if jobRunner.IsUpdateJob() {
 		jobResource := jobRunner.Resource()
 		logger.Infof("Logging update success in etcd for job: %v", jobResource)
-		etcdConfig := &spawner.ETCDConfig{}
-		err := etcdConfig.Deserialize(spawner.Config(etcdConf))
-		if err != nil {
-			return err
-		}
-		cli, err := clientv3.New(clientv3.Config{Endpoints: etcdConfig.Endpoints, Username: etcdConfig.Username, Password: etcdConfig.Password, DialTimeout: time.Second * 5})
-		if err != nil {
-			return err
-		}
-		resourceID := jobRunner.Resource()
-		timeCompleted := time.Now()
-		updatedEvent := &spawner.ResourceUpdatedEvent{
-			ResourceID: resourceID,
-			Completed:  timeCompleted,
-		}
-		serializedEvent, err := updatedEvent.Serialize()
-		if err != nil {
-			return err
-		}
-		eventID := uuid.New().String()
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
-		defer cancel()
-		_, err = cli.Put(ctx, fmt.Sprintf("UPDATE_EVENT_%s__%s__%s__%s", jobResource.Name, jobResource.Variant, jobResource.Type.String(), eventID), string(serializedEvent))
-		if err != nil {
-			return err
-		}
-		logger.Infof("Succesfully logged job completion for resource: %v", jobRunner.Resource())
 	}
 	return nil
 }

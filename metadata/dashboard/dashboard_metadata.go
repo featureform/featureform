@@ -630,12 +630,12 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 func GetMetadataResources(paginatedResources map[string]string, resourceType metadata.ResourceType) ([]metadata.Resource, error) {
 	mResources := make([]metadata.Resource, 0)
 	for _, currentResource := range paginatedResources {
-		var tmp metadata.EtcdRowTemp
+		var tmp metadata.StoredRowTemp
 		err := json.Unmarshal([]byte(currentResource), &tmp)
 		if err != nil {
 			return nil, err
 		}
-		msg := metadata.EtcdRow{
+		msg := metadata.StoredRow{
 			ResourceType:      metadata.ResourceType(tmp.ResourceType),
 			StorageType:       tmp.StorageType,
 			Message:           tmp.Message,

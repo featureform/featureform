@@ -392,7 +392,6 @@ func (r *sqlResourcesRepository) PruneResource(
 			// Step 5: Execute the async deletion handler for each resource
 			for _, dep := range deps {
 				resId := ResourceID{Name: dep.Name, Variant: dep.Variant, Type: ResourceType(dep.Type)}
-				//id dep.Type == common.FeatureVariant {
 
 				resource, err := r.Lookup(ctx, resId)
 				if err != nil {

@@ -2117,13 +2117,15 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		return
 	}
 
-	m.logger.Info("found location: ", location)
-	m.logger.Info("location type: ", location.Type())
+	m.logger.Debugw("found location: ", location)
+	m.logger.Debugw("location type: ", location.Type())
 
 	switch location.Type() {
 	case pl.CatalogLocationType:
+		m.logger.Debug("Routing to streamer proxy")
 		m.GetStream(c)
 	default:
+		m.logger.Debug("Routing to source data")
 		m.GetNonStreamSourceData(c)
 	}
 }

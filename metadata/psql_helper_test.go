@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/require"
 
@@ -53,7 +53,8 @@ func createTestDatabase(t *testing.T) (dbName string, cleanup func()) {
 
 	// Run migrations
 	pgConfig.DBName = dbName
-	db, err := sql.Open("postgres", pgConfig.ConnectionString())
+	db, err := sql.Open("pgx", pgConfig.ConnectionString())
+	defer db.Close()
 	require.NoError(t, err, "failed to open connection to test database")
 	err = runGooseMigrations(db, "../db/migrations")
 	if err != nil {

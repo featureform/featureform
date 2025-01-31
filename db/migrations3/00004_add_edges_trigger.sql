@@ -63,6 +63,7 @@ CREATE TRIGGER after_insert_ff_task_metadata
    AFTER INSERT ON ff_task_metadata
    FOR EACH ROW
    EXECUTE PROCEDURE trigger_add_edge_from_ff_task_metadata_row();
+$$;
 
 -- +goose StatementEnd
 

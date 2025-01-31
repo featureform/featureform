@@ -45,25 +45,6 @@ func resetDatabase(db *postgres.Pool) error {
 	return nil
 }
 
-func deleteResources(db *postgres.Pool, ids []ResourceID) error {
-	for _, id := range ids {
-		commonResId := id.ToCommonResourceID()
-		_, err := db.Exec(context.Background(), "DELETE FROM ff_task_metadata WHERE key = $1", commonResId.ToKey())
-		if err != nil {
-			return fmt.Errorf("failed to delete resource: %w", err)
-		}
-
-		if _, err := db.Exec(context.Background(), "DELETE FROM edges WHERE from_resource_name = $1 and from_resource_variant = $2 and from_resource_proto_type = $3", id.Name, id.Variant, id.Type); err != nil {
-			return fmt.Errorf("failed to delete resource: %w", err)
-		}
-
-		if _, err := db.Exec(context.Background(), "DELETE FROM edges WHERE to_resource_name = $1 and to_resource_variant = $2 and to_resource_proto_type = $3", id.Name, id.Variant, id.Type); err != nil {
-			return fmt.Errorf("failed to delete resource: %w", err)
-		}
-	}
-	return nil
-}
-
 // Close cleans up the connection pool.
 func (tr *TestResourcesRepository) Close() {
 	tr.db.Close()
@@ -80,9 +61,8 @@ type TestMetadataServer struct {
 	dbCleanup func()
 }
 
-type TearDownFunc func(t *testing.T)
-
-func (ts *TestMetadataServer) SetupTestData(t *testing.T, resources []ResourceDef, setReady bool) TearDownFunc {
+func (ts *TestMetadataServer) SetupTestData(t *testing.T, resources []ResourceDef, setReady bool) {
+	ts.ResetDatabase()
 	t.Helper()
 	ts.SeedResources(ts.ctx, resources)
 	resourceIDs := make([]ResourceID, 0, len(resources))
@@ -91,11 +71,6 @@ func (ts *TestMetadataServer) SetupTestData(t *testing.T, resources []ResourceDe
 	}
 	if setReady {
 		ts.SetResourcesReady(ts.ctx, resourceIDs)
-	}
-
-	return func(t *testing.T) {
-		err := deleteResources(ts.db, resourceIDs)
-		require.NoError(t, err, "Failed to delete resources")
 	}
 }
 
@@ -158,7 +133,6 @@ func (ts *TestMetadataServer) SetResourcesReady(ctx context.Context, resourceIDs
 	}
 }
 
-// ResetDatabase clears the state between tests.
 func (ts *TestMetadataServer) ResetDatabase() {
 	err := resetDatabase(ts.db)
 	assert.NoError(ts.t, err, "Failed to reset database")
@@ -183,8 +157,7 @@ func TestDeleteProvider(t *testing.T) {
 
 	ctx := testServer.ctx
 	t.Run("Delete existing provider", func(t *testing.T) {
-		tearDown := testServer.SetupTestData(t, resources, true)
-		defer tearDown(t)
+		testServer.SetupTestData(t, resources, true)
 
 		// Attempt to delete the provider
 		err := testServer.repo.MarkForDeletion(ctx, common.ResourceID{
@@ -206,8 +179,7 @@ func TestDeleteProvider(t *testing.T) {
 	})
 
 	t.Run("Delete non-existent provider", func(t *testing.T) {
-		tearDown := testServer.SetupTestData(t, resources, true)
-		defer tearDown(t)
+		testServer.SetupTestData(t, resources, true)
 
 		// Attempt to delete a non-existent provider
 		err := testServer.repo.MarkForDeletion(ctx, common.ResourceID{
@@ -219,8 +191,7 @@ func TestDeleteProvider(t *testing.T) {
 	})
 
 	t.Run("Delete provider without READY status", func(t *testing.T) {
-		tearDown := testServer.SetupTestData(t, resources, true)
-		defer tearDown(t)
+		testServer.SetupTestData(t, resources, false)
 		// Do NOT set status to READY to simulate invalid state
 
 		// Attempt to delete the provider
@@ -288,8 +259,7 @@ func TestDeletePrimary(t *testing.T) {
 	}
 
 	t.Run("Delete existing primary", func(t *testing.T) {
-		tearDown := testServer.SetupTestData(t, resources, true)
-		defer tearDown(t)
+		testServer.SetupTestData(t, resources, true)
 
 		// Attempt to delete the primary
 		err := testServer.repo.MarkForDeletion(ctx, common.ResourceID{
@@ -312,8 +282,7 @@ func TestDeletePrimary(t *testing.T) {
 	})
 
 	t.Run("Delete non-existent primary", func(t *testing.T) {
-		tearDown := testServer.SetupTestData(t, resources, true)
-		defer tearDown(t)
+		testServer.SetupTestData(t, resources, true)
 
 		// Attempt to delete a non-existent primary
 		err := testServer.repo.MarkForDeletion(ctx, common.ResourceID{
@@ -325,8 +294,7 @@ func TestDeletePrimary(t *testing.T) {
 	})
 
 	t.Run("Delete primary without READY status", func(t *testing.T) {
-		tearDown := testServer.SetupTestData(t, resources, true)
-		defer tearDown(t)
+		testServer.SetupTestData(t, resources, true)
 		// Do NOT set status to READY to simulate invalid state
 
 		// Attempt to delete the primary
@@ -340,9 +308,9 @@ func TestDeletePrimary(t *testing.T) {
 }
 
 func TestDeleteDag(t *testing.T) {
-	//if testing.Short() {
-	//	t.Skip("skipping test in short mode.")
-	//}
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	resources := []ResourceDef{
 		UserDef{
 			Name:       "Featureform",
@@ -732,13 +700,10 @@ func TestPrune(t *testing.T) {
 		resourceIds = append(resourceIds, res.ResourceID())
 	}
 
-	testServer.ResetDatabase()               // Reset DB before test
-	testServer.SeedResources(ctx, resources) // Seed data
-	testServer.SetResourcesReady(ctx, resourceIds)
-
 	ctx = context.WithValue(ctx, "testServer", testServer) // Attach the test server
 
 	t.Run("Prune", func(t *testing.T) {
+		testServer.SetupTestData(t, resources, true)
 		markedForDeletion, err := testServer.repo.PruneResource(ctx, common.ResourceID{
 			Name:    "training-set",
 			Variant: "variant",

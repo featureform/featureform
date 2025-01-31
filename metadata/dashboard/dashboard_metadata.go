@@ -2933,11 +2933,11 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 		Rows:    [][]string{},
 	}
 
-	proxyIterator, err := pr.GetStreamProxyClient(c.Request.Context(), source, variant, defaultStreamLimit)
-	if err != nil {
+	proxyIterator, proxyErr := pr.GetStreamProxyClient(c.Request.Context(), source, variant, defaultStreamLimit)
+	if proxyErr != nil {
 		fetchError := &FetchError{
 			StatusCode: http.StatusInternalServerError,
-			Type:       fmt.Sprintf("GetStream - %s", err.Error()),
+			Type:       fmt.Sprintf("GetStream - %s", proxyErr.Error()),
 		}
 		m.logger.Errorw(fetchError.Error(), "Metadata error", fetchError)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -2951,9 +2951,9 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 		if readerErr != nil {
 			fetchError := &FetchError{
 				StatusCode: http.StatusInternalServerError,
-				Type:       fmt.Sprintf("GetStream - proxyIterator reader.next() error: %v", err),
+				Type:       fmt.Sprintf("GetStream - proxyIterator reader.next() error: %v", readerErr),
 			}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			m.logger.Errorw(fetchError.Error(), "Metadata error", proxyErr)
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
@@ -2992,7 +2992,7 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 			break
 		}
 		cleanName := strings.ReplaceAll(columnName, "\"", "")
-		if len(cleanName) > maxColumnNameLength {
+		if cleanName != "" && len(cleanName) > maxColumnNameLength {
 			cleanName = cleanName[:maxColumnNameLength] + "..."
 		}
 		response.Columns = append(response.Columns, fmt.Sprintf("%s(%s)", cleanName, fields[i].Type.String()))

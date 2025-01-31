@@ -2469,16 +2469,14 @@ func (serv *MetadataServer) ensureDependentFeatureBackwardsCompatability(ctx con
 	deps, err := serv.resourcesRepository.GetDependencies(ctx, resId)
 	if err != nil {
 		logger.Errorw("failed to get dependencies", "error", err)
-		return nil
+		return err
 	}
 
 	for _, dep := range deps {
-		if dep.Type != common.FEATURE_VARIANT {
-			continue
-		}
-
-		if err := serv.updateFeatureVariant(ctx, dep, logger); err != nil {
-			return fmt.Errorf("failed to update feature variant %s: %w", dep.Name, err)
+		if dep.Type == common.FEATURE_VARIANT {
+			if err := serv.updateFeatureVariant(ctx, dep, logger); err != nil {
+				return fferr.NewInternalErrorf("failed to update feature variant %s: %v", dep.Name, err)
+			}
 		}
 	}
 	return nil
@@ -2499,7 +2497,12 @@ func (serv *MetadataServer) updateFeatureVariant(ctx context.Context, dep common
 		return err
 	}
 
-	serialized := fv.(*featureVariantResource).serialized
+	f, ok := fv.(*featureVariantResource)
+	if !ok {
+		logger.DPanic("lookup returned wrong type")
+		return fferr.NewInternalErrorf("lookup should have returned a feature variant")
+	}
+	serialized := f.serialized
 	if err := serv.featureVariantBackwardsCompatibility(ctx, serialized, true); err != nil {
 		logger.Errorw("failed to add feature location",
 			"name", dep.Name,

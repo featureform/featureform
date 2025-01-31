@@ -3,6 +3,11 @@ package metadata
 import (
 	"context"
 	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
@@ -10,9 +15,6 @@ import (
 	pb "github.com/featureform/metadata/proto"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 type TestResourcesRepository struct {
@@ -691,12 +693,11 @@ func TestPrune(t *testing.T) {
 		},
 	}
 
-	// Initialize the test server once for all subtests
 	ctx := context.Background()
 	testServer := newTestMetadataServer(t)
 	defer func() {
-		//testServer.ResetDatabase() // Ensure DB is reset after test
-		testServer.Close() // Close the test server
+		testServer.ResetDatabase() // Ensure DB is reset after test
+		testServer.Close()         // Close the test server
 	}()
 
 	resourceIds := make([]ResourceID, 0)

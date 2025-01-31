@@ -69,9 +69,9 @@ const (
 	getDependencies = `-- name: GetDependencies :many
 		SELECT * FROM get_dependencies($1::integer, $2::text, $3::text);`
 
-	deleteSql = `-- name: Delete :exec
+	archiveSql = `-- name: Delete :exec
 		UPDATE ff_task_metadata
-		SET key = 'DELETED__' || key
+		SET key = concat('DELETED__', key, '__', to_char(now(), 'YYYYMMDDTHH24MISS'))
 		WHERE key = $1;`
 )
 
@@ -207,7 +207,7 @@ func (r *sqlResourcesRepository) Archive(ctx context.Context, resourceID common.
 
 	err := r.withRetry(ctx, logger, func() error {
 		return r.withTx(ctx, logger, func(tx pgx.Tx) error {
-			if _, err := tx.Exec(ctx, deleteSql, resourceID.ToKey()); err != nil {
+			if _, err := tx.Exec(ctx, archiveSql, resourceID.ToKey()); err != nil {
 				logger.Errorw("error archiving resource", "error", err)
 				return fferr.NewInternalErrorf("error archiving resource %s: %v", resourceID.ToKey(), err)
 			}
@@ -514,7 +514,7 @@ func (r *sqlResourcesRepository) checkDependencies(ctx context.Context, tx pgx.T
 }
 
 func (r *sqlResourcesRepository) hardDelete(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID, logger logging.Logger) error {
-	if _, err := tx.Exec(ctx, deleteSql, resourceID.ToKey()); err != nil {
+	if _, err := tx.Exec(ctx, archiveSql, resourceID.ToKey()); err != nil {
 		logger.Errorw("error deleting resource", "error", err)
 		return fferr.NewInternalErrorf("error deleting resource %s: %v", resourceID.ToKey(), err)
 	}

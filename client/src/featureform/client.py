@@ -241,7 +241,11 @@ class Client(ResourceClient, ServingClient):
         }
 
         protocol = "grpc+tcp" if self._insecure else "grpc+tls"
-        host, port = self._host.split(":")
+        parts = self._host.split(":")
+        if len(parts) == 2:
+            host, port = parts
+        else:
+            host, port = self._host, "443"
         if port != "443":
             # is single docker mode, point directly to proxy port
             port = "8086"
@@ -256,12 +260,13 @@ class Client(ResourceClient, ServingClient):
         if not self._insecure:
             print("Secure connection enabled")
             cert_path = self._cert_path or os.getenv("FEATUREFORM_CERT")
-            if not os.path.exists(cert_path):
-                raise FileNotFoundError(f"TLS certificate not found at {cert_path}")
-
-            with open(cert_path, "rb") as f:
-                tls_root_certs = f.read()
-                client_kwargs["tls_root_certs"] = tls_root_certs
+            if cert_path is not None:
+                if not os.path.exists(cert_path):
+                    raise FileNotFoundError(f"TLS certificate not found at {cert_path}")
+                print(f"Using cert at {cert_path}")
+                with open(cert_path, "rb") as f:
+                    tls_root_certs = f.read()
+                    client_kwargs["tls_root_certs"] = tls_root_certs
 
         flight_client = flight.connect(flight_address, **client_kwargs)
 

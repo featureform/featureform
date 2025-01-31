@@ -26,6 +26,7 @@ import (
 	"github.com/featureform/metadata/search"
 	"github.com/featureform/proto"
 	"github.com/featureform/provider"
+	pl "github.com/featureform/provider/location"
 	pt "github.com/featureform/provider/provider_type"
 	sc "github.com/featureform/scheduling"
 	"github.com/featureform/serving"
@@ -2081,6 +2082,48 @@ const MaxPreviewCols = 15
 func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	name := c.Query("name")
 	variant := c.Query("variant")
+	sv, svErr := m.client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: name, Variant: variant})
+	if svErr != nil {
+		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "GetSourceData"}
+		m.logger.Errorw(fetchError.Error(), fmt.Sprintf("Metadata error, could not get SourceVariant, source (%s) variant (%s): ", name, variant), svErr)
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	m.logger.Infof("Fetching location with source variant: %s-%s", sv.Name(), sv.Variant())
+	var location pl.Location
+	var locationErr error
+	if sv.IsSQLTransformation() || sv.IsDFTransformation() {
+		m.logger.Info("source variant is sql/dft transformation, getting transform location...")
+		location, locationErr = sv.GetTransformationLocation()
+	} else if sv.IsPrimaryData() {
+		m.logger.Info("source variant is primary data, getting primary location...")
+		location, locationErr = sv.GetPrimaryLocation()
+	}
+
+	if locationErr != nil {
+		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "GetSourceData"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error, problem fetching source variant location: ", locationErr)
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	m.logger.Info("found location: ", location)
+	m.logger.Infof("location type: %v", location.Type())
+
+	switch location.Type() {
+	case pl.CatalogLocationType:
+		m.GetStream(c)
+	default:
+		m.GetNonStreamSourceData(c)
+	}
+}
+
+func (m *MetadataServer) GetNonStreamSourceData(c *gin.Context) {
+	name := c.Query("name")
+	variant := c.Query("variant")
+
+	m.logger.Infof("Processing non-streaming request: %s-%s, ", name, variant)
 
 	if name == "" || variant == "" {
 		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetSourceData - Could not find the name or variant query parameters"}

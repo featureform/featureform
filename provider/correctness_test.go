@@ -146,7 +146,7 @@ func (a idCreator) create(t OfflineResourceType, name string) ResourceID {
 func newTestSQLTransformationData(storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTransformationData {
 	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_WIND_DATA_TABLE")
+	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_WIND_DATA_TABLE")
 	sqlLoc := loc.(*pl.SQLLocation)
 	tableLoc := sqlLoc.TableLocation()
 	queryFmt := "SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)"
@@ -300,7 +300,7 @@ func (d testSQLTransformationData) Assert(t *testing.T, actual PrimaryTable) {
 func newTestSQLMaterializationData(useTimestamp bool) testSQLMaterializationData {
 	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_WIND_DATA_TABLE")
+	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_WIND_DATA_TABLE")
 	idCreator := newIDCreator("test")
 	data := testSQLMaterializationData{
 		id: idCreator.create(Feature, ""),
@@ -644,8 +644,8 @@ func (data testSQLTrainingSetData) HashStruct(v interface{}) ([]byte, error) {
 func getTrainingSetDatasetTS(storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_FEATURES_SURF_READINGS_TABLE")
-	labelLoc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_LABEL_WAVE_HEIGHT_TABLE")
+	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_FEATURES_SURF_READINGS_TABLE")
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_LABEL_WAVE_HEIGHT_TABLE")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "wave_height_training_set")
 	labelID := idCreator.create(Label, "wave_height")
@@ -695,7 +695,7 @@ func getTrainingSetDatasetTS(storeType pt.Type, storeConfig pc.SerializedConfig)
 				{Name: "OBSERVED_ON", ValueType: types.Timestamp},
 			},
 		},
-		labelResourceSchema: ResourceSchema{Entity: "LOCATION_ID", Value: "WAVE_HEIGHT_FT", TS: "OBSERVED_ON", SourceTable: labelLoc},
+		labelResourceSchema: ResourceSchema{SourceTable: labelLoc, EntityMappings: metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "WAVE_HEIGHT_FT", TimestampColumn: "OBSERVED_ON"}},
 		labelRecords: []GenericRecord{
 			{"L0", "Linda Mar Beach", 4.0, time.Date(2024, 10, 29, 0, 0, 0, 0, time.UTC)},
 			{"L0", "Linda Mar Beach", 3.9, time.Date(2024, 10, 30, 0, 0, 0, 0, time.UTC)},
@@ -720,19 +720,25 @@ func getTrainingSetDatasetTS(storeType pt.Type, storeConfig pc.SerializedConfig)
 				ProviderConfig:      storeConfig,
 				TimestampColumnName: "OBSERVED_ON",
 				Location:            nil,
-				Columns: metadata.ResourceVariantColumns{
-					Entity: "ENTITY",
-					Value:  "VALUE",
-					TS:     "TS",
+				EntityMappings: &metadata.EntityMappings{
+					Mappings: []metadata.EntityMapping{
+						{
+							Name:         "Location",
+							EntityColumn: "ENTITY_LOCATION",
+						},
+					},
+					ValueColumn:     "VALUE",
+					TimestampColumn: "TS",
 				},
 			},
 			Features: featureIDs,
 			FeatureSourceMappings: []SourceMapping{
-				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "SWELL_DIRECTION", TS: "MEASURED_ON"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WAVE_POWER_KJ", TS: "MEASURED_ON"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "SWELL_PERIOD_SEC", TS: "MEASURED_ON"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WIND_SPEED_KTS", TS: "MEASURED_ON"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "SWELL_DIRECTION", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "SWELL_DIRECTION", TimestampColumn: "MEASURED_ON"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WAVE_POWER_KJ", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "WAVE_POWER_KJ", TimestampColumn: "MEASURED_ON"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "SWELL_PERIOD_SEC", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "SWELL_PERIOD_SEC", TimestampColumn: "MEASURED_ON"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WIND_SPEED_KTS", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "WIND_SPEED_KTS", TimestampColumn: "MEASURED_ON"}},
 			},
+			Type: metadata.DynamicTrainingSet,
 		},
 	}
 }
@@ -740,8 +746,8 @@ func getTrainingSetDatasetTS(storeType pt.Type, storeConfig pc.SerializedConfig)
 func getTrainingSetFeaturesTSLabelsNoTS(storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_FEATURES_SURF_READINGS_TABLE")
-	labelLoc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_LABEL_LOC_LEVEL_TABLE")
+	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_FEATURES_SURF_READINGS_TABLE")
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_LABEL_LOC_LEVEL_TABLE")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "location_level_training_set")
 	labelID := idCreator.create(Label, "location_level")
@@ -787,7 +793,7 @@ func getTrainingSetFeaturesTSLabelsNoTS(storeType pt.Type, storeConfig pc.Serial
 				{Name: "LEVEL", ValueType: types.String},
 			},
 		},
-		labelResourceSchema: ResourceSchema{Entity: "LOCATION_ID", Value: "LEVEL", SourceTable: labelLoc},
+		labelResourceSchema: ResourceSchema{SourceTable: labelLoc, EntityMappings: metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "LEVEL"}},
 		labelRecords: []GenericRecord{
 			{"L0", "Linda Mar Beach", "Beginner"},
 			{"L1", "Ocean Beach", "Intermediate"},
@@ -807,15 +813,16 @@ func getTrainingSetFeaturesTSLabelsNoTS(storeType pt.Type, storeConfig pc.Serial
 				ProviderType:   storeType,
 				ProviderConfig: storeConfig,
 				Location:       nil,
-				Columns:        metadata.ResourceVariantColumns{Entity: "ENTITY", Value: "VALUE"},
+				EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "ENTITY_LOCATION"}}, ValueColumn: "VALUE"},
 			},
 			Features: featureIDs,
 			FeatureSourceMappings: []SourceMapping{
-				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WAVE_HEIGHT_FT", TS: "MEASURED_ON"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WAVE_POWER_KJ", TS: "MEASURED_ON"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "SWELL_PERIOD_SEC", TS: "MEASURED_ON"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WIND_SPEED_KTS", TS: "MEASURED_ON"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WAVE_HEIGHT_FT", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "WAVE_HEIGHT_FT", TimestampColumn: "MEASURED_ON"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WAVE_POWER_KJ", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "WAVE_POWER_KJ", TimestampColumn: "MEASURED_ON"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "SWELL_PERIOD_SEC", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "SWELL_PERIOD_SEC", TimestampColumn: "MEASURED_ON"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WIND_SPEED_KTS", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "WIND_SPEED_KTS", TimestampColumn: "MEASURED_ON"}},
 			},
+			Type: metadata.DynamicTrainingSet,
 		},
 	}
 }
@@ -823,8 +830,8 @@ func getTrainingSetFeaturesTSLabelsNoTS(storeType pt.Type, storeConfig pc.Serial
 func getTrainingSetDatasetFeaturesNoTSLabelTS(storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_FEATURES_SURFERS_TABLE")
-	labelLoc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_LABEL_RIDES_TABLE")
+	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_FEATURES_SURFERS_TABLE")
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_LABEL_RIDES_TABLE")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "successful_rides_training_set")
 	labelID := idCreator.create(Label, "successful_rides")
@@ -871,12 +878,7 @@ func getTrainingSetDatasetFeaturesNoTSLabelTS(storeType pt.Type, storeConfig pc.
 				{Name: "SUCCESSFUL_RIDES", ValueType: types.Int64},
 			},
 		},
-		labelResourceSchema: ResourceSchema{
-			Entity:      "SURFER_ID",
-			Value:       "SUCCESSFUL_RIDES",
-			TS:          "SESSION_DATE",
-			SourceTable: labelLoc,
-		},
+		labelResourceSchema: ResourceSchema{SourceTable: labelLoc, EntityMappings: metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "SUCCESSFUL_RIDES", TimestampColumn: "SESSION_DATE"}},
 		labelRecords: []GenericRecord{
 			{"1001", "101", time.Date(2024, 10, 15, 0, 0, 0, 0, time.UTC), 1.2, 5},
 			{"1002", "102", time.Date(2024, 10, 16, 0, 0, 0, 0, time.UTC), 2.5, 7},
@@ -900,15 +902,22 @@ func getTrainingSetDatasetFeaturesNoTSLabelTS(storeType pt.Type, storeConfig pc.
 				ProviderConfig:      storeConfig,
 				TimestampColumnName: "SESSION_DATE",
 				Location:            labelLoc,
-				Columns:             metadata.ResourceVariantColumns{Entity: "ENTITY", Value: "VALUE", TS: "TS"},
+				EntityMappings: &metadata.EntityMappings{
+					Mappings: []metadata.EntityMapping{
+						{Name: "surfer", EntityColumn: "ENTITY_SURFER"},
+					},
+					ValueColumn:     "VALUE",
+					TimestampColumn: "TS",
+				},
 			},
 			Features: featureIDs,
 			FeatureSourceMappings: []SourceMapping{
-				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "EXPERIENCE_LEVEL"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "PREFERRED_BOARD_TYPE"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "WEIGHT_KG"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "HEIGHT_CM"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "EXPERIENCE_LEVEL"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "EXPERIENCE_LEVEL"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "PREFERRED_BOARD_TYPE"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "PREFERRED_BOARD_TYPE"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "WEIGHT_KG"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "WEIGHT_KG"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "HEIGHT_CM"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "HEIGHT_CM"}},
 			},
+			Type: metadata.DynamicTrainingSet,
 		},
 	}
 }
@@ -916,8 +925,8 @@ func getTrainingSetDatasetFeaturesNoTSLabelTS(storeType pt.Type, storeConfig pc.
 func getTrainingSetDatasetNoTS(storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_FEATURES_FAV_SPOT_TABLE")
-	labelLoc := pl.NewSQLLocationWithDBSchemaTable(db, schema, "TEST_LABEL_SURFER_LEVEL_TABLE")
+	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_FEATURES_FAV_SPOT_TABLE")
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_LABEL_SURFER_LEVEL_TABLE")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "surfer_level_training_set")
 	labelID := idCreator.create(Label, "surfer_level")
@@ -960,11 +969,7 @@ func getTrainingSetDatasetNoTS(storeType pt.Type, storeConfig pc.SerializedConfi
 				{Name: "RISK_TOLERANCE", ValueType: types.String},
 			},
 		},
-		labelResourceSchema: ResourceSchema{
-			Entity:      "SURFER_ID",
-			Value:       "SKILL_LEVEL",
-			SourceTable: labelLoc,
-		},
+		labelResourceSchema: ResourceSchema{SourceTable: labelLoc, EntityMappings: metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "SKILL_LEVEL"}},
 		labelRecords: []GenericRecord{
 			{"101", "Intermediate", "No", "Medium"},
 			{"102", "Advanced", "Yes", "High"},
@@ -984,15 +989,16 @@ func getTrainingSetDatasetNoTS(storeType pt.Type, storeConfig pc.SerializedConfi
 				ProviderType:   storeType,
 				ProviderConfig: storeConfig,
 				Location:       labelLoc,
-				Columns:        metadata.ResourceVariantColumns{Entity: "ENTITY", Value: "VALUE"},
+				EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "ENTITY_SURFER"}}, ValueColumn: "VALUE"},
 			},
 			Features: featureIDs,
 			FeatureSourceMappings: []SourceMapping{
-				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "AVG_WAVE_HEIGHT_M"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "AVG_SUCCESS_RATE"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "FAV_SPOT"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "MOST_USED_BOARD_TYPE"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "AVG_WAVE_HEIGHT_M"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "AVG_WAVE_HEIGHT_M"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "AVG_SUCCESS_RATE"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "AVG_SUCCESS_RATE"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "FAV_SPOT"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "FAV_SPOT"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "MOST_USED_BOARD_TYPE"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "MOST_USED_BOARD_TYPE"}},
 			},
+			Type: metadata.DynamicTrainingSet,
 		},
 	}
 }

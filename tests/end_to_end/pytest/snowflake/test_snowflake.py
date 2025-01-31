@@ -7,6 +7,7 @@
 
 import pytest
 import featureform as ff
+import time
 
 # The markers can be used to identify to run a subset of tests
 # pytest -m snowflake
@@ -88,8 +89,62 @@ def test_snowflake_feature_label_registration(
     assert feature[0] == 1230
 
 
+def test_snowflake_multi_entity_label_registration(
+    ff_client, snowflake_fixture, snowflake_transactions_dataset
+):
+    @snowflake_fixture.sql_transformation(inputs=[snowflake_transactions_dataset])
+    def snowflake_avg_transactions(tbl):
+        return (
+            "SELECT CustomerID AS user_id, CustomerID, avg(TransactionAmount) "
+            "AS avg_transaction_amt, IsFraud FROM {{ tbl }} GROUP BY user_id, IsFraud"
+        )
+
+    @ff.entity
+    class SnowflakeUser:
+        pass
+
+    @ff.entity
+    class SnowflakeCustomer:
+        pass
+
+    snowflake_fixture.register_label(
+        name="fraudulent",
+        entity_mappings=[
+            {"entity": "snowflakeuser", "column": "user_id"},
+            {"entity": "snowflakecustomer", "column": "CustomerID"},
+        ],
+        value_type=ff.Bool,
+        dataset=snowflake_avg_transactions,
+        value_column="IsFraud",
+    )
+
+    variant = ff.get_run()
+
+    ff_client.apply(asynchronous=False, verbose=True)
+
+    label = ff_client.get_label("fraudulent", variant)
+
+    assert isinstance(label.location, ff.EntityMappings)
+    assert len(label.location.mappings) == 2
+    assert label.location == ff.EntityMappings(
+        mappings=[
+            ff.EntityMapping(name="snowflakeuser", entity_column="user_id"),
+            ff.EntityMapping(name="snowflakecustomer", entity_column="CustomerID"),
+        ],
+        value_column="IsFraud",
+    )
+
+
+@pytest.mark.parametrize(
+    "ts_type",
+    [
+        ff.TrainingSetType.DYNAMIC,
+        ff.TrainingSetType.STATIC,
+        ff.TrainingSetType.VIEW,
+    ],
+)
 def test_snowflake_training_set_registration(
-    ff_client, redis_fixture, snowflake_fixture, snowflake_transactions_dataset
+    ff_client, redis_fixture, snowflake_fixture, snowflake_transactions_dataset, ts_type
 ):
     @snowflake_fixture.sql_transformation(inputs=[snowflake_transactions_dataset])
     def snowflake_avg_transactions_ts(tbl):
@@ -113,6 +168,7 @@ def test_snowflake_training_set_registration(
         name="snowflake_training_set",
         features=[SnowflakeUser.avg_transactions_ts],
         label=SnowflakeUser.fraudulent_ts,
+        type=ts_type,
     )
 
     ff_client.apply(asynchronous=False, verbose=True)
@@ -158,3 +214,92 @@ def test_snowflake_register_primary_dataset_different_db_schema(
 
     df = ff_client.dataframe(snowflake_sql_diff_schema)
     assert len(df) == 900
+
+
+def table_exists(snowflake_connector, location, retries=3, delay=0.5):
+    """
+    Check if a table exists in Snowflake with custom retries.
+
+    Args:
+        snowflake_connector: The Snowflake connection object.
+        location: The table name to check.
+        retries: Number of retry attempts.
+        delay: Delay between retries in seconds.
+
+    Returns:
+        bool: True if the table exists, False otherwise.
+    """
+    for attempt in range(retries):
+        try:
+            cs = snowflake_connector.cursor()
+            query = f"SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_NAME = '{location}'"
+            cs.execute(query)
+            result = cs.fetchone()
+            return result[0] > 0
+        except Exception as e:
+            print(f"Attempt {attempt + 1} failed: {e}")
+            if attempt < retries - 1:
+                time.sleep(delay)  # Wait before the next retry
+        finally:
+            cs.close()
+    return False
+
+
+@pytest.mark.skip(reason="Flaky right now due to timing issues")
+def test_prune_snowflake_transformation(
+    ff_client,
+    snowflake_fixture,
+    snowflake_transactions_dataset,
+    snowflake_connector_fixture,
+):
+    """
+    Test pruning a Snowflake SQL transformation and verify that the table is deleted.
+    """
+
+    @snowflake_fixture.sql_transformation(inputs=[snowflake_transactions_dataset])
+    def snowflake_sql_transformation(tbl):
+        return (
+            "SELECT CustomerID AS user_id, AVG(TransactionAmount) "
+            "AS avg_transaction_amt FROM {{ tbl }} GROUP BY user_id"
+        )
+
+    ff_client.apply(asynchronous=False, verbose=True)
+
+    # Get location of the transformation
+    loc = ff_client.location(snowflake_sql_transformation)
+
+    # Prune the transformation
+    ff_client.prune(snowflake_sql_transformation)
+
+    time.sleep(2)
+    # Assert table no longer exists (retries handle timing issues)
+    assert not table_exists(snowflake_connector_fixture, loc)
+
+
+@pytest.mark.skip(reason="Flaky right now due to timing issues")
+def test_prune_snowflake_label_registration(
+    ff_client,
+    snowflake_transactions_dataset,
+    snowflake_connector_fixture,
+):
+    """
+    Test pruning a Snowflake label registration and verify that the table is deleted.
+    """
+
+    @ff.entity
+    class SnowflakeUser:
+        delete_fraudulent = ff.Label(
+            snowflake_transactions_dataset[["CustomerID", "IsFraud"]], type=ff.Bool
+        )
+
+    ff_client.apply(asynchronous=False, verbose=True)
+
+    # Get location of the label
+    label_loc = ff_client.location(SnowflakeUser.delete_fraudulent)
+
+    # Prune the label
+    ff_client.prune(SnowflakeUser.delete_fraudulent)
+
+    time.sleep(2)
+    # Assert table no longer exists (retries handle timing issues)
+    assert not table_exists(snowflake_connector_fixture, label_loc)

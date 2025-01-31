@@ -19,18 +19,16 @@ import (
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
 	"github.com/featureform/scheduling"
-	"go.uber.org/zap/zaptest"
 )
 
-func startServ(t *testing.T) (*metadata.MetadataServer, string) {
-	manager, err := scheduling.NewMemoryTaskMetadataManager()
+func startServ(t *testing.T, ctx context.Context, logger logging.Logger) (*metadata.MetadataServer, string) {
+	manager, err := scheduling.NewMemoryTaskMetadataManager(ctx)
 	if err != nil {
 		panic(err.Error())
 	}
-	logger := zaptest.NewLogger(t)
 	config := &metadata.Config{
-		Logger:      logging.WrapZapLogger(logger.Sugar()),
 		TaskManager: manager,
+		Logger:      logger,
 	}
 	serv, err := metadata.NewMetadataServer(config)
 	if err != nil {
@@ -50,16 +48,15 @@ func startServ(t *testing.T) (*metadata.MetadataServer, string) {
 }
 
 func TestLabelTaskRun(t *testing.T) {
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
-
-	serv, addr := startServ(t)
+	ctx, logger := logging.NewTestContextAndLogger(t)
+	serv, addr := startServ(t, ctx, logger)
 	defer serv.Stop()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
 		panic(err)
 	}
 
-	sourceTaskRun := createPreqResources(t, client)
+	sourceTaskRun := createPreqResources(t, ctx, client)
 	t.Log("Source Run:", sourceTaskRun)
 
 	err = client.Tasks.SetRunStatus(sourceTaskRun.TaskId, sourceTaskRun.ID, scheduling.RUNNING, nil)
@@ -72,7 +69,7 @@ func TestLabelTaskRun(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	err = client.CreateLabelVariant(context.Background(), metadata.LabelDef{
+	err = client.CreateLabelVariant(ctx, metadata.LabelDef{
 		Name:     "labelName",
 		Variant:  "labelVariant",
 		Owner:    "mockOwner",
@@ -110,7 +107,7 @@ func TestLabelTaskRun(t *testing.T) {
 			metadata: client,
 			taskDef:  labelTaskRun,
 			spawner:  &spawner.MemoryJobSpawner{},
-			logger:   zaptest.NewLogger(t).Sugar(),
+			logger:   logger,
 		},
 	}
 	err = task.Run()
@@ -119,15 +116,15 @@ func TestLabelTaskRun(t *testing.T) {
 	}
 }
 
-func createPreqResources(t *testing.T, client *metadata.Client) scheduling.TaskRunMetadata {
-	err := client.CreateUser(context.Background(), metadata.UserDef{
+func createPreqResources(t *testing.T, ctx context.Context, client *metadata.Client) scheduling.TaskRunMetadata {
+	err := client.CreateUser(ctx, metadata.UserDef{
 		Name: "mockOwner",
 	})
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	err = client.CreateProvider(context.Background(), metadata.ProviderDef{
+	err = client.CreateProvider(ctx, metadata.ProviderDef{
 		Name: "mockProvider",
 		Type: pt.MemoryOffline.String(),
 	})
@@ -135,7 +132,7 @@ func createPreqResources(t *testing.T, client *metadata.Client) scheduling.TaskR
 		t.Fatalf(err.Error())
 	}
 
-	err = client.CreateSourceVariant(context.Background(), metadata.SourceDef{
+	err = client.CreateSourceVariant(ctx, metadata.SourceDef{
 		Name:    "sourceName",
 		Variant: "sourceVariant",
 		Definition: metadata.PrimaryDataSource{
@@ -150,12 +147,12 @@ func createPreqResources(t *testing.T, client *metadata.Client) scheduling.TaskR
 		t.Fatalf(err.Error())
 	}
 
-	source, err := client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: "sourceName", Variant: "sourceVariant"})
+	source, err := client.GetSourceVariant(ctx, metadata.NameVariant{Name: "sourceName", Variant: "sourceVariant"})
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	sourceProvider, err := source.FetchProvider(client, context.Background())
+	sourceProvider, err := source.FetchProvider(client, ctx)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -185,7 +182,7 @@ func createPreqResources(t *testing.T, client *metadata.Client) scheduling.TaskR
 		t.Fatalf(err.Error())
 	}
 
-	err = client.CreateEntity(context.Background(), metadata.EntityDef{
+	err = client.CreateEntity(ctx, metadata.EntityDef{
 		Name: "mockEntity",
 	})
 	if err != nil {

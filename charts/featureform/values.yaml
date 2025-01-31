@@ -104,6 +104,9 @@ psql:
   # If true, automatically creates a secret stored in templates/secrets/postgres.yaml.
   # If false, does not apply the template. The template can be created manually
   createSecret: false
+  migration:
+    image:
+      name: db-migration-up
 
 # search loader job
 searchjob:
@@ -287,3 +290,26 @@ ingress-nginx:
 datadog:
   enabled: false
   namespace: "featureform"
+
+# Configuration for iceberg streamer
+icebergStreamer:
+  port: 8085
+  host: iceberg-streamer
+  image:
+    name: iceberg-streamer
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10
+
+# Configuration for iceberg proxy
+icebergProxy:
+  port: 8086
+  image:
+    name: iceberg-proxy
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10

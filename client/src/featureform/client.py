@@ -8,17 +8,19 @@
 import json
 from datetime import datetime
 from typing import List, Optional, Union
+import os
 
 from google.protobuf.timestamp_pb2 import Timestamp
 from pyiceberg.catalog import load_catalog
 from pyiceberg.table import Table
 from typeguard import typechecked
 
-from .constants import NO_RECORD_LIMIT
+from .constants import TWO_MILLION_RECORD_LIMIT
 from .enums import FileFormat, DataResourceType, RefreshMode, Initialize
 from .proto import metadata_pb2 as pb
 from .register import (
     FeatureColumnResource,
+    LabelColumnResource,
     FileStoreProvider,
     OfflineSQLProvider,
     OfflineSparkProvider,
@@ -58,6 +60,7 @@ from .resources import (
     SnowflakeDynamicTableConfig,
 )
 from .serving import ServingClient
+import pyarrow.flight as flight
 
 
 class Client(ResourceClient, ServingClient):
@@ -123,7 +126,7 @@ class Client(ResourceClient, ServingClient):
             SourceRegistrar, SubscriptableTransformation, ResourceVariant, str
         ],
         variant: Optional[str] = None,
-        limit=NO_RECORD_LIMIT,
+        limit=TWO_MILLION_RECORD_LIMIT,
         spark_session=None,
         asynchronous=False,
         verbose=False,
@@ -142,7 +145,7 @@ class Client(ResourceClient, ServingClient):
         Args:
             source (Union[SourceRegistrar, SubscriptableTransformation, str]): The source or transformation to compute the dataframe from
             variant (str): The source variant; can't be None if source is a string
-            limit (int): The maximum number of records to return; defaults to NO_RECORD_LIMIT
+            limit (int): The maximum number of records to return; defaults to TWO_MILLION_RECORD_LIMIT
             spark_session: Specifices to read as a spark session.
             asynchronous (bool): Flag to determine whether the client should wait for resources to be in either a READY or FAILED state before returning. Defaults to False to ensure that newly registered resources are in a READY state prior to serving them as dataframes.
 
@@ -173,9 +176,13 @@ class Client(ResourceClient, ServingClient):
                 )
             return self._spark_dataframe(source, spark_session)
         if iceberg:
-            return self._iceberg_dataframe(source)
+            resource_type = DataResourceType.TRANSFORMATION
+            if isinstance(source, TrainingSetVariant):
+                resource_type = DataResourceType.TRAINING_SET
+            return self._iceberg_dataframe(source, variant, resource_type, limit)
         return self.impl._get_source_as_df(name, variant, limit)
 
+    # todox: deprecate?
     def _get_iceberg_table(
         self,
         source: Union[
@@ -198,8 +205,84 @@ class Client(ResourceClient, ServingClient):
         source: Union[
             SourceRegistrar, SubscriptableTransformation, ResourceVariant, str
         ],
+        variant: Optional[str] = None,
+        resource_type: DataResourceType = DataResourceType.PRIMARY,
+        limit: int = TWO_MILLION_RECORD_LIMIT,
     ):
-        return self._get_iceberg_table(source).scan().to_pandas()
+        """
+        Fetch Iceberg data via the Go proxy using Apache Arrow Flight protocol.
+
+        Args:
+            source (Union[str, SourceRegistrar]): The resource name or a SourceRegistrar object.
+            variant (str): The resource variant (required if source is a string).
+            resource_type (DataResourceType): The resource type.
+            limit (int): The maximum number of records to fetch.
+
+        Returns:
+            pandas.DataFrame: Iceberg data catalog stream
+        """
+        # if the source is a SourceRegistrar, pull the name + variant values
+        if isinstance(
+            source, (SourceRegistrar, SubscriptableTransformation, ResourceVariant)
+        ):
+            print("Received source object, extracting source and variant...")
+            source, variant = source.name_variant()
+
+        if not isinstance(source, str) or not isinstance(variant, str):
+            raise ValueError(
+                "Both 'source' and 'variant' must be strings or values from SourceRegistrar."
+            )
+
+        ticket_data = {
+            "source": source,
+            "variant": variant,
+            "resourceType": resource_type.name,
+            "limit": limit,
+        }
+
+        protocol = "grpc+tcp" if self._insecure else "grpc+tls"
+        parts = self._host.split(":")
+        if len(parts) == 2:
+            host, port = parts
+        else:
+            host, port = self._host, "443"
+        if port != "443":
+            # is single docker mode, point directly to proxy port
+            port = "8086"
+        flight_address = (
+            f"{protocol}://{host}:{port}/arrow.flight.protocol.FlightService/"
+        )
+        print(f"Flight server address: {flight_address}")
+
+        print("Client initializing...")
+        # handle tls
+        client_kwargs = {}
+        if not self._insecure:
+            print("Secure connection enabled")
+            cert_path = self._cert_path or os.getenv("FEATUREFORM_CERT")
+            if cert_path is not None:
+                if not os.path.exists(cert_path):
+                    raise FileNotFoundError(f"TLS certificate not found at {cert_path}")
+                print(f"Using cert at {cert_path}")
+                with open(cert_path, "rb") as f:
+                    tls_root_certs = f.read()
+                    client_kwargs["tls_root_certs"] = tls_root_certs
+
+        flight_client = flight.connect(flight_address, **client_kwargs)
+
+        print("Building ticket...")
+        ticket = flight.Ticket(json.dumps(ticket_data).encode("utf-8"))
+
+        try:
+            print("Attempting to fetch data via Arrow Flight from Go Proxy...")
+            stream = flight_client.do_get(ticket)
+            reader = stream.read_all()
+            df = reader.to_pandas()
+            return df
+        except flight.FlightError as e:
+            raise RuntimeError(f"Failed to fetch data from Go proxy: {e}")
+        finally:
+            flight_client.close()
 
     # TODO, combine this with the dataset logic in serving.py
     def _spark_dataframe(self, source, spark_session):
@@ -332,7 +415,14 @@ class Client(ResourceClient, ServingClient):
 
     def location(
         self,
-        source: Union[SourceRegistrar, SubscriptableTransformation, str],
+        source: Union[
+            SourceRegistrar,
+            SubscriptableTransformation,
+            FeatureColumnResource,
+            LabelColumnResource,
+            TrainingSetVariant,
+            str,
+        ],
         variant: Optional[str] = None,
         resource_type: Optional[DataResourceType] = None,
     ):
@@ -357,6 +447,14 @@ class Client(ResourceClient, ServingClient):
             name = source.name
             variant = source.variant
             resource_type = DataResourceType.TRAINING_SET
+        elif isinstance(source, FeatureColumnResource):
+            name = source.name
+            variant = source.variant
+            resource_type = DataResourceType.FEATURE
+        elif isinstance(source, LabelColumnResource):
+            name = source.name
+            variant = source.variant
+            resource_type = DataResourceType.LABEL
         elif isinstance(source, str):
             name = source
             if variant is None:

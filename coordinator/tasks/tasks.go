@@ -14,9 +14,9 @@ import (
 
 	"github.com/featureform/coordinator/spawner"
 	"github.com/featureform/fferr"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/scheduling"
-	"go.uber.org/zap"
 )
 
 const Noop = "Noop"
@@ -86,21 +86,43 @@ type BaseTask struct {
 	taskDef            scheduling.TaskRunMetadata
 	lastSuccessfulTask scheduling.TaskRunMetadata
 	isUpdate           bool
+	isDelete           bool
 	spawner            spawner.JobSpawner
-	logger             *zap.SugaredLogger
+	logger             logging.Logger
 	config             TaskConfig
 }
 
-func NewBaseTask(metadata *metadata.Client, taskDef scheduling.TaskRunMetadata, lastSuccessfulTask scheduling.TaskRunMetadata, isUpdate bool, spawner spawner.JobSpawner, logger *zap.SugaredLogger, config TaskConfig) BaseTask {
+func NewBaseTask(
+	metadata *metadata.Client,
+	taskDef scheduling.TaskRunMetadata,
+	lastSuccessfulTask scheduling.TaskRunMetadata,
+	isUpdate bool,
+	isDelete bool,
+	spawner spawner.JobSpawner,
+	logger logging.Logger,
+	config TaskConfig,
+) BaseTask {
 	return BaseTask{
 		metadata:           metadata,
 		taskDef:            taskDef,
 		lastSuccessfulTask: lastSuccessfulTask,
 		isUpdate:           isUpdate,
+		isDelete:           isDelete,
 		spawner:            spawner,
 		logger:             logger,
 		config:             config,
 	}
+}
+
+func (bt *BaseTask) Redacted() map[string]any {
+	return map[string]any{
+		"task-def":        bt.taskDef,
+		"last-successful": bt.lastSuccessfulTask,
+		"is-update":       bt.isUpdate,
+		"spawner-type":    fmt.Sprintf("%T", bt.spawner),
+		"task-config":     bt.config,
+	}
+
 }
 
 func (bt *BaseTask) waitForRunCompletion(id []scheduling.TaskRunID) error {

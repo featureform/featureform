@@ -8,6 +8,7 @@
 package equivalence
 
 import (
+	pb "github.com/featureform/metadata/proto"
 	"testing"
 
 	"github.com/featureform/provider/types"
@@ -354,6 +355,117 @@ func TestStreamIsEquivalent(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.s1.IsEquivalent(tt.s2)
 			assert.Equal(t, tt.expected, result, "IsEquivalent() mismatch in test case: %s", tt.name)
+		})
+	}
+}
+
+func TestFeatureVariantFromProto(t *testing.T) {
+	valueType := &pb.ValueType{
+		Type: &pb.ValueType_Scalar{
+			Scalar: pb.ScalarType_FLOAT32,
+		},
+	}
+
+	vt, err := types.ValueTypeFromProto(valueType)
+	assert.NoError(t, err)
+	tests := []struct {
+		name     string
+		input    *pb.FeatureVariant
+		expected featureVariant
+		wantErr  bool
+	}{
+		{
+			name: "column based feature",
+			input: &pb.FeatureVariant{
+				Name:     "user_spend",
+				Provider: "snowflake",
+				Type:     valueType,
+				Mode:     pb.ComputationMode_PRECOMPUTED,
+				Location: &pb.FeatureVariant_Columns{
+					Columns: &pb.Columns{
+						Entity: "user_id",
+						Value:  "spend_amount",
+						Ts:     "event_timestamp",
+					},
+				},
+				ResourceSnowflakeConfig: &pb.ResourceSnowflakeConfig{
+					Warehouse: "compute_wh",
+				},
+			},
+			expected: featureVariant{
+				Name:            "user_spend",
+				Provider:        "snowflake",
+				ValueType:       vt,
+				ComputationMode: "PRECOMPUTED",
+				Location: column{
+					Entity: "user_id",
+					Value:  "spend_amount",
+					Ts:     "event_timestamp",
+				},
+				ResourceSnowflakeConfig: resourceSnowflakeConfig{
+					Warehouse: "compute_wh",
+				},
+			},
+		},
+		{
+			name: "python function feature",
+			input: &pb.FeatureVariant{
+				Name:     "user_category",
+				Provider: "python",
+				Type:     valueType,
+				Mode:     pb.ComputationMode_PRECOMPUTED,
+				Location: &pb.FeatureVariant_Function{
+					Function: &pb.PythonFunction{
+						Query: []byte("def compute(row): return row['category'].upper()"),
+					},
+				},
+			},
+			expected: featureVariant{
+				Name:            "user_category",
+				Provider:        "python",
+				ValueType:       vt,
+				ComputationMode: "PRECOMPUTED",
+				Location: pythonFunction{
+					Query: []byte("def compute(row): return row['category'].upper()"),
+				},
+				ResourceSnowflakeConfig: resourceSnowflakeConfig{},
+			},
+		},
+		{
+			name: "stream feature",
+			input: &pb.FeatureVariant{
+				Name:     "click_count",
+				Provider: "kafka",
+				Type:     valueType,
+				Mode:     pb.ComputationMode_STREAMING,
+				Location: &pb.FeatureVariant_Stream{
+					Stream: &pb.Stream{
+						OfflineProvider: "snowflake",
+					},
+				},
+			},
+			expected: featureVariant{
+				Name:            "click_count",
+				Provider:        "kafka",
+				ValueType:       vt,
+				ComputationMode: "STREAMING",
+				Location: stream{
+					OfflineProvider: "snowflake",
+				},
+				ResourceSnowflakeConfig: resourceSnowflakeConfig{},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := FeatureVariantFromProto(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/featureform/helpers"
+	"github.com/featureform/helpers/etcd"
+
 	"github.com/jonboulle/clockwork"
 )
 
@@ -28,7 +30,7 @@ func TestETCDLocker(t *testing.T) {
 		port = etcdPort
 	}
 
-	etcdConfig := helpers.ETCDConfig{
+	etcdConfig := etcd.Config{
 		Host:        host,
 		Port:        port,
 		DialTimeout: time.Second * 5,

@@ -13,6 +13,7 @@ import {
   GridContainer,
   MainContainer,
   StyledDataGrid,
+  STATUS_COLORS,
 } from '../BaseColumnTable';
 import BaseFilterPanel from '../BaseFilterPanel';
 import { ConnectionSvg } from '../icons/Connections';
@@ -32,42 +33,8 @@ export const dataset_columns = [
   },
   {
     field: 'name',
-    headerName: 'Name',
+    headerName: 'Name (Variant)',
     width: 200,
-    editable: false,
-    sortable: false,
-    filterable: false,
-    hide: false,
-    renderCell: function ({ row }) {
-      return (
-        <>
-          <Typography variant='body2' sx={{ marginLeft: 1 }}>
-            <strong>{row?.name}</strong>
-          </Typography>
-        </>
-      );
-    },
-  },
-  {
-    field: 'variant',
-    headerName: 'Variant',
-    width: 200,
-    editable: false,
-    sortable: false,
-    filterable: false,
-    hide: false,
-    renderCell: function ({ row }) {
-      return (
-        <Typography variant='body2' sx={{ marginLeft: 1 }}>
-          <strong>{row?.variant}</strong>
-        </Typography>
-      );
-    },
-  },
-  {
-    field: 'tags',
-    headerName: 'Tags',
-    flex: 1,
     editable: false,
     sortable: false,
     filterable: false,
@@ -76,7 +43,15 @@ export const dataset_columns = [
       return (
         <div>
           <div style={{ display: 'flex' }}>
-            <Typography variant='body2'>{sanitizeTags(row?.tags)}</Typography>
+            <Typography variant='body2' sx={{ marginLeft: 1 }}>
+                <strong>{row?.name}</strong>
+              </Typography>
+          </div>
+
+          <div style={{ display: 'flex' }}>
+            <Typography variant='body2' sx={{ marginLeft: 1 }}>
+              {row?.variant}
+            </Typography>
           </div>
         </div>
       );
@@ -114,15 +89,14 @@ export const dataset_columns = [
   {
     field: 'status',
     headerName: 'Status',
-    width: 275,
+    width: 250,
     editable: false,
     sortable: false,
     filterable: false,
     renderCell: function ({ row }) {
-      const readyFill = '#6DDE6A';
-      let result = '#DA1E28';
+      let result = STATUS_COLORS.ERROR;
       if (row?.status && row?.status === 'READY') {
-        result = readyFill;
+        result = STATUS_COLORS.READY;
       }
       return (
         <div>
@@ -158,19 +132,6 @@ export const dataset_columns = [
     },
   },
 ];
-
-function sanitizeTags(tags = [], maxLength = 25) {
-  if (!tags || tags.length === 0) return '';
-  //join all the tags together
-  const formattedTags = tags.join(', ');
-
-  //if the length is longer than max, chop 3 characters and add the ellipse
-  if (formattedTags.length > maxLength) {
-    return `${formattedTags.substring(0, maxLength - 3)}...`;
-  }
-
-  return formattedTags;
-}
 
 const DEFAULT_FILTERS = Object.freeze({
   SearchTxt: '',

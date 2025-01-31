@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	pl "github.com/featureform/provider/location"
 	"math"
 	"reflect"
 	"strconv"
@@ -31,6 +32,7 @@ import (
 	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	se "github.com/featureform/provider/serialization"
 	vt "github.com/featureform/provider/types"
 	sn "github.com/mrz1836/go-sanitize"
 	"go.uber.org/zap"
@@ -87,7 +89,7 @@ type dynamodbOnlineTable struct {
 	client             *dynamodb.Client
 	key                dynamodbTableKey
 	valueType          vt.ValueType
-	version            serializeVersion
+	version            se.SerializeVersion
 	stronglyConsistent bool
 }
 
@@ -101,7 +103,7 @@ type dynamodbMetadataEntry struct {
 // ToTableMetadata converts a dynamodb entry from the Metadata table to a struct
 // with all its fields properly casted and type checked.
 func (entry dynamodbMetadataEntry) ToTableMetadata() (*dynamodbTableMetadata, error) {
-	version := serializeVersion(entry.Version)
+	version := se.SerializeVersion(entry.Version)
 	if _, ok := serializers[version]; !ok {
 		wrapped := fferr.NewInternalErrorf("serialization version not implemented")
 		wrapped.AddDetail("dynamo_serialize_version", fmt.Sprintf("%d", entry.Version))
@@ -122,7 +124,7 @@ func (entry dynamodbMetadataEntry) ToTableMetadata() (*dynamodbTableMetadata, er
 // casting and validating its values.
 type dynamodbTableMetadata struct {
 	Valuetype vt.ValueType
-	Version   serializeVersion
+	Version   se.SerializeVersion
 }
 
 func dynamodbOnlineStoreFactory(serialized pc.SerializedConfig) (Provider, error) {
@@ -231,7 +233,7 @@ func CreateMetadataTable(client *dynamodb.Client, logger *zap.SugaredLogger) err
 	return nil
 }
 
-func (store *dynamodbOnlineStore) updateMetadataTable(tablename string, valueType vt.ValueType, version serializeVersion) error {
+func (store *dynamodbOnlineStore) updateMetadataTable(tablename string, valueType vt.ValueType, version se.SerializeVersion) error {
 	input := &dynamodb.UpdateItemInput{
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":valtype": &types.AttributeValueMemberS{
@@ -350,8 +352,14 @@ func (store *dynamodbOnlineStore) DeleteTable(feature, variant string) error {
 	}
 	_, err := store.client.DeleteTable(context.TODO(), params)
 	if err != nil {
-		return fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
+		var notFoundErr *types.ResourceNotFoundException
+		if errors.As(err, &notFoundErr) {
+			return fferr.NewDatasetNotFoundError(feature, variant, err)
+		} else {
+			return fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
+		}
 	}
+
 	return nil
 }
 
@@ -361,6 +369,10 @@ func (store *dynamodbOnlineStore) CheckHealth() (bool, error) {
 		return false, fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
 	}
 	return true, nil
+}
+
+func (store dynamodbOnlineStore) Delete(location pl.Location) error {
+	return fferr.NewInternalErrorf("delete not implemented as dynamodb doesn't support location")
 }
 
 // TODO(simba) Make this work with Serialize V1
@@ -633,32 +645,17 @@ func waitForDynamoTable(client *dynamodb.Client, table string, maxWait time.Dura
 	return waiter.Wait(context.TODO(), waitParams, maxWait)
 }
 
-// serializeVersion is used to specify what method of serializing and deserializing values
-// into Dynamo columns that we're using.
-type serializeVersion int
-
 // The serializer versions. If adding a new one make sure to add to the serializers map variable
 const (
 	// serializeV0 serializes everything as strings, including numbers
-	serializeV0 serializeVersion = iota
+	serializeV0 se.SerializeVersion = iota
 	// serializeV1 serializes everything into native dynamo types and handles lists as well
 	serializeV1
 )
 
-func (v serializeVersion) String() string {
-	return strconv.Itoa(int(v))
-}
-
-// serializer provides methods to serialize and deserialize values into DynamoDB columns
-type serializer interface {
-	Version() serializeVersion
-	Serialize(t vt.ValueType, value any) (types.AttributeValue, error)
-	Deserialize(t vt.ValueType, value types.AttributeValue) (any, error)
-}
-
 // serializers is the map of all serializers. If a new version is added it should be added
 // into this map as well.
-var serializers = map[serializeVersion]serializer{
+var serializers = map[se.SerializeVersion]se.Serializer[types.AttributeValue]{
 	serializeV0: serializerV0{},
 	serializeV1: serializerV1{},
 }
@@ -666,7 +663,7 @@ var serializers = map[serializeVersion]serializer{
 // serializerV0 serializes everything as strings, including numbers
 type serializerV0 struct{}
 
-func (ser serializerV0) Version() serializeVersion {
+func (ser serializerV0) Version() se.SerializeVersion {
 	return serializeV0
 }
 
@@ -733,7 +730,7 @@ func (ser serializerV0) Deserialize(t vt.ValueType, value types.AttributeValue) 
 // serializerV1 serializes everything into native dynamo types and handles lists as well
 type serializerV1 struct{}
 
-func (ser serializerV1) Version() serializeVersion {
+func (ser serializerV1) Version() se.SerializeVersion {
 	return serializeV1
 }
 
@@ -793,7 +790,7 @@ func (ser serializerV1) serializeScalar(t vt.ValueType, value any) (types.Attrib
 		return &types.AttributeValueMemberNULL{Value: true}, nil
 	case vt.Int:
 		// This rounds via Go if needed
-		intVal, err := castNumberToInt(value)
+		intVal, err := se.CastNumberToInt(value)
 		if err != nil {
 			wrapped := fferr.NewTypeError(t.String(), value, err)
 			wrapped.AddDetail("version", ser.Version().String())
@@ -803,7 +800,7 @@ func (ser serializerV1) serializeScalar(t vt.ValueType, value any) (types.Attrib
 		return &types.AttributeValueMemberN{Value: intStr}, nil
 	case vt.Int32:
 		// This rounds via Go if needed
-		intVal, err := castNumberToInt32(value)
+		intVal, err := se.CastNumberToInt32(value)
 		if err != nil {
 			wrapped := fferr.NewTypeError(t.String(), value, err)
 			wrapped.AddDetail("version", ser.Version().String())
@@ -812,7 +809,7 @@ func (ser serializerV1) serializeScalar(t vt.ValueType, value any) (types.Attrib
 		intStr := strconv.FormatInt(int64(intVal), 10)
 		return &types.AttributeValueMemberN{Value: intStr}, nil
 	case vt.Int64:
-		intVal, err := castNumberToInt64(value)
+		intVal, err := se.CastNumberToInt64(value)
 		if err != nil {
 			wrapped := fferr.NewTypeError(t.String(), value, err)
 			wrapped.AddDetail("version", ser.Version().String())
@@ -821,7 +818,7 @@ func (ser serializerV1) serializeScalar(t vt.ValueType, value any) (types.Attrib
 		intStr := strconv.FormatInt(intVal, 10)
 		return &types.AttributeValueMemberN{Value: intStr}, nil
 	case vt.Float32:
-		floatVal, err := castNumberToFloat32(value)
+		floatVal, err := se.CastNumberToFloat32(value)
 		if err != nil {
 			wrapped := fferr.NewTypeError(t.String(), value, err)
 			wrapped.AddDetail("version", ser.Version().String())
@@ -830,7 +827,7 @@ func (ser serializerV1) serializeScalar(t vt.ValueType, value any) (types.Attrib
 		floatStr := strconv.FormatFloat(float64(floatVal), 'e', -1, 32)
 		return &types.AttributeValueMemberN{Value: floatStr}, nil
 	case vt.Float64:
-		floatVal, err := castNumberToFloat64(value)
+		floatVal, err := se.CastNumberToFloat64(value)
 		if err != nil {
 			wrapped := fferr.NewTypeError(t.String(), value, err)
 			wrapped.AddDetail("version", ser.Version().String())
@@ -839,7 +836,7 @@ func (ser serializerV1) serializeScalar(t vt.ValueType, value any) (types.Attrib
 		floatStr := strconv.FormatFloat(floatVal, 'e', -1, 64)
 		return &types.AttributeValueMemberN{Value: floatStr}, nil
 	case vt.Bool:
-		casted, err := castBool(value)
+		casted, err := se.CastBool(value)
 		if err != nil {
 			wrapped := fferr.NewTypeError(t.String(), value, err)
 			wrapped.AddDetail("version", ser.Version().String())
@@ -860,7 +857,7 @@ func (ser serializerV1) serializeScalar(t vt.ValueType, value any) (types.Attrib
 			intStr := strconv.FormatInt(ts.Unix(), 10)
 			return &types.AttributeValueMemberN{Value: intStr}, nil
 		}
-		unixTime, unixTimeErr := castNumberToInt64(value)
+		unixTime, unixTimeErr := se.CastNumberToInt64(value)
 		isUnixTs := unixTimeErr == nil
 		if isUnixTs {
 			intStr := strconv.FormatInt(unixTime, 10)
@@ -885,172 +882,6 @@ func (ser serializerV1) serializeScalar(t vt.ValueType, value any) (types.Attrib
 		wrapped := fferr.NewInternalErrorf("dynamo doesn't support type")
 		wrapped.AddDetail("type", vt.SerializeType(t))
 		return nil, wrapped
-	}
-}
-
-func castNumberToFloat32(value any) (float32, error) {
-	// I have to do one type per case for this to work properly.
-	switch typed := value.(type) {
-	case int:
-		return float32(typed), nil
-	case int32:
-		return float32(typed), nil
-	case int64:
-		return float32(typed), nil
-	case int8:
-		return float32(typed), nil
-	case int16:
-		return float32(typed), nil
-	case float32:
-		return typed, nil
-	case float64:
-		return float32(typed), nil
-	case string:
-		f64, err := strconv.ParseFloat(typed, 32)
-		if err != nil {
-			return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
-		}
-		return float32(f64), nil
-	default:
-		return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
-	}
-}
-
-func castNumberToFloat64(value any) (float64, error) {
-	// I have to do one type per case for this to work properly.
-	switch typed := value.(type) {
-	case int:
-		return float64(typed), nil
-	case int32:
-		return float64(typed), nil
-	case int64:
-		return float64(typed), nil
-	case int8:
-		return float64(typed), nil
-	case int16:
-		return float64(typed), nil
-	case float32:
-		return float64(typed), nil
-	case float64:
-		return typed, nil
-	case string:
-		f64, err := strconv.ParseFloat(typed, 64)
-		if err != nil {
-			return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
-		}
-		return f64, nil
-	default:
-		return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
-	}
-}
-
-func castNumberToInt(value any) (int, error) {
-	// I have to do one type per case for this to work properly.
-	switch typed := value.(type) {
-	case int:
-		return typed, nil
-	case int32:
-		return int(typed), nil
-	case int64:
-		return int(typed), nil
-	case int8:
-		return int(typed), nil
-	case int16:
-		return int(typed), nil
-	case float32:
-		return int(typed), nil
-	case float64:
-		return int(typed), nil
-	case string:
-		val, err := strconv.ParseInt(typed, 10, 64)
-		// Handle cases like 1.0
-		if err != nil {
-			fVal, nErr := strconv.ParseFloat(typed, 64)
-			if nErr == nil {
-				return int(fVal), nil
-			}
-		}
-		return int(val), err
-	default:
-		return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
-	}
-}
-
-func castNumberToInt32(value any) (int32, error) {
-	// I have to do one type per case for this to work properly.
-	switch typed := value.(type) {
-	case int:
-		return int32(typed), nil
-	case int32:
-		return typed, nil
-	case int64:
-		return int32(typed), nil
-	case int8:
-		return int32(typed), nil
-	case int16:
-		return int32(typed), nil
-	case float32:
-		return int32(typed), nil
-	case float64:
-		return int32(typed), nil
-	case string:
-		val, err := strconv.ParseInt(typed, 10, 32)
-		// Handle cases like 1.0
-		if err != nil {
-			fVal, nErr := strconv.ParseFloat(typed, 64)
-			if nErr == nil {
-				return int32(fVal), nil
-			}
-		}
-		return int32(val), err
-	default:
-		return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
-	}
-}
-
-func castNumberToInt64(value any) (int64, error) {
-	// I have to do one type per case for this to work properly.
-	switch typed := value.(type) {
-	case int:
-		return int64(typed), nil
-	case int32:
-		return int64(typed), nil
-	case int64:
-		return typed, nil
-	case int8:
-		return int64(typed), nil
-	case int16:
-		return int64(typed), nil
-	case float32:
-		return int64(typed), nil
-	case float64:
-		return int64(typed), nil
-	case string:
-		val, err := strconv.ParseInt(typed, 10, 64)
-		// Handle cases like 1.0
-		if err != nil {
-			fVal, nErr := strconv.ParseFloat(typed, 64)
-			if nErr == nil {
-				return int64(fVal), nil
-			}
-		}
-		return val, err
-	default:
-		return 0, fmt.Errorf("Type error: Expected numerical type and got %T", typed)
-	}
-}
-
-func castBool(value any) (bool, error) {
-	switch casted := value.(type) {
-	case bool:
-		return casted, nil
-	case string:
-		return strconv.ParseBool(casted)
-	case int, int32, int64:
-		isFalse := casted == 0
-		return !isFalse, nil
-	default:
-		return false, fmt.Errorf("Type error: Expected numerical type and got %T", casted)
 	}
 }
 

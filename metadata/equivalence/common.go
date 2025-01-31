@@ -41,3 +41,46 @@ func (n nameVariant) IsEquivalent(other Equivalencer) bool {
 	}
 	return n.Name == otherNameVariant.Name && n.Variant == otherNameVariant.Variant
 }
+
+type resourceSnowflakeConfig struct {
+	DynamicTableConfig snowflakeDynamicTableConfig
+	Warehouse          string
+}
+
+type snowflakeDynamicTableConfig struct {
+	TargetLag   string
+	RefreshMode string
+	Initialize  string
+}
+
+func resourceSnowflakeConfigFromProto(proto *pb.ResourceSnowflakeConfig) resourceSnowflakeConfig {
+	if proto == nil {
+		return resourceSnowflakeConfig{}
+	}
+
+	dynamicTableConfig := proto.DynamicTableConfig
+	if dynamicTableConfig == nil {
+		return resourceSnowflakeConfig{
+			Warehouse: proto.Warehouse,
+		}
+	}
+
+	return resourceSnowflakeConfig{
+		DynamicTableConfig: snowflakeDynamicTableConfig{
+			TargetLag:   dynamicTableConfig.TargetLag,
+			RefreshMode: dynamicTableConfig.RefreshMode.String(),
+			Initialize:  dynamicTableConfig.Initialize.String(),
+		},
+		Warehouse: proto.Warehouse,
+	}
+}
+
+func (s snowflakeDynamicTableConfig) IsEquivalent(other Equivalencer) bool {
+	otherConfig, ok := other.(snowflakeDynamicTableConfig)
+	if !ok {
+		return false
+	}
+	return s.TargetLag == otherConfig.TargetLag &&
+		s.RefreshMode == otherConfig.RefreshMode &&
+		s.Initialize == otherConfig.Initialize
+}

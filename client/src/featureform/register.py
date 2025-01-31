@@ -5,36 +5,27 @@
 #  Copyright 2024 FeatureForm Inc.
 #
 
-import ast
-import inspect
-import os
-import warnings
-from abc import ABC
 from collections.abc import Iterable
 from datetime import timedelta
-from typing import Callable, Dict, List, Optional, Tuple, Union
-
-import dill
+from typing import Dict, List, Optional, Union, get_args
 
 import pandas as pd
-from dataclasses import dataclass, field
-from typeguard import typechecked
+import logging
 
-from . import feature_flag
-from .exceptions import InvalidSQLQuery
+from .enums import ResourceType
 from .get import *
 from .grpc_client import GrpcClient
 from .list import *
+from .logging import setup_logging
 from .parse import *
 from .proto import metadata_pb2_grpc as ff_grpc
 from .resources import *
 from .search import search
 from .status_display import display_statuses
 from .tls import insecure_channel, secure_channel
-from .types import pd_to_ff_datatype, VectorType
+from .types import VectorType, pd_to_ff_datatype
 from .variant_names_generator import get_current_timestamp_variant
 from .variant_names_generator import get_random_name
-from .enums import ResourceType
 
 NameVariant = Tuple[str, str]
 
@@ -225,6 +216,8 @@ class OfflineSQLProvider(OfflineProvider):
         schedule: str = "",
         tags: Optional[List[str]] = None,
         properties: Optional[Dict] = None,
+        resource_snowflake_config: Optional[ResourceSnowflakeConfig] = None,
+        type: TrainingSetType = TrainingSetType.DYNAMIC,
     ):
         return self.__registrar.register_training_set(
             name=name,
@@ -238,6 +231,8 @@ class OfflineSQLProvider(OfflineProvider):
             tags=tags if tags is not None else [],
             properties=properties if properties is not None else {},
             provider=self.name(),
+            resource_snowflake_config=resource_snowflake_config,
+            type=type,
         )
 
     def __eq__(self, __value: object) -> bool:
@@ -246,6 +241,125 @@ class OfflineSQLProvider(OfflineProvider):
             self.__provider == __value.__provider
             and self.__registrar == __value.__registrar
         )
+
+    def register_label(
+        self,
+        name: str,
+        entity_mappings: List[dict],
+        value_type: ScalarType,
+        dataset: "SubscriptableTransformation",
+        value_column: str,
+        timestamp_column: Optional[str] = None,
+        variant: str = "",
+        description: str = "",
+        owner: Union[str, UserRegistrar] = "",
+        resource_snowflake_config: Optional[ResourceSnowflakeConfig] = None,
+        tags: Optional[List[str]] = None,
+        properties: Optional[dict] = None,
+    ):
+        """
+        Register a multi-entity label on a SQL provider (currently only supported for Snowflake).
+
+        **Examples**:
+
+        ``` py
+        snowflake = client.get_provider("my_snowflake")
+        label = snowflake.register_label(
+            name="total_purchase_amount",
+            entity_mappings=[{"column": "user_id", "entity": "user"}, {"column": "product_id", "entity": "product"}],
+            value_type=ff.Float32,
+            dataset=purchases,
+            value_column="final_total",
+        )
+        ```
+
+        Args:
+            name (str): Name of the label
+            entity_mappings (List[dict]): A list of dictionaries mapping entity columns to entity names
+            value_type (ScalarType): The type of the label
+            dataset: The dataset the label is derived from
+            value_column (str): The column in the dataset that contains the label values
+            timestamp_column (str, optional): The column in the dataset that contains the timestamp
+            variant (str, optional): The variant of the label
+            description (str, optional): Description of the label
+            owner (Union[str, UserRegistrar], optional): Owner
+            resource_snowflake_config (ResourceSnowflakeConfig, optional): Snowflake specific configuration
+            tags (List[str], optional): Tags
+            properties (dict, optional): Properties
+
+        Returns:
+            label (LabelVariant): The label variant instance
+        """
+        if self.__provider.config.type() != "SNOWFLAKE_OFFLINE":
+            raise ValueError(
+                "Registering labels on SQL offline providers is currently only supported for Snowflake"
+            )
+        if variant == "":
+            variant = self.__registrar.get_run()
+
+        if not isinstance(entity_mappings, list) or len(entity_mappings) == 0:
+            raise ValueError("entity_mappings must be a non-empty list")
+
+        mappings = []
+        for m in entity_mappings:
+            if not isinstance(m, dict):
+                raise ValueError("entity_mappings must be a list of dictionaries")
+            column = m.get("column")
+            if not column:
+                raise ValueError("missing entity column in mapping")
+            entity = m.get("entity")
+            if not entity:
+                raise ValueError("missing entity name in mapping")
+            mappings.append(
+                EntityMapping(
+                    name=entity,
+                    entity_column=column,
+                )
+            )
+
+        if not ScalarType.has_value(value_type) and not isinstance(
+            value_type, ScalarType
+        ):
+            raise ValueError(
+                f"Invalid type for label {name} ({variant}). Must be a ScalarType or one of {ScalarType.get_values()}"
+            )
+        if isinstance(value_type, ScalarType):
+            value_type = value_type.value
+
+        if not hasattr(dataset, "name_variant"):
+            raise ValueError("Dataset must have a name_variant method")
+
+        source = dataset.name_variant()
+
+        if not value_column:
+            raise ValueError("value_column must be provided")
+
+        tags, properties = set_tags_properties(tags, properties)
+        if not isinstance(owner, str):
+            owner = owner.name()
+        if owner == "":
+            owner = self.__registrar.must_get_default_owner()
+
+        label = LabelVariant(
+            name=name,
+            variant=variant,
+            source=source,
+            value_type=value_type,
+            owner=owner,
+            description=description,
+            tags=tags,
+            properties=properties,
+            entity="",
+            location=EntityMappings(
+                mappings=mappings,
+                value_column=value_column,
+                timestamp_column=timestamp_column,
+            ),
+            resource_snowflake_config=resource_snowflake_config,
+        )
+
+        self.__registrar.add_resource(label)
+        return label
 
 
 class OfflineSparkProvider(OfflineProvider):
@@ -882,6 +996,9 @@ class SubscriptableTransformation:
     def name_variant(self):
         return self.transformation.name_variant()
 
+    def get_resource_type(self):
+        return self.transformation.get_resource_type()
+
     def __getitem__(self, columns: List[str]):
         col_len = len(columns)
         if col_len < 2:
@@ -1014,6 +1131,9 @@ class SQLTransformationDecorator:
 
     def name_variant(self):
         return (self.name, self.variant)
+
+    def get_resource_type(self):
+        return ResourceType.SOURCE_VARIANT
 
     def register_resources(
         self,
@@ -1530,9 +1650,7 @@ class FeatureColumnResource(ColumnResource):
             schedule=schedule,
             tags=tags,
             properties=properties,
-            resource_snowflake_config=set_resource_snowflake_config_defaults(
-                resource_snowflake_config
-            ),
+            resource_snowflake_config=resource_snowflake_config,
         )
 
 
@@ -1886,7 +2004,7 @@ class Registrar:
         self.__default_owner = ""
         self.__variant_prefix = ""
         if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
-            self.__run = get_current_timestamp_variant(self.__variant_prefix)
+            self.__run = get_current_timestamp_variant(prefix=self.__variant_prefix)
         else:
             self.__run = get_random_name()
 
@@ -2023,7 +2141,7 @@ class Registrar:
         """
         if run == "":
             if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
-                self.__run = get_current_timestamp_variant(self.__variant_prefix)
+                self.__run = get_current_timestamp_variant(prefix=self.__variant_prefix)
             else:
                 self.__run = get_random_name()
         else:
@@ -4624,6 +4742,7 @@ class Registrar:
         properties: dict = {},
         provider: str = "",
         resource_snowflake_config: Optional[ResourceSnowflakeConfig] = None,
+        type: TrainingSetType = TrainingSetType.DYNAMIC,
     ):
         """Register a training set.
 
@@ -4707,9 +4826,8 @@ class Registrar:
             tags=tags,
             properties=properties,
             provider=provider,
-            resource_snowflake_config=set_resource_snowflake_config_defaults(
-                resource_snowflake_config
-            ),
+            resource_snowflake_config=resource_snowflake_config,
+            type=type,
         )
         self.map_client_object_to_resource(resource, resource)
         self.__resources.append(resource)
@@ -4731,33 +4849,6 @@ class Registrar:
         model = Model(name, description="", tags=tags, properties=properties)
         self.__resources.append(model)
         return model
-
-
-def set_resource_snowflake_config_defaults(
-    resource_snowflake_config: Union[ResourceSnowflakeConfig, None],
-) -> ResourceSnowflakeConfig:
-    # Features and trainging sets cannot use the default target lag of DOWNSTREAM because we
-    # need to ensure that if users serve features or create training sets, they should be up
-    # to date within the target lag period. If no configuration is provided, we set the target
-    # lag to ONE_DAY_TARGET_LAG.
-    if not resource_snowflake_config:
-        resource_snowflake_config = ResourceSnowflakeConfig(
-            dynamic_table_config=SnowflakeDynamicTableConfig(
-                target_lag=ONE_DAY_TARGET_LAG,
-                refresh_mode=RefreshMode.AUTO,
-                initialize=Initialize.ON_CREATE,
-            )
-        )
-    # If the user has provided the warehouse but not any dynamic table config, we set the
-    # SnowflakeDynamicTableConfig to the default values (i.e. ONE_DAY_TARGET_LAG).
-    elif not resource_snowflake_config.dynamic_table_config:
-        resource_snowflake_config.dynamic_table_config = SnowflakeDynamicTableConfig(
-            target_lag=ONE_DAY_TARGET_LAG,
-            refresh_mode=RefreshMode.AUTO,
-            initialize=Initialize.ON_CREATE,
-        )
-
-    return resource_snowflake_config
 
 
 class ResourceClient:
@@ -4811,6 +4902,8 @@ class ResourceClient:
         if dry_run:
             return
 
+        setup_logging(debug)
+
         host = host or os.getenv("FEATUREFORM_HOST")
         if host is None:
             raise RuntimeError(
@@ -4823,6 +4916,9 @@ class ResourceClient:
             channel = secure_channel(host, cert_path)
         self._stub = GrpcClient(ff_grpc.ApiStub(channel), debug=debug)
         self._host = host
+        self._cert_path = cert_path or os.getenv("FEATUREFORM_CERT")
+        self._insecure = insecure
+        self.logger = logging.getLogger(__name__)
 
     def apply(self, asynchronous=False, verbose=False):
         """
@@ -4873,6 +4969,139 @@ class ResourceClient:
             if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
                 set_run("")
             clear_state()
+
+    def delete(
+        self,
+        source: Union["DeletableResourceObjects", str],
+        variant: Optional[str] = None,
+        resource_type: Optional[ResourceType] = None,
+    ):
+        """
+        Delete a resource by name and variant or by resource object.
+
+        There are three ways to delete a resource:
+        1. Using a resource object (Feature, Label, Source, etc.)
+        2. Using a provider object (OnlineProvider, OfflineProvider)
+        3. Using a string name with required parameters
+
+        Examples:
+            ```python
+            import featureform as ff
+            client = ff.Client()
+
+            # Delete using string name (requires variant and resource_type)
+            client.delete("transactions", "kaggle", ff.ResourceType.SOURCE)
+
+            # Delete using resource object
+            feature = client.get_feature("my_feature", "v1")
+            client.delete(feature)
+
+            # Delete provider (no variant needed)
+            client.delete("redis_provider", resource_type=ff.ResourceType.PROVIDER)
+            ```
+
+        Args:
+            source: Either a resource object (Feature, Label, Source, etc.) or the name of the resource as a string.
+                If a string is provided, resource_type is required and variant is required for non-provider resources.
+            variant: Variant of the resource to delete. Required if source is a string and resource_type is not PROVIDER.
+            resource_type: Type of resource to delete. Required if source is a string.
+
+        Raises:
+            ValueError: If source is a string and:
+                - resource_type is not provided
+                - variant is not provided (for non-provider resources)
+        """
+        # Prepare the request based on the input type
+        request = self._create_delete_request(source, variant, resource_type)
+
+        # Send the request to delete the resource
+        self._stub.MarkForDeletion(request)
+        print("Deleting resource async")
+
+    def prune(
+        self,
+        source: Union["DeletableResourceObjects", str],  # TODO: get this typing correct
+        variant: Optional[str] = None,
+        resource_type: Optional[ResourceType] = None,
+    ):
+        request = self._create_prune_request(source, variant, resource_type)
+
+        # Send the request to delete the resource
+        self._stub.PruneResource(request)
+        if (
+            isinstance(source, str) and resource_type == ResourceType.PROVIDER
+        ) or isinstance(source, (OfflineProvider, OnlineProvider)):
+            print(
+                "Run `delete` on provider after pruning to remove provider from Featureform"
+            )
+        print("Pruning resource async")
+
+    def _create_prune_request(
+        self,
+        source: Union["DeletableResourceObjects", str],
+        variant: Optional[str] = None,
+        resource_type: Optional[ResourceType] = None,
+    ) -> metadata_pb2.PruneResourceRequest:
+        return metadata_pb2.PruneResourceRequest(
+            resource_id=self._build_resource_id(source, variant, resource_type)
+        )
+
+    def _create_delete_request(
+        self,
+        source: Union["DeletableResourceObjects", str],
+        variant: Optional[str] = None,
+        resource_type: Optional[ResourceType] = None,
+    ) -> metadata_pb2.MarkForDeletionRequest:
+        return metadata_pb2.MarkForDeletionRequest(
+            resource_id=self._build_resource_id(source, variant, resource_type)
+        )
+
+    def _build_resource_id(
+        self,
+        source: Union["DeletableResourceObjects", str],
+        variant: Optional[str] = None,
+        resource_type: Optional[ResourceType] = None,
+    ) -> metadata_pb2.ResourceID:
+        """Helper to construct a ResourceID for prune or delete requests."""
+
+        if isinstance(source, str):
+            if resource_type is None:
+                raise ValueError(
+                    "resource_type must be specified if source is a string"
+                )
+
+            if not ResourceType.is_deletable(resource_type):
+                raise ValueError("resource_type must be deletable")
+
+            # handle resources without variants
+            if resource_type == ResourceType.PROVIDER:
+                return metadata_pb2.ResourceID(
+                    resource=metadata_pb2.NameVariant(name=source),
+                    resource_type=resource_type.to_proto(),
+                )
+
+            if not variant:
+                raise ValueError("variant must be specified for non-provider resources")
+
+            return metadata_pb2.ResourceID(
+                resource=metadata_pb2.NameVariant(name=source, variant=variant),
+                resource_type=resource_type.to_proto(),
+            )
+
+        if isinstance(source, (OfflineProvider, OnlineProvider)):
+            return metadata_pb2.ResourceID(
+                resource=metadata_pb2.NameVariant(name=source.name()),
+                resource_type=ResourceType.PROVIDER.to_proto(),
+            )
+
+        if not isinstance(source, get_args(DeletableResourceObjects)):
+            raise ValueError("resource is not deletable")
+
+        name, variant = source.name_variant()
+        return metadata_pb2.ResourceID(
+            resource=metadata_pb2.NameVariant(name=name, variant=variant),
+            resource_type=source.get_resource_type().to_proto(),
+        )
 
     def run(self):
         """
@@ -5229,6 +5458,7 @@ class ResourceClient:
                 LabelColumnResource,
                 TrainingSetVariant,
                 ColumnSourceRegistrar,
+                SubscriptableTransformation,
             ),
         ):
             res_name = resource_name.name_variant()[0]
@@ -6091,6 +6321,17 @@ def entity(cls):
                 resource.entity = entity
                 resource.register()
     return cls
+
+
+DeletableResourceObjects = Union[
+    FeatureColumnResource,
+    SubscriptableTransformation,
+    LabelColumnResource,
+    TrainingSetVariant,
+    ColumnSourceRegistrar,
+    OnlineProvider,
+    OfflineProvider,
+]
 
 
 global_registrar = Registrar()

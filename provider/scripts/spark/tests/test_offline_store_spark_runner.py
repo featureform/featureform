@@ -12,6 +12,7 @@ sys.path.insert(0, "provider/scripts/spark")
 
 import pytest
 from unittest.mock import patch
+from deepdiff import DeepDiff
 
 from offline_store_spark_runner import (
     main,
@@ -64,9 +65,10 @@ def test_main(arguments, request):
 def test_parse_args(arguments, request):
     input_args, expected_args = request.getfixturevalue(arguments)
     args = parse_args(input_args)
-
-    assert args == expected_args
-
+    expected = vars(expected_args)
+    found = vars(args)
+    diff = DeepDiff(expected, found, verbose_level=2, ignore_order=True)
+    assert not diff
 
 @pytest.mark.skipif(sys.platform.startswith("win"), reason="should not run on windows")
 @pytest.mark.parametrize(

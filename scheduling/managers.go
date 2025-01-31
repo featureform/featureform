@@ -8,75 +8,61 @@
 package scheduling
 
 import (
+	"context"
+
 	cfg "github.com/featureform/config"
-	"github.com/featureform/fferr"
 	"github.com/featureform/ffsync"
-	"github.com/featureform/helpers"
+	"github.com/featureform/helpers/etcd"
 	"github.com/featureform/helpers/notifications"
+	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
 	ss "github.com/featureform/storage"
 )
 
-type TaskMetadataManagerType string
-
-const (
-	MemoryMetdataManager TaskMetadataManagerType = "memory"
-	ETCDMetadataManager  TaskMetadataManagerType = "etcd"
-	PSQLMetadataManager  TaskMetadataManagerType = "psql"
-)
-
-func NewTaskMetadataManagerFromEnv(t TaskMetadataManagerType) (TaskMetadataManager, error) {
-	switch t {
-	case MemoryMetdataManager:
-		return NewMemoryTaskMetadataManager()
-	case ETCDMetadataManager:
-		return NewETCDTaskMetadataManagerFromEnv()
-	case PSQLMetadataManager:
-		return NewPSQLTaskMetadataManagerFromEnv()
-	default:
-		return TaskMetadataManager{}, fferr.NewInvalidArgumentErrorf("Metadata Manager must be one of type: memory, etcd, rds")
-	}
-}
-
-func NewMemoryTaskMetadataManager() (TaskMetadataManager, error) {
+func NewMemoryTaskMetadataManager(ctx context.Context) (TaskMetadataManager, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger.Debug("Building in-memory task metadata manager")
 	memoryLocker, err := ffsync.NewMemoryLocker()
 	if err != nil {
+		logger.Errorw("Failed to build memory locker", "err", err)
 		return TaskMetadataManager{}, err
 	}
 
+	logger.Debug("Building in-memory storage impl")
 	memoryStorage, err := ss.NewMemoryStorageImplementation()
 	if err != nil {
+		logger.Errorw("Failed to build memory storage impl", "err", err)
 		return TaskMetadataManager{}, err
 	}
 
 	storage := ss.MetadataStorage{
 		Locker:  &memoryLocker,
 		Storage: &memoryStorage,
-		Logger:  logging.NewLogger("memoryMetadataStorage"),
+		Logger:  logger,
 	}
 
+	logger.Debug("Building in-memory ordered ID generator")
 	generator, err := ffsync.NewMemoryOrderedIdGenerator()
 	if err != nil {
+		logger.Errorw("Failed to build memory orderedId generator", "err", err)
 		return TaskMetadataManager{}, err
 	}
 
+	logger.Debug("Building slack notifier")
+	slackChannel := cfg.GetSlackChannelId()
+	slackNotif := notifications.NewSlackNotifier(slackChannel, logger)
+
+	logger.Info("Successfully created in-memory TaskMetadataManager")
 	return TaskMetadataManager{
 		Storage:     storage,
 		idGenerator: generator,
+		notifier:    slackNotif,
 	}, nil
 }
 
-func NewETCDTaskMetadataManagerFromEnv() (TaskMetadataManager, error) {
-	config := helpers.ETCDConfig{
-		Host:     helpers.GetEnv("ETCD_HOST", "localhost"),
-		Port:     helpers.GetEnv("ETCD_PORT", "2379"),
-		Username: helpers.GetEnv("ETCD_USERNAME", ""),
-		Password: helpers.GetEnv("ETCD_PASSWORD", ""),
-	}
-	return NewETCDTaskMetadataManager(config)
-}
-
-func NewETCDTaskMetadataManager(config helpers.ETCDConfig) (TaskMetadataManager, error) {
+func NewETCDTaskMetadataManager(ctx context.Context, config etcd.Config) (TaskMetadataManager, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger.Warnw("Building deprecated Etcd task metadata manager")
 	etcdLocker, err := ffsync.NewETCDLocker(config)
 	if err != nil {
 		return TaskMetadataManager{}, err
@@ -104,45 +90,41 @@ func NewETCDTaskMetadataManager(config helpers.ETCDConfig) (TaskMetadataManager,
 	}, nil
 }
 
-func NewPSQLTaskMetadataManagerFromEnv() (TaskMetadataManager, error) {
-	config := helpers.PSQLConfig{
-		Host:     helpers.GetEnv("PSQL_HOST", "localhost"),
-		Port:     helpers.GetEnv("PSQL_PORT", "5432"),
-		User:     helpers.GetEnv("PSQL_USER", "postgres"),
-		Password: helpers.GetEnv("PSQL_PASSWORD", "password"),
-		DBName:   helpers.GetEnv("PSQL_DB", "postgres"),
-		SSLMode:  helpers.GetEnv("PSQL_SSLMODE", "disable"),
-	}
-	return NewPSQLTaskMetadataManager(config)
-}
-
-func NewPSQLTaskMetadataManager(config helpers.PSQLConfig) (TaskMetadataManager, error) {
-	psqlLocker, err := ffsync.NewPSQLLocker(config)
+func NewPSQLTaskMetadataManager(ctx context.Context, pool *postgres.Pool) (TaskMetadataManager, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger.Debug("Building PSQL task metadata manager")
+	psqlLocker, err := ffsync.NewPSQLLocker(ctx, pool)
 	if err != nil {
+		logger.Errorw("Failed to initialize PSQL locker", "err", err)
 		return TaskMetadataManager{}, err
 	}
 
-	psqlStorage, err := ss.NewPSQLStorageImplementation(config, "ff_task_metadata")
+	logger.Debug("Building PSQL storage impl")
+	psqlStorage, err := ss.NewPSQLStorageImplementation(ctx, pool, "ff_task_metadata")
 	if err != nil {
+		logger.Errorw("Failed to initialize PSQL storage", "err", err)
 		return TaskMetadataManager{}, err
 	}
 
-	psqlLogger := logging.NewLogger("psqlMetadataStorage")
 	psqlMetadataStorage := ss.MetadataStorage{
 		Locker:          psqlLocker,
 		Storage:         psqlStorage,
-		Logger:          psqlLogger,
+		Logger:          logger,
 		SkipListLocking: true,
 	}
 
-	idGenerator, err := ffsync.NewPSQLOrderedIdGenerator(config)
+	logger.Debug("Building PSQL ordered ID generator")
+	idGenerator, err := ffsync.NewPSQLOrderedIdGenerator(ctx, pool)
 	if err != nil {
+		logger.Errorw("Failed to initialize PSQL ordered-id-generator", "err", err)
 		return TaskMetadataManager{}, err
 	}
 
+	logger.Debug("Building slack notifier")
 	slackChannel := cfg.GetSlackChannelId()
-	slackNotif := notifications.NewSlackNotifier(slackChannel, psqlLogger)
+	slackNotif := notifications.NewSlackNotifier(slackChannel, logger)
 
+	logger.Info("TaskMetadataManager successfully created.")
 	return TaskMetadataManager{
 		Storage:     psqlMetadataStorage,
 		idGenerator: idGenerator,

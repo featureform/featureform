@@ -10,11 +10,13 @@ package logging
 import (
 	"context"
 	"encoding/json"
+	"github.com/featureform/metadata/proto"
 	"io"
 	"sync"
 	"testing"
 
-	"github.com/featureform/config"
+	"github.com/featureform/helpers"
+
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -56,6 +58,38 @@ const (
 	LabelVariant       ResourceType = "label-variant"
 )
 
+func ResourceTypeFromProto(resourceType proto.ResourceType) ResourceType {
+	switch resourceType {
+	case proto.ResourceType_PROVIDER:
+		return Provider
+	case proto.ResourceType_USER:
+		return User
+	case proto.ResourceType_FEATURE:
+		return Feature
+	case proto.ResourceType_FEATURE_VARIANT:
+		return FeatureVariant
+	case proto.ResourceType_SOURCE:
+		return Source
+	case proto.ResourceType_SOURCE_VARIANT:
+		return SourceVariant
+	case proto.ResourceType_TRAINING_SET:
+		return TrainingSet
+	case proto.ResourceType_TRAINING_SET_VARIANT:
+		return TrainingSetVariant
+	case proto.ResourceType_ENTITY:
+		return Entity
+	case proto.ResourceType_MODEL:
+		return Model
+	case proto.ResourceType_LABEL:
+		return Label
+	case proto.ResourceType_LABEL_VARIANT:
+		return LabelVariant
+	default:
+		GlobalLogger.Errorw("Unknown resource type", "resource-type", resourceType)
+		return ""
+	}
+}
+
 const (
 	DebugLevel = "debug"
 	InfoLevel  = "info"
@@ -75,19 +109,55 @@ func (r RequestID) String() string {
 	return string(r)
 }
 
-func (logger Logger) withRequestID(id RequestID) Logger {
+func (logger Logger) WithRequestIDFromContext(ctx context.Context) Logger {
+	return logger.WithRequestID(GetRequestIDFromContext(ctx))
+}
+
+func (logger Logger) WithRequestID(id RequestID) Logger {
 	if id == "" {
 		logger.Warn("Request ID is empty")
 		return logger
 	}
 	if logger.id != "" {
-		logger.Warnw("Request ID already set in logger. Using existing Request ID", "current request-id", logger.id, "new request-id", id)
+		logger.Infow("Request ID already set in logger. Using existing Request ID", "current request-id", logger.id, "new request-id", id)
 		return logger
 	}
 	valuesWithRequestID := logger.appendValueMap(map[string]interface{}{"request-id": id})
-	return Logger{SugaredLogger: logger.With("request-id", id),
-		id:     id,
-		values: valuesWithRequestID}
+	return Logger{
+		SugaredLogger: logger.SugaredLogger.With("request-id", id),
+		id:            id,
+		values:        valuesWithRequestID,
+	}
+}
+
+func (logger Logger) With(args ...interface{}) Logger {
+	if len(args)%2 != 0 {
+		GlobalLogger.Errorw("Odd number of arguments passed to With. Skipping.", "args", args)
+		return logger
+	}
+	valueMap := make(map[string]interface{})
+	for i := 0; i < len(args); i += 2 {
+		str, ok := args[i].(string)
+		if !ok {
+			GlobalLogger.Errorw(
+				"Unable to add args in logger with",
+				"args", args, "not string", args[i],
+			)
+			return logger
+		}
+		valueMap[str] = args[i+1]
+	}
+	return Logger{
+		SugaredLogger: logger.SugaredLogger.With(args...),
+		id:            logger.id,
+		values:        logger.appendValueMap(valueMap),
+	}
+}
+
+func (logger Logger) LogIfErr(msg string, err error) {
+	if err != nil {
+		logger.Errorw("Deferred error failed.", "msg", msg, "err", err)
+	}
 }
 
 func (logger Logger) WithResource(resourceType ResourceType, name, variant string) Logger {
@@ -160,25 +230,24 @@ func (logger Logger) WithValues(values map[string]interface{}) Logger {
 func (logger Logger) GetValue(key string) interface{} {
 	value, ok := logger.values.Load(key)
 	if !ok {
-		logger.Warnw("Value not found", "key", key)
+		logger.Infow("Value not found", "key", key)
 	}
 	return value
 }
 
 func (logger Logger) appendValueMap(values map[string]interface{}) *sync.Map {
-
 	combinedValues := &sync.Map{}
-	for k, v := range values {
-		combinedValues.Store(k, v)
-	}
 	logger.values.Range(func(key, value interface{}) bool {
 		combinedValues.Store(key, value)
 		return true
 	})
+	for k, v := range values {
+		combinedValues.Store(k, v)
+	}
 	return combinedValues
 }
 
-func (logger Logger) InitializeRequestID(ctx context.Context) (string, context.Context, Logger) {
+func (logger Logger) InitializeRequestID(ctx context.Context) (RequestID, context.Context, Logger) {
 	requestID := ctx.Value(RequestIDKey)
 	if requestID == nil {
 		logger.Debugw("Creating new Request ID", "request-id", requestID)
@@ -188,27 +257,33 @@ func (logger Logger) InitializeRequestID(ctx context.Context) (string, context.C
 	ctxLogger := ctx.Value(LoggerKey)
 	if ctxLogger == nil {
 		logger.Debugw("Adding logger to context")
-		ctxLogger = logger.withRequestID(requestID.(RequestID))
+		ctxLogger = logger.WithRequestID(requestID.(RequestID))
 		ctx = context.WithValue(ctx, LoggerKey, ctxLogger)
 	}
-	return requestID.(RequestID).String(), ctx, ctxLogger.(Logger)
+	return requestID.(RequestID), ctx, ctxLogger.(Logger)
 }
 
-func GetRequestIDFromContext(ctx context.Context) string {
+func (logger Logger) AttachToContext(ctx context.Context) context.Context {
+	return AddLoggerToContext(ctx, logger)
+}
+
+func GetRequestIDFromContext(ctx context.Context) RequestID {
 	requestID := ctx.Value(RequestIDKey)
 	if requestID == nil {
-		GlobalLogger.Warn("Request ID not found in context")
-		return ""
+		reqID := NewRequestID()
+		GlobalLogger.Warnw("Request ID not found in context, generating one", "new-request-id", reqID)
+		return reqID
 	}
 
-	return requestID.(RequestID).String()
+	return requestID.(RequestID)
 }
 
 func GetLoggerFromContext(ctx context.Context) Logger {
 	logger := ctx.Value(LoggerKey)
 	if logger == nil {
-		GlobalLogger.Warn("Logger not found in context")
-		return NewLoggerWithLevel("logger", InfoLevel)
+		logger := NewLogger(uuid.NewString())
+		logger.Warn("Logger not found in context, generating one")
+		return logger
 	}
 	return logger.(Logger)
 }
@@ -217,27 +292,43 @@ func (logger Logger) GetRequestID() RequestID {
 	return logger.id
 }
 
-func AttachRequestID(id string, ctx context.Context, logger Logger) context.Context {
+func AttachRequestID(id RequestID, ctx context.Context, logger Logger) context.Context {
 	if ctx == nil {
 		logger.Warn("Context is nil")
 		return nil
 	}
 	contextID := ctx.Value(RequestIDKey)
 	if contextID != nil {
-		logger.Warnw("Request ID already set in context. Overwriting request ID", "old request-id", contextID, "new request-id", id)
+		logger.Infow("Request ID already set in context. Overwriting request ID", "old request-id", contextID, "new request-id", id)
 	}
 	ctx = context.WithValue(ctx, RequestIDKey, RequestID(id))
-	logger = logger.withRequestID(RequestID(id))
+	logger = logger.WithRequestID(RequestID(id))
 	ctx = context.WithValue(ctx, LoggerKey, logger)
 	return ctx
 }
 
 func AddLoggerToContext(ctx context.Context, logger Logger) context.Context {
-	contextLogger := ctx.Value(LoggerKey)
-	if contextLogger == nil {
-		ctx = context.WithValue(ctx, LoggerKey, logger)
-	}
-	return ctx
+	return context.WithValue(ctx, LoggerKey, logger)
+}
+
+func NewTestContext(t *testing.T) context.Context {
+	ctx := context.Background()
+	logger := NewTestLogger(t)
+	return logger.AttachToContext(ctx)
+}
+
+func NewTestContextAndLogger(t *testing.T) (context.Context, Logger) {
+	ctx := context.Background()
+	logger := NewTestLogger(t)
+	return logger.AttachToContext(ctx), logger
+}
+
+func InitializeTestRequestID(t *testing.T) (RequestID, context.Context, Logger) {
+	requestID := NewRequestID()
+	ctx, logger := NewTestContextAndLogger(t)
+	ctx = context.WithValue(ctx, RequestIDKey, requestID)
+	ctxLogger := logger.WithRequestID(requestID)
+	return requestID, ctx, ctxLogger
 }
 
 func NewTestLogger(t *testing.T) Logger {
@@ -245,7 +336,7 @@ func NewTestLogger(t *testing.T) Logger {
 }
 
 func NewLogger(service string) Logger {
-	if config.ShouldUseDebugLogging() {
+	if helpers.GetEnvBool("FEATUREFORM_DEBUG_LOGGING", false) {
 		return NewLoggerWithLevel(service, DebugLevel)
 	} else {
 		return NewLoggerWithLevel(service, InfoLevel)

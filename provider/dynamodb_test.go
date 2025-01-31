@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	se "github.com/featureform/provider/serialization"
 	vt "github.com/featureform/provider/types"
 )
 
@@ -74,7 +75,7 @@ func TestDynamoSerializers(t *testing.T) {
 		vt.String:  "apple",
 		vt.Bool:    true,
 	}
-	allSerializers := make([]serializeVersion, 0, len(serializers))
+	allSerializers := make([]se.SerializeVersion, 0, len(serializers))
 	for ver, _ := range serializers {
 		allSerializers = append(allSerializers, ver)
 	}
@@ -84,19 +85,19 @@ func TestDynamoSerializers(t *testing.T) {
 		vt.Timestamp: timestamp,
 		vt.Datetime:  date,
 	}
-	timeSerializers := []serializeVersion{serializeV1}
+	timeSerializers := []se.SerializeVersion{serializeV1}
 	uintTests := testCases{
 		vt.UInt8:  uint8(1),
 		vt.UInt16: uint16(1),
 		vt.UInt32: uint32(0xff),
 		vt.UInt64: uint64(0xffff),
 	}
-	uintSerializers := []serializeVersion{}
+	uintSerializers := []se.SerializeVersion{}
 	smallBitTests := testCases{
 		vt.Int8:  int8(1),
 		vt.Int16: int16(1),
 	}
-	smallBitSerializers := []serializeVersion{}
+	smallBitSerializers := []se.SerializeVersion{}
 	nilTests := testCases{
 		vt.NilType:                          nil,
 		vt.Int:                              nil,
@@ -110,7 +111,7 @@ func TestDynamoSerializers(t *testing.T) {
 	}
 	nilSerializers := allSerializers
 
-	testSerializer := func(t *testing.T, serializer serializer, typ vt.ValueType, val any) {
+	testSerializer := func(t *testing.T, serializer se.Serializer[types.AttributeValue], typ vt.ValueType, val any) {
 		serial, err := serializer.Serialize(typ, val)
 		if err != nil {
 			t.Fatalf("Failed to serialize: %s %v\n%s\n", typ, val, err)
@@ -124,7 +125,7 @@ func TestDynamoSerializers(t *testing.T) {
 		}
 	}
 
-	runTestCases := func(t *testing.T, vers []serializeVersion, tests testCases) {
+	runTestCases := func(t *testing.T, vers []se.SerializeVersion, tests testCases) {
 		for _, version := range vers {
 			serializer := serializers[version]
 			t.Run(fmt.Sprintf("Version %d", version), func(t *testing.T) {

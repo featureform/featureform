@@ -226,6 +226,16 @@ def df_all_arguments():
         headers="include",
         submit_params_uri=None,
         is_update=False,
+        job_type=None,
+        output_format="parquet",
+        direct_copy_use_iceberg=False,
+        direct_copy_target=None,
+        direct_copy_table_name=None,
+        direct_copy_feature_name=None,
+        direct_copy_feature_variant=None,
+        direct_copy_entity_column=None,
+        direct_copy_value_column=None,
+        direct_copy_timestamp_column=None,
     )
     return (input_args, expected_args)
 

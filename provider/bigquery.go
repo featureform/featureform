@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/featureform/logging"
 	"strings"
 	"time"
 
@@ -46,6 +47,7 @@ type BQOfflineStoreConfig struct {
 	ProjectId    string
 	ProviderType p_type.Type
 	QueryImpl    BQOfflineTableQueries
+	logger       logging.Logger
 }
 
 type BQOfflineTableQueries interface {
@@ -781,6 +783,7 @@ type bqOfflineStore struct {
 	client *bigquery.Client
 	parent BQOfflineStoreConfig
 	query  BQOfflineTableQueries
+	logger logging.Logger
 	BaseProvider
 }
 
@@ -804,6 +807,7 @@ func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
 		client: client,
 		parent: config,
 		query:  config.QueryImpl,
+		logger: config.logger,
 		BaseProvider: BaseProvider{
 			ProviderType:   config.ProviderType,
 			ProviderConfig: config.Config,
@@ -813,17 +817,20 @@ func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
 
 func bigQueryOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	sc := pc.BigQueryConfig{}
+	logger := logging.NewLogger("bigquery")
 	if err := sc.Deserialize(config); err != nil {
 		return nil, err
 	}
 	queries := defaultBQQueries{}
 	queries.setTablePrefix(fmt.Sprintf("%s.%s", sc.ProjectId, sc.DatasetId))
 	queries.setContext()
+
 	sgConfig := BQOfflineStoreConfig{
 		Config:       config,
 		ProjectId:    sc.ProjectId,
 		ProviderType: pt.BigQueryOffline,
 		QueryImpl:    &queries,
+		logger:       logger,
 	}
 
 	store, err := NewBQOfflineStore(sgConfig)
@@ -870,17 +877,27 @@ func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sche
 }
 
 func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
+	logger := store.logger.WithValues(map[string]any{
+		"resourceId": id,
+	})
+	logger.Infow("Registering primary from source table")
+
 	if err := id.check(Primary); err != nil {
+		logger.Errorw("Resource type is not primary", "err", err)
 		return nil, err
 	}
+
 	if exists, err := store.tableExists(id); err != nil {
+		logger.Errorw("Checking if table exists", "err", err)
 		return nil, err
 	} else if exists {
+		logger.Errorw("Table already exists", "err", err)
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
 
 	tableName, err := GetPrimaryTableName(id)
 	if err != nil {
+		logger.Errorw("Mapping id to table name", "err", err)
 		return nil, err
 	}
 	query := store.query.primaryTableRegister(tableName, tableLocation.Location())
@@ -888,16 +905,19 @@ func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, table
 	bqQ := store.client.Query(query)
 	job, err := bqQ.Run(store.query.getContext())
 	if err != nil {
+		logger.Errorw("Running query", "err", err)
 		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 
 	err = store.query.monitorJob(job)
 	if err != nil {
+		logger.Errorw("Monitoring BigQuery job", "err", err)
 		return nil, err
 	}
 
 	columnNames, err := store.query.getColumns(store.client, tableName)
 	if err != nil {
+		logger.Errorw("Getting column names", "err", err)
 		return nil, err
 	}
 	return &bqPrimaryTable{
@@ -916,7 +936,7 @@ func (store *bqOfflineStore) CreateTransformation(config TransformationConfig, o
 	if len(opts) > 0 {
 		return fferr.NewInternalErrorf("BigQuery does not support transformation options")
 	}
-	name, err := store.getTransformationTableName(config.TargetTableID)
+	name, err := store.getTableName(config.TargetTableID)
 	if err != nil {
 		return err
 	}
@@ -932,15 +952,12 @@ func (store *bqOfflineStore) CreateTransformation(config TransformationConfig, o
 	return err
 }
 
-func (store *bqOfflineStore) getTransformationTableName(id ResourceID) (string, error) {
-	if err := id.check(Transformation); err != nil {
-		return "", fferr.NewInternalErrorf("resource type must be %s: received %s", Transformation.String(), id.Type.String())
-	}
-	return ps.ResourceToTableName("Transformation", id.Name, id.Variant)
+func (store *bqOfflineStore) getTableName(id ResourceID) (string, error) {
+	return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 }
 
 func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	name, err := store.getTransformationTableName(id)
+	name, err := store.getTableName(id)
 	if err != nil {
 		return nil, err
 	}
@@ -979,7 +996,7 @@ func (store *bqOfflineStore) UpdateTransformation(config TransformationConfig, o
 	if len(opts) > 0 {
 		return fferr.NewInternalErrorf("BigQuery does not support transformation options")
 	}
-	name, err := store.getTransformationTableName(config.TargetTableID)
+	name, err := store.getTableName(config.TargetTableID)
 	if err != nil {
 		return err
 	}
@@ -1397,6 +1414,10 @@ func (store *bqOfflineStore) ResourceLocation(id ResourceID, resource any) (pl.L
 	return pl.NewSQLLocation(tableName), err
 }
 
+func (store bqOfflineStore) Delete(location pl.Location) error {
+	return fferr.NewInternalErrorf("delete not implemented")
+}
+
 type bqTrainingRowsIterator struct {
 	iter            *bigquery.RowIterator
 	currentFeatures []interface{}
@@ -1473,7 +1494,7 @@ func (store *bqOfflineStore) Close() error {
 
 func (store *bqOfflineStore) tableExists(id ResourceID) (bool, error) {
 	var n []bigquery.Value
-	tableName, err := store.getTransformationTableName(id)
+	tableName, err := store.getTableName(id)
 	if err != nil {
 		return false, err
 	}

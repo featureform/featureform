@@ -19,6 +19,7 @@ import (
 
 	"github.com/featureform/fferr"
 	help "github.com/featureform/helpers"
+	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
@@ -688,6 +689,11 @@ type GetTrainingSetVariantListResp struct {
 	Data  []metadata.TrainingSetVariantResource `json:"data"`
 }
 
+type GetModelListResp struct {
+	Count int                      `json:"count"`
+	Data  []metadata.ModelResource `json:"data"`
+}
+
 func (m *MetadataServer) getCountAndResources(resourceType metadata.ResourceType, pageSize, offset int, filterOpts ...query.Query) (int, []metadata.Resource, error) {
 	queryList := m.getResourceQuery(resourceType.String())
 	queryList = append(queryList, filterOpts...)
@@ -1010,7 +1016,12 @@ func (m *MetadataServer) GetTrainingSetVariantResources(c *gin.Context) {
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
-
+	//pull the provider name - type map
+	providerMap, mapErr := m.getProviderNameTypeMap()
+	if mapErr != nil {
+		// log but continue
+		m.logger.Errorf("an error occurred pulling the provider name - type map: %v", mapErr)
+	}
 	variantList := make([]metadata.TrainingSetVariantResource, len(variantResources))
 	for i, parsedVariant := range variantResources {
 		deserialized := parsedVariant.Proto()
@@ -1021,12 +1032,65 @@ func (m *MetadataServer) GetTrainingSetVariantResources(c *gin.Context) {
 		}
 		wrappedVariant := metadata.WrapProtoTrainingSetVariant(trainingSetVariant)
 		shallowVariant := wrappedVariant.ToShallowMap()
+		//check in the providerMap association
+		providerType, mapOk := providerMap[shallowVariant.Provider]
+		if mapOk {
+			shallowVariant.ProviderType = providerType
+		}
 		variantList[i] = shallowVariant
 	}
 
 	resp := GetTrainingSetVariantListResp{
 		Count: count,
 		Data:  variantList,
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+type ModelFilters struct {
+	SearchTxt    string   `json:"SearchTxt"`
+	Tags         []string `json:"Tags"`
+	Labels       []string `json:"Labels"`
+	Features     []string `json:"Features"`
+	TrainingSets []string `json:"TrainingSets"`
+	PageSize     int      `json:"pageSize"`
+	Offset       int      `json:"offset"`
+}
+
+func (m *MetadataServer) GetModelResources(c *gin.Context) {
+	var filterBody ModelFilters
+	if bindErr := c.BindJSON(&filterBody); bindErr != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, bindErr, c, "Error binding the request body")
+		m.logger.Errorw(fetchError.Error())
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	filterOpts := m.buildModelFilterOpts(filterBody)
+	resourceType := metadata.MODEL
+
+	count, resources, err := m.getCountAndResources(resourceType, filterBody.PageSize, filterBody.Offset, filterOpts...)
+	if err != nil {
+		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "Failed to get count or list")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	resourceList := make([]metadata.ModelResource, len(resources))
+	for i, parsedResource := range resources {
+		deserialized := parsedResource.Proto()
+		model, ok := deserialized.(*pb.Model)
+		if !ok {
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedResource.ID().String())
+			continue
+		}
+		wrappedModel := metadata.WrapProtoModel(model)
+		shallowModel := wrappedModel.ToShallowMap()
+
+		resourceList[i] = shallowModel
+	}
+
+	resp := GetModelListResp{
+		Count: count,
+		Data:  resourceList,
 	}
 	c.JSON(http.StatusOK, resp)
 }
@@ -1038,6 +1102,46 @@ func convertToAny[T any](slice []T) []any {
 		converted[i] = v
 	}
 	return converted
+}
+
+func (m *MetadataServer) buildModelFilterOpts(filterBody ModelFilters) []query.Query {
+	filterOpts := []query.Query{}
+	usingV1Filters := false
+
+	if filterBody.SearchTxt != "" {
+		m.logger.Debugw("buildModelFilterOpts - adding a search txt filter: ", filterBody.SearchTxt)
+		filterOpts = append(filterOpts, query.ValueLike{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "name"}},
+				Type: query.String,
+			},
+			Value: filterBody.SearchTxt,
+		})
+	}
+
+	if len(filterBody.Tags) > 0 {
+		m.logger.Debugw("buildModelFilterOpts - adding a tag list filter: ", filterBody.Tags)
+		usingV1Filters = true
+		filterOpts = append(filterOpts, query.ArrayContains{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "Message", IsJsonString: true}, {Key: "tags"}, {Key: "tag"}},
+				Type: query.String,
+			},
+			Values: convertToAny(filterBody.Tags),
+		})
+	}
+
+	if usingV1Filters {
+		m.logger.Debugw("GetMetadataList - Using v1 filters, adding SerializedVersion clause (=1)")
+		filterOpts = append(filterOpts, query.ValueEquals{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: serializedVersion}},
+				Type: query.String,
+			},
+			Value: serializedV1,
+		})
+	}
+	return filterOpts
 }
 
 func (m *MetadataServer) GetMetadataList(c *gin.Context) {
@@ -1910,7 +2014,7 @@ func (m *MetadataServer) buildProviderFilterOpts(filterBody ProviderFilters) []q
 }
 
 func (m *MetadataServer) FailRunningJobs(c *gin.Context) {
-	config := help.PSQLConfig{
+	config := postgres.Config{
 		Host:     help.GetEnv("PSQL_HOST", "localhost"),
 		Port:     help.GetEnv("PSQL_PORT", "5432"),
 		User:     help.GetEnv("PSQL_USER", "postgres"),
@@ -1918,24 +2022,25 @@ func (m *MetadataServer) FailRunningJobs(c *gin.Context) {
 		DBName:   help.GetEnv("PSQL_DB", "postgres"),
 		SSLMode:  help.GetEnv("PSQL_SSLMODE", "disable"),
 	}
-	db, err := help.NewPSQLPoolConnection(config)
+	db, err := postgres.NewPool(c, config)
 	if err != nil {
 		c.JSON(400, fmt.Sprintf("could not create database connection: %s", err.Error()))
 		return
 	}
 
-	connection, err := db.Acquire(context.Background())
+	connection, err := db.Acquire(c)
 	if err != nil {
 		c.JSON(400, fferr.NewInternalError(fmt.Errorf("failed to acquire connection from the database pool: %w", err)))
 		return
 	}
+	defer connection.Release()
 
-	err = connection.Ping(context.Background())
+	err = connection.Ping(c)
 	if err != nil {
-		c.JSON(400, fferr.NewInternalError(fmt.Errorf("failed to ping the database: %w", err)))
+		c.JSON(400, fferr.NewInternalErrorf("failed to ping the database: %w", err))
 		return
 	}
-	_, err = connection.Exec(context.Background(), "UPDATE ff_task_metadata SET value = jsonb_set(value::jsonb, '{status}', '4', false) WHERE key LIKE '/tasks/runs/metadata/%'  AND (value::jsonb ->> 'status')::int = 5;")
+	_, err = connection.Exec(c, "UPDATE ff_task_metadata SET value = jsonb_set(value::jsonb, '{status}', '4', false) WHERE key LIKE '/tasks/runs/metadata/%'  AND (value::jsonb ->> 'status')::int = 5;")
 	if err != nil {
 		c.JSON(400, fmt.Sprintf("failed to run query: %s", err.Error()))
 		return
@@ -2520,11 +2625,12 @@ type TaskRunItem struct {
 }
 
 type PaginateRequest struct {
-	Status     string `json:"status"`
-	SearchText string `json:"searchtext"`
-	SortBy     string `json:"sortBy"`
-	PageSize   int    `json:"pageSize"`
-	Offset     int    `json:"offset"`
+	Status        string `json:"status"`
+	SearchText    string `json:"searchText"`
+	VariantSearch string `json:"variantSearch"`
+	SortBy        string `json:"sortBy"`
+	PageSize      int    `json:"pageSize"`
+	Offset        int    `json:"offset"`
 }
 
 func (m MetadataServer) getResourceQuery(prefix string) []query.Query {
@@ -2558,7 +2664,26 @@ func (m MetadataServer) getTaskRunsQuery(requestBody PaginateRequest, isCount bo
 		}
 	}
 
-	if requestBody.SearchText != "" {
+	if requestBody.VariantSearch != "" && requestBody.SearchText != "" {
+		nameSearch := query.ValueEquals{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "target", IsJsonString: true}, {Key: "name"}},
+				Type: query.String,
+			},
+			Value: requestBody.SearchText,
+		}
+		queryList = append(queryList, nameSearch)
+
+		variantSearch := query.ValueEquals{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "target", IsJsonString: true}, {Key: "variant"}},
+				Type: query.String,
+			},
+			Value: requestBody.VariantSearch,
+		}
+		queryList = append(queryList, variantSearch)
+
+	} else if requestBody.SearchText != "" {
 		search := query.ValueLike{
 			Column: query.JSONColumn{
 				Path: []query.JSONPathStep{{Key: "target", IsJsonString: true}, {Key: "name"}},
@@ -2764,6 +2889,7 @@ func (m *MetadataServer) Start(port string, local bool) error {
 	router.POST("/data/training-sets/variants", m.GetTrainingSetVariantResources)
 	router.POST("/data/entities", m.GetEntityResources)
 	router.POST("/data/providers", m.GetProviderResources)
+	router.POST("/data/models", m.GetModelResources)
 	router.GET("/data/:type/prop/owners", m.GetTypeOwners)
 
 	return router.Run(port)

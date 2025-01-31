@@ -56,17 +56,4 @@ describe('Dataset Table Tests', () => {
     // expect:
     expect(readyStatuses.length).toBe(mockData.count);
   });
-
-  test('The table renders the tag names correctly', async () => {
-    //given:
-    const helper = render(<DatasetTable />);
-
-    //when:
-    const recordTags1 = await helper.findByText('avg, users');
-    const recordTags2 = await helper.findByText('my_data, m2, haha');
-
-    // expect:
-    expect(recordTags1).toBeInTheDocument();
-    expect(recordTags2).toBeInTheDocument();
-  });
 });

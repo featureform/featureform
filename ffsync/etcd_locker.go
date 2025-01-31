@@ -13,11 +13,10 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/helpers"
+	"github.com/featureform/helpers/etcd"
 	"github.com/featureform/logging"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
-	"go.uber.org/zap"
 )
 
 const etcdLoggerKey = "etcdLogger"
@@ -30,7 +29,7 @@ type etcdKey struct {
 	session   *concurrency.Session
 }
 
-func (k etcdKey) ID() string {
+func (k etcdKey) Owner() string {
 	return k.id
 }
 
@@ -38,7 +37,7 @@ func (k etcdKey) Key() string {
 	return k.key
 }
 
-func NewETCDLocker(config helpers.ETCDConfig) (Locker, error) {
+func NewETCDLocker(config etcd.Config) (Locker, error) {
 	client, err := clientv3.New(clientv3.Config{
 		Endpoints: []string{config.URL()},
 		Username:  config.Username,
@@ -93,7 +92,11 @@ func (m *etcdLocker) cancelableWaitTime(key string) error {
 
 // blockingLock will attempt to lock a key and wait if the key is already locked
 func (m *etcdLocker) blockingLock(ctx context.Context, lockMutex *concurrency.Mutex, key string) error {
-	logger := ctx.Value(etcdLoggerKey).(*zap.SugaredLogger)
+	logger, ok := ctx.Value(etcdLoggerKey).(logging.Logger)
+	if !ok {
+		logger.DPanic("Unable to get logger from context. Using global logger.")
+		logger = logging.GlobalLogger
+	}
 	logger.Debug("Locking Key with wait")
 	var err error
 	go func() {
@@ -113,7 +116,11 @@ func (m *etcdLocker) blockingLock(ctx context.Context, lockMutex *concurrency.Mu
 // nonBlockingLock will attempt to lock a key and will return a KeyAlreadyLockedError if the key is
 // already locked
 func (m *etcdLocker) nonBlockingLock(ctx context.Context, lockMutex *concurrency.Mutex, key string) error {
-	logger := ctx.Value(etcdLoggerKey).(*zap.SugaredLogger)
+	logger, ok := ctx.Value(etcdLoggerKey).(logging.Logger)
+	if !ok {
+		logger.DPanic("Unable to get logger from context. Using global logger.")
+		logger = logging.GlobalLogger
+	}
 	logger.Debug("Locking Key without wait")
 	if err := lockMutex.TryLock(m.ctx); err != nil {
 		if err == concurrency.ErrLocked {

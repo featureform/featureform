@@ -28,7 +28,14 @@ from featureform.register import (
     FeatureColumnResource,
     LabelColumnResource,
 )
-from featureform.resources import Provider, TrainingSetVariant, PrimaryData, SQLTable
+from featureform.resources import (
+    Provider,
+    TrainingSetVariant,
+    PrimaryData,
+    SQLTable,
+    EntityMappings,
+    EntityMapping,
+)
 from featureform.proto import metadata_pb2 as pb
 from featureform.enums import ResourceType
 
@@ -684,6 +691,10 @@ label_variant_dict = {
     "description": "its a label",
     "provider": "Provider",
     "status": pb.ResourceStatus(status=pb.ResourceStatus.Status.CREATED),
+    "entity_mappings": EntityMappings(
+        mappings=[EntityMapping(name="entity_name", entity_column="column_name")],
+        value_column="value_column",
+    ).to_proto(),
 }
 
 

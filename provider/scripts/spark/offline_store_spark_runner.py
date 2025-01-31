@@ -7,6 +7,7 @@
 
 import argparse
 import base64
+from decimal import Decimal
 import datetime
 import io
 import json
@@ -135,12 +136,6 @@ def main(args):
     return output_location
 
 
-def init_spark_config(spark_configs):
-    spark = SparkSession.builder.appName("Execute SQL Query")
-    set_spark_configs(spark, spark_configs)
-    return spark.getOrCreate()
-
-
 class TableFormatClient(ABC):
     def __init__(self, spark, catalog, database):
         self._spark = spark
@@ -201,10 +196,10 @@ class IcebergClient(TableFormatClient):
 
     def _read_table(self, identifier):
         print(f"Reading iceberg table {identifier}")
-        return self._spark.read.format("iceberg").load(identifier)
+        return self._spark.read.format("org.apache.iceberg.spark.source.IcebergSource").load(identifier)
 
     def _create_table(self, identifier, df):
-        df.writeTo(identifier).using("iceberg").createOrReplace()
+        df.writeTo(identifier).createOrReplace()
 
     def _delete_table(self, identifier):
         self._spark.sql(f"DROP TABLE {identifier} PURGE")
@@ -337,6 +332,7 @@ else:
                     print(f"Topic {self.kafka_topic} already exists.")
             except Exception as e:
                 print(f"Error creating topic: {e}")
+                raise
 
         def create(self, key_value_data):
             """
@@ -384,6 +380,7 @@ else:
                 print(f"Topic {self.kafka_topic} deleted.")
             except Exception as e:
                 print(f"Error deleting topic: {e}")
+                raise
 
         def read(self):
             """
@@ -473,7 +470,9 @@ def write_partition_closure(region_name, access_key, secret_key, table_name):
         # {'S': <value>} type format. This serializer does that conversion for us.
         serializer = TypeSerializer()
         for row in partition:
-            item = {k: serializer.serialize(v) for k, v in row.asDict().items()}
+            # Boto3 doesn't support floats
+            row_dict = {k: Decimal(str(v)) if isinstance(v, float) else v for k, v in row.asDict().items()}
+            item = {k: serializer.serialize(v) for k, v in row_dict.items()}
             items_to_write.append({"PutRequest": {"Item": item}})
             # If we've reached the batch size limit, write the batch
             if len(items_to_write) == batch_size:
@@ -562,6 +561,7 @@ class DynamoDBClient:
             self.logger.info(f"Table {table_name} deleted successfully.")
         except Exception as e:
             self.logger.error(f"Failed to delete table: {e}")
+            raise
 
     def table_exists(self, table_name: str) -> bool:
         """
@@ -666,6 +666,7 @@ class DynamoDBClient:
             )
         except Exception as e:
             self.logger.error(f"Failed to write DataFrame to table {table_name}: {e}")
+            raise
 
 
 class LatestFeaturesTransform:
@@ -922,7 +923,7 @@ def execute_sql_query(
             if table_format == "iceberg":
                 glue_table = "ff_catalog." + output_location
                 print("Writing to iceberg table: ", glue_table)
-                final_write_obj = output_dataframe.writeTo(glue_table).using("iceberg")
+                final_write_obj = output_dataframe.writeTo(glue_table)
 
                 # TODO: (Erik) determine how to arrive at the path for this write option
                 # final_write_obj.option("write.object-storage.enabled", "true").option(
@@ -966,7 +967,7 @@ def get_source_df(source, credentials, is_update, spark):
         if table_format == "iceberg":
             table = "ff_catalog." + location
             role_arn = source.get("awsAssumeRoleArn")
-            spark_reader = spark.read.format("iceberg")
+            spark_reader = spark.read.format("org.apache.iceberg.spark.source.IcebergSource")
             has_new_data = True
             if role_arn is not None:
                 spark.conf.set("spark.hadoop.fs.s3a.assumed.role.arn", role_arn)
@@ -987,6 +988,7 @@ def get_source_df(source, credentials, is_update, spark):
         else:
             raise Exception(f"Unsupported table format: {table_format} for {location}")
     elif location_type == "sql" and source.get("provider") == "SNOWFLAKE_OFFLINE":
+        print(f"Reading Snowflake table: {location}")
         options = {
             "sfURL": credentials.get("sfURL"),
             "sfUser": credentials.get("sfUser"),
@@ -1191,7 +1193,7 @@ def execute_df_job(
             if table_format == "iceberg":
                 glue_table = "ff_catalog." + output_location
                 print("Writing to iceberg table: ", glue_table)
-                final_write_obj = output_dataframe.writeTo(glue_table).using("iceberg")
+                final_write_obj = output_dataframe.writeTo(glue_table)
 
                 # TODO: (Erik) determine how to arrive at the path for this write option
                 # final_write_obj.option("write.object-storage.enabled", "true").option(
@@ -1498,11 +1500,22 @@ def setup_sql_parser(parser):
 
     :param parser: The SQL command parser.
     """
+    setup_common_parser(parser)
+    parser.add_argument("--sql_query", help="SQL query to run on the data source.")
+
+def setup_df_parser(parser):
+    """
+    Configures the DataFrame parser with necessary arguments.
+
+    :param parser: The DataFrame command parser.
+    """
+    setup_common_parser(parser)
+    parser.add_argument("--code", required=True, help="Path to transformation code file.")
+
+def setup_common_parser(parser):
     # fmt: off
     parser.add_argument("--job_type", choices=list(JobType), help="Type of job being run.")
-    parser.add_argument("--output", action=JsonAction, required=True,
-                        help="Output file location; e.g., s3a://bucket/path")
-    parser.add_argument("--sql_query", help="SQL query to run on the data source.")
+    parser.add_argument("--output", action=JsonAction, help="Output file location; e.g., s3a://bucket/path")
     parser.add_argument("--sources", nargs="*", action=JsonListAction,
                         help="List of sources in the transformation string.")
     parser.add_argument("--store_type", choices=FILESTORES)
@@ -1523,29 +1536,6 @@ def setup_sql_parser(parser):
     parser.add_argument("--direct_copy_entity_column", help="If doing a direct copy, the name of the entity column in the source dataframe")
     parser.add_argument("--direct_copy_value_column", help="If doing a direct copy, the name of the value column in the source dataframe")
     parser.add_argument("--direct_copy_timestamp_column", help="If doing a direct copy, the name of the timestamp column in the source dataframe. Don't set this if not relevent.")
-    # fmt: on
-
-
-def setup_df_parser(parser):
-    """
-    Configures the DataFrame parser with necessary arguments.
-
-    :param parser: The DataFrame command parser.
-    """
-    # fmt: off
-    parser.add_argument("--output", action=JsonAction, required=True,
-                        help="Output file location; e.g., s3a://bucket/path")
-    parser.add_argument("--code", required=True, help="Path to transformation code file.")
-    parser.add_argument("--sources", nargs="*", action=JsonListAction,
-                        help="List of sources in the transformation string.")
-    parser.add_argument("--store_type", choices=FILESTORES)
-    parser.add_argument("--spark_config", "-sc", action="append", default=[], help="Default Spark config.")
-    parser.add_argument("--credential", "-c", action="append", default=[], help="Credentials needed for the job.")
-    parser.add_argument("--headers", default=Headers.INCLUDE.value, choices=list(Headers),
-                        help="Whether to include/exclude headers in output.")
-    parser.add_argument("--submit_params_uri", help="Path to the submit params file.")
-    parser.add_argument("--is_update", default=False, action=BoolAction,
-                        help="Specifies if this transform has been run successfully before, and that this is an update.")
     # fmt: on
 
 

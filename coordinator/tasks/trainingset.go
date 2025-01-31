@@ -9,7 +9,9 @@ package tasks
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/featureform/logging"
 	"time"
 
 	"github.com/featureform/fferr"
@@ -28,13 +30,18 @@ type TrainingSetTask struct {
 }
 
 func (t *TrainingSetTask) Run() error {
-	fmt.Printf("%#v\n", t.taskDef.Target)
+	_, ctx, logger := t.logger.InitializeRequestID(context.TODO())
+	logger.Info("Running training set task")
 	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
-		return fferr.NewInternalErrorf("cannot create a source from target type: %s", t.taskDef.TargetType)
+		logger.Errorw("cannot create a training set from target type", "type", t.taskDef.TargetType)
+		return fferr.NewInternalErrorf("cannot create a training set from target type: %s", t.taskDef.TargetType)
 	}
 
-	t.logger.Info("Running training set job on resource: ", "name", nv.Name, "variant", nv.Variant)
+	tsId := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.TRAINING_SET_VARIANT}
+	logger = t.logger.WithResource(logging.TrainingSetVariant, tsId.Name, tsId.Variant).
+		With("task_id", t.taskDef.TaskId, "task_run_id", t.taskDef.ID)
+	logger.Info("Running training set job on resource")
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Starting Training Set Creation..."); err != nil {
 		return err
 	}
@@ -43,39 +50,42 @@ func (t *TrainingSetTask) Run() error {
 		return err
 	}
 
-	ts, err := t.metadata.GetTrainingSetVariant(context.Background(), metadata.NameVariant{Name: nv.Name, Variant: nv.Variant})
+	if t.isDelete {
+		logger.Debugw("Handling deletion")
+		return t.handleDeletion(ctx, tsId, logger)
+	}
+
+	ts, err := t.metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: nv.Name, Variant: nv.Variant})
 	if err != nil {
 		return err
 	}
 
-	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Offline Store..."); err != nil {
-		return err
+	store, getStoreErr := getOfflineStore(ctx, t.BaseTask, t.metadata, ts, logger)
+	if getStoreErr != nil {
+		return getStoreErr
 	}
-
-	providerEntry, err := ts.FetchProvider(t.metadata, context.Background())
-	if err != nil {
-		return err
-	}
-	t.logger.Debugw("Training set provider", "type", providerEntry.Type(), "config", providerEntry.SerializedConfig())
-	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
-	if err != nil {
-		return err
-	}
-	store, err := p.AsOfflineStore()
-	if err != nil {
-		return err
-	}
-	t.logger.Debugw("Training set offline store", "type", fmt.Sprintf("%T", store))
+	logger.Debugw("Training set offline store", "type", fmt.Sprintf("%T", store))
 	defer func(store provider.OfflineStore) {
 		err := store.Close()
 		if err != nil {
-			t.logger.Errorf("could not close offline store: %v", err)
+			logger.Errorf("could not close offline store: %v", err)
 		}
 	}(store)
+
 	providerResID := provider.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: provider.TrainingSet}
 
-	if _, err := store.GetTrainingSet(providerResID); err == nil {
-		return err
+	_, getTsError := store.GetTrainingSet(providerResID)
+	var datasetNotFoundError *fferr.DatasetNotFoundError
+	tsNotFound := errors.As(getTsError, &datasetNotFoundError)
+	if tsNotFound {
+		logger.Debugw("Training set not found in store, creating new training set", "resource_id", providerResID)
+	} else {
+		if getTsError != nil {
+			logger.Errorw("Failed to get training set", "error", getTsError)
+			return getTsError
+		}
+		logger.Debugw("Training set already exists")
+		return nil
 	}
 
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for dependencies to complete..."); err != nil {
@@ -86,7 +96,7 @@ func (t *TrainingSetTask) Run() error {
 	featureList := make([]provider.ResourceID, len(features))
 	for i, feature := range features {
 		featureList[i] = provider.ResourceID{Name: feature.Name, Variant: feature.Variant, Type: provider.Feature}
-		featureResource, err := t.metadata.GetFeatureVariant(context.Background(), feature)
+		featureResource, err := t.metadata.GetFeatureVariant(ctx, feature)
 		if err != nil {
 			return err
 		}
@@ -95,11 +105,11 @@ func (t *TrainingSetTask) Run() error {
 		if err != nil {
 			return err
 		}
-		_, err = t.AwaitPendingFeature(metadata.NameVariant{Name: feature.Name, Variant: feature.Variant})
+		_, err = t.AwaitPendingFeature(ctx, metadata.NameVariant{Name: feature.Name, Variant: feature.Variant})
 		if err != nil {
 			return err
 		}
-		featureSourceMappings[i], err = t.getFeatureSourceMapping(featureResource, sourceVariant)
+		featureSourceMappings[i], err = t.getFeatureSourceMapping(ctx, featureResource, sourceVariant)
 		if err != nil {
 			return err
 		}
@@ -116,7 +126,7 @@ func (t *TrainingSetTask) Run() error {
 		}
 	}
 
-	label, err := ts.FetchLabel(t.metadata, context.Background())
+	label, err := ts.FetchLabel(t.metadata, ctx)
 	if err != nil {
 		return err
 	}
@@ -125,11 +135,11 @@ func (t *TrainingSetTask) Run() error {
 	if err != nil {
 		return err
 	}
-	label, err = t.AwaitPendingLabel(metadata.NameVariant{Name: label.Name(), Variant: label.Variant()})
+	label, err = t.AwaitPendingLabel(ctx, metadata.NameVariant{Name: label.Name(), Variant: label.Variant()})
 	if err != nil {
 		return err
 	}
-	labelSourceMapping, err := t.getLabelSourceMapping(label)
+	labelSourceMapping, err := t.getLabelSourceMapping(ctx, label)
 	if err != nil {
 		return err
 	}
@@ -150,53 +160,65 @@ func (t *TrainingSetTask) Run() error {
 		FeatureSourceMappings:   featureSourceMappings,
 		LagFeatures:             lagFeaturesList,
 		ResourceSnowflakeConfig: resourceSnowflakeConfig,
-	}
-	tsRunnerConfig := runner.TrainingSetRunnerConfig{
-		OfflineType:   pt.Type(providerEntry.Type()),
-		OfflineConfig: providerEntry.SerializedConfig(),
-		Def:           trainingSetDef,
-		IsUpdate:      t.isUpdate,
-	}
-	serialized, _ := tsRunnerConfig.Serialize()
-
-	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Job runner..."); err != nil {
-		return err
+		Type:                    ts.TrainingSetType(),
 	}
 
-	resID := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.TRAINING_SET_VARIANT}
-	jobRunner, err := t.spawner.GetJobRunner(runner.CREATE_TRAINING_SET, serialized, resID)
+	return t.runTrainingSetJob(trainingSetDef, store)
+}
+
+func (t *TrainingSetTask) handleDeletion(ctx context.Context, tsId metadata.ResourceID, logger logging.Logger) error {
+	logger.Info("Deleting training set", "resource_id", tsId)
+	tsToDelete, err := t.metadata.GetStagedForDeletionTrainingSetVariant(ctx,
+		metadata.NameVariant{
+			Name:    tsId.Name,
+			Variant: tsId.Variant,
+		}, logger)
 	if err != nil {
+		logger.Errorw("Failed to get training set to delete", "error", err)
 		return err
 	}
 
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Starting execution...")
+	trainingSetTable, err := ps.ResourceToTableName(provider.TrainingSet.String(), tsId.Name, tsId.Variant)
 	if err != nil {
+		logger.Errorw("Failed to get table name for training set", "error", err)
+		return err
+	}
+	logger.Debugw("Deleting training set at location", "location", trainingSetTable)
+	store, getStoreErr := getOfflineStore(ctx, t.BaseTask, t.metadata, tsToDelete, logger)
+	if getStoreErr != nil {
+		logger.Errorw("Failed to get store", "error", getStoreErr)
+		return getStoreErr
+	}
+
+	trainingSetLocation := pl.NewSQLLocation(trainingSetTable)
+
+	if err := store.Delete(trainingSetLocation); err != nil {
+		var notFoundErr *fferr.DatasetNotFoundError
+		if errors.As(err, &notFoundErr) {
+			logger.Infow("Table doesn't exist at location, continuing...", "location", trainingSetLocation)
+			// continue
+		} else {
+			logger.Errorw("Failed to delete training set", "error", err)
+			return err
+		}
+	}
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Training Set deleted..."); err != nil {
+		logger.Errorw("Unable to add run log", "error", err)
 		return err
 	}
 
-	completionWatcher, err := jobRunner.Run()
-	if err != nil {
-		return err
-	}
-
-	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for completion..."); err != nil {
-		return err
-	}
-
-	if err := completionWatcher.Wait(); err != nil {
-		return err
-	}
-
-	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Training Set creation complete..."); err != nil {
+	logger.Debugw("Finalizing delete")
+	if err := t.metadata.FinalizeDelete(ctx, tsId); err != nil {
+		logger.Errorw("Failed to finalize delete", "error", err)
 		return err
 	}
 
 	return nil
 }
 
-func (t *TrainingSetTask) getLabelSourceMapping(label *metadata.LabelVariant) (provider.SourceMapping, error) {
+func (t *TrainingSetTask) getLabelSourceMapping(ctx context.Context, label *metadata.LabelVariant) (provider.SourceMapping, error) {
 	logger := t.logger.With("Label", label.Name(), "variant", label.Variant())
-	labelProvider, err := label.FetchProvider(t.metadata, context.Background())
+	labelProvider, err := label.FetchProvider(t.metadata, ctx)
 	if err != nil {
 		return provider.SourceMapping{}, err
 	}
@@ -209,26 +231,49 @@ func (t *TrainingSetTask) getLabelSourceMapping(label *metadata.LabelVariant) (p
 	if err != nil {
 		return provider.SourceMapping{}, err
 	}
-	return provider.SourceMapping{
+	srcMapping := provider.SourceMapping{
 		Source:         labelSource,
 		ProviderType:   pt.Type(labelProvider.Type()),
 		ProviderConfig: labelProvider.SerializedConfig(),
 		Location:       labelLocation,
-		// Given a label will always be created as a resource table, which uses stable naming conventions for columns,
-		// we can hardcode the column names here. **NOTE**: if we used label.LocationColumns() here, we would get
-		// the column names from the source table, and not the resource table.
-		Columns: metadata.ResourceVariantColumns{
-			Entity: "entity",
-			Value:  "value",
-			TS:     "ts",
-		},
-	}, nil
+	}
+
+	loc, err := label.Location()
+	if err != nil {
+		t.logger.Errorw("could not get label location", "label", label.Name(), "variant", label.Variant(), "error", err)
+		return provider.SourceMapping{}, err
+	}
+	// Given a label will always be created as a resource table, which uses stable naming conventions for columns,
+	// we can hardcode the column names for both single-entity and multi-entity labels to "value" for the VALUE column
+	// and "ts" for the TS column. For multi-entity labels, whereas the entity column for single-entity labels is simply
+	// "entity", we will use "entity_<entity_name>" for multi-entity labels, so this translation is done here prior to
+	// running the training set job so that all source mappings are consistent prior to being use in CreateTrainingSet.
+	//**NOTE**: if we used label.LocationColumns() here, we would get
+	// the column names from the source table, and not the resource table.
+	t.logger.Debugw("Label entity mappings", "mappings", loc)
+	srcMapping.EntityMappings = &metadata.EntityMappings{
+		Mappings:        make([]metadata.EntityMapping, len(loc.Mappings)),
+		ValueColumn:     "value",
+		TimestampColumn: "ts",
+	}
+	for i, mapping := range loc.Mappings {
+		entityCol := fmt.Sprintf("entity_%s", mapping.Name)
+		if label.IsLegacyLocation() {
+			entityCol = "entity"
+		}
+		srcMapping.EntityMappings.Mappings[i] = metadata.EntityMapping{
+			Name:         mapping.Name,
+			EntityColumn: entityCol,
+		}
+	}
+	t.logger.Debugw("Label source mapping", "mapping", srcMapping)
+	return srcMapping, nil
 }
 
 // **NOTE**: Given a feature's provider will always be an online store, we actually need its source's provider to grab the data for the training set.
-func (t *TrainingSetTask) getFeatureSourceMapping(feature *metadata.FeatureVariant, source *metadata.SourceVariant) (provider.SourceMapping, error) {
+func (t *TrainingSetTask) getFeatureSourceMapping(ctx context.Context, feature *metadata.FeatureVariant, source *metadata.SourceVariant) (provider.SourceMapping, error) {
 	logger := t.logger.With("Feature", feature.Name(), "variant", feature.Variant())
-	sourceProvider, err := source.FetchProvider(t.metadata, context.Background())
+	sourceProvider, err := source.FetchProvider(t.metadata, ctx)
 	if err != nil {
 		return provider.SourceMapping{}, err
 	}
@@ -253,14 +298,19 @@ func (t *TrainingSetTask) getFeatureSourceMapping(feature *metadata.FeatureVaria
 		ProviderType:   pt.Type(sourceProvider.Type()),
 		ProviderConfig: sourceProvider.SerializedConfig(),
 		Location:       featureLocation,
-		Columns:        cols,
+		Columns:        &cols,
+		EntityMappings: &metadata.EntityMappings{
+			Mappings: []metadata.EntityMapping{
+				{Name: feature.Entity(), EntityColumn: cols.Entity},
+			},
+		},
 	}, nil
 }
 
-func (t *TrainingSetTask) AwaitPendingFeature(featureNameVariant metadata.NameVariant) (*metadata.FeatureVariant, error) {
+func (t *TrainingSetTask) AwaitPendingFeature(ctx context.Context, featureNameVariant metadata.NameVariant) (*metadata.FeatureVariant, error) {
 	featureStatus := scheduling.PENDING
 	for featureStatus != scheduling.READY {
-		feature, err := t.metadata.GetFeatureVariant(context.Background(), featureNameVariant)
+		feature, err := t.metadata.GetFeatureVariant(ctx, featureNameVariant)
 		if err != nil {
 			return nil, err
 		}
@@ -274,13 +324,13 @@ func (t *TrainingSetTask) AwaitPendingFeature(featureNameVariant metadata.NameVa
 		}
 		time.Sleep(1 * time.Second)
 	}
-	return t.metadata.GetFeatureVariant(context.Background(), featureNameVariant)
+	return t.metadata.GetFeatureVariant(ctx, featureNameVariant)
 }
 
-func (t *TrainingSetTask) AwaitPendingLabel(labelNameVariant metadata.NameVariant) (*metadata.LabelVariant, error) {
+func (t *TrainingSetTask) AwaitPendingLabel(ctx context.Context, labelNameVariant metadata.NameVariant) (*metadata.LabelVariant, error) {
 	labelStatus := scheduling.PENDING
 	for labelStatus != scheduling.READY {
-		label, err := t.metadata.GetLabelVariant(context.Background(), labelNameVariant)
+		label, err := t.metadata.GetLabelVariant(ctx, labelNameVariant)
 		if err != nil {
 			return nil, err
 		}
@@ -294,7 +344,7 @@ func (t *TrainingSetTask) AwaitPendingLabel(labelNameVariant metadata.NameVarian
 		}
 		time.Sleep(1 * time.Second)
 	}
-	return t.metadata.GetLabelVariant(context.Background(), labelNameVariant)
+	return t.metadata.GetLabelVariant(ctx, labelNameVariant)
 }
 
 // TODO: (Erik) expand to handle other provider types and fully qualified table names (i.e. with database and schema)
@@ -309,7 +359,7 @@ func (t *TrainingSetTask) getResourceLocation(provider *metadata.Provider, table
 		}
 		// TODO: (Erik) determine if we want to use the Catalog location instead of SQL location; technically,
 		// Snowflake references tables in a catalog no differently than it does other table types.
-		location = pl.NewSQLLocationWithDBSchemaTable(config.Database, config.Schema, tableName)
+		location = pl.NewFullyQualifiedSQLLocation(config.Database, config.Schema, tableName)
 	default:
 		t.logger.Errorw("unsupported provider type: %s", provider.Type())
 	}
@@ -360,4 +410,53 @@ func (t *TrainingSetTask) getSourceTableNameForSnowflake(feature *metadata.Featu
 	} else {
 		return "", fferr.NewInternalErrorf("unsupported source type: %T", sv.Definition())
 	}
+}
+
+func (t *TrainingSetTask) runTrainingSetJob(def provider.TrainingSetDef, offlineStore provider.OfflineStore) error {
+	t.logger.Debugw("Running training set job", "id", def.ID)
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Starting Training Set Creation..."); err != nil {
+		t.logger.Errorw("Unable to add run log", "error", err)
+		// We can continue without the run log
+	}
+
+	var trainingSetFnType func(provider.TrainingSetDef) error
+	if t.isUpdate {
+		trainingSetFnType = offlineStore.UpdateTrainingSet
+	} else {
+		trainingSetFnType = offlineStore.CreateTrainingSet
+	}
+
+	t.logger.Debugw("Running training set task")
+	tsWatcher := &runner.SyncWatcher{
+		ResultSync:  &runner.ResultSync{},
+		DoneChannel: make(chan interface{}),
+	}
+	go func() {
+		if err := trainingSetFnType(def); err != nil {
+			t.logger.Errorw("Training set failed, ending watch", "error", err)
+			tsWatcher.EndWatch(err)
+			return
+		}
+		tsWatcher.EndWatch(nil)
+	}()
+
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for training set job to complete..."); err != nil {
+		t.logger.Errorw("Unable to add run log", "error", err)
+		// We can continue without the run log
+	}
+
+	t.logger.Infow("Waiting for training set job to complete")
+	if err := tsWatcher.Wait(); err != nil {
+		t.logger.Errorw("Training set job failed", "error", err)
+		return err
+	}
+
+	t.logger.Infow("Training set job completed")
+
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Training Set creation complete."); err != nil {
+		t.logger.Errorw("Unable to add run log", "error", err)
+		// We can continue without the run log
+	}
+
+	return nil
 }

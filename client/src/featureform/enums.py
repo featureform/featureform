@@ -5,12 +5,14 @@
 #  Copyright 2024 FeatureForm Inc.
 #
 
-from dataclasses import dataclass
 from enum import Enum
-from featureform.proto import metadata_pb2 as pb
-from typeguard import typechecked
-from os import path
 from fnmatch import fnmatch
+from os import path
+
+from dataclasses import dataclass
+from typeguard import typechecked
+
+from featureform.proto import metadata_pb2 as pb
 
 
 class ScalarType(str, Enum):
@@ -237,8 +239,44 @@ class ResourceType(Enum):
     MODEL = 10
     TRANSFORMATION = 11
 
+    @classmethod
+    def _get_proto_map(cls):
+        return {
+            cls.NO_TYPE: None,
+            cls.USER: pb.ResourceType.USER,
+            cls.PROVIDER: pb.ResourceType.PROVIDER,
+            cls.SOURCE_VARIANT: pb.ResourceType.SOURCE_VARIANT,
+            cls.ENTITY: pb.ResourceType.ENTITY,
+            cls.FEATURE_VARIANT: pb.ResourceType.FEATURE_VARIANT,
+            cls.ONDEMAND_FEATURE: pb.ResourceType.FEATURE_VARIANT,
+            cls.LABEL_VARIANT: pb.ResourceType.LABEL_VARIANT,
+            cls.TRAININGSET_VARIANT: pb.ResourceType.TRAINING_SET_VARIANT,
+            cls.SCHEDULE: None,
+            cls.MODEL: pb.ResourceType.MODEL,
+            cls.TRANSFORMATION: pb.ResourceType.SOURCE_VARIANT,
+        }
+
+    def to_proto(self):
+        return self._get_proto_map()[self]
+
     def to_string(self) -> str:
         return self.name.replace("_", " ").title()
+
+    @classmethod
+    def is_deletable(cls, resource_type):
+        return resource_type in [
+            # cls.USER,
+            cls.PROVIDER,
+            cls.SOURCE_VARIANT,
+            # cls.ENTITY,
+            cls.FEATURE_VARIANT,
+            # cls.ONDEMAND_FEATURE,
+            cls.LABEL_VARIANT,
+            cls.TRAININGSET_VARIANT,
+            # cls.SCHEDULE,
+            # cls.MODEL,
+            cls.TRANSFORMATION,
+        ]
 
 
 @typechecked
@@ -366,3 +404,37 @@ class SnowflakeSessionParamKey(Enum):
     @classmethod
     def validate_key(cls, key: str) -> bool:
         return key.lower() in cls._value2member_map_
+
+
+class TrainingSetType(Enum):
+    # Dynamic training sets are updated when new rows are added to upstream tables;
+    # mechanism of update will depend on the offline provider (e.g. Snowflake uses dynamic tables).
+    DYNAMIC = pb.TrainingSetType.TRAINING_SET_TYPE_DYNAMIC
+    # Static training sets are not updated when new rows are added to upstream tables; they are
+    # created as regular tables and are not updated.
+    STATIC = pb.TrainingSetType.TRAINING_SET_TYPE_STATIC
+    # View training sets are created as views and are only evaluated when queried by a user
+    # (e.g. when fetching the training set for model training).
+    VIEW = pb.TrainingSetType.TRAINING_SET_TYPE_VIEW
+
+    @classmethod
+    def from_proto(cls, proto_value):
+        try:
+            return cls(proto_value)
+        except ValueError:
+            return None
+
+    def to_proto(self):
+        return self.value
+
+    def to_string(self):
+        return self.name
+
+    @classmethod
+    def from_string(cls, value):
+        try:
+            return cls[value.upper()]
+        except KeyError:
+            raise ValueError(f"Training Set Type value not supported: {value}")
+        except AttributeError:
+            raise ValueError(f"Training Set Type value required: received {value}")

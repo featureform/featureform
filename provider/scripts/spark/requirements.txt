@@ -10,3 +10,4 @@ google-oauth==1.0.1
 grpcio==1.62.2
 pandas>=1.3.5
 typeguard
+deepdiff

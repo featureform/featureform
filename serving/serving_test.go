@@ -27,7 +27,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/google/uuid"
-	"go.uber.org/zap/zaptest"
 	grpcmeta "google.golang.org/grpc/metadata"
 
 	"github.com/featureform/logging"
@@ -144,39 +143,39 @@ func invalidTypeFeatureRecords() map[provider.ResourceID][]provider.ResourceReco
 
 func allTypesFeatureRecords() map[provider.ResourceID][]provider.ResourceRecord {
 	idToVal := map[provider.ResourceID]interface{}{
-		provider.ResourceID{
+		{
 			Name:    "feature",
 			Variant: "double",
 		}: 12.5,
-		provider.ResourceID{
+		{
 			Name:    "feature",
 			Variant: "float",
 		}: float32(2.3),
-		provider.ResourceID{
+		{
 			Name:    "feature",
 			Variant: "str",
 		}: "abc",
-		provider.ResourceID{
+		{
 			Name:    "feature",
 			Variant: "int",
 		}: 5,
-		provider.ResourceID{
+		{
 			Name:    "feature",
 			Variant: "smallint",
 		}: int32(4),
-		provider.ResourceID{
+		{
 			Name:    "feature",
 			Variant: "bigint",
 		}: int64(3),
-		provider.ResourceID{
+		{
 			Name:    "feature",
 			Variant: "bool",
 		}: true,
-		provider.ResourceID{
+		{
 			Name:    "feature",
 			Variant: "proto",
 		}: &pb.Value{
-			Value: &pb.Value_StrValue{"proto"},
+			Value: &pb.Value_StrValue{StrValue: "proto"},
 		},
 	}
 	recs := make(map[provider.ResourceID][]provider.ResourceRecord)
@@ -217,7 +216,7 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "double",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -232,7 +231,7 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "float",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -247,7 +246,7 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "str",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -262,7 +261,7 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "int",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -277,7 +276,7 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "smallint",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -292,7 +291,7 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "bigint",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -307,7 +306,7 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "bool",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -322,7 +321,7 @@ func allTypesResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "proto",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -363,7 +362,7 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "variant",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -378,7 +377,7 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "variant2",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Location: metadata.ResourceVariantColumns{
 				Entity: "col1",
@@ -393,7 +392,7 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Variant:  "variant",
 			Provider: "mockOnline",
 			Entity:   "mockEntity",
-			Source:   metadata.NameVariant{"mockSource", "var"},
+			Source:   metadata.NameVariant{Name: "mockSource", Variant: "var"},
 			Owner:    "Featureform",
 			Type:     types.String,
 			Location: metadata.ResourceVariantColumns{
@@ -406,8 +405,8 @@ func simpleResourceDefsFn(providerType string) []metadata.ResourceDef {
 			Name:     "training-set",
 			Variant:  "variant",
 			Provider: "mockOnline",
-			Label:    metadata.NameVariant{"label", "variant"},
-			Features: metadata.NameVariants{{"feature", "variant"}},
+			Label:    metadata.NameVariant{Name: "label", Variant: "variant"},
+			Features: metadata.NameVariants{{Name: "feature", Variant: "variant"}},
 			Owner:    "Featureform",
 		},
 	}
@@ -458,26 +457,28 @@ type onlineTestContext struct {
 	ResourceDefsFn resourceDefsFn
 	FactoryFn      provider.Factory
 	metaServ       *metadata.MetadataServer
+	context.Context
+	logger logging.Logger
 }
 
 func (ctx *onlineTestContext) Create(t *testing.T) *FeatureServer {
 	var addr string
-	ctx.metaServ, addr = startMetadata(t)
+	ctx.Context, ctx.logger = logging.NewTestContextAndLogger(t)
+	ctx.metaServ, addr = startMetadata(t, ctx, ctx.logger)
 	providerType := uuid.NewString()
 	if ctx.FactoryFn != nil {
 		if err := provider.RegisterFactory(pt.Type(providerType), ctx.FactoryFn); err != nil {
 			t.Fatalf("Failed to register factory: %s", err)
 		}
 	}
-	meta := metadataClient(t, addr)
+	meta := metadataClient(t, ctx, ctx.logger, addr)
 	if ctx.ResourceDefsFn != nil {
 		defs := ctx.ResourceDefsFn(providerType)
-		if err := meta.CreateAll(context.Background(), defs); err != nil {
+		if err := meta.CreateAll(ctx, defs); err != nil {
 			t.Fatalf("Failed to create metadata entries: %s", err)
 		}
 	}
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
-	serv, err := NewFeatureServer(meta, metrics.NewMetrics(randomMetricsId()), logger)
+	serv, err := NewFeatureServer(meta, metrics.NewMetrics(randomMetricsId()), ctx.logger)
 	if err != nil {
 		t.Fatalf("Failed to create feature server: %s", err)
 	}
@@ -547,14 +548,13 @@ func onlineStoreNoTables(cfg pc.SerializedConfig) (provider.Provider, error) {
 	return store, nil
 }
 
-func startMetadata(t *testing.T) (*metadata.MetadataServer, string) {
-	manager, err := scheduling.NewMemoryTaskMetadataManager()
-	logger := zaptest.NewLogger(t)
+func startMetadata(t *testing.T, ctx context.Context, logger logging.Logger) (*metadata.MetadataServer, string) {
+	manager, err := scheduling.NewMemoryTaskMetadataManager(ctx)
 	if err != nil {
 		panic(err)
 	}
 	config := &metadata.Config{
-		Logger:      logging.WrapZapLogger(logger.Sugar()),
+		Logger:      logger,
 		TaskManager: manager,
 	}
 	serv, err := metadata.NewMetadataServer(config)
@@ -574,9 +574,8 @@ func startMetadata(t *testing.T) (*metadata.MetadataServer, string) {
 	return serv, lis.Addr().String()
 }
 
-func metadataClient(t *testing.T, addr string) *metadata.Client {
-	logger := zaptest.NewLogger(t).Sugar()
-	client, err := metadata.NewClient(addr, logging.WrapZapLogger(logger))
+func metadataClient(t *testing.T, ctx context.Context, logger logging.Logger, addr string) *metadata.Client {
+	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
 		t.Fatalf("Failed to create client: %s", err)
 	}
@@ -615,19 +614,19 @@ func TestFeatureServe(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "variant",
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "mockEntity",
 				Values: []string{"a"},
 			},
 		},
 	}
-	resp, err := serv.FeatureServe(context.Background(), req)
+	resp, err := serv.FeatureServe(ctx, req)
 	if err != nil {
 		t.Fatalf("Failed to serve feature: %s", err)
 	}
@@ -653,7 +652,7 @@ func TestFeatureServeMultipleEntities(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "variant",
 			},
@@ -665,7 +664,7 @@ func TestFeatureServeMultipleEntities(t *testing.T) {
 			},
 		},
 	}
-	resp, err := serv.FeatureServe(context.Background(), req)
+	resp, err := serv.FeatureServe(ctx, req)
 	if err != nil {
 		t.Fatalf("Failed to serve feature: %s", err)
 	}
@@ -687,6 +686,7 @@ func TestFeatureServeMultipleEntities(t *testing.T) {
 	}
 }
 
+// todo: should be able to delete
 type mockBatchServingStream struct {
 	RowChan    chan *pb.BatchFeatureRow
 	ShouldFail bool
@@ -738,7 +738,7 @@ func (stream *mockBatchServingStream) RecvMsg(interface{}) error {
 // 	defer ctx.Destroy()
 // 	req := &pb.BatchFeatureServeRequest{
 // 		Features: []*pb.FeatureID{
-// 			&pb.FeatureID{
+// 			{
 // 				Name:    "feature",
 // 				Version: "variant",
 // 			},
@@ -788,19 +788,19 @@ func TestFeatureNotFound(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "nonexistantFeature",
 				Version: "variant",
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "mockEntity",
 				Values: []string{"a"},
 			},
 		},
 	}
-	if _, err := serv.FeatureServe(context.Background(), req); err == nil {
+	if _, err := serv.FeatureServe(ctx, req); err == nil {
 		t.Fatalf("Succeeded in serving non-existant feature")
 	}
 }
@@ -814,19 +814,19 @@ func TestProviderNotRegistered(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "variant",
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "mockEntity",
 				Values: []string{"a"},
 			},
 		},
 	}
-	if _, err := serv.FeatureServe(context.Background(), req); err == nil {
+	if _, err := serv.FeatureServe(ctx, req); err == nil {
 		t.Fatalf("Succeeded in serving feature with no registered provider factory")
 	}
 }
@@ -840,19 +840,19 @@ func TestOfflineStoreAsOnlineStore(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "variant",
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "mockEntity",
 				Values: []string{"a"},
 			},
 		},
 	}
-	if _, err := serv.FeatureServe(context.Background(), req); err == nil {
+	if _, err := serv.FeatureServe(ctx, req); err == nil {
 		t.Fatalf("Succeeded in serving feature stored on OfflineStore")
 	}
 }
@@ -866,19 +866,19 @@ func TestTableNotFoundInOnlineStore(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "variant",
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "mockEntity",
 				Values: []string{"a"},
 			},
 		},
 	}
-	if _, err := serv.FeatureServe(context.Background(), req); err == nil {
+	if _, err := serv.FeatureServe(ctx, req); err == nil {
 		t.Fatalf("Succeeded in serving feature in an online store without a valid table")
 	}
 }
@@ -892,19 +892,19 @@ func TestEntityNotFoundInOnlineStore(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "variant",
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "mockEntity",
 				Values: []string{"NonExistantEntity"},
 			},
 		},
 	}
-	if _, err := serv.FeatureServe(context.Background(), req); err == nil {
+	if _, err := serv.FeatureServe(ctx, req); err == nil {
 		t.Fatalf("Succeeded in serving feature with non-existant entity")
 	}
 }
@@ -918,19 +918,19 @@ func TestEntityNotInRequest(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "variant",
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "wrongEntity",
 				Values: []string{"a"},
 			},
 		},
 	}
-	if _, err := serv.FeatureServe(context.Background(), req); err == nil {
+	if _, err := serv.FeatureServe(ctx, req); err == nil {
 		t.Fatalf("Succeeded in serving feature without the right entity set")
 	}
 }
@@ -944,19 +944,19 @@ func TestInvalidFeatureType(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "variant",
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "mockEntity",
 				Values: []string{"a"},
 			},
 		},
 	}
-	if _, err := serv.FeatureServe(context.Background(), req); err == nil {
+	if _, err := serv.FeatureServe(ctx, req); err == nil {
 		t.Fatalf("Succeeded in serving feature with invalid type")
 	}
 }
@@ -970,47 +970,47 @@ func TestAllFeatureTypes(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "double",
 			},
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "float",
 			},
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "str",
 			},
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "int",
 			},
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "smallint",
 			},
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "bigint",
 			},
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "bool",
 			},
-			&pb.FeatureID{
+			{
 				Name:    "feature",
 				Version: "proto",
 			},
 		},
 		Entities: []*pb.Entity{
-			&pb.Entity{
+			{
 				Name:   "mockEntity",
 				Values: []string{"a"},
 			},
 		},
 	}
-	resp, err := serv.FeatureServe(context.Background(), req)
+	resp, err := serv.FeatureServe(ctx, req)
 	if err != nil {
 		t.Fatalf("Failed to get multiple features with all types: %s", err)
 	}
@@ -1056,7 +1056,7 @@ func TestSimpleModelRegistrationFeatureServe(t *testing.T) {
 			Name: modelName,
 		},
 	}
-	resp, err := serv.FeatureServe(context.Background(), req)
+	resp, err := serv.FeatureServe(ctx, req)
 	if err != nil {
 		t.Fatalf("Failed to serve feature: %s", err)
 	}
@@ -1071,7 +1071,7 @@ func TestSimpleModelRegistrationFeatureServe(t *testing.T) {
 			t.Fatalf("Wrong feature value: %v\nExpected: %v", gotVal, 12.5)
 		}
 	}
-	modelResp, err := serv.Metadata.GetModel(context.Background(), modelName)
+	modelResp, err := serv.Metadata.GetModel(ctx, modelName)
 	if err != nil {
 		t.Fatalf("Failed to get model: %s", err)
 	}
@@ -1093,13 +1093,13 @@ func TestOnDemandFeatureServe(t *testing.T) {
 	defer ctx.Destroy()
 	req := &pb.FeatureServeRequest{
 		Features: []*pb.FeatureID{
-			&pb.FeatureID{
+			{
 				Name:    "feature-od",
 				Version: "on-demand",
 			},
 		},
 	}
-	resp, err := serv.FeatureServe(context.Background(), req)
+	resp, err := serv.FeatureServe(ctx, req)
 	if err != nil {
 		t.Fatalf("Failed to serve feature: %s", err)
 	}
@@ -1436,7 +1436,7 @@ func TestSimpleModelRegistrationTrainingSetServe(t *testing.T) {
 	if !reflect.DeepEqual(expectedRows, actualRows) {
 		t.Fatalf("Rows aren't equal: %v\n%v", expectedRows, actualRows)
 	}
-	modelResp, err := serv.Metadata.GetModel(context.Background(), modelName)
+	modelResp, err := serv.Metadata.GetModel(ctx, modelName)
 	if err != nil {
 		t.Fatalf("Failed to get model: %s", err)
 	}
@@ -1466,7 +1466,7 @@ func TestTrainingDataColumns(t *testing.T) {
 		Features: []string{"feature__feature__variant"},
 		Label:    "label__label__variant",
 	}
-	resp, err := serv.TrainingDataColumns(context.Background(), req)
+	resp, err := serv.TrainingDataColumns(ctx, req)
 	if err != nil {
 		t.Fatalf("Failed to get training data columns: %s", err)
 	}

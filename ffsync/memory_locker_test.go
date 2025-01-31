@@ -10,10 +10,11 @@ package ffsync
 import (
 	"context"
 	"fmt"
-	"github.com/jonboulle/clockwork"
 	"testing"
+
+	"github.com/jonboulle/clockwork"
 )
- 
+
 func TestMemoryLocker(t *testing.T) {
 	clock := clockwork.NewFakeClock()
 

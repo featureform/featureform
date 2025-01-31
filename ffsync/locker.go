@@ -114,6 +114,6 @@ type Locker interface {
 }
 
 type Key interface {
-	ID() string
+	Owner() string
 	Key() string
 }

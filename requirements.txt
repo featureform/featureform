@@ -7,8 +7,8 @@ colorama==0.4.6
 exceptiongroup==1.1.0
 ghp-import==2.1.0
 griffe==0.25.4
-grpcio==1.53.2
-grpcio-tools==1.51.1
+grpcio>=1.53.1
+grpcio-tools>=1.51.1
 idna==3.7
 importlib-metadata==6.0.0
 iniconfig==2.0.0
@@ -35,7 +35,7 @@ pytest-cov==4.1.0
 pytest-mock==3.10.0
 python-dateutil==2.8.2
 python-dotenv==0.21.1
-PyYAML==6.0
+PyYAML>=6.0
 pyyaml_env_tag==0.1
 regex==2022.10.31
 requests==2.32.2

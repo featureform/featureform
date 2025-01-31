@@ -26,8 +26,6 @@ import (
 
 	"io"
 	"sync"
-
-	"go.uber.org/zap"
 )
 
 const (
@@ -121,7 +119,7 @@ type splitContext struct {
 	testIterator    *provider.TrainingSetIterator
 	isTestFinished  *bool
 	isTrainFinished *bool
-	logger          *zap.SugaredLogger
+	logger          logging.Logger
 }
 
 func (serv *FeatureServer) TrainTestSplit(stream pb.Feature_TrainTestSplitServer) error {
@@ -405,7 +403,7 @@ func (serv *FeatureServer) createTrainTestSplit(def provider.TrainTestSplitDef) 
 func (serv *FeatureServer) getTrainTestSplitIterators(def provider.TrainTestSplitDef) (provider.TrainingSetIterator, provider.TrainingSetIterator, error) {
 	ctx := context.TODO()
 	serv.Logger.Infow("Getting Training Set Iterator", "name", def.TrainingSetName, "variant", def.TrainingSetVariant)
-	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{def.TrainingSetName, def.TrainingSetVariant})
+	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: def.TrainingSetName, Variant: def.TrainingSetVariant})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -434,7 +432,7 @@ func (serv *FeatureServer) getBatchFeatureIterator(ids []provider.ResourceID) (p
 	}
 
 	// Assuming that all the features have the same offline provider
-	feat, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{ids[0].Name, ids[0].Variant})
+	feat, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{Name: ids[0].Name, Variant: ids[0].Variant})
 	if err != nil {
 		return nil, err
 	}
@@ -610,12 +608,13 @@ func (serv *FeatureServer) getNVCacheKey(name, variant string) string {
 	return fmt.Sprintf("%s:%s", name, variant)
 }
 
+// todo: not used anywhere
 func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant string, entityMap map[string]string) (*pb.Value, error) {
 	obs := serv.Metrics.BeginObservingOnlineServe(name, variant)
 	defer obs.Finish()
 	logger := serv.Logger.With("Name", name, "Variant", variant)
 	logger.Debug("Getting metadata")
-	meta, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{name, variant})
+	meta, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 	if err != nil {
 		logger.Errorw("metadata lookup failed", "Err", err)
 		obs.SetError()
@@ -629,7 +628,7 @@ func (serv *FeatureServer) getFeatureValue(ctx context.Context, name, variant st
 		if !has {
 			logger.Errorw("Entity not found", "Entity", meta.Entity())
 			obs.SetError()
-			return nil, fmt.Errorf("No value for entity %s", meta.Entity())
+			return nil, fmt.Errorf("no value for entity %s", meta.Entity())
 		}
 		providerEntry, err := meta.FetchProvider(serv.Metadata, ctx)
 		if err != nil {
@@ -808,16 +807,12 @@ func (serv *FeatureServer) GetResourceLocation(ctx context.Context, req *pb.Reso
 	resourceType := req.GetType()
 	serv.Logger.Infow("Getting the Resource Location:", "Name", name, "Variant", variant, "Type", resourceType)
 
-	var location string
-	var err error
-	if provider.OfflineResourceType(resourceType) == provider.Feature {
-		location, err = serv.getOnlineResourceLocation(ctx, name, variant, resourceType)
-	} else {
-		location, err = serv.getOfflineResourceLocation(ctx, name, variant, resourceType)
-		if err != nil {
-			return nil, err
-		}
+	location, err := serv.getOfflineResourceLocation(ctx, name, variant, resourceType)
+	if err != nil {
+		return nil, err
 	}
+
+	// TODO: implement online resource location
 
 	return &pb.ResourceLocation{
 		Location: location,
@@ -834,22 +829,65 @@ func (serv *FeatureServer) getOfflineResourceLocation(ctx context.Context, name,
 		if err != nil {
 			return "", err
 		}
-		providerEntry, err = sv.FetchProvider(serv.Metadata, ctx)
+		resource = sv
+
+		primaryLocation, err := sv.GetPrimaryLocation()
 		if err != nil {
+			serv.Logger.Errorw("Could not retrieve primary location from source variant", "error", err)
 			return "", err
 		}
-		resource = sv
+
+		if primaryLocation != nil {
+			return primaryLocation.Location(), nil
+		}
+
+		transLocation, err := sv.GetTransformationLocation()
+		if err != nil {
+			serv.Logger.Errorw("Could not retrieve primary location from source variant", "error", err)
+			return "", err
+		}
+
+		return transLocation.Location(), nil
+
 	case provider.TrainingSet:
 		serv.Logger.Infow("Getting Training Set Provider", "name", name, "variant", variant)
 		ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
 		if err != nil {
+			serv.Logger.Errorw("Failed to get training set variant", "Error", err)
 			return "", err
 		}
 		providerEntry, err = ts.FetchProvider(serv.Metadata, ctx)
 		if err != nil {
+			serv.Logger.Errorw("Failed to fetch provider", "Error", err)
 			return "", err
 		}
 		resource = ts
+	case provider.Label:
+		serv.Logger.Infow("Getting Label Provider", "name", name, "variant", variant)
+		l, err := serv.Metadata.GetLabelVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
+		if err != nil {
+			serv.Logger.Errorw("Failed to get label variant", "Error", err)
+			return "", err
+		}
+		providerEntry, err = l.FetchProvider(serv.Metadata, ctx)
+		if err != nil {
+			serv.Logger.Errorw("Failed to fetch provider", "Error", err)
+			return "", err
+		}
+		resource = l
+	case provider.Feature:
+		serv.Logger.Infow("Getting Feature Provider", "name", name, "variant", variant)
+		f, err := serv.Metadata.GetFeatureVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
+		if err != nil {
+			serv.Logger.Errorw("Failed to get feature variant", "Error", err)
+			return "", err
+		}
+		providerEntry, err = f.FetchProvider(serv.Metadata, ctx)
+		if err != nil {
+			serv.Logger.Errorw("Failed to fetch provider", "Error", err)
+			return "", err
+		}
+		resource = f
 	default:
 		return "", fferr.NewInvalidResourceTypeError(name, variant, fferr.ResourceType(metadata.ResourceType(resourceType).String()), fmt.Errorf("invalid resource type"))
 	}
@@ -870,6 +908,6 @@ func (serv *FeatureServer) getOfflineResourceLocation(ctx context.Context, name,
 	return fileLocation.Location(), nil
 }
 
-func (serv *FeatureServer) getOnlineResourceLocation(ctx context.Context, name, variant string, resourceType int32) (string, error) {
+func (serv *FeatureServer) getOnlineResourceLocation(_ context.Context, _, _ string, _ int32) (string, error) {
 	return "", fferr.NewInternalError(fmt.Errorf("online resource location not implemented"))
 }

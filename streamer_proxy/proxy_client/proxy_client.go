@@ -63,7 +63,7 @@ func GetStreamProxyClient(ctx context.Context, source, variant string, limit int
 	}
 
 	proxyAddress := fmt.Sprintf("%s:%s", proxyHost, proxyPort)
-	baseLogger.Infof("Received stream request, forwarding to iceberg-proxy at: %s", proxyAddress)
+	baseLogger.Infow("Received stream request, forwarding to iceberg-proxy at: ", proxyAddress)
 
 	insecureOption := grpc.WithTransportCredentials(insecure.NewCredentials())
 	sizeOption := grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(20 * 1024 * 1024)) //20 MB
@@ -159,6 +159,9 @@ func (si StreamProxyClient) Columns() []string {
 }
 
 func (si StreamProxyClient) Schema() arrow.Schema {
+	if si.schema == nil {
+		return arrow.Schema{}
+	}
 	return *si.schema
 }
 

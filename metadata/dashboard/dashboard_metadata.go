@@ -2090,15 +2090,21 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		return
 	}
 
-	m.logger.Infof("Fetching location with source variant: %s-%s", sv.Name(), sv.Variant())
+	m.logger.Infow("Fetching location with source variant", "source", sv.Name(), "variant", sv.Variant())
 	var location pl.Location
 	var locationErr error
-	if sv.IsSQLTransformation() || sv.IsDFTransformation() {
+	switch {
+	case sv.IsSQLTransformation() || sv.IsDFTransformation():
 		m.logger.Info("source variant is sql/dft transformation, getting transform location...")
 		location, locationErr = sv.GetTransformationLocation()
-	} else if sv.IsPrimaryData() {
+	case sv.IsPrimaryData():
 		m.logger.Info("source variant is primary data, getting primary location...")
 		location, locationErr = sv.GetPrimaryLocation()
+	default:
+		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "GetSourceData - Unsupported source variant type"}
+		m.logger.Errorw(fetchError.Error(), fmt.Sprintf("Metadata error, unknown source variant type for %s-%s: ", name, variant), svErr)
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
 	}
 
 	if locationErr != nil {
@@ -2109,7 +2115,7 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	}
 
 	m.logger.Info("found location: ", location)
-	m.logger.Infof("location type: %v", location.Type())
+	m.logger.Info("location type: ", location.Type())
 
 	switch location.Type() {
 	case pl.CatalogLocationType:
@@ -2123,7 +2129,7 @@ func (m *MetadataServer) GetNonStreamSourceData(c *gin.Context) {
 	name := c.Query("name")
 	variant := c.Query("variant")
 
-	m.logger.Infof("Processing non-streaming request: %s-%s, ", name, variant)
+	m.logger.Infow("Processing non-streaming request: ", "name", name, "variant", variant)
 
 	if name == "" || variant == "" {
 		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetSourceData - Could not find the name or variant query parameters"}
@@ -2925,7 +2931,7 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 		Rows:    [][]string{},
 	}
 
-	iterator, err := pr.GetStreamProxyClient(c.Request.Context(), source, variant, limit)
+	proxyIterator, err := pr.GetStreamProxyClient(c.Request.Context(), source, variant, limit)
 	if err != nil {
 		fetchError := &FetchError{
 			StatusCode: http.StatusInternalServerError,
@@ -2935,11 +2941,11 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
-	defer iterator.Close()
+	defer proxyIterator.Close()
 
 	m.logger.Info("Proxy connection established, iterating stream data...")
-	for iterator.Next() {
-		dataMatrix := iterator.Values()
+	for proxyIterator.Next() {
+		dataMatrix := proxyIterator.Values()
 		// extract the interface data
 		for _, dataRow := range dataMatrix {
 			stringArray, ok := dataRow.([]string) // expect string array
@@ -2956,15 +2962,15 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 		}
 	}
 
-	proxySchema := iterator.Schema()
+	proxySchema := proxyIterator.Schema()
 	fields := proxySchema.Fields()
-	for i, columnName := range iterator.Columns() {
+	for i, columnName := range proxyIterator.Columns() {
 		cleanName := strings.ReplaceAll(columnName, "\"", "")
 		response.Columns = append(response.Columns, fmt.Sprintf("%s(%s)", cleanName, fields[i].Type.String()))
 		if i == MaxPreviewCols {
 			response.Columns = append(
 				response.Columns,
-				fmt.Sprintf("%d More Columns...", len(iterator.Columns())-MaxPreviewCols),
+				fmt.Sprintf("%d More Columns...", len(proxyIterator.Columns())-MaxPreviewCols),
 			)
 			break
 		}

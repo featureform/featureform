@@ -2956,9 +2956,11 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 		}
 	}
 
+	proxySchema := iterator.Schema()
+	fields := proxySchema.Fields()
 	for i, columnName := range iterator.Columns() {
 		cleanName := strings.ReplaceAll(columnName, "\"", "")
-		response.Columns = append(response.Columns, cleanName)
+		response.Columns = append(response.Columns, fmt.Sprintf("%s(%s)", cleanName, fields[i].Type.String()))
 		if i == MaxPreviewCols {
 			response.Columns = append(
 				response.Columns,

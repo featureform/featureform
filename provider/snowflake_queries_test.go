@@ -68,10 +68,7 @@ func TestSnowflakeDynamicIcebergTableQuery(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actual, err := snowflakeSQLQueries{}.dynamicIcebergTableCreate(tt.table, tt.query, tt.config)
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
-			}
+			actual := snowflakeSQLQueries{}.dynamicIcebergTableCreate(tt.table, tt.query, tt.config)
 
 			if actual != tt.expected {
 				t.Errorf("Expected %v, but instead found %v", tt.expected, actual)

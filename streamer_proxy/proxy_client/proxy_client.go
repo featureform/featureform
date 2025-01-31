@@ -30,7 +30,7 @@ func GetStreamProxyClient(ctx context.Context, source, variant string, limit int
 	proxyHost := help.GetEnv("ICEBERG_PROXY_HOST", "localhost")
 	proxyPort := help.GetEnv("ICEBERG_PROXY_PORT", "8086")
 
-	baseLogger := logging.NewLogger("stream-iterator")
+	baseLogger := logging.GetLoggerFromContext(ctx)
 
 	if proxyHost == "" {
 		envErr := fmt.Errorf("missing ICEBERG_PROXY_HOST env variable")
@@ -63,7 +63,8 @@ func GetStreamProxyClient(ctx context.Context, source, variant string, limit int
 	}
 
 	proxyAddress := fmt.Sprintf("%s:%s", proxyHost, proxyPort)
-	baseLogger.Infow("Received stream request, forwarding to iceberg-proxy at: ", proxyAddress)
+	baseLogger.Infow("Forwarding to iceberg-proxy", "proxy_address", proxyAddress)
+	baseLogger.Debugw("Forwarding parameters", "source", source, "variant", variant, "limit", limit)
 
 	insecureOption := grpc.WithTransportCredentials(insecure.NewCredentials())
 	sizeOption := grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(20 * 1024 * 1024)) //20 MB
@@ -128,6 +129,7 @@ func (si *StreamProxyClient) Next() bool {
 	hasNext := si.recordReader.Next()
 	si.currentBatch = si.recordReader.Record()
 	if !hasNext {
+		si.logger.Debug("recordReader.Next() returned false, setting currentBatch to nil")
 		si.currentBatch = nil
 	}
 	return hasNext
@@ -135,6 +137,7 @@ func (si *StreamProxyClient) Next() bool {
 
 func (si StreamProxyClient) Values() provider.GenericRecord {
 	if si.currentBatch == nil {
+		si.logger.Warn("Record reader current batch is nil; returning nil")
 		return nil
 	}
 	rowMatrix := make(provider.GenericRecord, si.currentBatch.NumRows())
@@ -155,11 +158,16 @@ func (si StreamProxyClient) Values() provider.GenericRecord {
 }
 
 func (si StreamProxyClient) Columns() []string {
+	if si.columns == nil {
+		si.logger.Warn("columns is nil; returning an empty string slice")
+		return []string{}
+	}
 	return si.columns
 }
 
 func (si StreamProxyClient) Schema() arrow.Schema {
 	if si.schema == nil {
+		si.logger.Warn("Schema is nil; returning an empty schema")
 		return arrow.Schema{}
 	}
 	return *si.schema

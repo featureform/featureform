@@ -29,7 +29,7 @@ func startProxyServer(t *testing.T, recordSlice []arrow.Record, schema *arrow.Sc
 	grpcServer := grpc.NewServer()
 	listener, listenErr := net.Listen("tcp", "localhost:0")
 	if listenErr != nil {
-		t.Fatalf("Failed to bind address to :%s", listenErr)
+		return nil, fmt.Errorf("failed to bind address: %w", listenErr)
 	}
 
 	// pull the os assigned port

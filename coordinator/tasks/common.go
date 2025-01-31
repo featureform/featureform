@@ -11,7 +11,7 @@ import (
 )
 
 type offlineProviderFetcher interface {
-	FetchProvider(context.Context, *metadata.Client) (*metadata.Provider, error)
+	FetchProvider(*metadata.Client, context.Context) (*metadata.Provider, error)
 }
 
 // an adapter to fetch an offline provider for a feature since feature's FetchProvider returns the online provider
@@ -19,7 +19,7 @@ type offlineProviderFeatureAdapter struct {
 	feature *metadata.FeatureVariant
 }
 
-func (f *offlineProviderFeatureAdapter) FetchProvider(ctx context.Context, client *metadata.Client) (*metadata.Provider, error) {
+func (f *offlineProviderFeatureAdapter) FetchProvider(client *metadata.Client, ctx context.Context) (*metadata.Provider, error) {
 	return f.feature.FetchOfflineStoreProvider(client, ctx)
 }
 
@@ -36,7 +36,7 @@ func getOfflineStore(
 	}
 
 	logger.Debugf("Fetching provider for task")
-	providerEntry, err := pf.FetchProvider(ctx, client)
+	providerEntry, err := pf.FetchProvider(client, ctx)
 	if err != nil {
 		logger.Errorw("Failed to fetch provider", "error", err)
 		return nil, err

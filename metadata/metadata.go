@@ -2973,6 +2973,7 @@ func (serv *MetadataServer) fillOfflineStoreLocations(ctx context.Context, fv *p
 		fv.OfflineStoreLocations = append(fv.GetOfflineStoreLocations(), location.Proto())
 	} else {
 		logger.Errorw("Location proto is nil, not adding to offline store locations")
+		return nil
 	}
 
 	logger.Debug("Offline store locations have been updated")

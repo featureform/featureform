@@ -3,19 +3,20 @@ package metadata
 import (
 	"context"
 	"errors"
-	"github.com/featureform/fferr"
-	help "github.com/featureform/helpers"
-	"github.com/featureform/helpers/postgres"
-	"github.com/stretchr/testify/require"
 	"net"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/featureform/fferr"
+	help "github.com/featureform/helpers"
+	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
-	"github.com/stretchr/testify/assert"
 )
 
 func startServPsql(t *testing.T) (*MetadataServer, string) {

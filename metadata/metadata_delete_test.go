@@ -19,13 +19,14 @@ import (
 	"github.com/featureform/scheduling"
 )
 
-func startServPsql(t *testing.T) (*MetadataServer, string) {
+func startServPsql(t *testing.T) (*MetadataServer, string, func()) {
+	testDb, dbCleanup := createTestDatabase(t)
 	psqlConfig := postgres.Config{
 		Host:     help.GetEnv("POSTGRES_HOST", "localhost"),
 		Port:     help.GetEnv("POSTGRES_PORT", "5432"),
 		User:     help.GetEnv("POSTGRES_USER", "postgres"),
 		Password: help.GetEnv("POSTGRES_PASSWORD", "password"),
-		DBName:   help.GetEnv("POSTGRES_DB", "postgres"),
+		DBName:   testDb,
 		SSLMode:  help.GetEnv("POSTGRES_SSL_MODE", "disable"),
 	}
 	ctx := logging.NewTestContext(t)
@@ -55,7 +56,7 @@ func startServPsql(t *testing.T) (*MetadataServer, string) {
 			panic(err)
 		}
 	}()
-	return serv, lis.Addr().String()
+	return serv, lis.Addr().String(), dbCleanup
 }
 
 func TestMetadataDelete(t *testing.T) {
@@ -166,14 +167,15 @@ func TestMetadataDelete(t *testing.T) {
 		},
 	}
 
-	serv, addr := startServPsql(t)
-	ctx, logger := logging.NewTestContextAndLogger(t)
-	cli := client(t, ctx, logger, addr)
-	err := cli.CreateAll(context.Background(), resources)
+	testServer := newTestMetadataServer(t)
+	defer testServer.Close()
+	defer testServer.dbCleanup()
+
+	err := testServer.client.CreateAll(context.Background(), resources)
 	assert.NoError(t, err)
 
 	// set statuses to ready
-	_, err = serv.SetResourceStatus(context.Background(), &pb.SetStatusRequest{
+	_, err = testServer.server.SetResourceStatus(context.Background(), &pb.SetStatusRequest{
 		ResourceId: &pb.ResourceID{
 			Resource: &pb.NameVariant{
 				Name: "mockOnline",
@@ -186,7 +188,7 @@ func TestMetadataDelete(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = serv.SetResourceStatus(context.Background(), &pb.SetStatusRequest{
+	_, err = testServer.server.SetResourceStatus(context.Background(), &pb.SetStatusRequest{
 		ResourceId: &pb.ResourceID{
 			Resource: &pb.NameVariant{
 				Name: "mockOfflineToDelete",
@@ -199,7 +201,7 @@ func TestMetadataDelete(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = serv.SetResourceStatus(context.Background(), &pb.SetStatusRequest{
+	_, err = testServer.server.SetResourceStatus(context.Background(), &pb.SetStatusRequest{
 		ResourceId: &pb.ResourceID{
 			Resource: &pb.NameVariant{
 				Name: "mockOffline",
@@ -214,7 +216,7 @@ func TestMetadataDelete(t *testing.T) {
 
 	t.Run("delete provider with no dependencies", func(t *testing.T) {
 		// try to delete the online provider
-		_, err := serv.MarkForDeletion(context.Background(), &pb.MarkForDeletionRequest{
+		_, err := testServer.server.MarkForDeletion(context.Background(), &pb.MarkForDeletionRequest{
 			ResourceId: &pb.ResourceID{
 				Resource: &pb.NameVariant{
 					Name: "mockOfflineToDelete",
@@ -224,7 +226,7 @@ func TestMetadataDelete(t *testing.T) {
 		})
 		assert.NoError(t, err)
 
-		res, err := serv.lookup.Lookup(context.Background(), ResourceID{
+		res, err := testServer.server.lookup.Lookup(context.Background(), ResourceID{
 			Name: "mockOfflineToDelete",
 			Type: PROVIDER,
 		})
@@ -236,7 +238,7 @@ func TestMetadataDelete(t *testing.T) {
 
 	t.Run("delete provider with dependencies", func(t *testing.T) {
 		// try to delete the online provider
-		_, err := serv.MarkForDeletion(context.Background(), &pb.MarkForDeletionRequest{
+		_, err := testServer.server.MarkForDeletion(context.Background(), &pb.MarkForDeletionRequest{
 			ResourceId: &pb.ResourceID{
 				Resource: &pb.NameVariant{
 					Name: "mockOffline",
@@ -248,7 +250,7 @@ func TestMetadataDelete(t *testing.T) {
 	})
 
 	t.Run("try to delete primary source", func(t *testing.T) {
-		_, err := serv.MarkForDeletion(context.Background(), &pb.MarkForDeletionRequest{
+		_, err := testServer.server.MarkForDeletion(context.Background(), &pb.MarkForDeletionRequest{
 			ResourceId: &pb.ResourceID{
 				Resource: &pb.NameVariant{
 					Name:    "primarydata",
@@ -261,7 +263,7 @@ func TestMetadataDelete(t *testing.T) {
 	})
 
 	t.Run("delete source that's not ready", func(t *testing.T) {
-		_, err := serv.MarkForDeletion(context.Background(), &pb.MarkForDeletionRequest{
+		_, err := testServer.server.MarkForDeletion(context.Background(), &pb.MarkForDeletionRequest{
 			ResourceId: &pb.ResourceID{
 				Resource: &pb.NameVariant{
 					Name:    "tf",

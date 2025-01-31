@@ -250,6 +250,15 @@ func (id ResourceID) String() string {
 	return fmt.Sprintf("%s %s (%s)", id.Type, id.Name, id.Variant)
 }
 
+// TODO Remove this and consolidate
+func (id ResourceID) ToCommonResourceID() common.ResourceID {
+	return common.ResourceID{
+		Name:    id.Name,
+		Variant: id.Variant,
+		Type:    common.ResourceType(id.Type),
+	}
+}
+
 var bannedStrings = [...]string{"__"}
 var bannedPrefixes = [...]string{"_"}
 var bannedSuffixes = [...]string{"_"}

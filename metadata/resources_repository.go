@@ -71,7 +71,7 @@ const (
 
 	archiveSql = `-- name: Delete :exec
 		UPDATE ff_task_metadata
-		SET key = concat('DELETED__', key, '__', to_char(now(), 'YYYYMMDDTHH24MISS'))
+		SET key = concat('DELETED__', key, to_char(now(), 'YYYYMMDDTHH24MISS'))
 		WHERE key = $1;`
 )
 

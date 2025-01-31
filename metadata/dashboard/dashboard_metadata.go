@@ -49,6 +49,9 @@ const (
 	Disconnected = "disconnected"
 )
 
+const defaultStreamLimit = 100
+const maxColumnNameLength = 30
+
 const typeListLimit int = 8
 const serializedVersion string = "SerializedVersion"
 const serializedV1 string = "1"
@@ -2925,13 +2928,12 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 		return
 	}
 
-	var limit int = 100 //default the size to 100
 	response := SourceDataResponse{
 		Columns: []string{},
 		Rows:    [][]string{},
 	}
 
-	proxyIterator, err := pr.GetStreamProxyClient(c.Request.Context(), source, variant, limit)
+	proxyIterator, err := pr.GetStreamProxyClient(c.Request.Context(), source, variant, defaultStreamLimit)
 	if err != nil {
 		fetchError := &FetchError{
 			StatusCode: http.StatusInternalServerError,
@@ -2945,6 +2947,16 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 
 	m.logger.Info("Proxy connection established, iterating stream data...")
 	for proxyIterator.Next() {
+		readerErr := proxyIterator.Err()
+		if readerErr != nil {
+			fetchError := &FetchError{
+				StatusCode: http.StatusInternalServerError,
+				Type:       fmt.Sprintf("GetStream - proxyIterator reader.next() error: %v", err),
+			}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
+			return
+		}
 		dataMatrix := proxyIterator.Values()
 		// extract the interface data
 		for _, dataRow := range dataMatrix {
@@ -2964,8 +2976,25 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 
 	proxySchema := proxyIterator.Schema()
 	fields := proxySchema.Fields()
+	if len(fields) == 0 {
+		fetchError := &FetchError{
+			StatusCode: http.StatusInternalServerError,
+			Type:       "GetStream - Empty Schema, no fields in proxy",
+		}
+		m.logger.Error("schema has no fields")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
 	for i, columnName := range proxyIterator.Columns() {
+		if i >= len(fields) {
+			// non-disruptive safety check to ensure our columnn idx doesn't exceed the fields
+			m.logger.Errorf("current column index %d exceeds fields length %d", i, len(fields))
+			break
+		}
 		cleanName := strings.ReplaceAll(columnName, "\"", "")
+		if len(cleanName) > maxColumnNameLength {
+			cleanName = cleanName[:maxColumnNameLength] + "..."
+		}
 		response.Columns = append(response.Columns, fmt.Sprintf("%s(%s)", cleanName, fields[i].Type.String()))
 		if i == MaxPreviewCols {
 			response.Columns = append(

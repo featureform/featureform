@@ -364,3 +364,36 @@ func TestClient_EmptyData(t *testing.T) {
 	assert.Error(t, proxyErr, "Expected error when connecting to an invalid Flight server")
 	assert.ErrorContainsf(t, proxyErr, fmt.Sprintf("connection established, but no data available for source (%s) and variant (%s)", someName, someVariant), "")
 }
+
+func TestClient_SchemaRetrieval(t *testing.T) {
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int32},
+		{Name: "name", Type: arrow.BinaryTypes.String},
+	}, nil)
+
+	data := [][]interface{}{
+		{
+			[]int32{1, 2, 3},
+			[]string{"Tony", "Nilma", "Neo"},
+		},
+	}
+
+	recordSlice := createRecords(schema, arrow.Metadata{}, nil, data)
+
+	cleanUp, startErr := startProxyServer(t, recordSlice, schema)
+	if startErr != nil {
+		t.Fatalf("could not setup proxy server. error: %v", startErr)
+	}
+	defer cleanUp()
+
+	proxyClient, proxyErr := GetStreamProxyClient(context.Background(), "some_name", "some_variant", 10)
+	assert.NoError(t, proxyErr, "Expected no error when fetching stream proxy client")
+
+	proxySchema := proxyClient.Schema()
+
+	assert.NotNil(t, proxyClient.Schema(), "Schema should not be nil")
+	assert.Equal(t, schema.Fields(), proxySchema.Fields(), "Both schemas should match")
+
+	expectedColumns := []string{"id", "name"}
+	assert.Equal(t, expectedColumns, proxyClient.Columns(), "Column names should match expected values")
+}

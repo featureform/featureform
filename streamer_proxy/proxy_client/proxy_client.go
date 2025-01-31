@@ -20,6 +20,7 @@ type StreamProxyClient struct {
 	client       flight.Client
 	flightStream flight.FlightService_DoGetClient
 	recordReader *flight.Reader
+	schema       *arrow.Schema
 	currentBatch arrow.Record
 	columns      []string
 	logger       logging.Logger
@@ -103,12 +104,14 @@ func GetStreamProxyClient(ctx context.Context, source, variant string, limit int
 		return nil, fmt.Errorf("failed to create record reader: %w", err)
 	}
 
-	// pull the column names
+	// pull the schema and column names
+	var schema = recordReader.Schema()
 	var columns []string
-	if recordReader.Schema() != nil {
+	if schema != nil {
 		for _, field := range recordReader.Schema().Fields() {
 			columns = append(columns, field.Name)
 		}
+
 	}
 
 	return &StreamProxyClient{
@@ -116,6 +119,7 @@ func GetStreamProxyClient(ctx context.Context, source, variant string, limit int
 		flightStream: flightStream,
 		recordReader: recordReader,
 		columns:      columns,
+		schema:       schema,
 		logger:       baseLogger,
 	}, nil
 }
@@ -152,6 +156,10 @@ func (si StreamProxyClient) Values() provider.GenericRecord {
 
 func (si StreamProxyClient) Columns() []string {
 	return si.columns
+}
+
+func (si StreamProxyClient) Schema() arrow.Schema {
+	return *si.schema
 }
 
 func (si StreamProxyClient) Err() error {

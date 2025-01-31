@@ -57,7 +57,7 @@ slackApiChannel: ""
 
 k8sImagePullSecret: "regcred"
 
-# Storage Provider for the backend state. One of [etcd, psql, memory]
+# Storage Provider for the backend state. One of [psql, memory]
 stateProvider: "psql"
 
 # base url for the dashboard (used for constructing callback url)
@@ -313,3 +313,27 @@ icebergProxy:
     enabled: false
     minReplicas: 1
     maxReplicas: 10
+
+postgresql:
+  enabled: true
+  auth:
+    username: featureform
+    password: featureform
+    database: featureform
+  
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+    
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+  service:
+    ports:
+      postgresql: 5432

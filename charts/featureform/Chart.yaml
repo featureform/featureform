@@ -47,3 +47,8 @@ dependencies:
   - name: meilisearch
     repository: https://meilisearch.github.io/meilisearch-kubernetes
     version: 0.1.49
+
+  - name: postgresql
+    repository: https://charts.bitnami.com/bitnami
+    version: 12.5.6
+    condition: postgresql.enabled

@@ -79,7 +79,7 @@ func GetStreamProxyClient(ctx context.Context, source, variant string, limit int
 	ticketData := map[string]interface{}{
 		"source":       source,
 		"variant":      variant,
-		"resourceType": "", // todo: we can remove this prop at this step
+		"resourceType": "-", // todo: we can remove this prop at this step later on.
 		"limit":        limit,
 	}
 

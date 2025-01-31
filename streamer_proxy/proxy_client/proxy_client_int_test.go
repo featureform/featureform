@@ -262,8 +262,7 @@ func TestClient_MultipleRecordBatches(t *testing.T) {
 				for _, dataRow := range dataMatrix {
 					stringArray, ok := dataRow.([]string)
 					if !ok {
-						fmt.Println("The data row did not cast correctly")
-						t.FailNow()
+						t.Fatal("The data row did not cast correctly")
 					}
 					actualRows = append(actualRows, stringArray)
 				}

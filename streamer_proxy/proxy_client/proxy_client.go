@@ -8,8 +8,8 @@ import (
 
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/flight"
+	"github.com/featureform/config"
 	"github.com/featureform/fferr"
-	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/provider"
 	"google.golang.org/grpc"
@@ -27,8 +27,8 @@ type StreamProxyClient struct {
 }
 
 func GetStreamProxyClient(ctx context.Context, source, variant string, limit int) (*StreamProxyClient, error) {
-	proxyHost := help.GetEnv("ICEBERG_PROXY_HOST", "localhost")
-	proxyPort := help.GetEnv("ICEBERG_PROXY_PORT", "8086")
+	proxyHost := config.GetIcebergProxyHost()
+	proxyPort := config.GetIcebergProxyPort()
 
 	baseLogger := logging.GetLoggerFromContext(ctx)
 

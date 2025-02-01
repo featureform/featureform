@@ -128,6 +128,14 @@ func GetSlackChannelId() string {
 	return helpers.GetEnv("SLACK_CHANNEL_ID", "") //no meaningful fallback ID
 }
 
+func GetIcebergProxyHost() string {
+	return helpers.GetEnv("ICEBERG_PROXY_HOST", "localhost")
+}
+
+func GetIcebergProxyPort() string {
+	return helpers.GetEnv("ICEBERG_PROXY_PORT", "8086")
+}
+
 type StateProviderType string
 
 const (

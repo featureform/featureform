@@ -19,7 +19,6 @@ import (
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
-	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 
 	"github.com/apache/arrow/go/v17/arrow/flight"
@@ -79,22 +78,15 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 	}
 
 	gps.logger.Infof("Fetching location with source variant: %s-%s", sourceVariant.Name(), sourceVariant.Variant())
-	var location pl.Location
-	var locationErr error
-	if sourceVariant.IsSQLTransformation() || sourceVariant.IsDFTransformation() {
-		gps.logger.Info("source variant is sql/dft transformation, getting transform location...")
-		location, locationErr = sourceVariant.GetTransformationLocation()
-	} else if sourceVariant.IsPrimaryData() {
-		gps.logger.Info("source variant is primary data, getting primary location...")
-		location, locationErr = sourceVariant.GetPrimaryLocation()
-	}
+	location, locationErr := sourceVariant.GetLocation()
 
-	gps.logger.Info("found location: ", location)
-	gps.logger.Info("location error: ", locationErr)
 	if locationErr != nil {
 		gps.logger.Error("error when invoking sourceVariant.GetPrimaryLocation()", "error", locationErr)
 		return nil, locationErr
 	}
+
+	gps.logger.Debugf("location found: %s", "location")
+	gps.logger.Debugf("location type: %s", location.Type())
 
 	if location == nil {
 		err := fmt.Errorf("location is nil after GetPrimaryLocation")

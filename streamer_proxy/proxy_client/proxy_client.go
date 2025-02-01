@@ -129,7 +129,7 @@ func (si *StreamProxyClient) Next() bool {
 	hasNext := si.recordReader.Next()
 	si.currentBatch = si.recordReader.Record()
 	if !hasNext {
-		si.logger.Debug("recordReader.Next() returned false, setting currentBatch to nil")
+		si.logger.Debug("recordReader.Next() returned false (no more records), setting currentBatch to nil")
 		si.currentBatch = nil
 	}
 	return hasNext

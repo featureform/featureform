@@ -2094,21 +2094,7 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	}
 
 	m.logger.Infow("Fetching location with source variant", "source", sv.Name(), "variant", sv.Variant())
-	var location pl.Location
-	var locationErr error
-	switch {
-	case sv.IsSQLTransformation() || sv.IsDFTransformation():
-		m.logger.Info("source variant is sql/dft transformation, getting transform location...")
-		location, locationErr = sv.GetTransformationLocation()
-	case sv.IsPrimaryData():
-		m.logger.Info("source variant is primary data, getting primary location...")
-		location, locationErr = sv.GetPrimaryLocation()
-	default:
-		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "GetSourceData - Unsupported source variant type"}
-		m.logger.Errorw(fetchError.Error(), fmt.Sprintf("Metadata error, unknown source variant type for %s-%s: ", name, variant), svErr)
-		c.JSON(fetchError.StatusCode, fetchError.Error())
-		return
-	}
+	location, locationErr := sv.GetLocation()
 
 	if locationErr != nil {
 		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "GetSourceData"}
@@ -2117,8 +2103,8 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		return
 	}
 
-	m.logger.Debugw("found location: ", location)
-	m.logger.Debugw("location type: ", location.Type())
+	m.logger.Debugf("location found: %s", "location")
+	m.logger.Debugf("location type: %s", location.Type())
 
 	switch location.Type() {
 	case pl.CatalogLocationType:

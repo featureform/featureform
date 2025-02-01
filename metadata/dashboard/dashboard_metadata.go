@@ -26,11 +26,13 @@ import (
 	"github.com/featureform/metadata/search"
 	"github.com/featureform/proto"
 	"github.com/featureform/provider"
+	pl "github.com/featureform/provider/location"
 	pt "github.com/featureform/provider/provider_type"
 	sc "github.com/featureform/scheduling"
 	"github.com/featureform/serving"
 	"github.com/featureform/storage"
 	"github.com/featureform/storage/query"
+	pr "github.com/featureform/streamer_proxy/proxy_client"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -46,6 +48,9 @@ const (
 	Connected    = "connected"
 	Disconnected = "disconnected"
 )
+
+const defaultStreamLimit = 100
+const maxColumnNameLength = 30
 
 const typeListLimit int = 8
 const serializedVersion string = "SerializedVersion"
@@ -2080,6 +2085,42 @@ const MaxPreviewCols = 15
 func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	name := c.Query("name")
 	variant := c.Query("variant")
+	sv, svErr := m.client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: name, Variant: variant})
+	if svErr != nil {
+		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "GetSourceData"}
+		m.logger.Errorw(fetchError.Error(), fmt.Sprintf("Metadata error, could not get SourceVariant, source (%s) variant (%s): ", name, variant), svErr)
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	m.logger.Infow("Fetching location with source variant", "source", sv.Name(), "variant", sv.Variant())
+	location, locationErr := sv.GetLocation()
+
+	if locationErr != nil {
+		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "GetSourceData"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error, problem fetching source variant location: ", locationErr)
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	m.logger.Debugf("location found: %s", location.Location())
+	m.logger.Debugf("location type: %s", location.Type())
+
+	switch location.Type() {
+	case pl.CatalogLocationType:
+		m.logger.Debug("Routing to streamer proxy")
+		m.GetStream(c)
+	default:
+		m.logger.Debug("Routing to source data")
+		m.GetNonStreamSourceData(c)
+	}
+}
+
+func (m *MetadataServer) GetNonStreamSourceData(c *gin.Context) {
+	name := c.Query("name")
+	variant := c.Query("variant")
+
+	m.logger.Infow("Processing non-streaming request: ", "name", name, "variant", variant)
 
 	if name == "" || variant == "" {
 		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetSourceData - Could not find the name or variant query parameters"}
@@ -2862,6 +2903,100 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+func (m *MetadataServer) GetStream(c *gin.Context) {
+	source := c.Query("name")
+	variant := c.Query("variant")
+
+	m.logger.Infof("Processing streaming request: %s-%s, ", source, variant)
+
+	if source == "" || variant == "" {
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetStream - Could not find the name or variant query parameters"}
+		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
+	response := SourceDataResponse{
+		Columns: []string{},
+		Rows:    [][]string{},
+	}
+
+	proxyIterator, proxyErr := pr.GetStreamProxyClient(c.Request.Context(), source, variant, defaultStreamLimit)
+	if proxyErr != nil {
+		fetchError := &FetchError{
+			StatusCode: http.StatusInternalServerError,
+			Type:       fmt.Sprintf("GetStream - %s", proxyErr.Error()),
+		}
+		m.logger.Errorw(fetchError.Error(), "Metadata error", fetchError)
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	defer proxyIterator.Close()
+
+	m.logger.Info("Proxy connection established, iterating stream data...")
+	for proxyIterator.Next() {
+		readerErr := proxyIterator.Err()
+		if readerErr != nil {
+			fetchError := &FetchError{
+				StatusCode: http.StatusInternalServerError,
+				Type:       fmt.Sprintf("GetStream - proxyIterator reader.next() error: %v", readerErr),
+			}
+			m.logger.Errorw(fetchError.Error(), "Metadata error", proxyErr)
+			c.JSON(fetchError.StatusCode, fetchError.Error())
+			return
+		}
+		dataMatrix := proxyIterator.Values()
+		// extract the interface data
+		for _, dataRow := range dataMatrix {
+			stringArray, ok := dataRow.([]string) // expect string array
+			if !ok {
+				fetchError := &FetchError{
+					StatusCode: http.StatusInternalServerError,
+					Type:       "GetStream - Datarow type assert",
+				}
+				m.logger.Errorw("unable to type assert data row: %v", dataRow)
+				c.JSON(fetchError.StatusCode, fetchError.Error())
+				return
+			}
+			response.Rows = append(response.Rows, stringArray)
+		}
+	}
+
+	proxySchema := proxyIterator.Schema()
+	fields := proxySchema.Fields()
+	if len(fields) == 0 {
+		fetchError := &FetchError{
+			StatusCode: http.StatusInternalServerError,
+			Type:       "GetStream - Empty Schema, no fields in proxy",
+		}
+		m.logger.Error("schema has no fields")
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+	for i, columnName := range proxyIterator.Columns() {
+		if i >= len(fields) {
+			// non-disruptive safety check to ensure our columnn idx doesn't exceed the fields
+			m.logger.Errorf("current column index %d exceeds fields length %d", i, len(fields))
+			break
+		}
+		cleanName := strings.ReplaceAll(columnName, "\"", "")
+		if cleanName != "" && len(cleanName) > maxColumnNameLength {
+			cleanName = cleanName[:maxColumnNameLength] + "..."
+		}
+		response.Columns = append(response.Columns, fmt.Sprintf("%s(%s)", cleanName, fields[i].Type.String()))
+		if i == MaxPreviewCols {
+			response.Columns = append(
+				response.Columns,
+				fmt.Sprintf("%d More Columns...", len(proxyIterator.Columns())-MaxPreviewCols),
+			)
+			break
+		}
+	}
+
+	m.logger.Info("Stream complete, returning response.")
+	c.JSON(http.StatusOK, response)
+}
+
 func (m *MetadataServer) Start(port string, local bool) error {
 	router := gin.Default()
 	if local {
@@ -2891,6 +3026,7 @@ func (m *MetadataServer) Start(port string, local bool) error {
 	router.POST("/data/providers", m.GetProviderResources)
 	router.POST("/data/models", m.GetModelResources)
 	router.GET("/data/:type/prop/owners", m.GetTypeOwners)
+	router.GET("/data/stream", m.GetStream)
 
 	return router.Run(port)
 }

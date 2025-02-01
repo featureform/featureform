@@ -306,6 +306,7 @@ icebergStreamer:
 # Configuration for iceberg proxy
 icebergProxy:
   port: 8086
+  host: iceberg-proxy
   image:
     name: iceberg-proxy
   replicaCount: 1

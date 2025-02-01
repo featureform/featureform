@@ -199,7 +199,7 @@ func TestGetSourceDataReturnsData(t *testing.T) {
 		logger: logger,
 	}
 
-	serv.GetSourceData(ctx)
+	serv.GetNonStreamSourceData(ctx)
 
 	iterator := provider.UnitTestIterator{}
 	var data SourceDataResponse
@@ -225,7 +225,7 @@ func TestGetSourceMissingNameOrVariantParamErrors(t *testing.T) {
 		logger: logger,
 	}
 
-	serv.GetSourceData(ctx)
+	serv.GetNonStreamSourceData(ctx)
 
 	var actualErrorMsg string
 	expectedMsg := "Error 400: Failed to fetch GetSourceData - Could not find the name or variant query parameters"
@@ -249,7 +249,7 @@ func TestGetSourceFaultyOrNilGrpcClientPanic(t *testing.T) {
 	}
 
 	didPanic := func() {
-		serv.GetSourceData(ctx)
+		serv.GetNonStreamSourceData(ctx)
 	}
 
 	assert.Panics(t, didPanic)

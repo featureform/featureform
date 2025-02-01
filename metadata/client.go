@@ -3231,6 +3231,26 @@ func (variant *SourceVariant) GetTransformationLocation() (pl.Location, error) {
 	}
 }
 
+// helper function to get SourceVariant location based on sourceVariant type (primary, sql, dft)
+// returns error if type not listed
+func (variant *SourceVariant) GetLocation() (pl.Location, error) {
+	var foundLocation pl.Location
+	var locationErr error
+	switch {
+	case variant.IsSQLTransformation() || variant.IsDFTransformation():
+		fmt.Println("GetLocation() source variant is sql/dft transformation, getting transform location...")
+		foundLocation, locationErr = variant.GetTransformationLocation()
+	case variant.IsPrimaryData():
+		fmt.Println("GetLocation() source variant is primary data, getting primary location...")
+		foundLocation, locationErr = variant.GetPrimaryLocation()
+	default:
+		fmt.Sprintln("GetLocation() Unknown source variant type, returning error")
+		foundLocation, locationErr = nil, fferr.NewInternalErrorf("Unknown source variant type for %s-%s", variant.Name(), variant.Variant())
+	}
+
+	return foundLocation, locationErr
+}
+
 func (variant *SourceVariant) SparkFlags() pc.SparkFlags {
 	if !variant.IsTransformation() {
 		return pc.SparkFlags{}

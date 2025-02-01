@@ -321,7 +321,7 @@ func (r *sqlResourcesRepository) PruneResource(
 			resId := ResourceID{Name: resourceID.Name, Variant: resourceID.Variant, Type: ResourceType(resourceID.Type)}
 			_, err := r.Lookup(ctx, resId)
 			if err != nil {
-				logger.Errorf("error looking up %s: %v", resId, err)
+				logger.Errorw("error looking up resource", "error", err)
 				return err
 			}
 
@@ -405,7 +405,7 @@ func (r *sqlResourcesRepository) PruneResource(
 						return err
 					}
 				} else {
-					if err := r.hardDelete(ctx, tx, resourceID, logger); err != nil {
+					if err := r.hardDelete(ctx, tx, resId.ToCommonResourceID(), logger); err != nil {
 						logger.Errorw("error hard deleting", "error", err)
 						return err
 					}

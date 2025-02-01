@@ -402,11 +402,7 @@ CREATE INDEX IF NOT EXISTS idx_to_resource ON edges (
 -- Populate the edges table if it is empty
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM edges LIMIT 1) THEN
-        PERFORM add_edges_from_all_ff_task_metadata();
-    ELSE
-        RAISE NOTICE 'Skipping population of edges table because it is not empty.';
-    END IF;
+    PERFORM add_edges_from_all_ff_task_metadata();
 END;
 $$;
 

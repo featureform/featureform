@@ -279,7 +279,7 @@ export function useDataAPI() {
   };
 
   const searchResources = async (query) => {
-    const result = await authenticatedFetch(
+    const result = await fetch(
       `${API_URL}/data/search?q=${query}`, 
       {
       cache: 'no-store',

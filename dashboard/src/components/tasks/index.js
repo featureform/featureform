@@ -19,7 +19,6 @@ export default function TaskRunsPage({
 }) {
   return (
     <PageContainer>
-    <PageContainer>
       <h3>Task Runs</h3>
       <TableDataWrapper taskName={name} taskVariant={variant}/>
     </PageContainer>

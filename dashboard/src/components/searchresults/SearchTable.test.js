@@ -5,7 +5,7 @@
 // Copyright 2024 FeatureForm Inc.
 //
 
-import { cleanup, fireEvent, render, act, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render } from '@testing-library/react';
 import 'jest-canvas-mock';
 import React from 'react';
 import SearchTable from './SearchTable';

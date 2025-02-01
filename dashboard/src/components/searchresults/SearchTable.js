@@ -261,7 +261,12 @@ export const SearchTable = () => {
               page={filters.offset}
               pageSize={filters.pageSize}
               rowsPerPageOptions={[filters.pageSize]}
-              onRowClick={handleClick}
+              onRowClick={(params, event) => {
+                event?.preventDefault();
+                if (params?.row?.Name) {
+                  handleClick(params.row.Name, params.row.Variant, params.row.Type);
+                }
+              }}
               getRowId={(row) => row.Name + row.Type}
             />
           )}

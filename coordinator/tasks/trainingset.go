@@ -11,8 +11,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/featureform/logging"
 	"time"
+
+	"github.com/featureform/logging"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
@@ -30,23 +31,18 @@ type TrainingSetTask struct {
 }
 
 func (t *TrainingSetTask) Run() error {
-	_, ctx, logger := t.logger.InitializeRequestID(context.TODO())
-	logger.Info("Running training set task")
+	ctx := t.logger.AttachToContext(context.Background())
+	logger := t.logger.With("%#v\n", t.taskDef.Target)
 	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
 		logger.Errorw("cannot create a training set from target type", "type", t.taskDef.TargetType)
-		return fferr.NewInternalErrorf("cannot create a training set from target type: %s", t.taskDef.TargetType)
+		return fferr.NewInternalErrorf("cannot create a source from target type: %s", t.taskDef.TargetType)
 	}
-
 	tsId := metadata.ResourceID{Name: nv.Name, Variant: nv.Variant, Type: metadata.TRAINING_SET_VARIANT}
 	logger = t.logger.WithResource(logging.TrainingSetVariant, tsId.Name, tsId.Variant).
 		With("task_id", t.taskDef.TaskId, "task_run_id", t.taskDef.ID)
 	logger.Info("Running training set job on resource")
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Starting Training Set Creation..."); err != nil {
-		return err
-	}
-
-	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Training Set configuration..."); err != nil {
 		return err
 	}
 
@@ -57,6 +53,7 @@ func (t *TrainingSetTask) Run() error {
 
 	ts, err := t.metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: nv.Name, Variant: nv.Variant})
 	if err != nil {
+		logger.Errorw("Failed to get training set variant", "error", err)
 		return err
 	}
 
@@ -98,19 +95,23 @@ func (t *TrainingSetTask) Run() error {
 		featureList[i] = provider.ResourceID{Name: feature.Name, Variant: feature.Variant, Type: provider.Feature}
 		featureResource, err := t.metadata.GetFeatureVariant(ctx, feature)
 		if err != nil {
+			logger.Errorw("Failed to get feature variant", "error", err)
 			return err
 		}
 		sourceNameVariant := featureResource.Source()
 		sourceVariant, err := t.awaitPendingSource(sourceNameVariant)
 		if err != nil {
+			logger.Errorw("Failed to wait on pending feature source", "error", err)
 			return err
 		}
 		_, err = t.AwaitPendingFeature(ctx, metadata.NameVariant{Name: feature.Name, Variant: feature.Variant})
 		if err != nil {
+			logger.Errorw("Failed to wait on pending feature variant", "error", err)
 			return err
 		}
 		featureSourceMappings[i], err = t.getFeatureSourceMapping(ctx, featureResource, sourceVariant)
 		if err != nil {
+			logger.Errorw("Failed to get feature source mapping", "error", err)
 			return err
 		}
 	}
@@ -128,25 +129,30 @@ func (t *TrainingSetTask) Run() error {
 
 	label, err := ts.FetchLabel(t.metadata, ctx)
 	if err != nil {
+		logger.Errorw("Failed to fetch label", "error", err)
 		return err
 	}
 	labelSourceNameVariant := label.Source()
 	_, err = t.awaitPendingSource(labelSourceNameVariant)
 	if err != nil {
+		logger.Errorw("Failed to wait on pending label source", "error", err)
 		return err
 	}
 	label, err = t.AwaitPendingLabel(ctx, metadata.NameVariant{Name: label.Name(), Variant: label.Variant()})
 	if err != nil {
+		logger.Errorw("Failed to wait on pending label variant", "error", err)
 		return err
 	}
 	labelSourceMapping, err := t.getLabelSourceMapping(ctx, label)
 	if err != nil {
+		logger.Errorw("Failed to get label source mapping", "error", err)
 		return err
 	}
 	resourceSnowflakeConfig := &metadata.ResourceSnowflakeConfig{}
 	if store.Type() == pt.SnowflakeOffline {
 		tempConfig, err := ts.ResourceSnowflakeConfig()
 		if err != nil {
+			logger.Errorw("Failed to get resource snowflake config", "error", err)
 			return err
 		}
 		resourceSnowflakeConfig = tempConfig
@@ -162,7 +168,7 @@ func (t *TrainingSetTask) Run() error {
 		ResourceSnowflakeConfig: resourceSnowflakeConfig,
 		Type:                    ts.TrainingSetType(),
 	}
-
+	logger.Debugw("Successfully created training set def", "def", trainingSetDef)
 	return t.runTrainingSetJob(trainingSetDef, store)
 }
 
@@ -220,17 +226,37 @@ func (t *TrainingSetTask) getLabelSourceMapping(ctx context.Context, label *meta
 	logger := t.logger.With("Label", label.Name(), "variant", label.Variant())
 	labelProvider, err := label.FetchProvider(t.metadata, ctx)
 	if err != nil {
+		logger.Errorw("could not fetch label provider", "error", err)
 		return provider.SourceMapping{}, err
 	}
 	logger.Debugw("Label Provider", "type", labelProvider.Type())
+	switch pt.Type(labelProvider.Type()) {
+	case pt.SnowflakeOffline:
+		logger.Debugw("Getting label source mapping from resource table ...")
+		return t.getLabelSourceMappingFromSource(label, labelProvider, ctx)
+	default:
+		logger.Debugw("Getting label source mapping from resource table ...")
+		return t.getLabelSourceMappingFromResourceTable(label, labelProvider, ctx)
+	}
+}
+
+func (t *TrainingSetTask) getLabelSourceMappingFromResourceTable(label *metadata.LabelVariant, labelProvider *metadata.Provider, ctx context.Context) (provider.SourceMapping, error) {
+	logger := t.logger.With("source", label.Source())
+	logger.Debugw("Getting label source mapping from resource table ...")
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Getting label source mapping from resource table ..."); err != nil {
+		return provider.SourceMapping{}, err
+	}
 	labelSource, err := ps.ResourceToTableName(provider.Label.String(), label.Name(), label.Variant())
 	if err != nil {
+		logger.Errorw("could not get label source table name", "error", err)
 		return provider.SourceMapping{}, err
 	}
 	labelLocation, err := t.getResourceLocation(labelProvider, labelSource)
 	if err != nil {
+		logger.Errorw("could not get label location", "error", err)
 		return provider.SourceMapping{}, err
 	}
+	logger.Debugw("Label resource location", "location", labelLocation)
 	srcMapping := provider.SourceMapping{
 		Source:         labelSource,
 		ProviderType:   pt.Type(labelProvider.Type()),
@@ -238,9 +264,9 @@ func (t *TrainingSetTask) getLabelSourceMapping(ctx context.Context, label *meta
 		Location:       labelLocation,
 	}
 
-	loc, err := label.Location()
+	lblEntityMappings, err := label.Location()
 	if err != nil {
-		t.logger.Errorw("could not get label location", "label", label.Name(), "variant", label.Variant(), "error", err)
+		logger.Errorw("could not get label location", "error", err)
 		return provider.SourceMapping{}, err
 	}
 	// Given a label will always be created as a resource table, which uses stable naming conventions for columns,
@@ -250,13 +276,13 @@ func (t *TrainingSetTask) getLabelSourceMapping(ctx context.Context, label *meta
 	// running the training set job so that all source mappings are consistent prior to being use in CreateTrainingSet.
 	//**NOTE**: if we used label.LocationColumns() here, we would get
 	// the column names from the source table, and not the resource table.
-	t.logger.Debugw("Label entity mappings", "mappings", loc)
+	logger.Debugw("Label entity mappings", "mappings", lblEntityMappings)
 	srcMapping.EntityMappings = &metadata.EntityMappings{
-		Mappings:        make([]metadata.EntityMapping, len(loc.Mappings)),
+		Mappings:        make([]metadata.EntityMapping, len(lblEntityMappings.Mappings)),
 		ValueColumn:     "value",
 		TimestampColumn: "ts",
 	}
-	for i, mapping := range loc.Mappings {
+	for i, mapping := range lblEntityMappings.Mappings {
 		entityCol := fmt.Sprintf("entity_%s", mapping.Name)
 		if label.IsLegacyLocation() {
 			entityCol = "entity"
@@ -266,8 +292,54 @@ func (t *TrainingSetTask) getLabelSourceMapping(ctx context.Context, label *meta
 			EntityColumn: entityCol,
 		}
 	}
-	t.logger.Debugw("Label source mapping", "mapping", srcMapping)
+	logger.Debugw("Label source mapping", "mapping", srcMapping)
 	return srcMapping, nil
+}
+
+func (t *TrainingSetTask) getLabelSourceMappingFromSource(label *metadata.LabelVariant, labelProvider *metadata.Provider, ctx context.Context) (provider.SourceMapping, error) {
+	logger := t.logger.With("source", label.Source())
+	logger.Debugw("Getting label source mapping from source ...")
+	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Getting label source mapping from source ..."); err != nil {
+		return provider.SourceMapping{}, err
+	}
+	source, err := label.FetchSource(t.metadata, ctx)
+	if err != nil {
+		logger.Errorw("could not fetch source", "error", err)
+		return provider.SourceMapping{}, err
+	}
+	var location pl.Location
+	switch {
+	case source.IsPrimaryData():
+		logger.Debugw("Getting primary location ...")
+		location, err = source.GetPrimaryLocation()
+		if err != nil {
+			logger.Errorw("could not get primary location", "source", source.Definition(), "error", err)
+			return provider.SourceMapping{}, err
+		}
+	case source.IsTransformation():
+		logger.Debugw("Getting transformation location ...")
+		location, err = source.GetTransformationLocation()
+		if err != nil {
+			logger.Errorw("could not get transformation location", "source", source.Definition(), "error", err)
+			return provider.SourceMapping{}, err
+		}
+	default:
+		logger.Errorw("source is neither primary data nor transformation", "definition", source.Definition())
+		return provider.SourceMapping{}, fferr.NewInternalErrorf("unsupported source type: %T", source.Definition())
+	}
+	lblEntityMappings, err := label.Location()
+	if err != nil {
+		logger.Errorw("could not get label location", "label", label.Name(), "variant", label.Variant(), "error", err)
+		return provider.SourceMapping{}, err
+	}
+	logger.Debugw("Label entity mappings", "mappings", lblEntityMappings)
+	logger.Debugw("Successfully got label source mapping from source")
+	return provider.SourceMapping{
+		ProviderType:   pt.Type(labelProvider.Type()),
+		ProviderConfig: labelProvider.SerializedConfig(),
+		Location:       location,
+		EntityMappings: &lblEntityMappings,
+	}, nil
 }
 
 // **NOTE**: Given a feature's provider will always be an online store, we actually need its source's provider to grab the data for the training set.
@@ -289,10 +361,10 @@ func (t *TrainingSetTask) getFeatureSourceMapping(ctx context.Context, feature *
 	locCols := feature.LocationColumns()
 	cols, isResourceCols := locCols.(metadata.ResourceVariantColumns)
 	if !isResourceCols {
-		t.logger.Errorf("expected ResourceVariantColumns, got %T", locCols)
+		logger.Errorf("expected ResourceVariantColumns, got %T", locCols)
 		return provider.SourceMapping{}, fferr.NewInternalErrorf("expected ResourceVariantColumns, got %T", locCols)
 	}
-	t.logger.Debugw("Feature resource variant columns", "columns", cols)
+	logger.Debugw("Feature resource variant columns", "columns", cols)
 	return provider.SourceMapping{
 		Source:         featureSource,
 		ProviderType:   pt.Type(sourceProvider.Type()),

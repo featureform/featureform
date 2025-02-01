@@ -9,8 +9,10 @@ package provider
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/helpers/stringset"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
@@ -123,138 +125,110 @@ func (sf *snowflakeOfflineStore) UpdateTransformation(config TransformationConfi
 	return fferr.NewInternalErrorf("Snowflake Offline Store does not currently support updating transformations")
 }
 
-// RegisterResourceFromSourceTable creates a new table in the database for labels, but not features. Unlike the sqlOfflineStore implementation, which
-// creates a resource table for features, there's no need here for the intermediate table between source transformation and materialization table.
+// Snowflake breaks with the pattern of other offline store that create resource tables for labels and features. (Resource tables are intermediate tables
+// between the sources on which labels and features are registered and materializations and training sets; they duplicate the data from the source tables
+// for the 2 columns provided, that is, entity, value, and timestamp.)
 func (sf *snowflakeOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
-	logger := sf.logger.With("id", id, "schema", schema, "opts", opts)
-	logger.Info("Snowflake offline store creating resource table...")
-	if id.Type == Feature {
-		logger.Debugw("Snowflake Offline Store does not support creating resource tables for features")
-		return nil, nil
+	if len(opts) > 0 {
+		return nil, fferr.NewInvalidArgumentErrorf("snowflake offline store does not currently support resource options")
 	}
-	if err := id.check(Label); err != nil {
+	containsCols, err := sf.checkSourceContainsResourceColumns(id, schema, opts...)
+	if err != nil {
+		return nil, err
+	}
+	if !containsCols {
+		return nil, fferr.NewInvalidArgumentErrorf("source table does not contain expected columns")
+	}
+	return nil, nil
+}
+
+// checkSourceContainsResourceColumns checks that the source table contains the expected columns for the resource type
+// NOTE: due to the fact that we don't change the case of the columns inputted by the user, which is not an issue in the context
+// of SQL queries due to the face they're generally case insensitive, we need to ensure the comparison is case insensitive as well.
+// All columns in Snowflake are upper case by default, so we convert the expected columns to upper case as well.
+func (sf *snowflakeOfflineStore) checkSourceContainsResourceColumns(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (bool, error) {
+	logger := sf.logger.WithResource(logging.ResourceType(id.Type.String()), id.Name, id.Variant).With("schema", schema)
+	if err := id.check(Label, Feature); err != nil {
 		logger.Errorw("Failed to validate resource ID", "error", err)
-		return nil, err
+		return false, err
 	}
-	if len(opts) == 0 || opts[0].Type() != SnowflakeDynamicTableResource {
-		logger.Errorw("Snowflake Offline Store requires Dynamic Table Resource Options")
-		return nil, fferr.NewInternalErrorf("Snowflake Offline Store requires Dynamic Table Resource Options")
-	}
-	opt, isSnowflakeConfigOpt := opts[0].(*ResourceSnowflakeConfigOption)
-	if !isSnowflakeConfigOpt {
-		logger.Errorw("Snowflake Offline Store requires Resource Config Options; received %T", opts[0])
-		return nil, fferr.NewInternalErrorf("Snowflake Offline Store requires Resource Config Options; received %T", opts[0])
-	}
-	tableConfig := opt.Config
-	if tableConfig == nil {
-		logger.Debugw("Resource table config for label resource is empty")
-		tableConfig = &metadata.SnowflakeDynamicTableConfig{}
-	}
-	logger.Debugw("Resource table config for label resource before Merge with Snowflake Config", "config", tableConfig)
-	resConfig := &metadata.ResourceSnowflakeConfig{
-		DynamicTableConfig: tableConfig,
-		Warehouse:          opt.Warehouse,
-	}
-	var snowflakeConfig pc.SnowflakeConfig
-	if err := snowflakeConfig.Deserialize(sf.sqlOfflineStore.Config()); err != nil {
-		logger.Errorw("Failed to deserialize snowflake config", "error", err)
-		return nil, err
-	}
-	logger.Debugw("Snowflake catalog config for label resource", "config", snowflakeConfig.Catalog)
-	if err := resConfig.Merge(&snowflakeConfig); err != nil {
-		logger.Errorw("Failed to merge dynamic table config", "error", err)
-		return nil, err
-	}
-	logger.Debugw("Resource table config for label resource after Merge with Snowflake Config", "config", resConfig)
-	if exists, err := sf.sqlOfflineStore.tableExistsForResourceId(id); err != nil {
-		logger.Errorw("Failed to check if table exists", "error", err)
-		return nil, err
-	} else if exists {
-		logger.Errorw("Table already exists", "id", id)
-		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
-	}
-	if err := schema.Validate(); err != nil {
-		logger.Errorw("Failed to validate schema", "error", err)
-		return nil, err
-	}
-	resourceAsQuery, err := sf.sfQueries.resourceTableAsQuery(schema)
+	tblLoc, err := sf.getValidTableLocation(schema.SourceTable)
 	if err != nil {
-		logger.Errorw("Failed to create resource table as query", "error", err)
-		return nil, err
+		logger.Errorw("Failed to get valid table location", "error", err)
+		return false, err
 	}
-	tableName, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
+	logger.Debugw("Source table location", "table_location", tblLoc)
+	query, err := sf.query.resourceTableColumns(tblLoc)
 	if err != nil {
-		logger.Errorw("Failed to get resource table name", "error", err)
-		return nil, err
+		logger.Errorw("Failed to get resource table columns", "error", err)
+		return false, err
 	}
-	if err := resConfig.Validate(); err != nil {
-		logger.Errorw("Failed to validate dynamic table config", "error", err)
-		return nil, err
+	logger.Debugw("Query to check resource columns in source table", "query", query)
+	expectedColumns, err := schema.ToColumnStringSet(id.Type)
+	if err != nil {
+		logger.Errorw("Failed to get expected columns", "error", err)
+		return false, err
 	}
-	query := sf.sfQueries.dynamicIcebergTableCreate(tableName, resourceAsQuery, *resConfig)
-	logger.Debugw("Creating Dynamic Iceberg Table for label variant", "query", query)
-	if _, err := sf.sqlOfflineStore.db.Exec(query); err != nil {
-		logger.Errorw("Failed to create dynamic iceberg table", "error", err)
-		wrapped := fferr.NewResourceExecutionError(pt.SnowflakeOffline.String(), id.Name, id.Variant, fferr.LABEL_VARIANT, err)
-		return nil, sf.handleErr(wrapped, err)
+	logger.Debugw("Expected columns in source table", "columns", expectedColumns)
+	logger.Info("Checking source table for resource columns ...")
+	rows, err := sf.db.Query(query)
+	if err != nil {
+		logger.Errorw("Failed to query resource table columns", "error", err)
+		return false, err
 	}
-	logger.Info("Successfully created resource table")
-	return &snowflakeOfflineTable{
-		sqlOfflineTable: sqlOfflineTable{
-			db:           sf.sqlOfflineStore.db,
-			name:         tableName,
-			query:        sf.sqlOfflineStore.query,
-			providerType: pt.SnowflakeOffline,
-		},
-		location: pl.NewFullyQualifiedSQLLocation(snowflakeConfig.Database, snowflakeConfig.Schema, tableName),
-	}, nil
+	defer rows.Close()
+	actual := make(stringset.StringSet)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			logger.Errorw("Failed to scan resource table columns", "error", err)
+			return false, err
+		}
+		actual.Add(strings.ToUpper(column))
+	}
+	if err := rows.Err(); err != nil {
+		logger.Errorw("Error iterating over resource table columns", "error", err)
+		return false, err
+	}
+	if !actual.Contains(expectedColumns) {
+		diff := expectedColumns.Difference(actual)
+		logger.Errorw("Source table does not have expected columns", "diff", diff.List())
+		return false, fferr.NewInvalidArgumentErrorf("source table does not have expected columns: %v", diff.List())
+	}
+	logger.Info("Successfully checked source table for resource columns")
+	return true, nil
+}
+
+func (sf *snowflakeOfflineStore) getValidTableLocation(loc pl.Location) (pl.FullyQualifiedObject, error) {
+	sqlLoc, isSqlLoc := loc.(*pl.SQLLocation)
+	if !isSqlLoc {
+		sf.logger.Errorw("Source table is not an SQL location", "location_type", fmt.Sprintf("%T", loc))
+		return pl.FullyQualifiedObject{}, fferr.NewInvalidArgumentErrorf("source table is not an SQL location")
+	}
+	tblLoc := sqlLoc.TableLocation()
+	sf.logger.Debugw("Source table location before provider config", "table_location", tblLoc)
+	if tblLoc.Database == "" || tblLoc.Schema == "" {
+		sf.logger.Warn("Source table location missing database and/or schema; using provider database from config")
+		config := pc.SnowflakeConfig{}
+		if err := config.Deserialize(sf.sqlOfflineStore.Config()); err != nil {
+			sf.logger.Errorw("Failed to deserialize snowflake config", "error", err)
+			return pl.FullyQualifiedObject{}, err
+		}
+		if tblLoc.Database == "" {
+			sf.logger.Debugw("Source table location missing database; using provider database from config", "provider_database", config.Database)
+			tblLoc.Database = config.Database
+		}
+		if tblLoc.Schema == "" {
+			sf.logger.Debugw("Source table location missing schema; using provider schema from config", "provider_schema", config.Schema)
+			tblLoc.Schema = config.Schema
+		}
+	}
+	sf.logger.Debugw("Source table location after provider config", "table_location", tblLoc)
+	return tblLoc, nil
 }
 
 func (sf *snowflakeOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, error) {
-	logger := sf.logger.WithResource(logging.LabelVariant, id.Name, id.Variant)
-	logger.Info("Snowflake offline store getting resource table...")
-	if id.Type == Feature {
-		logger.Debugw("Snowflake Offline Store does not support resource tables for features")
-		return nil, nil
-	}
-	if err := id.check(Label); err != nil {
-		logger.Errorw("Failed to validate resource ID", "error", err)
-		return nil, err
-	}
-	config := pc.SnowflakeConfig{}
-	if err := config.Deserialize(sf.sqlOfflineStore.Config()); err != nil {
-		logger.Errorw("Failed to deserialize snowflake config", "error", err)
-		return nil, err
-	}
-	tableName, err := ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
-	if err != nil {
-		logger.Errorw("Failed to get resource table name", "error", err)
-		return nil, err
-	}
-	var schema = config.Schema
-	if schema == "" {
-		logger.Debug("Schema is empty, defaulting to PUBLIC")
-		schema = "PUBLIC"
-	}
-	loc := pl.NewFullyQualifiedSQLLocation(config.Database, schema, tableName)
-
-	if exists, err := sf.sqlOfflineStore.tableExists(loc); err != nil {
-		logger.Errorw("Failed to check if table exists", "error", err)
-		return nil, err
-	} else if !exists {
-		logger.Errorw("Table does not exist", "location", loc.Location())
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
-	}
-	logger.Info("Successfully retrieved resource table")
-	return &snowflakeOfflineTable{
-		sqlOfflineTable: sqlOfflineTable{
-			db:           sf.sqlOfflineStore.db,
-			name:         tableName,
-			query:        sf.sqlOfflineStore.query,
-			providerType: pt.SnowflakeOffline,
-		},
-		location: loc,
-	}, nil
+	return nil, fferr.NewInternalErrorf("Snowflake Offline Store does not currently support getting resource tables")
 }
 
 func (sf *snowflakeOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {

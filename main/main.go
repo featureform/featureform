@@ -48,9 +48,12 @@ func main() {
 		log.Fatalf("err %v", err)
 	}
 	if _, set := os.LookupEnv("FF_STATE_PROVIDER"); !set {
+		log.Println("FF_STATE_PROVIDER not set, defaulting to memory")
 		if err := os.Setenv("FF_STATE_PROVIDER", "memory"); err != nil {
 			log.Fatalf("err %v", err)
 		}
+	} else {
+		log.Println("FF_STATE_PROVIDER set to", os.Getenv("FF_STATE_PROVIDER"))
 	}
 	apiPort := help.GetEnv("API_PORT", "7878")
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")

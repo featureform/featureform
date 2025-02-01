@@ -85,7 +85,7 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 		return nil, locationErr
 	}
 
-	gps.logger.Debugf("location found: %s", "location")
+	gps.logger.Debugf("location found: %s", location.Location())
 	gps.logger.Debugf("location type: %s", location.Type())
 
 	if location == nil {

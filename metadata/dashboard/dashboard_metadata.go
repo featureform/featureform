@@ -2103,7 +2103,7 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 		return
 	}
 
-	m.logger.Debugf("location found: %s", "location")
+	m.logger.Debugf("location found: %s", location.Location())
 	m.logger.Debugf("location type: %s", location.Type())
 
 	switch location.Type() {

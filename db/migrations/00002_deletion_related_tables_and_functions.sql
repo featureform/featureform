@@ -1,6 +1,9 @@
 -- +goose Up
 -- +goose StatementBegin
 
+ALTER TABLE ff_task_metadata
+ADD COLUMN marked_for_deletion_at TIMESTAMP DEFAULT null;
+
 -- Create enum type for resource components
 CREATE TYPE resource_component AS ENUM ('type', 'name', 'variant');
 
@@ -474,6 +477,8 @@ $function$;
 
 -- +goose Down
 -- +goose StatementBegin
+ALTER TABLE ff_task_metadata
+DROP COLUMN IF EXISTS marked_for_deletion_at;
 
 DROP FUNCTION IF EXISTS get_dependencies(integer, varchar, varchar);
 

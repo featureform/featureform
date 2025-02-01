@@ -295,8 +295,8 @@ func (r *sqlResourcesRepository) MarkForDeletion(ctx context.Context, resourceID
 					return err
 				}
 			} else {
-				if err := r.hardDelete(ctx, tx, resourceID, logger); err != nil {
-					logger.Errorw("error hard deleting", "error", err)
+				if err := r.archive(ctx, tx, resourceID, logger); err != nil {
+					logger.Errorw("error archiving", "error", err)
 					return err
 				}
 			}
@@ -405,7 +405,7 @@ func (r *sqlResourcesRepository) PruneResource(
 						return err
 					}
 				} else {
-					if err := r.hardDelete(ctx, tx, resId.ToCommonResourceID(), logger); err != nil {
+					if err := r.archive(ctx, tx, resId.ToCommonResourceID(), logger); err != nil {
 						logger.Errorw("error hard deleting", "error", err)
 						return err
 					}
@@ -512,7 +512,7 @@ func (r *sqlResourcesRepository) checkDependencies(ctx context.Context, tx pgx.T
 	return nil
 }
 
-func (r *sqlResourcesRepository) hardDelete(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID, logger logging.Logger) error {
+func (r *sqlResourcesRepository) archive(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID, logger logging.Logger) error {
 	if _, err := tx.Exec(ctx, archiveSql, resourceID.ToKey()); err != nil {
 		logger.Errorw("error deleting resource", "error", err)
 		return fferr.NewInternalErrorf("error deleting resource %s: %v", resourceID.ToKey(), err)

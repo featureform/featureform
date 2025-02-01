@@ -2956,7 +2956,7 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 				}
 				m.logger.Errorw("unable to type assert data row: %v", dataRow)
 				c.JSON(fetchError.StatusCode, fetchError.Error())
-				break
+				return
 			}
 			response.Rows = append(response.Rows, stringArray)
 		}

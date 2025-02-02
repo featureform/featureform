@@ -450,14 +450,13 @@ func (m *MockVariantsStore) Type() ss.MetadataStorageType {
 func TestGetFeatureVariants(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
-	testUser := ffauth.User{Username: "test_user"}
 
 	searchTxt := "searchTxt"
 	statuses := []string{pb.ResourceStatus_FAILED.String()}
 	owners := []string{"anthony@featureform.com"}
 	tags := []string{"dummyTag"}
 	body := getFeatureVariantRequestBody(searchTxt, statuses, owners, tags, 12, 0)
-	MockAuthPost(ctx, nil, body, testUser.String())
+	MockPost(ctx, nil, body, "default")
 	expectedQueryOpts := 8
 
 	locker, err := ffsync.NewMemoryLocker()
@@ -605,7 +604,6 @@ func TestGetTypeOwners(t *testing.T) {
 func TestGetSourceVariants(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
-	testUser := ffauth.User{Username: "test_user"}
 
 	searchTxt := "searchTxt"
 	modes := []string{"Batch", "Incremental", "Streaming"}
@@ -614,7 +612,7 @@ func TestGetSourceVariants(t *testing.T) {
 	owners := []string{"anthony@featureform.com"}
 	types := []string{"Primary Table", "SQL Transformation"}
 	body := getSourceVariantRequestBody(searchTxt, modes, types, statuses, tags, owners, 12, 0)
-	MockAuthPost(ctx, nil, body, testUser.String())
+	MockPost(ctx, nil, body, "default")
 	expectedQueryOpts := 10
 
 	locker, err := ffsync.NewMemoryLocker()
@@ -684,15 +682,15 @@ func findSourceVariant(searchName string, variantsList []metadata.SourceVariantR
 func TestGetLabelVariants(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
-	testUser := ffauth.User{Username: "test_user"}
+	//prefix, searchTxt, owners, providers, tags, serializedV1, paging, sort
+	expectedQueryOpts := 8
 
 	searchTxt := "searchTxt"
 	statuses := []string{pb.ResourceStatus_READY.String()}
 	owners := []string{"riddhi@featureform.com"}
 	tags := []string{"dummyTag"}
 	body := getLabelVariantRequestBody(searchTxt, statuses, owners, tags, 12, 0)
-	MockAuthPost(ctx, nil, body, testUser.String())
-	expectedQueryOpts := 8
+	MockPost(ctx, nil, body, "default")
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {

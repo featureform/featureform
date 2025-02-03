@@ -37,7 +37,7 @@ func TestTransformations(t *testing.T) {
 		tester offlineSqlTest
 	}{
 		{getConfiguredBigQueryTester(t, false)},
-		//{getConfiguredSnowflakeTester(t, true)},
+		{getConfiguredSnowflakeTester(t, true)},
 	}
 
 	testSuite := map[string]func(t *testing.T, storeTester offlineSqlTest){
@@ -46,7 +46,9 @@ func TestTransformations(t *testing.T) {
 	}
 
 	for _, infra := range testInfra {
-		for name, testCase := range testSuite {
+		for testName, testCase := range testSuite {
+			providerName := infra.tester.storeTester.Type()
+			name := fmt.Sprintf("%s:%s", providerName, testName)
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 				testCase(t, infra.tester)
@@ -64,7 +66,7 @@ func TestMaterializations(t *testing.T) {
 		tester offlineSqlTest
 	}{
 		{getConfiguredBigQueryTester(t, false)},
-		//{getConfiguredSnowflakeTester(t, true)},
+		{getConfiguredSnowflakeTester(t, true)},
 	}
 
 	testSuite := map[string]func(t *testing.T, storeTester offlineSqlTest){
@@ -73,7 +75,9 @@ func TestMaterializations(t *testing.T) {
 	}
 
 	for _, infra := range testInfra {
-		for name, testCase := range testSuite {
+		for testName, testCase := range testSuite {
+			providerName := infra.tester.storeTester.Type()
+			name := fmt.Sprintf("%s:%s", providerName, testName)
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 				testCase(t, infra.tester)
@@ -91,7 +95,7 @@ func TestTrainingSets(t *testing.T) {
 		tester offlineSqlTest
 	}{
 		{getConfiguredBigQueryTester(t, false)},
-		//{getConfiguredSnowflakeTester(t, true)},
+		{getConfiguredSnowflakeTester(t, true)},
 	}
 
 	testSuite := []trainingSetDatasetType{
@@ -103,7 +107,9 @@ func TestTrainingSets(t *testing.T) {
 
 	for _, infra := range testInfra {
 		for _, testCase := range testSuite {
-			t.Run(string(testCase), func(t *testing.T) {
+			providerName := infra.tester.storeTester.Type()
+			name := fmt.Sprintf("%s:%s", providerName, string(testCase))
+			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 				RegisterTrainingSet(t, infra.tester, testCase)
 			})

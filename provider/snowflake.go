@@ -8,6 +8,7 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -129,15 +130,17 @@ func (sf *snowflakeOfflineStore) UpdateTransformation(config TransformationConfi
 // between the sources on which labels and features are registered and materializations and training sets; they duplicate the data from the source tables
 // for the 2 columns provided, that is, entity, value, and timestamp.)
 func (sf *snowflakeOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
+	logger := sf.logger.WithResource(logging.ResourceType(id.Type.String()), id.Name, id.Variant).With("schema", schema)
+	ctx := logger.AttachToContext(context.Background())
 	if len(opts) > 0 {
 		return nil, fferr.NewInvalidArgumentErrorf("snowflake offline store does not currently support resource options")
 	}
-	containsCols, err := sf.checkSourceContainsResourceColumns(id, schema, opts...)
+	missingCols, err := sf.checkSourceContainsResourceColumns(ctx, id, schema, logger, opts...)
 	if err != nil {
 		return nil, err
 	}
-	if !containsCols {
-		return nil, fferr.NewInvalidArgumentErrorf("source table does not contain expected columns")
+	if len(missingCols) > 0 {
+		return nil, fferr.NewInvalidArgumentErrorf("source table does not contain expected columns; missing columns: %v", missingCols)
 	}
 	return nil, nil
 }
@@ -146,35 +149,35 @@ func (sf *snowflakeOfflineStore) RegisterResourceFromSourceTable(id ResourceID, 
 // NOTE: due to the fact that we don't change the case of the columns inputted by the user, which is not an issue in the context
 // of SQL queries due to the face they're generally case insensitive, we need to ensure the comparison is case insensitive as well.
 // All columns in Snowflake are upper case by default, so we convert the expected columns to upper case as well.
-func (sf *snowflakeOfflineStore) checkSourceContainsResourceColumns(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (bool, error) {
-	logger := sf.logger.WithResource(logging.ResourceType(id.Type.String()), id.Name, id.Variant).With("schema", schema)
+func (sf *snowflakeOfflineStore) checkSourceContainsResourceColumns(ctx context.Context, id ResourceID, schema ResourceSchema, logger logging.Logger, opts ...ResourceOption) ([]string, error) {
+	missingCols := make([]string, 0)
 	if err := id.check(Label, Feature); err != nil {
 		logger.Errorw("Failed to validate resource ID", "error", err)
-		return false, err
+		return missingCols, err
 	}
 	tblLoc, err := sf.getValidTableLocation(schema.SourceTable)
 	if err != nil {
 		logger.Errorw("Failed to get valid table location", "error", err)
-		return false, err
+		return missingCols, err
 	}
 	logger.Debugw("Source table location", "table_location", tblLoc)
 	query, err := sf.query.resourceTableColumns(tblLoc)
 	if err != nil {
-		logger.Errorw("Failed to get resource table columns", "error", err)
-		return false, err
+		logger.Errorw("Failed to create resourceTableColumns query", "error", err)
+		return missingCols, err
 	}
 	logger.Debugw("Query to check resource columns in source table", "query", query)
 	expectedColumns, err := schema.ToColumnStringSet(id.Type)
 	if err != nil {
 		logger.Errorw("Failed to get expected columns", "error", err)
-		return false, err
+		return missingCols, err
 	}
 	logger.Debugw("Expected columns in source table", "columns", expectedColumns)
 	logger.Info("Checking source table for resource columns ...")
 	rows, err := sf.db.Query(query)
 	if err != nil {
 		logger.Errorw("Failed to query resource table columns", "error", err)
-		return false, err
+		return missingCols, err
 	}
 	defer rows.Close()
 	actual := make(stringset.StringSet)
@@ -182,21 +185,21 @@ func (sf *snowflakeOfflineStore) checkSourceContainsResourceColumns(id ResourceI
 		var column string
 		if err := rows.Scan(&column); err != nil {
 			logger.Errorw("Failed to scan resource table columns", "error", err)
-			return false, err
+			return missingCols, err
 		}
 		actual.Add(strings.ToUpper(column))
 	}
 	if err := rows.Err(); err != nil {
 		logger.Errorw("Error iterating over resource table columns", "error", err)
-		return false, err
+		return missingCols, err
 	}
 	if !actual.Contains(expectedColumns) {
 		diff := expectedColumns.Difference(actual)
 		logger.Errorw("Source table does not have expected columns", "diff", diff.List())
-		return false, fferr.NewInvalidArgumentErrorf("source table does not have expected columns: %v", diff.List())
+		return diff.List(), fferr.NewInvalidArgumentErrorf("source table does not have expected columns: %v", diff.List())
 	}
 	logger.Info("Successfully checked source table for resource columns")
-	return true, nil
+	return missingCols, nil
 }
 
 func (sf *snowflakeOfflineStore) getValidTableLocation(loc pl.Location) (pl.FullyQualifiedObject, error) {

@@ -284,8 +284,10 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 		return err
 	}
 
-	logger.Debugf("Deleting %d locations", len(offlineStoreLocations))
+	logger.Debug("Deleting feature at locations", "locations", offlineStoreLocations)
 	for _, offlineStoreLocation := range offlineStoreLocations {
+		logger = logger.With("location", offlineStoreLocation)
+		logger.Debugw("Deleting feature at location")
 		proto, fromProtoErr := pl.FromProto(offlineStoreLocation)
 		if fromProtoErr != nil {
 			logger.Errorw("Failed to convert location to proto", "error", fromProtoErr)
@@ -294,7 +296,7 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 		if deleteErr := sourceStore.Delete(proto); deleteErr != nil {
 			var notFoundErr *fferr.DatasetNotFoundError
 			if errors.As(deleteErr, &notFoundErr) {
-				logger.Infow("Table doesn't exist at location, continuing...", "location", featureLocation)
+				logger.Info("Table doesn't exist at location, continuing...")
 			} else {
 				logger.Errorw("Failed to delete feature from offline store", "error", deleteErr)
 				return deleteErr
@@ -302,14 +304,14 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 		}
 	}
 
-	logger.Infow("Successfully deleted feature at locations")
+	logger.Info("Successfully deleted feature at locations")
 	deleteFromOnlineStoreErr := t.deleteFromOnlineStore(ctx, featureToDelete, logger, nv)
 	if deleteFromOnlineStoreErr != nil {
 		logger.Errorw("Failed to delete feature from online store", "error", deleteFromOnlineStoreErr)
 		return deleteFromOnlineStoreErr
 	}
 
-	logger.Debugw("Finalizing delete")
+	logger.Debug("Finalizing delete")
 	if err := t.metadata.FinalizeDelete(ctx, resID); err != nil {
 		logger.Errorw("Failed to finalize delete", "error", err)
 		return err

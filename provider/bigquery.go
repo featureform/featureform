@@ -63,6 +63,7 @@ type bqPrimaryTable struct {
 	name   string
 	query  defaultBQQueries
 	schema TableSchema
+	logger logging.Logger
 }
 
 func (pt *bqPrimaryTable) GetName() string {
@@ -226,6 +227,26 @@ func newBigQueryGenericTableIterator(it *bigquery.RowIterator, query defaultBQQu
 		query:        query,
 		columns:      columns,
 	}
+}
+
+func (store *bqOfflineStore) newBigQueryPrimaryTable(name string) (*bqPrimaryTable, error) {
+	logger := store.logger.With("table", name)
+
+	table := store.client.Dataset(store.query.getDatasetId()).Table(name)
+
+	columnNames, err := store.query.getColumns(store.client, name)
+	if err != nil {
+		return nil, err
+	}
+
+	return &bqPrimaryTable{
+		client: store.client,
+		table:  table,
+		name:   name,
+		schema: TableSchema{Columns: columnNames},
+		query:  store.query,
+		logger: logger,
+	}, nil
 }
 
 func (q defaultBQQueries) registerResources(client *bigquery.Client, tableName string, schema ResourceSchema, timestamp bool) error {
@@ -889,21 +910,7 @@ func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, table
 		return nil, err
 	}
 
-	columnNames, err := store.query.getColumns(store.client, sqlLocation.Location())
-	if err != nil {
-		logger.Errorw("Getting column names", "err", err)
-		return nil, err
-	}
-
-	table := store.client.Dataset(store.query.getDatasetId()).Table(sqlLocation.Location())
-
-	return &bqPrimaryTable{
-		table:  table,
-		client: store.client,
-		name:   sqlLocation.Location(),
-		schema: TableSchema{Columns: columnNames},
-		query:  store.query,
-	}, nil
+	return store.newBigQueryPrimaryTable(sqlLocation.Location())
 }
 
 func (store *bqOfflineStore) SupportsTransformationOption(opt TransformationOptionType) (bool, error) {
@@ -960,17 +967,7 @@ func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (Transformati
 		return nil, fferr.NewTransformationNotFoundError(id.Name, id.Variant, nil)
 	}
 
-	columnNames, err := store.query.getColumns(store.client, name)
-	if err != nil {
-		return nil, err
-	}
-
-	return &bqPrimaryTable{
-		client: store.client,
-		name:   name,
-		schema: TableSchema{Columns: columnNames},
-		query:  store.query,
-	}, nil
+	return store.newBigQueryPrimaryTable(name)
 }
 
 func (store *bqOfflineStore) UpdateTransformation(config TransformationConfig, opts ...TransformationOption) error {
@@ -1005,7 +1002,7 @@ func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchem
 	if err != nil {
 		return nil, err
 	}
-	table, err := store.newBigQueryPrimaryTable(store.client, tableName, schema)
+	table, err := store.createNewBigQueryPrimaryTable(store.client, tableName, schema)
 	if err != nil {
 		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
@@ -1030,17 +1027,8 @@ func (store *bqOfflineStore) GetPrimaryTable(id ResourceID, source metadata.Sour
 	}
 
 	name := sqlLocation.Location()
-	columnNames, err := store.query.getColumns(store.client, name)
-	if err != nil {
-		return nil, err
-	}
 
-	return &bqPrimaryTable{
-		client: store.client,
-		name:   name,
-		schema: TableSchema{Columns: columnNames},
-		query:  store.query,
-	}, nil
+	return store.newBigQueryPrimaryTable(name)
 }
 
 func (store *bqOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
@@ -1566,7 +1554,7 @@ func (store *bqOfflineStore) tableExists(location pl.Location) (bool, error) {
 	return false, nil
 }
 
-func (store *bqOfflineStore) newBigQueryPrimaryTable(client *bigquery.Client, name string, schema TableSchema) (*bqPrimaryTable, error) {
+func (store *bqOfflineStore) createNewBigQueryPrimaryTable(client *bigquery.Client, name string, schema TableSchema) (*bqPrimaryTable, error) {
 	query, err := store.createBigQueryPrimaryTableQuery(name, schema)
 	if err != nil {
 		return nil, err
@@ -1578,15 +1566,7 @@ func (store *bqOfflineStore) newBigQueryPrimaryTable(client *bigquery.Client, na
 		return nil, fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 	}
 
-	table := store.client.Dataset(store.query.getDatasetId()).Table(name)
-
-	return &bqPrimaryTable{
-		client: client,
-		table:  table,
-		name:   name,
-		schema: schema,
-		query:  store.query,
-	}, nil
+	return store.newBigQueryPrimaryTable(name)
 }
 
 func (store *bqOfflineStore) createBigQueryPrimaryTableQuery(name string, schema TableSchema) (string, error) {

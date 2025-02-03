@@ -87,15 +87,15 @@ func (t *LabelTask) Run() error {
 		if err != nil {
 			logger.Errorf("could not close offline store: %v", err)
 		}
-		logger.Debugw("Closed offline store")
+		logger.Debug("Closed offline store")
 	}(sourceStore, logger)
 	var sourceLocation pl.Location
 	var sourceLocationErr error
 	if source.IsSQLTransformation() || source.IsDFTransformation() {
-		logger.Debugw("Getting transformation location")
+		logger.Debug("Getting transformation location")
 		sourceLocation, sourceLocationErr = source.GetTransformationLocation()
 	} else if source.IsPrimaryData() {
-		logger.Debugw("Getting primary location")
+		logger.Debug("Getting primary location")
 		sourceLocation, sourceLocationErr = source.GetPrimaryLocation()
 	}
 

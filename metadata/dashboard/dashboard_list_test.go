@@ -17,6 +17,10 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap/zaptest"
+
 	"github.com/featureform/ffsync"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -26,9 +30,6 @@ import (
 	"github.com/featureform/provider/provider_type"
 	ss "github.com/featureform/storage"
 	"github.com/featureform/storage/query"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap/zaptest"
 )
 
 func GetMetadataServer(t *testing.T) MetadataServer {
@@ -422,7 +423,7 @@ func (m *MockVariantsStore) Get(key string) (string, error) {
 	return "", nil
 }
 
-func (m *MockVariantsStore) GetWithOpts(key string, opts ...query.Query) (string, error) {
+func (m *MockVariantsStore) Get(key string, opts ...query.Query) (string, error) {
 	return "", nil
 }
 

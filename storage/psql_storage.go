@@ -72,7 +72,7 @@ func (psql *PSQLStorageImplementation) Set(key string, value string) error {
 	return nil
 }
 
-func (psql *PSQLStorageImplementation) GetWithOpts(key string, opts ...query.Query) (string, error) {
+func (psql *PSQLStorageImplementation) Get(key string, opts ...query.Query) (string, error) {
 	if key == "" {
 		psql.logger.Errorw("Cannot get an empty key")
 		return "", fferr.NewInvalidArgumentErrorf("cannot get an empty key")
@@ -109,10 +109,6 @@ func (psql *PSQLStorageImplementation) GetWithOpts(key string, opts ...query.Que
 	}
 
 	return value, nil
-}
-
-func (psql *PSQLStorageImplementation) Get(key string) (string, error) {
-	return psql.GetWithOpts(key)
 }
 
 func (psql *PSQLStorageImplementation) List(prefix string, opts ...query.Query) (map[string]string, error) {

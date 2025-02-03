@@ -321,7 +321,7 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 }
 
 func (t *FeatureTask) deleteFromOnlineStore(ctx context.Context, featureToDelete *metadata.FeatureVariant, logger logging.Logger, nv metadata.NameVariant) error {
-	logger.Debugw("Deleting feature from online store")
+	logger.Debug("Deleting feature from online store")
 	if featureToDelete.Provider() == "" {
 		logger.Debugw("Feature does not contain inference store, skipping deletion from online store")
 		return nil

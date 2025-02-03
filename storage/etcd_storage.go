@@ -52,11 +52,7 @@ func (etcd *etcdStorageImplementation) Set(key string, value string) error {
 	return nil
 }
 
-func (etcd *etcdStorageImplementation) Get(key string) (string, error) {
-	return etcd.GetWithOpts(key)
-}
-
-func (etcd *etcdStorageImplementation) GetWithOpts(key string, opts ...query.Query) (string, error) {
+func (etcd *etcdStorageImplementation) Get(key string, opts ...query.Query) (string, error) {
 	if key == "" {
 		return "", fferr.NewInvalidArgumentError(fmt.Errorf("cannot get an empty key"))
 	}

@@ -10,10 +10,11 @@ package storage
 import (
 	"context"
 
+	"github.com/google/uuid"
+
 	"github.com/featureform/ffsync"
 	"github.com/featureform/logging"
 	"github.com/featureform/storage/query"
-	"github.com/google/uuid"
 )
 
 type MetadataStorage struct {
@@ -167,7 +168,7 @@ func (s *MetadataStorage) Get(key string, opts ...query.Query) (string, error) {
 	}
 	defer s.unlockWithLogger(ctx, s.Locker, lock, logger)
 
-	val, err := s.Storage.GetWithOpts(key, opts...)
+	val, err := s.Storage.Get(key, opts...)
 	if err != nil {
 		return "", err
 	}
@@ -212,8 +213,7 @@ type metadataStorageImplementation interface {
 	// Set stores the value for the key and updates it if it already exists
 	Set(key string, value string) error
 	// Get returns the value for the key
-	Get(key string) (string, error)
-	GetWithOpts(key string, opts ...query.Query) (string, error)
+	Get(key string, opts ...query.Query) (string, error)
 	// List returns all the keys and values that match the query
 	List(prefix string, opts ...query.Query) (map[string]string, error)
 	// List Computed Columns

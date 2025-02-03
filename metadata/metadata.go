@@ -2509,7 +2509,7 @@ func (serv *MetadataServer) updateFeatureVariant(ctx context.Context, dep common
 	f, ok := fv.(*featureVariantResource)
 	if !ok {
 		logger.DPanic("lookup returned wrong type")
-		return fferr.NewInternalErrorf("lookup should have returned a feature variant")
+		return fferr.NewInternalErrorf("lookup should have returned a feature variant, but returned %T", fv)
 	}
 	serialized := f.serialized
 	if err := serv.featureVariantBackwardsCompatibility(ctx, serialized, true); err != nil {
@@ -2966,6 +2966,7 @@ func (serv *MetadataServer) fillOfflineStoreLocations(ctx context.Context, fv *p
 
 	localizer, err := GetLocalizer(pt.Type(providerProto.GetType()), providerProto.GetSerializedConfig())
 	if err != nil {
+		// We are not failing here so that store locations will remain empty and a backfill can be attempted later
 		logger.Warnw("Failed to get localizer, offline store locations will not be updated", "error", err)
 		return nil
 	}

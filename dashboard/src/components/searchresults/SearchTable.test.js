@@ -62,10 +62,10 @@ describe('Search Table Tests', () => {
     const helper = render(getTestBody());
 
     //then:
-    search_results.forEach(async (element) => {
-      const foundTitle = await helper.findByText(element.Name);
-      expect(foundTitle).toBeDefined();
-    });
+    for (const element of search_results) {
+        const foundTitle = await helper.findByText(element.Name);
+        expect(foundTitle).toBeDefined();
+    }
   });
 
   test.each`

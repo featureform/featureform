@@ -245,7 +245,7 @@ export const SearchTable = () => {
               disableColumnMenu
               disableColumnSelector
               paginationMode='client'
-              sortModel={[{ field: 'name', sort: 'asc' }]}
+              sortModel={[{ field: 'Name', sort: 'asc' }]}
               onPageChange={(newPage) => {
                 handlePageChange(newPage);
               }}

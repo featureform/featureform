@@ -181,7 +181,9 @@ func (j asOfJoins) ToSQL(config QueryConfig) string {
 	return strings.Join(joins, " ")
 }
 
-// asOfJoin represents an ASOF JOIN between the label and feature tables.
+// windowJoin represents an ASOF join, just in environments where the ASOF
+// join doesn't exist. Instead, we emulate it by manually filtering for entries
+// based on their timestamp, and grab the most recent one.
 type windowJoin struct {
 	entity     string
 	ts         string
@@ -450,7 +452,6 @@ func (b *pitTrainingSetQueryBuilder) Compile() error {
 				if ft.TS != "" {
 					if b.config.UseAsOfJoin {
 						b.asOfJoins = append(b.asOfJoins, asOfJoin{alias: ftAlias, ft: ft, lblEntity: m.EntityColumn, lblTS: b.labelTable.EntityMappings.TimestampColumn})
-						//b.asOfJoins = append(b.asOfJoins, asOfJoin{alias: ftAlias, ft: ft, lblEntity: b.labelTable.Entity, lblTS: b.labelTable.TS})
 					} else {
 						b.windowJoins.windows = append(b.windowJoins.windows, windowJoin{
 							entity:     m.EntityColumn,

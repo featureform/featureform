@@ -18,18 +18,18 @@ import (
 )
 
 func TestSourceTaskRun(t *testing.T) {
-	logger := logging.NewTestLogger(t)
+	ctx, logger := logging.NewTestContextAndLogger(t)
 
-	serv, addr := startServ(t)
+	serv, addr := startServ(t, ctx, logger)
 	defer serv.Stop()
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
 		panic(err)
 	}
 
-	createSourcePreqResources(t, client)
+	createSourcePreqResources(t, ctx, client)
 
-	err = client.CreateSourceVariant(context.Background(), metadata.SourceDef{
+	err = client.CreateSourceVariant(ctx, metadata.SourceDef{
 		Name:    "sourceName",
 		Variant: "sourceVariant",
 		Definition: metadata.PrimaryDataSource{
@@ -67,15 +67,15 @@ func TestSourceTaskRun(t *testing.T) {
 	}
 }
 
-func createSourcePreqResources(t *testing.T, client *metadata.Client) {
-	err := client.CreateUser(context.Background(), metadata.UserDef{
+func createSourcePreqResources(t *testing.T, ctx context.Context, client *metadata.Client) {
+	err := client.CreateUser(ctx, metadata.UserDef{
 		Name: "mockOwner",
 	})
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	err = client.CreateProvider(context.Background(), metadata.ProviderDef{
+	err = client.CreateProvider(ctx, metadata.ProviderDef{
 		Name: "mockProvider",
 		Type: pt.MemoryOffline.String(),
 	})
@@ -83,7 +83,7 @@ func createSourcePreqResources(t *testing.T, client *metadata.Client) {
 		t.Fatalf(err.Error())
 	}
 
-	err = client.CreateEntity(context.Background(), metadata.EntityDef{
+	err = client.CreateEntity(ctx, metadata.EntityDef{
 		Name: "mockEntity",
 	})
 	if err != nil {

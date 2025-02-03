@@ -13,10 +13,13 @@ import (
 	"io"
 	"testing"
 
-	"github.com/apache/arrow/go/v17/arrow/flight"
+	fs "github.com/featureform/filestore"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
+	pc "github.com/featureform/provider/provider_config"
+
+	"github.com/apache/arrow/go/v17/arrow/flight"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 )
@@ -40,8 +43,8 @@ func (c SourceClient) Recv() (*pb.SourceVariant, error) {
 			Definition: &pb.SourceVariant_PrimaryData{PrimaryData: &pb.PrimaryData{
 				Location: &pb.PrimaryData_Catalog{
 					Catalog: &pb.CatalogTable{
-						Database:    "aws_database",
-						Table:       "aws_table",
+						Database:    expectedDatabase,
+						Table:       expectedTable,
 						TableFormat: "tableFormat",
 					},
 				},
@@ -56,6 +59,15 @@ func (c SourceClient) CloseSend() error {
 	return nil
 }
 
+const (
+	expectedAccessKey = "access-key-test"
+	expectedSecretKey = "secret-key-test"
+	expectedRegion    = "regionTest"
+	expectedWarehouse = "warehouse"
+	expectedDatabase  = "database"
+	expectedTable     = "table"
+)
+
 type ProviderClient struct {
 	grpc.ClientStream
 }
@@ -67,33 +79,33 @@ func (c ProviderClient) Send(nv *pb.NameRequest) error {
 }
 
 func (c ProviderClient) Recv() (*pb.Provider, error) {
-	jsonBytes := []byte(
-		`{
-			"ExecutorConfig": {
-				"ClusterName": "my_cluster",
-				"ClusterRegion": "us-east-1",
-				"Credentials": {
-					"AccessKeyId": "someKey",
-					"SecretKey": "someSecret",
-					"Type": "AWS_STATIC_CREDENTIALS"
-				}
-			},
-			"GlueConfig": {
-				"AssumeRoleArn": "someRole",
-				"Database": "sample_glue_db",
-				"Region": "us-east-1",
-				"TableFormat": "iceberg",
-				"Warehouse": "s3://test.warehouse/glue"
-			}
-		}`)
-
+	creds := pc.AWSStaticCredentials{
+		AccessKeyId: expectedAccessKey,
+		SecretKey:   expectedSecretKey,
+	}
+	sparkConfig := &pc.SparkConfig{
+		ExecutorType:   pc.Databricks,
+		ExecutorConfig: &pc.DatabricksConfig{},
+		StoreType:      fs.S3,
+		StoreConfig: &pc.S3FileStoreConfig{
+			Credentials: creds,
+		},
+		GlueConfig: &pc.GlueConfig{
+			Warehouse: expectedWarehouse,
+			Region:    expectedRegion,
+		},
+	}
+	serializedConfig, err := sparkConfig.Serialize()
+	if err != nil {
+		panic(err)
+	}
 	if providerCalls == 0 {
 		providerCalls++
 		return &pb.Provider{
 			Name:             "sample_test_provider",
 			Type:             "GLUE",
 			Software:         "AWS",
-			SerializedConfig: jsonBytes,
+			SerializedConfig: serializedConfig,
 			Tags:             &pb.Tags{Tag: []string{"sample_tag"}},
 			Properties:       &pb.Properties{},
 			Status:           &pb.ResourceStatus{Status: pb.ResourceStatus_READY},
@@ -157,12 +169,11 @@ func TestValidTicket(t *testing.T) {
 	}
 
 	assert.Equal(t, "default", ticketData["catalog"])
-	assert.Equal(t, "aws_database", ticketData["namespace"])
-	assert.Equal(t, "aws_table", ticketData["table"])
-	assert.Equal(t, "us-east-1", ticketData["client.region"])
-	assert.Equal(t, "someKey", ticketData["client.access-key-id"])
-	assert.Equal(t, "someSecret", ticketData["client.secret-access-key"])
-	assert.Equal(t, "someRole", ticketData["client.role-arn"])
+	assert.Equal(t, expectedDatabase, ticketData["namespace"])
+	assert.Equal(t, expectedTable, ticketData["table"])
+	assert.Equal(t, expectedRegion, ticketData["client.region"])
+	assert.Equal(t, expectedAccessKey, ticketData["client.access-key-id"])
+	assert.Equal(t, expectedSecretKey, ticketData["client.secret-access-key"])
 	assert.Equal(t, float64(5), ticketData["limit"])
 
 }

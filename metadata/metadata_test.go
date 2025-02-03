@@ -29,7 +29,6 @@ import (
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
 	"github.com/google/uuid"
-	"go.uber.org/zap/zaptest"
 )
 
 const PythonFunc = `def average_user_transaction(transactions):
@@ -413,8 +412,7 @@ func filledInvalidTrainingSetDAG() []ResourceDef {
 	}
 }
 
-func list(client *Client, t ResourceType) (interface{}, error) {
-	ctx := context.Background()
+func list(client *Client, ctx context.Context, t ResourceType) (interface{}, error) {
 	switch t {
 	case FEATURE:
 		return client.ListFeatures(ctx)
@@ -437,8 +435,7 @@ func list(client *Client, t ResourceType) (interface{}, error) {
 	}
 }
 
-func getAll(client *Client, t ResourceType, nameVars NameVariants) (interface{}, error) {
-	ctx := context.Background()
+func getAll(client *Client, ctx context.Context, t ResourceType, nameVars NameVariants) (interface{}, error) {
 	switch t {
 	case FEATURE:
 		return client.GetFeatures(ctx, nameVars.Names())
@@ -469,8 +466,7 @@ func getAll(client *Client, t ResourceType, nameVars NameVariants) (interface{},
 	}
 }
 
-func get(client *Client, t ResourceType, nameVar NameVariant) (interface{}, error) {
-	ctx := context.Background()
+func get(client *Client, ctx context.Context, t ResourceType, nameVar NameVariant) (interface{}, error) {
 	switch t {
 	case FEATURE:
 		return client.GetFeature(ctx, nameVar.Name)
@@ -501,8 +497,7 @@ func get(client *Client, t ResourceType, nameVar NameVariant) (interface{}, erro
 	}
 }
 
-func update(client *Client, t ResourceType, def ResourceDef) error {
-	ctx := context.Background()
+func update(client *Client, ctx context.Context, t ResourceType, def ResourceDef) error {
 	switch t {
 	case FEATURE_VARIANT:
 		casted := def.(FeatureDef)
@@ -534,16 +529,19 @@ func update(client *Client, t ResourceType, def ResourceDef) error {
 }
 
 type testContext struct {
+	context.Context
 	Defs   []ResourceDef
 	serv   *MetadataServer
+	logger logging.Logger
 	client *Client
 }
 
 func (ctx *testContext) Create(t *testing.T) (*Client, error) {
 	var addr string
-	ctx.serv, addr = startServ(t)
-	ctx.client = client(t, addr)
-	if err := ctx.client.CreateAll(context.Background(), ctx.Defs); err != nil {
+	ctx.Context, ctx.logger = logging.NewTestContextAndLogger(t)
+	ctx.serv, addr = startServ(t, ctx.Context, ctx.logger)
+	ctx.client = client(t, ctx.Context, ctx.logger, addr)
+	if err := ctx.client.CreateAll(ctx.Context, ctx.Defs); err != nil {
 		return nil, err
 	}
 	return ctx.client, nil
@@ -554,11 +552,10 @@ func (ctx *testContext) Destroy() {
 	ctx.client.Close()
 }
 
-func startServ(t *testing.T) (*MetadataServer, string) {
-	manager, err := scheduling.NewMemoryTaskMetadataManager()
-	logger := zaptest.NewLogger(t)
+func startServ(t *testing.T, ctx context.Context, logger logging.Logger) (*MetadataServer, string) {
+	manager, err := scheduling.NewMemoryTaskMetadataManager(ctx)
 	config := &Config{
-		Logger:      logging.WrapZapLogger(logger.Sugar()),
+		Logger:      logger,
 		TaskManager: manager,
 	}
 	serv, err := NewMetadataServer(config)
@@ -578,11 +575,10 @@ func startServ(t *testing.T) (*MetadataServer, string) {
 	return serv, lis.Addr().String()
 }
 
-func startServNoPanic(t *testing.T) (*MetadataServer, string) {
-	manager, err := scheduling.NewMemoryTaskMetadataManager()
-	logger := zaptest.NewLogger(t)
+func startServNoPanic(t *testing.T, ctx context.Context, logger logging.Logger) (*MetadataServer, string) {
+	manager, err := scheduling.NewMemoryTaskMetadataManager(ctx)
 	config := &Config{
-		Logger:      logging.WrapZapLogger(logger.Sugar()),
+		Logger:      logger,
 		TaskManager: manager,
 	}
 
@@ -603,8 +599,7 @@ func startServNoPanic(t *testing.T) (*MetadataServer, string) {
 	return serv, lis.Addr().String()
 }
 
-func client(t *testing.T, addr string) *Client {
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+func client(t *testing.T, ctx context.Context, logger logging.Logger, addr string) *Client {
 	client, err := NewClient(addr, logger)
 	if err != nil {
 		t.Fatalf("Failed to create client: %s", err)
@@ -613,8 +608,9 @@ func client(t *testing.T, addr string) *Client {
 }
 
 func TestClosedServer(t *testing.T) {
-	serv, addr := startServNoPanic(t)
-	client := client(t, addr)
+	ctx, logger := logging.NewTestContextAndLogger(t)
+	serv, addr := startServNoPanic(t, ctx, logger)
+	client := client(t, ctx, logger, addr)
 	for {
 		if serv.Stop() == nil {
 			break
@@ -631,7 +627,7 @@ func TestClosedServer(t *testing.T) {
 		PROVIDER,
 	}
 	for _, typ := range listTypes {
-		if _, err := list(client, typ); err == nil {
+		if _, err := list(client, ctx, typ); err == nil {
 			t.Fatalf("Succeeded in listing from closed server")
 		}
 	}
@@ -650,20 +646,20 @@ func TestClosedServer(t *testing.T) {
 		PROVIDER,
 	}
 	for _, typ := range types {
-		if _, err := getAll(client, typ, []NameVariant{}); err == nil {
+		if _, err := getAll(client, ctx, typ, []NameVariant{}); err == nil {
 			t.Fatalf("Succeeded in getting all from closed server")
 		}
-		if _, err := get(client, typ, NameVariant{}); err == nil {
+		if _, err := get(client, ctx, typ, NameVariant{}); err == nil {
 			t.Fatalf("Succeeded in getting from closed server")
 		}
 	}
 }
 
 func TestServeGracefulStop(t *testing.T) {
-	manager, err := scheduling.NewMemoryTaskMetadataManager()
-	logger := zaptest.NewLogger(t).Sugar()
+	ctx, logger := logging.NewTestContextAndLogger(t)
+	manager, err := scheduling.NewMemoryTaskMetadataManager(ctx)
 	config := &Config{
-		Logger:      logging.WrapZapLogger(logger),
+		Logger:      logger,
 		Address:     ":0",
 		TaskManager: manager,
 	}
@@ -696,7 +692,8 @@ func mockNewMeilisearch(params *search.MeilisearchParams) (search.Searcher, erro
 }
 
 func TestLookupWrapInitialize(t *testing.T) {
-	manager, err := scheduling.NewMemoryTaskMetadataManager()
+	ctx, logger := logging.NewTestContextAndLogger(t)
+	manager, err := scheduling.NewMemoryTaskMetadataManager(ctx)
 	if err != nil {
 		t.Fatal("New memory manager failed to instantiate", err.Error())
 	}
@@ -706,10 +703,9 @@ func TestLookupWrapInitialize(t *testing.T) {
 		Port:   "port",
 		ApiKey: "key",
 	}
-	logger := zaptest.NewLogger(t).Sugar()
 	config := &Config{
 		SearchParams: &searchParams,
-		Logger:       logging.WrapZapLogger(logger),
+		Logger:       logger,
 		Address:      ":0",
 		TaskManager:  manager,
 	}
@@ -1845,14 +1841,14 @@ func testResourceUpdates(t *testing.T, typ ResourceType, arranged, expected Reso
 		t.Fatalf("Failed to create resources: %s", err)
 	}
 	names := arranged.NameVariants()
-	resources, err := getAll(client, typ, names)
+	resources, err := getAll(client, ctx, typ, names)
 	if err != nil {
 		t.Fatalf("Failed to get resources: %v", names)
 	}
 	arranged.Test(t, client, resources, true)
 
 	for i, u := range updates {
-		if err := update(client, typ, u); err != nil {
+		if err := update(client, ctx, typ, u); err != nil {
 			t.Fatalf("Failed to update resource: %v", err)
 		}
 		nameVariant := NameVariant{}
@@ -1866,7 +1862,7 @@ func testResourceUpdates(t *testing.T, typ ResourceType, arranged, expected Reso
 		default:
 			t.Errorf("Unrecognized resource type: %v", typ)
 		}
-		actual, err := get(client, typ, nameVariant)
+		actual, err := get(client, ctx, typ, nameVariant)
 		if err != nil {
 			t.Fatalf("Failed to get resource: %v", names[i])
 		}
@@ -1992,19 +1988,19 @@ func testGetResources(t *testing.T, typ ResourceType, tests ResourceTests) {
 		t.Fatalf("Failed to create resources: %s", err)
 	}
 	names := tests.NameVariants()
-	resources, err := getAll(client, typ, names)
+	resources, err := getAll(client, ctx, typ, names)
 	if err != nil {
 		t.Fatalf("Failed to get resources: %v", names)
 	}
 	tests.Test(t, client, resources, true)
 
-	resource, err := get(client, typ, names[0])
+	resource, err := get(client, ctx, typ, names[0])
 	if err != nil {
 		t.Fatalf("Failed to get resource: %v", names[0])
 	}
 	tests[0].Test(t, client, resource, true)
 
-	noResources, err := getAll(client, typ, NameVariants{})
+	noResources, err := getAll(client, ctx, typ, NameVariants{})
 	if err != nil {
 		t.Fatalf("Failed to get no resources")
 	}
@@ -2012,7 +2008,7 @@ func testGetResources(t *testing.T, typ ResourceType, tests ResourceTests) {
 		t.Fatalf("Got resources when expected none: %+v", noResources)
 	}
 
-	if res, err := get(client, typ, NameVariant{uuid.NewString(), uuid.NewString()}); err == nil {
+	if res, err := get(client, ctx, typ, NameVariant{uuid.NewString(), uuid.NewString()}); err == nil {
 		t.Fatalf("Succeeded in getting random resource: %+v", res)
 	}
 }
@@ -2026,7 +2022,7 @@ func testListResources(t *testing.T, typ ResourceType, tests ResourceTests) {
 	if err != nil {
 		t.Fatalf("Failed to create resources: %s", err)
 	}
-	resources, err := list(client, typ)
+	resources, err := list(client, ctx, typ)
 	if err != nil {
 		t.Fatalf("Failed to list resources: %v", resources)
 	}
@@ -2250,9 +2246,9 @@ func getSourceVariant() *SourceVariant {
 }
 
 func Test_MetadataErrorInterceptors(t *testing.T) {
-	_, addr := startServNoPanic(t)
-	client := client(t, addr)
-	context := context.Background()
+	ctx, logger := logging.NewTestContextAndLogger(t)
+	_, addr := startServNoPanic(t, ctx, logger)
+	cli := client(t, ctx, logger, addr)
 
 	sourceDef := SourceDef{
 		Name:        "mock____Source",
@@ -2275,7 +2271,7 @@ func Test_MetadataErrorInterceptors(t *testing.T) {
 
 	resourceDefs := []ResourceDef{sourceDef}
 
-	err := client.CreateAll(context, resourceDefs)
+	err := cli.CreateAll(ctx, resourceDefs)
 	grpcErr, ok := grpc_status.FromError(err)
 	if !ok {
 		t.Fatalf("Expected error to be a grpc error")
@@ -2285,7 +2281,7 @@ func Test_MetadataErrorInterceptors(t *testing.T) {
 	}
 
 	// Test Streaming
-	_, err = client.GetTrainingSet(context, "DNE")
+	_, err = cli.GetTrainingSet(ctx, "DNE")
 	grpcErr, ok = grpc_status.FromError(err)
 	if !ok {
 		t.Fatalf("Expected error to be a grpc error")
@@ -2387,10 +2383,9 @@ func TestSourceShallowMapOK(t *testing.T) {
 }
 
 func Test_GetEquivalent(t *testing.T) {
-	serv, addr := startServNoPanic(t)
-	client := client(t, addr)
-	requestID := logging.NewRequestID().String()
-	context := logging.AttachRequestID(requestID, context.Background(), logging.NewLoggerWithLevel("metadata-test", logging.DebugLevel))
+	requestID, ctx, logger := logging.InitializeTestRequestID(t)
+	serv, addr := startServNoPanic(t, ctx, logger)
+	client := client(t, ctx, logger, addr)
 
 	redisConfig := pc.RedisConfig{
 		Addr:     "0.0.0.0",
@@ -2516,13 +2511,14 @@ func Test_GetEquivalent(t *testing.T) {
 		Owner:      "Featureform",
 		Tags:       Tags{},
 		Properties: Properties{},
+		Type:       DynamicTrainingSet,
 	}
 
 	defaultResourceVariant := &pb.ResourceVariant{}
 
 	resourceDefs := []ResourceDef{userDef, entityDef, onlineDef, offlineDef, sourceDef, featureDef, featureDef2, labelDef, trainingSetDef}
 
-	err := client.CreateAll(context, resourceDefs)
+	err := client.CreateAll(ctx, resourceDefs)
 	if err != nil {
 		t.Fatalf("Failed to create resources: %s", err)
 	}
@@ -2535,9 +2531,9 @@ func Test_GetEquivalent(t *testing.T) {
 		t.Fatalf("Failed to serialize source def: %s", err)
 	}
 	resourceVariant := &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto.SourceVariant}}
-	equivalent, err := serv.getEquivalent(context, &pb.GetEquivalentRequest{
+	equivalent, err := serv.getEquivalent(ctx, &pb.GetEquivalentRequest{
 		Variant:   resourceVariant,
-		RequestId: requestID,
+		RequestId: requestID.String(),
 	}, false, "")
 
 	if err != nil {
@@ -2561,9 +2557,9 @@ func Test_GetEquivalent(t *testing.T) {
 		t.Fatalf("Failed to serialize source def: %s", err)
 	}
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_SourceVariant{svProto2.SourceVariant}}
-	equivalent, err = serv.getEquivalent(context, &pb.GetEquivalentRequest{
+	equivalent, err = serv.getEquivalent(ctx, &pb.GetEquivalentRequest{
 		Variant:   resourceVariant,
-		RequestId: requestID,
+		RequestId: requestID.String(),
 	}, false, "")
 
 	if err != nil {
@@ -2580,9 +2576,9 @@ func Test_GetEquivalent(t *testing.T) {
 		t.Fatalf("Failed to serialize label def: %s", err)
 	}
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_LabelVariant{lvProto.LabelVariant}}
-	equivalent, err = serv.getEquivalent(context, &pb.GetEquivalentRequest{
+	equivalent, err = serv.getEquivalent(ctx, &pb.GetEquivalentRequest{
 		Variant:   resourceVariant,
-		RequestId: requestID,
+		RequestId: requestID.String(),
 	}, false, "")
 	if err != nil {
 		t.Fatalf("Failed to get equivalent: %s", err)
@@ -2599,9 +2595,9 @@ func Test_GetEquivalent(t *testing.T) {
 		t.Fatalf("Failed to serialize feature def: %s", err)
 	}
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto.FeatureVariant}}
-	equivalent, err = serv.getEquivalent(context, &pb.GetEquivalentRequest{
+	equivalent, err = serv.getEquivalent(ctx, &pb.GetEquivalentRequest{
 		Variant:   resourceVariant,
-		RequestId: requestID,
+		RequestId: requestID.String(),
 	}, false, "")
 
 	if err != nil {
@@ -2616,9 +2612,9 @@ func Test_GetEquivalent(t *testing.T) {
 	featureDef.Variant = "variant2"
 	fvProto, err = featureDef.Serialize(requestID)
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto.FeatureVariant}}
-	equivalent, err = serv.getEquivalent(context, &pb.GetEquivalentRequest{
+	equivalent, err = serv.getEquivalent(ctx, &pb.GetEquivalentRequest{
 		Variant:   resourceVariant,
-		RequestId: requestID,
+		RequestId: requestID.String(),
 	}, false, "")
 
 	if err != nil {
@@ -2638,9 +2634,9 @@ func Test_GetEquivalent(t *testing.T) {
 	}
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_FeatureVariant{fvProto2.FeatureVariant}}
 
-	equivalent, err = serv.getEquivalent(context, &pb.GetEquivalentRequest{
+	equivalent, err = serv.getEquivalent(ctx, &pb.GetEquivalentRequest{
 		Variant:   resourceVariant,
-		RequestId: requestID,
+		RequestId: requestID.String(),
 	}, false, "")
 
 	if err != nil {
@@ -2654,9 +2650,9 @@ func Test_GetEquivalent(t *testing.T) {
 	trainingSetDef.Description = "Some other description"
 	tsvProto := trainingSetDef.Serialize(requestID)
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
-	equivalent, err = serv.getEquivalent(context, &pb.GetEquivalentRequest{
+	equivalent, err = serv.getEquivalent(ctx, &pb.GetEquivalentRequest{
 		Variant:   resourceVariant,
-		RequestId: requestID,
+		RequestId: requestID.String(),
 	}, false, "")
 
 	if err != nil {
@@ -2675,9 +2671,9 @@ func Test_GetEquivalent(t *testing.T) {
 	trainingSetDef.Variant = "variant2"
 	tsvProto = trainingSetDef.Serialize(requestID)
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
-	equivalent, err = serv.getEquivalent(context, &pb.GetEquivalentRequest{
+	equivalent, err = serv.getEquivalent(ctx, &pb.GetEquivalentRequest{
 		Variant:   resourceVariant,
-		RequestId: requestID,
+		RequestId: requestID.String(),
 	}, false, "")
 
 	if err != nil {
@@ -2694,9 +2690,9 @@ func Test_GetEquivalent(t *testing.T) {
 	trainingSetDef.Label = NameVariant{"label_doesnt_exist", "variant"}
 	tsvProto = trainingSetDef.Serialize(requestID)
 	resourceVariant = &pb.ResourceVariant{Resource: &pb.ResourceVariant_TrainingSetVariant{tsvProto.TrainingSetVariant}}
-	equivalent, err = serv.getEquivalent(context, &pb.GetEquivalentRequest{
+	equivalent, err = serv.getEquivalent(ctx, &pb.GetEquivalentRequest{
 		Variant:   resourceVariant,
-		RequestId: requestID,
+		RequestId: requestID.String(),
 	}, false, "")
 
 	if err != nil {
@@ -2709,8 +2705,9 @@ func Test_GetEquivalent(t *testing.T) {
 
 // TODO split these up into better tests
 func Test_CreateResourceVariantResourceChanged(t *testing.T) {
-	_, addr := startServNoPanic(t)
-	client := client(t, addr)
+	ctx, logger := logging.NewTestContextAndLogger(t)
+	_, addr := startServNoPanic(t, ctx, logger)
+	client := client(t, ctx, logger, addr)
 	context := context.Background()
 
 	redisConfig := pc.RedisConfig{

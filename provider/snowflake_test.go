@@ -214,6 +214,54 @@ func (s *snowflakeOfflineStoreTester) CheckWarehouse(id ResourceID, expectedWh s
 	return warehouse == expectedWh, nil
 }
 
+func (s *snowflakeOfflineStoreTester) AssertTrainingSetType(t *testing.T, id ResourceID, tsType metadata.TrainingSetType) {
+	db, err := s.sqlOfflineStore.getDb("", "")
+	if err != nil {
+		t.Fatalf("could not get database: %v", err)
+	}
+
+	tableName, err := ps.ResourceToTableName(TrainingSet.String(), id.Name, id.Variant)
+	if err != nil {
+		t.Fatalf("could not get table name: %v", err)
+	}
+
+	query := fmt.Sprintf("SELECT TABLE_TYPE, IS_DYNAMIC, IS_ICEBERG FROM information_schema.tables WHERE TABLE_NAME = '%s'", tableName)
+
+	r := db.QueryRow(query)
+
+	var tableType string
+	var isDynamic string
+	var isIceberg string
+
+	if err := r.Scan(&tableType, &isDynamic, &isIceberg); err != nil {
+		if err == sql.ErrNoRows {
+			// Handle the case where no rows were returned
+			t.Fatal("No tables found with the specified name.")
+		}
+		t.Fatalf("could not get table name: %v", err)
+	}
+
+	var isCorrectTrainingSetType bool
+	var tsTypeErr error
+	switch tsType {
+	case metadata.DynamicTrainingSet:
+		isCorrectTrainingSetType = tableType == "BASE TABLE" && isDynamic == "YES" && isIceberg == "YES"
+	case metadata.StaticTrainingSet:
+		isCorrectTrainingSetType = tableType == "BASE TABLE" && isDynamic == "NO" && isIceberg == "YES"
+	case metadata.ViewTrainingSet:
+		isCorrectTrainingSetType = tableType == "VIEW" && isDynamic == "NO" && isIceberg == "NO"
+	default:
+		tsTypeErr = fferr.NewInvalidArgumentErrorf("invalid training set type: %s", tsType)
+	}
+
+	if tsTypeErr != nil {
+		t.Fatalf("failed to check training set type: %v", err)
+	}
+	if !isCorrectTrainingSetType {
+		t.Fatalf("expected training set to be of type %s", tsType)
+	}
+}
+
 // TESTS
 
 func TestSnowflakeSchemas(t *testing.T) {
@@ -855,6 +903,34 @@ func RegisterTrainingSet(t *testing.T, tester offlineSqlTest, tsDatasetType trai
 		t.Fatalf("could not get training set: %v", err)
 	}
 	tsTest.data.Assert(t, ts)
+}
+
+func RegisterTrainingSetWithType(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType, tsType metadata.TrainingSetType) {
+	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
+	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
+	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
+
+	res, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.labelID, tsTest.data.labelResourceSchema, &ResourceSnowflakeConfigOption{})
+	if err != nil {
+		t.Fatalf("could not register label table: %v", err)
+	}
+	tsTest.data.def.LabelSourceMapping.Location = res.Location()
+	tsTest.data.def.Type = tsType
+	if err := tsTest.tester.CreateTrainingSet(tsTest.data.def); err != nil {
+		t.Fatalf("could not create training set: %v", err)
+	}
+	ts, err := tsTest.tester.GetTrainingSet(tsTest.data.id)
+	if err != nil {
+		t.Fatalf("could not get training set: %v", err)
+	}
+	tsTest.data.Assert(t, ts)
+
+	snowflakeTester, isSnowflakeTester := tester.storeTester.(*snowflakeOfflineStoreTester)
+	if !isSnowflakeTester {
+		t.Fatalf("expected store tester to be snowflakeOfflineStoreTester")
+	}
+
+	snowflakeTester.AssertTrainingSetType(t, tsTest.data.id, tsType)
 }
 
 func DeleteTableTest(t *testing.T, tester offlineSqlTest) {

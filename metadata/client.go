@@ -169,7 +169,7 @@ func (client *Client) Create(ctx context.Context, def ResourceDef) error {
 
 func (client *Client) ListFeatures(ctx context.Context) ([]*Feature, error) {
 	logger := logging.GetLoggerFromContext(ctx)
-	stream, err := client.GrpcConn.ListFeatures(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
+	stream, err := client.GrpcConn.ListFeatures(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx).String()})
 	if err != nil {
 		logger.Errorw("Failed to list features", "error", err)
 		return nil, err
@@ -194,7 +194,7 @@ func (client *Client) GetFeatures(ctx context.Context, features []string) ([]*Fe
 	}
 	go func() {
 		for _, feature := range features {
-			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: feature}, RequestId: logging.GetRequestIDFromContext(ctx)})
+			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: feature}, RequestId: logging.GetRequestIDFromContext(ctx).String()})
 		}
 		err := stream.CloseSend()
 		if err != nil {
@@ -213,7 +213,7 @@ func (client *Client) GetFeatureVariants(ctx context.Context, ids []NameVariant)
 	}
 	go func() {
 		for _, id := range ids {
-			stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx)})
+			stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx).String()})
 		}
 		err := stream.CloseSend()
 		if err != nil {
@@ -258,6 +258,17 @@ type ResourceVariantColumns struct {
 	Value  string
 	TS     string
 	Source string
+}
+
+type EntityMapping struct {
+	Name         string
+	EntityColumn string
+}
+
+type EntityMappings struct {
+	Mappings        []EntityMapping
+	ValueColumn     string
+	TimestampColumn string
 }
 
 func (c ResourceVariantColumns) SerializeFeatureColumns() *pb.FeatureVariant_Columns {
@@ -315,7 +326,7 @@ func (def FeatureDef) ResourceID() ResourceID {
 	}
 }
 
-func (def FeatureDef) Serialize(requestID string) (*pb.FeatureVariantRequest, error) {
+func (def FeatureDef) Serialize(requestID logging.RequestID) (*pb.FeatureVariantRequest, error) {
 	var typeProto *pb.ValueType
 	if def.Type == nil {
 		typeProto = types.NilType.ToProto()
@@ -338,7 +349,7 @@ func (def FeatureDef) Serialize(requestID string) (*pb.FeatureVariantRequest, er
 			Properties:  def.Properties.Serialize(),
 			Mode:        pb.ComputationMode(def.Mode),
 		},
-		RequestId: requestID,
+		RequestId: requestID.String(),
 	}
 
 	switch x := def.Location.(type) {
@@ -405,7 +416,7 @@ func (client *Client) parseFeatureVariantStream(stream featureVariantStream) ([]
 
 func (client *Client) ListLabels(ctx context.Context) ([]*Label, error) {
 	logger := logging.GetLoggerFromContext(ctx)
-	stream, err := client.GrpcConn.ListLabels(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
+	stream, err := client.GrpcConn.ListLabels(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx).String()})
 	if err != nil {
 		logger.Errorw("Failed to list labels", "error", err)
 		return nil, err
@@ -430,7 +441,7 @@ func (client *Client) GetLabels(ctx context.Context, labels []string) ([]*Label,
 	}
 	go func() {
 		for _, label := range labels {
-			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: label}, RequestId: logging.GetRequestIDFromContext(ctx)})
+			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: label}, RequestId: logging.GetRequestIDFromContext(ctx).String()})
 		}
 		err := stream.CloseSend()
 		if err != nil {
@@ -466,7 +477,7 @@ func (def LabelDef) ResourceID() ResourceID {
 	}
 }
 
-func (def LabelDef) Serialize(requestID string) (*pb.LabelVariantRequest, error) {
+func (def LabelDef) Serialize(requestID logging.RequestID) (*pb.LabelVariantRequest, error) {
 	var typeProto *pb.ValueType
 	if def.Type == nil {
 		typeProto = types.NilType.ToProto()
@@ -487,7 +498,7 @@ func (def LabelDef) Serialize(requestID string) (*pb.LabelVariantRequest, error)
 			Tags:        &pb.Tags{Tag: def.Tags},
 			Properties:  def.Properties.Serialize(),
 		},
-		RequestId: requestID,
+		RequestId: requestID.String(),
 	}
 
 	switch x := def.Location.(type) {
@@ -524,7 +535,7 @@ func (client *Client) GetLabelVariants(ctx context.Context, ids []NameVariant) (
 	}
 	go func() {
 		for _, id := range ids {
-			stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx)})
+			stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx).String()})
 		}
 		err := stream.CloseSend()
 		if err != nil {
@@ -582,7 +593,7 @@ func (client *Client) ListTrainingSets(ctx context.Context) ([]*TrainingSet, err
 	logger := logging.GetLoggerFromContext(ctx)
 	stream, err := client.GrpcConn.ListTrainingSets(
 		ctx,
-		&pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)},
+		&pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx).String()},
 	)
 	if err != nil {
 		logger.Errorw("Failed to list training sets", "error", err)
@@ -608,7 +619,7 @@ func (client *Client) GetTrainingSets(ctx context.Context, trainingSets []string
 	}
 	go func() {
 		for _, trainingSet := range trainingSets {
-			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: trainingSet}, RequestId: logging.GetRequestIDFromContext(ctx)})
+			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: trainingSet}, RequestId: logging.GetRequestIDFromContext(ctx).String()})
 		}
 		err := stream.CloseSend()
 		if err != nil {
@@ -629,6 +640,7 @@ type TrainingSetDef struct {
 	Features    NameVariants
 	Tags        Tags
 	Properties  Properties
+	Type        TrainingSetType
 }
 
 func (def TrainingSetDef) ResourceType() ResourceType {
@@ -643,7 +655,7 @@ func (def TrainingSetDef) ResourceID() ResourceID {
 	}
 }
 
-func (def TrainingSetDef) Serialize(requestID string) *pb.TrainingSetVariantRequest {
+func (def TrainingSetDef) Serialize(requestID logging.RequestID) *pb.TrainingSetVariantRequest {
 	return &pb.TrainingSetVariantRequest{
 		TrainingSetVariant: &pb.TrainingSetVariant{
 			Name:        def.Name,
@@ -657,8 +669,9 @@ func (def TrainingSetDef) Serialize(requestID string) *pb.TrainingSetVariantRequ
 			Schedule:    def.Schedule,
 			Tags:        &pb.Tags{Tag: def.Tags},
 			Properties:  def.Properties.Serialize(),
+			Type:        TrainingSetTypeToProto(def.Type),
 		},
-		RequestId: requestID,
+		RequestId: requestID.String(),
 	}
 
 }
@@ -687,7 +700,7 @@ func (client *Client) GetTrainingSetVariants(ctx context.Context, ids []NameVari
 	}
 	go func() {
 		for _, id := range ids {
-			stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx)})
+			stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx).String()})
 		}
 		err := stream.CloseSend()
 		if err != nil {
@@ -735,7 +748,7 @@ func (client *Client) parseTrainingSetVariantStream(stream trainingSetVariantStr
 
 func (client *Client) ListSources(ctx context.Context) ([]*Source, error) {
 	logger := logging.GetLoggerFromContext(ctx)
-	stream, err := client.GrpcConn.ListSources(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
+	stream, err := client.GrpcConn.ListSources(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx).String()})
 	if err != nil {
 		logger.Errorw("Failed to list sources", "error", err)
 		return nil, err
@@ -760,7 +773,7 @@ func (client *Client) GetSources(ctx context.Context, sources []string) ([]*Sour
 	}
 	go func() {
 		for _, source := range sources {
-			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: source}, RequestId: logging.GetRequestIDFromContext(ctx)})
+			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: source}, RequestId: logging.GetRequestIDFromContext(ctx).String()})
 		}
 		err := stream.CloseSend()
 		if err != nil {
@@ -887,7 +900,7 @@ func (def SourceDef) ResourceID() ResourceID {
 	}
 }
 
-func (def SourceDef) Serialize(requestID string) (*pb.SourceVariantRequest, error) {
+func (def SourceDef) Serialize(requestID logging.RequestID) (*pb.SourceVariantRequest, error) {
 	serialized := &pb.SourceVariantRequest{
 		SourceVariant: &pb.SourceVariant{
 			Name:        def.Name,
@@ -900,7 +913,7 @@ func (def SourceDef) Serialize(requestID string) (*pb.SourceVariantRequest, erro
 			Tags:        &pb.Tags{Tag: def.Tags},
 			Properties:  def.Properties.Serialize(),
 		},
-		RequestId: requestID,
+		RequestId: requestID.String(),
 	}
 	var err error
 	switch x := def.Definition.(type) {
@@ -943,7 +956,7 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 					Name:    id.Name,
 					Variant: id.Variant,
 				},
-				RequestId: logging.GetRequestIDFromContext(ctx)}
+				RequestId: logging.GetRequestIDFromContext(ctx).String()}
 			err := stream.Send(req)
 			if err != nil {
 				logger.Errorw(
@@ -1037,7 +1050,7 @@ func (client *Client) parseSourceVariantStream(stream sourceVariantStream) ([]*S
 
 func (client *Client) ListUsers(ctx context.Context) ([]*User, error) {
 	logger := logging.GetLoggerFromContext(ctx)
-	stream, err := client.GrpcConn.ListUsers(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
+	stream, err := client.GrpcConn.ListUsers(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx).String()})
 	if err != nil {
 		logger.Errorw("Failed to list users", "error", err)
 		return nil, err
@@ -1062,7 +1075,7 @@ func (client *Client) GetUsers(ctx context.Context, users []string) ([]*User, er
 	}
 	go func() {
 		for _, user := range users {
-			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: user}, RequestId: logging.GetRequestIDFromContext(ctx)})
+			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: user}, RequestId: logging.GetRequestIDFromContext(ctx).String()})
 		}
 		err := stream.CloseSend()
 		if err != nil {
@@ -1098,7 +1111,7 @@ func (client *Client) CreateUser(ctx context.Context, def UserDef) error {
 			Tags:       &pb.Tags{Tag: def.Tags},
 			Properties: def.Properties.Serialize(),
 		},
-		RequestId: requestID,
+		RequestId: requestID.String(),
 	}
 
 	_, err := client.GrpcConn.CreateUser(ctx, serialized)
@@ -1125,7 +1138,7 @@ func (client *Client) parseUserStream(stream userStream) ([]*User, error) {
 
 func (client *Client) ListProviders(ctx context.Context) ([]*Provider, error) {
 	logger := logging.GetLoggerFromContext(ctx)
-	stream, err := client.GrpcConn.ListProviders(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
+	stream, err := client.GrpcConn.ListProviders(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx).String()})
 	if err != nil {
 		logger.Errorw("Failed to list providers", "error", err)
 		return nil, err
@@ -1154,7 +1167,7 @@ func (client *Client) GetProviders(ctx context.Context, providers []string) ([]*
 	}
 	go func() {
 		for _, provider := range providers {
-			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: provider}, RequestId: logging.GetRequestIDFromContext(ctx)})
+			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: provider}, RequestId: logging.GetRequestIDFromContext(ctx).String()})
 		}
 		err := stream.CloseSend()
 		if err != nil {
@@ -1201,7 +1214,7 @@ func (client *Client) CreateProvider(ctx context.Context, def ProviderDef) error
 			Tags:             &pb.Tags{Tag: def.Tags},
 			Properties:       def.Properties.Serialize(),
 		},
-		RequestId: requestID,
+		RequestId: requestID.String(),
 	}
 
 	_, err := client.GrpcConn.CreateProvider(ctx, serialized)
@@ -1228,7 +1241,7 @@ func (client *Client) parseProviderStream(stream providerStream) ([]*Provider, e
 
 func (client *Client) ListEntities(ctx context.Context) ([]*Entity, error) {
 	logger := logging.GetLoggerFromContext(ctx)
-	stream, err := client.GrpcConn.ListEntities(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
+	stream, err := client.GrpcConn.ListEntities(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx).String()})
 	if err != nil {
 		logger.Errorw("Failed to list entities", "error", err)
 		return nil, err
@@ -1253,7 +1266,7 @@ func (client *Client) GetEntities(ctx context.Context, entities []string) ([]*En
 	}
 	go func() {
 		for _, entity := range entities {
-			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: entity}, RequestId: logging.GetRequestIDFromContext(ctx)})
+			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: entity}, RequestId: logging.GetRequestIDFromContext(ctx).String()})
 		}
 		err := stream.CloseSend()
 		if err != nil {
@@ -1293,7 +1306,7 @@ func (client *Client) CreateEntity(ctx context.Context, def EntityDef) error {
 			Tags:        &pb.Tags{Tag: def.Tags},
 			Properties:  def.Properties.Serialize(),
 		},
-		RequestId: requestID,
+		RequestId: requestID.String(),
 	}
 
 	_, err := client.GrpcConn.CreateEntity(ctx, serialized)
@@ -1320,7 +1333,7 @@ func (client *Client) parseEntityStream(stream entityStream) ([]*Entity, error) 
 
 func (client *Client) ListModels(ctx context.Context) ([]*Model, error) {
 	logger := logging.GetLoggerFromContext(ctx)
-	stream, err := client.GrpcConn.ListModels(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx)})
+	stream, err := client.GrpcConn.ListModels(ctx, &pb.ListRequest{RequestId: logging.GetRequestIDFromContext(ctx).String()})
 	if err != nil {
 		logger.Errorw("Failed to list models", "error", err)
 		return nil, err
@@ -1345,7 +1358,7 @@ func (client *Client) GetModels(ctx context.Context, models []string) ([]*Model,
 	}
 	go func() {
 		for _, model := range models {
-			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: model}, RequestId: logging.GetRequestIDFromContext(ctx)})
+			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: model}, RequestId: logging.GetRequestIDFromContext(ctx).String()})
 		}
 		err := stream.CloseSend()
 		if err != nil {
@@ -1490,7 +1503,7 @@ func (client *Client) CreateModel(ctx context.Context, def ModelDef) error {
 			Tags:         &pb.Tags{Tag: def.Tags},
 			Properties:   def.Properties.Serialize(),
 		},
-		RequestId: requestID,
+		RequestId: requestID.String(),
 	}
 	_, err := client.GrpcConn.CreateModel(ctx, serialized)
 	return err
@@ -1765,6 +1778,18 @@ func (fn fetchMaxJobDurationFn) MaxJobDuration() time.Duration {
 	}
 
 	return duration.AsDuration()
+}
+
+type entityGetter interface {
+	GetEntity() string
+}
+
+type fetchEntityFn struct {
+	getter entityGetter
+}
+
+func (fn fetchEntityFn) Entity() string {
+	return fn.getter.GetEntity()
 }
 
 type Feature struct {
@@ -2271,6 +2296,7 @@ type LabelVariant struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
+	fetchEntityFn
 }
 
 func WrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
@@ -2283,6 +2309,7 @@ func WrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
 		protoStringer:        protoStringer{serialized},
 		fetchTagsFn:          fetchTagsFn{serialized},
 		fetchPropertiesFn:    fetchPropertiesFn{serialized},
+		fetchEntityFn:        fetchEntityFn{serialized},
 	}
 }
 
@@ -2343,8 +2370,43 @@ func (variant *LabelVariant) Error() string {
 	return ""
 }
 
-func (variant *LabelVariant) Location() interface{} {
-	return variant.serialized.GetLocation()
+func (variant *LabelVariant) IsLegacyLocation() bool {
+	loc := variant.serialized.GetLocation()
+	if _, isColumnsLocations := loc.(*pb.LabelVariant_Columns); isColumnsLocations {
+		return true
+	}
+	return false
+}
+
+// Location returns either Columns, which is now deprecated but could still be in use in users storage provider, or EntityMappings.
+func (variant *LabelVariant) Location() (EntityMappings, error) {
+	logger := logging.GlobalLogger.With("label_name", variant.Name(), "label_variant", variant.Name())
+	switch loc := variant.serialized.GetLocation().(type) {
+	case *pb.LabelVariant_Columns:
+		logger.Debugw("Using deprecated location type", "location", loc)
+		return EntityMappings{
+			Mappings:        []EntityMapping{{Name: variant.Entity(), EntityColumn: loc.Columns.Entity}},
+			ValueColumn:     loc.Columns.Value,
+			TimestampColumn: loc.Columns.Ts,
+		}, nil
+	case *pb.LabelVariant_EntityMappings:
+		logger.Debugw("Using entity mappings location type", "location", loc)
+		mappings := make([]EntityMapping, 0)
+		for _, mapping := range loc.EntityMappings.Mappings {
+			mappings = append(mappings, EntityMapping{
+				Name:         mapping.Name,
+				EntityColumn: mapping.EntityColumn,
+			})
+		}
+		return EntityMappings{
+			Mappings:        mappings,
+			ValueColumn:     loc.EntityMappings.ValueColumn,
+			TimestampColumn: loc.EntityMappings.TimestampColumn,
+		}, nil
+	default:
+		logger.Errorw("Unknown or unsupported location type", "location", loc)
+		return EntityMappings{}, fferr.NewInternalErrorf("Unknown or unsupported location type %T", loc)
+	}
 }
 
 func (variant *LabelVariant) isTable() bool {
@@ -2352,12 +2414,18 @@ func (variant *LabelVariant) isTable() bool {
 }
 
 func (variant *LabelVariant) LocationColumns() interface{} {
+	logger := logging.GlobalLogger.With("label_name", variant.Name(), "label_variant", variant.Name())
 	src := variant.serialized.GetColumns()
+	if src == nil {
+		logger.Errorw("Columns location is nil")
+		return nil
+	}
 	columns := ResourceVariantColumns{
 		Entity: src.Entity,
 		Value:  src.Value,
 		TS:     src.Ts,
 	}
+	logger.Debugw("Deprecated location columns", "columns", columns)
 	return columns
 }
 
@@ -2499,6 +2567,16 @@ func (variant *TrainingSetVariant) ResourceSnowflakeConfig() (*ResourceSnowflake
 	return getResourceSnowflakeConfig(variant.serialized)
 }
 
+func (variant *TrainingSetVariant) TrainingSetType() TrainingSetType {
+	logger := logging.GlobalLogger.Named("TrainingSetType")
+	typ, err := TrainingSetTypeFromProto(variant.serialized.GetType())
+	if err != nil {
+		logger.Errorw("Failed to get training set type; returning default DynamicTrainingSet", "error", err)
+		return DynamicTrainingSet
+	}
+	return typ
+}
+
 type Source struct {
 	serialized *pb.Source
 	variantsFns
@@ -2571,6 +2649,7 @@ func (arg KubernetesArgs) Type() TransformationArgType {
 
 type RefreshMode string
 type Initialize string
+type TrainingSetType string
 
 const (
 	AutoRefresh        RefreshMode = "AUTO" // Default
@@ -2579,6 +2658,10 @@ const (
 
 	InitializeOnCreate   Initialize = "ON_CREATE" // Default
 	InitializeOnSchedule Initialize = "ON_SCHEDULE"
+
+	DynamicTrainingSet TrainingSetType = "DYNAMIC"
+	StaticTrainingSet  TrainingSetType = "STATIC"
+	ViewTrainingSet    TrainingSetType = "VIEW"
 )
 
 func RefreshModeFromProto(proto pb.RefreshMode) (RefreshMode, error) {
@@ -2634,6 +2717,54 @@ func InitializeFromString(initialize string) (Initialize, error) {
 		return InitializeOnSchedule, nil
 	default:
 		return "", fferr.NewInvalidArgumentErrorf("Invalid initialize mode %s", initialize)
+	}
+}
+
+func TrainingSetTypeFromProto(proto pb.TrainingSetType) (TrainingSetType, error) {
+	logger := logging.GlobalLogger.Named("TrainingSetTypeFromProto")
+	var trainingSetType TrainingSetType
+	switch proto {
+	case pb.TrainingSetType_TRAINING_SET_TYPE_DYNAMIC:
+		trainingSetType = DynamicTrainingSet
+	case pb.TrainingSetType_TRAINING_SET_TYPE_STATIC:
+		trainingSetType = StaticTrainingSet
+	case pb.TrainingSetType_TRAINING_SET_TYPE_VIEW:
+		trainingSetType = ViewTrainingSet
+	case pb.TrainingSetType_TRAINING_SET_TYPE_UNSPECIFIED:
+		logger.DPanic("Training set type unspecified")
+		return trainingSetType, fferr.NewInvalidArgumentErrorf("Training set type unspecified")
+	default:
+		logger.DPanic("Unknown training set type", "proto", proto)
+		return trainingSetType, fferr.NewInternalErrorf("Unknown training set type %v", proto)
+	}
+	return trainingSetType, nil
+}
+
+func TrainingSetTypeFromString(trainingSetType string) (TrainingSetType, error) {
+	logger := logging.GlobalLogger.Named("TrainingSetTypeFromString")
+	switch trainingSetType {
+	case "DYNAMIC":
+		return DynamicTrainingSet, nil
+	case "STATIC":
+		return StaticTrainingSet, nil
+	case "VIEW":
+		return ViewTrainingSet, nil
+	default:
+		logger.DPanic("Invalid training set type", "trainingSetType", trainingSetType)
+		return "", fferr.NewInvalidArgumentErrorf("Invalid training set type %s", trainingSetType)
+	}
+}
+
+func TrainingSetTypeToProto(trainingSetType TrainingSetType) pb.TrainingSetType {
+	switch trainingSetType {
+	case DynamicTrainingSet:
+		return pb.TrainingSetType_TRAINING_SET_TYPE_DYNAMIC
+	case StaticTrainingSet:
+		return pb.TrainingSetType_TRAINING_SET_TYPE_STATIC
+	case ViewTrainingSet:
+		return pb.TrainingSetType_TRAINING_SET_TYPE_VIEW
+	default:
+		return pb.TrainingSetType_TRAINING_SET_TYPE_UNSPECIFIED
 	}
 }
 
@@ -3207,8 +3338,6 @@ func (entity *Entity) Properties() Properties {
 func NewClient(host string, logger logging.Logger) (*Client, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		// grpc.WithUnaryInterceptor(fferr.UnaryClientInterceptor()),
-		// grpc.WithStreamInterceptor(fferr.StreamClientInterceptor()),
 	}
 	conn, err := grpc.Dial(host, opts...)
 	if err != nil {

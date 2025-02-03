@@ -19,6 +19,7 @@ import (
 
 	"github.com/featureform/fferr"
 	help "github.com/featureform/helpers"
+	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
@@ -2013,7 +2014,7 @@ func (m *MetadataServer) buildProviderFilterOpts(filterBody ProviderFilters) []q
 }
 
 func (m *MetadataServer) FailRunningJobs(c *gin.Context) {
-	config := help.PSQLConfig{
+	config := postgres.Config{
 		Host:     help.GetEnv("PSQL_HOST", "localhost"),
 		Port:     help.GetEnv("PSQL_PORT", "5432"),
 		User:     help.GetEnv("PSQL_USER", "postgres"),
@@ -2021,24 +2022,25 @@ func (m *MetadataServer) FailRunningJobs(c *gin.Context) {
 		DBName:   help.GetEnv("PSQL_DB", "postgres"),
 		SSLMode:  help.GetEnv("PSQL_SSLMODE", "disable"),
 	}
-	db, err := help.NewPSQLPoolConnection(config)
+	db, err := postgres.NewPool(c, config)
 	if err != nil {
 		c.JSON(400, fmt.Sprintf("could not create database connection: %s", err.Error()))
 		return
 	}
 
-	connection, err := db.Acquire(context.Background())
+	connection, err := db.Acquire(c)
 	if err != nil {
 		c.JSON(400, fferr.NewInternalError(fmt.Errorf("failed to acquire connection from the database pool: %w", err)))
 		return
 	}
+	defer connection.Release()
 
-	err = connection.Ping(context.Background())
+	err = connection.Ping(c)
 	if err != nil {
-		c.JSON(400, fferr.NewInternalError(fmt.Errorf("failed to ping the database: %w", err)))
+		c.JSON(400, fferr.NewInternalErrorf("failed to ping the database: %w", err))
 		return
 	}
-	_, err = connection.Exec(context.Background(), "UPDATE ff_task_metadata SET value = jsonb_set(value::jsonb, '{status}', '4', false) WHERE key LIKE '/tasks/runs/metadata/%'  AND (value::jsonb ->> 'status')::int = 5;")
+	_, err = connection.Exec(c, "UPDATE ff_task_metadata SET value = jsonb_set(value::jsonb, '{status}', '4', false) WHERE key LIKE '/tasks/runs/metadata/%'  AND (value::jsonb ->> 'status')::int = 5;")
 	if err != nil {
 		c.JSON(400, fmt.Sprintf("failed to run query: %s", err.Error()))
 		return
@@ -2623,11 +2625,12 @@ type TaskRunItem struct {
 }
 
 type PaginateRequest struct {
-	Status     string `json:"status"`
-	SearchText string `json:"searchtext"`
-	SortBy     string `json:"sortBy"`
-	PageSize   int    `json:"pageSize"`
-	Offset     int    `json:"offset"`
+	Status        string `json:"status"`
+	SearchText    string `json:"searchText"`
+	VariantSearch string `json:"variantSearch"`
+	SortBy        string `json:"sortBy"`
+	PageSize      int    `json:"pageSize"`
+	Offset        int    `json:"offset"`
 }
 
 func (m MetadataServer) getResourceQuery(prefix string) []query.Query {
@@ -2661,7 +2664,26 @@ func (m MetadataServer) getTaskRunsQuery(requestBody PaginateRequest, isCount bo
 		}
 	}
 
-	if requestBody.SearchText != "" {
+	if requestBody.VariantSearch != "" && requestBody.SearchText != "" {
+		nameSearch := query.ValueEquals{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "target", IsJsonString: true}, {Key: "name"}},
+				Type: query.String,
+			},
+			Value: requestBody.SearchText,
+		}
+		queryList = append(queryList, nameSearch)
+
+		variantSearch := query.ValueEquals{
+			Column: query.JSONColumn{
+				Path: []query.JSONPathStep{{Key: "target", IsJsonString: true}, {Key: "variant"}},
+				Type: query.String,
+			},
+			Value: requestBody.VariantSearch,
+		}
+		queryList = append(queryList, variantSearch)
+
+	} else if requestBody.SearchText != "" {
 		search := query.ValueLike{
 			Column: query.JSONColumn{
 				Path: []query.JSONPathStep{{Key: "target", IsJsonString: true}, {Key: "name"}},

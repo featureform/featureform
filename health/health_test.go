@@ -160,7 +160,9 @@ func TestHealth_Check(t *testing.T) {
 		)
 	}
 
-	server, addr := initMetadataServer(t)
+	ctx, logger := logging.NewTestContextAndLogger(t)
+
+	server, addr := initMetadataServer(ctx, logger, t)
 
 	client := initClient(t, addr)
 
@@ -176,11 +178,10 @@ func TestHealth_Check(t *testing.T) {
 	}
 }
 
-func initMetadataServer(t *testing.T) (*metadata.MetadataServer, string) {
-	manager, err := scheduling.NewMemoryTaskMetadataManager()
-	logger := zaptest.NewLogger(t).Sugar()
+func initMetadataServer(ctx context.Context, logger logging.Logger, t *testing.T) (*metadata.MetadataServer, string) {
+	manager, err := scheduling.NewMemoryTaskMetadataManager(ctx)
 	config := &metadata.Config{
-		Logger:      logging.WrapZapLogger(logger),
+		Logger:      logger,
 		TaskManager: manager,
 	}
 	server, err := metadata.NewMetadataServer(config)

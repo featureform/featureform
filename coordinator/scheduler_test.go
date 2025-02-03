@@ -18,12 +18,11 @@ import (
 	"github.com/featureform/metadata"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
-	"go.uber.org/zap/zaptest"
 )
 
 func newScheduler(t *testing.T) (*Scheduler, *metadata.MetadataServer, *metadata.Client) {
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
-	serv, addr := startServ(t)
+	ctx, logger := logging.NewTestContextAndLogger(t)
+	serv, addr := startServ(ctx, t)
 	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
 		panic(err)

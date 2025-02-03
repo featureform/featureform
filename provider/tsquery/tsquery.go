@@ -24,20 +24,19 @@ type QueryConfig struct {
 }
 
 type BuilderParams struct {
-	LabelColumns           metadata.ResourceVariantColumns
+	LabelEntityMappings    *metadata.EntityMappings
 	SanitizedLabelTable    string
 	FeatureColumns         []metadata.ResourceVariantColumns
 	SanitizedFeatureTables []string
 	FeatureNameVariants    []metadata.ResourceID
+	FeatureEntityNames     []string
 }
 
 // NewTrainingSet creates a new training set query builder based on the label and feature columns provided.
 func NewTrainingSet(config QueryConfig, params BuilderParams) *TrainingSet {
-	labelTable := labelTable{
-		Entity:             params.LabelColumns.Entity,
-		Value:              params.LabelColumns.Value,
-		TS:                 params.LabelColumns.TS,
+	lbtTable := labelTable{
 		SanitizedTableName: params.SanitizedLabelTable,
+		EntityMappings:     params.LabelEntityMappings,
 	}
 
 	featureTables := make([]featureTable, len(params.FeatureColumns))
@@ -48,11 +47,12 @@ func NewTrainingSet(config QueryConfig, params BuilderParams) *TrainingSet {
 			TS:                 cols.TS,
 			SanitizedTableName: params.SanitizedFeatureTables[i],
 			ColumnAliases:      []string{fmt.Sprintf("feature__%s__%s", params.FeatureNameVariants[i].Name, params.FeatureNameVariants[i].Variant)},
+			EntityName:         params.FeatureEntityNames[i],
 		}
 	}
 
 	return &TrainingSet{
-		labelTable:    labelTable,
+		labelTable:    lbtTable,
 		featureTables: featureTables,
 		config:        config,
 	}
@@ -71,13 +71,12 @@ type featureTable struct {
 	TS                 string
 	SanitizedTableName string
 	ColumnAliases      []string
+	EntityName         string
 }
 
 type labelTable struct {
-	Entity             string
-	Value              string
-	TS                 string
 	SanitizedTableName string
+	EntityMappings     *metadata.EntityMappings
 }
 
 type featureTableMap map[string]*featureTable
@@ -97,7 +96,7 @@ func (ftm featureTableMap) Keys() []string {
 // that uses LEFT JOINs, ASOF JOINs and/or CTEs to create a training set
 // based on the presence or absence of timestamps in the label and feature tables.
 func (t TrainingSet) CompileSQL() (string, error) {
-	if t.labelTable.TS != "" {
+	if t.labelTable.EntityMappings.TimestampColumn != "" {
 		builder := &pitTrainingSetQueryBuilder{
 			labelTable:      t.labelTable,
 			featureTableMap: make(map[string]*featureTable),
@@ -184,7 +183,37 @@ func (j asOfJoins) ToSQL(config QueryConfig) string {
 
 // asOfJoin represents an ASOF JOIN between the label and feature tables.
 type windowJoin struct {
-	ft *featureTable
+	entity     string
+	ts         string
+	label      string
+	labelTable string
+	ft         *featureTable
+}
+
+func (j windowJoin) HeaderSQL(config QueryConfig) string {
+	quoteChar := ""
+	if config.QuoteTable {
+		quoteChar = config.QuoteChar
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf(`WITH labels AS (
+  SELECT
+    %s as ts,
+    %s as entity,
+    %s AS label,
+  FROM %s%s%s
+),
+`,
+		j.ts,
+		j.entity,
+		j.label,
+		quoteChar,
+		j.labelTable,
+		quoteChar,
+	))
+	sb.WriteString("\n")
+	return sb.String()
 }
 
 // ToSQL creates an ASOF JOIN between the label and feature tables.
@@ -252,11 +281,7 @@ feature_%d_filtered AS (
 }
 
 type windowJoins struct {
-	windows    []windowJoin
-	ts         string
-	entity     string
-	label      string
-	labelTable string
+	windows []windowJoin
 }
 
 func (j windowJoins) HeaderSQL(config QueryConfig) string {
@@ -264,30 +289,11 @@ func (j windowJoins) HeaderSQL(config QueryConfig) string {
 		return ""
 	}
 
-	quoteChar := ""
-	if config.QuoteTable {
-		quoteChar = config.QuoteChar
-	}
-
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf(`WITH labels AS (
-  SELECT
-    %s as ts,
-    %s as entity,
-    %s AS label,
-  FROM %s%s%s
-),
-`,
-		j.ts,
-		j.entity,
-		j.label,
-		quoteChar,
-		j.labelTable,
-		quoteChar,
-	))
+
 	joins := make([]string, len(j.windows))
 	for i, join := range j.windows {
-		joins[i] = join.ToSQL(i + 1)
+		joins[i] = join.HeaderSQL(config)
 	}
 	sb.WriteString(strings.Join(joins, ",\n"))
 	sb.WriteString("\n")
@@ -389,7 +395,7 @@ type pitTrainingSetQueryBuilder struct {
 // the same table, entity, and timestamp column as another feature, then the values and column aliases
 // are combined into a single feature table so that the query uses a single join for all.
 func (b *pitTrainingSetQueryBuilder) AddFeature(tbl featureTable) {
-	key := createTableKey(tbl.SanitizedTableName, tbl.Entity, tbl.TS)
+	key := createTableKey(tbl.SanitizedTableName, tbl.EntityName, tbl.Entity, tbl.TS)
 	existing, exists := b.featureTableMap[key]
 	if exists {
 		existing.Values = append(existing.Values, tbl.Values...)
@@ -401,11 +407,8 @@ func (b *pitTrainingSetQueryBuilder) AddFeature(tbl featureTable) {
 
 // Compile compiles the point-in-time training set query builder by creating columns, LEFT JOINs, and ASOF JOINs structs.
 func (b *pitTrainingSetQueryBuilder) Compile() error {
-	b.windowJoins = windowJoins{
-		ts:         b.labelTable.TS,
-		entity:     b.labelTable.Entity,
-		label:      b.labelTable.Value,
-		labelTable: b.labelTable.SanitizedTableName,
+	if err := validateLabelTable(b.labelTable); err != nil {
+		return err
 	}
 
 	for i, k := range b.featureTableMap.Keys() {
@@ -420,14 +423,26 @@ func (b *pitTrainingSetQueryBuilder) Compile() error {
 			b.columns = append(b.columns, col{tableAlias: ftAlias, val: val, colAlias: ft.ColumnAliases[i]})
 		}
 		// JOINS
-		if ft.TS != "" && b.labelTable.TS != "" {
-			if b.config.UseAsOfJoin {
-				b.asOfJoins = append(b.asOfJoins, asOfJoin{alias: ftAlias, ft: ft, lblEntity: b.labelTable.Entity, lblTS: b.labelTable.TS})
-			} else {
-				b.windowJoins.windows = append(b.windowJoins.windows, windowJoin{ft: ft})
+		for _, m := range b.labelTable.EntityMappings.Mappings {
+			if m.Name == ft.EntityName {
+				if ft.TS != "" {
+					if b.config.UseAsOfJoin {
+						b.asOfJoins = append(b.asOfJoins, asOfJoin{alias: ftAlias, ft: ft, lblEntity: m.EntityColumn, lblTS: b.labelTable.EntityMappings.TimestampColumn})
+						//b.asOfJoins = append(b.asOfJoins, asOfJoin{alias: ftAlias, ft: ft, lblEntity: b.labelTable.Entity, lblTS: b.labelTable.TS})
+					} else {
+						b.windowJoins.windows = append(b.windowJoins.windows, windowJoin{
+							entity:     m.EntityColumn,
+							ft:         ft,
+							ts:         b.labelTable.EntityMappings.TimestampColumn,
+							label:      b.labelTable.EntityMappings.ValueColumn,
+							labelTable: b.labelTable.SanitizedTableName,
+						})
+					}
+				} else {
+					b.leftJoins = append(b.leftJoins, leftJoin{alias: ftAlias, ft: ft, lblEntity: m.EntityColumn})
+				}
+				break
 			}
-		} else {
-			b.leftJoins = append(b.leftJoins, leftJoin{alias: ftAlias, ft: ft, lblEntity: b.labelTable.Entity})
 		}
 	}
 	return nil
@@ -444,7 +459,7 @@ func (b *pitTrainingSetQueryBuilder) ToSQL() string {
 	// WINDOW (Alternative to ASOF on platforms that don't support it)
 	sb.WriteString(b.windowJoins.HeaderSQL(b.config))
 	// SELECT
-	sb.WriteString(fmt.Sprintf("SELECT %s, l.%s AS label", b.columns.ToSQL(b.config), b.labelTable.Value))
+	sb.WriteString(fmt.Sprintf("SELECT %s, l.%s AS label", b.columns.ToSQL(b.config), b.labelTable.EntityMappings.ValueColumn))
 	// FROM
 	sb.WriteString(fmt.Sprintf(" FROM %s%s%s l ", quoteChar, b.labelTable.SanitizedTableName, quoteChar))
 	// JOIN(s)
@@ -474,7 +489,7 @@ type trainingSetQueryBuilder struct {
 // entity, and timestamp column as another feature, then the values and column aliases are combined into
 // a single feature table so that the query uses a single join and/or CTE for all.
 func (b *trainingSetQueryBuilder) AddFeature(tbl featureTable) {
-	key := createTableKey(tbl.SanitizedTableName, tbl.Entity, tbl.TS)
+	key := createTableKey(tbl.SanitizedTableName, tbl.EntityName, tbl.Entity, tbl.TS)
 	existing, exists := b.featureTableMap[key]
 	if exists {
 		existing.Values = append(existing.Values, tbl.Values...)
@@ -502,7 +517,12 @@ func (b *trainingSetQueryBuilder) Compile() error {
 			b.ctes = append(b.ctes, cte{alias: ftAlias, ft: ft})
 		}
 		// JOIN
-		b.joins = append(b.joins, leftJoin{alias: ftAlias, ft: ft, lblEntity: b.labelTable.Entity})
+		for _, m := range b.labelTable.EntityMappings.Mappings {
+			if m.Name == ft.EntityName {
+				b.joins = append(b.joins, leftJoin{alias: ftAlias, ft: ft, lblEntity: m.EntityColumn})
+				break
+			}
+		}
 		// COLUMNS
 		for i, val := range ft.Values {
 			b.columns = append(b.columns, col{tableAlias: ftAlias, val: val, colAlias: ft.ColumnAliases[i]})
@@ -522,7 +542,7 @@ func (b *trainingSetQueryBuilder) ToSQL() string {
 	// CTE(s)
 	sb.WriteString(b.ctes.ToSQL(b.config))
 	// SELECT
-	sb.WriteString(fmt.Sprintf("SELECT %s, l.%s AS label ", b.columns.ToSQL(b.config), b.labelTable.Value))
+	sb.WriteString(fmt.Sprintf("SELECT %s, l.%s AS label ", b.columns.ToSQL(b.config), b.labelTable.EntityMappings.ValueColumn))
 	// FROM
 	sb.WriteString(fmt.Sprintf("FROM %s%s%s l ", quoteChar, b.labelTable.SanitizedTableName, quoteChar))
 	// JOIN(s)
@@ -558,13 +578,23 @@ func validateFeatureTable(ft featureTable) error {
 
 // validateLabelTable validates the label table.
 func validateLabelTable(lbl labelTable) error {
-	if lbl.Entity == "" {
-		logging.GlobalLogger.Errorw("label entity cannot be empty", "label_table", lbl)
-		return fferr.NewInternalErrorf("label entity cannot be empty: %v", lbl)
+	if lbl.EntityMappings == nil || len(lbl.EntityMappings.Mappings) == 0 {
+		logging.GlobalLogger.Errorw("entity mappings cannot be empty", "label_table", lbl)
+		return fferr.NewInternalErrorf("entity mappings cannot be empty")
 	}
-	if lbl.Value == "" {
-		logging.GlobalLogger.Errorw("value cannot be empty", "label_table", lbl)
-		return fferr.NewInternalErrorf("value cannot be empty")
+	if lbl.EntityMappings.ValueColumn == "" {
+		logging.GlobalLogger.Errorw("value column cannot be empty", "label_table", lbl)
+		return fferr.NewInternalErrorf("value column cannot be empty")
+	}
+	for _, m := range lbl.EntityMappings.Mappings {
+		if m.EntityColumn == "" {
+			logging.GlobalLogger.Errorw("entity column cannot be empty", "label_table", lbl)
+			return fferr.NewInternalErrorf("entity column cannot be empty")
+		}
+		if m.Name == "" {
+			logging.GlobalLogger.Errorw("name cannot be empty", "label_table", lbl)
+			return fferr.NewInternalErrorf("name cannot be empty")
+		}
 	}
 	if lbl.SanitizedTableName == "" {
 		logging.GlobalLogger.Errorw("sanitized table name cannot be empty", "label_table", lbl)
@@ -573,6 +603,6 @@ func validateLabelTable(lbl labelTable) error {
 	return nil
 }
 
-func createTableKey(tableName, entity, ts string) string {
-	return fmt.Sprintf("%s_%s_%s", tableName, entity, ts)
+func createTableKey(tableName, entityName, entityCol, ts string) string {
+	return fmt.Sprintf("%s_%s_%s_%s", tableName, entityName, entityCol, ts)
 }

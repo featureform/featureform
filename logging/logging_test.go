@@ -60,7 +60,7 @@ func TestInitializeRequestID(t *testing.T) {
 	logger := NewLogger("test-logger")
 	ctx := newContext()
 	requestID, updatedContext, newLogger := logger.InitializeRequestID(ctx)
-	if newLogger.id.String() != requestID {
+	if newLogger.id != requestID {
 		t.Fatalf("Logger Request ID not set correctly. Expected %s, got %s", requestID, newLogger.id)
 	}
 	requestIDFromContext := GetRequestIDFromContext(updatedContext)
@@ -77,10 +77,10 @@ func TestUpdateContext(t *testing.T) {
 	logger := NewLogger("test-logger")
 	ctx := newContext()
 	requestID := NewRequestID()
-	updatedCtx := AttachRequestID(requestID.String(), ctx, logger)
+	updatedCtx := AttachRequestID(requestID, ctx, logger)
 
 	requestIDFromContext := GetRequestIDFromContext(updatedCtx)
-	if requestID.String() != requestIDFromContext {
+	if requestID != requestIDFromContext {
 		t.Fatalf("Request ID not found in context. Expected %s, got %s", requestID, requestIDFromContext)
 	}
 	loggerFromContext := GetLoggerFromContext(updatedCtx)

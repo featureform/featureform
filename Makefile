@@ -19,7 +19,7 @@ help
 
 init
 	Requirements:
-		- Python 3.7-3.10
+		- Python 3.9-3.12
 		- Golang 1.21
 
 	Description:
@@ -29,7 +29,7 @@ init
 
 test
 	Requirements:
-		- Python 3.7-3.10
+		- Python 3.9-3.12
 		- Golang 1.21
 	Description:
 		Runs 'init' then runs the Python and Golang Unit tests
@@ -156,7 +156,7 @@ test_filestore
 
 get_secrets
 	Requirements:
-		- python 3.7-3.10
+		- python 3.9-3.12
 		- AWS Credentials with access to Secrets Manager
 		- boto3 > 1.34 (needs `SecretsManager.Client.batch_get_secret_value`)
 
@@ -165,7 +165,7 @@ get_secrets
 
 update_secrets
 	Requirements:
-		- python 3.7-3.10
+		- python 3.9-3.12
 		- AWS Credentials with access to Secrets Manager
 		- boto3 > 1.34 (needs `SecretsManager.Client.batch_get_secret_value`)
 
@@ -175,7 +175,7 @@ update_secrets
 
 setup_e2e_core:
 	Requirements:
-		- python 3.7-3.10
+		- python 3.9-3.12
 		- Secrets in .env file
 		- activated virtual environment
 		- docker running
@@ -221,7 +221,7 @@ teardown_e2e_docker:
 
 test_e2e_pytest:
 	Requirements:
-		- python 3.7-3.10
+		- python 3.9-3.12
 		- Secrets in .env file
 		- activated virtual environment
 		- featureform running either in docker or standalone script
@@ -231,7 +231,7 @@ test_e2e_pytest:
 
 test_e2e_behave:
 	Requirements:
-		- python 3.7-3.10
+		- python 3.9-3.12
 		- Secrets in .env file
 		- activated virtual environment
 		- featureform running either in docker or standalone script
@@ -241,7 +241,7 @@ test_e2e_behave:
 
 test_e2e:
 	Requirements:
-		- python 3.7-3.10
+		- python 3.9-3.12
 		- Secrets in .env file
 		- activated virtual environment
 		- featureform running either in docker or standalone script
@@ -252,7 +252,7 @@ test_e2e:
 
 setup_all_docker:
 	Requirements:
-		- python 3.7-3.10
+		- python 3.9-3.12
 		- activated virtual environment
 		- AWS Credentials with access to Secrets Manager
 		- Docker running
@@ -269,7 +269,7 @@ teardown_all_docker:
 
 setup_all_standalone:
 	Requirements:
-		- python 3.7-3.10
+		- python 3.9-3.12
 		- activated virtual environment
 		- AWS Credentials with access to Secrets Manager
 		- Docker running
@@ -533,10 +533,10 @@ test_e2e_behave:
 	echo "Starting end to end tests"
 	pytest -vv -s tests/end_to_end/pytest
 
-	export FF_TIMESTAMP_VARIANT="false" && export FF_GET_EQUIVALENT_VARIANTS: "false"
+	export FF_GET_EQUIVALENT_VARIANTS: "false"
 	behavex -t '~@wip' -t '~@long' -t '~@av' --no-capture --no-logcapture --no-capture-stderr --parallel-processes 5 --parallel-scheme scenario
 
-	export FF_TIMESTAMP_VARIANT="true" && export FF_GET_EQUIVALENT_VARIANTS: "true"
+	export FF_GET_EQUIVALENT_VARIANTS: "true"
 	behavex -t '~@wip' -t '~@long' -t '@av' --no-capture --no-logcapture --no-capture-stderr --parallel-processes 5 --parallel-scheme scenario
 
 test_e2e: test_e2e_pytest test_e2e_behave

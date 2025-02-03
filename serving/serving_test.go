@@ -27,7 +27,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/google/uuid"
-	"go.uber.org/zap/zaptest"
 	grpcmeta "google.golang.org/grpc/metadata"
 
 	"github.com/featureform/logging"
@@ -458,26 +457,28 @@ type onlineTestContext struct {
 	ResourceDefsFn resourceDefsFn
 	FactoryFn      provider.Factory
 	metaServ       *metadata.MetadataServer
+	context.Context
+	logger logging.Logger
 }
 
 func (ctx *onlineTestContext) Create(t *testing.T) *FeatureServer {
 	var addr string
-	ctx.metaServ, addr = startMetadata(t)
+	ctx.Context, ctx.logger = logging.NewTestContextAndLogger(t)
+	ctx.metaServ, addr = startMetadata(t, ctx, ctx.logger)
 	providerType := uuid.NewString()
 	if ctx.FactoryFn != nil {
 		if err := provider.RegisterFactory(pt.Type(providerType), ctx.FactoryFn); err != nil {
 			t.Fatalf("Failed to register factory: %s", err)
 		}
 	}
-	meta := metadataClient(t, addr)
+	meta := metadataClient(t, ctx, ctx.logger, addr)
 	if ctx.ResourceDefsFn != nil {
 		defs := ctx.ResourceDefsFn(providerType)
-		if err := meta.CreateAll(context.Background(), defs); err != nil {
+		if err := meta.CreateAll(ctx, defs); err != nil {
 			t.Fatalf("Failed to create metadata entries: %s", err)
 		}
 	}
-	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
-	serv, err := NewFeatureServer(meta, metrics.NewMetrics(randomMetricsId()), logger)
+	serv, err := NewFeatureServer(meta, metrics.NewMetrics(randomMetricsId()), ctx.logger)
 	if err != nil {
 		t.Fatalf("Failed to create feature server: %s", err)
 	}
@@ -547,14 +548,13 @@ func onlineStoreNoTables(cfg pc.SerializedConfig) (provider.Provider, error) {
 	return store, nil
 }
 
-func startMetadata(t *testing.T) (*metadata.MetadataServer, string) {
-	manager, err := scheduling.NewMemoryTaskMetadataManager()
-	logger := zaptest.NewLogger(t)
+func startMetadata(t *testing.T, ctx context.Context, logger logging.Logger) (*metadata.MetadataServer, string) {
+	manager, err := scheduling.NewMemoryTaskMetadataManager(ctx)
 	if err != nil {
 		panic(err)
 	}
 	config := &metadata.Config{
-		Logger:      logging.WrapZapLogger(logger.Sugar()),
+		Logger:      logger,
 		TaskManager: manager,
 	}
 	serv, err := metadata.NewMetadataServer(config)
@@ -574,9 +574,8 @@ func startMetadata(t *testing.T) (*metadata.MetadataServer, string) {
 	return serv, lis.Addr().String()
 }
 
-func metadataClient(t *testing.T, addr string) *metadata.Client {
-	logger := zaptest.NewLogger(t).Sugar()
-	client, err := metadata.NewClient(addr, logging.WrapZapLogger(logger))
+func metadataClient(t *testing.T, ctx context.Context, logger logging.Logger, addr string) *metadata.Client {
+	client, err := metadata.NewClient(addr, logger)
 	if err != nil {
 		t.Fatalf("Failed to create client: %s", err)
 	}
@@ -627,7 +626,7 @@ func TestFeatureServe(t *testing.T) {
 			},
 		},
 	}
-	resp, err := serv.FeatureServe(context.Background(), req)
+	resp, err := serv.FeatureServe(ctx, req)
 	if err != nil {
 		t.Fatalf("Failed to serve feature: %s", err)
 	}
@@ -665,7 +664,7 @@ func TestFeatureServeMultipleEntities(t *testing.T) {
 			},
 		},
 	}
-	resp, err := serv.FeatureServe(context.Background(), req)
+	resp, err := serv.FeatureServe(ctx, req)
 	if err != nil {
 		t.Fatalf("Failed to serve feature: %s", err)
 	}
@@ -801,7 +800,7 @@ func TestFeatureNotFound(t *testing.T) {
 			},
 		},
 	}
-	if _, err := serv.FeatureServe(context.Background(), req); err == nil {
+	if _, err := serv.FeatureServe(ctx, req); err == nil {
 		t.Fatalf("Succeeded in serving non-existant feature")
 	}
 }
@@ -827,7 +826,7 @@ func TestProviderNotRegistered(t *testing.T) {
 			},
 		},
 	}
-	if _, err := serv.FeatureServe(context.Background(), req); err == nil {
+	if _, err := serv.FeatureServe(ctx, req); err == nil {
 		t.Fatalf("Succeeded in serving feature with no registered provider factory")
 	}
 }
@@ -853,7 +852,7 @@ func TestOfflineStoreAsOnlineStore(t *testing.T) {
 			},
 		},
 	}
-	if _, err := serv.FeatureServe(context.Background(), req); err == nil {
+	if _, err := serv.FeatureServe(ctx, req); err == nil {
 		t.Fatalf("Succeeded in serving feature stored on OfflineStore")
 	}
 }
@@ -879,7 +878,7 @@ func TestTableNotFoundInOnlineStore(t *testing.T) {
 			},
 		},
 	}
-	if _, err := serv.FeatureServe(context.Background(), req); err == nil {
+	if _, err := serv.FeatureServe(ctx, req); err == nil {
 		t.Fatalf("Succeeded in serving feature in an online store without a valid table")
 	}
 }
@@ -905,7 +904,7 @@ func TestEntityNotFoundInOnlineStore(t *testing.T) {
 			},
 		},
 	}
-	if _, err := serv.FeatureServe(context.Background(), req); err == nil {
+	if _, err := serv.FeatureServe(ctx, req); err == nil {
 		t.Fatalf("Succeeded in serving feature with non-existant entity")
 	}
 }
@@ -931,7 +930,7 @@ func TestEntityNotInRequest(t *testing.T) {
 			},
 		},
 	}
-	if _, err := serv.FeatureServe(context.Background(), req); err == nil {
+	if _, err := serv.FeatureServe(ctx, req); err == nil {
 		t.Fatalf("Succeeded in serving feature without the right entity set")
 	}
 }
@@ -957,7 +956,7 @@ func TestInvalidFeatureType(t *testing.T) {
 			},
 		},
 	}
-	if _, err := serv.FeatureServe(context.Background(), req); err == nil {
+	if _, err := serv.FeatureServe(ctx, req); err == nil {
 		t.Fatalf("Succeeded in serving feature with invalid type")
 	}
 }
@@ -1011,7 +1010,7 @@ func TestAllFeatureTypes(t *testing.T) {
 			},
 		},
 	}
-	resp, err := serv.FeatureServe(context.Background(), req)
+	resp, err := serv.FeatureServe(ctx, req)
 	if err != nil {
 		t.Fatalf("Failed to get multiple features with all types: %s", err)
 	}
@@ -1057,7 +1056,7 @@ func TestSimpleModelRegistrationFeatureServe(t *testing.T) {
 			Name: modelName,
 		},
 	}
-	resp, err := serv.FeatureServe(context.Background(), req)
+	resp, err := serv.FeatureServe(ctx, req)
 	if err != nil {
 		t.Fatalf("Failed to serve feature: %s", err)
 	}
@@ -1072,7 +1071,7 @@ func TestSimpleModelRegistrationFeatureServe(t *testing.T) {
 			t.Fatalf("Wrong feature value: %v\nExpected: %v", gotVal, 12.5)
 		}
 	}
-	modelResp, err := serv.Metadata.GetModel(context.Background(), modelName)
+	modelResp, err := serv.Metadata.GetModel(ctx, modelName)
 	if err != nil {
 		t.Fatalf("Failed to get model: %s", err)
 	}
@@ -1100,7 +1099,7 @@ func TestOnDemandFeatureServe(t *testing.T) {
 			},
 		},
 	}
-	resp, err := serv.FeatureServe(context.Background(), req)
+	resp, err := serv.FeatureServe(ctx, req)
 	if err != nil {
 		t.Fatalf("Failed to serve feature: %s", err)
 	}
@@ -1437,7 +1436,7 @@ func TestSimpleModelRegistrationTrainingSetServe(t *testing.T) {
 	if !reflect.DeepEqual(expectedRows, actualRows) {
 		t.Fatalf("Rows aren't equal: %v\n%v", expectedRows, actualRows)
 	}
-	modelResp, err := serv.Metadata.GetModel(context.Background(), modelName)
+	modelResp, err := serv.Metadata.GetModel(ctx, modelName)
 	if err != nil {
 		t.Fatalf("Failed to get model: %s", err)
 	}
@@ -1467,7 +1466,7 @@ func TestTrainingDataColumns(t *testing.T) {
 		Features: []string{"feature__feature__variant"},
 		Label:    "label__label__variant",
 	}
-	resp, err := serv.TrainingDataColumns(context.Background(), req)
+	resp, err := serv.TrainingDataColumns(ctx, req)
 	if err != nil {
 		t.Fatalf("Failed to get training data columns: %s", err)
 	}

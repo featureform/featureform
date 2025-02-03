@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/featureform/helpers"
+	"github.com/featureform/helpers/postgres"
+	"github.com/featureform/logging"
 )
 
 func TestPSQLMetadataStorage(t *testing.T) {
@@ -25,7 +27,7 @@ func TestPSQLMetadataStorage(t *testing.T) {
 	dbName := helpers.GetEnv("POSTGRES_DB", "postgres")
 	sslMode := helpers.GetEnv("POSTGRES_SSL_MODE", "disable")
 
-	config := helpers.PSQLConfig{
+	config := postgres.Config{
 		Host:     host,
 		Port:     port,
 		User:     username,
@@ -33,8 +35,13 @@ func TestPSQLMetadataStorage(t *testing.T) {
 		DBName:   dbName,
 		SSLMode:  sslMode,
 	}
+	ctx := logging.NewTestContext(t)
+	pool, err := postgres.NewPool(ctx, config)
+	if err != nil {
+		t.Fatalf("Failed to connect to postgres pool")
+	}
 
-	psqlStorage, err := NewPSQLStorageImplementation(config, "test_table")
+	psqlStorage, err := NewPSQLStorageImplementation(ctx, pool, "test_table")
 	if err != nil {
 		t.Fatalf("Failed to create PSQL storage: %v", err)
 	}

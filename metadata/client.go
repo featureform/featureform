@@ -3236,15 +3236,16 @@ func (variant *SourceVariant) GetTransformationLocation() (pl.Location, error) {
 func (variant *SourceVariant) GetLocation() (pl.Location, error) {
 	var foundLocation pl.Location
 	var locationErr error
+	logger := logging.GlobalLogger.With("source_name", variant.Name(), "source_variant", variant.Name())
 	switch {
 	case variant.IsSQLTransformation() || variant.IsDFTransformation():
-		fmt.Println("GetLocation() source variant is sql/dft transformation, getting transform location...")
+		logger.Info("GetLocation() source variant is sql/dft transformation, getting transform location...")
 		foundLocation, locationErr = variant.GetTransformationLocation()
 	case variant.IsPrimaryData():
-		fmt.Println("GetLocation() source variant is primary data, getting primary location...")
+		logger.Info("GetLocation() source variant is primary data, getting primary location...")
 		foundLocation, locationErr = variant.GetPrimaryLocation()
 	default:
-		fmt.Sprintln("GetLocation() Unknown source variant type, returning error")
+		logger.Info("GetLocation() Unknown source variant type, returning error")
 		foundLocation, locationErr = nil, fferr.NewInternalErrorf("Unknown source variant type for %s-%s", variant.Name(), variant.Variant())
 	}
 

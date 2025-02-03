@@ -451,7 +451,7 @@ func (q defaultBQQueries) monitorJob(job *bigquery.Job) error {
 }
 
 func (q defaultBQQueries) transformationCreate(location pl.SQLLocation, query string) string {
-	qry := fmt.Sprintf("CREATE VIEW `%s` AS %s", q.getTableNameFromLocation(location), query)
+	qry := fmt.Sprintf("CREATE OR REPLACE VIEW `%s` AS %s", q.getTableNameFromLocation(location), query)
 	return qry
 }
 

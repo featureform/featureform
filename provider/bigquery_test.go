@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/featureform/logging"
 	pl "github.com/featureform/provider/location"
 	"github.com/google/uuid"
 	"io/ioutil"
@@ -194,6 +195,8 @@ func destroyBigQueryDataset(c pc.BigQueryConfig) error {
 }
 
 func getConfiguredBigQueryTester(t *testing.T, useCrossDBJoins bool) offlineSqlTest {
+	logger := logging.NewTestLogger(t)
+
 	bigQueryConfig, err := getBigQueryConfig(t)
 	if err != nil {
 		t.Fatalf("could not get BigQuery config: %s", err)
@@ -217,6 +220,7 @@ func getConfiguredBigQueryTester(t *testing.T, useCrossDBJoins bool) offlineSqlT
 	}
 
 	offlineStoreTester := &bigQueryOfflineStoreTester{store.(*bqOfflineStore)}
+	offlineStoreTester.logger = logger
 
 	sanitizeTableNameFunc := func(obj pl.FullyQualifiedObject) string {
 		// BigQuery requires a fully qualified location of a source table.

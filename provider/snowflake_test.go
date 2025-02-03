@@ -586,7 +586,6 @@ func CrossDatabaseJoinTest(t *testing.T, tester offlineSqlTest) {
 		t.Skip("skipping cross database join test")
 	}
 
-	// TODO: Better way of doing this?
 	storeTester, ok := tester.storeTester.(offlineSqlStoreCreateDb)
 	if !ok {
 		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", tester.storeTester))
@@ -725,7 +724,6 @@ func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester offlineSqlTest) {
 func RegisterTableInDifferentDatabaseTest(t *testing.T, tester offlineSqlTest) {
 	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 
-	// TODO: Better way of doing this?
 	storeTester, ok := tester.storeTester.(offlineSqlStoreCreateDb)
 	if !ok {
 		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", tester.storeTester))
@@ -939,7 +937,6 @@ func RegisterTrainingSetWithType(t *testing.T, tester offlineSqlTest, tsDatasetT
 }
 
 func DeleteTableTest(t *testing.T, tester offlineSqlTest) {
-	// TODO: Better way of doing this?
 	storeTester, ok := tester.storeTester.(offlineSqlStoreCreateDb)
 	if !ok {
 		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", tester.storeTester))
@@ -968,7 +965,6 @@ func DeleteTableTest(t *testing.T, tester offlineSqlTest) {
 	}
 }
 func DeleteNotExistingTableTest(t *testing.T, tester offlineSqlTest) {
-	// TODO: Better way of doing this?
 	storeTester, ok := tester.storeTester.(offlineSqlStoreCreateDb)
 	if !ok {
 		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", tester.storeTester))

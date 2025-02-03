@@ -2,7 +2,7 @@
 -- +goose StatementBegin
 
 ALTER TABLE ff_task_metadata
-ADD COLUMN marked_for_deletion_at TIMESTAMP DEFAULT null;
+ADD COLUMN IF NOT EXISTS marked_for_deletion_at TIMESTAMP DEFAULT null;
 
 -- Create enum type for resource components
 CREATE TYPE resource_component AS ENUM ('type', 'name', 'variant');

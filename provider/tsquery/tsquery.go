@@ -190,45 +190,28 @@ type windowJoin struct {
 	ft         *featureTable
 }
 
-func (j windowJoin) HeaderSQL(config QueryConfig) string {
-	quoteChar := ""
-	if config.QuoteTable {
-		quoteChar = config.QuoteChar
-	}
-
+func (j windowJoin) EntitySQL(config QueryConfig) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf(`WITH labels AS (
-  SELECT
-    %s as ts,
-    %s as entity,
-    %s AS label,
-  FROM %s%s%s
-),
-`,
-		j.ts,
+	sb.WriteString(fmt.Sprintf("%s",
 		j.entity,
-		j.label,
-		quoteChar,
-		j.labelTable,
-		quoteChar,
 	))
-	sb.WriteString("\n")
 	return sb.String()
 }
 
 // ToSQL creates an ASOF JOIN between the label and feature tables.
-func (j windowJoin) ToSQL(index int) string {
+func (j windowJoin) FeatureSQL(index int) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf(
 		`feature_%d AS (
   SELECT
     %s as ts,
-    l.entity,
+    l.%s,
     l.label,
 
 `,
 		index,
 		j.ft.TS,
+		j.entity,
 	))
 
 	for i := range j.ft.Values {
@@ -237,18 +220,20 @@ func (j windowJoin) ToSQL(index int) string {
 
 	sb.WriteString(fmt.Sprintf(`
     ROW_NUMBER() OVER (
-        PARTITION BY l.entity, l.ts
+        PARTITION BY l.%s, l.ts
         ORDER BY f%d.%s DESC
     ) AS rn
     FROM labels l
     LEFT JOIN %s f%d
-      ON l.entity = f%d.%s
+      ON l.%s = f%d.%s
       AND f%d.%s <= l.ts
-  ),`,
+),`,
+		j.entity,
 		index,
 		j.ft.TS,
 		j.ft.SanitizedTableName,
 		index,
+		j.entity,
 		index,
 		j.ft.Entity,
 		index,
@@ -259,11 +244,12 @@ func (j windowJoin) ToSQL(index int) string {
 feature_%d_filtered AS (
   SELECT
     ts,
-    entity,
+    %s,
     label,
 
 `,
 		index,
+		j.entity,
 	))
 
 	for i := range j.ft.Values {
@@ -281,7 +267,10 @@ feature_%d_filtered AS (
 }
 
 type windowJoins struct {
-	windows []windowJoin
+	ts         string
+	label      string
+	labelTable string
+	windows    []windowJoin
 }
 
 func (j windowJoins) HeaderSQL(config QueryConfig) string {
@@ -289,11 +278,38 @@ func (j windowJoins) HeaderSQL(config QueryConfig) string {
 		return ""
 	}
 
+	quoteChar := ""
+	if config.QuoteTable {
+		quoteChar = config.QuoteChar
+	}
+
 	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf(`WITH labels AS (
+  SELECT
+    %s as ts,
+    %s AS label,
+`,
+		j.ts,
+		j.label,
+	))
 
 	joins := make([]string, len(j.windows))
 	for i, join := range j.windows {
-		joins[i] = join.HeaderSQL(config)
+		joins[i] = "    " + join.EntitySQL(config)
+	}
+	sb.WriteString(strings.Join(joins, ",\n"))
+
+	sb.WriteString(fmt.Sprintf(`
+  FROM %s%s%s
+),
+`,
+		quoteChar,
+		j.labelTable,
+		quoteChar,
+	))
+
+	for i, j := range j.windows {
+		joins[i] = j.FeatureSQL(i + 1)
 	}
 	sb.WriteString(strings.Join(joins, ",\n"))
 	sb.WriteString("\n")
@@ -307,12 +323,12 @@ func (j windowJoins) SelectSQL(config QueryConfig) string {
 
 	var sb strings.Builder
 
-	for i := range j.windows {
+	for i, window := range j.windows {
 		sb.WriteString(fmt.Sprintf(`
-LEFT JOIN feature_%d_filtered f%d USING (ts, entity)
-`,
+LEFT JOIN feature_%d_filtered f%d USING (ts, %s)`,
 			i+1,
 			i+1,
+			window.entity,
 		))
 	}
 
@@ -409,6 +425,12 @@ func (b *pitTrainingSetQueryBuilder) AddFeature(tbl featureTable) {
 func (b *pitTrainingSetQueryBuilder) Compile() error {
 	if err := validateLabelTable(b.labelTable); err != nil {
 		return err
+	}
+
+	b.windowJoins = windowJoins{
+		ts:         b.labelTable.EntityMappings.TimestampColumn,
+		label:      b.labelTable.EntityMappings.ValueColumn,
+		labelTable: b.labelTable.SanitizedTableName,
 	}
 
 	for i, k := range b.featureTableMap.Keys() {

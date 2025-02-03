@@ -236,32 +236,32 @@ func newBigQueryGenericTableIterator(it *bigquery.RowIterator, query defaultBQQu
 }
 
 func (q defaultBQQueries) registerResources(client *bigquery.Client, tableName string, schema ResourceSchema, timestamp bool) error {
-	var query string
-
 	var sourceLocation, isSqlLocation = schema.SourceTable.(*pl.SQLLocation)
 	if !isSqlLocation {
 		return fferr.NewInvalidArgumentErrorf("source table is not an SQL location, actual %T", schema.SourceTable.Location())
 	}
 
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("CREATE VIEW `%s` AS SELECT ", q.getTableName(tableName)))
+
+	for _, m := range schema.EntityMappings.Mappings {
+		sb.WriteString(fmt.Sprintf("`%s` AS entity_%s, ", m.EntityColumn, m.Name))
+	}
+	sb.WriteString(fmt.Sprintf("`%s` AS value, ", schema.EntityMappings.ValueColumn))
+
 	if timestamp {
-		query = fmt.Sprintf("CREATE VIEW `%s` AS SELECT `%s` as entity, `%s` as value, `%s` as ts, CURRENT_TIMESTAMP() as insert_ts FROM `%s`",
-			q.getTableName(tableName),
-			schema.Entity,
-			schema.Value,
+		sb.WriteString(fmt.Sprintf("`%s` as ts ",
 			schema.TS,
-			q.getTableNameFromLocation(*sourceLocation),
-		)
+		))
 	} else {
-		query = fmt.Sprintf("CREATE VIEW `%s` AS SELECT `%s` as entity, `%s` as value, PARSE_TIMESTAMP('%%Y-%%m-%%d %%H:%%M:%%S +0000 UTC', '%s') as ts, CURRENT_TIMESTAMP() as insert_ts FROM `%s`",
-			q.getTableName(tableName),
-			schema.Entity,
-			schema.Value,
+		sb.WriteString(fmt.Sprintf("PARSE_TIMESTAMP('%%Y-%%m-%%d %%H:%%M:%%S +0000 UTC', '%s') as ts ",
 			time.UnixMilli(0).UTC(),
-			q.getTableNameFromLocation(*sourceLocation),
-		)
+		))
 	}
 
-	bqQ := client.Query(query)
+	sb.WriteString(fmt.Sprintf("FROM `%s`", q.getTableNameFromLocation(*sourceLocation)))
+
+	bqQ := client.Query(sb.String())
 	if _, err := bqQ.Read(q.getContext()); err != nil {
 		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)
@@ -859,10 +859,9 @@ func bigQueryOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 }
 
 func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
-	// TODO: Re-enable check after TS tests refactored.
-	/*if len(opts) > 0 {
+	if len(opts) > 0 {
 		return nil, fferr.NewInternalErrorf("BigQuery does not support resource options")
-	}*/
+	}
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}
@@ -871,21 +870,17 @@ func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sche
 	} else if exists {
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
 	}
-	if schema.Entity == "" || schema.Value == "" {
-		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("non-empty entity and value columns required"))
+	if err := schema.Validate(); err != nil {
+		return nil, err
 	}
 	tableName, err := store.getResourceTableName(id)
 	if err != nil {
 		return nil, err
 	}
-	if schema.TS == "" {
-		if err := store.query.registerResources(store.client, tableName, schema, false); err != nil {
-			return nil, err
-		}
-	} else {
-		if err := store.query.registerResources(store.client, tableName, schema, true); err != nil {
-			return nil, err
-		}
+
+	useTimestamp := schema.TS != ""
+	if err := store.query.registerResources(store.client, tableName, schema, useTimestamp); err != nil {
+		return nil, err
 	}
 
 	return &bqOfflineTable{

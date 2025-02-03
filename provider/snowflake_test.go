@@ -910,26 +910,6 @@ func RegisterMaterializationWithDifferentWarehouseTest(t *testing.T, tester offl
 	matTest.data.Assert(t, matIncr, isIncremental)
 }
 
-func RegisterTrainingSet(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType) {
-	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
-	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
-	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
-
-	res, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.labelID, tsTest.data.labelResourceSchema, &ResourceSnowflakeConfigOption{})
-	if err != nil {
-		t.Fatalf("could not register label table: %v", err)
-	}
-	tsTest.data.def.LabelSourceMapping.Location = res.Location()
-	if err := tsTest.tester.CreateTrainingSet(tsTest.data.def); err != nil {
-		t.Fatalf("could not create training set: %v", err)
-	}
-	ts, err := tsTest.tester.GetTrainingSet(tsTest.data.id)
-	if err != nil {
-		t.Fatalf("could not get training set: %v", err)
-	}
-	tsTest.data.Assert(t, ts)
-}
-
 func RegisterTrainingSetWithType(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType, tsType metadata.TrainingSetType) {
 	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)

@@ -93,9 +93,16 @@ func TestTrainingSets(t *testing.T) {
 
 	testInfra := []struct {
 		tester offlineSqlTest
+		opts   []ResourceOption
 	}{
-		{getConfiguredBigQueryTester(t, false)},
-		{getConfiguredSnowflakeTester(t, true)},
+		{
+			getConfiguredBigQueryTester(t, false),
+			[]ResourceOption{},
+		},
+		{
+			getConfiguredSnowflakeTester(t, true),
+			[]ResourceOption{&ResourceSnowflakeConfigOption{}},
+		},
 	}
 
 	testSuite := []trainingSetDatasetType{
@@ -111,7 +118,7 @@ func TestTrainingSets(t *testing.T) {
 			name := fmt.Sprintf("%s:%s", providerName, string(testCase))
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				RegisterTrainingSet(t, infra.tester, testCase)
+				RegisterTrainingSet(t, infra.tester, testCase, infra.opts)
 			})
 		}
 	}
@@ -1150,4 +1157,24 @@ func RegisterChainedTransformationsTest(t *testing.T, tester offlineSqlTest) {
 		t.Fatalf("could not get transformation table: %v", err)
 	}
 	test.data.Assert(t, actual)
+}
+
+func RegisterTrainingSet(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType, opts []ResourceOption) {
+	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
+	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
+	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
+
+	res, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.labelID, tsTest.data.labelResourceSchema, opts...)
+	if err != nil {
+		t.Fatalf("could not register label table: %v", err)
+	}
+	tsTest.data.def.LabelSourceMapping.Location = res.Location()
+	if err := tsTest.tester.CreateTrainingSet(tsTest.data.def); err != nil {
+		t.Fatalf("could not create training set: %v", err)
+	}
+	ts, err := tsTest.tester.GetTrainingSet(tsTest.data.id)
+	if err != nil {
+		t.Fatalf("could not get training set: %v", err)
+	}
+	tsTest.data.Assert(t, ts)
 }

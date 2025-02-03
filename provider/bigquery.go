@@ -294,7 +294,8 @@ func (q defaultBQQueries) determineColumnType(valueType types.ValueType) (bigque
 	case types.Int, types.Int32, types.Int64:
 		return bigquery.IntegerFieldType, nil
 	case types.Float32, types.Float64:
-		return bigquery.FloatFieldType, nil
+		// The BigQuery client names the Float type differently internally than what BigQuery is itself expecting.
+		return "FLOAT64", nil
 	case types.String:
 		return bigquery.StringFieldType, nil
 	case types.Bool:

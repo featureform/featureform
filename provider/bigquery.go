@@ -1613,49 +1613,14 @@ func (store *bqOfflineStore) getTrainingSetName(id ResourceID) (string, error) {
 	return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 }
 
-// TODO: Combine with snowflake, put in common place
-// **NOTE:** As the name suggests, this method is adapts the TrainingSetDef to the BuilderParams to avoid
-// using TrainingSetDef directly in the tsquery package, which would create a circular dependency. In the future,
-// we should move TrainingSetDef to the provider/types package to avoid this issue.
 func (bq *bqOfflineStore) adaptTsDefToBuilderParams(def TrainingSetDef) (tsq.BuilderParams, error) {
-	lblLoc, isSQLLocation := def.LabelSourceMapping.Location.(*pl.SQLLocation)
-	if !isSQLLocation {
-		return tsq.BuilderParams{}, fferr.NewInternalErrorf("label location is not an SQL location")
-	}
-	lblTableName := bq.query.getTableNameFromLocation(*lblLoc)
-
-	ftCols := make([]metadata.ResourceVariantColumns, len(def.FeatureSourceMappings))
-	ftTableNames := make([]string, len(def.FeatureSourceMappings))
-	ftNameVariants := make([]metadata.ResourceID, len(def.FeatureSourceMappings))
-	ftEntityNames := make([]string, 0)
-	bq.logger.Debugw("Feature source mappings", "src_mappings", def.FeatureSourceMappings)
-	for i, ft := range def.FeatureSourceMappings {
-		ftCols[i] = *ft.Columns
-		ftLoc, isSQLLocation := ft.Location.(*pl.SQLLocation)
+	sanitizeTableNameFn := func(loc pl.Location) (string, error) {
+		lblLoc, isSQLLocation := loc.(*pl.SQLLocation)
 		if !isSQLLocation {
-			return tsq.BuilderParams{}, fferr.NewInternalErrorf("feature location is not an SQL location")
+			return "", fferr.NewInternalErrorf("label location is not an SQL location")
 		}
-		ftTableNames[i] = bq.query.getTableNameFromLocation(*ftLoc)
-		id := def.Features[i]
-		ftNameVariants[i] = metadata.ResourceID{
-			Name:    id.Name,
-			Variant: id.Variant,
-			Type:    metadata.FEATURE_VARIANT,
-		}
-		if ft.EntityMappings == nil || len(ft.EntityMappings.Mappings) != 1 {
-			bq.logger.Errorw("Expected each feature source mapping to have exactly one entity mapping", "mappings", ft.EntityMappings)
-			return tsq.BuilderParams{}, fferr.NewInternalErrorf("expected each feature source mapping to have exactly one entity mapping: mappings = %v", ft.EntityMappings)
-		}
-		bq.logger.Debugw("Feature entity mapping", "entity_mappings", ft.EntityMappings.Mappings)
-		ftEntityNames = append(ftEntityNames, ft.EntityMappings.Mappings[0].Name)
+		return bq.query.getTableNameFromLocation(*lblLoc), nil
 	}
-	bq.logger.Debugw("Label entity mapping", "entity_mappings", def.LabelSourceMapping.EntityMappings)
-	return tsq.BuilderParams{
-		LabelEntityMappings:    def.LabelSourceMapping.EntityMappings,
-		SanitizedLabelTable:    lblTableName,
-		FeatureColumns:         ftCols,
-		SanitizedFeatureTables: ftTableNames,
-		FeatureNameVariants:    ftNameVariants,
-		FeatureEntityNames:     ftEntityNames,
-	}, nil
+
+	return def.ToBuilderParams(bq.logger, sanitizeTableNameFn)
 }

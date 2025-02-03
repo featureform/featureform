@@ -264,6 +264,31 @@ func (s *snowflakeOfflineStoreTester) AssertTrainingSetType(t *testing.T, id Res
 
 // TESTS
 
+func TestSnowflakeTrainingSetTypes(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+
+	tester := getConfiguredSnowflakeTester(t, false)
+
+	tsTypes := map[metadata.TrainingSetType]trainingSetDatasetType{
+		metadata.DynamicTrainingSet: tsDatasetFeaturesLabelTS,
+		metadata.StaticTrainingSet:  tsDatasetFeaturesTSLabelNoTS,
+		metadata.ViewTrainingSet:    tsDatasetFeaturesNoTSLabelTS,
+	}
+
+	for tsType, dataSetType := range tsTypes {
+		constName := string(tsType)
+		constTsType := tsType
+		constDataSetType := dataSetType
+		t.Run(constName, func(t *testing.T) {
+			t.Parallel()
+			RegisterTrainingSetWithType(t, tester, constDataSetType, constTsType)
+		})
+	}
+
+}
+
 func TestSnowflakeSchemas(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")

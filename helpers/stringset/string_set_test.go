@@ -58,3 +58,15 @@ func TestStringSetEmptySetB(t *testing.T) {
 		t.Errorf("Expected set A to contain empty set B, but instead received: %v", actual)
 	}
 }
+
+func TestStringSetDifference(t *testing.T) {
+	setA := StringSet{"a": true, "b": true, "c": false}
+	setB := StringSet{"a": true, "c": false}
+
+	expected := StringSet{"b": true}
+	actual := setA.Difference(setB)
+
+	if !actual.Contains(expected) {
+		t.Errorf("Expected difference to be %v, but instead received: %v", expected, actual)
+	}
+}

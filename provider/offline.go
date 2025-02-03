@@ -27,6 +27,7 @@ import (
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	fs "github.com/featureform/filestore"
+	"github.com/featureform/helpers/stringset"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
@@ -500,21 +501,8 @@ func newResumeOption(maxWait time.Duration) *ResumeOption {
 
 type ResourceOptionType string
 
-const (
-	SnowflakeDynamicTableResource ResourceOptionType = "SnowflakeDynamicTableResource"
-)
-
 type ResourceOption interface {
 	Type() ResourceOptionType
-}
-
-type ResourceSnowflakeConfigOption struct {
-	Config    *metadata.SnowflakeDynamicTableConfig
-	Warehouse string
-}
-
-func (opt *ResourceSnowflakeConfigOption) Type() ResourceOptionType {
-	return SnowflakeDynamicTableResource
 }
 
 type OfflineStore interface {
@@ -801,12 +789,6 @@ func (schema *ResourceSchema) Deserialize(config []byte) error {
 	return nil
 }
 
-type TableSchema struct {
-	Columns []TableColumn
-	// The complete URL that points to the location of the data file
-	SourceTable string
-}
-
 func (r ResourceSchema) Validate() error {
 	if len(r.EntityMappings.Mappings) == 0 {
 		unsetFields := make([]string, 0)
@@ -840,6 +822,34 @@ func (r ResourceSchema) Validate() error {
 		}
 	}
 	return nil
+}
+
+func (r ResourceSchema) ToColumnStringSet(resType OfflineResourceType) (stringset.StringSet, error) {
+	set := make(stringset.StringSet)
+	switch resType {
+	case Feature:
+		set.Add(strings.ToUpper(r.Entity), strings.ToUpper(r.Value))
+		if r.TS != "" {
+			set.Add(strings.ToUpper(r.TS))
+		}
+	case Label:
+		set.Add(strings.ToUpper(r.EntityMappings.ValueColumn))
+		for _, m := range r.EntityMappings.Mappings {
+			set.Add(strings.ToUpper(m.EntityColumn))
+		}
+		if r.TS != "" {
+			set.Add(strings.ToUpper(r.TS))
+		}
+	default:
+		return set, fferr.NewInvalidArgumentError(fmt.Errorf("invalid type: %v", resType))
+	}
+	return set, nil
+}
+
+type TableSchema struct {
+	Columns []TableColumn
+	// The complete URL that points to the location of the data file
+	SourceTable string
 }
 
 type TableSchemaJSONWrapper struct {

@@ -719,16 +719,16 @@ func getTrainingSetDatasetTS(storeType pt.Type, storeConfig pc.SerializedConfig)
 				ProviderType:        storeType,
 				ProviderConfig:      storeConfig,
 				TimestampColumnName: "OBSERVED_ON",
-				Location:            nil,
+				Location:            labelLoc,
 				EntityMappings: &metadata.EntityMappings{
 					Mappings: []metadata.EntityMapping{
 						{
 							Name:         "Location",
-							EntityColumn: "ENTITY_LOCATION",
+							EntityColumn: "LOCATION_ID",
 						},
 					},
-					ValueColumn:     "VALUE",
-					TimestampColumn: "TS",
+					ValueColumn:     "WAVE_HEIGHT_FT",
+					TimestampColumn: "OBSERVED_ON",
 				},
 			},
 			Features: featureIDs,
@@ -812,8 +812,8 @@ func getTrainingSetFeaturesTSLabelsNoTS(storeType pt.Type, storeConfig pc.Serial
 			LabelSourceMapping: SourceMapping{
 				ProviderType:   storeType,
 				ProviderConfig: storeConfig,
-				Location:       nil,
-				EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "ENTITY_LOCATION"}}, ValueColumn: "VALUE"},
+				Location:       labelLoc,
+				EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "LEVEL"},
 			},
 			Features: featureIDs,
 			FeatureSourceMappings: []SourceMapping{
@@ -904,10 +904,10 @@ func getTrainingSetDatasetFeaturesNoTSLabelTS(storeType pt.Type, storeConfig pc.
 				Location:            labelLoc,
 				EntityMappings: &metadata.EntityMappings{
 					Mappings: []metadata.EntityMapping{
-						{Name: "surfer", EntityColumn: "ENTITY_SURFER"},
+						{Name: "surfer", EntityColumn: "SURFER_ID"},
 					},
-					ValueColumn:     "VALUE",
-					TimestampColumn: "TS",
+					ValueColumn:     "SUCCESSFUL_RIDES",
+					TimestampColumn: "SESSION_DATE",
 				},
 			},
 			Features: featureIDs,
@@ -989,7 +989,7 @@ func getTrainingSetDatasetNoTS(storeType pt.Type, storeConfig pc.SerializedConfi
 				ProviderType:   storeType,
 				ProviderConfig: storeConfig,
 				Location:       labelLoc,
-				EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "ENTITY_SURFER"}}, ValueColumn: "VALUE"},
+				EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "SKILL_LEVEL"},
 			},
 			Features: featureIDs,
 			FeatureSourceMappings: []SourceMapping{

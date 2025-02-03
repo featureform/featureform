@@ -419,10 +419,6 @@ func (m *MockVariantsStore) Set(key, value string) error {
 	return nil
 }
 
-func (m *MockVariantsStore) Get(key string) (string, error) {
-	return "", nil
-}
-
 func (m *MockVariantsStore) Get(key string, opts ...query.Query) (string, error) {
 	return "", nil
 }

@@ -55,6 +55,33 @@ func TestTransformations(t *testing.T) {
 	}
 }
 
+func TestMaterializations(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+
+	testInfra := []struct {
+		tester offlineSqlTest
+	}{
+		{getConfiguredBigQueryTester(t, false)},
+		//{getConfiguredSnowflakeTester(t, true)},
+	}
+
+	testSuite := map[string]func(t *testing.T, storeTester offlineSqlTest){
+		"RegisterMaterializationNoTimestampTest": RegisterMaterializationNoTimestampTest,
+		"RegisterMaterializationTimestampTest":   RegisterMaterializationTimestampTest,
+	}
+
+	for _, infra := range testInfra {
+		for name, testCase := range testSuite {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				testCase(t, infra.tester)
+			})
+		}
+	}
+}
+
 func newSQLTransformationTest(tester offlineSqlStoreTester, transformationQuery string) *sqlTransformationTester {
 	data := newTestSQLTransformationData(tester, transformationQuery)
 	return &sqlTransformationTester{

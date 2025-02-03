@@ -327,7 +327,7 @@ func (q defaultBQQueries) newBQOfflineTable(name string, columnType string) stri
 
 func (q defaultBQQueries) materializationCreate(tableName string, schema ResourceSchema, resourceLocation pl.SQLLocation) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("CREATE OR REPLACE TABLE %s AS ", tableName))
+	sb.WriteString(fmt.Sprintf("CREATE OR REPLACE TABLE `%s` AS ", tableName))
 
 	tsSelectStmt := fmt.Sprintf("`%s` AS ts", schema.TS)
 	tsOrderByStmt := fmt.Sprintf("ORDER BY `%s` DESC", schema.TS)
@@ -336,7 +336,7 @@ func (q defaultBQQueries) materializationCreate(tableName string, schema Resourc
 		tsOrderByStmt = ""
 	}
 
-	cteFormat := "WITH OrderedSource AS (SELECT `%s` AS entity, `%s` AS value, %s, ROW_NUMBER() OVER (PARTITION BY `%s` %s) AS rn FROM %s) "
+	cteFormat := "WITH OrderedSource AS (SELECT `%s` AS entity, `%s` AS value, %s, ROW_NUMBER() OVER (PARTITION BY `%s` %s) AS rn FROM `%s`) "
 	cteClause := fmt.Sprintf(cteFormat, schema.Entity, schema.Value, tsSelectStmt, schema.Entity, tsOrderByStmt, q.getTableNameFromLocation(resourceLocation))
 
 	sb.WriteString(cteClause)
@@ -596,12 +596,11 @@ func (q defaultBQQueries) getTableName(tableName string) string {
 func (q defaultBQQueries) getTableNameFromLocation(location pl.SQLLocation) string {
 	// Some locations passed in don't have database or schema assigned, and assume
 	// that it'll be the same configured on the client.
-	dataset := location.GetDatabase()
+	dataset := location.GetSchema()
 	if dataset == "" {
 		dataset = q.getDatasetId()
 	}
 
-	// Schema intentionally ignored, as BigQuery does not have a concept of a schema.
 	return fmt.Sprintf("%s.%s.%s", q.getProjectId(), dataset, location.GetTable())
 }
 
@@ -1166,8 +1165,10 @@ func (store *bqOfflineStore) CreateMaterialization(id ResourceID, opts Materiali
 	if err != nil {
 		return nil, err
 	}
+	// TODO: Somehow combine this logic with all of the other interface methods that get a
+	// relative location.
 	// BigQuery requires the table name to be prefixed with a dataset when creating a new table.
-	matTableName = fmt.Sprintf("%s.%s", store.query.DatasetId, matTableName)
+	matTableName = fmt.Sprintf("%s.%s.%s", store.query.ProjectId, store.query.DatasetId, matTableName)
 	materializeQry := store.query.materializationCreate(matTableName, opts.Schema, *sqlLocation)
 
 	bqQ := store.client.Query(materializeQry)

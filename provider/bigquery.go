@@ -43,13 +43,6 @@ const (
 	sleepTime = 1 * time.Second
 )
 
-type BQOfflineStoreConfig struct {
-	Config    pc.SerializedConfig
-	ProjectId string
-	QueryImpl defaultBQQueries
-	logger    logging.Logger
-}
-
 type defaultBQQueries struct {
 	ProjectId string
 	DatasetId string
@@ -799,15 +792,15 @@ func (table *bqOfflineTable) Location() pl.Location {
 
 type bqOfflineStore struct {
 	client *bigquery.Client
-	parent BQOfflineStoreConfig
+	config pc.BigQueryConfig
 	query  defaultBQQueries
 	logger logging.Logger
 	BaseProvider
 }
 
-func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
+func NewBQOfflineStore(config pc.SerializedConfig, logger logging.Logger) (*bqOfflineStore, error) {
 	sc := pc.BigQueryConfig{}
-	if err := sc.Deserialize(config.Config); err != nil {
+	if err := sc.Deserialize(config); err != nil {
 		return nil, err
 	}
 
@@ -815,20 +808,25 @@ func NewBQOfflineStore(config BQOfflineStoreConfig) (*bqOfflineStore, error) {
 	if err != nil {
 		return nil, fferr.NewProviderConfigError(string(pt.BigQueryOffline), err)
 	}
-	client, err := bigquery.NewClient(context.TODO(), config.ProjectId, option.WithCredentialsJSON(creds))
+	client, err := bigquery.NewClient(context.TODO(), sc.ProjectId, option.WithCredentialsJSON(creds))
 	if err != nil {
 		return nil, fferr.NewConnectionError(string(pt.BigQueryOffline), err)
 	}
 	defer client.Close()
 
+	queries := defaultBQQueries{
+		ProjectId: sc.ProjectId,
+		DatasetId: sc.DatasetId,
+	}
+	queries.setContext()
+
 	return &bqOfflineStore{
 		client: client,
-		parent: config,
-		query:  config.QueryImpl,
-		logger: config.logger,
+		query:  queries,
+		logger: logger,
 		BaseProvider: BaseProvider{
 			ProviderType:   pt.BigQueryOffline,
-			ProviderConfig: config.Config,
+			ProviderConfig: config,
 		},
 	}, nil
 }
@@ -839,20 +837,8 @@ func bigQueryOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	if err := sc.Deserialize(config); err != nil {
 		return nil, err
 	}
-	queries := defaultBQQueries{
-		ProjectId: sc.ProjectId,
-		DatasetId: sc.DatasetId,
-	}
-	queries.setContext()
 
-	sgConfig := BQOfflineStoreConfig{
-		Config:    config,
-		ProjectId: sc.ProjectId,
-		QueryImpl: queries,
-		logger:    logger,
-	}
-
-	store, err := NewBQOfflineStore(sgConfig)
+	store, err := NewBQOfflineStore(config, logger)
 	if err != nil {
 		return nil, err
 	}

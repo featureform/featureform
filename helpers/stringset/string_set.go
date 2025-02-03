@@ -7,16 +7,6 @@
 
 package stringset
 
-// func NewStringSet(initial ...string) StringSet {
-// 	ss := make(StringSet)
-
-// 	for _, str := range initial {
-// 		ss[str] = true
-// 	}
-
-// 	return ss
-// }
-
 type StringSet map[string]bool
 
 func (a StringSet) Add(items ...string) {
@@ -34,6 +24,8 @@ func (a StringSet) Contains(b StringSet) bool {
 	return true
 }
 
+// Difference returns a new StringSet containing elements in a that are not in b.
+// For example: a = {"a": true, "b": true}, b = {"b": true} => diff = {"a": true}
 func (a StringSet) Difference(b StringSet) StringSet {
 	diff := make(StringSet)
 	for str := range a {

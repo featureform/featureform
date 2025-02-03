@@ -31,8 +31,8 @@ type TrainingSetTask struct {
 }
 
 func (t *TrainingSetTask) Run() error {
-	ctx := t.logger.AttachToContext(context.Background())
 	logger := t.logger.With("%#v\n", t.taskDef.Target)
+	ctx := logger.AttachToContext(context.Background())
 	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
 		logger.Errorw("cannot create a training set from target type", "type", t.taskDef.TargetType)

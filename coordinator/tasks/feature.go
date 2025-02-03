@@ -304,7 +304,7 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 		}
 	}
 
-	logger.Info("Successfully deleted feature at locations")
+	logger.Info("Successfully deleted feature from offline store")
 	deleteFromOnlineStoreErr := t.deleteFromOnlineStore(ctx, featureToDelete, logger, nv)
 	if deleteFromOnlineStoreErr != nil {
 		logger.Errorw("Failed to delete feature from online store", "error", deleteFromOnlineStoreErr)
@@ -317,6 +317,7 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 		return err
 	}
 
+	logger.Info("Successfully deleted feature")
 	return nil
 }
 

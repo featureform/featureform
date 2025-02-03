@@ -1962,6 +1962,7 @@ func (serv *MetadataServer) SyncUnfinishedRuns(ctx context.Context, empty *schpr
 
 func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	if config == nil {
+		logging.GlobalLogger.Errorw("config cannot be nil")
 		return nil, fferr.NewInternalErrorf("config cannot be nil")
 	}
 
@@ -1970,16 +1971,18 @@ func NewMetadataServer(config *Config) (*MetadataServer, error) {
 	baseLookup := MemoryResourceLookup{config.TaskManager.Storage}
 	wrappedLookup, err := initializeLookup(config, &baseLookup, search.NewMeilisearch)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize lookup: %w", err)
+		config.Logger.Errorw("Failed to initialize lookup", "error", err)
+		return nil, fferr.NewInternalErrorf("failed to initialize lookup: %w", err)
 	}
 
 	resourcesRepo, err := NewResourcesRepositoryFromLookup(&baseLookup)
 	if err != nil {
 		config.Logger.Errorw("Failed to create resources repository", "error", err)
-		return nil, fmt.Errorf("failed to create resources repository: %w", err)
+		return nil, fferr.NewInternalErrorf("failed to create resources repository: %w", err)
 	}
 
 	if resourcesRepo == nil {
+		config.Logger.Errorw("resources repository is nil")
 		return nil, fferr.NewInternalErrorf("resources repository is nil")
 	}
 

@@ -1,30 +1,31 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS search_resources (
-                                                id TEXT PRIMARY KEY,
-                                                name TEXT,
-                                                type TEXT,
-                                                variant TEXT,
-                                                tags TEXT[],
-                                                search_vector tsvector,
-                                                created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-                                                updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+    id            TEXT PRIMARY KEY,
+    name          TEXT,
+    type          TEXT,
+    variant       TEXT,
+    tags          TEXT[],
+    search_vector tsvector,
+    created_at    TIMESTAMP DEFAULT now(),
+    updated_at    TIMESTAMP DEFAULT now()
 );
 
 -- Create GIN index for full-text search
-CREATE INDEX IF NOT EXISTS resources_search_idx ON search_resources USING GIN (search_vector);
+CREATE INDEX IF NOT EXISTS resources_search_idx
+    ON search_resources USING GIN (search_vector);
 
 -- Create function to automatically update search_vector
 CREATE OR REPLACE FUNCTION update_search_vector()
 RETURNS trigger AS $$
 BEGIN
     NEW.search_vector :=
-        setweight(to_tsvector('english', coalesce(NEW.name,'')), 'A') ||
-        setweight(to_tsvector('english', coalesce(NEW.type,'')), 'B') ||
-        setweight(to_tsvector('english', coalesce(NEW.variant,'')), 'C') ||
-        setweight(to_tsvector('english', coalesce(array_to_string(NEW.tags, ' '),'')), 'D');
-NEW.updated_at := CURRENT_TIMESTAMP;
-RETURN NEW;
+        setweight(to_tsvector('english', coalesce(NEW.name, '')), 'A') ||
+        setweight(to_tsvector('english', coalesce(NEW.type, '')), 'B') ||
+        setweight(to_tsvector('english', coalesce(NEW.variant, '')), 'C') ||
+        setweight(to_tsvector('english', coalesce(array_to_string(NEW.tags, ' '), '')), 'D');
+    NEW.updated_at := CURRENT_TIMESTAMP;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 

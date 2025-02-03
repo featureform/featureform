@@ -47,7 +47,7 @@ func createTestDatabase(t *testing.T) (dbName string, cleanup func()) {
 	// 3. Create the test DB
 	conn, err := adminPool.Acquire(ctx)
 	require.NoError(t, err, "failed to acquire connection to admin pool")
-	_, err = conn.Exec(context.Background(), fmt.Sprintf(`CREATE DATABASE "%s";`, dbName))
+	_, err = conn.Exec(ctx, fmt.Sprintf(`CREATE DATABASE "%s";`, dbName))
 	require.NoError(t, err, "failed to create test database")
 	conn.Release()
 
@@ -65,20 +65,21 @@ func createTestDatabase(t *testing.T) (dbName string, cleanup func()) {
 	cleanup = func() {
 		// Step 1: Terminate all connections to the test database
 		terminateConnectionsQuery := `
-        SELECT pg_terminate_backend(pg_stat_activity.pid)
-        FROM pg_stat_activity
-        WHERE pg_stat_activity.datname = $1
-          AND pid <> pg_backend_pid();
-    `
-		_, err := adminPool.Exec(context.Background(), terminateConnectionsQuery, dbName)
-		require.NoError(t, err, "failed to terminate connections to test database")
+			SELECT pg_terminate_backend(pg_stat_activity.pid)
+			FROM pg_stat_activity
+			WHERE pg_stat_activity.datname = $1
+			  AND pid <> pg_backend_pid();
+		`
+		if _, err := adminPool.Exec(context.Background(), terminateConnectionsQuery, dbName); err != nil {
+			log.Printf("Warning: Failed to terminate connections to test database: %v", err)
+		}
 
 		// Step 2: Drop the test database
 		dropDatabaseQuery := `DROP DATABASE ` + postgres.Sanitize(dbName) + `;`
-		_, err = adminPool.Exec(context.Background(), dropDatabaseQuery)
-		require.NoError(t, err, "failed to drop test database")
+		if _, err = adminPool.Exec(context.Background(), dropDatabaseQuery); err != nil {
+			log.Printf("Warning: Failed to drop test database: %v", err)
+		}
 
-		// Close the admin pool
 		adminPool.Close()
 	}
 

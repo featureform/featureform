@@ -229,7 +229,11 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			if c.lbl.EntityMappings.TimestampColumn != "" {
-				builder := &pitTrainingSetQueryBuilder{labelTable: c.lbl, featureTableMap: make(map[string]*featureTable)}
+				builder := &pitTrainingSetQueryBuilder{
+					labelTable:      c.lbl,
+					featureTableMap: make(map[string]*featureTable),
+					config:          QueryConfig{UseAsOfJoin: true, QuoteChar: "\"", QuoteTable: false},
+				}
 				for _, ft := range c.fts {
 					builder.AddFeature(ft)
 				}
@@ -238,10 +242,14 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 				}
 				sql := builder.ToSQL()
 				if sql != c.expectedSQL {
-					t.Errorf("Expected SQL: %s, got %s", c.expectedSQL, sql)
+					t.Errorf("Expected SQL:\n%s\nGot:\n%s", c.expectedSQL, sql)
 				}
 			} else {
-				builder := &trainingSetQueryBuilder{labelTable: c.lbl, featureTableMap: make(map[string]*featureTable)}
+				builder := &trainingSetQueryBuilder{
+					labelTable:      c.lbl,
+					featureTableMap: make(map[string]*featureTable),
+					config:          QueryConfig{UseAsOfJoin: true, QuoteChar: "\"", QuoteTable: false},
+				}
 				for _, ft := range c.fts {
 					builder.AddFeature(ft)
 				}
@@ -250,7 +258,7 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 				}
 				sql := builder.ToSQL()
 				if sql != c.expectedSQL {
-					t.Errorf("Expected SQL: %s, got %s", c.expectedSQL, sql)
+					t.Errorf("Expected SQL:\n%sGot:\n%s", c.expectedSQL, sql)
 				}
 			}
 		})

@@ -425,6 +425,9 @@ func (store *sqlOfflineStore) createsqlPrimaryTableQuery(name string, schema Tab
 
 func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
 	location, err := source.GetPrimaryLocation()
+	if err != nil {
+		return nil, fferr.NewInvalidArgumentErrorf("Source Primary Location is empty: %v", err)
+	}
 	sqlLocation, ok := location.(*pl.SQLLocation)
 	if !ok {
 		return nil, fferr.NewInvalidArgumentErrorf("location is not a SQLLocation")

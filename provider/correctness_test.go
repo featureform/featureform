@@ -173,19 +173,6 @@ func initSqlPrimaryDataset(t *testing.T, tester offlineSqlStoreDatasetTester, lo
 	if dbName == "" {
 		t.Fatalf("expected database name to be non-empty")
 	}
-	// TODO: Delete, no longer necessary since we assume a test
-	//.Logf("Creating Database: %s\n", dbName)
-	// db is initialized for the test.
-	//if err := tester.CreateDatabase(dbName); err != nil {
-	//	t.Fatalf("could not create database: %v", err)
-	//}
-
-	//t.Cleanup(func() {
-	//	t.Logf("Dropping Database: %s\n", dbName)
-	//	if err := tester.DropDatabase(dbName); err != nil {
-	//		t.Fatalf("could not drop database: %v", err)
-	//	}
-	//})
 
 	schemaName := sqlLoc.GetSchema()
 	if schemaName == "" {

@@ -579,10 +579,6 @@ func (q defaultBQQueries) trainingRowSelect(columns string, trainingSetName stri
 	return fmt.Sprintf("SELECT %s FROM `%s`", columns, q.getTableName(trainingSetName))
 }
 
-func (q defaultBQQueries) primaryTableRegister(tableName string, sourceLocation pl.SQLLocation) string {
-	return fmt.Sprintf("CREATE VIEW `%s` AS SELECT * FROM `%s`", q.getTableName(tableName), q.getTableNameFromLocation(sourceLocation))
-}
-
 func (q defaultBQQueries) getTableName(tableName string) string {
 	return fmt.Sprintf("%s.%s", q.getTablePrefix(), tableName)
 }
@@ -852,7 +848,7 @@ func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sche
 	if err := id.check(Feature, Label); err != nil {
 		return nil, err
 	}
-	if exists, err := store.tableExists(id); err != nil {
+	if exists, err := store.tableExistsForResourceId(id); err != nil {
 		return nil, err
 	} else if exists {
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
@@ -893,46 +889,18 @@ func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, table
 		return nil, err
 	}
 
-	if exists, err := store.tableExists(id); err != nil {
-		logger.Errorw("Checking if table exists", "err", err)
-		return nil, err
-	} else if exists {
-		logger.Errorw("Table already exists", "err", err)
-		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
-	}
-
-	tableName, err := GetPrimaryTableName(id)
-	if err != nil {
-		logger.Errorw("Mapping id to table name", "err", err)
-		return nil, err
-	}
-	query := store.query.primaryTableRegister(tableName, *sqlLocation)
-
-	bqQ := store.client.Query(query)
-	job, err := bqQ.Run(store.query.getContext())
-	if err != nil {
-		logger.Errorw("Running query", "err", err)
-		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
-	}
-
-	err = store.query.monitorJob(job)
-	if err != nil {
-		logger.Errorw("Monitoring BigQuery job", "err", err)
-		return nil, err
-	}
-
-	columnNames, err := store.query.getColumns(store.client, tableName)
+	columnNames, err := store.query.getColumns(store.client, sqlLocation.Location())
 	if err != nil {
 		logger.Errorw("Getting column names", "err", err)
 		return nil, err
 	}
 
-	table := store.client.Dataset(store.query.getDatasetId()).Table(tableLocation.Location())
+	table := store.client.Dataset(store.query.getDatasetId()).Table(sqlLocation.Location())
 
 	return &bqPrimaryTable{
 		table:  table,
 		client: store.client,
-		name:   tableName,
+		name:   sqlLocation.Location(),
 		schema: TableSchema{Columns: columnNames},
 		query:  store.query,
 	}, nil
@@ -1025,7 +993,7 @@ func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchem
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
-	if exists, err := store.tableExists(id); err != nil {
+	if exists, err := store.tableExistsForResourceId(id); err != nil {
 		return nil, err
 	} else if exists {
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
@@ -1045,15 +1013,23 @@ func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchem
 }
 
 func (store *bqOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
-	name, err := GetPrimaryTableName(id)
+	location, err := source.GetPrimaryLocation()
 	if err != nil {
 		return nil, err
 	}
-	if exists, err := store.tableExists(id); err != nil {
+
+	sqlLocation, isSqlLocation := location.(*pl.SQLLocation)
+	if !isSqlLocation {
+		return nil, fferr.NewInvalidArgumentErrorf("source table is not an SQL location")
+	}
+
+	if exists, err := store.tableExists(sqlLocation); err != nil {
 		return nil, err
 	} else if !exists {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
+
+	name := sqlLocation.Location()
 	columnNames, err := store.query.getColumns(store.client, name)
 	if err != nil {
 		return nil, err
@@ -1072,7 +1048,7 @@ func (store *bqOfflineStore) CreateResourceTable(id ResourceID, schema TableSche
 		return nil, err
 	}
 
-	if exists, err := store.tableExists(id); err != nil {
+	if exists, err := store.tableExistsForResourceId(id); err != nil {
 		return nil, err
 	} else if exists {
 		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
@@ -1171,7 +1147,7 @@ func (store *bqOfflineStore) SupportsMaterializationOption(opt MaterializationOp
 }
 
 func (store *bqOfflineStore) getbqResourceTable(id ResourceID) (*bqOfflineTable, error) {
-	if exists, err := store.tableExists(id); err != nil {
+	if exists, err := store.tableExistsForResourceId(id); err != nil {
 		return nil, err
 	} else if !exists {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
@@ -1402,7 +1378,7 @@ func (store *bqOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator,
 		return nil, err
 	}
 	fmt.Printf("Checking if Training Set exists: %v\n", id)
-	if exists, err := store.tableExists(id); err != nil {
+	if exists, err := store.tableExistsForResourceId(id); err != nil {
 		return nil, err
 	} else if !exists {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
@@ -1445,7 +1421,7 @@ func (store *bqOfflineStore) CheckHealth() (bool, error) {
 }
 
 func (store *bqOfflineStore) ResourceLocation(id ResourceID, resource any) (pl.Location, error) {
-	if exists, err := store.tableExists(id); err != nil {
+	if exists, err := store.tableExistsForResourceId(id); err != nil {
 		return nil, err
 	} else if !exists {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
@@ -1537,19 +1513,33 @@ func (store *bqOfflineStore) Close() error {
 	return nil
 }
 
-func (store *bqOfflineStore) tableExists(id ResourceID) (bool, error) {
-	var n []bigquery.Value
+func (store *bqOfflineStore) tableExistsForResourceId(id ResourceID) (bool, error) {
 	tableName, err := store.getTableName(id)
 	if err != nil {
 		return false, err
 	}
 
-	query := store.query.tableExists(tableName)
+	res, err := store.tableExists(pl.NewSQLLocation(tableName))
+	if err != nil {
+		return false, fferr.NewResourceExecutionError(p_type.BigQueryOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+	}
+
+	return res, nil
+}
+
+func (store *bqOfflineStore) tableExists(location pl.Location) (bool, error) {
+	sqlLocation, isSqlLocation := location.(*pl.SQLLocation)
+	if !isSqlLocation {
+		return false, fferr.NewInvalidArgumentErrorf("location is not a SQLLocation")
+	}
+
+	var n []bigquery.Value
+	query := store.query.tableExists(sqlLocation.Location())
 	bqQ := store.client.Query(query)
 
 	iter, err := bqQ.Read(store.query.getContext())
 	if err != nil {
-		return false, fferr.NewResourceExecutionError(p_type.BigQueryOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+		return false, fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 	}
 
 	err = iter.Next(&n)
@@ -1559,19 +1549,19 @@ func (store *bqOfflineStore) tableExists(id ResourceID) (bool, error) {
 		return false, err
 	}
 
-	query = store.query.viewExists(tableName)
+	query = store.query.viewExists(sqlLocation.Location())
 	bqQ = store.client.Query(query)
 
 	iter, err = bqQ.Read(store.query.getContext())
 	if err != nil {
-		return false, fferr.NewResourceExecutionError(p_type.BigQueryOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+		return false, fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 	}
 
 	err = iter.Next(&n)
 	if n != nil && n[0].(int64) > 0 && err == nil {
 		return true, nil
 	} else if err != nil {
-		return false, fferr.NewResourceExecutionError(p_type.BigQueryOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+		return false, fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 	}
 	return false, nil
 }

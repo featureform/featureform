@@ -193,52 +193,6 @@ func destroyBigQueryDataset(c pc.BigQueryConfig) error {
 	return err
 }
 
-func TestBigQueryMaterializations(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration tests")
-	}
-
-	tester := getConfiguredBigQueryTester(t, false)
-
-	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
-		"RegisterMaterializationNoTimestampTest": RegisterMaterializationNoTimestampTest,
-		"RegisterMaterializationTimestampTest":   RegisterMaterializationTimestampTest,
-	}
-
-	for name, testCase := range testCases {
-		constName := name
-		constTestCase := testCase
-		t.Run(constName, func(t *testing.T) {
-			t.Parallel()
-			constTestCase(t, tester)
-		})
-	}
-}
-
-func TestBigQueryTrainingSets(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration tests")
-	}
-
-	tester := getConfiguredBigQueryTester(t, false)
-
-	tsDatasetTypes := []trainingSetDatasetType{
-		tsDatasetFeaturesLabelTS,
-		tsDatasetFeaturesTSLabelNoTS,
-		tsDatasetFeaturesNoTSLabelTS,
-		tsDatasetFeaturesLabelNoTS,
-	}
-
-	for _, testCase := range tsDatasetTypes {
-		constName := string(testCase)
-		constTestCase := testCase
-		t.Run(constName, func(t *testing.T) {
-			t.Parallel()
-			RegisterTrainingSet(t, tester, constTestCase)
-		})
-	}
-}
-
 func TestOfflineStoreBigQuery(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")

@@ -82,6 +82,35 @@ func TestMaterializations(t *testing.T) {
 	}
 }
 
+func TestTrainingSets(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+
+	testInfra := []struct {
+		tester offlineSqlTest
+	}{
+		{getConfiguredBigQueryTester(t, false)},
+		//{getConfiguredSnowflakeTester(t, true)},
+	}
+
+	testSuite := []trainingSetDatasetType{
+		tsDatasetFeaturesLabelTS,
+		tsDatasetFeaturesTSLabelNoTS,
+		tsDatasetFeaturesNoTSLabelTS,
+		tsDatasetFeaturesLabelNoTS,
+	}
+
+	for _, infra := range testInfra {
+		for _, testCase := range testSuite {
+			t.Run(string(testCase), func(t *testing.T) {
+				t.Parallel()
+				RegisterTrainingSet(t, infra.tester, testCase)
+			})
+		}
+	}
+}
+
 func newSQLTransformationTest(tester offlineSqlStoreTester, transformationQuery string) *sqlTransformationTester {
 	data := newTestSQLTransformationData(tester, transformationQuery)
 	return &sqlTransformationTester{
@@ -705,9 +734,10 @@ func (data testSQLTrainingSetData) HashStruct(v interface{}) ([]byte, error) {
 
 func getTrainingSetDatasetTS(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := tester.GetTestDatabase()
-	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_FEATURES_SURF_READINGS_TABLE")
-	labelLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_LABEL_WAVE_HEIGHT_TABLE")
+	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_SURF_READINGS_TABLE")
+	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABEL_WAVE_HEIGHT_TABLE")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "wave_height_training_set")
 	labelID := idCreator.create(Label, "wave_height")
@@ -801,9 +831,10 @@ func getTrainingSetDatasetTS(tester offlineSqlStoreTester, storeType pt.Type, st
 
 func getTrainingSetFeaturesTSLabelsNoTS(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := tester.GetTestDatabase()
-	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_FEATURES_SURF_READINGS_TABLE")
-	labelLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_LABEL_LOC_LEVEL_TABLE")
+	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_SURF_READINGS_TABLE")
+	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABEL_LOC_LEVEL_TABLE")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "location_level_training_set")
 	labelID := idCreator.create(Label, "location_level")
@@ -884,9 +915,10 @@ func getTrainingSetFeaturesTSLabelsNoTS(tester offlineSqlStoreTester, storeType 
 
 func getTrainingSetDatasetFeaturesNoTSLabelTS(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := tester.GetTestDatabase()
-	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_FEATURES_SURFERS_TABLE")
-	labelLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_LABEL_RIDES_TABLE")
+	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_SURFERS_TABLE")
+	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABEL_RIDES_TABLE")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "successful_rides_training_set")
 	labelID := idCreator.create(Label, "successful_rides")
@@ -977,9 +1009,10 @@ func getTrainingSetDatasetFeaturesNoTSLabelTS(tester offlineSqlStoreTester, stor
 
 func getTrainingSetDatasetNoTS(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := tester.GetTestDatabase()
-	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_FEATURES_FAV_SPOT_TABLE")
-	labelLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_LABEL_SURFER_LEVEL_TABLE")
+	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_FAV_SPOT_TABLE")
+	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABEL_SURFER_LEVEL_TABLE")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "surfer_level_training_set")
 	labelID := idCreator.create(Label, "surfer_level")

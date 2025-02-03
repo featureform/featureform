@@ -36,10 +36,6 @@ func (p *postgresOfflineStoreTester) GetTestDatabase() string {
 	return p.defaultDbName
 }
 
-func (p *postgresOfflineStoreTester) SupportsDbCreation() bool {
-	return true
-}
-
 func (p *postgresOfflineStoreTester) CreateDatabase(name string) error {
 	db, err := p.sqlOfflineStore.getDb("", "")
 	if err != nil {

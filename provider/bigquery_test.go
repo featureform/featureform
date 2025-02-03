@@ -10,12 +10,9 @@ package provider
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	pl "github.com/featureform/provider/location"
-	ps "github.com/featureform/provider/provider_schema"
 	"github.com/google/uuid"
-	"google.golang.org/api/googleapi"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -34,30 +31,31 @@ type bigQueryOfflineStoreTester struct {
 	*bqOfflineStore
 }
 
-func (bq *bigQueryOfflineStoreTester) CreateDatabase(name string) error {
+func (bq *bigQueryOfflineStoreTester) GetTestDatabase() string {
+	return bq.query.ProjectId
+}
+
+func (bq *bigQueryOfflineStoreTester) SupportsDbCreation() bool {
+	return true
+}
+
+func (bq *bigQueryOfflineStoreTester) TestDbName() string {
+	return bq.query.ProjectId
+}
+
+func (bq *bigQueryOfflineStoreTester) CreateDatabase(_ string) error {
+	return nil
+}
+
+func (bq *bigQueryOfflineStoreTester) DropDatabase(_ string) error {
+	return nil
+}
+
+func (bq *bigQueryOfflineStoreTester) CreateSchema(_, schema string) error {
 	metadata := &bigquery.DatasetMetadata{
-		Name: name,
+		Name: schema,
 	}
-	if err := bq.client.Dataset(name).Create(context.TODO(), metadata); err != nil {
-		// If the dataset already exists, we just ignore the error (there are a few
-		// tests that init data in the same dataset).
-		var apiErr *googleapi.Error
-		if !(errors.As(err, &apiErr) && apiErr.Code == 409) {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (bq *bigQueryOfflineStoreTester) DropDatabase(name string) error {
-	return bq.client.Dataset(name).DeleteWithContents(context.TODO())
-}
-
-func (bq *bigQueryOfflineStoreTester) CreateSchema(database, schema string) error {
-	// Intentional no-op. There's really nothing analogous to a schema in
-	// BigQuery, so we ignore it.
-	return nil
+	return bq.client.Dataset(schema).Create(context.TODO(), metadata)
 }
 
 func (bq *bigQueryOfflineStoreTester) CreateTable(loc pl.Location, schema TableSchema) (PrimaryTable, error) {
@@ -80,9 +78,9 @@ func (bq *bigQueryOfflineStoreTester) CreateTable(loc pl.Location, schema TableS
 		})
 	}
 
-	var datasetName = sqlLocation.GetDatabase()
+	var datasetName = sqlLocation.GetSchema()
 	// There are a few tests that don't particularly care to create (or set)
-	// db's to use. In this case, just default to the testing dataset.
+	// schemas to use. In this case, just default to the testing dataset.
 	if datasetName == "" {
 		datasetName = bq.query.DatasetId
 	}
@@ -195,77 +193,6 @@ func destroyBigQueryDataset(c pc.BigQueryConfig) error {
 	return err
 }
 
-func RegisterBigQueryTransformationOnPrimaryDatasetTest(t *testing.T, tester offlineSqlTest) {
-	test := newSQLTransformationTest(tester.storeTester, false, tester.transformationQuery)
-	_ = initSqlPrimaryDataset(t, test.tester, test.data.location, test.data.schema, test.data.records)
-	if err := test.tester.CreateTransformation(test.data.config); err != nil {
-		t.Fatalf("could not create transformation: %v", err)
-	}
-	actual, err := test.tester.GetTransformationTable(test.data.config.TargetTableID)
-	if err != nil {
-		t.Fatalf("could not get transformation table: %v", err)
-	}
-	test.data.Assert(t, actual)
-}
-
-func RegisterBigQueryChainedTransformationsTest(t *testing.T, tester offlineSqlTest) {
-	test := newSQLTransformationTest(tester.storeTester, tester.useSchema, tester.transformationQuery)
-	_ = initSqlPrimaryDataset(t, test.tester, test.data.location, test.data.schema, test.data.records)
-	if err := test.tester.CreateTransformation(test.data.config); err != nil {
-		t.Fatalf("could not create transformation: %v", err)
-	}
-	// CHAIN `SELECT *` TRANSFORMATION ON 1ST TRANSFORMATION
-	// Create chained transformation resource ID and table name
-	id := ResourceID{Name: "DUMMY_TABLE_TF2", Variant: "test", Type: Transformation}
-	table, err := ps.ResourceToTableName(Transformation.String(), id.Name, id.Variant)
-	if err != nil {
-		t.Fatalf("could not get transformation table: %v", err)
-	}
-	// Get the table name of the first transformation and create a SQL location for sanitization
-	srcDataset, err := ps.ResourceToTableName(Transformation.String(), test.data.config.TargetTableID.Name, test.data.config.TargetTableID.Variant)
-	if err != nil {
-		t.Fatalf("could not get transformation table name from resource ID: %v", err)
-	}
-	// TODO: Nicer way of doing this.
-	srcLoc := pl.NewFullyQualifiedSQLLocation(test.tester.(*bigQueryOfflineStoreTester).query.DatasetId, "", srcDataset).(*pl.SQLLocation)
-	// Copy the original config and modify the query and source mapping
-	config := test.data.config
-	config.TargetTableID = id
-	config.Query = fmt.Sprintf("SELECT * FROM `%s`", srcLoc.TableLocation())
-	config.SourceMapping[0].Location = pl.NewSQLLocation(table)
-	// Create, get and assert the chained transformation
-	if err := test.tester.CreateTransformation(config); err != nil {
-		t.Fatalf("could not create transformation: %v", err)
-	}
-	actual, err := test.tester.GetTransformationTable(id)
-	if err != nil {
-		t.Fatalf("could not get transformation table: %v", err)
-	}
-	test.data.Assert(t, actual)
-}
-
-func TestBigQueryTransformations(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration tests")
-	}
-
-	tester := getConfiguredBigQueryTester(t, false)
-
-	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
-		"RegisterTransformationOnPrimaryDatasetTest": RegisterBigQueryTransformationOnPrimaryDatasetTest,
-		"RegisterChainedTransformationsTest":         RegisterBigQueryChainedTransformationsTest,
-	}
-
-	for name, testCase := range testCases {
-		constName := name
-		constTestCase := testCase
-		t.Run(constName, func(t *testing.T) {
-			t.Parallel()
-			constTestCase(t, tester)
-		})
-	}
-}
-
 func TestBigQueryMaterializations(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
@@ -312,6 +239,44 @@ func TestBigQueryTrainingSets(t *testing.T) {
 	}
 }
 
+func TestOfflineStoreBigQuery(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+
+	// TODO: Utilize configure function below to prevent duplication
+	// of setup.
+	bigQueryConfig, err := getBigQueryConfig(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	serialBQConfig := bigQueryConfig.Serialize()
+
+	if err := createBigQueryDataset(bigQueryConfig); err != nil {
+		t.Fatalf("Cannot create BigQuery Dataset: %v", err)
+	}
+
+	t.Cleanup(func() {
+		err := destroyBigQueryDataset(bigQueryConfig)
+		if err != nil {
+			t.Logf("failed to cleanup database: %s\n", err)
+		}
+	})
+
+	store, err := GetOfflineStore(pt.BigQueryOffline, serialBQConfig)
+	if err != nil {
+		t.Fatalf("could not initialize store: %s\n", err)
+	}
+
+	test := OfflineStoreTest{
+		t:     t,
+		store: store,
+	}
+	test.Run()
+	//test.RunSQL()
+}
+
 func getConfiguredBigQueryTester(t *testing.T, useCrossDBJoins bool) offlineSqlTest {
 	bigQueryConfig, err := getBigQueryConfig(t)
 	if err != nil {
@@ -337,10 +302,20 @@ func getConfiguredBigQueryTester(t *testing.T, useCrossDBJoins bool) offlineSqlT
 
 	offlineStoreTester := &bigQueryOfflineStoreTester{store.(*bqOfflineStore)}
 
+	sanitizeTableNameFunc := func(obj pl.FullyQualifiedObject) string {
+		// BigQuery requires a fully qualified location of a source table.
+		if obj.Database == "" || obj.Schema == "" {
+			datasetId := store.(*bqOfflineStore).query.DatasetId
+			srcLoc := pl.NewFullyQualifiedSQLLocation(offlineStoreTester.GetTestDatabase(), datasetId, obj.Table).(*pl.SQLLocation)
+			return "`" + srcLoc.TableLocation().String() + "`"
+		}
+		return "`" + obj.String() + "`"
+	}
+
 	return offlineSqlTest{
 		storeTester:         offlineStoreTester,
 		testCrossDbJoins:    useCrossDBJoins,
-		useSchema:           false,
 		transformationQuery: "SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, TIMESTAMP(timestamp) as date FROM %s GROUP BY location_id, TIMESTAMP(timestamp)",
+		sanitizeTableName:   sanitizeTableNameFunc,
 	}
 }

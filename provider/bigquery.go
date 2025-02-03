@@ -244,11 +244,21 @@ func (q defaultBQQueries) registerResources(client *bigquery.Client, tableName s
 	}
 
 	if timestamp {
-		query = fmt.Sprintf("CREATE VIEW `%s` AS SELECT `%s` as entity, `%s` as value, `%s` as ts, CURRENT_TIMESTAMP() as insert_ts FROM `%s`", q.getTableName(tableName),
-			schema.Entity, schema.Value, schema.TS, q.getTableNameFromLocation(*sourceLocation))
+		query = fmt.Sprintf("CREATE VIEW `%s` AS SELECT `%s` as entity, `%s` as value, `%s` as ts, CURRENT_TIMESTAMP() as insert_ts FROM `%s`",
+			q.getTableName(tableName),
+			schema.Entity,
+			schema.Value,
+			schema.TS,
+			q.getTableNameFromLocation(*sourceLocation),
+		)
 	} else {
-		query = fmt.Sprintf("CREATE VIEW `%s` AS SELECT `%s` as entity, `%s` as value, PARSE_TIMESTAMP('%%Y-%%m-%%d %%H:%%M:%%S +0000 UTC', '%s') as ts, CURRENT_TIMESTAMP() as insert_ts FROM `%s`", q.getTableName(tableName),
-			schema.Entity, schema.Value, time.UnixMilli(0).UTC(), q.getTableNameFromLocation(*sourceLocation))
+		query = fmt.Sprintf("CREATE VIEW `%s` AS SELECT `%s` as entity, `%s` as value, PARSE_TIMESTAMP('%%Y-%%m-%%d %%H:%%M:%%S +0000 UTC', '%s') as ts, CURRENT_TIMESTAMP() as insert_ts FROM `%s`",
+			q.getTableName(tableName),
+			schema.Entity,
+			schema.Value,
+			time.UnixMilli(0).UTC(),
+			q.getTableNameFromLocation(*sourceLocation),
+		)
 	}
 
 	bqQ := client.Query(query)
@@ -446,8 +456,8 @@ func (q defaultBQQueries) monitorJob(job *bigquery.Job) error {
 	}
 }
 
-func (q defaultBQQueries) transformationCreate(name string, query string) string {
-	qry := fmt.Sprintf("CREATE VIEW `%s` AS %s", q.getTableName(name), query)
+func (q defaultBQQueries) transformationCreate(location pl.SQLLocation, query string) string {
+	qry := fmt.Sprintf("CREATE VIEW `%s` AS %s", q.getTableNameFromLocation(location), query)
 	return qry
 }
 
@@ -959,7 +969,10 @@ func (store *bqOfflineStore) CreateTransformation(config TransformationConfig, o
 	if err != nil {
 		return err
 	}
-	query := store.query.transformationCreate(name, config.Query)
+
+	// TODO: We do just create it, but maybe still consider doing an error check here.
+	location := pl.NewSQLLocation(name).(*pl.SQLLocation)
+	query := store.query.transformationCreate(*location, config.Query)
 
 	bqQ := store.client.Query(query)
 	job, err := bqQ.Run(store.query.getContext())

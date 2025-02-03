@@ -28,7 +28,16 @@ import (
 
 // sqlOfflineStore for PostgreSQL implementation
 type postgresOfflineStoreTester struct {
+	defaultDbName string
 	*sqlOfflineStore
+}
+
+func (p *postgresOfflineStoreTester) GetTestDatabase() string {
+	return p.defaultDbName
+}
+
+func (p *postgresOfflineStoreTester) SupportsDbCreation() bool {
+	return true
 }
 
 func (p *postgresOfflineStoreTester) CreateDatabase(name string) error {
@@ -144,7 +153,10 @@ func TestPostgresSchemas(t *testing.T) {
 		t.Fatalf("could not initialize store: %s\n", err)
 	}
 
-	offlineStoreTester := &postgresOfflineStoreTester{store.(*sqlOfflineStore)}
+	offlineStoreTester := &postgresOfflineStoreTester{
+		defaultDbName:   dbName,
+		sqlOfflineStore: store.(*sqlOfflineStore),
+	}
 
 	tester := offlineSqlTest{
 		storeTester:      offlineStoreTester,

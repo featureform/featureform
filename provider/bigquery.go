@@ -615,18 +615,20 @@ func (q defaultBQQueries) trainingRowSelect(columns string, trainingSetName stri
 }
 
 func (q defaultBQQueries) getTableName(tableName string) string {
-	return fmt.Sprintf("%s.%s", q.getTablePrefix(), tableName)
+	location := pl.FullyQualifiedObject{
+		Database: q.ProjectId,
+		Schema:   q.DatasetId,
+		Table:    tableName,
+	}
+
+	return location.String()
 }
 
 func (q defaultBQQueries) getTableNameFromLocation(location pl.SQLLocation) string {
-	// Some locations passed in don't have database or schema assigned, and assume
-	// that it'll be the same configured on the client.
-	dataset := location.GetSchema()
-	if dataset == "" {
-		dataset = q.getDatasetId()
-	}
+	rootLocation := q.getRootLocation()
+	tableLocation := rootLocation.GetTableFromRoot(&location)
 
-	return fmt.Sprintf("%s.%s.%s", q.getProjectId(), dataset, location.GetTable())
+	return tableLocation.TableLocation().String()
 }
 
 func (q defaultBQQueries) getProjectId() string {
@@ -635,6 +637,10 @@ func (q defaultBQQueries) getProjectId() string {
 
 func (q defaultBQQueries) getDatasetId() string {
 	return q.DatasetId
+}
+
+func (q defaultBQQueries) getRootLocation() *pl.SQLLocation {
+	return pl.NewFullyQualifiedSQLLocation(q.ProjectId, q.DatasetId, "").(*pl.SQLLocation)
 }
 
 type bqMaterialization struct {

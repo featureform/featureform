@@ -142,7 +142,7 @@ const DEFAULT_FILTERS = Object.freeze({
 export const SearchTable = () => {
   const [filters, setFilters] = useState({...DEFAULT_FILTERS});
   const router = useRouter();
-  const q = router.query?.q || '';
+  const q = router.query?.q ?? '';
 
   const [rows, setRows] = useState([]);
   const [loading, setIsLoading] = useState(false);

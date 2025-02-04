@@ -312,10 +312,7 @@ const EntityPageView = ({
     router.push(`/providers/${metadata['provider']}`);
   };
 
-  let resourceHeading = `${resources.type}`
-  if (resourceHeading === 'Source') {
-    resourceHeading = 'Dataset'
-  }
+  let resourceHeading = Resource[`${resources.type}`]?.displayText
 
   const metadataInputSet = Array.from(new Set(metadata['inputs']));
 

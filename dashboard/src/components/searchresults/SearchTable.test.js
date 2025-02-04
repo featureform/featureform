@@ -50,7 +50,6 @@ describe('Search Table Tests', () => {
     const helper = render(
       getTestBody()
     );
-    console.log(document.body.innerHTML);
     const foundText = helper.getByText(`Search Results:`);
 
     //expect:

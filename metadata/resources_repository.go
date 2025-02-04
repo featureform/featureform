@@ -104,7 +104,7 @@ func NewResourcesRepositoryFromLookup(resourceLookup ResourceLookup) (ResourcesR
 	}
 
 	switch lookup := resourceLookup.(type) {
-	case *EtcdResourceLookup, *LocalResourceLookup:
+	case *LocalResourceLookup:
 		return NewInMemoryResourcesRepository(lookup), nil
 
 	case *MemoryResourceLookup:
@@ -112,7 +112,7 @@ func NewResourcesRepositoryFromLookup(resourceLookup ResourceLookup) (ResourcesR
 			return nil, fferr.NewInternalErrorf("MemoryResourceLookup.Storage is nil")
 		}
 		switch lookup.Connection.Storage.Type() {
-		case storage.MemoryMetadataStorage, storage.ETCDMetadataStorage:
+		case storage.MemoryMetadataStorage:
 			return NewInMemoryResourcesRepository(lookup), nil
 
 		case storage.PSQLMetadataStorage:

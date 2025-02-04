@@ -221,17 +221,17 @@ func (lookup MemoryResourceLookup) Submap(ctx context.Context, ids []ResourceID)
 		if err != nil {
 			return nil, fferr.NewKeyNotFoundError(key, err)
 		}
-		etcdStore, err := lookup.deserialize([]byte(resp))
+		storedRow, err := lookup.deserialize([]byte(resp))
 		if err != nil {
 			return nil, err
 		}
 
-		resource, err := CreateEmptyResource(etcdStore.ResourceType)
+		resource, err := CreateEmptyResource(storedRow.ResourceType)
 		if err != nil {
 			return nil, err
 		}
 
-		res, err := ParseResource(etcdStore, resource)
+		res, err := ParseResource(storedRow, resource)
 		if err != nil {
 			return nil, err
 		}
@@ -247,15 +247,15 @@ func (lookup MemoryResourceLookup) ListForType(ctx context.Context, t ResourceTy
 		return nil, err
 	}
 	for _, v := range resp {
-		etcdStore, err := lookup.deserialize([]byte(v))
+		storedRow, err := lookup.deserialize([]byte(v))
 		if err != nil {
 			return nil, err
 		}
-		resource, err := CreateEmptyResource(etcdStore.ResourceType)
+		resource, err := CreateEmptyResource(storedRow.ResourceType)
 		if err != nil {
 			return nil, err
 		}
-		parsedResource, err := ParseResource(etcdStore, resource)
+		parsedResource, err := ParseResource(storedRow, resource)
 		if err != nil {
 			logging.GlobalLogger.Errorw("Failed to parse resource", "error", err)
 			return nil, err
@@ -287,15 +287,15 @@ func (lookup MemoryResourceLookup) ListVariants(ctx context.Context, t ResourceT
 	}
 	startParsingTime := time.Now()
 	for _, v := range resp {
-		etcdStore, err := lookup.deserialize([]byte(v))
+		storedRow, err := lookup.deserialize([]byte(v))
 		if err != nil {
 			return nil, err
 		}
-		resource, err := CreateEmptyResource(etcdStore.ResourceType)
+		resource, err := CreateEmptyResource(storedRow.ResourceType)
 		if err != nil {
 			return nil, err
 		}
-		resource, err = ParseResource(etcdStore, resource)
+		resource, err = ParseResource(storedRow, resource)
 		if err != nil {
 			return nil, err
 		}
@@ -315,15 +315,15 @@ func (lookup MemoryResourceLookup) List(ctx context.Context) ([]Resource, error)
 		return nil, err
 	}
 	for _, v := range resp {
-		etcdStore, err := lookup.deserialize([]byte(v))
+		storedRow, err := lookup.deserialize([]byte(v))
 		if err != nil {
 			return nil, err
 		}
-		resource, err := CreateEmptyResource(etcdStore.ResourceType)
+		resource, err := CreateEmptyResource(storedRow.ResourceType)
 		if err != nil {
 			return nil, err
 		}
-		resource, err = ParseResource(etcdStore, resource)
+		resource, err = ParseResource(storedRow, resource)
 		if err != nil {
 			return nil, err
 		}

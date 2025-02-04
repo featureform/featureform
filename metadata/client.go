@@ -123,6 +123,7 @@ type Client struct {
 
 type ResourceDef interface {
 	ResourceType() ResourceType
+	ResourceID() ResourceID
 }
 
 // accessible to the frontend as it does not directly change status in metadata
@@ -305,6 +306,15 @@ func (def FeatureDef) ResourceType() ResourceType {
 	return FEATURE_VARIANT
 }
 
+// ResourceID
+func (def FeatureDef) ResourceID() ResourceID {
+	return ResourceID{
+		Name:    def.Name,
+		Variant: def.Variant,
+		Type:    FEATURE_VARIANT,
+	}
+}
+
 func (def FeatureDef) Serialize(requestID string) (*pb.FeatureVariantRequest, error) {
 	var typeProto *pb.ValueType
 	if def.Type == nil {
@@ -446,6 +456,14 @@ type LabelDef struct {
 
 func (def LabelDef) ResourceType() ResourceType {
 	return LABEL_VARIANT
+}
+
+func (def LabelDef) ResourceID() ResourceID {
+	return ResourceID{
+		Name:    def.Name,
+		Variant: def.Variant,
+		Type:    LABEL_VARIANT,
+	}
 }
 
 func (def LabelDef) Serialize(requestID string) (*pb.LabelVariantRequest, error) {
@@ -615,6 +633,14 @@ type TrainingSetDef struct {
 
 func (def TrainingSetDef) ResourceType() ResourceType {
 	return TRAINING_SET_VARIANT
+}
+
+func (def TrainingSetDef) ResourceID() ResourceID {
+	return ResourceID{
+		Name:    def.Name,
+		Variant: def.Variant,
+		Type:    TRAINING_SET_VARIANT,
+	}
 }
 
 func (def TrainingSetDef) Serialize(requestID string) *pb.TrainingSetVariantRequest {
@@ -853,6 +879,14 @@ func (def SourceDef) ResourceType() ResourceType {
 	return SOURCE_VARIANT
 }
 
+func (def SourceDef) ResourceID() ResourceID {
+	return ResourceID{
+		Name:    def.Name,
+		Variant: def.Variant,
+		Type:    SOURCE_VARIANT,
+	}
+}
+
 func (def SourceDef) Serialize(requestID string) (*pb.SourceVariantRequest, error) {
 	serialized := &pb.SourceVariantRequest{
 		SourceVariant: &pb.SourceVariant{
@@ -904,7 +938,13 @@ func (client *Client) GetSourceVariants(ctx context.Context, ids []NameVariant) 
 	}
 	go func() {
 		for _, id := range ids {
-			err := stream.Send(&pb.NameVariantRequest{NameVariant: &pb.NameVariant{Name: id.Name, Variant: id.Variant}, RequestId: logging.GetRequestIDFromContext(ctx)})
+			req := &pb.NameVariantRequest{
+				NameVariant: &pb.NameVariant{
+					Name:    id.Name,
+					Variant: id.Variant,
+				},
+				RequestId: logging.GetRequestIDFromContext(ctx)}
+			err := stream.Send(req)
 			if err != nil {
 				logger.Errorw(
 					"Failed to send source variant",
@@ -933,9 +973,15 @@ func (client *Client) GetSourceVariant(ctx context.Context, id NameVariant) (*So
 	variants, err := client.GetSourceVariants(ctx, []NameVariant{id})
 	if err != nil {
 		return nil, err
-
 	}
 	return variants[0], nil
+}
+
+func (client *Client) FinalizeDelete(ctx context.Context, resId ResourceID) error {
+	nameVariant := pb.NameVariant{Name: resId.Name, Variant: resId.Variant}
+	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: resId.Type.Serialized()}
+	_, err := client.GrpcConn.FinalizeDeletion(ctx, &pb.FinalizeDeletionRequest{ResourceId: &resourceID})
+	return err
 }
 
 type sourceStream interface {
@@ -1036,6 +1082,13 @@ func (def UserDef) ResourceType() ResourceType {
 	return USER
 }
 
+func (def UserDef) ResourceID() ResourceID {
+	return ResourceID{
+		Name: def.Name,
+		Type: USER,
+	}
+}
+
 func (client *Client) CreateUser(ctx context.Context, def UserDef) error {
 	requestID := logging.GetRequestIDFromContext(ctx)
 
@@ -1081,6 +1134,10 @@ func (client *Client) ListProviders(ctx context.Context) ([]*Provider, error) {
 }
 
 func (client *Client) GetProvider(ctx context.Context, provider string) (*Provider, error) {
+	if provider == "" {
+		return nil, fferr.NewInvalidArgumentErrorf("provider cannot be empty")
+	}
+
 	providerList, err := client.GetProviders(ctx, []string{provider})
 	if err != nil {
 		return nil, err
@@ -1120,6 +1177,13 @@ type ProviderDef struct {
 
 func (def ProviderDef) ResourceType() ResourceType {
 	return PROVIDER
+}
+
+func (def ProviderDef) ResourceID() ResourceID {
+	return ResourceID{
+		Name: def.Name,
+		Type: PROVIDER,
+	}
 }
 
 func (client *Client) CreateProvider(ctx context.Context, def ProviderDef) error {
@@ -1210,6 +1274,14 @@ func (def EntityDef) ResourceType() ResourceType {
 	return ENTITY
 }
 
+func (def EntityDef) ResourceID() ResourceID {
+	return ResourceID{
+		Name: def.Name,
+		Type: ENTITY,
+	}
+
+}
+
 func (client *Client) CreateEntity(ctx context.Context, def EntityDef) error {
 	requestID := logging.GetRequestIDFromContext(ctx)
 	serialized := &pb.EntityRequest{
@@ -1282,6 +1354,110 @@ func (client *Client) GetModels(ctx context.Context, models []string) ([]*Model,
 	return client.parseModelStream(stream)
 }
 
+func (client *Client) GetStagedForDeletionSourceVariant(ctx context.Context, id NameVariant, logger logging.Logger) (*SourceVariant, error) {
+	logger = logger.With("name", id.Name, "variant", id.Variant, "type", SOURCE_VARIANT)
+	logger.Debug("Getting staged source variant for deletion")
+
+	res, err := client.GetStagedForDeletionResource(ctx, ResourceID{
+		Name:    id.Name,
+		Variant: id.Variant,
+		Type:    SOURCE_VARIANT,
+	})
+	if err != nil {
+		logger.Errorw("Failed to get staged resource", "error", err)
+		return nil, err
+	}
+
+	variant := res.GetSourceVariant()
+	if variant == nil {
+		logger.Error("Resource is not a source variant")
+		return nil, fferr.NewInternalErrorf("staged resource is not a source variant")
+	}
+	return WrapProtoSourceVariant(variant), nil
+}
+
+func (client *Client) GetStagedForDeletionTrainingSetVariant(ctx context.Context, id NameVariant, logger logging.Logger) (*TrainingSetVariant, error) {
+	logger = logger.With("name", id.Name, "variant", id.Variant, "type", TRAINING_SET_VARIANT)
+	logger.Debug("Getting staged training set variant for deletion")
+
+	res, err := client.GetStagedForDeletionResource(ctx, ResourceID{
+		Name:    id.Name,
+		Variant: id.Variant,
+		Type:    TRAINING_SET_VARIANT,
+	})
+	if err != nil {
+		logger.Errorw("Failed to get staged resource", "error", err)
+		return nil, err
+	}
+
+	variant := res.GetTrainingSetVariant()
+	if variant == nil {
+		logger.Error("Resource is not a training set variant")
+		return nil, fferr.NewInternalErrorf("staged resource is not a training set variant")
+	}
+	return WrapProtoTrainingSetVariant(variant), nil
+}
+
+func (client *Client) GetStagedForDeletionFeatureVariant(ctx context.Context, id NameVariant, logger logging.Logger) (*FeatureVariant, error) {
+	logger = logger.With("name", id.Name, "variant", id.Variant, "type", FEATURE_VARIANT)
+	logger.Debug("Getting staged feature variant for deletion")
+
+	res, err := client.GetStagedForDeletionResource(ctx, ResourceID{
+		Name:    id.Name,
+		Variant: id.Variant,
+		Type:    FEATURE_VARIANT,
+	})
+	if err != nil {
+		logger.Errorw("Failed to get staged resource", "error", err)
+		return nil, err
+	}
+
+	variant := res.GetFeatureVariant()
+	if variant == nil {
+		logger.Error("Resource is not a feature variant")
+		return nil, fmt.Errorf("staged resource is not a feature variant")
+	}
+	return WrapProtoFeatureVariant(variant), nil
+}
+
+func (client *Client) GetStagedForDeletionLabelVariant(ctx context.Context, id NameVariant, logger logging.Logger) (*LabelVariant, error) {
+	logger = logger.With("name", id.Name, "variant", id.Variant, "type", LABEL_VARIANT)
+	logger.Debug("Getting staged label variant for deletion")
+
+	res, err := client.GetStagedForDeletionResource(ctx, ResourceID{
+		Name:    id.Name,
+		Variant: id.Variant,
+		Type:    LABEL_VARIANT,
+	})
+	if err != nil {
+		logger.Errorw("Failed to get staged resource", "error", err)
+		return nil, err
+	}
+
+	variant := res.GetLabelVariant()
+	if variant == nil {
+		logger.Error("Resource is not a label variant")
+		return nil, fmt.Errorf("staged resource is not a label variant")
+	}
+	return WrapProtoLabelVariant(variant), nil
+}
+
+func (client *Client) GetStagedForDeletionResource(ctx context.Context, id ResourceID) (*pb.ResourceVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx).With("name", id.Name, "variant", id.Variant, "type", id.Type)
+	logger.Debug("Getting staged resource for deletion")
+
+	nameVariant := pb.NameVariant{Name: id.Name, Variant: id.Variant}
+	resourceID := pb.ResourceID{Resource: &nameVariant, ResourceType: id.Type.Serialized()}
+
+	resp, err := client.GrpcConn.GetStagedForDeletionResource(ctx, &pb.GetStagedForDeletionResourceRequest{ResourceId: &resourceID})
+	if err != nil {
+		logger.Errorw("Failed to get staged resource", "error", err)
+		return nil, err
+	}
+
+	return resp.ResourceVariant, err
+}
+
 type ModelDef struct {
 	Name         string
 	Description  string
@@ -1293,6 +1469,13 @@ type ModelDef struct {
 
 func (def ModelDef) ResourceType() ResourceType {
 	return MODEL
+}
+
+func (def ModelDef) ResourceID() ResourceID {
+	return ResourceID{
+		Name: def.Name,
+		Type: MODEL,
+	}
 }
 
 func (client *Client) CreateModel(ctx context.Context, def ModelDef) error {
@@ -1553,6 +1736,30 @@ func (fn fetchPropertiesFn) Properties() Properties {
 	return properties
 }
 
+type offlineStoreLocationsGetter interface {
+	GetOfflineStoreLocations() []*pb.Location
+}
+
+type fetchOfflineStoreLocationsFn struct {
+	getter offlineStoreLocationsGetter
+}
+
+type offlineStoreProviderGetter interface {
+	GetOfflineStoreProvider() string
+}
+
+type fetchOfflineStoreProviderFn struct {
+	getter offlineStoreProviderGetter
+}
+
+func (fn fetchOfflineStoreProviderFn) OfflineStoreProvider() string {
+	return fn.getter.GetOfflineStoreProvider()
+}
+
+func (fn fetchOfflineStoreProviderFn) FetchOfflineStoreProvider(client *Client, ctx context.Context) (*Provider, error) {
+	return client.GetProvider(ctx, fn.OfflineStoreProvider())
+}
+
 type serializedConfigGetter interface {
 	GetSerializedConfig() []byte
 }
@@ -1611,19 +1818,23 @@ type FeatureVariant struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
+	fetchOfflineStoreProviderFn
+	fetchOfflineStoreLocationsFn
 }
 
 func WrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 	return &FeatureVariant{
-		serialized:           serialized,
-		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
-		fetchProviderFns:     fetchProviderFns{serialized},
-		fetchSourceFns:       fetchSourceFns{serialized},
-		createdFn:            createdFn{serialized},
-		lastUpdatedFn:        lastUpdatedFn{serialized},
-		protoStringer:        protoStringer{serialized},
-		fetchTagsFn:          fetchTagsFn{serialized},
-		fetchPropertiesFn:    fetchPropertiesFn{serialized},
+		serialized:                   serialized,
+		fetchTrainingSetsFns:         fetchTrainingSetsFns{serialized},
+		fetchProviderFns:             fetchProviderFns{serialized},
+		fetchSourceFns:               fetchSourceFns{serialized},
+		createdFn:                    createdFn{serialized},
+		lastUpdatedFn:                lastUpdatedFn{serialized},
+		protoStringer:                protoStringer{serialized},
+		fetchTagsFn:                  fetchTagsFn{serialized},
+		fetchPropertiesFn:            fetchPropertiesFn{serialized},
+		fetchOfflineStoreProviderFn:  fetchOfflineStoreProviderFn{serialized},
+		fetchOfflineStoreLocationsFn: fetchOfflineStoreLocationsFn{serialized},
 	}
 }
 
@@ -1786,6 +1997,14 @@ func (variant *FeatureVariant) LocationStream() interface{} {
 		OfflineProvider: src.OfflineProvider,
 	}
 	return stream
+}
+
+func (variant *FeatureVariant) GetOfflineStoreProvider() string {
+	return variant.serialized.GetOfflineStoreProvider()
+}
+
+func (variant *FeatureVariant) GetOfflineStoreLocations() []*pb.Location {
+	return variant.serialized.GetOfflineStoreLocations()
 }
 
 func (variant *FeatureVariant) Tags() Tags {
@@ -2864,7 +3083,7 @@ func (variant *SourceVariant) GetPrimaryLocation() (pl.Location, error) {
 	}
 	switch pt := variant.serialized.GetPrimaryData().GetLocation().(type) {
 	case *pb.PrimaryData_Table:
-		return pl.NewSQLLocationWithDBSchemaTable(
+		return pl.NewFullyQualifiedSQLLocation(
 			pt.Table.GetDatabase(),
 			pt.Table.GetSchema(),
 			pt.Table.GetName(),
@@ -2890,7 +3109,8 @@ func (variant *SourceVariant) GetTransformationLocation() (pl.Location, error) {
 	switch pt := variant.serialized.GetTransformation().GetLocation().(type) {
 	case *pb.Transformation_Table:
 		table := pt.Table.GetName()
-		return pl.NewSQLLocation(table), nil
+		return pl.NewFullyQualifiedSQLLocation(pt.Table.GetDatabase(), pt.Table.GetSchema(), table), nil
+		//return pl.NewSQLLocation(table), nil
 	case *pb.Transformation_Filestore:
 		fp := filestore.FilePath{}
 		if err := fp.ParseDirPath(pt.Filestore.GetPath()); err != nil {

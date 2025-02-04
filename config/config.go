@@ -58,6 +58,16 @@ func ShouldUseDebugLogging() bool {
 	return helpers.GetEnvBool("FEATUREFORM_DEBUG_LOGGING", false)
 }
 
+// Will determine if our goose migration should run on metadata startup
+func ShouldRunGooseMigrationMetadata() bool {
+	return helpers.GetEnvBool("RUN_GOOSE_MIGRATION_METADATA", false)
+}
+
+// Will determine if our goose migration should run on executable startup
+func ShouldRunGooseMigrationExecutable() bool {
+	return helpers.GetEnvBool("RUN_GOOSE_MIGRATION_EXECUTABLE", true)
+}
+
 func CreateSparkScriptConfig() (SparkFileConfigs, error) {
 	remoteScriptPath, err := createSparkRemoteScriptPath()
 	if err != nil {

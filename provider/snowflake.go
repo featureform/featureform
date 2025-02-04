@@ -187,7 +187,7 @@ func (sf *snowflakeOfflineStore) RegisterResourceFromSourceTable(id ResourceID, 
 			query:        sf.sqlOfflineStore.query,
 			providerType: pt.SnowflakeOffline,
 		},
-		location: pl.NewSQLLocationWithDBSchemaTable(snowflakeConfig.Database, snowflakeConfig.Schema, tableName),
+		location: pl.NewFullyQualifiedSQLLocation(snowflakeConfig.Database, snowflakeConfig.Schema, tableName),
 	}, nil
 }
 
@@ -212,7 +212,7 @@ func (sf *snowflakeOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, 
 	if schema == "" {
 		schema = "PUBLIC"
 	}
-	loc := pl.NewSQLLocationWithDBSchemaTable(config.Database, schema, tableName)
+	loc := pl.NewFullyQualifiedSQLLocation(config.Database, schema, tableName)
 
 	if exists, err := sf.sqlOfflineStore.tableExists(loc); err != nil {
 		return nil, err
@@ -344,6 +344,28 @@ func (sf *snowflakeOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 // DO NOT REMOVE THIS METHOD.
 func (sf *snowflakeOfflineStore) AsOfflineStore() (OfflineStore, error) {
 	return sf, nil
+}
+
+func (sf snowflakeOfflineStore) Delete(location pl.Location) error {
+	if exists, err := sf.sqlOfflineStore.tableExists(location); err != nil {
+		return err
+	} else if !exists {
+		return fferr.NewDatasetLocationNotFoundError(location.Location(), nil)
+	}
+
+	sqlLoc, isSqlLoc := location.(*pl.SQLLocation)
+	if !isSqlLoc {
+		return fferr.NewInternalErrorf("location is not an SQL location")
+	}
+
+	query := sf.sfQueries.dropTableQuery(*sqlLoc)
+	sf.logger.Debugw("Deleting table", "query", query)
+
+	if _, err := sf.db.Exec(query); err != nil {
+		return sf.handleErr(fferr.NewExecutionError(pt.SnowflakeOffline.String(), err), err)
+	}
+
+	return nil
 }
 
 // handleErr attempts to add the Snowflake query and session IDs to a wrapped error to aid

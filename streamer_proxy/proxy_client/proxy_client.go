@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 
+	"net/url"
+
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/flight"
 	"github.com/featureform/config"
@@ -62,7 +64,12 @@ func GetStreamProxyClient(ctx context.Context, source, variant string, limit int
 		return nil, fferr.NewInternalError(limitErr)
 	}
 
-	proxyAddress := fmt.Sprintf("%s:%s", proxyHost, proxyPort)
+	proxyURL := &url.URL{
+		Scheme: "http",
+		Host:   fmt.Sprintf("%s:%s", proxyHost, proxyPort),
+	}
+	proxyAddress := proxyURL.String()
+
 	baseLogger.Infow("Forwarding to iceberg-proxy", "proxy_address", proxyAddress)
 	baseLogger.Debugw("Forwarding parameters", "source", source, "variant", variant, "limit", limit)
 

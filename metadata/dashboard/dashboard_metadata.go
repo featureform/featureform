@@ -2910,7 +2910,7 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 	m.logger.Infof("Processing streaming request: %s-%s, ", source, variant)
 
 	if source == "" || variant == "" {
-		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetSourceData - Could not find the name or variant query parameters"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetIcebergData - Could not find the name or variant query parameters"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -2925,7 +2925,7 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 	if proxyErr != nil {
 		fetchError := &FetchError{
 			StatusCode: http.StatusInternalServerError,
-			Type:       fmt.Sprintf("GetSourceData - %s", proxyErr.Error()),
+			Type:       fmt.Sprintf("GetIcebergData - %s", proxyErr.Error()),
 		}
 		m.logger.Errorw(fetchError.Error(), "Metadata error", fetchError)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -2942,7 +2942,7 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 			if !ok {
 				fetchError := &FetchError{
 					StatusCode: http.StatusInternalServerError,
-					Type:       "GetSourceData - Datarow type assert",
+					Type:       "GetIcebergData - Datarow type assert",
 				}
 				m.logger.Errorw("unable to type assert data row: %v", dataRow)
 				c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -2956,7 +2956,7 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 	if readerErr != nil {
 		fetchError := &FetchError{
 			StatusCode: http.StatusInternalServerError,
-			Type:       fmt.Sprintf("GetSourceData - proxyIterator reader.next() error: %v", readerErr),
+			Type:       fmt.Sprintf("GetIcebergData - proxyIterator reader.next() error: %v", readerErr),
 		}
 		m.logger.Errorw(fetchError.Error(), "Metadata error", proxyErr)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -2968,7 +2968,7 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 	if len(fields) == 0 {
 		fetchError := &FetchError{
 			StatusCode: http.StatusInternalServerError,
-			Type:       "GetSourceData - Empty Schema, no fields in proxy",
+			Type:       "GetIcebergData - Empty Schema, no fields in proxy",
 		}
 		m.logger.Error("schema has no fields")
 		c.JSON(fetchError.StatusCode, fetchError.Error())

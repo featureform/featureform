@@ -1,30 +1,23 @@
-import pytest
 from unittest.mock import Mock
-from typing import Tuple
 
+import pytest
+
+from featureform import Client, OnlineProvider, ResourceType, entity
 from featureform import (
-    Client,
     ColumnSourceRegistrar,
     FeatureColumnResource,
     LabelColumnResource,
     OfflineProvider,
-    OnlineProvider,
-    ResourceType,
     SubscriptableTransformation,
     TrainingSetVariant,
-    entity,
 )
-
-import pytest
-from unittest.mock import Mock
-from featureform import Client, OnlineProvider, ResourceType, entity
 
 
 class TestDelete:
     @pytest.fixture
     def client(self):
         """Fixture to provide a fresh client instance with a mocked stub."""
-        client = Client()
+        client = Client(host="localhost:7878", insecure=True, dry_run=True)
         client._stub = Mock()
         return client
 

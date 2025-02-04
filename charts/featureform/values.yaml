@@ -240,11 +240,6 @@ metadata:
     maxReplicas: 100
     targetCPUUtilizationPercentage: 80
 
-# Configuration for the backup service
-backup:
-  enabled: false
-  schedule: "0 * * * *"
-
 # Logging:
 # For instructions to see the dashboard, check here:
 # https://artifacthub.io/packages/helm/grafana/loki-stack

@@ -22,6 +22,7 @@ import (
 	"github.com/featureform/config/bootstrap"
 	"github.com/featureform/coordinator"
 	"github.com/featureform/coordinator/spawner"
+	"github.com/featureform/db"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -86,6 +87,16 @@ func main() {
 		panic(err)
 	}
 	defer logger.LogIfErr("Failed to close service-level resources", init.Close())
+
+	/****************************************** DB Migrations **********************************************************/
+
+	if config.ShouldRunGooseMigrationExecutable() {
+		logger.Info("Running goose migrations")
+		if err := db.RunMigrations(initCtx, appConfig.Postgres, config.GetMigrationPath()); err != nil {
+			logger.Errorw("Failed to run goose migrations", "err", err)
+			panic(err)
+		}
+	}
 
 	logger.Debug("Getting task metadata manager")
 	manager, err := init.GetOrCreateTaskMetadataManager(initCtx)

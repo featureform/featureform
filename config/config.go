@@ -64,6 +64,10 @@ func ShouldUseDBFS() bool {
 	return helpers.GetEnvBool("SHOULD_USE_DBFS", false)
 }
 
+func GetMigrationPath() string {
+	return helpers.GetEnv("DB_MIGRATION_PATH", "db/migrations")
+}
+
 // Will determine if our goose migration should run on metadata startup
 func ShouldRunGooseMigrationMetadata() bool {
 	return helpers.GetEnvBool("RUN_GOOSE_MIGRATION_METADATA", false)

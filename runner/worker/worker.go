@@ -13,8 +13,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/featureform/coordinator/spawner"
-
 	"github.com/featureform/runner"
 	"go.uber.org/zap"
 )

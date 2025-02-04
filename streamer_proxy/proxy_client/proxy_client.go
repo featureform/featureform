@@ -64,8 +64,6 @@ func GetStreamProxyClient(ctx context.Context, source, variant string, limit int
 		return nil, fferr.NewInternalError(limitErr)
 	}
 
-	proxyURL := &url.URL{
-		Scheme: "http",
 	parsedUrl, parseErr := url.Parse(fmt.Sprintf("%s:%s", proxyHost, proxyPort))
 	if parseErr != nil {
 		baseLogger.Errorw("could not parse proxy URL", "host", proxyHost, "port", proxyPort)

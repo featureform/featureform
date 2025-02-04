@@ -2085,7 +2085,7 @@ const MaxPreviewCols = 15
 func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	name := c.Query("name")
 	variant := c.Query("variant")
-	sv, svErr := m.client.GetSourceVariant(context.Background(), metadata.NameVariant{Name: name, Variant: variant})
+	sv, svErr := m.client.GetSourceVariant(c.Request.Context(), metadata.NameVariant{Name: name, Variant: variant})
 	if svErr != nil {
 		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "GetSourceData"}
 		m.logger.Errorw(fetchError.Error(), fmt.Sprintf("Metadata error, could not get SourceVariant, source (%s) variant (%s): ", name, variant), svErr)
@@ -2910,7 +2910,7 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 	m.logger.Infof("Processing streaming request: %s-%s, ", source, variant)
 
 	if source == "" || variant == "" {
-		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetIcebergData -  - Could not find the name or variant query parameters"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetSourceData - Could not find the name or variant query parameters"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -2925,7 +2925,7 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 	if proxyErr != nil {
 		fetchError := &FetchError{
 			StatusCode: http.StatusInternalServerError,
-			Type:       fmt.Sprintf("GetIcebergData -  - %s", proxyErr.Error()),
+			Type:       fmt.Sprintf("GetSourceData - %s", proxyErr.Error()),
 		}
 		m.logger.Errorw(fetchError.Error(), "Metadata error", fetchError)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -2935,16 +2935,6 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 
 	m.logger.Info("Proxy connection established, iterating stream data...")
 	for proxyIterator.Next() {
-		readerErr := proxyIterator.Err()
-		if readerErr != nil {
-			fetchError := &FetchError{
-				StatusCode: http.StatusInternalServerError,
-				Type:       fmt.Sprintf("GetIcebergData -  - proxyIterator reader.next() error: %v", readerErr),
-			}
-			m.logger.Errorw(fetchError.Error(), "Metadata error", proxyErr)
-			c.JSON(fetchError.StatusCode, fetchError.Error())
-			return
-		}
 		dataMatrix := proxyIterator.Values()
 		// extract the interface data
 		for _, dataRow := range dataMatrix {
@@ -2952,7 +2942,7 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 			if !ok {
 				fetchError := &FetchError{
 					StatusCode: http.StatusInternalServerError,
-					Type:       "GetIcebergData -  - Datarow type assert",
+					Type:       "GetSourceData - Datarow type assert",
 				}
 				m.logger.Errorw("unable to type assert data row: %v", dataRow)
 				c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -2962,12 +2952,23 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 		}
 	}
 
+	readerErr := proxyIterator.Err()
+	if readerErr != nil {
+		fetchError := &FetchError{
+			StatusCode: http.StatusInternalServerError,
+			Type:       fmt.Sprintf("GetSourceData - proxyIterator reader.next() error: %v", readerErr),
+		}
+		m.logger.Errorw(fetchError.Error(), "Metadata error", proxyErr)
+		c.JSON(fetchError.StatusCode, fetchError.Error())
+		return
+	}
+
 	proxySchema := proxyIterator.Schema()
 	fields := proxySchema.Fields()
 	if len(fields) == 0 {
 		fetchError := &FetchError{
 			StatusCode: http.StatusInternalServerError,
-			Type:       "GetIcebergData -  - Empty Schema, no fields in proxy",
+			Type:       "GetSourceData - Empty Schema, no fields in proxy",
 		}
 		m.logger.Error("schema has no fields")
 		c.JSON(fetchError.StatusCode, fetchError.Error())

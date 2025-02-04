@@ -85,7 +85,9 @@ func GetStreamProxyClient(ctx context.Context, source, variant string, limit int
 
 	ticketBytes, err := json.Marshal(ticketData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create ticket: %w", err)
+		ticketErr := fmt.Errorf("failed to create ticket: %w", err)
+		baseLogger.Error(ticketErr.Error())
+		return nil, fferr.NewInternalError(ticketErr)
 	}
 
 	ticket := &flight.Ticket{Ticket: ticketBytes}
@@ -93,16 +95,22 @@ func GetStreamProxyClient(ctx context.Context, source, variant string, limit int
 	baseLogger.Info("Fetching the data stream...")
 	flightStream, err := client.DoGet(ctx, ticket)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch data for source (%s) and variant (%s) from proxy: %w", source, variant, err)
+		doGetErr := fmt.Errorf("failed to fetch data for source (%s) and variant (%s) from proxy: %w", source, variant, err)
+		baseLogger.Error(doGetErr.Error())
+		return nil, fferr.NewInternalError(doGetErr)
 	}
 
 	baseLogger.Info("Creating the record reader...")
 	recordReader, err := flight.NewRecordReader(flightStream)
 	if err == io.EOF {
 		// initial connection ok, no data
-		return nil, fmt.Errorf("connection established, but no data available for source (%s) and variant (%s)", source, variant)
+		readErr := fmt.Errorf("connection established, but no data available for source (%s) and variant (%s)", source, variant)
+		baseLogger.Error(readErr.Error())
+		return nil, fferr.NewInternalError(readErr)
 	} else if err != nil {
-		return nil, fmt.Errorf("failed to create record reader: %w", err)
+		readErr := fmt.Errorf("failed to create record reader: %w", err)
+		baseLogger.Error(readErr.Error())
+		return nil, fferr.NewInternalError(readErr)
 	}
 
 	// pull the schema and column names

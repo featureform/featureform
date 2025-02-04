@@ -2109,22 +2109,22 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	switch location.Type() {
 	case pl.CatalogLocationType:
 		m.logger.Debug("Routing to streamer proxy")
-		m.GetStream(c)
+		m.GetIcebergData(c)
 	default:
 		m.logger.Debug("Routing to source data")
-		m.GetNonStreamSourceData(c)
+		m.SourceData(c)
 	}
 }
 
-func (m *MetadataServer) GetNonStreamSourceData(c *gin.Context) {
+func (m *MetadataServer) SourceData(c *gin.Context) {
 	name := c.Query("name")
 	variant := c.Query("variant")
 
 	m.logger.Infow("Processing non-streaming request: ", "name", name, "variant", variant)
 
 	if name == "" || variant == "" {
-		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetSourceData - Could not find the name or variant query parameters"}
-		m.logger.Errorw(fetchError.Error(), "Metadata error")
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "SourceData - Could not find the name or variant query parameters"}
+		m.logger.Errorf("Metadata error: %v", fetchError)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
@@ -2143,7 +2143,7 @@ func (m *MetadataServer) GetNonStreamSourceData(c *gin.Context) {
 	for iter.Next() {
 		sRow, err := serving.SerializedSourceRow(iter.Values())
 		if err != nil {
-			fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "GetSourceData"}
+			fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "SourceData"}
 			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
@@ -2169,7 +2169,7 @@ func (m *MetadataServer) GetNonStreamSourceData(c *gin.Context) {
 	}
 
 	if err := iter.Err(); err != nil {
-		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "GetSourceData"}
+		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "SourceData"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -2903,14 +2903,14 @@ func (m *MetadataServer) GetTaskRunDetails(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-func (m *MetadataServer) GetStream(c *gin.Context) {
+func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 	source := c.Query("name")
 	variant := c.Query("variant")
 
 	m.logger.Infof("Processing streaming request: %s-%s, ", source, variant)
 
 	if source == "" || variant == "" {
-		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetStream - Could not find the name or variant query parameters"}
+		fetchError := &FetchError{StatusCode: http.StatusBadRequest, Type: "GetIcebergData -  - Could not find the name or variant query parameters"}
 		m.logger.Errorw(fetchError.Error(), "Metadata error")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
@@ -2925,7 +2925,7 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 	if proxyErr != nil {
 		fetchError := &FetchError{
 			StatusCode: http.StatusInternalServerError,
-			Type:       fmt.Sprintf("GetStream - %s", proxyErr.Error()),
+			Type:       fmt.Sprintf("GetIcebergData -  - %s", proxyErr.Error()),
 		}
 		m.logger.Errorw(fetchError.Error(), "Metadata error", fetchError)
 		c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -2939,7 +2939,7 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 		if readerErr != nil {
 			fetchError := &FetchError{
 				StatusCode: http.StatusInternalServerError,
-				Type:       fmt.Sprintf("GetStream - proxyIterator reader.next() error: %v", readerErr),
+				Type:       fmt.Sprintf("GetIcebergData -  - proxyIterator reader.next() error: %v", readerErr),
 			}
 			m.logger.Errorw(fetchError.Error(), "Metadata error", proxyErr)
 			c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -2952,7 +2952,7 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 			if !ok {
 				fetchError := &FetchError{
 					StatusCode: http.StatusInternalServerError,
-					Type:       "GetStream - Datarow type assert",
+					Type:       "GetIcebergData -  - Datarow type assert",
 				}
 				m.logger.Errorw("unable to type assert data row: %v", dataRow)
 				c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -2967,7 +2967,7 @@ func (m *MetadataServer) GetStream(c *gin.Context) {
 	if len(fields) == 0 {
 		fetchError := &FetchError{
 			StatusCode: http.StatusInternalServerError,
-			Type:       "GetStream - Empty Schema, no fields in proxy",
+			Type:       "GetIcebergData -  - Empty Schema, no fields in proxy",
 		}
 		m.logger.Error("schema has no fields")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -3026,7 +3026,7 @@ func (m *MetadataServer) Start(port string, local bool) error {
 	router.POST("/data/providers", m.GetProviderResources)
 	router.POST("/data/models", m.GetModelResources)
 	router.GET("/data/:type/prop/owners", m.GetTypeOwners)
-	router.GET("/data/stream", m.GetStream)
+	router.GET("/data/stream", m.GetIcebergData)
 
 	return router.Run(port)
 }

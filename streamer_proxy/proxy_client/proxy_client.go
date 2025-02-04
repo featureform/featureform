@@ -66,9 +66,12 @@ func GetStreamProxyClient(ctx context.Context, source, variant string, limit int
 
 	proxyURL := &url.URL{
 		Scheme: "http",
-		Host:   fmt.Sprintf("%s:%s", proxyHost, proxyPort),
+	parsedUrl, parseErr := url.Parse(fmt.Sprintf("%s:%s", proxyHost, proxyPort))
+	if parseErr != nil {
+		baseLogger.Errorw("could not parse proxy URL", "host", proxyHost, "port", proxyPort)
+		return nil, fferr.NewInternalError(parseErr)
 	}
-	proxyAddress := proxyURL.String()
+	proxyAddress := parsedUrl.String()
 
 	baseLogger.Infow("Forwarding to iceberg-proxy", "proxy_address", proxyAddress)
 	baseLogger.Debugw("Forwarding parameters", "source", source, "variant", variant, "limit", limit)
@@ -150,7 +153,7 @@ func (si *StreamProxyClient) Next() bool {
 	return hasNext
 }
 
-func (si StreamProxyClient) Values() provider.GenericRecord {
+func (si *StreamProxyClient) Values() provider.GenericRecord {
 	if si.currentBatch == nil {
 		si.logger.Warn("Record reader current batch is nil; returning nil")
 		return nil
@@ -172,7 +175,7 @@ func (si StreamProxyClient) Values() provider.GenericRecord {
 	return rowMatrix
 }
 
-func (si StreamProxyClient) Columns() []string {
+func (si *StreamProxyClient) Columns() []string {
 	if si.columns == nil {
 		si.logger.Warn("columns is nil; returning an empty string slice")
 		return []string{}
@@ -180,7 +183,7 @@ func (si StreamProxyClient) Columns() []string {
 	return si.columns
 }
 
-func (si StreamProxyClient) Schema() arrow.Schema {
+func (si *StreamProxyClient) Schema() arrow.Schema {
 	if si.schema == nil {
 		si.logger.Warn("Schema is nil; returning an empty schema")
 		return arrow.Schema{}
@@ -188,11 +191,11 @@ func (si StreamProxyClient) Schema() arrow.Schema {
 	return *si.schema
 }
 
-func (si StreamProxyClient) Err() error {
+func (si *StreamProxyClient) Err() error {
 	return si.recordReader.Err()
 }
 
-func (si StreamProxyClient) Close() error {
+func (si *StreamProxyClient) Close() error {
 	if si.flightStream != nil {
 		closeErr := si.flightStream.CloseSend()
 		if closeErr != nil {

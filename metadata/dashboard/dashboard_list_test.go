@@ -17,10 +17,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap/zaptest"
-
 	"github.com/featureform/ffsync"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -30,6 +26,9 @@ import (
 	"github.com/featureform/provider/provider_type"
 	ss "github.com/featureform/storage"
 	"github.com/featureform/storage/query"
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap/zaptest"
 )
 
 func GetMetadataServer(t *testing.T) MetadataServer {
@@ -183,7 +182,7 @@ func TestPostTags(t *testing.T) {
 	assert.Equal(t, tagList, data.Tags)
 }
 
-func TestGetSourceDataReturnsData(t *testing.T) {
+func TestSourceDataReturnsData(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
 	u := url.Values{}
@@ -200,7 +199,7 @@ func TestGetSourceDataReturnsData(t *testing.T) {
 		logger: logger,
 	}
 
-	serv.GetSourceData(ctx)
+	serv.SourceData(ctx)
 
 	iterator := provider.UnitTestIterator{}
 	var data SourceDataResponse
@@ -226,10 +225,10 @@ func TestGetSourceMissingNameOrVariantParamErrors(t *testing.T) {
 		logger: logger,
 	}
 
-	serv.GetSourceData(ctx)
+	serv.SourceData(ctx)
 
 	var actualErrorMsg string
-	expectedMsg := "Error 400: Failed to fetch GetSourceData - Could not find the name or variant query parameters"
+	expectedMsg := "Error 400: Failed to fetch SourceData - Could not find the name or variant query parameters"
 	_ = json.Unmarshal(mockRecorder.Body.Bytes(), &actualErrorMsg)
 
 	assert.Equal(t, http.StatusBadRequest, mockRecorder.Code)
@@ -250,7 +249,7 @@ func TestGetSourceFaultyOrNilGrpcClientPanic(t *testing.T) {
 	}
 
 	didPanic := func() {
-		serv.GetSourceData(ctx)
+		serv.SourceData(ctx)
 	}
 
 	assert.Panics(t, didPanic)

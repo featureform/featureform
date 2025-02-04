@@ -2094,7 +2094,8 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	}
 
 	m.logger.Infow("Fetching location with source variant", "source", sv.Name(), "variant", sv.Variant())
-	location, locationErr := sv.GetLocation()
+	ctx := logging.AddLoggerToContext(c, m.logger) //only need gin.Context for the logging
+	location, locationErr := sv.GetLocation(ctx)
 
 	if locationErr != nil {
 		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "GetSourceData"}

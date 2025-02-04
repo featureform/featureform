@@ -2976,9 +2976,14 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 	}
 	for i, columnName := range proxyIterator.Columns() {
 		if i >= len(fields) {
-			// non-disruptive safety check to ensure our columnn idx doesn't exceed the fields
 			m.logger.Errorf("current column index %d exceeds fields length %d", i, len(fields))
-			break
+			fetchError := &FetchError{
+				StatusCode: http.StatusInternalServerError,
+				Type:       fmt.Sprintf("GetIcebergData - Column index %d exceeds fields length %d", i, len(fields)),
+			}
+			m.logger.Errorf("Metadata error: %v", fetchError.Error())
+			c.JSON(fetchError.StatusCode, fetchError.Error())
+			return
 		}
 		cleanName := strings.ReplaceAll(columnName, "\"", "")
 		if cleanName != "" && len(cleanName) > maxColumnNameLength {

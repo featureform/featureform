@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/featureform/fferr"
-	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
 	db "github.com/jackc/pgx/v4"
@@ -98,31 +96,6 @@ func (q snowflakeSQLQueries) viewCreate(tableName, query string) string {
 	sb.WriteString(fmt.Sprintf("AS %s", query))
 
 	return sb.String()
-}
-
-func (q snowflakeSQLQueries) resourceTableAsQuery(schema ResourceSchema) (string, error) {
-	var sb strings.Builder
-
-	sb.WriteString("SELECT ")
-
-	for _, m := range schema.EntityMappings.Mappings {
-		sb.WriteString(fmt.Sprintf("IDENTIFIER('%s') AS entity_%s, ", m.EntityColumn, m.Name))
-	}
-
-	sb.WriteString(fmt.Sprintf("IDENTIFIER('%s') AS value, ", schema.EntityMappings.ValueColumn))
-	sb.WriteString(toIcebergTimestamp(schema.EntityMappings.TimestampColumn))
-
-	sqlLoc, isSQLLocation := schema.SourceTable.(*pl.SQLLocation)
-	if !isSQLLocation {
-		logging.GlobalLogger.Errorw("source table is not an SQL location", "location_type", fmt.Sprintf("%T", schema.SourceTable))
-		return "", fferr.NewInvalidArgumentErrorf("source table is not an SQL location")
-	}
-
-	// NOTE: We need to use TableLocation() here to get the correct table name as we cannot assume the table
-	// is in the same database/schema as the current context.
-	sb.WriteString(fmt.Sprintf("FROM TABLE('%s')", SanitizeSnowflakeIdentifier(sqlLoc.TableLocation())))
-
-	return sb.String(), nil
 }
 
 func (q snowflakeSQLQueries) materializationCreateAsQuery(entity, value, ts, tableName string) string {

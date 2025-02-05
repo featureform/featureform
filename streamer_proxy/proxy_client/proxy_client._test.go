@@ -1,10 +1,10 @@
 package proxy_client
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
+	"github.com/featureform/logging"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,48 +13,55 @@ func TestGetProxyClient_Validations(t *testing.T) {
 		name        string
 		source      string
 		variant     string
+		host        string
+		port        string
 		limit       int
 		envVars     map[string]string
 		expectedMsg string
 	}{
 		{
-			name:        "missing ICEBERG_PROXY_HOST",
+			name:        "missing host",
 			source:      "someSource",
 			variant:     "someVariant",
+			host:        "",
+			port:        "8086",
 			limit:       10,
-			envVars:     map[string]string{"ICEBERG_PROXY_HOST": "", "ICEBERG_PROXY_PORT": "8086"},
-			expectedMsg: "missing ICEBERG_PROXY_HOST env variable",
+			expectedMsg: "missing 'host' param value",
 		},
 		{
-			name:        "missing ICEBERG_PROXY_PORT",
+			name:        "missing port",
 			source:      "someSource",
 			variant:     "someVariant",
+			host:        "localhost",
+			port:        "",
 			limit:       10,
-			envVars:     map[string]string{"ICEBERG_PROXY_HOST": "localhost", "ICEBERG_PROXY_PORT": ""},
-			expectedMsg: "missing ICEBERG_PROXY_PORT env variable",
+			expectedMsg: "missing 'port' param value",
 		},
 		{
 			name:        "missing source",
 			source:      "",
 			variant:     "someVariant",
+			host:        "localhost",
+			port:        "8086",
 			limit:       10,
-			envVars:     map[string]string{"ICEBERG_PROXY_HOST": "localhost", "ICEBERG_PROXY_PORT": "8086"},
 			expectedMsg: "missing 'source' param value",
 		},
 		{
 			name:        "missing variant",
 			source:      "someSource",
 			variant:     "",
+			host:        "localhost",
+			port:        "8086",
 			limit:       10,
-			envVars:     map[string]string{"ICEBERG_PROXY_HOST": "localhost", "ICEBERG_PROXY_PORT": "8086"},
 			expectedMsg: "missing 'variant' param value",
 		},
 		{
 			name:        "limit less than 0",
 			source:      "someSource",
 			variant:     "someVariant",
+			host:        "localhost",
+			port:        "8086",
 			limit:       -1,
-			envVars:     map[string]string{"ICEBERG_PROXY_HOST": "localhost", "ICEBERG_PROXY_PORT": "8086"},
 			expectedMsg: "limit value (-1) is less than 0",
 		},
 	}
@@ -65,7 +72,16 @@ func TestGetProxyClient_Validations(t *testing.T) {
 				t.Setenv(key, value)
 			}
 
-			client, err := GetStreamProxyClient(context.Background(), tt.source, tt.variant, tt.limit)
+			params := ProxyParams{
+				Source:  tt.source,
+				Variant: tt.variant,
+				Host:    tt.host,
+				Port:    tt.port,
+				Limit:   tt.limit,
+			}
+
+			ctx := logging.NewTestContext(t)
+			client, err := GetStreamProxyClient(ctx, params)
 
 			assert.Nil(t, client, "Expected client to be nil")
 			assert.Error(t, err)

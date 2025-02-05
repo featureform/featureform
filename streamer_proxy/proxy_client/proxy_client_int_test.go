@@ -3,6 +3,7 @@ package proxy_client
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"testing"
 	"time"
 
@@ -23,19 +24,16 @@ type flightServer struct {
 	Logger  logging.Logger
 }
 
-func startProxyServer(t *testing.T, recordSlice []arrow.Record, schema *arrow.Schema) (func(), error) {
+func startProxyServer(t *testing.T, recordSlice []arrow.Record, schema *arrow.Schema) (func(), string, error) {
 	// prep flight server and env
 	grpcServer := grpc.NewServer()
 	listener, listenErr := net.Listen("tcp", "localhost:0")
 	if listenErr != nil {
-		return nil, fmt.Errorf("failed to bind address: %w", listenErr)
+		return nil, "", fmt.Errorf("failed to bind address: %w", listenErr)
 	}
 
 	// pull the os assigned port
 	testPort := listener.Addr().(*net.TCPAddr).Port
-
-	t.Setenv("ICEBERG_PROXY_HOST", "localhost")
-	t.Setenv("ICEBERG_PROXY_PORT", fmt.Sprintf("%d", testPort))
 
 	// start the proxy flight server
 	f := flightServer{
@@ -60,7 +58,7 @@ func startProxyServer(t *testing.T, recordSlice []arrow.Record, schema *arrow.Sc
 		<-done
 		t.Log("Test flight server stopped successfully")
 	}
-	return cleanUp, nil
+	return cleanUp, strconv.Itoa(testPort), nil
 }
 
 func (f *flightServer) DoGet(ticket *flight.Ticket, fs flight.FlightService_DoGetServer) error {
@@ -164,7 +162,7 @@ func TestClient_GetStreamProxyClient_Success(t *testing.T) {
 	}
 	recordSlice := createRecords(schema, metadata, mask, data)
 
-	cleanUp, startErr := startProxyServer(t, recordSlice, schema)
+	cleanUp, testPort, startErr := startProxyServer(t, recordSlice, schema)
 	if startErr != nil {
 		t.Fatalf("could not setup proxy server. error: %v", startErr)
 	}
@@ -174,7 +172,14 @@ func TestClient_GetStreamProxyClient_Success(t *testing.T) {
 
 	// get proxy client
 	ctx := logging.NewTestContext(t)
-	proxyClient, proxyErr := GetStreamProxyClient(ctx, "some_name", "some_variant", 10)
+	params := ProxyParams{
+		Source:  "some_name",
+		Variant: "some_variant",
+		Host:    "localhost",
+		Port:    testPort,
+		Limit:   10,
+	}
+	proxyClient, proxyErr := GetStreamProxyClient(ctx, params)
 	if proxyErr != nil {
 		t.Fatalf("An error occurred calling GetStreamProxyClient(): %v", proxyErr)
 	}
@@ -247,7 +252,7 @@ func TestClient_MultipleRecordBatches(t *testing.T) {
 
 			recordSlice := createRecords(schema, arrow.Metadata{}, nil, data)
 
-			cleanUp, startErr := startProxyServer(t, recordSlice, schema)
+			cleanUp, testPort, startErr := startProxyServer(t, recordSlice, schema)
 			if startErr != nil {
 				t.Fatalf("could not setup proxy server. error: %v", startErr)
 			}
@@ -257,7 +262,14 @@ func TestClient_MultipleRecordBatches(t *testing.T) {
 
 			// get the proxy client
 			ctx := logging.NewTestContext(t)
-			proxyClient, proxyErr := GetStreamProxyClient(ctx, "some_name", "some_variant", 10)
+			params := ProxyParams{
+				Source:  "some_name",
+				Variant: "some_variant",
+				Host:    "localhost",
+				Port:    testPort,
+				Limit:   10,
+			}
+			proxyClient, proxyErr := GetStreamProxyClient(ctx, params)
 			assert.NoError(t, proxyErr)
 
 			var actualRows [][]string
@@ -281,12 +293,16 @@ func TestClient_MultipleRecordBatches(t *testing.T) {
 }
 
 func TestClient_ConnectionFailure(t *testing.T) {
-	t.Setenv("ICEBERG_PROXY_HOST", "localhost")
-	t.Setenv("ICEBERG_PROXY_PORT", "9999") // Invalid port, with no server available to connect to
-
 	ctx := logging.NewTestContext(t)
 	someName, someVariant := "some_name", "some_variant"
-	_, proxyErr := GetStreamProxyClient(ctx, someName, someVariant, 10)
+	params := ProxyParams{
+		Source:  "some_name",
+		Variant: "some_variant",
+		Host:    "localhost",
+		Port:    "9999",
+		Limit:   10,
+	}
+	_, proxyErr := GetStreamProxyClient(ctx, params)
 
 	assert.Error(t, proxyErr, "Expected error when connecting to an invalid Flight server")
 	assert.ErrorContainsf(t, proxyErr, fmt.Sprintf("failed to fetch data for source (%s) and variant (%s) from proxy", someName, someVariant), "")
@@ -306,7 +322,7 @@ func TestClient_SchemaMismatch(t *testing.T) {
 
 	recordSlice := createRecords(schema, arrow.Metadata{}, nil, data)
 
-	cleanUp, startErr := startProxyServer(t, recordSlice, schema)
+	cleanUp, testPort, startErr := startProxyServer(t, recordSlice, schema)
 	if startErr != nil {
 		t.Fatalf("could not setup proxy server. error: %v", startErr)
 	}
@@ -315,7 +331,14 @@ func TestClient_SchemaMismatch(t *testing.T) {
 	}
 
 	ctx := logging.NewTestContext(t)
-	proxyClient, proxyErr := GetStreamProxyClient(ctx, "some_name", "some_variant", 10)
+	params := ProxyParams{
+		Source:  "some_name",
+		Variant: "some_variant",
+		Host:    "localhost",
+		Port:    testPort,
+		Limit:   10,
+	}
+	proxyClient, proxyErr := GetStreamProxyClient(ctx, params)
 	assert.NoError(t, proxyErr)
 	assert.NotEqual(t, proxyClient.Columns(), []string{"batch_id"}, "Schema should not match")
 }
@@ -333,7 +356,7 @@ func TestClient_LargeData_StressTest(t *testing.T) {
 
 	recordSlice := createRecords(schema, arrow.Metadata{}, nil, [][]interface{}{{largeData}})
 
-	cleanUp, startErr := startProxyServer(t, recordSlice, schema)
+	cleanUp, testPort, startErr := startProxyServer(t, recordSlice, schema)
 	if startErr != nil {
 		t.Fatalf("could not setup proxy server. error: %v", startErr)
 	}
@@ -342,8 +365,15 @@ func TestClient_LargeData_StressTest(t *testing.T) {
 	}
 
 	ctx := logging.NewTestContext(t)
+	params := ProxyParams{
+		Source:  "some_name",
+		Variant: "some_variant",
+		Host:    "localhost",
+		Port:    testPort,
+		Limit:   int(dataSize),
+	}
 	start := time.Now()
-	proxyClient, proxyErr := GetStreamProxyClient(ctx, "some_name", "some_variant", 10)
+	proxyClient, proxyErr := GetStreamProxyClient(ctx, params)
 	assert.NoError(t, proxyErr)
 
 	count := 0
@@ -364,7 +394,7 @@ func TestClient_EmptyData(t *testing.T) {
 	// no data to return
 	recordSlice := createRecords(schema, arrow.Metadata{}, nil, [][]interface{}{})
 
-	cleanUp, startErr := startProxyServer(t, recordSlice, schema)
+	cleanUp, testPort, startErr := startProxyServer(t, recordSlice, schema)
 	if startErr != nil {
 		t.Fatalf("could not setup proxy server. error: %v", startErr)
 	}
@@ -373,11 +403,17 @@ func TestClient_EmptyData(t *testing.T) {
 	}
 
 	ctx := logging.NewTestContext(t)
-	someName, someVariant := "some_name", "some_variant"
-	_, proxyErr := GetStreamProxyClient(ctx, someName, someVariant, 10)
+	params := ProxyParams{
+		Source:  "some_name",
+		Variant: "some_variant",
+		Host:    "localhost",
+		Port:    testPort,
+		Limit:   10,
+	}
+	_, proxyErr := GetStreamProxyClient(ctx, params)
 
 	assert.Error(t, proxyErr, "Expected error when connecting to an invalid Flight server")
-	assert.ErrorContainsf(t, proxyErr, fmt.Sprintf("connection established, but no data available for source (%s) and variant (%s)", someName, someVariant), "")
+	assert.ErrorContainsf(t, proxyErr, fmt.Sprintf("connection established, but no data available for source (%s) and variant (%s)", params.Source, params.Variant), "")
 }
 
 func TestClient_SchemaRetrieval(t *testing.T) {
@@ -395,7 +431,7 @@ func TestClient_SchemaRetrieval(t *testing.T) {
 
 	recordSlice := createRecords(schema, arrow.Metadata{}, nil, data)
 
-	cleanUp, startErr := startProxyServer(t, recordSlice, schema)
+	cleanUp, testPort, startErr := startProxyServer(t, recordSlice, schema)
 	if startErr != nil {
 		t.Fatalf("could not setup proxy server. error: %v", startErr)
 	}
@@ -404,7 +440,14 @@ func TestClient_SchemaRetrieval(t *testing.T) {
 	}
 
 	ctx := logging.NewTestContext(t)
-	proxyClient, proxyErr := GetStreamProxyClient(ctx, "some_name", "some_variant", 10)
+	params := ProxyParams{
+		Source:  "some_name",
+		Variant: "some_variant",
+		Host:    "localhost",
+		Port:    testPort,
+		Limit:   10,
+	}
+	proxyClient, proxyErr := GetStreamProxyClient(ctx, params)
 	assert.NoError(t, proxyErr, "Expected no error when fetching stream proxy client")
 
 	proxySchema := proxyClient.Schema()

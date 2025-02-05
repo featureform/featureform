@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/featureform/config"
 	"github.com/featureform/fferr"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/helpers/postgres"
@@ -2945,7 +2946,15 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 		Rows:    [][]string{},
 	}
 
-	proxyIterator, proxyErr := pr.GetStreamProxyClient(c.Request.Context(), source, variant, defaultStreamLimit)
+	params := pr.ProxyParams{
+		Source:  "some_name",
+		Variant: "some_variant",
+		Host:    config.GetIcebergProxyHost(),
+		Port:    config.GetIcebergProxyPort(),
+		Limit:   defaultStreamLimit,
+	}
+
+	proxyIterator, proxyErr := pr.GetStreamProxyClient(c.Request.Context(), params)
 	if proxyErr != nil {
 		fetchError := &FetchError{
 			StatusCode: http.StatusInternalServerError,

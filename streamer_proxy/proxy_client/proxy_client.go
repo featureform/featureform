@@ -10,7 +10,6 @@ import (
 
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/flight"
-	"github.com/featureform/config"
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	"github.com/featureform/provider"
@@ -28,51 +27,59 @@ type StreamProxyClient struct {
 	logger       logging.Logger
 }
 
-func GetStreamProxyClient(ctx context.Context, source, variant string, limit int) (*StreamProxyClient, error) {
-	proxyHost := config.GetIcebergProxyHost()
-	proxyPort := config.GetIcebergProxyPort()
+type ProxyParams struct {
+	Source  string
+	Variant string
+	Host    string
+	Port    string
+	Limit   int
+}
+
+func GetStreamProxyClient(ctx context.Context, params ProxyParams) (*StreamProxyClient, error) {
+	// proxyHost := config.GetIcebergProxyHost()
+	// proxyPort := config.GetIcebergProxyPort()
 
 	baseLogger := logging.GetLoggerFromContext(ctx)
 
-	if proxyHost == "" {
-		envErr := fmt.Errorf("missing ICEBERG_PROXY_HOST env variable")
+	if params.Host == "" {
+		envErr := fmt.Errorf("missing 'host' param value")
 		baseLogger.Error(envErr.Error())
 		return nil, fferr.NewInternalError(envErr)
 	}
 
-	if proxyPort == "" {
-		envErr := fmt.Errorf("missing ICEBERG_PROXY_PORT env variable")
+	if params.Port == "" {
+		envErr := fmt.Errorf("missing 'port' param value")
 		baseLogger.Error(envErr.Error())
 		return nil, fferr.NewInternalError(envErr)
 	}
 
-	if source == "" {
+	if params.Source == "" {
 		sourceErr := fmt.Errorf("missing 'source' param value")
 		baseLogger.Error(sourceErr.Error())
 		return nil, fferr.NewInternalError(sourceErr)
 	}
 
-	if variant == "" {
+	if params.Variant == "" {
 		variantErr := fmt.Errorf("missing 'variant' param value")
 		baseLogger.Error(variantErr.Error())
 		return nil, fferr.NewInternalError(variantErr)
 	}
 
-	if limit < 0 {
-		limitErr := fmt.Errorf("limit value (%d) is less than 0", limit)
+	if params.Limit < 0 {
+		limitErr := fmt.Errorf("limit value (%d) is less than 0", params.Limit)
 		baseLogger.Error(limitErr.Error())
 		return nil, fferr.NewInternalError(limitErr)
 	}
 
-	parsedUrl, parseErr := url.Parse(fmt.Sprintf("%s:%s", proxyHost, proxyPort))
+	parsedUrl, parseErr := url.Parse(fmt.Sprintf("%s:%s", params.Host, params.Port))
 	if parseErr != nil {
-		baseLogger.Errorw("could not parse proxy URL", "host", proxyHost, "port", proxyPort)
+		baseLogger.Errorw("could not parse proxy URL", "host", params.Host, "port", params.Port)
 		return nil, fferr.NewInternalError(parseErr)
 	}
 	proxyAddress := parsedUrl.String()
 
 	baseLogger.Infow("Forwarding to iceberg-proxy", "proxy_address", proxyAddress)
-	baseLogger.Debugw("Forwarding parameters", "source", source, "variant", variant, "limit", limit)
+	baseLogger.Debugw("Forwarding parameters", "source", params.Source, "variant", params.Variant, "limit", params.Limit)
 
 	insecureOption := grpc.WithTransportCredentials(insecure.NewCredentials())
 	sizeOption := grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(20 * 1024 * 1024)) //20 MB
@@ -85,10 +92,10 @@ func GetStreamProxyClient(ctx context.Context, source, variant string, limit int
 
 	baseLogger.Info("Connection established! Preparing the ticket for the proxy...")
 	ticketData := map[string]interface{}{
-		"source":       source,
-		"variant":      variant,
+		"source":       params.Source,
+		"variant":      params.Variant,
 		"resourceType": "-", // todo: we can remove this prop at this step later on.
-		"limit":        limit,
+		"limit":        params.Limit,
 	}
 
 	ticketBytes, err := json.Marshal(ticketData)
@@ -103,7 +110,7 @@ func GetStreamProxyClient(ctx context.Context, source, variant string, limit int
 	baseLogger.Info("Fetching the data stream...")
 	flightStream, err := client.DoGet(ctx, ticket)
 	if err != nil {
-		doGetErr := fmt.Errorf("failed to fetch data for source (%s) and variant (%s) from proxy: %w", source, variant, err)
+		doGetErr := fmt.Errorf("failed to fetch data for source (%s) and variant (%s) from proxy: %w", params.Source, params.Variant, err)
 		baseLogger.Error(doGetErr.Error())
 		return nil, fferr.NewInternalError(doGetErr)
 	}
@@ -112,7 +119,7 @@ func GetStreamProxyClient(ctx context.Context, source, variant string, limit int
 	recordReader, err := flight.NewRecordReader(flightStream)
 	if err == io.EOF {
 		// initial connection ok, no data
-		readErr := fmt.Errorf("connection established, but no data available for source (%s) and variant (%s)", source, variant)
+		readErr := fmt.Errorf("connection established, but no data available for source (%s) and variant (%s)", params.Source, params.Variant)
 		baseLogger.Error(readErr.Error())
 		return nil, fferr.NewInternalError(readErr)
 	} else if err != nil {

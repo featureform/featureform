@@ -47,26 +47,26 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 	var ticketData TicketData
 	err := json.Unmarshal(ticket.Ticket, &ticketData)
 	if err != nil {
-		marshalErr := fmt.Errorf("failed to parse ticket JSON: %w", err)
+		marshalErr := fferr.NewInternalErrorf("failed to parse ticket JSON: %w", err)
 		gps.logger.Error(marshalErr)
 		return nil, marshalErr
 	}
 
 	// handle location
 	if ticketData.Source == "" {
-		sourceErr := fmt.Errorf("missing 'source' in ticket data")
+		sourceErr := fferr.NewInternalErrorf("missing 'source' in ticket data")
 		gps.logger.Error(sourceErr)
 		return nil, sourceErr
 	}
 
 	if ticketData.Variant == "" {
-		variantErr := fmt.Errorf("missing 'variant' in ticket data")
+		variantErr := fferr.NewInternalErrorf("missing 'variant' in ticket data")
 		gps.logger.Error(variantErr)
 		return nil, variantErr
 	}
 
 	if ticketData.ResourceType == "" {
-		resourceTypeErr := fmt.Errorf("missing 'resourceType' in ticket data")
+		resourceTypeErr := fferr.NewInternalErrorf("missing 'resourceType' in ticket data")
 		gps.logger.Error(resourceTypeErr)
 		return nil, resourceTypeErr
 	}
@@ -89,14 +89,14 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 	gps.logger.Debugf("location type: %s", location.Type())
 
 	if location == nil {
-		err := fmt.Errorf("location is nil after GetPrimaryLocation")
+		err := fferr.NewInternalErrorf("location is nil after GetPrimaryLocation")
 		gps.logger.Error(err)
 		return nil, err
 	}
 
 	parts := strings.Split(location.Location(), ".")
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		splitErr := fmt.Errorf("invalid location format, expected 'namespace.table' but got: %s", location.Location())
+		splitErr := fferr.NewInternalErrorf("invalid location format, expected 'namespace.table' but got: %s", location.Location())
 		gps.logger.Error(splitErr)
 		return nil, splitErr
 	}
@@ -121,36 +121,36 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 		return nil, err
 	}
 	if config.GlueConfig == nil {
-		errMsg := "Streamer only supports GlueCatalog"
-		gps.logger.Error(errMsg)
-		return nil, fferr.NewInternalErrorf(errMsg)
+		glueErr := fferr.NewInternalErrorf("streamer only supports GlueCatalog")
+		gps.logger.Error(glueErr)
+		return nil, glueErr
 	}
 	roleArn := config.GlueConfig.AssumeRoleArn
 	if config.StoreType != fs.S3 {
-		errMsg := fmt.Sprintf("Store type not supported by streamer: %s", config.StoreType)
-		gps.logger.Error(errMsg)
-		return nil, fferr.NewInternalErrorf(errMsg)
+		storeErr := fferr.NewInternalErrorf("Store type not supported by streamer: %s", config.StoreType)
+		gps.logger.Error(storeErr)
+		return nil, storeErr
 	}
 	var creds pc.AWSStaticCredentials
 	if roleArn == "" {
 		// Grab creds from store
 		s3Config, ok := config.StoreConfig.(*pc.S3FileStoreConfig)
 		if !ok {
-			errMsg := fmt.Sprintf(
+			credsErr := fferr.NewInternalErrorf(
 				"Invalid Spark Config. StoreType is %s but StoreConfig is %T",
 				config.StoreType, config.StoreConfig,
 			)
-			gps.logger.Error(errMsg)
-			return nil, fferr.NewInternalErrorf(errMsg)
+			gps.logger.Error(credsErr)
+			return nil, credsErr
 		}
 		staticCreds, ok := s3Config.Credentials.(pc.AWSStaticCredentials)
 		if !ok {
-			errMsg := fmt.Sprintf(
+			credsErr := fferr.NewInternalErrorf(
 				"If Glue is not using AssumeRoleArn then S3 must have static creds but has %T",
 				s3Config.Credentials,
 			)
-			gps.logger.Error(errMsg)
-			return nil, fferr.NewInternalErrorf(errMsg)
+			gps.logger.Error(credsErr)
+			return nil, credsErr
 		}
 		creds = staticCreds
 	}
@@ -168,7 +168,7 @@ func (gps *GoProxyServer) hydrateTicket(ticket *flight.Ticket) (*flight.Ticket, 
 	//re-package the ticket
 	hydratedTicketBytes, err := json.Marshal(hydratedTicketData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal hydrated ticket JSON: %w", err)
+		return nil, fferr.NewInternalErrorf("failed to marshal hydrated ticket JSON: %w", err)
 	}
 
 	return &flight.Ticket{Ticket: hydratedTicketBytes}, nil

@@ -48,7 +48,12 @@ func main() {
 
 	if config.ShouldRunGooseMigrationMetadata() {
 		logger.Info("Running goose migrations for metadata")
-		if err := db.RunMigrations(ctx, appConfig.Postgres, config.GetMigrationPath()); err != nil {
+		pgPool, err := init.GetOrCreatePostgresPool(ctx)
+		if err != nil {
+			logger.Errorw("Failed to get postgres pool", "err", err)
+			panic(err)
+		}
+		if err := db.RunMigrations(ctx, pgPool, config.GetMigrationPath()); err != nil {
 			logger.Errorw("Failed to run goose migrations for metadata", "err", err)
 			panic(err)
 		}

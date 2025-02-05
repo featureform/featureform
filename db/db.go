@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
@@ -13,7 +12,7 @@ import (
 	"github.com/featureform/logging"
 )
 
-func RunMigrations(ctx context.Context, pgConfig *postgres.Config, migrationPath string) error {
+func RunMigrations(ctx context.Context, pgPool *postgres.Pool, migrationPath string) error {
 	logger := logging.GetLoggerFromContext(ctx)
 
 	if _, ok := ctx.Deadline(); !ok {
@@ -28,24 +27,17 @@ func RunMigrations(ctx context.Context, pgConfig *postgres.Config, migrationPath
 		return nil
 	}
 
-	if pgConfig == nil {
+	if pgPool == nil {
 		logger.Info("No postgres config provided")
 		return nil
 	}
 
-	// NOTE: We open a new sql.DB connection here because Goose requires a *sql.DB instance.
-	// This is a temporary workaround, as bootstrap.go already sets up our primary connection pool.
-	// Refer to bootstrap.go for the proper connection pool configuration.
-	// This pattern should not be used as a general example for managing database connections.
-	db, err := sql.Open("pgx", pgConfig.ConnectionString())
-	if err != nil {
-		logger.Errorw("error opening database", "err", err)
-		return fferr.NewInternalErrorf("error opening database: %v", err)
-	}
-	defer db.Close()
+	// Convert pgxpool.Pool to *sql.DB for goose
+	sqlDb := pgPool.ToSqlDB()
+	defer sqlDb.Close()
 
 	logger.Debugw("pinging database before running migrations")
-	if err := db.PingContext(ctx); err != nil {
+	if err := sqlDb.PingContext(ctx); err != nil {
 		logger.Errorw("error pinging database", "err", err)
 		return fferr.NewInternalErrorf("error pinging database: %v", err)
 	}
@@ -56,7 +48,7 @@ func RunMigrations(ctx context.Context, pgConfig *postgres.Config, migrationPath
 	}
 
 	logger.Infow("starting migrations", "directory", migrationPath)
-	if err := goose.UpContext(ctx, db, migrationPath); err != nil {
+	if err := goose.UpContext(ctx, sqlDb, migrationPath); err != nil {
 		logger.Errorw("error running migrations", "err", err)
 		return fferr.NewInternalErrorf("error running migrations: %v", err)
 	}

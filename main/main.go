@@ -90,7 +90,12 @@ func main() {
 
 	if config.ShouldRunGooseMigrationExecutable() {
 		logger.Info("Running goose migrations")
-		if err := db.RunMigrations(initCtx, appConfig.Postgres, config.GetMigrationPath()); err != nil {
+		pool, err := init.GetOrCreatePostgresPool(ctx)
+		if err != nil {
+			logger.Errorw("Failed to get postgres pool", "err", err)
+			panic(err)
+		}
+		if err := db.RunMigrations(initCtx, pool, config.GetMigrationPath()); err != nil {
 			logger.Errorw("Failed to run goose migrations", "err", err)
 			panic(err)
 		}

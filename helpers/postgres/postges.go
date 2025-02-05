@@ -9,9 +9,12 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/url"
 	"time"
+
+	"github.com/jackc/pgx/v4/stdlib"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
@@ -127,6 +130,12 @@ func newPool(ctx context.Context, logger logging.Logger, poolConfig *pgxpool.Con
 
 	logger.Info("Created postgres pool connection")
 	return &Pool{db}, nil
+}
+
+// ToSqlDB returns a *sql.DB from the pgx pool, for use with libraries that require it. If possible, use the pgx pool
+// as this creates an entirely new connection pool.
+func (p *Pool) ToSqlDB() *sql.DB {
+	return stdlib.OpenDB(*p.Config().ConnConfig)
 }
 
 type Config struct {

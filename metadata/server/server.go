@@ -48,7 +48,7 @@ func main() {
 
 	if config.ShouldRunGooseMigrationMetadata() {
 		logger.Info("Running goose migrations for metadata")
-		if err := db.RunMigrations(initCtx, appConfig.Postgres, config.GetMigrationPath()); err != nil {
+		if err := db.RunMigrations(ctx, appConfig.Postgres, config.GetMigrationPath()); err != nil {
 			logger.Errorw("Failed to run goose migrations for metadata", "err", err)
 			panic(err)
 		}

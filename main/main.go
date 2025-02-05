@@ -66,8 +66,6 @@ func main() {
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	servingConn := fmt.Sprintf("%s:%s", servingHost, servingPort)
 	local := help.GetEnvBool("FEATUREFORM_LOCAL", true)
-	initTimeout := time.Second * 10
-
 	logger := logging.NewLogger("init-logger")
 	defer logger.Sync()
 	logger.Info("Parsing Featureform App Config")
@@ -76,7 +74,7 @@ func main() {
 		logger.Errorw("Invalid App Config", "err", err)
 		panic(err)
 	}
-	ctx, cancelFn := context.WithTimeout(context.Background(), initTimeout)
+	ctx, cancelFn := context.WithTimeout(context.Background(), appConfig.InitTimeout)
 	defer cancelFn()
 	initCtx := logger.AttachToContext(ctx)
 	logger.Info("Created initialization context with timeout", "timeout", initTimeout)

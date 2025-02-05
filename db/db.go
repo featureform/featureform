@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/pressly/goose/v3"
@@ -15,6 +16,13 @@ import (
 func RunMigrations(ctx context.Context, pgConfig *postgres.Config, migrationPath string) error {
 	logger := logging.GetLoggerFromContext(ctx)
 
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		logger.Debugw("no deadline set on context")
+		ctx, cancel = context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+	}
+
 	if migrationPath == "" {
 		logger.Info("No migration path provided")
 		return nil
@@ -25,7 +33,10 @@ func RunMigrations(ctx context.Context, pgConfig *postgres.Config, migrationPath
 		return nil
 	}
 
-	// creating a connection using sqlDb connection as goose expects sql.DB, no easy way to convert pgxpool to sql.DB
+	// NOTE: We open a new sql.DB connection here because Goose requires a *sql.DB instance.
+	// This is a temporary workaround, as bootstrap.go already sets up our primary connection pool.
+	// Refer to bootstrap.go for the proper connection pool configuration.
+	// This pattern should not be used as a general example for managing database connections.
 	db, err := sql.Open("pgx", pgConfig.ConnectionString())
 	if err != nil {
 		logger.Errorw("error opening database", "err", err)

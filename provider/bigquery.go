@@ -84,6 +84,7 @@ func (pt *bqPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) 
 
 	columns, err := pt.query.getColumns(pt.client, pt.name)
 	if err != nil {
+		pt.logger.Errorw("Error getting columns", "error", err)
 		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)
 		return nil, wrapped
@@ -91,6 +92,7 @@ func (pt *bqPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) 
 
 	it, err := bqQ.Read(pt.query.getContext())
 	if err != nil {
+		pt.logger.Errorw("Error executing query", "error", err)
 		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)
 		return nil, wrapped
@@ -107,6 +109,7 @@ func (pt *bqPrimaryTable) NumRows() (int64, error) {
 
 	it, err := bqQ.Read(pt.query.getContext())
 	if err != nil {
+		pt.logger.Errorw("Error executing query", "error", err)
 		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)
 		return 0, wrapped
@@ -114,6 +117,7 @@ func (pt *bqPrimaryTable) NumRows() (int64, error) {
 
 	err = it.Next(&n)
 	if err != nil {
+		pt.logger.Errorw("Error iterating over rows", "error", err)
 		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)
 		return 0, wrapped
@@ -238,6 +242,7 @@ func (store *bqOfflineStore) newBigQueryPrimaryTable(name string) (*bqPrimaryTab
 
 	columnNames, err := store.query.getColumns(store.client, name)
 	if err != nil {
+		store.logger.Errorw("Error getting column names", "error", err)
 		return nil, err
 	}
 
@@ -254,9 +259,11 @@ func (store *bqOfflineStore) newBigQueryPrimaryTable(name string) (*bqPrimaryTab
 }
 
 func (q defaultBQQueries) registerResources(client *bigquery.Client, tableName string, schema ResourceSchema, timestamp bool) error {
+	logger := q.logger.With("table", tableName, "schema", schema, "timestamp", timestamp)
+
 	var sourceLocation, isSqlLocation = schema.SourceTable.(*pl.SQLLocation)
 	if !isSqlLocation {
-		q.logger.Errorw("Source table is not an SQL location", "location_type", fmt.Sprintf("%T", schema.SourceTable))
+		logger.Errorw("Source table is not an SQL location", "location_type", fmt.Sprintf("%T", schema.SourceTable))
 		return fferr.NewInvalidArgumentErrorf("source table is not an SQL location, actual %T", schema.SourceTable.Location())
 	}
 
@@ -280,9 +287,10 @@ func (q defaultBQQueries) registerResources(client *bigquery.Client, tableName s
 
 	sb.WriteString(fmt.Sprintf("FROM `%s`", q.getTableNameFromLocation(*sourceLocation)))
 
+	logger.Infow("Running register resource query", "query", sb.String())
 	bqQ := client.Query(sb.String())
 	if _, err := bqQ.Read(q.getContext()); err != nil {
-		q.logger.Errorw("Failed to register resource", "table", tableName, "error", err)
+		logger.Errorw("Failed to register resource", "error", err)
 		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)
 		return wrapped
@@ -348,10 +356,14 @@ func (q defaultBQQueries) newBQOfflineTableQuery(name string, columnType string)
 
 func (q defaultBQQueries) materializationCreate(tableName string, schema ResourceSchema, resourceLocation pl.SQLLocation) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("CREATE OR REPLACE TABLE `%s` AS ", tableName))
+	sb.WriteString(fmt.Sprintf("CREATE OR REPLACE VIEW `%s` AS ", tableName))
 
+	// By default, we'll use and order by the provided timestamp.
 	tsSelectStmt := fmt.Sprintf("`%s` AS ts", schema.TS)
 	tsOrderByStmt := fmt.Sprintf("ORDER BY `%s` DESC", schema.TS)
+
+	// If there's no timestamp, then we simply just hardcode it as 0 epoch time, and
+	// ignore any order clause.
 	if schema.TS == "" {
 		tsSelectStmt = "TIMESTAMP_SECONDS(0) AS ts"
 		tsOrderByStmt = ""
@@ -456,16 +468,17 @@ func (q defaultBQQueries) materializationUpdate(client *bigquery.Client, tableNa
 }
 
 func (q defaultBQQueries) monitorJob(job *bigquery.Job) error {
+	logger := q.logger.With("jobId", job.ID())
 	for {
 		time.Sleep(sleepTime)
 		status, err := job.Status(q.getContext())
 		if err != nil {
-			q.logger.Errorw("Failed to get job status", "jobId", job.ID(), "err", err)
+			logger.Errorw("Failed to get job status")
 			wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
 			wrapped.AddDetail("job_id", job.ID())
 			return wrapped
 		} else if status.Err() != nil {
-			q.logger.Errorw("Job failed", "jobId", job.ID(), "error", status.Err())
+			logger.Errorw("Job failed", "error", status.Err())
 			wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), status.Err())
 			wrapped.AddDetail("job_id", job.ID())
 			return wrapped
@@ -473,9 +486,10 @@ func (q defaultBQQueries) monitorJob(job *bigquery.Job) error {
 
 		switch status.State {
 		case bigquery.Done:
-			q.logger.Infow("Job succeeded", "jobId", job.ID())
+			logger.Infow("Job succeeded")
 			return nil
 		default:
+			logger.Infow("Job is not in a finished state, sleeping and checking again", "sleepTime", sleepTime)
 			continue
 		}
 	}
@@ -568,6 +582,7 @@ func (q defaultBQQueries) trainingSetQuery(store *bqOfflineStore, def TrainingSe
 	for i, feature := range def.Features {
 		tableName, err := store.getResourceTableName(feature)
 		if err != nil {
+			q.logger.Errorw("Failed to get table name", "feature", feature, "err", err)
 			return err
 		}
 		santizedName := strings.Replace(tableName, "-", "_", -1)

@@ -11,9 +11,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/featureform/logging"
-	pl "github.com/featureform/provider/location"
-	"github.com/google/uuid"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -21,9 +18,12 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	"github.com/featureform/logging"
 	"github.com/featureform/provider/location"
+	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"google.golang.org/api/option"
 )

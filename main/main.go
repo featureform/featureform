@@ -77,7 +77,7 @@ func main() {
 	ctx, cancelFn := context.WithTimeout(context.Background(), appConfig.InitTimeout)
 	defer cancelFn()
 	initCtx := logger.AttachToContext(ctx)
-	logger.Info("Created initialization context with timeout", "timeout", initTimeout)
+	logger.Info("Created initialization context with timeout", "timeout", appConfig.InitTimeout)
 	logger.Debug("Creating initializer")
 	init, err := bootstrap.NewInitializer(appConfig)
 	if err != nil {

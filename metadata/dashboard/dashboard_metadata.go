@@ -2947,8 +2947,8 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 	}
 
 	params := pr.ProxyParams{
-		Source:  "some_name",
-		Variant: "some_variant",
+		Source:  source,
+		Variant: variant,
 		Host:    config.GetIcebergProxyHost(),
 		Port:    config.GetIcebergProxyPort(),
 		Limit:   defaultStreamLimit,

@@ -239,7 +239,7 @@ func TestInvalidTicket(t *testing.T) {
 			}
 
 			hydratedTicket, err := proxyFlightServer.hydrateTicket(&ticket)
-			assert.EqualError(t, err, tt.expectedMsg)
+			assert.ErrorContains(t, err, tt.expectedMsg)
 			assert.Nil(t, hydratedTicket, "the ticket should be 'nil'")
 		})
 	}

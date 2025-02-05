@@ -274,29 +274,25 @@ func testDynamoConfigUpdates(t *testing.T, providerType pt.Type, valid bool) {
 	region := "us-east-1"
 	accessKey := "root"
 	secretKey := "secret"
-	importFromS3 := false
 
 	configA := pc.DynamodbConfig{
-		Prefix:       prefix,
-		Region:       region,
-		Credentials:  pc.AWSStaticCredentials{AccessKeyId: accessKey, SecretKey: secretKey},
-		ImportFromS3: importFromS3,
+		Prefix:      prefix,
+		Region:      region,
+		Credentials: pc.AWSStaticCredentials{AccessKeyId: accessKey, SecretKey: secretKey},
 	}
 	a := configA.Serialized()
 
 	if valid {
 		accessKey += updateSuffix
 		secretKey += updateSuffix
-		importFromS3 = true
 	} else {
 		region = "us-west-2"
 	}
 
 	configB := pc.DynamodbConfig{
-		Prefix:       prefix,
-		Region:       region,
-		Credentials:  pc.AWSStaticCredentials{AccessKeyId: accessKey, SecretKey: secretKey},
-		ImportFromS3: importFromS3,
+		Prefix:      prefix,
+		Region:      region,
+		Credentials: pc.AWSStaticCredentials{AccessKeyId: accessKey, SecretKey: secretKey},
 	}
 	b := configB.Serialized()
 

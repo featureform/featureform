@@ -167,7 +167,6 @@ dynamodb_fields = {
     "aws_access_key_id": "my_access_key",
     "aws_secret_access_key": "my_secret",
     "region": "us-west-2",
-    "should_import_from_s3": False,
     "description": "some description",
     "team": "some team",
     "tags": ["tag1", "tag2"],
@@ -503,7 +502,6 @@ def dynamo_proto():
                 secret_key=dynamodb_fields["aws_secret_access_key"],
             ),
             region=dynamodb_fields["region"],
-            should_import_from_s3=dynamodb_fields["should_import_from_s3"],
         ).serialize(),
     )
 
@@ -880,7 +878,6 @@ def test_get_dynamodb():
             secret_key=dynamodb_fields["aws_secret_access_key"],
         ),
         region=dynamodb_fields["region"],
-        should_import_from_s3=dynamodb_fields["should_import_from_s3"],
         description=dynamodb_fields["description"],
         team=dynamodb_fields["team"],
         tags=dynamodb_fields["tags"],

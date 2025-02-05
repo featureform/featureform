@@ -711,7 +711,6 @@ class CassandraConfig:
 class DynamodbConfig:
     region: str
     credentials: Union[AWSStaticCredentials, AWSAssumeRoleCredentials]
-    should_import_from_s3: bool
 
     def software(self) -> str:
         return "dynamodb"
@@ -723,7 +722,6 @@ class DynamodbConfig:
         config = {
             "Region": self.region,
             "Credentials": self.credentials.config(),
-            "ImportFromS3": self.should_import_from_s3,
         }
         return bytes(json.dumps(config), "utf-8")
 
@@ -741,10 +739,7 @@ class DynamodbConfig:
         ):
             return False
 
-        return (
-            self.region == __value.region
-            and self.should_import_from_s3 == __value.should_import_from_s3
-        )
+        return self.region == __value.region
 
 
 @typechecked

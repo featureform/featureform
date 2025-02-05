@@ -12,11 +12,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	pl "github.com/featureform/provider/location"
 	"math"
 	"reflect"
 	"strconv"
 	"time"
+
+	pl "github.com/featureform/provider/location"
 
 	"github.com/araddon/dateparse"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -28,7 +29,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/featureform/fferr"
-	"github.com/featureform/filestore"
 	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -373,111 +373,6 @@ func (store *dynamodbOnlineStore) CheckHealth() (bool, error) {
 
 func (store dynamodbOnlineStore) Delete(location pl.Location) error {
 	return fferr.NewInternalErrorf("delete not implemented as dynamodb doesn't support location")
-}
-
-// TODO(simba) Make this work with Serialize V1
-func (store *dynamodbOnlineStore) ImportTable(feature, variant string, valueType vt.ValueType, source filestore.Filepath) (ImportID, error) {
-	tableName := formatDynamoTableName(store.prefix, feature, variant)
-	store.logger.Infof("Checking metadata table for existing table %s\n", tableName)
-	_, err := store.getFromMetadataTable(tableName)
-	tableExists := err == nil
-	if tableExists {
-		wrapped := fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
-		wrapped.AddDetail("tablename", tableName)
-		return "", wrapped
-	}
-
-	store.logger.Infof("Updating metadata table %s\n", tableName)
-	err = store.updateMetadataTable(tableName, valueType, serializeV0)
-	if err != nil {
-		return "", fferr.NewResourceExecutionError(pt.DynamoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
-	}
-
-	store.logger.Infof("Building import table input for %s\n", tableName)
-	// https://pkg.go.dev/github.com/aws/aws-sdk-go@v1.47.7/service/dynamodb#ImportTableInput
-	importInput := &dynamodb.ImportTableInput{
-		// This is optional but it ensures idempotency within an 8-hour window,
-		// so it seems prudent to include it to avoid triggering a duplicate import.
-		ClientToken: aws.String(fmt.Sprintf("%s__%s", feature, variant)),
-
-		InputCompressionType: types.InputCompressionTypeNone,
-
-		InputFormat: types.InputFormatCsv,
-
-		// https://pkg.go.dev/github.com/aws/aws-sdk-go@v1.47.7/service/dynamodb#InputFormatOptions
-		InputFormatOptions: &types.InputFormatOptions{
-			Csv: &types.CsvOptions{
-				Delimiter:  aws.String(","),
-				HeaderList: []string{feature, "FeatureValue", "ts"},
-			},
-		},
-
-		// https://pkg.go.dev/github.com/aws/aws-sdk-go@v1.47.7/service/dynamodb#S3BucketSource
-		S3BucketSource: &types.S3BucketSource{
-			S3Bucket: aws.String(source.Bucket()),
-			// To avoid importing Spark's _committed/_SUCCESS files, we use a prefix that contains the beginning of the
-			// part-file naming conventions (e.g. `part-`). This ensures we only import the actual data files.
-			S3KeyPrefix: aws.String(fmt.Sprintf("%s/part-", source.KeyPrefix())),
-		},
-
-		// https://pkg.go.dev/github.com/aws/aws-sdk-go@v1.47.7/service/dynamodb#TableCreationParameters
-		TableCreationParameters: &types.TableCreationParameters{
-			TableName: aws.String(tableName),
-			AttributeDefinitions: []types.AttributeDefinition{
-				{
-					AttributeName: aws.String(feature),
-					AttributeType: types.ScalarAttributeTypeS,
-				},
-			},
-			BillingMode: types.BillingModePayPerRequest,
-			KeySchema: []types.KeySchemaElement{
-				{
-					AttributeName: aws.String(feature),
-					KeyType:       types.KeyTypeHash,
-				},
-			},
-		},
-	}
-
-	store.logger.Infof("Importing table %s from source %s\n", tableName, source.KeyPrefix())
-	output, err := store.client.ImportTable(context.TODO(), importInput)
-	if err != nil {
-		return "", fferr.NewResourceExecutionError(pt.DynamoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
-	}
-
-	store.logger.Infof("Import table response: %v\n", output)
-	return ImportID(*output.ImportTableDescription.ImportArn), nil
-}
-
-type S3Import struct {
-	id           ImportID
-	status       string
-	errorMessage string
-}
-
-func (i S3Import) Status() string {
-	return i.status
-}
-
-func (i S3Import) ErrorMessage() string {
-	return i.errorMessage
-}
-
-func (store *dynamodbOnlineStore) GetImport(id ImportID) (Import, error) {
-	input := &dynamodb.DescribeImportInput{
-		ImportArn: aws.String(string(id)),
-	}
-	output, err := store.client.DescribeImport(context.TODO(), input)
-	if err != nil {
-		wrapped := fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
-		wrapped.AddDetail("import_id", string(id))
-		return S3Import{id: id}, wrapped
-	}
-	var errorMessage string
-	if output.ImportTableDescription.FailureCode != nil {
-		errorMessage = *output.ImportTableDescription.FailureCode
-	}
-	return S3Import{id: id, status: string(output.ImportTableDescription.ImportStatus), errorMessage: errorMessage}, nil
 }
 
 // maxDynamoBatchSize is the max amount of items that can be written to Dynamo at once. It's a dynamo set limitation.

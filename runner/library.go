@@ -25,9 +25,6 @@ func registerFactories() {
 	if err := RegisterFactory(MATERIALIZE, MaterializeRunnerFactory); err != nil {
 		panic(fmt.Errorf("failed to register 'Materialize' factory: %w", err))
 	}
-	if err := RegisterFactory(S3_IMPORT_DYNAMODB, S3ImportDynamoDBRunnerFactory); err != nil {
-		panic(fmt.Errorf("failed to register S3 import to DynamoDB factory: %v", err))
-	}
 }
 
 type RunnerName string
@@ -37,10 +34,9 @@ func (n RunnerName) String() string {
 }
 
 const (
-	COPY_TO_ONLINE     RunnerName = "Copy to online"
-	REGISTER_SOURCE    RunnerName = "Register source"
-	MATERIALIZE        RunnerName = "Materialize"
-	S3_IMPORT_DYNAMODB RunnerName = "S3 import to DynamoDB"
+	COPY_TO_ONLINE  RunnerName = "Copy to online"
+	REGISTER_SOURCE RunnerName = "Register source"
+	MATERIALIZE     RunnerName = "Materialize"
 )
 
 type Config []byte

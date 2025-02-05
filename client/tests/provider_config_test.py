@@ -188,7 +188,6 @@ def test_dynamodb():
     conf = DynamodbConfig(
         region="region",
         credentials=AWSStaticCredentials(access_key="id", secret_key="key"),
-        should_import_from_s3=False,
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config

@@ -19,7 +19,6 @@ type DynamodbConfig struct {
 	Prefix             string
 	Region             string
 	Credentials        AWSCredentials
-	ImportFromS3       bool
 	Endpoint           string
 	StronglyConsistent bool
 }
@@ -28,7 +27,6 @@ type dynamodbConfigTemp struct {
 	Prefix             string
 	Region             string
 	Credentials        json.RawMessage
-	ImportFromS3       bool
 	Endpoint           string
 	StronglyConsistent bool
 }
@@ -49,7 +47,6 @@ func (d *DynamodbConfig) Deserialize(config []byte) error {
 
 	d.Prefix = temp.Prefix
 	d.Region = temp.Region
-	d.ImportFromS3 = temp.ImportFromS3
 	d.StronglyConsistent = temp.StronglyConsistent
 
 	creds, err := UnmarshalAWSCredentials(temp.Credentials)
@@ -63,8 +60,7 @@ func (d *DynamodbConfig) Deserialize(config []byte) error {
 
 func (d DynamodbConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
-		"Credentials":  true,
-		"ImportFromS3": true,
+		"Credentials": true,
 	}
 }
 

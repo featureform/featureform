@@ -77,8 +77,7 @@
       "AccessKeyId": "id",
       "SecretKey": "key",
       "Type": "AWS_STATIC_CREDENTIALS"
-    },
-    "ImportFromS3": false
+    }
   },
   "MongoDBConfig": {
     "Username": "username",

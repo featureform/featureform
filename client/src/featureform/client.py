@@ -851,7 +851,6 @@ class Client(ResourceClient, ServingClient):
         dynamodb_config = DynamodbConfig(
             region=deserialized_config["Region"],
             credentials=credentials,
-            should_import_from_s3=deserialized_config["ImportFromS3"],
         )
 
         online_provider = self.__create_provider(

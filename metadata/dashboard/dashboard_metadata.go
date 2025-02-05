@@ -746,9 +746,9 @@ func (m *MetadataServer) GetFeatureVariantResources(c *gin.Context) {
 	}
 
 	filterOpts := m.buildFeatureVariantFilterOpts(filterBody)
-	resourceType := metadata.FEATURE_VARIANT
+	resourceType := metadata.FEATURE
 
-	count, variantResources, err := m.getCountAndResources(resourceType, filterBody.PageSize, filterBody.Offset, filterOpts...)
+	count, featureResources, err := m.getCountAndResources(resourceType, filterBody.PageSize, filterBody.Offset, filterOpts...)
 	if err != nil {
 		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "Failed to get count or list")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -762,15 +762,21 @@ func (m *MetadataServer) GetFeatureVariantResources(c *gin.Context) {
 		m.logger.Errorf("an error occurred pulling the provider name - type map: %v", mapErr)
 	}
 
-	variantList := make([]metadata.FeatureVariantResource, len(variantResources))
-	for i, parsedVariant := range variantResources {
-		deserialized := parsedVariant.Proto()
-		featureVariant, ok := deserialized.(*pb.FeatureVariant)
+	variantList := make([]metadata.FeatureVariantResource, len(featureResources))
+	for i, parsedFeature := range featureResources {
+		deserialized := parsedFeature.Proto()
+		feature, ok := deserialized.(*pb.Feature)
 		if !ok {
-			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedVariant.ID().String())
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedFeature.ID().String())
 			continue
 		}
-		wrappedVariant := metadata.WrapProtoFeatureVariant(featureVariant)
+		featureNameVariant := metadata.NameVariant{Name: feature.Name, Variant: feature.DefaultVariant}
+		wrappedVariant, err := m.client.GetFeatureVariant(c, featureNameVariant)
+		if err != nil {
+			m.logger.Errorw("Could not get feature variant", "error", err)
+			continue
+		}
+
 		shallowVariant := wrappedVariant.ToShallowMap()
 
 		//check in the providerMap association
@@ -809,24 +815,29 @@ func (m *MetadataServer) GetSourceVariantResources(c *gin.Context) {
 	}
 
 	filterOpts := m.buildSourceVariantFilterOpts(filterBody)
-	resourceType := metadata.SOURCE_VARIANT
+	resourceType := metadata.SOURCE
 
-	count, variantResources, err := m.getCountAndResources(resourceType, filterBody.PageSize, filterBody.Offset, filterOpts...)
+	count, sourceResources, err := m.getCountAndResources(resourceType, filterBody.PageSize, filterBody.Offset, filterOpts...)
 	if err != nil {
 		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "Failed to get count or list")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
 		return
 	}
 
-	variantList := make([]metadata.SourceVariantResource, len(variantResources))
-	for i, parsedVariant := range variantResources {
-		deserialized := parsedVariant.Proto()
-		sourceVariant, ok := deserialized.(*pb.SourceVariant)
+	variantList := make([]metadata.SourceVariantResource, len(sourceResources))
+	for i, parsedSource := range sourceResources {
+		deserialized := parsedSource.Proto()
+		source, ok := deserialized.(*pb.Source)
 		if !ok {
-			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedVariant.ID().String())
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedSource.ID().String())
 			continue
 		}
-		wrappedVariant := metadata.WrapProtoSourceVariant(sourceVariant)
+		sourceNameVariant := metadata.NameVariant{Name: source.Name, Variant: source.DefaultVariant}
+		wrappedVariant, err := m.client.GetSourceVariant(c, sourceNameVariant)
+		if err != nil {
+			m.logger.Errorw("Could not get source variant", "error", err)
+			continue
+		}
 		shallowVariant := wrappedVariant.ToShallowMap()
 		variantList[i] = shallowVariant
 	}
@@ -855,9 +866,9 @@ func (m *MetadataServer) GetLabelVariantResources(c *gin.Context) {
 	}
 
 	filterOpts := m.buildLabelVariantFilterOpts(filterBody)
-	resourceType := metadata.LABEL_VARIANT
+	resourceType := metadata.LABEL
 
-	count, variantResources, err := m.getCountAndResources(resourceType, filterBody.PageSize, filterBody.Offset, filterOpts...)
+	count, labelResources, err := m.getCountAndResources(resourceType, filterBody.PageSize, filterBody.Offset, filterOpts...)
 	if err != nil {
 		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "Failed to get count or list")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -871,15 +882,20 @@ func (m *MetadataServer) GetLabelVariantResources(c *gin.Context) {
 		m.logger.Errorf("an error occurred pulling the provider name - type map: %v", mapErr)
 	}
 
-	variantList := make([]metadata.LabelVariantResource, len(variantResources))
-	for i, parsedVariant := range variantResources {
-		deserialized := parsedVariant.Proto()
-		labelVariant, ok := deserialized.(*pb.LabelVariant)
+	variantList := make([]metadata.LabelVariantResource, len(labelResources))
+	for i, parsedLabel := range labelResources {
+		deserialized := parsedLabel.Proto()
+		label, ok := deserialized.(*pb.Label)
 		if !ok {
-			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedVariant.ID().String())
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedLabel.ID().String())
 			continue
 		}
-		wrappedVariant := metadata.WrapProtoLabelVariant(labelVariant)
+		labelNameVariant := metadata.NameVariant{Name: label.Name, Variant: label.DefaultVariant}
+		wrappedVariant, err := m.client.GetLabelVariant(c, labelNameVariant)
+		if err != nil {
+			m.logger.Errorw("Could not get label variant", "error", err)
+			continue
+		}
 		shallowVariant := wrappedVariant.ToShallowMap()
 
 		//check in the providerMap association
@@ -1013,9 +1029,9 @@ func (m *MetadataServer) GetTrainingSetVariantResources(c *gin.Context) {
 	}
 
 	filterOpts := m.buildTrainingSetVariantFilterOpts(filterBody)
-	resourceType := metadata.TRAINING_SET_VARIANT
+	resourceType := metadata.TRAINING_SET
 
-	count, variantResources, err := m.getCountAndResources(resourceType, filterBody.PageSize, filterBody.Offset, filterOpts...)
+	count, trainingSetResources, err := m.getCountAndResources(resourceType, filterBody.PageSize, filterBody.Offset, filterOpts...)
 	if err != nil {
 		fetchError := m.GetRequestError(http.StatusInternalServerError, err, c, "Failed to get count or list")
 		c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -1027,15 +1043,21 @@ func (m *MetadataServer) GetTrainingSetVariantResources(c *gin.Context) {
 		// log but continue
 		m.logger.Errorf("an error occurred pulling the provider name - type map: %v", mapErr)
 	}
-	variantList := make([]metadata.TrainingSetVariantResource, len(variantResources))
-	for i, parsedVariant := range variantResources {
-		deserialized := parsedVariant.Proto()
-		trainingSetVariant, ok := deserialized.(*pb.TrainingSetVariant)
+
+	variantList := make([]metadata.TrainingSetVariantResource, len(trainingSetResources))
+	for i, parsedTrainingSet := range trainingSetResources {
+		deserialized := parsedTrainingSet.Proto()
+		trainingSet, ok := deserialized.(*pb.TrainingSet)
 		if !ok {
-			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedVariant.ID().String())
+			m.logger.Errorw("Could not deserialize resource with ID: %s", parsedTrainingSet.ID().String())
 			continue
 		}
-		wrappedVariant := metadata.WrapProtoTrainingSetVariant(trainingSetVariant)
+		trainingSetNameVariant := metadata.NameVariant{Name: trainingSet.Name, Variant: trainingSet.DefaultVariant}
+		wrappedVariant, err := m.client.GetTrainingSetVariant(c, trainingSetNameVariant)
+		if err != nil {
+			m.logger.Errorw("Could not get training set variant", "error", err)
+			continue
+		}
 		shallowVariant := wrappedVariant.ToShallowMap()
 		//check in the providerMap association
 		providerType, mapOk := providerMap[shallowVariant.Provider]
@@ -2057,6 +2079,7 @@ func (m *MetadataServer) GetSearch(c *gin.Context) {
 	query, ok := c.GetQuery("q")
 	if !ok {
 		c.JSON(http.StatusInternalServerError, "Missing query")
+		return
 	}
 
 	result, err := SearchClient.RunSearch(query)

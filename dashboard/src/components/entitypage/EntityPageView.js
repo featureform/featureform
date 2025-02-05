@@ -312,6 +312,10 @@ const EntityPageView = ({
     router.push(`/providers/${metadata['provider']}`);
   };
 
+  let resourceHeading = Resource[`${resources.type}`]?.displayText
+
+  const metadataInputSet = Array.from(new Set(metadata['inputs']));
+
   return true || (!resources.loading && !resources.failed && resources.data) ? (
     <StyledContainer maxWidth={false}>
       <Box>
@@ -324,7 +328,7 @@ const EntityPageView = ({
                 <Box>
                   <Typography variant='h4' component='h4'>
                     <span>
-                      {`${resources.type}: `}
+                      {`${resourceHeading}: `}
                       <strong>{resources.name}</strong>
                     </span>
                   </Typography>
@@ -496,7 +500,7 @@ const EntityPageView = ({
                 {metadata['source-type'] && (
                   <ResourceItem>
                     <ItemTypography variant='body1'>
-                      <strong>Source Type:</strong> {metadata['source-type']}
+                      <strong>Dataset Type:</strong> {metadata['source-type']}
                     </ItemTypography>
                   </ResourceItem>
                 )}
@@ -533,7 +537,7 @@ const EntityPageView = ({
                   <ResourceItem>
                     <ItemBox>
                       <ItemTypography variant='body1'>
-                        <strong>Source: </strong>{' '}
+                        <strong>Dataset: </strong>{' '}
                       </ItemTypography>
                       <Chip
                         variant='outlined'
@@ -606,13 +610,13 @@ const EntityPageView = ({
                   </ResourceItem>
                 )}
 
-                {metadata['inputs']?.length ? (
+                {metadataInputSet?.length ? (
                   <ResourceItem>
                     <ItemBox>
                       <ItemTypography variant='body1'>
-                        <strong>Sources:</strong>
+                        <strong>Datasets:</strong>
                       </ItemTypography>
-                      {metadata['inputs'].map((nv, index) => (
+                      {metadataInputSet.map((nv, index) => (
                         <Chip
                           key={index}
                           variant='outlined'
@@ -671,7 +675,7 @@ const EntityPageView = ({
                     })()}
                   </div>
                 {metadata['is-on-demand'] !== true &&
-                  !['provider', 'entity', 'user'].includes(
+                  !['provider', 'entity', 'user', 'model'].includes(
                     metadata['type']?.toLowerCase()
                   ) && (
                     <Button

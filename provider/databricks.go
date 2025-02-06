@@ -30,7 +30,6 @@ import (
 	"github.com/databricks/databricks-sdk-go/apierr"
 	dbClient "github.com/databricks/databricks-sdk-go/client"
 	dbConfig "github.com/databricks/databricks-sdk-go/config"
-	"github.com/databricks/databricks-sdk-go/retries"
 	"github.com/databricks/databricks-sdk-go/service/compute"
 	dbfs "github.com/databricks/databricks-sdk-go/service/files"
 	"github.com/databricks/databricks-sdk-go/service/jobs"
@@ -161,48 +160,53 @@ func (db *DatabricksExecutor) runSparkJobWithRetries(
 	ctx, cancel := context.WithTimeout(context.Background(), maxWait)
 	defer cancel()
 
+	handleErr := func(err error) error {
+		errorMessage := err
+		if db.errorMessageClient != nil {
+			errorMessage, err = db.getErrorMessage(jobId)
+			if err != nil {
+				logger.Errorf(
+					"the '%v' job failed, could not get error message: %v\n",
+					jobId, err,
+				)
+			}
+		}
+		if !db.isEphemeralError(errorMessage) {
+			// It we aren't sure if its ephemeral we shouldn't retry
+			errorMessage = re.Unrecoverable(errorMessage)
+		}
+		return errorMessage
+	}
 	return re.Do(
 		func() error {
-			deadline, ok := ctx.Deadline()
-			if !ok {
-				errMsg := "Deadline not set on context, exiting infinite loop running databricks job"
+			deadline, has := ctx.Deadline()
+			if !has {
+				errMsg := "Avoiding infinite loop, refusing to run databricks command without context deadline"
 				logger.Error(errMsg)
-				// Do not loop infinitely without a timeout
 				return re.Unrecoverable(fferr.NewInternalErrorf(errMsg))
 			}
-			retryTimeout := retries.Timeout[jobs.Run](time.Until(deadline))
-			_, err := db.client.Jobs.RunNowAndWait(ctx, jobs.RunNow{
+			resp, err := db.client.Jobs.RunNow(ctx, jobs.RunNow{
 				JobId: jobId,
-			}, retryTimeout)
+			})
 			if err != nil {
+				logger.Errorw("job failed to start", "error", err)
+				return handleErr(err)
+			}
+			if _, err := resp.GetWithTimeout(time.Until(deadline)); err != nil {
 				logger.Errorw("job failed", "error", err)
-				errorMessage := err
-				if db.errorMessageClient != nil {
-					errorMessage, err = db.getErrorMessage(jobId)
-					if err != nil {
-						logger.Errorf(
-							"the '%v' job failed, could not get error message: %v\n",
-							jobId, err,
-						)
-					}
-				}
-				if !db.isEphemeralError(errorMessage) {
-					// It we aren't sure if its ephemeral we shouldn't retry
-					errorMessage = re.Unrecoverable(errorMessage)
-				}
-				return errorMessage
+				return handleErr(err)
 			}
 			return nil
 		},
 		re.Context(ctx),                   // Stop retries when context times out
 		re.Attempts(0),                    // Infinite retries (until context cancels)
 		re.LastErrorOnly(true),            // Only return the last error
-		re.DelayType(re.CombineDelay(   // Use exponential backoff + jitter
-			re.BackOffDelay,              // Exponential backoff
-			re.RandomDelay,               // Random jitter
+		re.DelayType(re.CombineDelay(      // Use exponential backoff + jitter
+			re.BackOffDelay,               // Exponential backoff
+			re.RandomDelay,                // Random jitter
 		)),
 		re.Delay(5*time.Second),           // Initial delay of 5 seconds
-		re.MaxDelay(3*time.Minute),        // Cap max delay to 5 min
+		re.MaxDelay(3*time.Minute),        // Cap max delay betweein iterations
 	)
 }
 

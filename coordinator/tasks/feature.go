@@ -22,7 +22,6 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pl "github.com/featureform/provider/location"
-	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
 	"github.com/featureform/runner"
@@ -186,11 +185,6 @@ func (t *FeatureTask) Run() error {
 		materializedRunnerConfig.OnlineType = pt.NONE
 	}
 
-	isImportToS3Enabled, err := t.checkS3Import(inferenceStore)
-	if err != nil {
-		return err
-	}
-
 	supportsDirectCopy := false
 	var onlineStore provider.OnlineStore
 	if inferenceStore != nil {
@@ -235,8 +229,6 @@ func (t *FeatureTask) Run() error {
 			JobName:        fmt.Sprintf("featureform-materialization--%s--%s", nv.Name, nv.Variant),
 			DirectCopyTo:   onlineStore,
 		})
-	} else if isImportToS3Enabled {
-		materializationErr = t.materializeFeatureViaS3Import(resID, materializedRunnerConfig, sourceStore)
 	} else {
 		materializationErr = t.materializeFeature(resID, materializedRunnerConfig)
 	}
@@ -366,56 +358,6 @@ func (t *FeatureTask) deleteFromOnlineStore(ctx context.Context, featureToDelete
 	}
 	logger.Info("Deleted feature from online store")
 
-	return nil
-}
-
-func (t *FeatureTask) checkS3Import(featureProvider *metadata.Provider) (bool, error) {
-	if featureProvider != nil && featureProvider.Type() == string(pt.DynamoDBOnline) {
-		t.logger.Debugw("Feature provider is DynamoDB")
-		config := pc.DynamodbConfig{}
-		if err := config.Deserialize(featureProvider.SerializedConfig()); err != nil {
-			return false, err
-		}
-		return config.ImportFromS3, nil
-	}
-	return false, nil
-}
-
-func (t *FeatureTask) materializeFeatureViaS3Import(id metadata.ResourceID, config runner.MaterializedRunnerConfig, sourceStore provider.OfflineStore) error {
-	t.logger.Infow("Materializing Feature Via S3 Import", "id", id)
-	err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Starting Materialization via S3 to Dynamo Import...")
-	if err != nil {
-		return err
-	}
-	sparkOfflineStore, isSparkOfflineStore := sourceStore.(*provider.SparkOfflineStore)
-	if !isSparkOfflineStore {
-		return fferr.NewInvalidArgumentError(fmt.Errorf("offline store is not spark offline store"))
-	}
-	if sparkOfflineStore.Store.FilestoreType() != filestore.S3 {
-		return fferr.NewInvalidArgumentError(fmt.Errorf("offline file store must be S3; %s is not supported", sparkOfflineStore.Store.FilestoreType()))
-	}
-	serialized, err := config.Serialize()
-	if err != nil {
-		return err
-	}
-	jobRunner, err := t.spawner.GetJobRunner(runner.S3_IMPORT_DYNAMODB, serialized, id)
-	if err != nil {
-		return err
-	}
-	completionWatcher, err := jobRunner.Run()
-	if err != nil {
-		return err
-	}
-
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for Materialization to complete...")
-	if err != nil {
-		return err
-	}
-
-	if err := completionWatcher.Wait(); err != nil {
-		return err
-	}
-	t.logger.Info("Successfully materialized feature via S3 import to DynamoDB", "id", id)
 	return nil
 }
 

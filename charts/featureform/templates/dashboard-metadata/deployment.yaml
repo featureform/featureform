@@ -67,6 +67,10 @@ spec:
               value: {{ .Values.psql.sslmode | quote }}
             - name: DISABLE_CORS
               value: {{ .Values.dashboardmetadata.disableCors | quote}}
+            - name: ICEBERG_PROXY_HOST
+              value: {{ .Values.icebergProxy.host | quote }}
+            - name: ICEBERG_PROXY_PORT
+              value: {{ .Values.icebergProxy.port | quote }}
           {{ if eq .Values.stateProvider "psql" }}
             - name: PSQL_USER
               valueFrom:

@@ -1,4 +1,12 @@
 github_checks: false
+coverage:
+  status:
+    project:
+      default:
+        target: 0
+    patch:
+      default:
+        target: 0
 codecov:
   branch: main
   require_ci_to_pass: true

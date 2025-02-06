@@ -3300,8 +3300,9 @@ class Registrar:
         region: str,
         description: str = "",
         team: str = "",
-        tags: List[str] = [],
-        properties: dict = {},
+        tags: Optional[List[str]] = None,
+        properties: Optional[dict] = None,
+        table_tags: Optional[dict] = None,
     ):
         """Register a DynamoDB provider.
 
@@ -3312,6 +3313,7 @@ class Registrar:
             description="A Dynamodb deployment we created for the Featureform quickstart",
             credentials=aws_creds,
             region="us-east-1"
+            table_tags={"owner": "featureform"}
         )
         ```
 
@@ -3323,14 +3325,17 @@ class Registrar:
             team (str): (Mutable) Name of team
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
             properties (dict): (Mutable) Optional grouping mechanism for resources
+            table_tags (dict): (Mutable) Tags to be added to the DynamoDB tables
 
         Returns:
             dynamodb (OnlineProvider): Provider
         """
         tags, properties = set_tags_properties(tags, properties)
+
         config = DynamodbConfig(
             credentials=credentials,
             region=region,
+            table_tags=table_tags,
         )
         provider = Provider(
             name=name,

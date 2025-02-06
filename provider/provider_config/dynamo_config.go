@@ -21,6 +21,7 @@ type DynamodbConfig struct {
 	Credentials        AWSCredentials
 	Endpoint           string
 	StronglyConsistent bool
+	Tags               map[string]string
 }
 
 type dynamodbConfigTemp struct {
@@ -29,6 +30,7 @@ type dynamodbConfigTemp struct {
 	Credentials        json.RawMessage
 	Endpoint           string
 	StronglyConsistent bool
+	Tags               map[string]string
 }
 
 func (d DynamodbConfig) Serialized() SerializedConfig {
@@ -48,6 +50,7 @@ func (d *DynamodbConfig) Deserialize(config []byte) error {
 	d.Prefix = temp.Prefix
 	d.Region = temp.Region
 	d.StronglyConsistent = temp.StronglyConsistent
+	d.Tags = temp.Tags
 
 	creds, err := UnmarshalAWSCredentials(temp.Credentials)
 	if err != nil {
@@ -61,6 +64,7 @@ func (d *DynamodbConfig) Deserialize(config []byte) error {
 func (d DynamodbConfig) MutableFields() ss.StringSet {
 	return ss.StringSet{
 		"Credentials": true,
+		"Tags":        true,
 	}
 }
 

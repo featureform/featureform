@@ -711,6 +711,14 @@ class CassandraConfig:
 class DynamodbConfig:
     region: str
     credentials: Union[AWSStaticCredentials, AWSAssumeRoleCredentials]
+    table_tags: Optional[dict] = field(default_factory=dict)
+
+    def __post_init__(self):
+        errors = self.validate_table_tags(self.table_tags)
+        if len(errors) > 0:
+            raise ValueError(
+                "Table tags validation errors found:\n" + "\n".join(errors)
+            )
 
     def software(self) -> str:
         return "dynamodb"
@@ -722,6 +730,7 @@ class DynamodbConfig:
         config = {
             "Region": self.region,
             "Credentials": self.credentials.config(),
+            "Tags": self.table_tags,
         }
         return bytes(json.dumps(config), "utf-8")
 
@@ -740,6 +749,49 @@ class DynamodbConfig:
             return False
 
         return self.region == __value.region
+
+    def validate_table_tags(self, table_tags: Optional[dict]) -> list:
+        """
+        Validates that:
+        - Keys are at most 128 Unicode characters.
+        - Values are at most 256 Unicode characters.
+        - Keys and values contain only allowed characters.
+        - Keys do not start with "aws".
+
+        Returns a list of validation errors. If the list is empty, the dictionary is valid.
+        """
+        if table_tags is None:
+            return []
+        allowed_pattern = re.compile(r"^[a-zA-Z0-9\s+\-=._:/]+$")
+        errors = []
+
+        for key, value in table_tags.items():
+            if not isinstance(key, str) or not isinstance(value, str):
+                errors.append(
+                    f"Both keys and values must be strings. Invalid pair: ({key}, {value})"
+                )
+                continue  # Skip further validation for this key-value pair
+
+            if len(key) > 128:
+                errors.append(
+                    f"Key '{key}' exceeds the maximum length of 128 characters."
+                )
+
+            if len(value) > 256:
+                errors.append(
+                    f"Value for key '{key}' exceeds the maximum length of 256 characters."
+                )
+
+            if not allowed_pattern.match(key):
+                errors.append(f"Key '{key}' contains invalid characters.")
+
+            if not allowed_pattern.match(value):
+                errors.append(f"Value '{value}' contains invalid characters.")
+
+            if key.startswith("aws"):
+                errors.append(f"Key '{key}' cannot start with 'aws'.")
+
+        return errors
 
 
 @typechecked

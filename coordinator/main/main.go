@@ -27,7 +27,6 @@ func main() {
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")
 	metadataUrl := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	useK8sRunner := help.GetEnv("K8S_RUNNER_ENABLE", "false")
-	fmt.Printf("connecting to metadata: %s\n", metadataUrl)
 	logger := logging.NewLogger("coordinator")
 	defer logger.Sync()
 	logger.Info("Parsing Featureform App Config")

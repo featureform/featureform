@@ -77,6 +77,9 @@
       "AccessKeyId": "id",
       "SecretKey": "key",
       "Type": "AWS_STATIC_CREDENTIALS"
+    },
+    "Tags": {
+      "owner": "featureform"
     }
   },
   "MongoDBConfig": {

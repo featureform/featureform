@@ -83,6 +83,7 @@ type dynamodbOnlineStore struct {
 	secretKey          string
 	region             string
 	stronglyConsistent bool
+	tags               []types.Tag
 }
 
 type dynamodbOnlineTable struct {
@@ -177,14 +178,15 @@ func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, e
 		return nil, fferr.NewConnectionError("DynamoDB", err)
 	}
 	logger := logging.NewLogger("dynamodb")
-	if err := CreateMetadataTable(client, logger.SugaredLogger); err != nil {
+	tags := toDynamoDBTags(options.Tags)
+	if err := CreateMetadataTable(client, logger.SugaredLogger, tags); err != nil {
 		return nil, err
 	}
 	return &dynamodbOnlineStore{client, options.Prefix, BaseProvider{
 		ProviderType:   pt.DynamoDBOnline,
 		ProviderConfig: options.Serialized(),
 	}, defaultDynamoTableTimeout, logger.SugaredLogger,
-		accessKey, secretKey, options.Region, options.StronglyConsistent,
+		accessKey, secretKey, options.Region, options.StronglyConsistent, tags,
 	}, nil
 }
 
@@ -198,7 +200,7 @@ func (store *dynamodbOnlineStore) Close() error {
 }
 
 // TODO(simba) make table name a param
-func CreateMetadataTable(client *dynamodb.Client, logger *zap.SugaredLogger) error {
+func CreateMetadataTable(client *dynamodb.Client, logger *zap.SugaredLogger, tags []types.Tag) error {
 	tableName := defaultMetadataTableName
 	params := &dynamodb.CreateTableInput{
 		TableName: aws.String(tableName),
@@ -215,6 +217,7 @@ func CreateMetadataTable(client *dynamodb.Client, logger *zap.SugaredLogger) err
 			},
 		},
 		BillingMode: types.BillingModePayPerRequest,
+		Tags:        tags,
 	}
 	describeMetadataTableParams := &dynamodb.DescribeTableInput{
 		TableName: aws.String(tableName),
@@ -333,6 +336,7 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 				KeyType:       types.KeyTypeHash,
 			},
 		},
+		Tags: store.tags,
 	}
 	if _, err := store.client.CreateTable(context.TODO(), params); err != nil {
 		return nil, fferr.NewResourceExecutionError(pt.DynamoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
@@ -364,10 +368,13 @@ func (store *dynamodbOnlineStore) DeleteTable(feature, variant string) error {
 }
 
 func (store *dynamodbOnlineStore) CheckHealth() (bool, error) {
+	store.logger.Info("Checking health of DynamoDB connnection ...")
 	_, err := store.client.ListTables(context.TODO(), &dynamodb.ListTablesInput{Limit: aws.Int32(1)})
 	if err != nil {
+		store.logger.Errorw("DynamoDB health check failed", "err", err)
 		return false, fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
 	}
+	store.logger.Info("DynamoDB health check succeeded")
 	return true, nil
 }
 
@@ -936,4 +943,14 @@ func deserializeScalar(t vt.ScalarType, value types.AttributeValue, version stri
 		wrapped.AddDetail("version", version)
 		return nil, wrapped
 	}
+}
+
+func toDynamoDBTags(tags map[string]string) []types.Tag {
+	dynamoTags := make([]types.Tag, len(tags))
+	i := 0
+	for k, v := range tags {
+		dynamoTags[i] = types.Tag{Key: aws.String(k), Value: aws.String(v)}
+		i++
+	}
+	return dynamoTags
 }

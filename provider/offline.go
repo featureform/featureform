@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	tsq "github.com/featureform/provider/tsquery"
 	"reflect"
 	"sort"
 	"strings"
@@ -1580,4 +1581,45 @@ func genericIterateChunk(mat Materialization, rowsPerChunk int64, idx int) (Feat
 		end = rows
 	}
 	return mat.IterateSegment(start, end)
+}
+
+func (def *TrainingSetDef) ToBuilderParams(logger logging.Logger, sanitizeTableNameFn func(pl.Location) (string, error)) (tsq.BuilderParams, error) {
+	lblTableName, err := sanitizeTableNameFn(def.LabelSourceMapping.Location)
+	if err != nil {
+		return tsq.BuilderParams{}, err
+	}
+
+	ftCols := make([]metadata.ResourceVariantColumns, len(def.FeatureSourceMappings))
+	ftTableNames := make([]string, len(def.FeatureSourceMappings))
+	ftNameVariants := make([]metadata.ResourceID, len(def.FeatureSourceMappings))
+	ftEntityNames := make([]string, 0)
+	logger.Debugw("Feature source mappings", "src_mappings", def.FeatureSourceMappings)
+	for i, ft := range def.FeatureSourceMappings {
+		ftCols[i] = *ft.Columns
+		ftTableNames[i], err = sanitizeTableNameFn(ft.Location)
+		if err != nil {
+			return tsq.BuilderParams{}, err
+		}
+		id := def.Features[i]
+		ftNameVariants[i] = metadata.ResourceID{
+			Name:    id.Name,
+			Variant: id.Variant,
+			Type:    metadata.FEATURE_VARIANT,
+		}
+		if ft.EntityMappings == nil || len(ft.EntityMappings.Mappings) != 1 {
+			logger.Errorw("Expected each feature source mapping to have exactly one entity mapping", "mappings", ft.EntityMappings)
+			return tsq.BuilderParams{}, fferr.NewInternalErrorf("expected each feature source mapping to have exactly one entity mapping: mappings = %v", ft.EntityMappings)
+		}
+		logger.Debugw("Feature entity mapping", "entity_mappings", ft.EntityMappings.Mappings)
+		ftEntityNames = append(ftEntityNames, ft.EntityMappings.Mappings[0].Name)
+	}
+	logger.Debugw("Label entity mapping", "entity_mappings", def.LabelSourceMapping.EntityMappings)
+	return tsq.BuilderParams{
+		LabelEntityMappings:    def.LabelSourceMapping.EntityMappings,
+		SanitizedLabelTable:    lblTableName,
+		FeatureColumns:         ftCols,
+		SanitizedFeatureTables: ftTableNames,
+		FeatureNameVariants:    ftNameVariants,
+		FeatureEntityNames:     ftEntityNames,
+	}, nil
 }

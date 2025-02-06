@@ -138,7 +138,7 @@ func TestPostTags(t *testing.T) {
 
 	resource, err := metadata.CreateEmptyResource(metadata.SOURCE_VARIANT)
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	variantUpdate, ok := resource.Proto().(*pb.SourceVariant)
 	if !ok {
@@ -148,7 +148,7 @@ func TestPostTags(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	mstorage, err := ss.NewMemoryStorageImplementation()
 	if err != nil {
@@ -316,7 +316,7 @@ func TestGetTaskRunsZeroResults(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	mstorage, err := ss.NewMemoryStorageImplementation()
 	if err != nil {
@@ -461,7 +461,7 @@ func TestGetFeatureVariants(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
@@ -521,7 +521,7 @@ func TestGetProviderNameTypeMap(t *testing.T) {
 	)
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
@@ -567,7 +567,7 @@ func TestGetTypeOwners(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
@@ -617,7 +617,7 @@ func TestGetSourceVariants(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
@@ -694,7 +694,7 @@ func TestGetLabelVariants(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
@@ -756,7 +756,7 @@ func TestGetProviders(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
@@ -817,7 +817,7 @@ func TestGetTrainingSetVariant(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
@@ -872,7 +872,7 @@ func TestGetTrainingSetVariant(t *testing.T) {
 func TestGetSearch_MissingQuery(t *testing.T) {
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	mstorage, err := ss.NewMemoryStorageImplementation()
 	if err != nil {

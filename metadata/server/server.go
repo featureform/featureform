@@ -14,6 +14,7 @@ import (
 
 	"github.com/featureform/config"
 	"github.com/featureform/config/bootstrap"
+	"github.com/featureform/db"
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -44,6 +45,19 @@ func main() {
 		panic(err)
 	}
 	defer logger.LogIfErr("Failed to close service-level resources", init.Close())
+
+	if config.ShouldRunGooseMigrationMetadata() {
+		logger.Info("Running goose migrations for metadata")
+		pgPool, err := init.GetOrCreatePostgresPool(ctx)
+		if err != nil {
+			logger.Errorw("Failed to get postgres pool", "err", err)
+			panic(err)
+		}
+		if err := db.RunMigrations(ctx, pgPool, config.GetMigrationPath()); err != nil {
+			logger.Errorw("Failed to run goose migrations for metadata", "err", err)
+			panic(err)
+		}
+	}
 
 	logger.Info("Getting task metadata manager")
 	manager, err := init.GetOrCreateTaskMetadataManager(initCtx)

@@ -37,6 +37,25 @@ const (
 	MaterializeWithTimestampQueryPath = "/app/provider/queries/materialize_ts.sql"
 )
 
+// Environment variable names for Featureform configuration
+const (
+	EnvWorkerImage                       = "WORKER_IMAGE"
+	EnvPandasRunnerImage                 = "PANDAS_RUNNER_IMAGE"
+	EnvSparkLocalScriptPath              = "SPARK_LOCAL_SCRIPT_PATH"
+	EnvSkipSparkHealthCheck              = "SKIP_SPARK_HEALTH_CHECK"
+	EnvShouldUseDBFS                     = "SHOULD_USE_DBFS"
+	EnvDBMigrationPath                   = "DB_MIGRATION_PATH"
+	EnvRunGooseMigrationMetadata         = "RUN_GOOSE_MIGRATION_METADATA"
+	EnvRunGooseMigrationExecutable       = "RUN_GOOSE_MIGRATION_EXECUTABLE"
+	EnvPythonLocalInitPath               = "PYTHON_LOCAL_INIT_PATH"
+	EnvPythonRemoteInitPath              = "PYTHON_REMOTE_INIT_PATH"
+	EnvMaterializeNoTimestampQueryPath   = "MATERIALIZE_NO_TIMESTAMP_QUERY_PATH"
+	EnvMaterializeWithTimestampQueryPath = "MATERIALIZE_WITH_TIMESTAMP_QUERY_PATH"
+	EnvFFStateProvider                   = "FF_STATE_PROVIDER"
+	EnvSlackChannelId                    = "SLACK_CHANNEL_ID"
+	EnvFFInitTimeout                     = "FF_INIT_TIMEOUT"
+)
+
 type SparkFileConfigs struct {
 	LocalScriptPath      string
 	RemoteScriptPath     string
@@ -45,33 +64,37 @@ type SparkFileConfigs struct {
 }
 
 func GetWorkerImage() string {
-	return helpers.GetEnv("WORKER_IMAGE", WorkerImage)
+	return helpers.GetEnv(EnvWorkerImage, WorkerImage)
 }
 
 func GetPandasRunnerImage() string {
-	return helpers.GetEnv("PANDAS_RUNNER_IMAGE", PandasBaseImage)
+	return helpers.GetEnv(EnvPandasRunnerImage, PandasBaseImage)
 }
 
 func getSparkLocalScriptPath() string {
-	return helpers.GetEnv("SPARK_LOCAL_SCRIPT_PATH", SparkLocalScriptPath)
+	return helpers.GetEnv(EnvSparkLocalScriptPath, SparkLocalScriptPath)
 }
 
 func ShouldSkipSparkHealthCheck() bool {
-	return helpers.GetEnvBool("SKIP_SPARK_HEALTH_CHECK", false)
+	return helpers.GetEnvBool(EnvSkipSparkHealthCheck, false)
 }
 
 func ShouldUseDBFS() bool {
-	return helpers.GetEnvBool("SHOULD_USE_DBFS", false)
+	return helpers.GetEnvBool(EnvShouldUseDBFS, false)
 }
 
-// Will determine if our goose migration should run on metadata startup
+func GetMigrationPath() string {
+	return helpers.GetEnv(EnvDBMigrationPath, "db/migrations")
+}
+
+// ShouldRunGooseMigrationMetadata Will determine if our goose migration should run on metadata startup
 func ShouldRunGooseMigrationMetadata() bool {
-	return helpers.GetEnvBool("RUN_GOOSE_MIGRATION_METADATA", false)
+	return helpers.GetEnvBool(EnvRunGooseMigrationMetadata, false)
 }
 
-// Will determine if our goose migration should run on executable startup
+// ShouldRunGooseMigrationExecutable Will determine if our goose migration should run on executable startup
 func ShouldRunGooseMigrationExecutable() bool {
-	return helpers.GetEnvBool("RUN_GOOSE_MIGRATION_EXECUTABLE", true)
+	return helpers.GetEnvBool(EnvRunGooseMigrationExecutable, true)
 }
 
 func CreateSparkScriptConfig() (SparkFileConfigs, error) {
@@ -119,19 +142,19 @@ func createHashFromFile(file string) (string, error) {
 }
 
 func getPythonLocalInitPath() string {
-	return helpers.GetEnv("PYTHON_LOCAL_INIT_PATH", PythonLocalInitPath)
+	return helpers.GetEnv(EnvPythonLocalInitPath, PythonLocalInitPath)
 }
 
 func getPythonRemoteInitPath() string {
-	return helpers.GetEnv("PYTHON_REMOTE_INIT_PATH", PythonRemoteInitPath)
+	return helpers.GetEnv(EnvPythonRemoteInitPath, PythonRemoteInitPath)
 }
 
 func GetMaterializeNoTimestampQueryPath() string {
-	return helpers.GetEnv("MATERIALIZE_NO_TIMESTAMP_QUERY_PATH", MaterializeNoTimestampQueryPath)
+	return helpers.GetEnv(EnvMaterializeNoTimestampQueryPath, MaterializeNoTimestampQueryPath)
 }
 
 func GetMaterializeWithTimestampQueryPath() string {
-	return helpers.GetEnv("MATERIALIZE_WITH_TIMESTAMP_QUERY_PATH", MaterializeWithTimestampQueryPath)
+	return helpers.GetEnv(EnvMaterializeWithTimestampQueryPath, MaterializeWithTimestampQueryPath)
 }
 
 func GetSlackChannelId() string {
@@ -188,31 +211,40 @@ func parseFeatureformApp(logger logging.Logger) (*FeatureformApp, fferr.Error) {
 }
 
 func parseInitConfig(logger logging.Logger, cfg *FeatureformApp) fferr.Error {
-	initTimeout := "FF_INIT_TIMEOUT"
 	defaultTimeout := time.Second * 15
 	logger.Debug("Looking up init timeout from env")
-	timeout, err := helpers.LookupEnvDuration(initTimeout)
+	timeout, err := helpers.LookupEnvDuration(EnvFFInitTimeout)
 	if _, ok := err.(*helpers.EnvNotFound); ok {
-		logger.Infof("ENV FF_INIT_TIMEOUT not found falling back to %v", defaultTimeout)
+		logger.Infof("ENV %s not set, using default timeout %v", EnvFFInitTimeout, defaultTimeout)
 		timeout = defaultTimeout
 	} else if err != nil {
-		logger.Infof("Unable to parse FF_INIT_TIMEOUT: %v. Falling back to %v", err, defaultTimeout)
+		logger.Infof("Unable to parse ENV %s, using default timeout %v", EnvFFInitTimeout, defaultTimeout)
 		timeout = defaultTimeout
 	}
 	cfg.InitTimeout = timeout
+	if needsMigration(logger) {
+		logger.Debugw("Extending timeout for migration", "timeout", timeout)
+		cfg.InitTimeout = timeout + time.Minute
+	}
 	return nil
 }
 
-func parseStateProvider(logger logging.Logger, cfg *FeatureformApp) fferr.Error {
-	stateEnv := "FF_STATE_PROVIDER"
-	logger.Debug("Looking up state provider from env")
-	stateProviderStr, has := os.LookupEnv(stateEnv)
-	if !has {
-		err := fferr.NewMissingConfigEnv(stateEnv)
-		logger.Errorf("%s", err.Error())
-		return err
+func needsMigration(logger logging.Logger) bool {
+	stateProviderType, err := getStateProvider(logger)
+	if err != nil {
+		logger.Errorw("Failed to get state provider from env", "err", err)
+		return false
 	}
-	stateProvider := StateProviderType(stateProviderStr)
+	return stateProviderType == PostgresStateProvider &&
+		(ShouldRunGooseMigrationExecutable() || ShouldRunGooseMigrationMetadata())
+}
+
+func parseStateProvider(logger logging.Logger, cfg *FeatureformApp) fferr.Error {
+	logger.Debug("Looking up state provider from env")
+	stateProvider, err := getStateProvider(logger)
+	if err != nil {
+		return fferr.NewInternalErrorf("Failed to get state provider from env")
+	}
 	stateLogger := logger.With("state-provider", stateProvider)
 	stateLogger.Infow("Using state provider from env")
 	cfg.StateProviderType = stateProvider
@@ -241,10 +273,21 @@ func parseStateProvider(logger logging.Logger, cfg *FeatureformApp) fferr.Error 
 	default:
 		stateLogger.Errorw("Invalid state provider")
 		return fferr.NewInvalidConfigEnv(
-			stateEnv, stateProviderStr, AllStateProviderTypes,
+			EnvFFStateProvider, string(stateProvider), AllStateProviderTypes,
 		)
 	}
 	return nil
+}
+
+func getStateProvider(logger logging.Logger) (StateProviderType, error) {
+	stateProviderStr, has := os.LookupEnv(EnvFFStateProvider)
+	if !has {
+		err := fferr.NewMissingConfigEnv(EnvFFStateProvider)
+		logger.Errorf("%s", err.Error())
+		return StateProviderNIL, err
+	}
+	stateProvider := StateProviderType(stateProviderStr)
+	return stateProvider, nil
 }
 
 func parsePostgres(logger logging.Logger) (*postgres.Config, fferr.Error) {

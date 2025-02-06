@@ -12,16 +12,23 @@ import (
 )
 
 type offlineSqlTest struct {
-	storeTester      offlineSqlStoreTester
-	testCrossDbJoins bool
+	storeTester         offlineSqlStoreTester
+	testCrossDbJoins    bool
+	transformationQuery string
+	sanitizeTableName   func(obj location.FullyQualifiedObject) string
 }
 
 type offlineSqlStoreCoreTester interface {
 	AsOfflineStore() (OfflineStore, error)
-	CreateDatabase(name string) error
-	DropDatabase(name string) error
+	GetTestDatabase() string
 	CreateSchema(database, schema string) error
 	CreateTable(loc location.Location, schema TableSchema) (PrimaryTable, error)
+}
+
+type offlineSqlStoreCreateDb interface {
+	CreateDatabase(name string) error
+	DropDatabase(name string) error
+	offlineSqlStoreTester
 }
 
 type offlineSqlStoreTester interface {

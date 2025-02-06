@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/featureform/config"
 	"github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	"github.com/featureform/scheduling"
@@ -25,11 +26,6 @@ import (
 
 	help "github.com/featureform/helpers/notifications"
 
-	"github.com/featureform/fferr"
-	"github.com/featureform/logging"
-	pb "github.com/featureform/metadata/proto"
-	pl "github.com/featureform/provider/location"
-	"github.com/featureform/provider/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	grpc_status "google.golang.org/grpc/status"
@@ -37,6 +33,12 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/featureform/fferr"
+	"github.com/featureform/logging"
+	pb "github.com/featureform/metadata/proto"
+	pl "github.com/featureform/provider/location"
+	"github.com/featureform/provider/types"
 )
 
 type NameVariant struct {
@@ -3406,7 +3408,7 @@ func NewClient(host string, logger logging.Logger) (*Client, error) {
 	}
 	metadataClient := pb.NewMetadataClient(conn)
 	tasksClient := sch.NewTasksClient(conn)
-	slackNotifier := help.NewSlackNotifier(os.Getenv("SLACK_CHANNEL_ID"), logger)
+	slackNotifier := help.NewSlackNotifier(os.Getenv(config.EnvSlackChannelId), logger)
 	return &Client{
 		Logger:   logger,
 		conn:     conn,

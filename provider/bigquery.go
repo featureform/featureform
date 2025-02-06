@@ -429,7 +429,7 @@ func (q defaultBQQueries) castTableItemType(v interface{}, t interface{}) interf
 }
 
 func (q defaultBQQueries) materializationExists(tableName string) string {
-	return fmt.Sprintf("SELECT DISTINCT(table_name) FROM `%s.INFORMATION_SCHEMA.TABLES` WHERE table_type='BASE TABLE' AND table_name='%s'", q.getTablePrefix(), tableName)
+	return fmt.Sprintf("SELECT DISTINCT(table_name) FROM `%s.INFORMATION_SCHEMA.TABLES` WHERE table_type='VIEW' AND table_name='%s'", q.getTablePrefix(), tableName)
 }
 
 func (q defaultBQQueries) materializationDrop(tableName string) string {

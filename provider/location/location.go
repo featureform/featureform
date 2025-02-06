@@ -124,6 +124,29 @@ func (l *SQLLocation) Location() string {
 	return l.table
 }
 
+func (l *SQLLocation) IsAbsolute() bool {
+	return l.database != "" && l.schema != ""
+}
+
+func (l *SQLLocation) IsRelative() bool {
+	return !l.IsAbsolute()
+}
+
+// GetTableFromRoot return table if it's an absolute position.
+// Otherwise, if it's relative, then it gives the location of it
+// with its origin at root.
+func (root *SQLLocation) GetTableFromRoot(table *SQLLocation) *SQLLocation {
+	if table.IsAbsolute() {
+		return table
+	} else {
+		return &SQLLocation{
+			database: root.database,
+			schema:   root.schema,
+			table:    table.table,
+		}
+	}
+}
+
 func (l *SQLLocation) TableLocation() FullyQualifiedObject {
 	return FullyQualifiedObject{
 		Database: l.database,

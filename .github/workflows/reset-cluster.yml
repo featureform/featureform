@@ -34,12 +34,6 @@ jobs:
           echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
           aws help
 
-      - name: Install ETCD
-        run: |
-          git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
-          cd etcd
-          ./build
-
       - name: Check auth
         run: aws-iam-authenticator help
 
@@ -58,12 +52,6 @@ jobs:
           helm repo add featureform https://storage.googleapis.com/featureform-helm/ 
           helm repo update
           helm install quickstart featureform/quickstart
-
-      - name: Clear ETCD
-        run: |
-          kubectl port-forward svc/featureform-etcd 2379:2379 &
-          while ! echo exit | nc localhost 2379; do sleep 10; done
-          ./etcd/bin/etcdctl --user=root:secretpassword del "" --prefix
 
       - name: Reset Coordinator Pod
         run: kubectl delete pod -l app=featureform-coordinator

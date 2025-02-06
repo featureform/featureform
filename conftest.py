@@ -410,9 +410,6 @@ def hosted_sql_provider_and_source():
 @pytest.fixture(scope="module")
 def docker_deployment_config():
     environment_variables = {}
-    is_mac_m1_chip = platform.machine() == "arm64" and platform.system() == "Darwin"
-    if is_mac_m1_chip:
-        environment_variables["ETCD_ARCH"] = "ETCD_UNSUPPORTED_ARCH=arm64"
     featureform_config = DOCKER_CONFIG(
         name="featureform",
         image="featureformcom/featureform:latest",
@@ -426,9 +423,6 @@ def docker_deployment_config():
 @pytest.fixture(scope="module")
 def docker_quickstart_deployment_config():
     environment_variables = {}
-    is_mac_m1_chip = platform.machine() == "arm64" and platform.system() == "Darwin"
-    if is_mac_m1_chip:
-        environment_variables["ETCD_ARCH"] = "ETCD_UNSUPPORTED_ARCH=arm64"
     featureform_config = DOCKER_CONFIG(
         name="featureform",
         image="featureformcom/featureform:latest",

@@ -11,19 +11,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/helpers/etcd"
 	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
-
-	clientv3 "go.etcd.io/etcd/client/v3"
-	"go.etcd.io/etcd/client/v3/concurrency"
+	_ "github.com/lib/pq"
 )
 
 type OrderedId interface {
@@ -34,8 +29,6 @@ type OrderedId interface {
 	MarshalJSON() ([]byte, error)
 	UnmarshalJSON(data []byte) (OrderedId, error)
 }
-
-const etcd_id_key = "/FFSync/ID" // Key for the etcd ID generator, will add namespace to the end
 
 type Uint64OrderedId uint64
 
@@ -107,88 +100,6 @@ func (m *memoryIdGenerator) NextId(ctx context.Context, namespace string) (Order
 
 func (m *memoryIdGenerator) Close() {
 	// No-op
-}
-
-func NewETCDOrderedIdGenerator(config etcd.Config) (OrderedIdGenerator, error) {
-	timeout := func() time.Duration {
-		if config.DialTimeout == 0 {
-			return 5 * time.Second
-		}
-		return config.DialTimeout
-	}
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{config.URL()},
-		Username:    config.Username,
-		Password:    config.Password,
-		DialTimeout: timeout(),
-	})
-	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("failed to create etcd client: %w", err))
-	}
-
-	return &etcdIdGenerator{
-		client: client,
-		ctx:    context.Background(),
-	}, nil
-}
-
-type etcdIdGenerator struct {
-	client *clientv3.Client
-	ctx    context.Context
-}
-
-func (etcd *etcdIdGenerator) NextId(ctx context.Context, namespace string) (OrderedId, error) {
-	if namespace == "" {
-		return nil, fferr.NewInternalError(fmt.Errorf("cannot generate ID for empty namespace"))
-	}
-
-	// Lock the namespace to prevent concurrent ID generation
-	// Create a session
-	// ETCD locks by session, so we when a lock tried to overwrite an old lock, it allowed it because etcd saw it as the session owner unlocking its own key.
-	// Therefore, it is necessary to create a new session for each lock. This is the same issue we saw with the ETCD lockers.
-	session, err := concurrency.NewSession(etcd.client)
-	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("failed to create etcd session: %w", err))
-	}
-	defer session.Close()
-
-	lockKey := createLockKey(etcd_id_key, namespace)
-	lockMutex := concurrency.NewMutex(session, lockKey)
-	if err := lockMutex.Lock(etcd.ctx); err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("failed to lock key %s: %w", lockKey, err))
-	}
-	defer lockMutex.Unlock(etcd.ctx)
-
-	// Get the current ID
-	resp, err := etcd.client.Get(etcd.ctx, lockKey)
-	if err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("failed to get key %s: %w", lockKey, err))
-	}
-
-	// Initialize the ID if it doesn't exist
-	idNotInitialized := len(resp.Kvs) == 0
-	var nextId uint64
-	if idNotInitialized {
-		nextId = 1
-	} else {
-		nextIdStr := string(resp.Kvs[0].Value)
-		nextId, err = strconv.ParseUint(nextIdStr, 10, 64)
-		if err != nil {
-			return nil, fferr.NewInternalError(fmt.Errorf("failed to parse ID as uint64: %s: %v", nextIdStr, err))
-		}
-		nextId++
-	}
-
-	// Update the ID
-	if _, err := etcd.client.Put(etcd.ctx, lockKey, fmt.Sprint(nextId)); err != nil {
-		return nil, fferr.NewInternalError(fmt.Errorf("failed to set key %s: %w", lockKey, err))
-	}
-
-	return (Uint64OrderedId)(nextId), nil
-}
-
-func (etcd *etcdIdGenerator) Close() {
-	etcd.client.Close()
 }
 
 func NewPSQLOrderedIdGenerator(

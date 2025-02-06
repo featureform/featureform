@@ -5,7 +5,6 @@ pyarrow
 fastparquet
 pytest==7.1.2
 pytest-cov==3.0.0
-python-etcd==0.4.5
 python-dotenv==0.20.0
 azure-storage-blob==12.13.1
 sqlalchemy<2.0.0

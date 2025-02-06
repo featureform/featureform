@@ -19,23 +19,6 @@ echo "Running Backup...."
 go run backup/save/main.go
 echo ""
 
-## Clear etcd
-echo "Clearing ETCD...."
-etcdctl del "" --prefix
-echo ""
-
-# Check empty
-echo "Checking if ETCD Empty...."
-lines=$(etcdctl get "" --prefix | wc -l)
-if [[ "lines" -eq 0 ]] ;
-then
-  echo "ETCD is empty";
-else
-  echo "ETCD is not empty"
-  exit 1
-fi
-echo ""
-
 # Restore (change to restore script with args)
 echo "Running Restore...."
 go run backup/restore/main.go

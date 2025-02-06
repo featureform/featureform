@@ -99,10 +99,6 @@ def k8s_df_variables_success():
         "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "df",
         "TRANSFORMATION": "/path/to/transformation",
-        "ETCD_HOST": "127.0.0.1",
-        "ETCD_PORT": "2379,2380",
-        "ETCD_USERNAME": "username",
-        "ETCD_PASSWORD": "password",
     }
 
 
@@ -115,10 +111,6 @@ def k8s_s3_df_variables_success():
         "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "df",
         "TRANSFORMATION": "/path/to/transformation",
-        "ETCD_HOST": "127.0.0.1",
-        "ETCD_PORT": "2379,2380",
-        "ETCD_USERNAME": "username",
-        "ETCD_PASSWORD": "password",
     }
 
 
@@ -131,10 +123,6 @@ def k8s_s3_df_variables_failure():
         "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "df",
         "TRANSFORMATION": "/path/to/transformation",
-        "ETCD_HOST": "127.0.0.1",
-        "ETCD_PORT": "2379,2380",
-        "ETCD_USERNAME": "username",
-        "ETCD_PASSWORD": "password",
     }
 
 
@@ -154,10 +142,6 @@ def k8s_df_variables_single_port_success():
         "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "df",
         "TRANSFORMATION": "/path/to/transformation",
-        "ETCD_HOST": "127.0.0.1",
-        "ETCD_PORT": "2379",
-        "ETCD_USERNAME": "username",
-        "ETCD_PASSWORD": "password",
     }
 
 
@@ -187,9 +171,6 @@ def k8s_variables_port_not_provided_failure():
         "SOURCES": f"{dir_path}/test_files/inputs/transactions_short.csv",
         "TRANSFORMATION_TYPE": "sql",
         "TRANSFORMATION": "SELECT * FROM source_0",
-        "ETCD_HOST": "HOST_PATH",
-        "ETCD_USERNAME": "username",
-        "ETCD_PASSWORD": "password",
     }
 
 

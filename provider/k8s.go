@@ -30,7 +30,6 @@ import (
 	cfg "github.com/featureform/config"
 	"github.com/featureform/fferr"
 	filestore "github.com/featureform/filestore"
-	"github.com/featureform/helpers"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/logging"
 	pl "github.com/featureform/provider/location"
@@ -611,18 +610,6 @@ func (k8s *K8sOfflineStore) transformation(config TransformationConfig, isUpdate
 		k8s.logger.Errorw("the transformation type is not supported", "type", config.Type)
 		return fferr.NewInternalError(fmt.Errorf("the transformation type '%v' is not supported", config.Type))
 	}
-}
-
-func addETCDVars(envVars map[string]string) map[string]string {
-	etcdHost := helpers.GetEnv("ETCD_HOST", "localhost")
-	etcdPort := helpers.GetEnv("ETCD_PORT", "2379")
-	etcdPassword := helpers.GetEnv("ETCD_PASSWORD", "secretpassword")
-	etcdUsername := helpers.GetEnv("ETCD_USERNAME", "root")
-	envVars["ETCD_HOST"] = etcdHost
-	envVars["ETCD_PASSWORD"] = etcdPassword
-	envVars["ETCD_PORT"] = etcdPort
-	envVars["ETCD_USERNAME"] = etcdUsername
-	return envVars
 }
 
 func (k8s *K8sOfflineStore) pandasRunnerArgs(outputURI string, updatedQuery string, sources []string, jobType types.Job) map[string]string {

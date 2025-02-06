@@ -15,6 +15,7 @@ import (
 	"github.com/featureform/config"
 	"github.com/featureform/config/bootstrap"
 	"github.com/featureform/coordinator"
+
 	"github.com/featureform/coordinator/spawner"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"

@@ -11,15 +11,12 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/featureform/helpers"
-	"github.com/featureform/helpers/etcd"
 	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
 
 	_ "github.com/lib/pq"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 func TestUint64OrderedId(t *testing.T) {
@@ -64,20 +61,6 @@ func TestOrderedIdGenerator(t *testing.T) {
 			shortTest: true,
 			createGen: createMemoryIdGenerator,
 			deferFunc: func(generator OrderedIdGenerator, t *testing.T) {},
-		},
-		{
-			name:      "ETCD",
-			shortTest: false,
-			createGen: createETCDIdGenerator,
-			deferFunc: func(generator OrderedIdGenerator, t *testing.T) {
-				// Clean up the ETCD keys
-				etcd := generator.(*etcdIdGenerator)
-				_, err := etcd.client.Delete(context.Background(), "", clientv3.WithPrefix())
-				if err != nil {
-					t.Errorf("failed to delete keys with prefix %s: %v", "", err)
-				}
-				etcd.Close()
-			},
 		},
 		{
 			name:      "Postgres",
@@ -138,18 +121,6 @@ func TestOrderedIdGenerator(t *testing.T) {
 
 func createMemoryIdGenerator(t *testing.T) (OrderedIdGenerator, error) {
 	return NewMemoryOrderedIdGenerator()
-}
-
-func createETCDIdGenerator(t *testing.T) (OrderedIdGenerator, error) {
-	etcdHost := helpers.GetEnv("ETCD_HOST", "localhost")
-
-	etcdConfig := etcd.Config{
-		Host:        etcdHost,
-		Port:        etcdPort,
-		DialTimeout: time.Second * 5,
-	}
-
-	return NewETCDOrderedIdGenerator(etcdConfig)
 }
 
 func createPSQLIdGenerator(t *testing.T) (OrderedIdGenerator, error) {

@@ -8,18 +8,12 @@
 package worker
 
 import (
-	"context"
 	"errors"
-	"fmt"
 	"testing"
-	"time"
 
-	"github.com/featureform/coordinator/spawner"
 	"github.com/featureform/metadata"
 	"github.com/featureform/runner"
 	"github.com/featureform/types"
-	"github.com/google/uuid"
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 const mockFactoryName = "test"
@@ -358,46 +352,4 @@ func registerUpdateMockRunnerFactory(resID metadata.ResourceID) error {
 		return err
 	}
 	return nil
-}
-
-func TestBasicUpdateRunner(t *testing.T) {
-	if testing.Short() {
-		return
-	}
-	resourceName := uuid.New().String()
-	resourceVariant := ""
-	resourceType := metadata.FEATURE_VARIANT
-	resourceID := metadata.ResourceID{resourceName, resourceVariant, resourceType}
-	if err := registerUpdateMockRunnerFactory(resourceID); err != nil {
-		t.Fatalf("Error registering mock runner factory: %v", err)
-	}
-	defer runner.UnregisterFactory(mockFactoryName)
-	config := runner.Config{}
-	etcdConfig := &spawner.ETCDConfig{Endpoints: []string{"localhost:2379"}, Username: "root", Password: "secretpassword"}
-	serializedETCD, err := etcdConfig.Serialize()
-	if err != nil {
-		t.Fatalf("Could not serialize etcd config")
-	}
-	t.Setenv("CONFIG", string(config))
-	t.Setenv("NAME", mockFactoryName)
-	t.Setenv("ETCD_CONFIG", string(serializedETCD))
-	if err := CreateAndRun(); err != nil {
-		t.Fatalf("Error running mock runner: %v", err)
-	}
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{"localhost:2379"},
-		Username:    "root",
-		Password:    "secretpassword",
-		DialTimeout: time.Second * 5,
-	})
-	if err != nil {
-		t.Fatalf("Could not connect to etcd client: %v", err)
-	}
-	resp, err := client.Get(context.Background(), fmt.Sprintf("UPDATE_EVENT_%s__%s__%s", resourceName, "", resourceType.String()), clientv3.WithPrefix())
-	if err != nil {
-		t.Fatalf("Error getting event from etcd")
-	}
-	if len(resp.Kvs) != 1 {
-		t.Fatalf("Worker did not set update event on success of scheduled job")
-	}
 }

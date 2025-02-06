@@ -335,22 +335,6 @@ jobs:
       - name: Install Protobuf
         run: sudo snap install protobuf --classic
 
-      - name: Install etcdctl
-        env:
-          ETCD_VER: v3.4.19
-          GOOGLE_URL: https://storage.googleapis.com/etcd
-        run: |
-          rm -f /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
-          rm -rf /tmp/etcd-download-test && mkdir -p /tmp/etcd-download-test
-          
-          curl -L ${GOOGLE_URL}/${ETCD_VER}/etcd-${ETCD_VER}-linux-amd64.tar.gz -o /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
-          tar xzvf /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz -C /tmp/etcd-download-test --strip-components=1
-          rm -f /tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz
-          
-          /tmp/etcd-download-test/etcd --version
-          /tmp/etcd-download-test/etcdctl version
-          echo "/tmp/etcd-download-test/" >> $GITHUB_PATH
-
       - name: Install minikube and helm
         run: |
           curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
@@ -463,20 +447,8 @@ jobs:
       - name: Disable Backup
         run: helm upgrade featureform ./charts/featureform --reuse-values --set backup.enabled=false
 
-      - name: Clear ETCD
-        run: |
-          kubectl port-forward svc/featureform-etcd 2379:2379 || true &
-          /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
-
-      - name: Check ETCD Empty
-        run: |
-          chmod +x ./tests/end_to_end/backup/check_etcd_empty.sh
-          ./tests/end_to_end/backup/check_etcd_empty.sh
-
       - name: Restore
         env:
-          ETCD_USERNAME: "root"
-          ETCD_PASSWORD: "secretpassword"
           CLOUD_PROVIDER: "AZURE"
           AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_ACCOUNT_NAME }}
           AZURE_STORAGE_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
@@ -496,7 +468,6 @@ jobs:
         run: |
           helm uninstall quickstart
           helm install quickstart ./charts/quickstart
-          /tmp/etcd-download-test/etcdctl --user=root:secretpassword del "" --prefix
 
       - name: Run CLI for Get and List Functions
         run: |
@@ -547,10 +518,6 @@ jobs:
       - name: Dashboard Metadata Logs
         if: always()
         run: kubectl logs -l app=featureform-dashboard-metadata
-
-      - name: ETCD Logs
-        if: always()
-        run: kubectl logs -l app.kubernetes.io/name=etcd
 
       - name: Feature Server Logs
         if: always()
@@ -632,14 +599,6 @@ jobs:
         run: | 
           docker system prune -a
           docker rmi $(docker images -a -q)
-
-      - name: Cleanup PVC
-        if: always()
-        continue-on-error: true
-        run: |
-          kubectl delete pvc data-featureform-etcd-0
-          kubectl delete pvc data-featureform-etcd-1
-          kubectl delete pvc data-featureform-etcd-2
 
       - name: Cleanup Minikube
         if: always()

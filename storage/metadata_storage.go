@@ -205,7 +205,6 @@ type MetadataStorageType string
 
 const (
 	MemoryMetadataStorage MetadataStorageType = "memory"
-	ETCDMetadataStorage   MetadataStorageType = "etcd"
 	PSQLMetadataStorage   MetadataStorageType = "psql"
 )
 

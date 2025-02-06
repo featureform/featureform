@@ -22,15 +22,6 @@ spec:
             - image: "{{ .Values.repository | default .Values.image.repository }}/backup:{{ .Values.versionOverride | default .Chart.AppVersion }}"
               imagePullPolicy: {{ .Values.pullPolicy }}
               name: featureform-backup
-              env:
-                - name: ETCD_HOSTNAME
-                  value: "featureform-etcd"
-                - name: ETCD_PORT
-                  value: "2379"
-                - name: ETCD_USERNAME
-                  value: "root"
-                - name: ETCD_PASSWORD
-                  value: "secretpassword"
               envFrom:
                 - secretRef:
                     name: featureform-backup

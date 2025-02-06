@@ -93,15 +93,12 @@ func TestTrainingSets(t *testing.T) {
 
 	testInfra := []struct {
 		tester offlineSqlTest
-		opts   []ResourceOption
 	}{
 		{
 			getConfiguredBigQueryTester(t, false),
-			[]ResourceOption{},
 		},
 		{
 			getConfiguredSnowflakeTester(t, true),
-			[]ResourceOption{&ResourceSnowflakeConfigOption{}},
 		},
 	}
 
@@ -118,7 +115,7 @@ func TestTrainingSets(t *testing.T) {
 			name := fmt.Sprintf("%s:%s", providerName, string(testCase))
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				RegisterTrainingSet(t, infra.tester, testCase, infra.opts)
+				RegisterTrainingSet(t, infra.tester, testCase)
 			})
 		}
 	}
@@ -811,16 +808,16 @@ func getTrainingSetDatasetTS(tester offlineSqlStoreTester, storeType pt.Type, st
 				ProviderType:        storeType,
 				ProviderConfig:      storeConfig,
 				TimestampColumnName: "OBSERVED_ON",
-				Location:            nil,
+				Location:            labelLoc,
 				EntityMappings: &metadata.EntityMappings{
 					Mappings: []metadata.EntityMapping{
 						{
 							Name:         "Location",
-							EntityColumn: "ENTITY_LOCATION",
+							EntityColumn: "LOCATION_ID",
 						},
 					},
-					ValueColumn:     "VALUE",
-					TimestampColumn: "TS",
+					ValueColumn:     "WAVE_HEIGHT_FT",
+					TimestampColumn: "OBSERVED_ON",
 				},
 			},
 			Features: featureIDs,
@@ -905,8 +902,8 @@ func getTrainingSetFeaturesTSLabelsNoTS(tester offlineSqlStoreTester, storeType 
 			LabelSourceMapping: SourceMapping{
 				ProviderType:   storeType,
 				ProviderConfig: storeConfig,
-				Location:       nil,
-				EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "ENTITY_LOCATION"}}, ValueColumn: "VALUE"},
+				Location:       labelLoc,
+				EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "LEVEL"},
 			},
 			Features: featureIDs,
 			FeatureSourceMappings: []SourceMapping{
@@ -998,10 +995,10 @@ func getTrainingSetDatasetFeaturesNoTSLabelTS(tester offlineSqlStoreTester, stor
 				Location:            labelLoc,
 				EntityMappings: &metadata.EntityMappings{
 					Mappings: []metadata.EntityMapping{
-						{Name: "surfer", EntityColumn: "ENTITY_SURFER"},
+						{Name: "surfer", EntityColumn: "SURFER_ID"},
 					},
-					ValueColumn:     "VALUE",
-					TimestampColumn: "TS",
+					ValueColumn:     "SUCCESSFUL_RIDES",
+					TimestampColumn: "SESSION_DATE",
 				},
 			},
 			Features: featureIDs,
@@ -1084,7 +1081,7 @@ func getTrainingSetDatasetNoTS(tester offlineSqlStoreTester, storeType pt.Type, 
 				ProviderType:   storeType,
 				ProviderConfig: storeConfig,
 				Location:       labelLoc,
-				EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "ENTITY_SURFER"}}, ValueColumn: "VALUE"},
+				EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "SKILL_LEVEL"},
 			},
 			Features: featureIDs,
 			FeatureSourceMappings: []SourceMapping{
@@ -1146,16 +1143,11 @@ func RegisterChainedTransformationsTest(t *testing.T, tester offlineSqlTest) {
 	test.data.Assert(t, actual)
 }
 
-func RegisterTrainingSet(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType, opts []ResourceOption) {
+func RegisterTrainingSet(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType) {
 	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
 
-	res, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.labelID, tsTest.data.labelResourceSchema, opts...)
-	if err != nil {
-		t.Fatalf("could not register label table: %v", err)
-	}
-	tsTest.data.def.LabelSourceMapping.Location = res.Location()
 	if err := tsTest.tester.CreateTrainingSet(tsTest.data.def); err != nil {
 		t.Fatalf("could not create training set: %v", err)
 	}

@@ -34,6 +34,7 @@ export default class Resource {
   static Source = new Resource({
     type: 'Source',
     typePlural: 'Datasets',
+    displayText: 'Dataset',
     urlPath: 'sources',
     hasVariants: true,
     materialIcon: 'source',
@@ -109,6 +110,7 @@ export default class Resource {
     this._hasVariants = config.hasVariants;
     this._materialIcon = config.materialIcon;
     this._hasMetrics = config.hasMetrics;
+    this._displayText = config.displayText || config.type;
   }
 
   get urlPath() {
@@ -137,5 +139,9 @@ export default class Resource {
 
   get type() {
     return this._type;
+  }
+
+  get displayText() {
+    return this._displayText;
   }
 }

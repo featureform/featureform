@@ -64,6 +64,16 @@ func ShouldUseDBFS() bool {
 	return helpers.GetEnvBool("SHOULD_USE_DBFS", false)
 }
 
+// Will determine if our goose migration should run on metadata startup
+func ShouldRunGooseMigrationMetadata() bool {
+	return helpers.GetEnvBool("RUN_GOOSE_MIGRATION_METADATA", false)
+}
+
+// Will determine if our goose migration should run on executable startup
+func ShouldRunGooseMigrationExecutable() bool {
+	return helpers.GetEnvBool("RUN_GOOSE_MIGRATION_EXECUTABLE", true)
+}
+
 func CreateSparkScriptConfig() (SparkFileConfigs, error) {
 	remoteScriptPath, err := createSparkRemoteScriptPath()
 	if err != nil {
@@ -126,6 +136,14 @@ func GetMaterializeWithTimestampQueryPath() string {
 
 func GetSlackChannelId() string {
 	return helpers.GetEnv("SLACK_CHANNEL_ID", "") //no meaningful fallback ID
+}
+
+func GetIcebergProxyHost() string {
+	return helpers.GetEnv("ICEBERG_PROXY_HOST", "localhost")
+}
+
+func GetIcebergProxyPort() string {
+	return helpers.GetEnv("ICEBERG_PROXY_PORT", "8086")
 }
 
 type StateProviderType string

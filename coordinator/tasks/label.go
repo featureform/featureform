@@ -10,17 +10,14 @@ package tasks
 import (
 	"context"
 	"errors"
-	"fmt"
-
-	"github.com/featureform/logging"
 
 	"github.com/featureform/provider/provider_schema"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pl "github.com/featureform/provider/location"
-	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
 )
 
@@ -54,7 +51,7 @@ func (t *LabelTask) Run() error {
 		return err
 	}
 
-	logger.Debugw("Label source", "source", label.Source())
+	logger = t.logger.With("source", label.Source())
 	sourceNameVariant := label.Source()
 	loc, err := label.Location()
 	if err != nil {
@@ -83,14 +80,20 @@ func (t *LabelTask) Run() error {
 	if getStoreErr != nil {
 		return getStoreErr
 	}
-
+	defer func(sourceStore provider.OfflineStore, logger logging.Logger) {
+		err := sourceStore.Close()
+		if err != nil {
+			logger.Errorf("could not close offline store: %v", err)
+		}
+		logger.Debug("Closed offline store")
+	}(sourceStore, logger)
 	var sourceLocation pl.Location
 	var sourceLocationErr error
 	if source.IsSQLTransformation() || source.IsDFTransformation() {
-		logger.Debugw("Getting transformation location")
+		logger.Debug("Getting transformation location")
 		sourceLocation, sourceLocationErr = source.GetTransformationLocation()
 	} else if source.IsPrimaryData() {
-		logger.Debugw("Getting primary location")
+		logger.Debug("Getting primary location")
 		sourceLocation, sourceLocationErr = source.GetPrimaryLocation()
 	}
 
@@ -114,24 +117,9 @@ func (t *LabelTask) Run() error {
 		logger.Errorw("Failed to add run log", "error", err)
 		return err
 	}
-	logger.Debugw("Checking source store type", "type", fmt.Sprintf("%T", sourceStore))
-	opts := make([]provider.ResourceOption, 0)
-	if sourceStore.Type() == pt.SnowflakeOffline {
-		logger.Debugw("Source store is snowflake")
-		tempConfig, err := label.ResourceSnowflakeConfig()
-		if err != nil {
-			logger.Errorw("Failed to get snowflake config", "error", err)
-			return err
-		}
-		snowflakeDynamicTableConfigOpts := &provider.ResourceSnowflakeConfigOption{
-			Config:    tempConfig.DynamicTableConfig,
-			Warehouse: tempConfig.Warehouse,
-		}
-		opts = append(opts, snowflakeDynamicTableConfigOpts)
-	}
-
-	if _, err := sourceStore.RegisterResourceFromSourceTable(labelID, schema, opts...); err != nil {
-		logger.Errorw("Failed to register resource from source table", "id", labelID, "opts length", len(opts), "error", err)
+	logger.Debugw("Calling offline store to register resource from source table")
+	if _, err := sourceStore.RegisterResourceFromSourceTable(labelID, schema); err != nil {
+		logger.Errorw("Failed to register resource from source table", "id", labelID, "error", err)
 		return err
 	}
 	logger.Debugw("Resource Table Created", "id", labelID, "schema", schema)

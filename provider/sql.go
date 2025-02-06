@@ -78,6 +78,7 @@ type OfflineTableQueries interface {
 	transformationCreate(name string, query string) []string
 	transformationUpdate(db *sql.DB, tableName string, query string) error
 	transformationExists() string // this isn't used anywhere should I still keep it
+	resourceTableColumns(obj pl.FullyQualifiedObject) (string, error)
 }
 
 type sqlOfflineStore struct {
@@ -1956,6 +1957,24 @@ func (q defaultOfflineSQLQueries) transformationUpdate(db *sql.DB, tableName str
 func (q defaultOfflineSQLQueries) transformationExists() string {
 	bind := q.newVariableBindingIterator()
 	return fmt.Sprintf("SELECT DISTINCT (table_name) FROM information_schema.tables WHERE table_name=%s AND table_schema=CURRENT_SCHEMA()", bind.Next())
+}
+
+func (q defaultOfflineSQLQueries) resourceTableColumns(obj pl.FullyQualifiedObject) (string, error) {
+	if obj.Database == "" {
+		return "", fferr.NewInternalErrorf("database required for resource table columns query")
+	}
+	if obj.Table == "" {
+		return "", fferr.NewInternalErrorf("table required for resource table columns query")
+	}
+	if obj.Schema == "" {
+		obj.Schema = "PUBLIC"
+	}
+	var sb strings.Builder
+	sb.WriteString("SELECT COLUMN_NAME FROM ")
+	sb.WriteString(fmt.Sprintf("%s.INFORMATION_SCHEMA.COLUMNS ", obj.Database))
+	sb.WriteString(fmt.Sprintf("WHERE TABLE_SCHEMA = '%s' ", obj.Schema))
+	sb.WriteString(fmt.Sprintf("AND TABLE_NAME = '%s'", obj.Table))
+	return sb.String(), nil
 }
 
 func GetTransformationTableName(id ResourceID) (string, error) {

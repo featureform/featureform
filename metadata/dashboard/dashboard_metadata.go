@@ -3023,11 +3023,11 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
-		cleanName := strings.ReplaceAll(columnName, "\"", "")
-		if cleanName != "" && len(cleanName) > maxColumnNameLength {
-			cleanName = cleanName[:maxColumnNameLength] + "..."
-		}
-		response.Columns = append(response.Columns, fmt.Sprintf("%s(%s)", cleanName, fields[i].Type.String()))
+
+		cleanName := sanitizeColumnName(columnName)
+		formattedName := formatColumnWithType(cleanName, fields[i].Type.String())
+		response.Columns = append(response.Columns, formattedName)
+
 		if i == MaxPreviewCols {
 			response.Columns = append(
 				response.Columns,
@@ -3039,6 +3039,18 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 
 	m.logger.Info("Stream complete, returning response.")
 	c.JSON(http.StatusOK, response)
+}
+
+func sanitizeColumnName(columnName string) string {
+	cleanName := strings.ReplaceAll(columnName, "\"", "")
+	if cleanName != "" && len(cleanName) > maxColumnNameLength {
+		cleanName = cleanName[:maxColumnNameLength] + "..."
+	}
+	return cleanName
+}
+
+func formatColumnWithType(columnName string, columnType string) string {
+	return fmt.Sprintf("%s(%s)", columnName, columnType)
 }
 
 func (m *MetadataServer) Start(port string, local bool) error {

@@ -904,3 +904,90 @@ func TestGetSearch_MissingQuery(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, mockRecorder.Code)
 	assert.Contains(t, "Missing query", data)
 }
+
+func TestSanitizeColumnName(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    string
+		description string
+	}{
+		{
+			name:        "No special characters",
+			input:       "user_id",
+			expected:    "user_id",
+			description: "Should return the same column name",
+		},
+		{
+			name:        "Remove any quotes",
+			input:       "\"booker_country\"",
+			expected:    "booker_country",
+			description: "Should remove surrounding quotes",
+		},
+		{
+			name:        "Truncate long names",
+			input:       "did_you_ever_hear_the_tragedy_of_Darth_Plagueis_The_Wise",
+			expected:    "did_you_ever_hear_the_tragedy_...",
+			description: "Should truncate names longer than maxColumnNameLength",
+		},
+		{
+			name:        "Empty input",
+			input:       "",
+			expected:    "",
+			description: "Should return an empty string for empty input",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := sanitizeColumnName(tt.input)
+			assert.Equal(t, tt.expected, result, tt.description)
+		})
+	}
+}
+
+func TestFormatColumnWithType(t *testing.T) {
+	tests := []struct {
+		name        string
+		columnName  string
+		columnType  string
+		expected    string
+		description string
+	}{
+		{
+			name:        "Basic format",
+			columnName:  "user_name",
+			columnType:  "large_utf8",
+			expected:    "user_name(large_utf8)",
+			description: "Should format column name and type correctly",
+		},
+		{
+			name:        "Empty column name",
+			columnName:  "",
+			columnType:  "large_utf8",
+			expected:    "(large_utf8)",
+			description: "Should handle empty column name (should never happen)",
+		},
+		{
+			name:        "Empty column type",
+			columnName:  "username",
+			columnType:  "",
+			expected:    "username()",
+			description: "Should handle empty column type (should never happen)",
+		},
+		{
+			name:        "Both empty",
+			columnName:  "",
+			columnType:  "",
+			expected:    "()",
+			description: "Should handle both column name and type being empty (should never happen)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatColumnWithType(tt.columnName, tt.columnType)
+			assert.Equal(t, tt.expected, result, tt.description)
+		})
+	}
+}

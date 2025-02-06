@@ -171,7 +171,7 @@ func (db *DatabricksExecutor) runSparkJobWithRetries(
 				return re.Unrecoverable(fferr.NewInternalErrorf(errMsg))
 			}
 			retryTimeout := retries.Timeout[jobs.Run](time.Until(deadline))
-			_, err = db.client.Jobs.RunNowAndWait(ctx, jobs.RunNow{
+			_, err := db.client.Jobs.RunNowAndWait(ctx, jobs.RunNow{
 				JobId: jobId,
 			}, retryTimeout)
 			if err != nil {

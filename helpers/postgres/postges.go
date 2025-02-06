@@ -132,10 +132,18 @@ func newPool(ctx context.Context, logger logging.Logger, poolConfig *pgxpool.Con
 	return &Pool{db}, nil
 }
 
-// ToSqlDB returns a *sql.DB from the pgx pool, for use with libraries that require it. If possible, use the pgx pool
-// as this creates an entirely new connection pool.
-func (p *Pool) ToSqlDB() *sql.DB {
-	return stdlib.OpenDB(*p.Config().ConnConfig)
+// ToSqlDB returns a *sql.DB from the pgx pool, for use with libraries that require it.
+// IMPORTANT:
+// 1. If possible, use the pgx pool directly as this method creates an entirely new connection pool
+// 2. The caller MUST call Close() on the returned *sql.DB when it's no longer needed to prevent connection leaks
+// 3. This method may return an error if the connection cannot be established
+func (p *Pool) ToSqlDB() (*sql.DB, error) {
+	db := stdlib.OpenDB(*p.Config().ConnConfig)
+	if err := db.Ping(); err != nil {
+		db.Close()
+		return nil, fferr.NewInternalErrorf("failed to ping Postgres: %v", err)
+	}
+	return db, nil
 }
 
 type Config struct {

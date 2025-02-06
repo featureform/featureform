@@ -33,7 +33,11 @@ func RunMigrations(ctx context.Context, pgPool *postgres.Pool, migrationPath str
 	}
 
 	// Convert pgxpool.Pool to *sql.DB for goose
-	sqlDb := pgPool.ToSqlDB()
+	sqlDb, err := pgPool.ToSqlDB()
+	if err != nil {
+		logger.Errorw("error converting pgxpool.Pool to *sql.DB", "err", err)
+		return fferr.NewInternalErrorf("error converting pgxpool.Pool to *sql.DB: %v", err)
+	}
 	defer sqlDb.Close()
 
 	logger.Debugw("pinging database before running migrations")

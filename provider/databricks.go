@@ -143,26 +143,75 @@ func (db *DatabricksExecutor) RunSparkJob(cmd *spark.Command, store SparkFileSto
 		return wrapped
 	}
 
-	weekTimeout := retries.Timeout[jobs.Run](opts.MaxJobDuration)
-	_, err = db.client.Jobs.RunNowAndWait(ctx, jobs.RunNow{
-		JobId: jobToRun.JobId,
-	}, weekTimeout)
-	if err != nil {
-		logger.Errorw("job failed", "error", err)
-		errorMessage := err
-		if db.errorMessageClient != nil {
-			errorMessage, err = db.getErrorMessage(jobToRun.JobId)
-			if err != nil {
-				logger.Errorf("the '%v' job failed, could not get error message: %v\n", jobToRun.JobId, err)
-			}
-		}
-		wrapped := fferr.NewExecutionError(pt.SparkOffline.String(), fmt.Errorf("job failed: %v", errorMessage))
+	if err := db.runSparkJobWithRetries(logger, jobToRun.JobId, opts.MaxJobDuration); err != nil {
+		wrapped := fferr.NewExecutionError(
+			pt.SparkOffline.String(), fmt.Errorf("job failed: %v", err),
+		)
 		wrapped.AddDetails("job_name", fmt.Sprintf("%s-%s", opts.JobName, id), "job_id", fmt.Sprint(jobToRun.JobId), "executor_type", "Databricks", "store_type", store.Type())
 		wrapped.AddFixSuggestion("Check the cluster logs for more information")
 		return wrapped
 	}
-
 	return nil
+}
+
+
+func (db *DatabricksExecutor) runSparkJobWithRetries(
+	logger logging.Logger, jobId int64, maxWait time.Duration,
+) error {
+	ctx, cancel := context.WithTimeout(context.Background(), maxWait)
+	defer cancel()
+
+	return re.Do(
+		func() error {
+			deadline, ok := ctx.Deadline()
+			if !ok {
+				errMsg := "Deadline not set on context, exiting infinite loop running databricks job"
+				logger.Error(errMsg)
+				// Do not loop infinitely without a timeout
+				return re.Unrecoverable(fferr.NewInternalErrorf(errMsg))
+			}
+			retryTimeout := retries.Timeout[jobs.Run](time.Until(deadline))
+			_, err = db.client.Jobs.RunNowAndWait(ctx, jobs.RunNow{
+				JobId: jobId,
+			}, retryTimeout)
+			if err != nil {
+				logger.Errorw("job failed", "error", err)
+				errorMessage := err
+				if db.errorMessageClient != nil {
+					errorMessage, err = db.getErrorMessage(jobId)
+					if err != nil {
+						logger.Errorf(
+							"the '%v' job failed, could not get error message: %v\n",
+							jobId, err,
+						)
+					}
+				}
+				if !db.isEphemeralError(errorMessage) {
+					// It we aren't sure if its ephemeral we shouldn't retry
+					errorMessage = re.Unrecoverable(errorMessage)
+				}
+				return errorMessage
+			}
+			return nil
+		},
+		re.Context(ctx),                   // Stop retries when context times out
+		re.Attempts(0),                    // Infinite retries (until context cancels)
+		re.LastErrorOnly(true),            // Only return the last error
+		re.DelayType(re.CombineDelay(   // Use exponential backoff + jitter
+			re.BackOffDelay,              // Exponential backoff
+			re.RandomDelay,               // Random jitter
+		)),
+		re.Delay(5*time.Second),           // Initial delay of 5 seconds
+		re.MaxDelay(3*time.Minute),        // Cap max delay to 5 min
+	)
+}
+
+func (db *DatabricksExecutor) isEphemeralError(err error) bool {
+	// This happens when the driver goes OOM sometimes
+	if strings.Contains(err.Error(), "Could not reach driver of cluster") {
+		return true
+	}
+	return false
 }
 
 func (db *DatabricksExecutor) InitializeExecutor(store SparkFileStoreV2) error {

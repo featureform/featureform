@@ -10,7 +10,6 @@ package tasks
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/featureform/provider/provider_schema"
 
@@ -19,7 +18,6 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pl "github.com/featureform/provider/location"
-	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
 )
 
@@ -119,24 +117,9 @@ func (t *LabelTask) Run() error {
 		logger.Errorw("Failed to add run log", "error", err)
 		return err
 	}
-	logger.Debugw("Checking source store type", "type", fmt.Sprintf("%T", sourceStore))
-	opts := make([]provider.ResourceOption, 0)
-	if sourceStore.Type() == pt.SnowflakeOffline {
-		logger.Debugw("Source store is snowflake")
-		tempConfig, err := label.ResourceSnowflakeConfig()
-		if err != nil {
-			logger.Errorw("Failed to get snowflake config", "error", err)
-			return err
-		}
-		snowflakeDynamicTableConfigOpts := &provider.ResourceSnowflakeConfigOption{
-			Config:    tempConfig.DynamicTableConfig,
-			Warehouse: tempConfig.Warehouse,
-		}
-		opts = append(opts, snowflakeDynamicTableConfigOpts)
-	}
-
-	if _, err := sourceStore.RegisterResourceFromSourceTable(labelID, schema, opts...); err != nil {
-		logger.Errorw("Failed to register resource from source table", "id", labelID, "opts length", len(opts), "error", err)
+	logger.Debugw("Calling offline store to register resource from source table")
+	if _, err := sourceStore.RegisterResourceFromSourceTable(labelID, schema); err != nil {
+		logger.Errorw("Failed to register resource from source table", "id", labelID, "error", err)
 		return err
 	}
 	logger.Debugw("Resource Table Created", "id", labelID, "schema", schema)

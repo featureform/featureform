@@ -644,6 +644,29 @@ func TestSnowflakeDelete(t *testing.T) {
 	}
 }
 
+func TestSnowflakeResourceTable(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+
+	tester := getConfiguredTester(t, false)
+
+	tsDatasetTypes := []trainingSetDatasetType{
+		tsDatasetFeaturesLabelTS,
+		tsDatasetFeaturesLabelNoTS,
+	}
+
+	for _, testCase := range tsDatasetTypes {
+		constName := string(testCase)
+		constTestCase := testCase
+		t.Run(constName, func(t *testing.T) {
+			t.Parallel()
+			RegisterValidFeatureAndLabel(t, tester, constTestCase)
+			RegisterInValidFeatureAndLabel(t, tester, constTestCase)
+		})
+	}
+}
+
 // TEST FUNCTION
 
 func CrossDatabaseJoinTest(t *testing.T, tester offlineSqlTest) {
@@ -1016,11 +1039,6 @@ func RegisterTrainingSet(t *testing.T, tester offlineSqlTest, tsDatasetType trai
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
 
-	res, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.labelID, tsTest.data.labelResourceSchema, &ResourceSnowflakeConfigOption{})
-	if err != nil {
-		t.Fatalf("could not register label table: %v", err)
-	}
-	tsTest.data.def.LabelSourceMapping.Location = res.Location()
 	if err := tsTest.tester.CreateTrainingSet(tsTest.data.def); err != nil {
 		t.Fatalf("could not create training set: %v", err)
 	}
@@ -1036,11 +1054,6 @@ func RegisterTrainingSetWithType(t *testing.T, tester offlineSqlTest, tsDatasetT
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
 
-	res, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.labelID, tsTest.data.labelResourceSchema, &ResourceSnowflakeConfigOption{})
-	if err != nil {
-		t.Fatalf("could not register label table: %v", err)
-	}
-	tsTest.data.def.LabelSourceMapping.Location = res.Location()
 	tsTest.data.def.Type = tsType
 	if err := tsTest.tester.CreateTrainingSet(tsTest.data.def); err != nil {
 		t.Fatalf("could not create training set: %v", err)
@@ -1097,6 +1110,51 @@ func DeleteNotExistingTableTest(t *testing.T, tester offlineSqlTest) {
 	}
 	if _, ok := deleteErr.(*fferr.DatasetNotFoundError); !ok {
 		t.Fatalf("expected DatasetNotFoundError")
+	}
+}
+
+func RegisterValidFeatureAndLabel(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType) {
+	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
+	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
+	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
+
+	featureTblSCols := tsTest.data.schema.Columns
+	featureResourceSchema := ResourceSchema{
+		Entity:      featureTblSCols[0].Name,
+		Value:       featureTblSCols[1].Name,
+		SourceTable: tsTest.data.location,
+	}
+	if featureTblSCols[len(featureTblSCols)-1].ValueType == types.Timestamp {
+		featureResourceSchema.TS = featureTblSCols[len(featureTblSCols)-1].Name
+	}
+	if _, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.featureIDs[0], featureResourceSchema); err != nil {
+		t.Fatalf("could not register feature table: %v", err)
+	}
+	if _, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.labelID, tsTest.data.labelResourceSchema); err != nil {
+		t.Fatalf("could not register label table: %v", err)
+	}
+}
+
+func RegisterInValidFeatureAndLabel(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType) {
+	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
+	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
+	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
+
+	featureTblSCols := tsTest.data.schema.Columns
+	featureResourceSchema := ResourceSchema{
+		Entity:      "invalid",
+		Value:       featureTblSCols[1].Name,
+		SourceTable: tsTest.data.location,
+	}
+	if featureTblSCols[len(featureTblSCols)-1].ValueType == types.Timestamp {
+		featureResourceSchema.TS = featureTblSCols[len(featureTblSCols)-1].Name
+	}
+	if _, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.featureIDs[0], featureResourceSchema); err == nil {
+		t.Fatal("expected error registering feature resource table")
+	}
+	tsTest.data.labelResourceSchema.EntityMappings.ValueColumn = "invalid"
+	if _, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.labelID, tsTest.data.labelResourceSchema); err == nil {
+		t.Fatal("expected error registering label resource table")
 	}
 }
 

@@ -72,12 +72,16 @@ func TestGetProxyClient_Validations(t *testing.T) {
 				t.Setenv(key, value)
 			}
 
-			params := ProxyParams{
-				Source:  tt.source,
-				Variant: tt.variant,
-				Host:    tt.host,
-				Port:    tt.port,
-				Limit:   tt.limit,
+			params := ProxyRequest{
+				Query: ProxyQuery{
+					Source:  tt.source,
+					Variant: tt.variant,
+					Limit:   tt.limit,
+				},
+				Config: ProxyConfig{
+					Host: tt.host,
+					Port: tt.port,
+				},
 			}
 
 			ctx := logging.NewTestContext(t)

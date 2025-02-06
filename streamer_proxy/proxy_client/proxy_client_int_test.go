@@ -172,12 +172,16 @@ func TestClient_GetStreamProxyClient_Success(t *testing.T) {
 
 	// get proxy client
 	ctx := logging.NewTestContext(t)
-	params := ProxyParams{
-		Source:  "some_name",
-		Variant: "some_variant",
-		Host:    "localhost",
-		Port:    testPort,
-		Limit:   10,
+	params := ProxyRequest{
+		Query: ProxyQuery{
+			Source:  "some_name",
+			Variant: "some_variant",
+			Limit:   10,
+		},
+		Config: ProxyConfig{
+			Host: "localhost",
+			Port: testPort,
+		},
 	}
 	proxyClient, proxyErr := GetStreamProxyClient(ctx, params)
 	if proxyErr != nil {
@@ -262,12 +266,16 @@ func TestClient_MultipleRecordBatches(t *testing.T) {
 
 			// get the proxy client
 			ctx := logging.NewTestContext(t)
-			params := ProxyParams{
-				Source:  "some_name",
-				Variant: "some_variant",
-				Host:    "localhost",
-				Port:    testPort,
-				Limit:   10,
+			params := ProxyRequest{
+				Query: ProxyQuery{
+					Source:  "some_name",
+					Variant: "some_variant",
+					Limit:   10,
+				},
+				Config: ProxyConfig{
+					Host: "localhost",
+					Port: testPort,
+				},
 			}
 			proxyClient, proxyErr := GetStreamProxyClient(ctx, params)
 			assert.NoError(t, proxyErr)
@@ -295,12 +303,16 @@ func TestClient_MultipleRecordBatches(t *testing.T) {
 func TestClient_ConnectionFailure(t *testing.T) {
 	ctx := logging.NewTestContext(t)
 	someName, someVariant := "some_name", "some_variant"
-	params := ProxyParams{
-		Source:  "some_name",
-		Variant: "some_variant",
-		Host:    "localhost",
-		Port:    "9999",
-		Limit:   10,
+	params := ProxyRequest{
+		Query: ProxyQuery{
+			Source:  "some_name",
+			Variant: "some_variant",
+			Limit:   10,
+		},
+		Config: ProxyConfig{
+			Host: "localhost",
+			Port: "9999",
+		},
 	}
 	_, proxyErr := GetStreamProxyClient(ctx, params)
 
@@ -331,12 +343,16 @@ func TestClient_SchemaMismatch(t *testing.T) {
 	}
 
 	ctx := logging.NewTestContext(t)
-	params := ProxyParams{
-		Source:  "some_name",
-		Variant: "some_variant",
-		Host:    "localhost",
-		Port:    testPort,
-		Limit:   10,
+	params := ProxyRequest{
+		Query: ProxyQuery{
+			Source:  "some_name",
+			Variant: "some_variant",
+			Limit:   10,
+		},
+		Config: ProxyConfig{
+			Host: "localhost",
+			Port: testPort,
+		},
 	}
 	proxyClient, proxyErr := GetStreamProxyClient(ctx, params)
 	assert.NoError(t, proxyErr)
@@ -365,12 +381,16 @@ func TestClient_LargeData_StressTest(t *testing.T) {
 	}
 
 	ctx := logging.NewTestContext(t)
-	params := ProxyParams{
-		Source:  "some_name",
-		Variant: "some_variant",
-		Host:    "localhost",
-		Port:    testPort,
-		Limit:   int(dataSize),
+	params := ProxyRequest{
+		Query: ProxyQuery{
+			Source:  "some_name",
+			Variant: "some_variant",
+			Limit:   int(dataSize),
+		},
+		Config: ProxyConfig{
+			Host: "localhost",
+			Port: testPort,
+		},
 	}
 	start := time.Now()
 	proxyClient, proxyErr := GetStreamProxyClient(ctx, params)
@@ -403,17 +423,21 @@ func TestClient_EmptyData(t *testing.T) {
 	}
 
 	ctx := logging.NewTestContext(t)
-	params := ProxyParams{
-		Source:  "some_name",
-		Variant: "some_variant",
-		Host:    "localhost",
-		Port:    testPort,
-		Limit:   10,
+	params := ProxyRequest{
+		Query: ProxyQuery{
+			Source:  "some_name",
+			Variant: "some_variant",
+			Limit:   10,
+		},
+		Config: ProxyConfig{
+			Host: "localhost",
+			Port: testPort,
+		},
 	}
 	_, proxyErr := GetStreamProxyClient(ctx, params)
 
 	assert.Error(t, proxyErr, "Expected error when connecting to an invalid Flight server")
-	assert.ErrorContainsf(t, proxyErr, fmt.Sprintf("connection established, but no data available for source (%s) and variant (%s)", params.Source, params.Variant), "")
+	assert.ErrorContainsf(t, proxyErr, fmt.Sprintf("connection established, but no data available for source (%s) and variant (%s)", params.Query.Source, params.Query.Variant), "")
 }
 
 func TestClient_SchemaRetrieval(t *testing.T) {
@@ -440,12 +464,16 @@ func TestClient_SchemaRetrieval(t *testing.T) {
 	}
 
 	ctx := logging.NewTestContext(t)
-	params := ProxyParams{
-		Source:  "some_name",
-		Variant: "some_variant",
-		Host:    "localhost",
-		Port:    testPort,
-		Limit:   10,
+	params := ProxyRequest{
+		Query: ProxyQuery{
+			Source:  "some_name",
+			Variant: "some_variant",
+			Limit:   10,
+		},
+		Config: ProxyConfig{
+			Host: "localhost",
+			Port: testPort,
+		},
 	}
 	proxyClient, proxyErr := GetStreamProxyClient(ctx, params)
 	assert.NoError(t, proxyErr, "Expected no error when fetching stream proxy client")

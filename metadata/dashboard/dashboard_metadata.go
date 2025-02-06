@@ -2946,12 +2946,16 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 		Rows:    [][]string{},
 	}
 
-	params := pr.ProxyParams{
-		Source:  source,
-		Variant: variant,
-		Host:    config.GetIcebergProxyHost(),
-		Port:    config.GetIcebergProxyPort(),
-		Limit:   defaultStreamLimit,
+	params := pr.ProxyRequest{
+		Query: pr.ProxyQuery{
+			Source:  source,
+			Variant: variant,
+			Limit:   defaultStreamLimit,
+		},
+		Config: pr.ProxyConfig{
+			Host: config.GetIcebergProxyHost(),
+			Port: config.GetIcebergProxyPort(),
+		},
 	}
 
 	proxyIterator, proxyErr := pr.GetStreamProxyClient(c.Request.Context(), params)
@@ -2968,6 +2972,7 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 
 	m.logger.Info("Proxy connection established, iterating stream data...")
 	for proxyIterator.Next() {
+		// todo: the types project work should update this to use real types
 		dataMatrix := proxyIterator.Values()
 		// extract the interface data
 		for _, dataRow := range dataMatrix {

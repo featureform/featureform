@@ -1,6 +1,5 @@
 name: Deploy OSS Cluster
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       cluster:

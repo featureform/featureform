@@ -193,16 +193,18 @@ func (db *DatabricksExecutor) runSparkJobWithRetries(
 				logger.Error(errMsg)
 				return re.Unrecoverable(fferr.NewInternalErrorf(errMsg))
 			}
-			resp, err := db.client.Jobs.RunNow(ctx, jobs.RunNow{
+			_, err := db.client.Jobs.RunNow(ctx, jobs.RunNow{
 				JobId: jobId,
 			})
 			if err != nil {
 				logger.Errorw("job failed to start", "error", err)
 				return handleErr(err)
 			}
-			if _, err := resp.GetWithTimeout(time.Until(deadline)); err != nil {
-				logger.Errorw("job failed", "error", err)
-				return handleErr(err)
+			timeoutLeft := time.Until(deadline)
+			_, waitErr := db.client.Jobs.WaitGetRunJobTerminatedOrSkipped(ctx, jobId, timeoutLeft, nil) 
+			if waitErr != nil {
+				logger.Errorw("job failed", "error", waitErr)
+				return handleErr(waitErr)
 			}
 			return nil
 		},
@@ -220,8 +222,7 @@ func (db *DatabricksExecutor) runSparkJobWithRetries(
 
 func (db *DatabricksExecutor) isEphemeralError(err error) bool {
 	// This happens when the driver goes OOM sometimes
-	dbrixErr, isDbrixErr := err.(apierr.APIErr)
-	l
+	dbrixErr, isDbrixErr := err.(*apierr.APIError)
 	if !isDbrixErr {
 		return false
 	} else {

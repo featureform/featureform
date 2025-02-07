@@ -143,10 +143,17 @@ func (db *DatabricksExecutor) RunSparkJob(cmd *spark.Command, store SparkFileSto
 	}
 
 	if err := db.runSparkJobWithRetries(logger, jobToRun.JobId, opts.MaxJobDuration); err != nil {
+		details := []any {
+			"job_name", fmt.Sprintf("%s-%s", opts.JobName, id),
+			"job_id", fmt.Sprint(jobToRun.JobId),
+			"executor_type", "Databricks",
+			"store_type", store.Type(),
+		}
+		logger.Errorw("job failed", "error", err, details...)
 		wrapped := fferr.NewExecutionError(
 			pt.SparkOffline.String(), fmt.Errorf("job failed: %v", err),
 		)
-		wrapped.AddDetails("job_name", fmt.Sprintf("%s-%s", opts.JobName, id), "job_id", fmt.Sprint(jobToRun.JobId), "executor_type", "Databricks", "store_type", store.Type())
+		wrapped.AddDetails(details...)
 		wrapped.AddFixSuggestion("Check the cluster logs for more information")
 		return wrapped
 	}

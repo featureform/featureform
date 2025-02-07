@@ -463,10 +463,12 @@ func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 		logger.Errorw("Failed to write to health check path", "err", wrapped)
 		return false, wrapped
 	}
-	defer logger.LogIfErr(
-		fmt.Sprintf("Failed to delete health check path: %s", healthCheckPath.ToURI()),
-		store.Store.Delete(healthCheckPath),
-	)
+	defer func() {
+		logger.LogIfErr(
+			fmt.Sprintf("Failed to delete health check path: %s", healthCheckPath.ToURI()),
+			store.Store.Delete(healthCheckPath),
+		)
+	}()
 	healthCheckOutPath, err := store.Store.CreateFilePath(outPath, true)
 	if err != nil {
 		wrapped := fferr.NewInternalError(err)
@@ -499,10 +501,12 @@ func (store *SparkOfflineStore) CheckHealth() (bool, error) {
 		MaxJobDuration: 30 * time.Minute,
 		JobName:        "featureform-health-check",
 	}
-	defer logger.LogIfErr(
-		fmt.Sprintf("Failed to delete health check out path: %s", healthCheckOutPath.ToURI()),
-		store.Store.Delete(healthCheckOutPath),
-	)
+	defer func() {
+		logger.LogIfErr(
+			fmt.Sprintf("Failed to delete health check out path: %s", healthCheckOutPath.ToURI()),
+			store.Store.Delete(healthCheckOutPath),
+		)
+	}()
 	logger.Info("Running health check task on Spark", "health-check-output-path", outPath)
 	if err := store.Executor.RunSparkJob(args, store.Store, opts, nil); err != nil {
 		wrapped := fferr.NewConnectionError(store.Type().String(), err)

@@ -149,7 +149,8 @@ func (db *DatabricksExecutor) RunSparkJob(cmd *spark.Command, store SparkFileSto
 			"executor_type", "Databricks",
 			"store_type", store.Type(),
 		}
-		logger.Errorw("job failed", "error", err, details...)
+		errDetails := append(details, "error", err)
+		logger.Errorw("job failed", errDetails...)
 		wrapped := fferr.NewExecutionError(
 			pt.SparkOffline.String(), fmt.Errorf("job failed: %v", err),
 		)

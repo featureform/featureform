@@ -105,7 +105,7 @@ func (l *LockInformation) Marshal() ([]byte, error) {
 
 /*
 Locker interface is used to lock and unlock keys within different storage systems.
-example: etcd, memory, etc.
+example: memory, etc.
 */
 type Locker interface {
 	Lock(ctx context.Context, lock string, wait bool) (Key, error)

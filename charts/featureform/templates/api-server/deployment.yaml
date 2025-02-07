@@ -50,14 +50,10 @@ spec:
               value: {{ .Values.serving.host }}
             - name: SERVING_PORT
               value: {{ .Values.serving.port | quote }}
-            - name: ETCD_HOST
-              value: {{ .Values.etcd.host }}
-            - name: ETCD_PORT
-              value: {{ .Values.etcd.port | quote }}
-            - name: ETCD_USERNAME
-              value: {{ .Values.etcd.username }}
-            - name: ETCD_PASSWORD
-              value: {{ .Values.etcd.password }}
+            - name: FF_AUTH_PROVIDER
+              value: {{ .Values.auth.provider | quote }}
+            - name: FF_RBAC_ENABLED
+              value: {{ .Values.auth.rbacEnabled | quote }}
             - name: FF_STATE_PROVIDER
               value: {{ .Values.stateProvider | quote }}
             - name: POD_IP

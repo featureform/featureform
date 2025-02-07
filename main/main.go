@@ -142,7 +142,6 @@ func main() {
 
 	cLogger := logging.NewLogger("coordinator")
 	defer cLogger.Sync()
-	cLogger.Debug("Connected to ETCD")
 
 	client, err := metadata.NewClient(metadataConn, cLogger)
 	if err != nil {

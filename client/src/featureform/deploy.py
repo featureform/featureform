@@ -63,9 +63,6 @@ class DockerDeployment(Deployment):
             raise Exception("Error connecting to Docker daemon. Is Docker running?")
 
         environment_variables = {}
-        is_mac_m1_chip = platform.machine() == "arm64" and platform.system() == "Darwin"
-        if is_mac_m1_chip:
-            environment_variables["ETCD_ARCH"] = "ETCD_UNSUPPORTED_ARCH=arm64"
 
         # TODO: Add support for custom ports
         featureform_deployment = DOCKER_CONFIG(

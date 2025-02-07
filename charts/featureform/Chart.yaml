@@ -30,13 +30,6 @@ version: 0.0.0
 # It is recommended to use it with quotes.
 appVersion: "0.0.0"
 dependencies:
-  - name: etcd
-    repository: https://charts.bitnami.com/bitnami
-    tags:
-      - bitnami-etcd
-    version: 8.2.4
-    condition: etcd.enabled
-
   - name: ingress-nginx
     repository: https://kubernetes.github.io/ingress-nginx
     tags:

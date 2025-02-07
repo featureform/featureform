@@ -81,14 +81,6 @@ func (i *Initializer) GetOrCreateTaskMetadataManager(ctx context.Context) (sched
 			}
 			logger.Debug("Got postgres connection pool")
 			i.tm, i.tmErr = scheduling.NewPSQLTaskMetadataManager(ctx, pool)
-		case config.EtcdStateProvider:
-			logger.Debug("Initializing etcd task manager")
-			if i.config.Etcd == nil {
-				i.tmErr = fferr.NewInvalidConfigf("ETCD config not set but state provider is etcd")
-				logger.Errorw("Failed to created etcd task manager", "err", i.tmErr)
-				return
-			}
-			i.tm, i.tmErr = scheduling.NewETCDTaskMetadataManager(ctx, *i.config.Etcd)
 		default:
 			errMsg := fmt.Sprintf(
 				"Unable to initialize task manager, unknown state provider type: %s",

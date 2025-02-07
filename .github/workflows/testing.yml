@@ -118,7 +118,6 @@ jobs:
             ,testing/s3
             ,testing/bigquery
             ,testing/gcs
-            ,testing/etcd
             ,testing/redis
             ,testing/meilisearch
             ,testing/pinecone
@@ -196,15 +195,6 @@ jobs:
           ls
           ls provider
           pwd
-
-      - name: Install ETCD
-        run: |
-          git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
-          cd etcd
-          ./build
-          export PATH="$PATH:`pwd`/bin"
-          etcd --version
-          etcd --logger=zap &
 
       - name: Run HDFS
         run: |
@@ -621,7 +611,6 @@ jobs:
             ,testing/s3
             ,testing/bigquery
             ,testing/gcs
-            ,testing/etcd
             ,testing/redis
             ,testing/meilisearch
             ,testing/pinecone
@@ -787,7 +776,6 @@ jobs:
             ,testing/s3
             ,testing/bigquery
             ,testing/gcs
-            ,testing/etcd
             ,testing/redis
             ,testing/meilisearch
             ,testing/pinecone

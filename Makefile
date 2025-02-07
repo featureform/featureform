@@ -134,7 +134,6 @@ test_typesense
 test_coordinator
 	Requirements:
 		- Golang 1.21
-		- ETCD installed and added to path (https://etcd.io/docs/v3.4/install/)
 		- Docker
 
 	Description:
@@ -321,12 +320,6 @@ update_python: gen_grpc 				## Updates the python package locally
 	python3 -m build ./client/
 	pip3 install client/dist/*.whl
 	pip3 install -r provider/scripts/spark/requirements.txt
-
-etcdctl: 						## Installs ETCDCTL. Required for reset_e2e
-	-git clone -b v3.4.16 https://github.com/etcd-io/etcd.git
-	cd etcd && ./build
-	export PATH=$PATH:"`pwd`/etcd/bin"
-	etcdctl version
 
 credentials:
 	-mkdir ~/credentials

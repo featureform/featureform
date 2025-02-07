@@ -220,7 +220,14 @@ func (db *DatabricksExecutor) runSparkJobWithRetries(
 
 func (db *DatabricksExecutor) isEphemeralError(err error) bool {
 	// This happens when the driver goes OOM sometimes
-	if strings.Contains(err.Error(), "Could not reach driver of cluster") {
+	dbrixErr, isDbrixErr := err.(apierr.APIErr)
+	l
+	if !isDbrixErr {
+		return false
+	} else {
+		db.logger.Debugw("Checking if DBrix err is ephemeral", "dbrix-err", dbrixErr)
+	}
+	if strings.Contains(err.Error(), "not reach driver of cluster") {
 		return true
 	}
 	return false

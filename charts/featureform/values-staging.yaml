@@ -18,7 +18,7 @@ nginx:
 psql:
   createSecret: false
   db: postgres
-  host: kamal.cywx8pqtzaj0.us-west-2.rds.amazonaws.com
+  host: oss-staging.cfqp5tvkxko3.us-east-1.rds.amazonaws.com
   password: null
   port: 5432
   sslmode: require

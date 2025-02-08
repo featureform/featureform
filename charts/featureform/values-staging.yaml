@@ -1,0 +1,25 @@
+cert:
+  letsencryptProd: true
+  publicCert: true
+  selfSignedCert: false
+
+dashboardUrl: ""
+
+debug: true
+
+hostname: kamal.featureform.com
+
+psql:
+  createSecret: false
+  db: postgres
+  host: kamal.cywx8pqtzaj0.us-west-2.rds.amazonaws.com
+  port: 5432
+  sslmode: require
+  user: postgres
+  migration:
+    image:
+      name: db-migration-up
+
+stateProvider: psql
+
+versionOverride: 0.15.2

@@ -54,8 +54,5 @@ jobs:
       - name: Add kubeconfig
         run: aws eks update-kubeconfig --name ${{ github.event.inputs.cluster }} --region ${{ github.event.inputs.region }}
 
-      - name: Set default namespace
-        run: kubectl config set-context --current --namespace ${{ github.event.inputs.namespace }}
-
       - name: Update cluster
-        run: helm upgrade --install featureform ./charts/featureform/ -f charts/featureform/values.yaml -f charts/featureform/values-staging.yaml
+        run: helm upgrade --install --namespace ${{ github.event.inputs.namespace }} --create-namespace featureform ./charts/featureform/ -f charts/featureform/values.yaml -f charts/featureform/values-staging.yaml

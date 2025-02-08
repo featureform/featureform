@@ -9,10 +9,17 @@ debug: true
 
 hostname: kamal.featureform.com
 
+nginx:
+  # The chart installs various global resources. That means that only
+  # one release can have it per cluster. We're disabling it for the staging
+  # environment.
+  enabled: false
+
 psql:
   createSecret: false
   db: postgres
   host: kamal.cywx8pqtzaj0.us-west-2.rds.amazonaws.com
+  password: null
   port: 5432
   sslmode: require
   user: postgres

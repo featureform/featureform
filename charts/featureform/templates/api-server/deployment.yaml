@@ -50,10 +50,6 @@ spec:
               value: {{ .Values.serving.host }}
             - name: SERVING_PORT
               value: {{ .Values.serving.port | quote }}
-            - name: FF_AUTH_PROVIDER
-              value: {{ .Values.auth.provider | quote }}
-            - name: FF_RBAC_ENABLED
-              value: {{ .Values.auth.rbacEnabled | quote }}
             - name: FF_STATE_PROVIDER
               value: {{ .Values.stateProvider | quote }}
             - name: POD_IP

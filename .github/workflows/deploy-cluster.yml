@@ -14,17 +14,17 @@ on:
       cluster:
         description: "The name of the EKS cluster to deploy to"
         type: string
-        required: false
+        required: true
         default: "internal-sandbox-cluster"
       region:
         description: "The region that the EKS cluster resides in"
         type: string
-        required: false
+        required: true
         default: "us-east-1"
       namespace:
         description: "The namespace to deploy Featureform to"
         type: string
-        required: false
+        required: true
         default: "oss"
 
 jobs:

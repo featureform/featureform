@@ -48,10 +48,6 @@ spec:
               value: {{ .Values.meilisearch.host }}
             - name: MEILISEARCH_APIKEY
               value: {{ .Values.meilisearch.apikey | quote }}
-            - name: FF_AUTH_PROVIDER
-              value: {{ .Values.auth.provider | quote }}
-            - name: FF_RBAC_ENABLED
-              value: {{ .Values.auth.rbacEnabled | quote }}
             - name: FF_STATE_PROVIDER
               value: {{ .Values.stateProvider | quote }}
             - name: FEATUREFORM_DEBUG_LOGGING

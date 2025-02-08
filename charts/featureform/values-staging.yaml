@@ -7,7 +7,7 @@ dashboardUrl: ""
 
 debug: true
 
-hostname: kamal.featureform.com
+hostname: oss-staging.featureform.com
 
 nginx:
   # The chart installs various global resources. That means that only
@@ -23,9 +23,6 @@ psql:
   port: 5432
   sslmode: require
   user: postgres
-  migration:
-    image:
-      name: db-migration-up
 
 stateProvider: psql
 

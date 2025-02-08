@@ -1,4 +1,13 @@
 name: Deploy OSS Cluster
+
+defaults:
+  run:
+    working-directory: ./
+
+concurrency:
+  group: deploy-oss-to-cluster
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
     inputs:
@@ -17,10 +26,6 @@ on:
         type: string
         required: false
         default: "oss"
-
-concurrency:
-  group: deploy-oss-to-cluster
-  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -49,8 +54,8 @@ jobs:
       - name: Add kubeconfig
         run: aws eks update-kubeconfig --name ${{ github.event.inputs.cluster }} --region ${{ github.event.inputs.region }}
 
-      - name: List pods
-        run: kubectl get pods -A
+      - name: Set default namespace
+        run: kubectl config set-context --current --namespace ${{ github.events.inputs.namespace }}
 
-      - name: List installed charts
-        run: helm list -A
+      - name: Update cluster
+        run: helm upgrade --install featureform ./charts/featureform/ -f charts/featureform/values.yaml -f charts/featureform/values-staging.yaml

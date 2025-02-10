@@ -3335,7 +3335,7 @@ class Registrar:
         config = DynamodbConfig(
             credentials=credentials,
             region=region,
-            table_tags=table_tags,
+            table_tags=table_tags if table_tags else {},
         )
         provider = Provider(
             name=name,

@@ -734,21 +734,34 @@ class DynamodbConfig:
         }
         return bytes(json.dumps(config), "utf-8")
 
-    def __eq__(self, __value: object) -> bool:
-        if not isinstance(__value, DynamodbConfig):
-            return False
+    @classmethod
+    def deserialize(cls, json_bytes: bytes) -> "DynamodbConfig":
+        deserialized_config = json.loads(json_bytes.decode("utf-8"))
 
-        if type(self.credentials) != type(__value.credentials):
-            return False
+        try:
+            if (
+                deserialized_config["Credentials"]["Type"]
+                == AWSStaticCredentials.type()
+            ):
+                credentials = AWSStaticCredentials(
+                    deserialized_config["Credentials"]["AccessKeyId"],
+                    deserialized_config["Credentials"]["SecretKey"],
+                )
+            elif (
+                deserialized_config["Credentials"]["Type"]
+                == AWSAssumeRoleCredentials.type()
+            ):
+                credentials = AWSAssumeRoleCredentials()
+            else:
+                raise ValueError("Invalid Credentials Type")
 
-        if (
-            isinstance(self.credentials, AWSStaticCredentials)
-            and self.credentials.access_key != __value.credentials.access_key
-            and self.credentials.secret_key != __value.credentials.secret_key
-        ):
-            return False
-
-        return self.region == __value.region
+            return DynamodbConfig(
+                region=deserialized_config["Region"],
+                credentials=credentials,
+                table_tags=deserialized_config.get("Tags"),
+            )
+        except KeyError as e:
+            raise ValueError(f"Missing key in deserialized config: {e}")
 
     def validate_table_tags(self, table_tags: Optional[dict]) -> list:
         """

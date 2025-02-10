@@ -17,6 +17,7 @@ import (
 func TestDynamoConfigMutableFields(t *testing.T) {
 	expected := ss.StringSet{
 		"Credentials": true,
+		"Tags":        true,
 	}
 
 	config := DynamodbConfig{

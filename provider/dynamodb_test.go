@@ -8,21 +8,25 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	se "github.com/featureform/provider/serialization"
 	vt "github.com/featureform/provider/types"
+	"github.com/google/uuid"
 )
 
 func TestOnlineStoreDynamoDB(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
 	}
-	store := GetTestingDynamoDB(t)
+	store := GetTestingDynamoDB(t, map[string]string{})
 	test := OnlineStoreTest{
 		t:            t,
 		store:        store,
@@ -31,6 +35,37 @@ func TestOnlineStoreDynamoDB(t *testing.T) {
 		testBatch:    true,
 	}
 	test.Run()
+}
+
+func TestDynamoDBTags(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+	store := GetTestingDynamoDB(t, map[string]string{fmt.Sprintf("tag_%s", uuid.NewString()): "tag_value"})
+	mockFeature, mockVariant := randomFeatureVariant()
+	defer store.DeleteTable(mockFeature, mockVariant)
+	if tab, err := store.CreateTable(mockFeature, mockVariant, vt.String); tab == nil || err != nil {
+		t.Fatalf("Failed to create table: %s", err)
+	}
+	dbb, isDynamoDBOnlineStore := store.(*dynamodbOnlineStore)
+	if !isDynamoDBOnlineStore {
+		t.Fatalf("Failed to cast to dynamoOnlineStore")
+	}
+	params := dynamodb.DescribeTableInput{
+		TableName: aws.String(formatDynamoTableName(dbb.prefix, mockFeature, mockVariant)),
+	}
+	tableDescription, err := dbb.client.DescribeTable(context.Background(), &params)
+	if err != nil {
+		t.Fatalf("Failed to describe table: %s", err)
+	}
+	tableArn := tableDescription.Table.TableArn
+	tagsList, err := dbb.client.ListTagsOfResource(context.Background(), &dynamodb.ListTagsOfResourceInput{ResourceArn: tableArn})
+	if err != nil {
+		t.Fatalf("Failed to list tags: %s", err)
+	}
+	if !reflect.DeepEqual(dbb.tags, tagsList.Tags) {
+		t.Fatalf("Tags do not match\nFound: %v\nExpected: %v\n", dbb.tags, tagsList.Tags)
+	}
 }
 
 func TestParsingTableMetadata(t *testing.T) {

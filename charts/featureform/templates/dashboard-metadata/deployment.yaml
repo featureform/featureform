@@ -51,14 +51,6 @@ spec:
               value: {{ .Values.debug | quote }}
             - name: FEATUREFORM_VERSION
               value: {{ .Values.versionOverride | default .Chart.AppVersion}}
-            - name: ETCD_HOST
-              value: {{ .Values.etcd.host }}
-            - name: ETCD_PORT
-              value: {{ .Values.etcd.port | quote }}
-            - name: ETCD_USERNAME
-              value: {{ .Values.etcd.username }}
-            - name: ETCD_PASSWORD
-              value: {{ .Values.etcd.password | quote }}
             - name: FF_STATE_PROVIDER
               value: {{ .Values.stateProvider | quote }}
             - name: PSQL_HOST
@@ -71,6 +63,10 @@ spec:
               value: {{ .Values.psql.sslmode | quote }}
             - name: DISABLE_CORS
               value: {{ .Values.dashboardmetadata.disableCors | quote}}
+            - name: ICEBERG_PROXY_HOST
+              value: {{ .Values.icebergProxy.host | quote }}
+            - name: ICEBERG_PROXY_PORT
+              value: {{ .Values.icebergProxy.port | quote }}
           {{ if eq .Values.stateProvider "psql" }}
             - name: PSQL_USER
               valueFrom:

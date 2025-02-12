@@ -22,6 +22,7 @@ import (
 	"github.com/featureform/config/bootstrap"
 	"github.com/featureform/coordinator"
 	"github.com/featureform/coordinator/spawner"
+	"github.com/featureform/db"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -48,9 +49,12 @@ func main() {
 		log.Fatalf("err %v", err)
 	}
 	if _, set := os.LookupEnv("FF_STATE_PROVIDER"); !set {
+		log.Println("FF_STATE_PROVIDER not set, defaulting to memory")
 		if err := os.Setenv("FF_STATE_PROVIDER", "memory"); err != nil {
 			log.Fatalf("err %v", err)
 		}
+	} else {
+		log.Println("FF_STATE_PROVIDER set to", os.Getenv("FF_STATE_PROVIDER"))
 	}
 	apiPort := help.GetEnv("API_PORT", "7878")
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
@@ -62,8 +66,6 @@ func main() {
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	servingConn := fmt.Sprintf("%s:%s", servingHost, servingPort)
 	local := help.GetEnvBool("FEATUREFORM_LOCAL", true)
-	initTimeout := time.Second * 10
-
 	logger := logging.NewLogger("init-logger")
 	defer logger.Sync()
 	logger.Info("Parsing Featureform App Config")
@@ -72,10 +74,10 @@ func main() {
 		logger.Errorw("Invalid App Config", "err", err)
 		panic(err)
 	}
-	ctx, cancelFn := context.WithTimeout(context.Background(), initTimeout)
+	ctx, cancelFn := context.WithTimeout(context.Background(), appConfig.InitTimeout)
 	defer cancelFn()
 	initCtx := logger.AttachToContext(ctx)
-	logger.Info("Created initialization context with timeout", "timeout", initTimeout)
+	logger.Info("Created initialization context with timeout", "timeout", appConfig.InitTimeout)
 	logger.Debug("Creating initializer")
 	init, err := bootstrap.NewInitializer(appConfig)
 	if err != nil {
@@ -83,6 +85,21 @@ func main() {
 		panic(err)
 	}
 	defer logger.LogIfErr("Failed to close service-level resources", init.Close())
+
+	/****************************************** DB Migrations **********************************************************/
+
+	if config.ShouldRunGooseMigrationExecutable() {
+		logger.Info("Running goose migrations")
+		pool, err := init.GetOrCreatePostgresPool(ctx)
+		if err != nil {
+			logger.Errorw("Failed to get postgres pool", "err", err)
+			panic(err)
+		}
+		if err := db.RunMigrations(initCtx, pool, config.GetMigrationPath()); err != nil {
+			logger.Errorw("Failed to run goose migrations", "err", err)
+			panic(err)
+		}
+	}
 
 	logger.Debug("Getting task metadata manager")
 	manager, err := init.GetOrCreateTaskMetadataManager(initCtx)
@@ -125,7 +142,6 @@ func main() {
 
 	cLogger := logging.NewLogger("coordinator")
 	defer cLogger.Sync()
-	cLogger.Debug("Connected to ETCD")
 
 	client, err := metadata.NewClient(metadataConn, cLogger)
 	if err != nil {

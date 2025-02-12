@@ -2283,7 +2283,9 @@ class Registrar:
             DeprecationWarning,
         )
         mock_config = DynamodbConfig(
-            region="", access_key="", secret_key="", should_import_from_s3=False
+            region="",
+            access_key="",
+            secret_key="",
         )
         mock_provider = Provider(
             name=name, function="ONLINE", description="", team="", config=mock_config
@@ -3296,11 +3298,11 @@ class Registrar:
         name: str,
         credentials: Union[AWSStaticCredentials, AWSAssumeRoleCredentials],
         region: str,
-        should_import_from_s3: bool = False,
         description: str = "",
         team: str = "",
-        tags: List[str] = [],
-        properties: dict = {},
+        tags: Optional[List[str]] = None,
+        properties: Optional[dict] = None,
+        table_tags: Optional[dict] = None,
     ):
         """Register a DynamoDB provider.
 
@@ -3311,6 +3313,7 @@ class Registrar:
             description="A Dynamodb deployment we created for the Featureform quickstart",
             credentials=aws_creds,
             region="us-east-1"
+            table_tags={"owner": "featureform"}
         )
         ```
 
@@ -3318,20 +3321,21 @@ class Registrar:
             name (str): (Immutable) Name of DynamoDB provider to be registered
             region (str): (Immutable) Region to create dynamo tables
             credentials (Union[AWSStaticCredentials, AWSAssumeRoleCredentials]): (Mutable) AWS credentials with permissions to create DynamoDB tables
-            should_import_from_s3 (bool): (Mutable) Determines whether feature materialization will occur via a direct import of data from S3 to new table (see [docs](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/S3DataImport.HowItWorks.html) for details)
             description (str): (Mutable) Description of DynamoDB provider to be registered
             team (str): (Mutable) Name of team
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
             properties (dict): (Mutable) Optional grouping mechanism for resources
+            table_tags (dict): (Mutable) Tags to be added to the DynamoDB tables
 
         Returns:
             dynamodb (OnlineProvider): Provider
         """
         tags, properties = set_tags_properties(tags, properties)
+
         config = DynamodbConfig(
             credentials=credentials,
             region=region,
-            should_import_from_s3=should_import_from_s3,
+            table_tags=table_tags if table_tags else {},
         )
         provider = Provider(
             name=name,

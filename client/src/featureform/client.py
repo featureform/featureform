@@ -832,27 +832,7 @@ class Client(ResourceClient, ServingClient):
         """
 
         provider = self.__get_provider(name)
-        config = provider.serialized_config
-        deserialized_config = json.loads(config.decode("utf-8"))
-
-        if deserialized_config["Credentials"]["Type"] == AWSStaticCredentials.type():
-            credentials = AWSStaticCredentials(
-                deserialized_config["Credentials"]["AccessKeyId"],
-                deserialized_config["Credentials"]["SecretKey"],
-            )
-        elif (
-            deserialized_config["Credentials"]["Type"]
-            == AWSAssumeRoleCredentials.type()
-        ):
-            credentials = AWSAssumeRoleCredentials()
-        else:
-            raise ValueError("Invalid Credentials Type")
-
-        dynamodb_config = DynamodbConfig(
-            region=deserialized_config["Region"],
-            credentials=credentials,
-            should_import_from_s3=deserialized_config["ImportFromS3"],
-        )
+        dynamodb_config = DynamodbConfig.deserialize(provider.serialized_config)
 
         online_provider = self.__create_provider(
             provider.name,

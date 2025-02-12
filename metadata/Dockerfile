@@ -34,6 +34,7 @@ COPY ./logging/ ./logging/
 COPY ./metadata/*.go ./metadata/
 COPY ./metadata/proto/ ./metadata/proto/
 COPY ./metadata/common/ ./metadata/common/
+COPY ./db ./db
 COPY ./helpers/ ./helpers/
 COPY ./integrations/ ./integrations/
 COPY ./metadata/search/ ./metadata/search/

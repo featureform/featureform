@@ -78,7 +78,9 @@
       "SecretKey": "key",
       "Type": "AWS_STATIC_CREDENTIALS"
     },
-    "ImportFromS3": false
+    "Tags": {
+      "owner": "featureform"
+    }
   },
   "MongoDBConfig": {
     "Username": "username",

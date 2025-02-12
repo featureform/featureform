@@ -29,12 +29,12 @@ describe('ProviderTable', () => {
     expect(foundRedis).toBeInTheDocument();
   });
 
-  test.skip('renders the status correctly', async () => {
+  test('renders the status correctly', async () => {
     render(<ProviderTable />);
 
     const statuses = await screen.findAllByText('Status: Connected');
     const expectedConnected = providerList.data.filter(
-      (p) => p.status === 'Connected'
+      (p) => p.status === 'READY' || p.status == 'CREATED'
     ).length;
     expect(statuses).toHaveLength(expectedConnected);
   });

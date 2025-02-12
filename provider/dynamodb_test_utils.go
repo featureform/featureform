@@ -16,7 +16,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func GetTestingDynamoDB(t *testing.T) OnlineStore {
+func GetTestingDynamoDB(t *testing.T, tags map[string]string) OnlineStore {
 	err := godotenv.Load("../.env")
 	if err != nil {
 		t.Logf("could not open .env file... Checking environment: %s", err)
@@ -39,6 +39,10 @@ func GetTestingDynamoDB(t *testing.T) OnlineStore {
 		Region:             "us-east-1",
 		Endpoint:           endpoint,
 		StronglyConsistent: true,
+	}
+
+	if len(tags) > 0 {
+		dynamoConfig.Tags = tags
 	}
 
 	store, err := GetOnlineStore(pt.DynamoDBOnline, dynamoConfig.Serialized())

@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/featureform/config"
 	"github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	"github.com/featureform/scheduling"
@@ -25,11 +26,6 @@ import (
 
 	help "github.com/featureform/helpers/notifications"
 
-	"github.com/featureform/fferr"
-	"github.com/featureform/logging"
-	pb "github.com/featureform/metadata/proto"
-	pl "github.com/featureform/provider/location"
-	"github.com/featureform/provider/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	grpc_status "google.golang.org/grpc/status"
@@ -37,6 +33,12 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/featureform/fferr"
+	"github.com/featureform/logging"
+	pb "github.com/featureform/metadata/proto"
+	pl "github.com/featureform/provider/location"
+	"github.com/featureform/provider/types"
 )
 
 type NameVariant struct {
@@ -3266,6 +3268,32 @@ func (variant *SourceVariant) GetTransformationLocation() (pl.Location, error) {
 	}
 }
 
+// helper function to get SourceVariant location based on sourceVariant type (primary, sql, dft)
+// returns error if type not listed
+func (variant *SourceVariant) GetLocation(ctx context.Context) (pl.Location, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	switch {
+	case variant.IsSQLTransformation() || variant.IsDFTransformation():
+		logger.Info("GetLocation() source variant is sql/dft transformation, getting transform location...")
+		location, locationErr := variant.GetTransformationLocation()
+		if locationErr != nil {
+			logger.Errorw("Failed to get transformation location", "error", locationErr)
+		}
+		return location, locationErr
+	case variant.IsPrimaryData():
+		logger.Info("GetLocation() source variant is primary data, getting primary location...")
+		location, locationErr := variant.GetPrimaryLocation()
+		if locationErr != nil {
+			logger.Errorw("Failed to get primary location", "error", locationErr)
+		}
+		return location, locationErr
+	default:
+		defaultErr := fferr.NewInternalErrorf("Unknown source variant type for %s-%s", variant.Name(), variant.Variant())
+		logger.Errorw("GetLocation() Unknown source variant type, returning error", "error", defaultErr)
+		return nil, defaultErr
+	}
+}
+
 func (variant *SourceVariant) SparkFlags() pc.SparkFlags {
 	if !variant.IsTransformation() {
 		return pc.SparkFlags{}
@@ -3380,7 +3408,7 @@ func NewClient(host string, logger logging.Logger) (*Client, error) {
 	}
 	metadataClient := pb.NewMetadataClient(conn)
 	tasksClient := sch.NewTasksClient(conn)
-	slackNotifier := help.NewSlackNotifier(os.Getenv("SLACK_CHANNEL_ID"), logger)
+	slackNotifier := help.NewSlackNotifier(os.Getenv(config.EnvSlackChannelId), logger)
 	return &Client{
 		Logger:   logger,
 		conn:     conn,

@@ -30,7 +30,7 @@ COPY ./schema ./schema
 COPY ./storage ./storage
 COPY ./lib/ ./lib/
 COPY ./filestore/ ./filestore/
-COPY ./metadata/*.go ./metadata/
+COPY ./metadata/ ./metadata/
 COPY ./helpers/ ./helpers/
 COPY ./integrations/ ./integrations/
 COPY ./lib/ ./lib/
@@ -47,6 +47,7 @@ COPY ./metadata/common/ ./metadata/common/
 COPY ./provider/provider_config/ ./provider/provider_config/
 COPY ./provider/provider_type/ ./provider/provider_type/
 COPY ./config/ ./config/
+COPY ./streamer_proxy ./streamer_proxy/
 
 RUN go build ./metadata/dashboard/main/main.go
 

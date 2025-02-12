@@ -25,7 +25,7 @@ func TestDirectMaterialization(t *testing.T) {
 		"IcebergEMR": GetTestingEMRGlue(t, pc.Iceberg),
 	}
 	onlineStores := map[string]OnlineStore{
-		"Dynamo": GetTestingDynamoDB(t),
+		"Dynamo": GetTestingDynamoDB(t, map[string]string{}),
 	}
 	for offlineName, offlineStore := range offlineStores {
 		t.Logf("Testing offline store: %s", offlineName)

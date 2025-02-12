@@ -17,10 +17,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap/zaptest"
-
 	"github.com/featureform/ffsync"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -30,6 +26,9 @@ import (
 	"github.com/featureform/provider/provider_type"
 	ss "github.com/featureform/storage"
 	"github.com/featureform/storage/query"
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap/zaptest"
 )
 
 func GetMetadataServer(t *testing.T) MetadataServer {
@@ -139,7 +138,7 @@ func TestPostTags(t *testing.T) {
 
 	resource, err := metadata.CreateEmptyResource(metadata.SOURCE_VARIANT)
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	variantUpdate, ok := resource.Proto().(*pb.SourceVariant)
 	if !ok {
@@ -149,7 +148,7 @@ func TestPostTags(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	mstorage, err := ss.NewMemoryStorageImplementation()
 	if err != nil {
@@ -183,7 +182,7 @@ func TestPostTags(t *testing.T) {
 	assert.Equal(t, tagList, data.Tags)
 }
 
-func TestGetSourceDataReturnsData(t *testing.T) {
+func TestSourceDataReturnsData(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
 	u := url.Values{}
@@ -200,7 +199,7 @@ func TestGetSourceDataReturnsData(t *testing.T) {
 		logger: logger,
 	}
 
-	serv.GetSourceData(ctx)
+	serv.SourceData(ctx)
 
 	iterator := provider.UnitTestIterator{}
 	var data SourceDataResponse
@@ -226,10 +225,10 @@ func TestGetSourceMissingNameOrVariantParamErrors(t *testing.T) {
 		logger: logger,
 	}
 
-	serv.GetSourceData(ctx)
+	serv.SourceData(ctx)
 
 	var actualErrorMsg string
-	expectedMsg := "Error 400: Failed to fetch GetSourceData - Could not find the name or variant query parameters"
+	expectedMsg := "Error 400: Failed to fetch SourceData - Could not find the name or variant query parameters"
 	_ = json.Unmarshal(mockRecorder.Body.Bytes(), &actualErrorMsg)
 
 	assert.Equal(t, http.StatusBadRequest, mockRecorder.Code)
@@ -250,7 +249,7 @@ func TestGetSourceFaultyOrNilGrpcClientPanic(t *testing.T) {
 	}
 
 	didPanic := func() {
-		serv.GetSourceData(ctx)
+		serv.SourceData(ctx)
 	}
 
 	assert.Panics(t, didPanic)
@@ -317,7 +316,7 @@ func TestGetTaskRunsZeroResults(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	mstorage, err := ss.NewMemoryStorageImplementation()
 	if err != nil {
@@ -462,7 +461,7 @@ func TestGetFeatureVariants(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
@@ -522,7 +521,7 @@ func TestGetProviderNameTypeMap(t *testing.T) {
 	)
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
@@ -568,7 +567,7 @@ func TestGetTypeOwners(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
@@ -618,7 +617,7 @@ func TestGetSourceVariants(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
@@ -695,7 +694,7 @@ func TestGetLabelVariants(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
@@ -757,7 +756,7 @@ func TestGetProviders(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
@@ -818,7 +817,7 @@ func TestGetTrainingSetVariant(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
@@ -873,7 +872,7 @@ func TestGetTrainingSetVariant(t *testing.T) {
 func TestGetSearch_MissingQuery(t *testing.T) {
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	mstorage, err := ss.NewMemoryStorageImplementation()
 	if err != nil {
@@ -904,4 +903,91 @@ func TestGetSearch_MissingQuery(t *testing.T) {
 	_ = json.Unmarshal(mockRecorder.Body.Bytes(), &data)
 	assert.Equal(t, http.StatusInternalServerError, mockRecorder.Code)
 	assert.Contains(t, "Missing query", data)
+}
+
+func TestSanitizeColumnName(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    string
+		description string
+	}{
+		{
+			name:        "No special characters",
+			input:       "user_id",
+			expected:    "user_id",
+			description: "Should return the same column name",
+		},
+		{
+			name:        "Remove any quotes",
+			input:       "\"booker_country\"",
+			expected:    "booker_country",
+			description: "Should remove surrounding quotes",
+		},
+		{
+			name:        "Truncate long names",
+			input:       "did_you_ever_hear_the_tragedy_of_Darth_Plagueis_The_Wise",
+			expected:    "did_you_ever_hear_the_tragedy_...",
+			description: "Should truncate names longer than maxColumnNameLength",
+		},
+		{
+			name:        "Empty input",
+			input:       "",
+			expected:    "",
+			description: "Should return an empty string for empty input",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := sanitizeColumnName(tt.input)
+			assert.Equal(t, tt.expected, result, tt.description)
+		})
+	}
+}
+
+func TestFormatColumnWithType(t *testing.T) {
+	tests := []struct {
+		name        string
+		columnName  string
+		columnType  string
+		expected    string
+		description string
+	}{
+		{
+			name:        "Basic format",
+			columnName:  "user_name",
+			columnType:  "large_utf8",
+			expected:    "user_name(large_utf8)",
+			description: "Should format column name and type correctly",
+		},
+		{
+			name:        "Empty column name",
+			columnName:  "",
+			columnType:  "large_utf8",
+			expected:    "(large_utf8)",
+			description: "Should handle empty column name (should never happen)",
+		},
+		{
+			name:        "Empty column type",
+			columnName:  "username",
+			columnType:  "",
+			expected:    "username()",
+			description: "Should handle empty column type (should never happen)",
+		},
+		{
+			name:        "Both empty",
+			columnName:  "",
+			columnType:  "",
+			expected:    "()",
+			description: "Should handle both column name and type being empty (should never happen)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatColumnWithType(tt.columnName, tt.columnType)
+			assert.Equal(t, tt.expected, result, tt.description)
+		})
+	}
 }

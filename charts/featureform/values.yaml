@@ -57,7 +57,7 @@ slackApiChannel: ""
 
 k8sImagePullSecret: "regcred"
 
-# Storage Provider for the backend state. One of [etcd, psql, memory]
+# Storage Provider for the backend state. One of [psql, memory]
 stateProvider: "psql"
 
 # base url for the dashboard (used for constructing callback url)
@@ -75,24 +75,6 @@ embeddedIngress:
   enabled: false
 
 debug: true
-
-# These values override the values in the 3rd party ETCD chart
-etcd:
-  enabled: true
-  fullnameOverride: featureform-etcd
-  auth:
-    rbac:
-      rootPassword: "secretpassword"
-    token:
-      ttl: 100h
-  replicaCount: 3
-  extraEnvVarsCM: etcd-upgrade-configmap
-  removeMemberOnContainerTermination: false
-
-  host: featureform-etcd
-  port: 2379
-  username: "root"
-  password: "secretpassword"
 
 psql:
   user: "postgres"
@@ -258,11 +240,6 @@ metadata:
     maxReplicas: 100
     targetCPUUtilizationPercentage: 80
 
-# Configuration for the backup service
-backup:
-  enabled: false
-  schedule: "0 * * * *"
-
 # Logging:
 # For instructions to see the dashboard, check here:
 # https://artifacthub.io/packages/helm/grafana/loki-stack
@@ -306,6 +283,7 @@ icebergStreamer:
 # Configuration for iceberg proxy
 icebergProxy:
   port: 8086
+  host: iceberg-proxy
   image:
     name: iceberg-proxy
   replicaCount: 1

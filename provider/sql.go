@@ -279,6 +279,14 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 		logger.Errorw("id check failed", "error", err)
 		return nil, err
 	}
+
+	// Special casing Postgres, which doesn't actually register
+	// intermediate resource tables.
+	if _, ok := store.query.(*postgresSQLQueries); ok {
+		logger.Debug("Skipping registering resource due to Postgres")
+		return nil, nil
+	}
+
 	if exists, err := store.tableExistsForResourceId(id); err != nil {
 		logger.Errorw("table exists check failed", "error", err)
 		return nil, err
@@ -289,25 +297,23 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 	if err := schema.Validate(); err != nil {
 		logger.Errorw("schema validation failed")
 	}
-	//tableName, err := store.getResourceTableName(id)
-	//if err != nil {
-	//	logger.Errorw("table name generation failed", "error", err)
-	//	return nil, err
-	//}
+	tableName, err := store.getResourceTableName(id)
+	if err != nil {
+		logger.Errorw("table name generation failed", "error", err)
+		return nil, err
+	}
 
-	//if err := store.query.registerResources(store.db, tableName, schema); err != nil {
-	//	logger.Errorw("Register resources failed", "table", tableName, "schema", schema, "error", err)
-	//	return nil, err
-	//}
+	if err := store.query.registerResources(store.db, tableName, schema); err != nil {
+		logger.Errorw("Register resources failed", "table", tableName, "schema", schema, "error", err)
+		return nil, err
+	}
 
-	//return &sqlOfflineTable{
-	//	db:           store.db,
-	//	name:         tableName,
-	//	query:        store.query,
-	//	providerType: store.Type(),
-	//}, nil
-
-	return nil, nil
+	return &sqlOfflineTable{
+		db:           store.db,
+		name:         tableName,
+		query:        store.query,
+		providerType: store.Type(),
+	}, nil
 }
 
 func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {

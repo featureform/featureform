@@ -10,6 +10,7 @@ package provider
 import (
 	"testing"
 
+	helper "github.com/featureform/helpers/postgres"
 	pl "github.com/featureform/provider/location"
 	pt "github.com/featureform/provider/provider_type"
 )
@@ -63,7 +64,7 @@ func getConfiguredPostgresTester(t *testing.T, useCrossDBJoins bool) offlineSqlT
 
 	sanitizeTableName := func(obj pl.FullyQualifiedObject) string {
 		loc := pl.NewFullyQualifiedSQLLocation(obj.Database, obj.Schema, obj.Table).(*pl.SQLLocation)
-		return quotePostgresTable(*loc)
+		return helper.SanitizeLocation(*loc)
 	}
 
 	return offlineSqlTest{

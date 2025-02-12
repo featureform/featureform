@@ -10,6 +10,8 @@ package provider
 import (
 	"database/sql"
 	"fmt"
+	pl "github.com/featureform/provider/location"
+	db "github.com/jackc/pgx/v4"
 	"strings"
 	"text/template"
 	"time"
@@ -67,6 +69,16 @@ func postgresOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	return store, nil
 }
 
+func quotePostgresTable(obj pl.SQLLocation) string {
+	var parts []string
+	if obj.GetDatabase() != "" && obj.GetSchema() != "" {
+		parts = append(parts, obj.GetDatabase())
+		parts = append(parts, obj.GetSchema())
+	}
+	parts = append(parts, obj.GetTable())
+	return db.Identifier(parts).Sanitize()
+}
+
 type postgresSQLQueries struct {
 	defaultOfflineSQLQueries
 }
@@ -92,10 +104,10 @@ func (q postgresSQLQueries) materializationCreate(tableName string, schema Resou
 CREATE MATERIALIZED VIEW IF NOT EXISTS {{.tableName}} AS
 WITH OrderedSource AS (
   SELECT
-    "{{.entity}}" AS entity,
-    "{{.value}}" AS value,
+    {{.entity}} AS entity,
+    {{.value}} AS value,
     {{.tsSelectStatement}} AS ts,
-    ROW_NUMBER() OVER (PARTITION BY "{{.entity}}" {{.tsOrderByStatement}}) AS rn
+    ROW_NUMBER() OVER (PARTITION BY {{.entity}} {{.tsOrderByStatement}}) AS rn
   FROM {{.sourceLocation}}
 )
 SELECT
@@ -110,8 +122,8 @@ WHERE rn = 1
 
 	var tsSelectStatement, tsOrderByStatement string
 	if schema.TS != "" {
-		tsSelectStatement = fmt.Sprintf("\"%s\"", schema.TS)
-		tsOrderByStatement = fmt.Sprintf("ORDER BY \"%s\" DESC", schema.TS)
+		tsSelectStatement = fmt.Sprintf("%s", schema.TS)
+		tsOrderByStatement = fmt.Sprintf("ORDER BY %s DESC", schema.TS)
 	} else {
 		tsSelectStatement = fmt.Sprintf("to_timestamp('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMPTZ", time.UnixMilli(0).UTC())
 		tsOrderByStatement = ""
@@ -123,7 +135,8 @@ WHERE rn = 1
 		"value":              schema.Value,
 		"tsSelectStatement":  tsSelectStatement,
 		"tsOrderByStatement": tsOrderByStatement,
-		"sourceLocation":     sanitize(schema.SourceTable.Location()),
+		// TODO: Error checking for SQLLocation
+		"sourceLocation": quotePostgresTable(*schema.SourceTable.(*pl.SQLLocation)),
 	}
 
 	var sb strings.Builder

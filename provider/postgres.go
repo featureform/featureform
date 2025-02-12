@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/featureform/fferr"
@@ -78,15 +79,41 @@ func (q postgresSQLQueries) viewExists() string {
 	return "select count(*) from pg_views where viewname = $1 AND schemaname = CURRENT_SCHEMA()"
 }
 
-func (q postgresSQLQueries) registerResources(db *sql.DB, tableName string, schema ResourceSchema, timestamp bool) error {
-	var query string
-	if timestamp {
-		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, %s as ts FROM %s", sanitize(tableName),
-			sanitize(schema.Entity), sanitize(schema.Value), sanitize(schema.TS), sanitize(schema.SourceTable.Location()))
+func (q postgresSQLQueries) registerResources(db *sql.DB, tableName string, schema ResourceSchema) error {
+	const registerResourcesTemplate = `
+CREATE VIEW {{.tableName}} AS
+SELECT 
+  {{range .entities}}"{{.EntityColumn}}" AS entity_{{.Name}}, {{end}}
+  "{{.value}}" AS value,
+  {{.timestampQuery}} AS ts
+FROM {{.sourceLocation}}
+`
+	tmpl := template.Must(template.New("registerResourceTemplate").Parse(registerResourcesTemplate))
+
+	var ts string
+	if schema.TS != "" {
+		ts = fmt.Sprintf("\"%s\"", schema.EntityMappings.TimestampColumn)
 	} else {
-		query = fmt.Sprintf("CREATE VIEW %s AS SELECT %s as entity, %s as value, to_timestamp('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMPTZ as ts FROM %s", sanitize(tableName),
-			sanitize(schema.Entity), sanitize(schema.Value), time.UnixMilli(0).UTC(), sanitize(schema.SourceTable.Location()))
+		ts = fmt.Sprintf("to_timestamp('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMPTZ", time.UnixMilli(0).UTC())
 	}
+
+	values := map[string]any{
+		"tableName":      sanitize(tableName),
+		"entities":       schema.EntityMappings.Mappings,
+		"value":          schema.EntityMappings.ValueColumn,
+		"timestampQuery": ts,
+		"sourceLocation": sanitize(schema.SourceTable.Location()),
+	}
+
+	var sb strings.Builder
+	err := tmpl.Execute(&sb, values)
+	if err != nil {
+		wrapped := fferr.NewExecutionError("SQL", err)
+		wrapped.AddDetail("table_name", tableName)
+		return wrapped
+	}
+	query := sb.String()
+
 	fmt.Printf("Resource creation query: %s", query)
 	if _, err := db.Exec(query); err != nil {
 		wrapped := fferr.NewExecutionError(pt.PostgresOffline.String(), err)

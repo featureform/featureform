@@ -878,12 +878,6 @@ func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, opts Material
 	if id.Type != Feature {
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("received %s; only features can be materialized", id.Type))
 	}
-	// TODO: Should we check to see if it already exists?
-	//resTable, err := store.getsqlResourceTable(id)
-	//if err != nil {
-	//	return nil, err
-	//}
-
 	matID, err := NewMaterializationID(id)
 	if err != nil {
 		return nil, err

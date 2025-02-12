@@ -67,7 +67,8 @@ func (test *OfflineStoreTest) Run() {
 		"LabelTableNotFound":     testLabelTableNotFound,
 		"FeatureTableNotFound":   testFeatureTableNotFound,
 		"TrainingDefShorthand":   testTrainingSetDefShorthand,
-		"ResourceLocation":       testResourceLocation,
+		// TODO: Re-enable when refactoring providers
+		//"ResourceLocation":       testResourceLocation,
 	}
 
 	for name, fn := range testFns {

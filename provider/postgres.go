@@ -10,7 +10,9 @@ package provider
 import (
 	"database/sql"
 	"fmt"
+	"github.com/featureform/logging"
 	pl "github.com/featureform/provider/location"
+	tsq "github.com/featureform/provider/tsquery"
 	db "github.com/jackc/pgx/v4"
 	"strings"
 	"text/template"
@@ -208,43 +210,45 @@ func (q postgresSQLQueries) trainingSetUpdate(store *sqlOfflineStore, def Traini
 	return q.trainingSetQuery(store, def, tableName, labelName, true)
 }
 
-func (q postgresSQLQueries) trainingSetQuery(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string, isUpdate bool) error {
-	columns := make([]string, 0)
-	query := fmt.Sprintf(" (SELECT entity, value , ts from %s ) l ", sanitize(labelName))
-	for i, feature := range def.Features {
-		tableName, err := store.getResourceTableName(feature)
-		if err != nil {
-			return err
+func (q postgresSQLQueries) adaptTsDefToBuilderParams(def TrainingSetDef) (tsq.BuilderParams, error) {
+	sanitizeTableNameFn := func(loc pl.Location) (string, error) {
+		lblLoc, isSQLLocation := loc.(*pl.SQLLocation)
+		if !isSQLLocation {
+			return "", fferr.NewInternalErrorf("label location is not an SQL location")
 		}
-		santizedName := sanitize(tableName)
-		tableJoinAlias := fmt.Sprintf("t%d", i)
-		columns = append(columns, santizedName)
-		query = fmt.Sprintf("%s LEFT JOIN LATERAL (SELECT entity , value as %s, ts  FROM %s WHERE entity=l.entity and ts <= l.ts ORDER BY ts desc LIMIT 1) %s on %s.entity=l.entity ",
-			query, santizedName, santizedName, tableJoinAlias, tableJoinAlias)
-		if i == len(def.Features)-1 {
-			query = fmt.Sprintf("%s )", query)
-		}
+		return quotePostgresTable(*lblLoc), nil
 	}
-	columnStr := strings.Join(columns, ", ")
 
-	if !isUpdate {
-		fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", sanitize(tableName), columnStr, query)
-		if _, err := store.db.Exec(fullQuery); err != nil {
-			wrapped := fferr.NewResourceExecutionError(pt.PostgresOffline.String(), def.ID.Name, def.ID.Variant, fferr.ResourceType(def.ID.Type.String()), err)
-			wrapped.AddDetail("table_name", tableName)
-			wrapped.AddDetail("label_name", labelName)
-			return wrapped
-		}
-	} else {
-		tempName := sanitize(fmt.Sprintf("tmp_%s", tableName))
-		fullQuery := fmt.Sprintf("CREATE TABLE %s AS (SELECT %s, l.value as label FROM %s ", tempName, columnStr, query)
-		err := q.atomicUpdate(store.db, tableName, tempName, fullQuery)
-		if err != nil {
-			wrapped := fferr.NewResourceExecutionError(pt.PostgresOffline.String(), def.ID.Name, def.ID.Variant, fferr.ResourceType(def.ID.Type.String()), err)
-			wrapped.AddDetail("table_name", tableName)
-			wrapped.AddDetail("label_name", labelName)
-			return wrapped
-		}
+	// TODO: Create and pass in actual logger
+	logger := logging.NewLogger("postgres-temp")
+	return def.ToBuilderParams(logger, sanitizeTableNameFn)
+}
+
+func (q postgresSQLQueries) trainingSetQuery(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string, isUpdate bool) error {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("CREATE OR REPLACE TABLE %s AS ", sanitize(tableName)))
+
+	params, err := q.adaptTsDefToBuilderParams(def)
+	if err != nil {
+		return err
+	}
+
+	queryConfig := tsq.QueryConfig{
+		UseAsOfJoin: false,
+		QuoteChar:   "\"",
+		QuoteTable:  true,
+	}
+	ts := tsq.NewTrainingSet(queryConfig, params)
+	sql, err := ts.CompileSQL()
+	if err != nil {
+		return err
+	}
+	sb.WriteString(sql)
+	if _, err := store.db.Exec(sb.String()); err != nil {
+		wrapped := fferr.NewResourceExecutionError(pt.PostgresOffline.String(), def.ID.Name, def.ID.Variant, fferr.ResourceType(def.ID.Type.String()), err)
+		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("label_name", labelName)
+		return wrapped
 	}
 	return nil
 }

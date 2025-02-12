@@ -80,59 +80,64 @@ func (q postgresSQLQueries) viewExists() string {
 }
 
 func (q postgresSQLQueries) registerResources(db *sql.DB, tableName string, schema ResourceSchema) error {
-	const registerResourcesTemplate = `
-CREATE VIEW {{.tableName}} AS
-SELECT 
-  {{range .entities}}"{{.EntityColumn}}" AS entity_{{.Name}}, {{end}}
-  "{{.value}}" AS value,
-  {{.timestampQuery}} AS ts
-FROM {{.sourceLocation}}
-`
-	tmpl := template.Must(template.New("registerResourceTemplate").Parse(registerResourcesTemplate))
-
-	var ts string
-	if schema.TS != "" {
-		ts = fmt.Sprintf("\"%s\"", schema.EntityMappings.TimestampColumn)
-	} else {
-		ts = fmt.Sprintf("to_timestamp('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMPTZ", time.UnixMilli(0).UTC())
-	}
-
-	values := map[string]any{
-		"tableName":      sanitize(tableName),
-		"entities":       schema.EntityMappings.Mappings,
-		"value":          schema.EntityMappings.ValueColumn,
-		"timestampQuery": ts,
-		"sourceLocation": sanitize(schema.SourceTable.Location()),
-	}
-
-	var sb strings.Builder
-	err := tmpl.Execute(&sb, values)
-	if err != nil {
-		wrapped := fferr.NewExecutionError("SQL", err)
-		wrapped.AddDetail("table_name", tableName)
-		return wrapped
-	}
-	query := sb.String()
-
-	fmt.Printf("Resource creation query: %s", query)
-	if _, err := db.Exec(query); err != nil {
-		wrapped := fferr.NewExecutionError(pt.PostgresOffline.String(), err)
-		wrapped.AddDetail("table_name", tableName)
-		return wrapped
-	}
-	return nil
+	return fferr.NewInternalErrorf("Postgres Offline store does not support registering resources")
 }
 
 func (q postgresSQLQueries) primaryTableRegister(tableName string, sourceName string) string {
 	return fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM %s", sanitize(tableName), sanitize(sourceName))
 }
 
-func (q postgresSQLQueries) materializationCreate(tableName string, sourceName string) []string {
+func (q postgresSQLQueries) materializationCreate(tableName string, schema ResourceSchema) []string {
+	const materializationCreateTemplate = `
+CREATE MATERIALIZED VIEW IF NOT EXISTS {{.tableName}} AS
+WITH OrderedSource AS (
+  SELECT
+    "{{.entity}}" AS entity,
+    "{{.value}}" AS value,
+    {{.tsSelectStatement}} AS ts,
+    ROW_NUMBER() OVER (PARTITION BY "{{.entity}}" {{.tsOrderByStatement}}) AS rn
+  FROM {{.sourceLocation}}
+)
+SELECT
+  entity,
+  value,
+  ts,
+  ROW_NUMBER() OVER (ORDER BY (entity)) AS row_number
+FROM OrderedSource
+WHERE rn = 1
+`
+	tmpl := template.Must(template.New("materializationCreateTemplate").Parse(materializationCreateTemplate))
+
+	var tsSelectStatement, tsOrderByStatement string
+	if schema.TS != "" {
+		tsSelectStatement = fmt.Sprintf("\"%s\"", schema.TS)
+		tsOrderByStatement = fmt.Sprintf("ORDER BY \"%s\" DESC", schema.TS)
+	} else {
+		tsSelectStatement = fmt.Sprintf("to_timestamp('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMPTZ", time.UnixMilli(0).UTC())
+		tsOrderByStatement = ""
+	}
+
+	values := map[string]any{
+		"tableName":          sanitize(tableName),
+		"entity":             schema.Entity,
+		"value":              schema.Value,
+		"tsSelectStatement":  tsSelectStatement,
+		"tsOrderByStatement": tsOrderByStatement,
+		"sourceLocation":     sanitize(schema.SourceTable.Location()),
+	}
+
+	var sb strings.Builder
+	err := tmpl.Execute(&sb, values)
+	if err != nil {
+		panic("TODO: Refactor to make error-able")
+	}
+
 	return []string{
-		fmt.Sprintf(
-			"CREATE MATERIALIZED VIEW IF NOT EXISTS %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
-				"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
-				"AS rn FROM %s) t WHERE rn=1);", sanitize(tableName), sanitize(sourceName)),
+		sb.String(),
+		//fmt.Sprintf(
+		//	"CREATE MATERIALIZED VIEW IF NOT EXISTS %s AS (SELECT entity, value, ts, row_number() over(ORDER BY (SELECT NULL)) as row_number FROM "+
+		//		"(SELECT entity, ts, value, row_number() OVER (PARTITION BY entity ORDER BY ts desc) "+
+		//		"AS rn FROM %s) t WHERE rn=1);", sanitize(tableName), sanitize(sourceName)),
 		fmt.Sprintf("CREATE UNIQUE INDEX ON %s (entity);", sanitize(tableName)),
 	}
 }

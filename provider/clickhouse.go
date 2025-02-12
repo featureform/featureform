@@ -894,6 +894,8 @@ func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, opts M
 	if err != nil {
 		return nil, err
 	}
+	// TODO: Fix when we get to refactoring clickhouse
+	opts.Schema.SourceTable = pl.NewSQLLocation(resTable.name)
 	materializeQueries := store.query.materializationCreate(matTableName, opts.Schema)
 	for _, materializeQry := range materializeQueries {
 		_, err = store.db.Exec(materializeQry)

@@ -237,6 +237,8 @@ func getPostgresConfig(t *testing.T, dbName string) (pc.PostgresConfig, error) {
 		t.Fatalf("missing POSTGRES_PASSWORD variable")
 	}
 
+	schema := uuid.NewString()[:10]
+
 	postgresConfig := pc.PostgresConfig{
 		Host:     "localhost",
 		Port:     "5432",
@@ -244,6 +246,7 @@ func getPostgresConfig(t *testing.T, dbName string) (pc.PostgresConfig, error) {
 		Username: user,
 		Password: retriever.NewStaticValue[string](password),
 		SSLMode:  "disable",
+		Schema:   schema,
 	}
 
 	return postgresConfig, nil

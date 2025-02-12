@@ -202,12 +202,12 @@ func (q postgresSQLQueries) createValuePlaceholderString(columns []TableColumn) 
 	return strings.Join(placeholders, ", ")
 }
 
-func (q postgresSQLQueries) trainingSetCreate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
-	return q.trainingSetQuery(store, def, tableName, labelName, false)
+func (q postgresSQLQueries) trainingSetCreate(store *sqlOfflineStore, def TrainingSetDef, tableName string, _ string) error {
+	return q.trainingSetQuery(store, def, tableName, "", false)
 }
 
-func (q postgresSQLQueries) trainingSetUpdate(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string) error {
-	return q.trainingSetQuery(store, def, tableName, labelName, true)
+func (q postgresSQLQueries) trainingSetUpdate(store *sqlOfflineStore, def TrainingSetDef, tableName string, _ string) error {
+	return q.trainingSetQuery(store, def, tableName, "", true)
 }
 
 func (q postgresSQLQueries) adaptTsDefToBuilderParams(def TrainingSetDef) (tsq.BuilderParams, error) {
@@ -224,9 +224,9 @@ func (q postgresSQLQueries) adaptTsDefToBuilderParams(def TrainingSetDef) (tsq.B
 	return def.ToBuilderParams(logger, sanitizeTableNameFn)
 }
 
-func (q postgresSQLQueries) trainingSetQuery(store *sqlOfflineStore, def TrainingSetDef, tableName string, labelName string, isUpdate bool) error {
+func (q postgresSQLQueries) trainingSetQuery(store *sqlOfflineStore, def TrainingSetDef, tableName string, _ string, isUpdate bool) error {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("CREATE OR REPLACE TABLE %s AS ", sanitize(tableName)))
+	sb.WriteString(fmt.Sprintf("CREATE TABLE %s AS ", sanitize(tableName)))
 
 	params, err := q.adaptTsDefToBuilderParams(def)
 	if err != nil {
@@ -236,7 +236,7 @@ func (q postgresSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Trainin
 	queryConfig := tsq.QueryConfig{
 		UseAsOfJoin: false,
 		QuoteChar:   "\"",
-		QuoteTable:  true,
+		QuoteTable:  false,
 	}
 	ts := tsq.NewTrainingSet(queryConfig, params)
 	sql, err := ts.CompileSQL()
@@ -247,7 +247,6 @@ func (q postgresSQLQueries) trainingSetQuery(store *sqlOfflineStore, def Trainin
 	if _, err := store.db.Exec(sb.String()); err != nil {
 		wrapped := fferr.NewResourceExecutionError(pt.PostgresOffline.String(), def.ID.Name, def.ID.Variant, fferr.ResourceType(def.ID.Type.String()), err)
 		wrapped.AddDetail("table_name", tableName)
-		wrapped.AddDetail("label_name", labelName)
 		return wrapped
 	}
 	return nil

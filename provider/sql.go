@@ -1030,11 +1030,19 @@ func (store *sqlOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	if err := def.check(); err != nil {
 		return err
 	}
-	label, err := store.getsqlResourceTable(def.Label)
+
+	tableName, err := store.getTrainingSetName(def.ID)
 	if err != nil {
 		return err
 	}
-	tableName, err := store.getTrainingSetName(def.ID)
+
+	// Special casing Postgres, which is the only SQL provider that currently
+	// doesn't use resource tables.
+	if postgresQueries, ok := store.query.(*postgresSQLQueries); ok {
+		return postgresQueries.trainingSetCreate(store, def, tableName, "")
+	}
+
+	label, err := store.getsqlResourceTable(def.Label)
 	if err != nil {
 		return err
 	}

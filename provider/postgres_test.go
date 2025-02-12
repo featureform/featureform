@@ -59,20 +59,10 @@ func getConfiguredPostgresTester(t *testing.T, useCrossDBJoins bool) offlineSqlT
 		sqlOfflineStore: offlineStore.(*sqlOfflineStore),
 	}
 
-	t.Logf("Creating Parent Database: %s\n", dbName)
-
-	//err = storeTester.CreateDatabase(dbName)
-	//if err != nil {
-	//	t.Fatalf("could not create database: %s\n", err)
-	//}
-
-	//t.Cleanup(func() {
-	//	t.Logf("Dropping Parent Database: %s\n", dbName)
-	//	err := storeTester.DropDatabase(dbName)
-	//	if err != nil {
-	//		t.Logf("failed to cleanup database: %s\n", err)
-	//	}
-	//})
+	if err := storeTester.CreateSchema(postgresConfig.Database, postgresConfig.Schema); err != nil {
+		t.Fatalf("could not create schema: %s\n", err)
+	}
+	// TODO: Drop Schema
 
 	sanitizeTableName := func(obj pl.FullyQualifiedObject) string {
 		loc := pl.NewFullyQualifiedSQLLocation(obj.Database, obj.Schema, obj.Table).(*pl.SQLLocation)

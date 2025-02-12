@@ -10,17 +10,17 @@ package provider
 import (
 	"database/sql"
 	"fmt"
-	"github.com/featureform/logging"
-	pl "github.com/featureform/provider/location"
-	tsq "github.com/featureform/provider/tsquery"
-	db "github.com/jackc/pgx/v4"
 	"strings"
 	"text/template"
 	"time"
 
 	"github.com/featureform/fferr"
+	helper "github.com/featureform/helpers/postgres"
+	"github.com/featureform/logging"
+	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
+	tsq "github.com/featureform/provider/tsquery"
 	"github.com/featureform/provider/types"
 	_ "github.com/lib/pq"
 )
@@ -83,16 +83,6 @@ func postgresOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	return store, nil
 }
 
-func quotePostgresTable(obj pl.SQLLocation) string {
-	var parts []string
-	if obj.GetDatabase() != "" && obj.GetSchema() != "" {
-		parts = append(parts, obj.GetDatabase())
-		parts = append(parts, obj.GetSchema())
-	}
-	parts = append(parts, obj.GetTable())
-	return db.Identifier(parts).Sanitize()
-}
-
 type postgresSQLQueries struct {
 	defaultOfflineSQLQueries
 }
@@ -103,7 +93,9 @@ func (q postgresSQLQueries) tableExists() string {
 
 func (q postgresSQLQueries) viewExists() string {
 	// TODO: Putting the matview check here since we don't use views, but refactor this properly.
-	return "select count(*) from pg_matviews where matviewname = $1 AND schemaname = CURRENT_SCHEMA()"
+	return "select " +
+		"(select count(*) from pg_matviews where matviewname = $1 AND schemaname = CURRENT_SCHEMA())" +
+		"+ (select count(*) from pg_views where viewname = $1 AND schemaname = CURRENT_SCHEMA())"
 }
 
 func (q postgresSQLQueries) registerResources(db *sql.DB, tableName string, schema ResourceSchema) error {
@@ -151,7 +143,7 @@ WHERE rn = 1
 		"tsSelectStatement":  tsSelectStatement,
 		"tsOrderByStatement": tsOrderByStatement,
 		// TODO: Error checking for SQLLocation
-		"sourceLocation": quotePostgresTable(*schema.SourceTable.(*pl.SQLLocation)),
+		"sourceLocation": helper.SanitizeLocation(*schema.SourceTable.(*pl.SQLLocation)),
 	}
 
 	var sb strings.Builder
@@ -227,9 +219,9 @@ func (q postgresSQLQueries) adaptTsDefToBuilderParams(def TrainingSetDef) (tsq.B
 	sanitizeTableNameFn := func(loc pl.Location) (string, error) {
 		lblLoc, isSQLLocation := loc.(*pl.SQLLocation)
 		if !isSQLLocation {
-			return "", fferr.NewInternalErrorf("label location is not an SQL location")
+			return "", fferr.NewInternalErrorf("label location is not an SQL location, actual %T. %v", lblLoc, lblLoc)
 		}
-		return quotePostgresTable(*lblLoc), nil
+		return helper.SanitizeLocation(*lblLoc), nil
 	}
 
 	// TODO: Create and pass in actual logger

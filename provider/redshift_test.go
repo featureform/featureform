@@ -69,7 +69,7 @@ func TestOfflineStoreRedshift(t *testing.T) {
 		}
 	})
 
-	_, err := GetOfflineStore(pt.RedshiftOffline, serialRSConfig)
+	_, err = GetOfflineStore(pt.RedshiftOffline, serialRSConfig)
 	if err != nil {
 		t.Fatalf("could not initialize store: %s\n", err)
 	}

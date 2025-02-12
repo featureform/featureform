@@ -92,7 +92,6 @@ func (q postgresSQLQueries) tableExists() string {
 }
 
 func (q postgresSQLQueries) viewExists() string {
-	// TODO: Putting the matview check here since we don't use views, but refactor this properly.
 	return "select " +
 		"(select count(*) from pg_matviews where matviewname = $1 AND schemaname = CURRENT_SCHEMA())" +
 		"+ (select count(*) from pg_views where viewname = $1 AND schemaname = CURRENT_SCHEMA())"

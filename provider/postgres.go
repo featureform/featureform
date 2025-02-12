@@ -68,6 +68,18 @@ func postgresOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// We override the default getDb method, as when the db or schema
+	// is empty, we use the default one configured.
+	prevGetDb := store.getDb
+	store.getDb = func(database, schema string) (*sql.DB, error) {
+		if database == "" || schema == "" {
+			return prevGetDb(sc.Database, sc.Schema)
+		} else {
+			return prevGetDb(database, schema)
+		}
+	}
+
 	return store, nil
 }
 
@@ -90,7 +102,8 @@ func (q postgresSQLQueries) tableExists() string {
 }
 
 func (q postgresSQLQueries) viewExists() string {
-	return "select count(*) from pg_views where viewname = $1 AND schemaname = CURRENT_SCHEMA()"
+	// TODO: Putting the matview check here since we don't use views, but refactor this properly.
+	return "select count(*) from pg_matviews where matviewname = $1 AND schemaname = CURRENT_SCHEMA()"
 }
 
 func (q postgresSQLQueries) registerResources(db *sql.DB, tableName string, schema ResourceSchema) error {
@@ -226,7 +239,7 @@ func (q postgresSQLQueries) adaptTsDefToBuilderParams(def TrainingSetDef) (tsq.B
 
 func (q postgresSQLQueries) trainingSetQuery(store *sqlOfflineStore, def TrainingSetDef, tableName string, _ string, isUpdate bool) error {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("CREATE TABLE %s AS ", sanitize(tableName)))
+	sb.WriteString(fmt.Sprintf("CREATE MATERIALIZED VIEW %s AS ", sanitize(tableName)))
 
 	params, err := q.adaptTsDefToBuilderParams(def)
 	if err != nil {

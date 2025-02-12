@@ -38,6 +38,7 @@ func TestTransformations(t *testing.T) {
 	}{
 		{getConfiguredBigQueryTester(t, false)},
 		{getConfiguredSnowflakeTester(t, true)},
+		{getConfiguredPostgresTester(t, false)},
 	}
 
 	testSuite := map[string]func(t *testing.T, storeTester offlineSqlTest){
@@ -67,6 +68,7 @@ func TestMaterializations(t *testing.T) {
 	}{
 		{getConfiguredBigQueryTester(t, false)},
 		{getConfiguredSnowflakeTester(t, true)},
+		{getConfiguredPostgresTester(t, false)},
 	}
 
 	testSuite := map[string]func(t *testing.T, storeTester offlineSqlTest){
@@ -99,6 +101,9 @@ func TestTrainingSets(t *testing.T) {
 		},
 		{
 			getConfiguredSnowflakeTester(t, true),
+		},
+		{
+			getConfiguredPostgresTester(t, true),
 		},
 	}
 

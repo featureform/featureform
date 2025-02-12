@@ -19,22 +19,19 @@ func TestOfflineStorePostgres(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
-	postgresConfig, err := getPostgresConfig(t, "")
-	if err != nil {
-		t.Fatalf("could not get postgres config: %s\n", err)
-	}
+	// Disabling these tests, as the majority of them assume older behavior of providers
+	// (ex. utilizing deprecated ResourceSchema locations, etc.). Currently we just
+	// run the tests in correctness_tests instead.
 
-	store, err := GetOfflineStore(pt.PostgresOffline, postgresConfig.Serialize())
-	if err != nil {
-		t.Fatalf("could not initialize store: %s\n", err)
-	}
+	// TODO: Refactor the tests, and re-enable.
+	//postgresTester := getConfiguredPostgresTester(t, false)
+	//test := OfflineStoreTest{
+	//	t:     t,
+	//	store: postgresTester.storeTester,
+	//}
 
-	test := OfflineStoreTest{
-		t:     t,
-		store: store,
-	}
 	//test.Run()
-	test.RunSQL()
+	//test.RunSQL()
 }
 
 func getConfiguredPostgresTester(t *testing.T, useCrossDBJoins bool) offlineSqlTest {

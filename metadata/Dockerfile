@@ -38,7 +38,7 @@ COPY ./integrations/ ./integrations/
 COPY ./provider/ ./provider
 COPY ./config/ ./config/
 
-RUN go build ./metadata/main/server.go
+RUN go build ./metadata/server/server.go
 
 FROM alpine
 

@@ -83,7 +83,6 @@ func TestPostgresCastTableItemType(t *testing.T) {
 
 	testTime := time.Date(2025, time.February, 13, 12, 0, 0, 0, time.UTC)
 
-	// Table-driven test cases.
 	testCases := []struct {
 		name     string
 		input    interface{}

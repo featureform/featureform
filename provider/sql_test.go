@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCastTableItem(t *testing.T) {
+func TestDefaultCastTableItemType(t *testing.T) {
 	q := defaultOfflineSQLQueries{}
 
 	type testCase struct {

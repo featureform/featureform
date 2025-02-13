@@ -9,6 +9,9 @@ package provider
 
 import (
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
 
 	helper "github.com/featureform/helpers/postgres"
 	pl "github.com/featureform/provider/location"
@@ -72,5 +75,76 @@ func getConfiguredPostgresTester(t *testing.T, useCrossDBJoins bool) offlineSqlT
 		testCrossDbJoins:    useCrossDBJoins,
 		transformationQuery: "SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
 		sanitizeTableName:   sanitizeTableName,
+	}
+}
+
+func TestPostgresCastTableItemType(t *testing.T) {
+	q := postgresSQLQueries{}
+
+	testTime := time.Date(2025, time.February, 13, 12, 0, 0, 0, time.UTC)
+
+	// Table-driven test cases.
+	testCases := []struct {
+		name     string
+		input    interface{}
+		typeSpec interface{}
+		expected interface{}
+	}{
+		{
+			name:     "Nil input returns nil",
+			input:    nil,
+			typeSpec: pgInt,
+			expected: nil,
+		},
+		{
+			name:     "pgInt conversion",
+			input:    int64(42),
+			typeSpec: pgInt,
+			expected: int32(42),
+		},
+		{
+			name:     "pgBigInt conversion",
+			input:    int64(42),
+			typeSpec: pgBigInt,
+			expected: 42,
+		},
+		{
+			name:     "pgFloat conversion",
+			input:    3.14,
+			typeSpec: pgFloat,
+			expected: 3.14,
+		},
+		{
+			name:     "pgString conversion",
+			input:    "hello",
+			typeSpec: pgString,
+			expected: "hello",
+		},
+		{
+			name:     "pgBool conversion",
+			input:    true,
+			typeSpec: pgBool,
+			expected: true,
+		},
+		{
+			name:     "pgTimestamp conversion",
+			input:    testTime,
+			typeSpec: pgTimestamp,
+			expected: testTime,
+		},
+		{
+			name:     "Default case returns input unchanged",
+			input:    "unchanged",
+			typeSpec: "unknown", // an unrecognized type specifier
+			expected: "unchanged",
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			result := q.castTableItemType(tc.input, tc.typeSpec)
+			assert.Equal(t, tc.expected, result)
+		})
 	}
 }

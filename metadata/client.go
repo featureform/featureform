@@ -1167,7 +1167,6 @@ func (client *Client) GetProviders(ctx context.Context, providers []string) ([]*
 		logger.Errorw("Failed to get providers", "providers", providers, "error", err)
 		return nil, err
 	}
-	logger.Info(logging.GetRequestIDFromContext(ctx).String())
 	go func() {
 		for _, provider := range providers {
 			stream.Send(&pb.NameRequest{Name: &pb.Name{Name: provider}, RequestId: logging.GetRequestIDFromContext(ctx).String()})

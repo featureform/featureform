@@ -29,6 +29,31 @@ env:
   FIRESTORE_CREDENTIALS: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
 
 jobs:
+  jest-tests:
+    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event.inputs.run_job == 'jest-tests') }}
+    name: Run Jest Tests
+    defaults:
+      run:
+        working-directory: ./dashboard/
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: "Setup Node"
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: "npm"
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm i
+
+      - name: Run Jest
+        run: npm test
+
   go-tests:
     if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event.inputs.run_job == 'go-tests') }}
     name: Run Go Tests

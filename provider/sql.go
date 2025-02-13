@@ -20,6 +20,9 @@ import (
 
 	sf "github.com/snowflakedb/gosnowflake"
 
+	"github.com/google/uuid"
+	db "github.com/jackc/pgx/v4"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -28,8 +31,6 @@ import (
 	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
-	"github.com/google/uuid"
-	db "github.com/jackc/pgx/v4"
 )
 
 func sanitize(ident string) string {
@@ -1936,6 +1937,12 @@ func (q defaultOfflineSQLQueries) trainingSetUpdate(store *sqlOfflineStore, def 
 }
 
 func (q defaultOfflineSQLQueries) castTableItemType(v interface{}, t interface{}) interface{} {
+	logger := logging.GlobalLogger.With("function", "castTableItemType")
+	if v == nil {
+		logger.Debugw("Value is nil")
+		return nil
+	}
+
 	switch t {
 	case sfInt, sfNumber:
 		if intVar, err := strconv.Atoi(v.(string)); err != nil {

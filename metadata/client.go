@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/featureform/config"
 	"github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	"github.com/featureform/scheduling"
@@ -25,11 +26,6 @@ import (
 
 	help "github.com/featureform/helpers/notifications"
 
-	"github.com/featureform/fferr"
-	"github.com/featureform/logging"
-	pb "github.com/featureform/metadata/proto"
-	pl "github.com/featureform/provider/location"
-	"github.com/featureform/provider/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	grpc_status "google.golang.org/grpc/status"
@@ -37,6 +33,12 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/featureform/fferr"
+	"github.com/featureform/logging"
+	pb "github.com/featureform/metadata/proto"
+	pl "github.com/featureform/provider/location"
+	"github.com/featureform/provider/types"
 )
 
 type NameVariant struct {
@@ -258,6 +260,17 @@ type ResourceVariantColumns struct {
 	Value  string
 	TS     string
 	Source string
+}
+
+type EntityMapping struct {
+	Name         string
+	EntityColumn string
+}
+
+type EntityMappings struct {
+	Mappings        []EntityMapping
+	ValueColumn     string
+	TimestampColumn string
 }
 
 func (c ResourceVariantColumns) SerializeFeatureColumns() *pb.FeatureVariant_Columns {
@@ -629,6 +642,7 @@ type TrainingSetDef struct {
 	Features    NameVariants
 	Tags        Tags
 	Properties  Properties
+	Type        TrainingSetType
 }
 
 func (def TrainingSetDef) ResourceType() ResourceType {
@@ -657,6 +671,7 @@ func (def TrainingSetDef) Serialize(requestID logging.RequestID) *pb.TrainingSet
 			Schedule:    def.Schedule,
 			Tags:        &pb.Tags{Tag: def.Tags},
 			Properties:  def.Properties.Serialize(),
+			Type:        TrainingSetTypeToProto(def.Type),
 		},
 		RequestId: requestID.String(),
 	}
@@ -1135,7 +1150,7 @@ func (client *Client) ListProviders(ctx context.Context) ([]*Provider, error) {
 
 func (client *Client) GetProvider(ctx context.Context, provider string) (*Provider, error) {
 	if provider == "" {
-		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("provider cannot be empty"))
+		return nil, fferr.NewInvalidArgumentErrorf("provider cannot be empty")
 	}
 
 	providerList, err := client.GetProviders(ctx, []string{provider})
@@ -1274,7 +1289,6 @@ func (def EntityDef) ResourceType() ResourceType {
 	return ENTITY
 }
 
-// ToResourceID
 func (def EntityDef) ResourceID() ResourceID {
 	return ResourceID{
 		Name: def.Name,
@@ -1737,6 +1751,30 @@ func (fn fetchPropertiesFn) Properties() Properties {
 	return properties
 }
 
+type offlineStoreLocationsGetter interface {
+	GetOfflineStoreLocations() []*pb.Location
+}
+
+type fetchOfflineStoreLocationsFn struct {
+	getter offlineStoreLocationsGetter
+}
+
+type offlineStoreProviderGetter interface {
+	GetOfflineStoreProvider() string
+}
+
+type fetchOfflineStoreProviderFn struct {
+	getter offlineStoreProviderGetter
+}
+
+func (fn fetchOfflineStoreProviderFn) OfflineStoreProvider() string {
+	return fn.getter.GetOfflineStoreProvider()
+}
+
+func (fn fetchOfflineStoreProviderFn) FetchOfflineStoreProvider(client *Client, ctx context.Context) (*Provider, error) {
+	return client.GetProvider(ctx, fn.OfflineStoreProvider())
+}
+
 type serializedConfigGetter interface {
 	GetSerializedConfig() []byte
 }
@@ -1767,6 +1805,18 @@ func (fn fetchMaxJobDurationFn) MaxJobDuration() time.Duration {
 	return duration.AsDuration()
 }
 
+type entityGetter interface {
+	GetEntity() string
+}
+
+type fetchEntityFn struct {
+	getter entityGetter
+}
+
+func (fn fetchEntityFn) Entity() string {
+	return fn.getter.GetEntity()
+}
+
 type Feature struct {
 	serialized *pb.Feature
 	variantsFns
@@ -1795,19 +1845,23 @@ type FeatureVariant struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
+	fetchOfflineStoreProviderFn
+	fetchOfflineStoreLocationsFn
 }
 
 func WrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 	return &FeatureVariant{
-		serialized:           serialized,
-		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
-		fetchProviderFns:     fetchProviderFns{serialized},
-		fetchSourceFns:       fetchSourceFns{serialized},
-		createdFn:            createdFn{serialized},
-		lastUpdatedFn:        lastUpdatedFn{serialized},
-		protoStringer:        protoStringer{serialized},
-		fetchTagsFn:          fetchTagsFn{serialized},
-		fetchPropertiesFn:    fetchPropertiesFn{serialized},
+		serialized:                   serialized,
+		fetchTrainingSetsFns:         fetchTrainingSetsFns{serialized},
+		fetchProviderFns:             fetchProviderFns{serialized},
+		fetchSourceFns:               fetchSourceFns{serialized},
+		createdFn:                    createdFn{serialized},
+		lastUpdatedFn:                lastUpdatedFn{serialized},
+		protoStringer:                protoStringer{serialized},
+		fetchTagsFn:                  fetchTagsFn{serialized},
+		fetchPropertiesFn:            fetchPropertiesFn{serialized},
+		fetchOfflineStoreProviderFn:  fetchOfflineStoreProviderFn{serialized},
+		fetchOfflineStoreLocationsFn: fetchOfflineStoreLocationsFn{serialized},
 	}
 }
 
@@ -1970,6 +2024,14 @@ func (variant *FeatureVariant) LocationStream() interface{} {
 		OfflineProvider: src.OfflineProvider,
 	}
 	return stream
+}
+
+func (variant *FeatureVariant) GetOfflineStoreProvider() string {
+	return variant.serialized.GetOfflineStoreProvider()
+}
+
+func (variant *FeatureVariant) GetOfflineStoreLocations() []*pb.Location {
+	return variant.serialized.GetOfflineStoreLocations()
 }
 
 func (variant *FeatureVariant) Tags() Tags {
@@ -2271,6 +2333,7 @@ type LabelVariant struct {
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
+	fetchEntityFn
 }
 
 func WrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
@@ -2283,6 +2346,7 @@ func WrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
 		protoStringer:        protoStringer{serialized},
 		fetchTagsFn:          fetchTagsFn{serialized},
 		fetchPropertiesFn:    fetchPropertiesFn{serialized},
+		fetchEntityFn:        fetchEntityFn{serialized},
 	}
 }
 
@@ -2343,8 +2407,43 @@ func (variant *LabelVariant) Error() string {
 	return ""
 }
 
-func (variant *LabelVariant) Location() interface{} {
-	return variant.serialized.GetLocation()
+func (variant *LabelVariant) IsLegacyLocation() bool {
+	loc := variant.serialized.GetLocation()
+	if _, isColumnsLocations := loc.(*pb.LabelVariant_Columns); isColumnsLocations {
+		return true
+	}
+	return false
+}
+
+// Location returns either Columns, which is now deprecated but could still be in use in users storage provider, or EntityMappings.
+func (variant *LabelVariant) Location() (EntityMappings, error) {
+	logger := logging.GlobalLogger.With("label_name", variant.Name(), "label_variant", variant.Name())
+	switch loc := variant.serialized.GetLocation().(type) {
+	case *pb.LabelVariant_Columns:
+		logger.Debugw("Using deprecated location type", "location", loc)
+		return EntityMappings{
+			Mappings:        []EntityMapping{{Name: variant.Entity(), EntityColumn: loc.Columns.Entity}},
+			ValueColumn:     loc.Columns.Value,
+			TimestampColumn: loc.Columns.Ts,
+		}, nil
+	case *pb.LabelVariant_EntityMappings:
+		logger.Debugw("Using entity mappings location type", "location", loc)
+		mappings := make([]EntityMapping, 0)
+		for _, mapping := range loc.EntityMappings.Mappings {
+			mappings = append(mappings, EntityMapping{
+				Name:         mapping.Name,
+				EntityColumn: mapping.EntityColumn,
+			})
+		}
+		return EntityMappings{
+			Mappings:        mappings,
+			ValueColumn:     loc.EntityMappings.ValueColumn,
+			TimestampColumn: loc.EntityMappings.TimestampColumn,
+		}, nil
+	default:
+		logger.Errorw("Unknown or unsupported location type", "location", loc)
+		return EntityMappings{}, fferr.NewInternalErrorf("Unknown or unsupported location type %T", loc)
+	}
 }
 
 func (variant *LabelVariant) isTable() bool {
@@ -2352,12 +2451,18 @@ func (variant *LabelVariant) isTable() bool {
 }
 
 func (variant *LabelVariant) LocationColumns() interface{} {
+	logger := logging.GlobalLogger.With("label_name", variant.Name(), "label_variant", variant.Name())
 	src := variant.serialized.GetColumns()
+	if src == nil {
+		logger.Errorw("Columns location is nil")
+		return nil
+	}
 	columns := ResourceVariantColumns{
 		Entity: src.Entity,
 		Value:  src.Value,
 		TS:     src.Ts,
 	}
+	logger.Debugw("Deprecated location columns", "columns", columns)
 	return columns
 }
 
@@ -2499,6 +2604,16 @@ func (variant *TrainingSetVariant) ResourceSnowflakeConfig() (*ResourceSnowflake
 	return getResourceSnowflakeConfig(variant.serialized)
 }
 
+func (variant *TrainingSetVariant) TrainingSetType() TrainingSetType {
+	logger := logging.GlobalLogger.Named("TrainingSetType")
+	typ, err := TrainingSetTypeFromProto(variant.serialized.GetType())
+	if err != nil {
+		logger.Errorw("Failed to get training set type; returning default DynamicTrainingSet", "error", err)
+		return DynamicTrainingSet
+	}
+	return typ
+}
+
 type Source struct {
 	serialized *pb.Source
 	variantsFns
@@ -2571,6 +2686,7 @@ func (arg KubernetesArgs) Type() TransformationArgType {
 
 type RefreshMode string
 type Initialize string
+type TrainingSetType string
 
 const (
 	AutoRefresh        RefreshMode = "AUTO" // Default
@@ -2579,6 +2695,10 @@ const (
 
 	InitializeOnCreate   Initialize = "ON_CREATE" // Default
 	InitializeOnSchedule Initialize = "ON_SCHEDULE"
+
+	DynamicTrainingSet TrainingSetType = "DYNAMIC"
+	StaticTrainingSet  TrainingSetType = "STATIC"
+	ViewTrainingSet    TrainingSetType = "VIEW"
 )
 
 func RefreshModeFromProto(proto pb.RefreshMode) (RefreshMode, error) {
@@ -2634,6 +2754,54 @@ func InitializeFromString(initialize string) (Initialize, error) {
 		return InitializeOnSchedule, nil
 	default:
 		return "", fferr.NewInvalidArgumentErrorf("Invalid initialize mode %s", initialize)
+	}
+}
+
+func TrainingSetTypeFromProto(proto pb.TrainingSetType) (TrainingSetType, error) {
+	logger := logging.GlobalLogger.Named("TrainingSetTypeFromProto")
+	var trainingSetType TrainingSetType
+	switch proto {
+	case pb.TrainingSetType_TRAINING_SET_TYPE_DYNAMIC:
+		trainingSetType = DynamicTrainingSet
+	case pb.TrainingSetType_TRAINING_SET_TYPE_STATIC:
+		trainingSetType = StaticTrainingSet
+	case pb.TrainingSetType_TRAINING_SET_TYPE_VIEW:
+		trainingSetType = ViewTrainingSet
+	case pb.TrainingSetType_TRAINING_SET_TYPE_UNSPECIFIED:
+		logger.DPanic("Training set type unspecified")
+		return trainingSetType, fferr.NewInvalidArgumentErrorf("Training set type unspecified")
+	default:
+		logger.DPanic("Unknown training set type", "proto", proto)
+		return trainingSetType, fferr.NewInternalErrorf("Unknown training set type %v", proto)
+	}
+	return trainingSetType, nil
+}
+
+func TrainingSetTypeFromString(trainingSetType string) (TrainingSetType, error) {
+	logger := logging.GlobalLogger.Named("TrainingSetTypeFromString")
+	switch trainingSetType {
+	case "DYNAMIC":
+		return DynamicTrainingSet, nil
+	case "STATIC":
+		return StaticTrainingSet, nil
+	case "VIEW":
+		return ViewTrainingSet, nil
+	default:
+		logger.DPanic("Invalid training set type", "trainingSetType", trainingSetType)
+		return "", fferr.NewInvalidArgumentErrorf("Invalid training set type %s", trainingSetType)
+	}
+}
+
+func TrainingSetTypeToProto(trainingSetType TrainingSetType) pb.TrainingSetType {
+	switch trainingSetType {
+	case DynamicTrainingSet:
+		return pb.TrainingSetType_TRAINING_SET_TYPE_DYNAMIC
+	case StaticTrainingSet:
+		return pb.TrainingSetType_TRAINING_SET_TYPE_STATIC
+	case ViewTrainingSet:
+		return pb.TrainingSetType_TRAINING_SET_TYPE_VIEW
+	default:
+		return pb.TrainingSetType_TRAINING_SET_TYPE_UNSPECIFIED
 	}
 }
 
@@ -3100,6 +3268,32 @@ func (variant *SourceVariant) GetTransformationLocation() (pl.Location, error) {
 	}
 }
 
+// helper function to get SourceVariant location based on sourceVariant type (primary, sql, dft)
+// returns error if type not listed
+func (variant *SourceVariant) GetLocation(ctx context.Context) (pl.Location, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	switch {
+	case variant.IsSQLTransformation() || variant.IsDFTransformation():
+		logger.Info("GetLocation() source variant is sql/dft transformation, getting transform location...")
+		location, locationErr := variant.GetTransformationLocation()
+		if locationErr != nil {
+			logger.Errorw("Failed to get transformation location", "error", locationErr)
+		}
+		return location, locationErr
+	case variant.IsPrimaryData():
+		logger.Info("GetLocation() source variant is primary data, getting primary location...")
+		location, locationErr := variant.GetPrimaryLocation()
+		if locationErr != nil {
+			logger.Errorw("Failed to get primary location", "error", locationErr)
+		}
+		return location, locationErr
+	default:
+		defaultErr := fferr.NewInternalErrorf("Unknown source variant type for %s-%s", variant.Name(), variant.Variant())
+		logger.Errorw("GetLocation() Unknown source variant type, returning error", "error", defaultErr)
+		return nil, defaultErr
+	}
+}
+
 func (variant *SourceVariant) SparkFlags() pc.SparkFlags {
 	if !variant.IsTransformation() {
 		return pc.SparkFlags{}
@@ -3214,7 +3408,7 @@ func NewClient(host string, logger logging.Logger) (*Client, error) {
 	}
 	metadataClient := pb.NewMetadataClient(conn)
 	tasksClient := sch.NewTasksClient(conn)
-	slackNotifier := help.NewSlackNotifier(os.Getenv("SLACK_CHANNEL_ID"), logger)
+	slackNotifier := help.NewSlackNotifier(os.Getenv(config.EnvSlackChannelId), logger)
 	return &Client{
 		Logger:   logger,
 		conn:     conn,

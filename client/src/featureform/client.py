@@ -241,7 +241,11 @@ class Client(ResourceClient, ServingClient):
         }
 
         protocol = "grpc+tcp" if self._insecure else "grpc+tls"
-        host, port = self._host.split(":")
+        parts = self._host.split(":")
+        if len(parts) == 2:
+            host, port = parts
+        else:
+            host, port = self._host, "443"
         if port != "443":
             # is single docker mode, point directly to proxy port
             port = "8086"
@@ -256,12 +260,13 @@ class Client(ResourceClient, ServingClient):
         if not self._insecure:
             print("Secure connection enabled")
             cert_path = self._cert_path or os.getenv("FEATUREFORM_CERT")
-            if not os.path.exists(cert_path):
-                raise FileNotFoundError(f"TLS certificate not found at {cert_path}")
-
-            with open(cert_path, "rb") as f:
-                tls_root_certs = f.read()
-                client_kwargs["tls_root_certs"] = tls_root_certs
+            if cert_path is not None:
+                if not os.path.exists(cert_path):
+                    raise FileNotFoundError(f"TLS certificate not found at {cert_path}")
+                print(f"Using cert at {cert_path}")
+                with open(cert_path, "rb") as f:
+                    tls_root_certs = f.read()
+                    client_kwargs["tls_root_certs"] = tls_root_certs
 
         flight_client = flight.connect(flight_address, **client_kwargs)
 
@@ -827,27 +832,7 @@ class Client(ResourceClient, ServingClient):
         """
 
         provider = self.__get_provider(name)
-        config = provider.serialized_config
-        deserialized_config = json.loads(config.decode("utf-8"))
-
-        if deserialized_config["Credentials"]["Type"] == AWSStaticCredentials.type():
-            credentials = AWSStaticCredentials(
-                deserialized_config["Credentials"]["AccessKeyId"],
-                deserialized_config["Credentials"]["SecretKey"],
-            )
-        elif (
-            deserialized_config["Credentials"]["Type"]
-            == AWSAssumeRoleCredentials.type()
-        ):
-            credentials = AWSAssumeRoleCredentials()
-        else:
-            raise ValueError("Invalid Credentials Type")
-
-        dynamodb_config = DynamodbConfig(
-            region=deserialized_config["Region"],
-            credentials=credentials,
-            should_import_from_s3=deserialized_config["ImportFromS3"],
-        )
+        dynamodb_config = DynamodbConfig.deserialize(provider.serialized_config)
 
         online_provider = self.__create_provider(
             provider.name,

@@ -13,7 +13,6 @@ import sys
 
 import dill
 import pandas as pd
-import psutil
 import pytest
 
 sys.path.insert(0, "client/src/")
@@ -285,7 +284,7 @@ def emr_config(aws_credentials):
 def spark_executor():
     master = "local"
     deploy_mode = "cluster"
-    python_version = "3.7.16"
+    python_version = "3.9.16"
 
     config = SparkCredentials(master, deploy_mode, python_version)
 
@@ -304,7 +303,7 @@ def spark_executor():
 def spark_executor_incorrect_deploy_mode():
     master = "local"
     deploy_mode = "featureform"
-    python_version = "3.7.16"
+    python_version = "3.9.16"
 
     config = SparkCredentials(master, deploy_mode, python_version)
 
@@ -359,17 +358,6 @@ def setup_teardown():
 
 
 def del_rw(action, name, exc):
-    database = ".featureform/SQLiteDB/metadata.db"
-    if os.path.exists(database):
-        for proc in psutil.process_iter():
-            try:
-                for item in proc.open_files():
-                    if database == item.path:
-                        proc.kill()
-            except Exception as e:
-                continue
-
-    # Now try to delete the file
     try:
         os.remove(name)
     except OSError as e:
@@ -422,9 +410,6 @@ def hosted_sql_provider_and_source():
 @pytest.fixture(scope="module")
 def docker_deployment_config():
     environment_variables = {}
-    is_mac_m1_chip = platform.machine() == "arm64" and platform.system() == "Darwin"
-    if is_mac_m1_chip:
-        environment_variables["ETCD_ARCH"] = "ETCD_UNSUPPORTED_ARCH=arm64"
     featureform_config = DOCKER_CONFIG(
         name="featureform",
         image="featureformcom/featureform:latest",
@@ -438,9 +423,6 @@ def docker_deployment_config():
 @pytest.fixture(scope="module")
 def docker_quickstart_deployment_config():
     environment_variables = {}
-    is_mac_m1_chip = platform.machine() == "arm64" and platform.system() == "Darwin"
-    if is_mac_m1_chip:
-        environment_variables["ETCD_ARCH"] = "ETCD_UNSUPPORTED_ARCH=arm64"
     featureform_config = DOCKER_CONFIG(
         name="featureform",
         image="featureformcom/featureform:latest",

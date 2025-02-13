@@ -57,6 +57,7 @@ COPY api/ api/
 COPY lib/ lib/
 COPY helpers/ helpers/
 COPY metadata/ metadata/
+COPY db/ db/
 COPY metrics/ metrics/
 COPY proto/ proto/
 COPY coordinator/ coordinator/

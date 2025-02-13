@@ -31,7 +31,7 @@ func TestMaterializationRunner(t *testing.T) {
 	// force the factory to exist by calling this directly.
 	ResetFactoryMap()
 	registerFactories()
-	dynamodb := provider.GetTestingDynamoDB(t)
+	dynamodb := provider.GetTestingDynamoDB(t, map[string]string{})
 	dbrix := provider.GetTestingS3Databricks(t)
 	t.Run("dbrix_to_dynamo", func(t *testing.T) {
 		testMaterializationRunner(t, dbrix, dynamodb)

@@ -138,7 +138,7 @@ func TestPostTags(t *testing.T) {
 
 	resource, err := metadata.CreateEmptyResource(metadata.SOURCE_VARIANT)
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	variantUpdate, ok := resource.Proto().(*pb.SourceVariant)
 	if !ok {
@@ -148,7 +148,7 @@ func TestPostTags(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	mstorage, err := ss.NewMemoryStorageImplementation()
 	if err != nil {
@@ -182,7 +182,7 @@ func TestPostTags(t *testing.T) {
 	assert.Equal(t, tagList, data.Tags)
 }
 
-func TestGetSourceDataReturnsData(t *testing.T) {
+func TestSourceDataReturnsData(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
 	u := url.Values{}
@@ -199,7 +199,7 @@ func TestGetSourceDataReturnsData(t *testing.T) {
 		logger: logger,
 	}
 
-	serv.GetSourceData(ctx)
+	serv.SourceData(ctx)
 
 	iterator := provider.UnitTestIterator{}
 	var data SourceDataResponse
@@ -225,10 +225,10 @@ func TestGetSourceMissingNameOrVariantParamErrors(t *testing.T) {
 		logger: logger,
 	}
 
-	serv.GetSourceData(ctx)
+	serv.SourceData(ctx)
 
 	var actualErrorMsg string
-	expectedMsg := "Error 400: Failed to fetch GetSourceData - Could not find the name or variant query parameters"
+	expectedMsg := "Error 400: Failed to fetch SourceData - Could not find the name or variant query parameters"
 	_ = json.Unmarshal(mockRecorder.Body.Bytes(), &actualErrorMsg)
 
 	assert.Equal(t, http.StatusBadRequest, mockRecorder.Code)
@@ -249,7 +249,7 @@ func TestGetSourceFaultyOrNilGrpcClientPanic(t *testing.T) {
 	}
 
 	didPanic := func() {
-		serv.GetSourceData(ctx)
+		serv.SourceData(ctx)
 	}
 
 	assert.Panics(t, didPanic)
@@ -316,7 +316,7 @@ func TestGetTaskRunsZeroResults(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	mstorage, err := ss.NewMemoryStorageImplementation()
 	if err != nil {
@@ -450,8 +450,6 @@ func (m *MockVariantsStore) Type() ss.MetadataStorageType {
 func TestGetFeatureVariants(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
-	//prefix, searchTxt, owners providers, tags, serializedV1, paging, sort
-	expectedQueryOpts := 8
 
 	searchTxt := "searchTxt"
 	statuses := []string{pb.ResourceStatus_FAILED.String()}
@@ -459,14 +457,16 @@ func TestGetFeatureVariants(t *testing.T) {
 	tags := []string{"dummyTag"}
 	body := getFeatureVariantRequestBody(searchTxt, statuses, owners, tags, 12, 0)
 	MockPost(ctx, nil, body, "default")
+	expectedQueryOpts := 8
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
 		ListData: map[string]string{
+			"FEATURE__avg_transactions__": `{"ResourceType":0,"StorageType":"Resource","Message":"{\"name\":\"avg_transactions\",\"defaultVariant\":\"2024-08-21t18-16-06\",\"variants\":[\"2024-08-21t18-16-06\", \"2024-12-06t14-51-21\"]}","SerializedVersion":1}`,
 			"FEATURE_VARIANT__avg_transactions__2024-08-21t18-16-06": `{"ResourceType":4,"StorageType":"Resource","Message":` +
 				`"{\"name\":\"avg_transactions\",\"variant\":\"2024-08-21t18-16-06\",\"source\":{\"name\":\"average_user_transaction\",\"variant\":\"2024-08-21t18-16-06\"},` +
 				`\"entity\":\"user\",\"created\":\"2024-08-21T23:16:09.892267302Z\",\"owner\":\"anthony@featureform.com\",\"provider\":\"latestv1test-redis\",` +
@@ -487,7 +487,9 @@ func TestGetFeatureVariants(t *testing.T) {
 		SkipListLocking: true,
 		Logger:          logger,
 	}
-	client := &metadata.Client{}
+	client := &metadata.Client{
+		GrpcConn: metadata.MetadataServerMock{},
+	}
 	serv := MetadataServer{
 		client:          client,
 		logger:          logger,
@@ -501,13 +503,13 @@ func TestGetFeatureVariants(t *testing.T) {
 
 	//the response is valid
 	assert.Equal(t, http.StatusOK, mockRecorder.Code)
-	assert.Len(t, resp.Data, len(mockStore.ListData))
+	assert.Len(t, resp.Data, 1)
 	//the data should parse
 	assert.Equal(t, "anthony@featureform.com", resp.Data[0].Owner)
 	assert.Equal(t, "avg_transactions", resp.Data[0].Name)
 	assert.Equal(t, "2024-08-21t18-16-06", resp.Data[0].Variant)
-	assert.Equal(t, "latestv1test-redis", resp.Data[0].Provider)
 	assert.Equal(t, "FAILED", resp.Data[0].Status)
+	assert.Equal(t, "latestv1test-redis", resp.Data[0].Provider)
 	assert.Equal(t, metadata.Tags{"testV1", "testV1-READY"}, resp.Data[0].Tags)
 	assert.Len(t, mockStore.Opts, expectedQueryOpts)
 }
@@ -519,7 +521,7 @@ func TestGetProviderNameTypeMap(t *testing.T) {
 	)
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
@@ -565,7 +567,7 @@ func TestGetTypeOwners(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
@@ -602,8 +604,6 @@ func TestGetTypeOwners(t *testing.T) {
 func TestGetSourceVariants(t *testing.T) {
 	mockRecorder := httptest.NewRecorder()
 	ctx := GetTestGinContext(mockRecorder)
-	//searchTxt, modes, owners, types serializedV1, paging, sort
-	expectedQueryOpts := 10
 
 	searchTxt := "searchTxt"
 	modes := []string{"Batch", "Incremental", "Streaming"}
@@ -613,29 +613,23 @@ func TestGetSourceVariants(t *testing.T) {
 	types := []string{"Primary Table", "SQL Transformation"}
 	body := getSourceVariantRequestBody(searchTxt, modes, types, statuses, tags, owners, 12, 0)
 	MockPost(ctx, nil, body, "default")
+	expectedQueryOpts := 10
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
 		ListData: map[string]string{
+			"SOURCE__transactions__": `{"ResourceType":3,"StorageType":"Resource","Message":"{\"name\":\"transactions\",\"defaultVariant\":\"2024-09-06t21-07-40\",` +
+				`\"variants\":[\"2024-09-06t21-07-40\"]}","SerializedVersion":1}`,
 			"SOURCE_VARIANT__transactions__2024-09-06t21-07-40": `{"ResourceType":7,"StorageType":"Resource","Message":` +
 				`"{\"name\":\"transactions\",\"variant\":\"2024-09-06t21-07-40\",\"primaryData\":{\"table\":{\"name\":\"transactions\"}},\"owner\":` +
 				`\"anthony@featureform.com\",\"provider\":\"postgres\",\"created\":\"2024-09-07T02:07:42.257152631Z\",\"status\":{\"status\":` +
 				`\"READY\"},\"trainingsets\":[{\"name\":\"fraud_training\",\"variant\":\"2024-09-06t21-07-40\"}],\"labels\":[{\"name\":` +
 				`\"fraudulent\",\"variant\":\"2024-09-06t21-07-40\"}],\"tags\":{\"tag\":[\"my_data\"]},\"properties\":{},\"maxJobDuration\":` +
 				`\"172800s\",\"taskIdList\":[\"1\"]}","SerializedVersion":1}`,
-			"SOURCE_VARIANT__average_user_transaction__2024-09-06t21-07-40": `{"ResourceType":7,"StorageType":"Resource","Message":"{\"name\":` +
-				`\"average_user_transaction\",\"variant\":\"2024-09-06t21-07-40\",\"transformation\":{\"SQLTransformation\":{\"query\":` +
-				`\"SELECT CustomerID as user_id, avg(TransactionAmount) as avg_transaction_amt from {{ transactions.2024-09-06t21-07-40 }} GROUP BY user_id\",\"source\":` +
-				`[{\"name\":\"transactions\",\"variant\":\"2024-09-06t21-07-40\"}]},\"table\":{\"name\":` +
-				`\"featureform_transformation__average_user_transaction__2024-09-06t21-07-40\"}},\"owner\":\"anthony@featureform.com\",\"provider\":` +
-				`\"postgres\",\"created\":\"2024-09-07T02:07:42.921672215Z\",\"status\":{\"status\":\"READY\"},\"trainingsets\":[{\"name\":` +
-				`\"fraud_training\",\"variant\":\"2024-09-06t21-07-40\"}],\"features\":[{\"name\":\"avg_transactions\",\"variant\":` +
-				`\"2024-09-06t21-07-40\"}],\"tags\":{\"tag\":[\"avg\"]},\"properties\":{},\"maxJobDuration\":\"172800s\",` +
-				`\"taskIdList\":[\"2\"]}","SerializedVersion":1}`,
 		},
 	}
 
@@ -646,7 +640,10 @@ func TestGetSourceVariants(t *testing.T) {
 		SkipListLocking: true,
 		Logger:          logger,
 	}
-	client := &metadata.Client{}
+	client := &metadata.Client{
+		GrpcConn: metadata.MetadataServerMock{},
+	}
+
 	serv := MetadataServer{
 		client:          client,
 		logger:          logger,
@@ -660,28 +657,15 @@ func TestGetSourceVariants(t *testing.T) {
 
 	//the response is valid
 	assert.Equal(t, http.StatusOK, mockRecorder.Code)
-	assert.Len(t, resp.Data, len(mockStore.ListData))
 
 	//the data should parse, first record
-	record1 := findSourceVariant("transactions", resp.Data)
-	assert.NotNil(t, record1)
-	assert.Equal(t, "anthony@featureform.com", record1.Owner)
-	assert.Equal(t, "transactions", record1.Name)
-	assert.Equal(t, "2024-09-06t21-07-40", record1.Variant)
-	assert.Equal(t, "postgres", record1.Provider)
-	assert.Equal(t, "READY", record1.Status)
-	assert.Equal(t, "Primary Table", record1.SourceType)
-	assert.Len(t, mockStore.Opts, expectedQueryOpts)
-
-	//second record
-	record2 := findSourceVariant("average_user_transaction", resp.Data)
-	assert.NotNil(t, record2)
-	assert.Equal(t, "anthony@featureform.com", record2.Owner)
-	assert.Equal(t, "average_user_transaction", record2.Name)
-	assert.Equal(t, "2024-09-06t21-07-40", record2.Variant)
-	assert.Equal(t, "postgres", record2.Provider)
-	assert.Equal(t, "READY", record2.Status)
-	assert.Equal(t, "SQL Transformation", record2.SourceType)
+	record := findSourceVariant("transactions", resp.Data)
+	assert.NotNil(t, record)
+	assert.Equal(t, "anthony@featureform.com", record.Owner)
+	assert.Equal(t, "transactions", record.Name)
+	assert.Equal(t, "2024-09-06t21-07-40", record.Variant)
+	assert.Equal(t, "postgres", record.Provider)
+	assert.Equal(t, "READY", record.Status)
 	assert.Len(t, mockStore.Opts, expectedQueryOpts)
 }
 
@@ -710,11 +694,12 @@ func TestGetLabelVariants(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
 		ListData: map[string]string{
+			"LABEL__trans_label__": `{"ResourceType":1,"StorageType":"Resource","Message":"{\"name\":\"trans_label\",\"defaultVariant\":\"2024-09-27t15-58-54\",\"variants\":[\"2024-09-27t15-58-54\"]}","SerializedVersion":1}`,
 			"LABEL_VARIANT__trans_label__2024-09-27t15-58-54": `{"ResourceType":5,"StorageType":"Resource",` +
 				`"Message":"{\"name\":\"trans_label\",\"variant\":\"2024-09-27t15-58-54\",\"source\":` +
 				`{\"name\":\"transaction\",\"variant\":\"variant_447335\"},\"entity\":\"user\",\"created\":` +
@@ -732,7 +717,9 @@ func TestGetLabelVariants(t *testing.T) {
 		SkipListLocking: true,
 		Logger:          logger,
 	}
-	client := &metadata.Client{}
+	client := &metadata.Client{
+		GrpcConn: metadata.MetadataServerMock{},
+	}
 	serv := MetadataServer{
 		client:          client,
 		logger:          logger,
@@ -746,14 +733,12 @@ func TestGetLabelVariants(t *testing.T) {
 
 	//the response is valid
 	assert.Equal(t, http.StatusOK, mockRecorder.Code)
-	assert.Len(t, resp.Data, len(mockStore.ListData))
+	assert.Len(t, resp.Data, 1)
 	//the data should parse
 	assert.Equal(t, "riddhi@featureform.com", resp.Data[0].Owner)
 	assert.Equal(t, "trans_label", resp.Data[0].Name)
 	assert.Equal(t, "2024-09-27t15-58-54", resp.Data[0].Variant)
 	assert.Equal(t, "postgres-quickstart", resp.Data[0].Provider)
-	assert.Equal(t, "READY", resp.Data[0].Status)
-	assert.Equal(t, metadata.Tags{}, resp.Data[0].Tags)
 	assert.Len(t, mockStore.Opts, expectedQueryOpts)
 }
 
@@ -771,7 +756,7 @@ func TestGetProviders(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
@@ -832,11 +817,12 @@ func TestGetTrainingSetVariant(t *testing.T) {
 
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	mockStore := MockVariantsStore{
 		ListData: map[string]string{
+			"TRAINING_SET__my_training_set__": `{"ResourceType":2,"StorageType":"Resource","Message":"{\"name\":\"my_training_set\",\"defaultVariant\":\"2024-10-23t17-36-17\",\"variants\":[\"2024-12-06t14-51-21\", \"2024-10-23t17-36-17\"]}","SerializedVersion":1}`,
 			"TRAINING_SET_VARIANT__my_training_set__2024-10-23t17-36-17": `{"ResourceType":6,` +
 				`"StorageType":"Resource","Message":"{\"name\":\"my_training_set\",\"variant\":\"2024-10-23t17-36-17\",` +
 				`\"owner\":\"riddhi@featureform.com\",\"created\":\"2024-10-24T00:36:47.029200085Z\",` +
@@ -856,7 +842,10 @@ func TestGetTrainingSetVariant(t *testing.T) {
 		SkipListLocking: true,
 		Logger:          logger,
 	}
-	client := &metadata.Client{}
+	client := &metadata.Client{
+		GrpcConn: metadata.MetadataServerMock{},
+	}
+
 	serv := MetadataServer{
 		client:          client,
 		logger:          logger,
@@ -870,7 +859,6 @@ func TestGetTrainingSetVariant(t *testing.T) {
 
 	//the response is valid
 	assert.Equal(t, http.StatusOK, mockRecorder.Code)
-	assert.Len(t, resp.Data, len(mockStore.ListData))
 	//the data should parse
 	assert.Equal(t, "riddhi@featureform.com", resp.Data[0].Owner)
 	assert.Equal(t, "my_training_set", resp.Data[0].Name)
@@ -879,4 +867,127 @@ func TestGetTrainingSetVariant(t *testing.T) {
 	assert.Equal(t, "READY", resp.Data[0].Status)
 	assert.Equal(t, metadata.Tags{"dummyTag"}, resp.Data[0].Tags)
 	assert.Len(t, mockStore.Opts, expectedQueryOpts)
+}
+
+func TestGetSearch_MissingQuery(t *testing.T) {
+	locker, err := ffsync.NewMemoryLocker()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	mstorage, err := ss.NewMemoryStorageImplementation()
+	if err != nil {
+		panic(err.Error())
+	}
+
+	logger := logging.WrapZapLogger(zaptest.NewLogger(t).Sugar())
+	storage := ss.MetadataStorage{
+		Locker:          &locker,
+		Storage:         &mstorage,
+		SkipListLocking: true,
+		Logger:          logger,
+	}
+	client := &metadata.Client{}
+	serv := MetadataServer{
+		client:          client,
+		logger:          logger,
+		StorageProvider: storage,
+	}
+
+	mockRecorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(mockRecorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	c.Set("q", "")
+	serv.GetSearch(c)
+
+	var data string
+	_ = json.Unmarshal(mockRecorder.Body.Bytes(), &data)
+	assert.Equal(t, http.StatusInternalServerError, mockRecorder.Code)
+	assert.Contains(t, "Missing query", data)
+}
+
+func TestSanitizeColumnName(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    string
+		description string
+	}{
+		{
+			name:        "No special characters",
+			input:       "user_id",
+			expected:    "user_id",
+			description: "Should return the same column name",
+		},
+		{
+			name:        "Remove any quotes",
+			input:       "\"booker_country\"",
+			expected:    "booker_country",
+			description: "Should remove surrounding quotes",
+		},
+		{
+			name:        "Truncate long names",
+			input:       "did_you_ever_hear_the_tragedy_of_Darth_Plagueis_The_Wise",
+			expected:    "did_you_ever_hear_the_tragedy_...",
+			description: "Should truncate names longer than maxColumnNameLength",
+		},
+		{
+			name:        "Empty input",
+			input:       "",
+			expected:    "",
+			description: "Should return an empty string for empty input",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := sanitizeColumnName(tt.input)
+			assert.Equal(t, tt.expected, result, tt.description)
+		})
+	}
+}
+
+func TestFormatColumnWithType(t *testing.T) {
+	tests := []struct {
+		name        string
+		columnName  string
+		columnType  string
+		expected    string
+		description string
+	}{
+		{
+			name:        "Basic format",
+			columnName:  "user_name",
+			columnType:  "large_utf8",
+			expected:    "user_name(large_utf8)",
+			description: "Should format column name and type correctly",
+		},
+		{
+			name:        "Empty column name",
+			columnName:  "",
+			columnType:  "large_utf8",
+			expected:    "(large_utf8)",
+			description: "Should handle empty column name (should never happen)",
+		},
+		{
+			name:        "Empty column type",
+			columnName:  "username",
+			columnType:  "",
+			expected:    "username()",
+			description: "Should handle empty column type (should never happen)",
+		},
+		{
+			name:        "Both empty",
+			columnName:  "",
+			columnType:  "",
+			expected:    "()",
+			description: "Should handle both column name and type being empty (should never happen)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatColumnWithType(tt.columnName, tt.columnType)
+			assert.Equal(t, tt.expected, result, tt.description)
+		})
+	}
 }

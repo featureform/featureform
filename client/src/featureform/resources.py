@@ -35,7 +35,7 @@ NameVariant = Tuple[str, str]
 
 # Constants for Pyspark Versions
 MAJOR_VERSION = "3"
-MINOR_VERSIONS = ["7", "8", "9", "10", "11"]
+MINOR_VERSIONS = ["9", "10", "11", "12"]
 
 
 @typechecked
@@ -711,7 +711,14 @@ class CassandraConfig:
 class DynamodbConfig:
     region: str
     credentials: Union[AWSStaticCredentials, AWSAssumeRoleCredentials]
-    should_import_from_s3: bool
+    table_tags: Optional[dict] = field(default_factory=dict)
+
+    def __post_init__(self):
+        errors = self.validate_table_tags(self.table_tags)
+        if len(errors) > 0:
+            raise ValueError(
+                "Table tags validation errors found:\n" + "\n".join(errors)
+            )
 
     def software(self) -> str:
         return "dynamodb"
@@ -723,28 +730,81 @@ class DynamodbConfig:
         config = {
             "Region": self.region,
             "Credentials": self.credentials.config(),
-            "ImportFromS3": self.should_import_from_s3,
+            "Tags": self.table_tags,
         }
         return bytes(json.dumps(config), "utf-8")
 
-    def __eq__(self, __value: object) -> bool:
-        if not isinstance(__value, DynamodbConfig):
-            return False
+    @classmethod
+    def deserialize(cls, json_bytes: bytes) -> "DynamodbConfig":
+        deserialized_config = json.loads(json_bytes.decode("utf-8"))
 
-        if type(self.credentials) != type(__value.credentials):
-            return False
+        try:
+            if (
+                deserialized_config["Credentials"]["Type"]
+                == AWSStaticCredentials.type()
+            ):
+                credentials = AWSStaticCredentials(
+                    deserialized_config["Credentials"]["AccessKeyId"],
+                    deserialized_config["Credentials"]["SecretKey"],
+                )
+            elif (
+                deserialized_config["Credentials"]["Type"]
+                == AWSAssumeRoleCredentials.type()
+            ):
+                credentials = AWSAssumeRoleCredentials()
+            else:
+                raise ValueError("Invalid Credentials Type")
 
-        if (
-            isinstance(self.credentials, AWSStaticCredentials)
-            and self.credentials.access_key != __value.credentials.access_key
-            and self.credentials.secret_key != __value.credentials.secret_key
-        ):
-            return False
+            return DynamodbConfig(
+                region=deserialized_config["Region"],
+                credentials=credentials,
+                table_tags=deserialized_config.get("Tags"),
+            )
+        except KeyError as e:
+            raise ValueError(f"Missing key in deserialized config: {e}")
 
-        return (
-            self.region == __value.region
-            and self.should_import_from_s3 == __value.should_import_from_s3
-        )
+    def validate_table_tags(self, table_tags: Optional[dict]) -> list:
+        """
+        Validates that:
+        - Keys are at most 128 Unicode characters.
+        - Values are at most 256 Unicode characters.
+        - Keys and values contain only allowed characters.
+        - Keys do not start with "aws".
+
+        Returns a list of validation errors. If the list is empty, the dictionary is valid.
+        """
+        if table_tags is None:
+            return []
+        allowed_pattern = re.compile(r"^[a-zA-Z0-9\s+\-=._:/]+$")
+        errors = []
+
+        for key, value in table_tags.items():
+            if not isinstance(key, str) or not isinstance(value, str):
+                errors.append(
+                    f"Both keys and values must be strings. Invalid pair: ({key}, {value})"
+                )
+                continue  # Skip further validation for this key-value pair
+
+            if len(key) > 128:
+                errors.append(
+                    f"Key '{key}' exceeds the maximum length of 128 characters."
+                )
+
+            if len(value) > 256:
+                errors.append(
+                    f"Value for key '{key}' exceeds the maximum length of 256 characters."
+                )
+
+            if not allowed_pattern.match(key):
+                errors.append(f"Key '{key}' contains invalid characters.")
+
+            if not allowed_pattern.match(value):
+                errors.append(f"Value '{value}' contains invalid characters.")
+
+            if key.startswith("aws"):
+                errors.append(f"Key '{key}' cannot start with 'aws'.")
+
+        return errors
 
 
 @typechecked
@@ -1027,6 +1087,31 @@ class ResourceSnowflakeConfig:
                 else None
             ),
             warehouse=self.warehouse,
+        )
+
+    @classmethod
+    def from_proto(
+        cls, config: pb.ResourceSnowflakeConfig
+    ) -> "ResourceSnowflakeConfig":
+        return cls(
+            dynamic_table_config=(
+                SnowflakeDynamicTableConfig(
+                    target_lag=config.dynamic_table_config.target_lag,
+                    refresh_mode=(
+                        RefreshMode.from_proto(config.dynamic_table_config.refresh_mode)
+                        if config.dynamic_table_config.refresh_mode
+                        else None
+                    ),
+                    initialize=(
+                        Initialize.from_proto(config.dynamic_table_config.initialize)
+                        if config.dynamic_table_config.initialize
+                        else None
+                    ),
+                )
+                if config.dynamic_table_config
+                else None
+            ),
+            warehouse=config.warehouse,
         )
 
 
@@ -2059,6 +2144,14 @@ class ResourceColumnMapping:
             ts=self.timestamp,
         )
 
+    def to_entity_mappings_proto(self, entity_name: str) -> pb.EntityMappings:
+        mapping = pb.EntityMapping(name=entity_name, entity_column=self.entity)
+        return pb.EntityMappings(
+            mappings=[mapping],
+            value_column=self.value,
+            timestamp_column=self.timestamp,
+        )
+
 
 ResourceLocation = ResourceColumnMapping
 
@@ -2523,6 +2616,34 @@ class Label:
 
 @typechecked
 @dataclass
+class EntityMapping:
+    name: str
+    entity_column: str
+
+    def to_proto(self):
+        return pb.EntityMapping(
+            name=self.name,
+            entity_column=self.entity_column,
+        )
+
+
+@typechecked
+@dataclass
+class EntityMappings:
+    mappings: List[EntityMapping]
+    value_column: str
+    timestamp_column: Optional[str] = None
+
+    def to_proto(self):
+        return pb.EntityMappings(
+            mappings=[m.to_proto() for m in self.mappings],
+            value_column=self.value_column,
+            timestamp_column=self.timestamp_column,
+        )
+
+
+@typechecked
+@dataclass
 class LabelVariant(ResourceVariant):
     name: str
     source: Any
@@ -2530,7 +2651,7 @@ class LabelVariant(ResourceVariant):
     entity: str
     owner: str
     description: str
-    location: ResourceLocation
+    location: Union[ResourceLocation, EntityMappings]
     variant: str
     tags: Optional[list] = None
     properties: Optional[dict] = None
@@ -2566,6 +2687,28 @@ class LabelVariant(ResourceVariant):
         )
         label = next(stub.GetLabelVariants(iter([name_variant])))
 
+        loc_type = label.WhichOneof("location")
+        location = None
+        if loc_type == "columns":
+            location = ResourceColumnMapping(
+                entity=label.columns.entity,
+                value=label.columns.value,
+                timestamp=label.columns.ts,
+            )
+        elif loc_type == "entity_mappings":
+            location = EntityMappings(
+                mappings=[
+                    EntityMapping(m.name, m.entity_column)
+                    for m in label.entity_mappings.mappings
+                ],
+                value_column=label.entity_mappings.value_column,
+                timestamp_column=(
+                    label.entity_mappings.timestamp_column
+                    if label.entity_mappings.timestamp_column
+                    else None
+                ),
+            )
+
         return LabelVariant(
             name=label.name,
             variant=label.variant,
@@ -2574,7 +2717,7 @@ class LabelVariant(ResourceVariant):
             entity=label.entity,
             owner=label.owner,
             provider=label.provider,
-            location=ResourceColumnMapping("", "", ""),
+            location=location,
             description=label.description,
             tags=list(label.tags.tag),
             properties={k: v for k, v in label.properties.property.items()},
@@ -2586,29 +2729,39 @@ class LabelVariant(ResourceVariant):
     def _get_and_set_equivalent_variant(self, req_id, stub):
         if hasattr(self.source, "name_variant"):
             self.source = self.source.name_variant()
-        serialized = pb.LabelVariantRequest(
-            label_variant=pb.LabelVariant(
-                name=self.name,
-                variant=self.variant,
-                source=pb.NameVariant(
-                    name=self.source[0],
-                    variant=self.source[1],
-                ),
-                provider=self.provider,
-                type=self.value_type.to_proto(),
-                entity=self.entity,
-                owner=self.owner,
-                description=self.description,
-                columns=self.location.proto(),
-                tags=pb.Tags(tag=self.tags),
-                properties=Properties(self.properties).serialized,
-                status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
-                resource_snowflake_config=(
-                    self.resource_snowflake_config.to_proto()
-                    if self.resource_snowflake_config
-                    else None
-                ),
+        label_variant = pb.LabelVariant(
+            name=self.name,
+            variant=self.variant,
+            source=pb.NameVariant(
+                name=self.source[0],
+                variant=self.source[1],
             ),
+            provider=self.provider,
+            type=self.value_type.to_proto(),
+            entity=self.entity,
+            owner=self.owner,
+            description=self.description,
+            tags=pb.Tags(tag=self.tags),
+            properties=Properties(self.properties).serialized,
+            status=pb.ResourceStatus(status=pb.ResourceStatus.NO_STATUS),
+            resource_snowflake_config=(
+                self.resource_snowflake_config.to_proto()
+                if self.resource_snowflake_config
+                else None
+            ),
+        )
+        if isinstance(self.location, ResourceLocation):
+            label_variant.entity_mappings.CopyFrom(
+                self.location.to_entity_mappings_proto(self.entity)
+            )
+        elif isinstance(self.location, EntityMappings):
+            label_variant.entity_mappings.CopyFrom(self.location.to_proto())
+        else:
+            raise ValueError(
+                f"Invalid location type {type(self.location)} for LabelVariant {self.name}"
+            )
+        serialized = pb.LabelVariantRequest(
+            label_variant=label_variant,
             request_id="",
         )
 
@@ -2758,6 +2911,7 @@ class TrainingSetVariant(ResourceVariant):
     error: Optional[str] = None
     server_status: Optional[ServerStatus] = None
     resource_snowflake_config: Optional[ResourceSnowflakeConfig] = None
+    type: TrainingSetType = field(default=TrainingSetType.DYNAMIC)
 
     def update_schedule(self, schedule) -> None:
         self.schedule_obj = Schedule(
@@ -2819,6 +2973,10 @@ class TrainingSetVariant(ResourceVariant):
             properties={k: v for k, v in ts.properties.property.items()},
             error=ts.status.error_message,
             server_status=ServerStatus.from_proto(ts.status),
+            resource_snowflake_config=ResourceSnowflakeConfig.from_proto(
+                ts.resource_snowflake_config
+            ),
+            type=TrainingSetType.from_proto(ts.type),
         )
 
     def _get_and_set_equivalent_variant(self, req_id, stub):
@@ -2863,6 +3021,7 @@ class TrainingSetVariant(ResourceVariant):
                     if self.resource_snowflake_config
                     else None
                 ),
+                type=self.type.to_proto(),
             ),
             request_id="",
         )
@@ -3344,7 +3503,7 @@ class SparkCredentials:
         Args:
             master (str): The hostname of the Spark cluster. (The same that would be passed to `spark-submit`).
             deploy_mode (str): The deploy mode of the Spark cluster. (The same that would be passed to `spark-submit`).
-            python_version (str): The Python version running on the cluster. Supports 3.7-3.11
+            python_version (str): The Python version running on the cluster. Supports 3.9-3.12
             core_site_path (str): The path to the core-site.xml file. (For Yarn clusters only)
             yarn_site_path (str): The path to the yarn-site.xml file. (For Yarn clusters only)
         """
@@ -3383,16 +3542,16 @@ class SparkCredentials:
             major, minor = version.split(".")
         else:
             raise Exception(
-                "Please specify your Python version on the Spark cluster. Accepted formats: Major.Minor or Major.Minor.Patch; ex. '3.7' or '3.7.16"
+                "Please specify your Python version on the Spark cluster. Accepted formats: Major.Minor or Major.Minor.Patch; ex. '3.9' or '3.9.16"
             )
 
         if major != MAJOR_VERSION or minor not in MINOR_VERSIONS:
             raise Exception(
-                f"The Python version {version} is not supported. Currently, supported versions are 3.7-3.10."
+                f"The Python version {version} is not supported. Currently, supported versions are 3.9-3.12."
             )
 
         """
-        The Python versions on the Docker image are 3.7.16, 3.8.16, 3.9.16, 3.10.10, and 3.11.2.
+        The Python versions on the Docker image are 3.9.16, 3.10.10, and 3.11.2.
         This conditional statement sets the patch number based on the minor version. 
         """
         if minor == "10":

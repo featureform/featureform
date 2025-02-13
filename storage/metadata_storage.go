@@ -10,10 +10,11 @@ package storage
 import (
 	"context"
 
+	"github.com/google/uuid"
+
 	"github.com/featureform/ffsync"
 	"github.com/featureform/logging"
 	"github.com/featureform/storage/query"
-	"github.com/google/uuid"
 )
 
 type MetadataStorage struct {
@@ -204,7 +205,6 @@ type MetadataStorageType string
 
 const (
 	MemoryMetadataStorage MetadataStorageType = "memory"
-	ETCDMetadataStorage   MetadataStorageType = "etcd"
 	PSQLMetadataStorage   MetadataStorageType = "psql"
 )
 

@@ -16,8 +16,8 @@ import (
 
 func TestDynamoConfigMutableFields(t *testing.T) {
 	expected := ss.StringSet{
-		"Credentials":  true,
-		"ImportFromS3": true,
+		"Credentials": true,
+		"Tags":        true,
 	}
 
 	config := DynamodbConfig{
@@ -103,17 +103,15 @@ func TestDynamodbConfig_SerializationDeserialization(t *testing.T) {
 					AccessKeyId: "AKIA1234567890",
 					SecretKey:   "secret",
 				},
-				ImportFromS3: true,
 			},
 			wantErr: false,
 		},
 		{
 			name: "assume role credentials",
 			config: DynamodbConfig{
-				Prefix:       "otherTablePrefix",
-				Region:       "eu-central-1",
-				Credentials:  AWSAssumeRoleCredentials{},
-				ImportFromS3: false,
+				Prefix:      "otherTablePrefix",
+				Region:      "eu-central-1",
+				Credentials: AWSAssumeRoleCredentials{},
 			},
 			wantErr: false,
 		},

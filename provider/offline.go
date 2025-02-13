@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	tsq "github.com/featureform/provider/tsquery"
 	"reflect"
 	"sort"
 	"strings"
@@ -27,6 +28,7 @@ import (
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	fs "github.com/featureform/filestore"
+	"github.com/featureform/helpers/stringset"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
@@ -173,6 +175,7 @@ type TrainingSetDef struct {
 	FeatureSourceMappings   []SourceMapping
 	LagFeatures             []LagFeatureDef
 	ResourceSnowflakeConfig *metadata.ResourceSnowflakeConfig
+	Type                    metadata.TrainingSetType
 }
 
 type TrainingSetDefJSON struct {
@@ -220,7 +223,8 @@ type SourceMapping struct {
 	ProviderConfig      pc.SerializedConfig
 	TimestampColumnName string
 	Location            pl.Location
-	Columns             metadata.ResourceVariantColumns
+	Columns             *metadata.ResourceVariantColumns
+	EntityMappings      *metadata.EntityMappings
 }
 
 type SourceMappingJSON struct {
@@ -498,21 +502,8 @@ func newResumeOption(maxWait time.Duration) *ResumeOption {
 
 type ResourceOptionType string
 
-const (
-	SnowflakeDynamicTableResource ResourceOptionType = "SnowflakeDynamicTableResource"
-)
-
 type ResourceOption interface {
 	Type() ResourceOptionType
-}
-
-type ResourceSnowflakeConfigOption struct {
-	Config    *metadata.SnowflakeDynamicTableConfig
-	Warehouse string
-}
-
-func (opt *ResourceSnowflakeConfigOption) Type() ResourceOptionType {
-	return SnowflakeDynamicTableResource
 }
 
 type OfflineStore interface {
@@ -728,18 +719,20 @@ type Dataset interface {
 }
 
 type ResourceSchema struct {
-	Entity      string
-	Value       string
-	TS          string
-	SourceTable pl.Location
+	Entity         string
+	Value          string
+	TS             string
+	EntityMappings metadata.EntityMappings
+	SourceTable    pl.Location
 }
 
 type ResourceSchemaJSON struct {
-	Entity       string          `json:"Entity"`
-	Value        string          `json:"Value"`
-	TS           string          `json:"TS"`
-	SourceTable  json.RawMessage `json:"SourceTable"`
-	LocationType pl.LocationType `json:"LocationType"`
+	Entity         string                  `json:"Entity"`
+	Value          string                  `json:"Value"`
+	TS             string                  `json:"TS"`
+	SourceTable    json.RawMessage         `json:"SourceTable"`
+	LocationType   pl.LocationType         `json:"LocationType"`
+	EntityMappings metadata.EntityMappings `json:"EntityMappings"`
 }
 
 func (schema *ResourceSchema) Serialize() ([]byte, error) {
@@ -753,11 +746,12 @@ func (schema *ResourceSchema) Serialize() ([]byte, error) {
 	}
 
 	data := ResourceSchemaJSON{
-		Entity:       schema.Entity,
-		Value:        schema.Value,
-		TS:           schema.TS,
-		SourceTable:  json.RawMessage(locationData),
-		LocationType: schema.SourceTable.Type(),
+		Entity:         schema.Entity,
+		Value:          schema.Value,
+		TS:             schema.TS,
+		SourceTable:    json.RawMessage(locationData),
+		LocationType:   schema.SourceTable.Type(),
+		EntityMappings: schema.EntityMappings,
 	}
 
 	return json.Marshal(data)
@@ -773,6 +767,7 @@ func (schema *ResourceSchema) Deserialize(config []byte) error {
 	schema.Entity = data.Entity
 	schema.Value = data.Value
 	schema.TS = data.TS
+	schema.EntityMappings = data.EntityMappings
 
 	var location pl.Location
 	switch data.LocationType {
@@ -795,27 +790,67 @@ func (schema *ResourceSchema) Deserialize(config []byte) error {
 	return nil
 }
 
+func (r ResourceSchema) Validate() error {
+	if len(r.EntityMappings.Mappings) == 0 {
+		unsetFields := make([]string, 0)
+		if r.Entity == "" {
+			unsetFields = append(unsetFields, "Entity")
+		}
+		if r.Value == "" {
+			unsetFields = append(unsetFields, "Value")
+		}
+		if r.SourceTable == nil || r.SourceTable.Location() == "" {
+			unsetFields = append(unsetFields, "SourceTable")
+		}
+		if len(unsetFields) > 0 {
+			return fferr.NewInvalidArgumentError(fmt.Errorf("missing required fields: %v", unsetFields))
+		}
+	} else {
+		errMessages := make([]string, 0)
+		for idx, m := range r.EntityMappings.Mappings {
+			if m.Name == "" {
+				errMessages = append(errMessages, fmt.Sprintf("missing EntityMappings[%d].Name", idx))
+			}
+			if m.EntityColumn == "" {
+				errMessages = append(errMessages, fmt.Sprintf("missing EntityMappings[%d].EntityColumn", idx))
+			}
+		}
+		if r.EntityMappings.ValueColumn == "" {
+			errMessages = append(errMessages, "missing EntityMappings.ValueColumn")
+		}
+		if len(errMessages) > 0 {
+			return fferr.NewInvalidArgumentError(fmt.Errorf("invalid EntityMappings: %v", errMessages))
+		}
+	}
+	return nil
+}
+
+func (r ResourceSchema) ToColumnStringSet(resType OfflineResourceType) (stringset.StringSet, error) {
+	set := make(stringset.StringSet)
+	switch resType {
+	case Feature:
+		set.Add(strings.ToUpper(r.Entity), strings.ToUpper(r.Value))
+		if r.TS != "" {
+			set.Add(strings.ToUpper(r.TS))
+		}
+	case Label:
+		set.Add(strings.ToUpper(r.EntityMappings.ValueColumn))
+		for _, m := range r.EntityMappings.Mappings {
+			set.Add(strings.ToUpper(m.EntityColumn))
+		}
+		if r.TS != "" {
+			set.Add(strings.ToUpper(r.TS))
+		}
+	default:
+		return set, fferr.NewInvalidArgumentError(fmt.Errorf("invalid type: %v", resType))
+	}
+	return set, nil
+}
+
 type TableSchema struct {
 	Columns []TableColumn
 	// The complete URL that points to the location of the data file
 	SourceTable string
-}
-
-func (r ResourceSchema) Validate() error {
-	unsetFields := make([]string, 0)
-	if r.Entity == "" {
-		unsetFields = append(unsetFields, "Entity")
-	}
-	if r.Value == "" {
-		unsetFields = append(unsetFields, "Value")
-	}
-	if r.SourceTable == nil || r.SourceTable.Location() == "" {
-		unsetFields = append(unsetFields, "SourceTable")
-	}
-	if len(unsetFields) > 0 {
-		return fferr.NewInvalidArgumentError(fmt.Errorf("missing required fields: %v", unsetFields))
-	}
-	return nil
 }
 
 type TableSchemaJSONWrapper struct {
@@ -1546,4 +1581,45 @@ func genericIterateChunk(mat Materialization, rowsPerChunk int64, idx int) (Feat
 		end = rows
 	}
 	return mat.IterateSegment(start, end)
+}
+
+func (def *TrainingSetDef) ToBuilderParams(logger logging.Logger, sanitizeTableNameFn func(pl.Location) (string, error)) (tsq.BuilderParams, error) {
+	lblTableName, err := sanitizeTableNameFn(def.LabelSourceMapping.Location)
+	if err != nil {
+		return tsq.BuilderParams{}, err
+	}
+
+	ftCols := make([]metadata.ResourceVariantColumns, len(def.FeatureSourceMappings))
+	ftTableNames := make([]string, len(def.FeatureSourceMappings))
+	ftNameVariants := make([]metadata.ResourceID, len(def.FeatureSourceMappings))
+	ftEntityNames := make([]string, 0)
+	logger.Debugw("Feature source mappings", "src_mappings", def.FeatureSourceMappings)
+	for i, ft := range def.FeatureSourceMappings {
+		ftCols[i] = *ft.Columns
+		ftTableNames[i], err = sanitizeTableNameFn(ft.Location)
+		if err != nil {
+			return tsq.BuilderParams{}, err
+		}
+		id := def.Features[i]
+		ftNameVariants[i] = metadata.ResourceID{
+			Name:    id.Name,
+			Variant: id.Variant,
+			Type:    metadata.FEATURE_VARIANT,
+		}
+		if ft.EntityMappings == nil || len(ft.EntityMappings.Mappings) != 1 {
+			logger.Errorw("Expected each feature source mapping to have exactly one entity mapping", "mappings", ft.EntityMappings)
+			return tsq.BuilderParams{}, fferr.NewInternalErrorf("expected each feature source mapping to have exactly one entity mapping: mappings = %v", ft.EntityMappings)
+		}
+		logger.Debugw("Feature entity mapping", "entity_mappings", ft.EntityMappings.Mappings)
+		ftEntityNames = append(ftEntityNames, ft.EntityMappings.Mappings[0].Name)
+	}
+	logger.Debugw("Label entity mapping", "entity_mappings", def.LabelSourceMapping.EntityMappings)
+	return tsq.BuilderParams{
+		LabelEntityMappings:    def.LabelSourceMapping.EntityMappings,
+		SanitizedLabelTable:    lblTableName,
+		FeatureColumns:         ftCols,
+		SanitizedFeatureTables: ftTableNames,
+		FeatureNameVariants:    ftNameVariants,
+		FeatureEntityNames:     ftEntityNames,
+	}, nil
 }

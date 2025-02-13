@@ -2,6 +2,8 @@ package tsquery
 
 import (
 	"testing"
+
+	"github.com/featureform/metadata"
 )
 
 func TestNewTrainingSetQueryBuilder(t *testing.T) {
@@ -15,10 +17,8 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 		{
 			name: "All features and label use timestamps",
 			lbl: labelTable{
-				Entity:             "location_id",
-				Value:              "wave_height_ft",
-				TS:                 "observed_on",
 				SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"wave_height_labels_ts\"",
+				EntityMappings:     &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "location", EntityColumn: "location_id"}}, ValueColumn: "wave_height_ft", TimestampColumn: "observed_on"},
 			},
 			fts: []featureTable{
 				{
@@ -27,6 +27,7 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 					TS:                 "measured_on",
 					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surf_conditions_features_ts\"",
 					ColumnAliases:      []string{"feature__swell_direction__variant"},
+					EntityName:         "location",
 				},
 				{
 					Entity:             "location_id",
@@ -34,6 +35,7 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 					TS:                 "measured_on",
 					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surf_conditions_features_ts\"",
 					ColumnAliases:      []string{"feature__wave_power_kj__variant"},
+					EntityName:         "location",
 				},
 				{
 					Entity:             "location_id",
@@ -41,6 +43,7 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 					TS:                 "measured_on",
 					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surf_conditions_features_ts\"",
 					ColumnAliases:      []string{"feature__swell_period_sec__variant"},
+					EntityName:         "location",
 				},
 			},
 			expectedErr: false,
@@ -49,10 +52,8 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 		{
 			name: "Some features don't use timestamps and label use timestamps",
 			lbl: labelTable{
-				Entity:             "location_id",
-				Value:              "wave_height_ft",
-				TS:                 "observed_on",
 				SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"wave_height_labels_ts\"",
+				EntityMappings:     &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "location", EntityColumn: "location_id"}}, ValueColumn: "wave_height_ft", TimestampColumn: "observed_on"},
 			},
 			fts: []featureTable{
 				{
@@ -60,6 +61,7 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 					Values:             []string{"swell_direction"},
 					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surf_conditions_features_ts\"",
 					ColumnAliases:      []string{"feature__swell_direction__variant"},
+					EntityName:         "location",
 				},
 				{
 					Entity:             "location_id",
@@ -67,6 +69,7 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 					TS:                 "measured_on",
 					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surf_conditions_features_ts\"",
 					ColumnAliases:      []string{"feature__wave_power_kj__variant"},
+					EntityName:         "location",
 				},
 			},
 			expectedErr: false,
@@ -75,9 +78,8 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 		{
 			name: "All features use timestamps and label does not",
 			lbl: labelTable{
-				Entity:             "location_id",
-				Value:              "level",
 				SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"location_level_labels_no_ts\"",
+				EntityMappings:     &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "location", EntityColumn: "location_id"}}, ValueColumn: "level"},
 			},
 			fts: []featureTable{
 				{
@@ -86,6 +88,7 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 					TS:                 "measured_on",
 					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"wave_conditions_features_ts\"",
 					ColumnAliases:      []string{"feature__wave_height_ft__variant"},
+					EntityName:         "location",
 				},
 				{
 					Entity:             "location_id",
@@ -93,6 +96,7 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 					TS:                 "measured_on",
 					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"wave_conditions_features_ts\"",
 					ColumnAliases:      []string{"feature__wave_power_kj__variant"},
+					EntityName:         "location",
 				},
 				{
 					Entity:             "location_id",
@@ -100,6 +104,7 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 					TS:                 "measured_on",
 					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"wave_conditions_features_ts\"",
 					ColumnAliases:      []string{"feature__swell_period_sec__variant"},
+					EntityName:         "location",
 				},
 			},
 			expectedErr: false,
@@ -108,9 +113,8 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 		{
 			name: "Neither features nor label use timestamps",
 			lbl: labelTable{
-				Entity:             "surfer_id",
-				Value:              "skill_level",
 				SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surfer_skill_labels_no_ts\"",
+				EntityMappings:     &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "surfer_id"}}, ValueColumn: "skill_level"},
 			},
 			fts: []featureTable{
 				{
@@ -118,18 +122,21 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 					Values:             []string{"avg_wave_height_m"},
 					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surfer_success_rates_features_no_ts\"",
 					ColumnAliases:      []string{"feature__avg_wave_height_m__variant"},
+					EntityName:         "surfer",
 				},
 				{
 					Entity:             "surfer_id",
 					Values:             []string{"avg_success_rate_perc"},
 					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surfer_success_rates_features_no_ts\"",
 					ColumnAliases:      []string{"feature__avg_success_rate_perc__variant"},
+					EntityName:         "surfer",
 				},
 				{
 					Entity:             "surfer_id",
 					Values:             []string{"favorite_spot"},
 					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surfer_success_rates_features_no_ts\"",
 					ColumnAliases:      []string{"feature__favorite_spot__variant"},
+					EntityName:         "surfer",
 				},
 			},
 			expectedErr: false,
@@ -138,10 +145,8 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 		{
 			name: "Features and labels in the same table",
 			lbl: labelTable{
-				Entity:             "location_id",
-				Value:              "wave_power_kj",
-				TS:                 "measured_on",
 				SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surf_conditions_features_ts\"",
+				EntityMappings:     &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "location", EntityColumn: "location_id"}}, ValueColumn: "wave_power_kj", TimestampColumn: "measured_on"},
 			},
 			fts: []featureTable{
 				{
@@ -150,6 +155,7 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 					TS:                 "measured_on",
 					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surf_conditions_features_ts\"",
 					ColumnAliases:      []string{"feature__swell_direction__variant"},
+					EntityName:         "location",
 				},
 				{
 					Entity:             "location_id",
@@ -157,6 +163,7 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 					TS:                 "measured_on",
 					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surf_conditions_features_ts\"",
 					ColumnAliases:      []string{"feature__wave_height_ft__variant"},
+					EntityName:         "location",
 				},
 				{
 					Entity:             "location_id",
@@ -164,17 +171,69 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 					TS:                 "measured_on",
 					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surf_conditions_features_ts\"",
 					ColumnAliases:      []string{"feature__swell_period_sec__variant"},
+					EntityName:         "location",
 				},
 			},
 			expectedErr: false,
 			expectedSQL: `SELECT f1.swell_direction AS "feature__swell_direction__variant", f1.wind_speed_kt AS "feature__wave_height_ft__variant", f1.swell_period_sec AS "feature__swell_period_sec__variant", l.wave_power_kj AS label FROM "DEMO2"."CORRECTNESS"."surf_conditions_features_ts" l  ASOF JOIN "DEMO2"."CORRECTNESS"."surf_conditions_features_ts" f1 MATCH_CONDITION(l.measured_on >= f1.measured_on) ON(l.location_id = f1.location_id);`,
 		},
+		{
+			name: "Multi-entity labels and features",
+			lbl: labelTable{
+				SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surfer_location_labels_ts\"",
+				EntityMappings: &metadata.EntityMappings{
+					Mappings: []metadata.EntityMapping{
+						{
+							EntityColumn: "location_id",
+							Name:         "location",
+						},
+						{
+							EntityColumn: "surfer_id",
+							Name:         "surfer",
+						},
+					},
+					ValueColumn:     "successful_rides",
+					TimestampColumn: "observed_on",
+				},
+			},
+			fts: []featureTable{
+				{
+					Entity:             "location_id",
+					Values:             []string{"swell_direction"},
+					TS:                 "measured_on",
+					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surf_conditions_features_ts\"",
+					ColumnAliases:      []string{"feature__swell_direction__variant"},
+					EntityName:         "location",
+				},
+				{
+					Entity:             "location_id",
+					Values:             []string{"wave_power_kj"},
+					TS:                 "measured_on",
+					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surf_conditions_features_ts\"",
+					ColumnAliases:      []string{"feature__wave_power_kj__variant"},
+					EntityName:         "location",
+				},
+				{
+					Entity:             "surfer_id",
+					Values:             []string{"avg_success_rate_perc"},
+					SanitizedTableName: "\"DEMO2\".\"CORRECTNESS\".\"surfer_success_rates_features_no_ts\"",
+					ColumnAliases:      []string{"feature__avg_success_rate_perc__variant"},
+					EntityName:         "surfer",
+				},
+			},
+			expectedErr: false,
+			expectedSQL: `SELECT f1.swell_direction AS "feature__swell_direction__variant", f1.wave_power_kj AS "feature__wave_power_kj__variant", f2.avg_success_rate_perc AS "feature__avg_success_rate_perc__variant", l.successful_rides AS label FROM "DEMO2"."CORRECTNESS"."surfer_location_labels_ts" l LEFT JOIN "DEMO2"."CORRECTNESS"."surfer_success_rates_features_no_ts" f2 ON l.surfer_id = f2.surfer_id ASOF JOIN "DEMO2"."CORRECTNESS"."surf_conditions_features_ts" f1 MATCH_CONDITION(l.observed_on >= f1.measured_on) ON(l.location_id = f1.location_id);`,
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if c.lbl.TS != "" {
-				builder := &pitTrainingSetQueryBuilder{labelTable: c.lbl, featureTableMap: make(map[string]*featureTable)}
+			if c.lbl.EntityMappings.TimestampColumn != "" {
+				builder := &pitTrainingSetQueryBuilder{
+					labelTable:      c.lbl,
+					featureTableMap: make(map[string]*featureTable),
+					config:          QueryConfig{UseAsOfJoin: true, QuoteChar: "\"", QuoteTable: false},
+				}
 				for _, ft := range c.fts {
 					builder.AddFeature(ft)
 				}
@@ -183,10 +242,14 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 				}
 				sql := builder.ToSQL()
 				if sql != c.expectedSQL {
-					t.Errorf("Expected SQL: %s, got %s", c.expectedSQL, sql)
+					t.Errorf("Expected SQL:\n%s\nGot:\n%s", c.expectedSQL, sql)
 				}
 			} else {
-				builder := &trainingSetQueryBuilder{labelTable: c.lbl, featureTableMap: make(map[string]*featureTable)}
+				builder := &trainingSetQueryBuilder{
+					labelTable:      c.lbl,
+					featureTableMap: make(map[string]*featureTable),
+					config:          QueryConfig{UseAsOfJoin: true, QuoteChar: "\"", QuoteTable: false},
+				}
 				for _, ft := range c.fts {
 					builder.AddFeature(ft)
 				}
@@ -195,7 +258,7 @@ func TestNewTrainingSetQueryBuilder(t *testing.T) {
 				}
 				sql := builder.ToSQL()
 				if sql != c.expectedSQL {
-					t.Errorf("Expected SQL: %s, got %s", c.expectedSQL, sql)
+					t.Errorf("Expected SQL:\n%sGot:\n%s", c.expectedSQL, sql)
 				}
 			}
 		})

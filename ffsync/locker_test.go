@@ -37,6 +37,7 @@ func (test *LockerTest) Run(clock clockwork.FakeClock) {
 		"WaitForLock":                 WaitForLock,
 	}
 
+	// TODO: This can be removed?
 	for name, fn := range testFns {
 		t.Run(name, func(t *testing.T) {
 			if name == "TestLockTimeUpdates" && test.lockerType == "etcd" {

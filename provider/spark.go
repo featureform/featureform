@@ -206,18 +206,18 @@ func (q defaultPythonOfflineQueries) trainingSetCreate(
 	columnStr := strings.Join(columns, ", ")
 	joinQueryString := strings.Join(joinQueries, " ")
 	var labelWindowQuery string
-	if labelSchema.TS == "" {
+	if labelSchema.EntityMappings.TimestampColumn == "" {
 		labelWindowQuery = fmt.Sprintf(
 			"SELECT %s AS entity, %s AS value, CAST(0 AS TIMESTAMP) AS label_ts FROM source_0",
-			labelSchema.Entity,
-			labelSchema.Value,
+			labelSchema.EntityMappings.Mappings[0].EntityColumn,
+			labelSchema.EntityMappings.ValueColumn,
 		)
 	} else {
 		labelWindowQuery = fmt.Sprintf(
 			"SELECT %s AS entity, %s AS value, %s AS label_ts FROM source_0",
-			labelSchema.Entity,
-			labelSchema.Value,
-			labelSchema.TS,
+			labelSchema.EntityMappings.Mappings[0].EntityColumn,
+			labelSchema.EntityMappings.ValueColumn,
+			labelSchema.EntityMappings.TimestampColumn,
 		)
 	}
 	labelPartitionQuery := fmt.Sprintf(
@@ -1517,6 +1517,7 @@ func (spark *SparkOfflineStore) getResourceSchema(id ResourceID) (ResourceSchema
 }
 
 func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate bool) error {
+	spark.Logger.Debugw("Creating  training set", "definition", def)
 	if err := def.check(); err != nil {
 		spark.Logger.Errorw("Training set definition not valid", "definition", def, "error", err)
 		return err
@@ -1577,9 +1578,7 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 			Schema:       config.Schema,
 		}
 		labelSchema = ResourceSchema{
-			Entity: "entity",
-			Value:  "value",
-			TS:     "ts",
+			EntityMappings: *def.LabelSourceMapping.EntityMappings,
 		}
 	case pt.BigQueryOffline:
 		config := pc.BigQueryConfig{}
@@ -1604,6 +1603,13 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		return fferr.NewInternalErrorf("unsupported label provider: %s", def.LabelSourceMapping.ProviderType.String())
 	}
 	sourcePaths = append(sourcePaths, labelPySparkSource)
+	spark.Logger.Debugw("Label schema", "schema", labelSchema)
+	// TODO: This is a temporary check to ensure that the entity mappings are correct; once multi-label entity
+	// support is implemented, this check should be removed.
+	if len(labelSchema.EntityMappings.Mappings) != 1 {
+		spark.Logger.Errorw("Spark currently does not support multi-entity labels, so mappings must be of length 1", "length", len(labelSchema.EntityMappings.Mappings), "mappings", labelSchema.EntityMappings.Mappings)
+		return fferr.NewInternalErrorf("spark currently does not support multi-entity labels, so mappings must be of length 1; received length %v", labelSchema.EntityMappings.Mappings)
+	}
 	for idx, feature := range def.Features {
 		var featureSchema ResourceSchema
 		var featureSourceLocation pl.Location
@@ -1619,9 +1625,10 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 		case pt.SnowflakeOffline:
 			featureSourceLocation = pl.NewSQLLocation(def.FeatureSourceMappings[idx].Source)
 			featureSchema = ResourceSchema{
-				Entity: "entity",
-				Value:  "value",
-				TS:     "ts",
+				Entity:         "entity",
+				Value:          "value",
+				TS:             "ts",
+				EntityMappings: *def.FeatureSourceMappings[idx].EntityMappings,
 			}
 		case pt.BigQueryOffline:
 			featureSourceLocation = pl.NewSQLLocation(def.FeatureSourceMappings[idx].Source)
@@ -1636,6 +1643,10 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 				"unsupported feature provider: %s",
 				def.FeatureSourceMappings[idx].ProviderType.String(),
 			)
+		}
+		if len(featureSchema.EntityMappings.Mappings) != 1 {
+			spark.Logger.Errorw("Feature entity mappings must be of length 1", "mappings", featureSchema.EntityMappings.Mappings)
+			return fferr.NewInternalErrorf("feature entity mappings must be of length 1; received length %d", len(featureSchema.EntityMappings.Mappings))
 		}
 		var tableFormat string
 		if featureSourceLocation.Type() == pl.CatalogLocationType {
@@ -1696,7 +1707,6 @@ func sparkTrainingSet(def TrainingSetDef, spark *SparkOfflineStore, isUpdate boo
 
 func (spark *SparkOfflineStore) CreateTrainingSet(def TrainingSetDef) error {
 	return sparkTrainingSet(def, spark, false)
-
 }
 
 func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {

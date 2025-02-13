@@ -2511,6 +2511,7 @@ func Test_GetEquivalent(t *testing.T) {
 		Owner:      "Featureform",
 		Tags:       Tags{},
 		Properties: Properties{},
+		Type:       DynamicTrainingSet,
 	}
 
 	defaultResourceVariant := &pb.ResourceVariant{}

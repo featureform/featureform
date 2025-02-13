@@ -22,7 +22,6 @@ import (
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pl "github.com/featureform/provider/location"
-	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
 	"github.com/featureform/runner"
@@ -126,6 +125,12 @@ func (t *FeatureTask) Run() error {
 		Value:       tmpSchema.Value,
 		TS:          tmpSchema.TS,
 		SourceTable: sourceLocation,
+		EntityMappings: metadata.EntityMappings{
+			Mappings: []metadata.EntityMapping{
+				{Name: feature.Entity(), EntityColumn: tmpSchema.Entity},
+			},
+			ValueColumn: tmpSchema.Value,
+		},
 	}
 	logger = logger.With("schema", schema)
 	logger.Debugw("Creating Resource Table")
@@ -180,11 +185,6 @@ func (t *FeatureTask) Run() error {
 		materializedRunnerConfig.OnlineType = pt.NONE
 	}
 
-	isImportToS3Enabled, err := t.checkS3Import(inferenceStore)
-	if err != nil {
-		return err
-	}
-
 	supportsDirectCopy := false
 	var onlineStore provider.OnlineStore
 	if inferenceStore != nil {
@@ -229,8 +229,6 @@ func (t *FeatureTask) Run() error {
 			JobName:        fmt.Sprintf("featureform-materialization--%s--%s", nv.Name, nv.Variant),
 			DirectCopyTo:   onlineStore,
 		})
-	} else if isImportToS3Enabled {
-		materializationErr = t.materializeFeatureViaS3Import(resID, materializedRunnerConfig, sourceStore)
 	} else {
 		materializationErr = t.materializeFeature(resID, materializedRunnerConfig)
 	}
@@ -269,55 +267,61 @@ func (t *FeatureTask) handleDeletion(ctx context.Context, resID metadata.Resourc
 	}
 
 	logger.Debugf("Deleting feature at location")
-	offlineStoreSource, err := featureToDelete.FetchSource(t.metadata, ctx)
-	if err != nil {
-		logger.Errorw("Failed to fetch source", "error", err)
-		return err
-	}
-
+	offlineStoreLocations := featureToDelete.GetOfflineStoreLocations()
+	logger = logger.With("offline_store_locations", offlineStoreLocations)
 	logger.Debug("Getting offline store")
-	sourceStore, err := getOfflineStore(ctx, t.BaseTask, t.metadata, offlineStoreSource, logger)
+	sourceStore, err := getOfflineStore(ctx, t.BaseTask, t.metadata, &offlineProviderFeatureAdapter{feature: featureToDelete}, logger)
 	if err != nil {
 		logger.Errorw("Failed to get store", "error", err)
 		return err
 	}
 
-	logger.Debug("Deleting feature from offline store")
-	if deleteErr := sourceStore.Delete(featureLocation); deleteErr != nil {
-		var notFoundErr *fferr.DatasetNotFoundError
-		if errors.As(deleteErr, &notFoundErr) {
-			logger.Infow("Table doesn't exist at location, continuing...", "location", featureLocation)
-		} else {
-			logger.Errorw("Failed to delete feature from offline store", "error", deleteErr)
-			return deleteErr
+	logger.Debug("Deleting feature at locations", "locations", offlineStoreLocations)
+	for _, offlineStoreLocation := range offlineStoreLocations {
+		logger = logger.With("location", offlineStoreLocation)
+		logger.Debugw("Deleting feature at location")
+		proto, fromProtoErr := pl.FromProto(offlineStoreLocation)
+		if fromProtoErr != nil {
+			logger.Errorw("Failed to convert location to proto", "error", fromProtoErr)
+			return fromProtoErr
+		}
+		if deleteErr := sourceStore.Delete(proto); deleteErr != nil {
+			var notFoundErr *fferr.DatasetNotFoundError
+			if errors.As(deleteErr, &notFoundErr) {
+				logger.Info("Table doesn't exist at location, continuing...")
+			} else {
+				logger.Errorw("Failed to delete feature from offline store", "error", deleteErr)
+				return deleteErr
+			}
 		}
 	}
 
-	logger.Infow("Successfully deleted feature at location")
-
+	logger.Info("Successfully deleted feature from offline store")
 	deleteFromOnlineStoreErr := t.deleteFromOnlineStore(ctx, featureToDelete, logger, nv)
 	if deleteFromOnlineStoreErr != nil {
 		logger.Errorw("Failed to delete feature from online store", "error", deleteFromOnlineStoreErr)
 		return deleteFromOnlineStoreErr
 	}
+	logger.Info("Successfully deleted feature from online store")
 
-	logger.Debugw("Finalizing delete")
+	logger.Debug("Finalizing delete")
 	if err := t.metadata.FinalizeDelete(ctx, resID); err != nil {
 		logger.Errorw("Failed to finalize delete", "error", err)
 		return err
 	}
 
+	logger.Info("Successfully deleted feature")
 	return nil
 }
 
 func (t *FeatureTask) deleteFromOnlineStore(ctx context.Context, featureToDelete *metadata.FeatureVariant, logger logging.Logger, nv metadata.NameVariant) error {
+	logger.Debug("Deleting feature from online store")
 	if featureToDelete.Provider() == "" {
 		logger.Debugw("Feature does not contain inference store, skipping deletion from online store")
 		return nil
 	}
 
 	logger = logger.With("online_provider", featureToDelete.Provider())
-
 	inferenceStore, err := featureToDelete.FetchProvider(t.metadata, ctx)
 	if err != nil {
 		logger.Errorw("Failed to fetch inference store", "error", err)
@@ -354,56 +358,6 @@ func (t *FeatureTask) deleteFromOnlineStore(ctx context.Context, featureToDelete
 	}
 	logger.Info("Deleted feature from online store")
 
-	return nil
-}
-
-func (t *FeatureTask) checkS3Import(featureProvider *metadata.Provider) (bool, error) {
-	if featureProvider != nil && featureProvider.Type() == string(pt.DynamoDBOnline) {
-		t.logger.Debugw("Feature provider is DynamoDB")
-		config := pc.DynamodbConfig{}
-		if err := config.Deserialize(featureProvider.SerializedConfig()); err != nil {
-			return false, err
-		}
-		return config.ImportFromS3, nil
-	}
-	return false, nil
-}
-
-func (t *FeatureTask) materializeFeatureViaS3Import(id metadata.ResourceID, config runner.MaterializedRunnerConfig, sourceStore provider.OfflineStore) error {
-	t.logger.Infow("Materializing Feature Via S3 Import", "id", id)
-	err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Starting Materialization via S3 to Dynamo Import...")
-	if err != nil {
-		return err
-	}
-	sparkOfflineStore, isSparkOfflineStore := sourceStore.(*provider.SparkOfflineStore)
-	if !isSparkOfflineStore {
-		return fferr.NewInvalidArgumentError(fmt.Errorf("offline store is not spark offline store"))
-	}
-	if sparkOfflineStore.Store.FilestoreType() != filestore.S3 {
-		return fferr.NewInvalidArgumentError(fmt.Errorf("offline file store must be S3; %s is not supported", sparkOfflineStore.Store.FilestoreType()))
-	}
-	serialized, err := config.Serialize()
-	if err != nil {
-		return err
-	}
-	jobRunner, err := t.spawner.GetJobRunner(runner.S3_IMPORT_DYNAMODB, serialized, id)
-	if err != nil {
-		return err
-	}
-	completionWatcher, err := jobRunner.Run()
-	if err != nil {
-		return err
-	}
-
-	err = t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for Materialization to complete...")
-	if err != nil {
-		return err
-	}
-
-	if err := completionWatcher.Wait(); err != nil {
-		return err
-	}
-	t.logger.Info("Successfully materialized feature via S3 import to DynamoDB", "id", id)
 	return nil
 }
 

@@ -89,8 +89,62 @@ def test_snowflake_feature_label_registration(
     assert feature[0] == 1230
 
 
+def test_snowflake_multi_entity_label_registration(
+    ff_client, snowflake_fixture, snowflake_transactions_dataset
+):
+    @snowflake_fixture.sql_transformation(inputs=[snowflake_transactions_dataset])
+    def snowflake_avg_transactions(tbl):
+        return (
+            "SELECT CustomerID AS user_id, CustomerID, avg(TransactionAmount) "
+            "AS avg_transaction_amt, IsFraud FROM {{ tbl }} GROUP BY user_id, IsFraud"
+        )
+
+    @ff.entity
+    class SnowflakeUser:
+        pass
+
+    @ff.entity
+    class SnowflakeCustomer:
+        pass
+
+    snowflake_fixture.register_label(
+        name="fraudulent",
+        entity_mappings=[
+            {"entity": "snowflakeuser", "column": "user_id"},
+            {"entity": "snowflakecustomer", "column": "CustomerID"},
+        ],
+        value_type=ff.Bool,
+        dataset=snowflake_avg_transactions,
+        value_column="IsFraud",
+    )
+
+    variant = ff.get_run()
+
+    ff_client.apply(asynchronous=False, verbose=True)
+
+    label = ff_client.get_label("fraudulent", variant)
+
+    assert isinstance(label.location, ff.EntityMappings)
+    assert len(label.location.mappings) == 2
+    assert label.location == ff.EntityMappings(
+        mappings=[
+            ff.EntityMapping(name="snowflakeuser", entity_column="user_id"),
+            ff.EntityMapping(name="snowflakecustomer", entity_column="CustomerID"),
+        ],
+        value_column="IsFraud",
+    )
+
+
+@pytest.mark.parametrize(
+    "ts_type",
+    [
+        ff.TrainingSetType.DYNAMIC,
+        ff.TrainingSetType.STATIC,
+        ff.TrainingSetType.VIEW,
+    ],
+)
 def test_snowflake_training_set_registration(
-    ff_client, redis_fixture, snowflake_fixture, snowflake_transactions_dataset
+    ff_client, redis_fixture, snowflake_fixture, snowflake_transactions_dataset, ts_type
 ):
     @snowflake_fixture.sql_transformation(inputs=[snowflake_transactions_dataset])
     def snowflake_avg_transactions_ts(tbl):
@@ -114,6 +168,7 @@ def test_snowflake_training_set_registration(
         name="snowflake_training_set",
         features=[SnowflakeUser.avg_transactions_ts],
         label=SnowflakeUser.fraudulent_ts,
+        type=ts_type,
     )
 
     ff_client.apply(asynchronous=False, verbose=True)

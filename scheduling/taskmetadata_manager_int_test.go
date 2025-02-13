@@ -11,30 +11,9 @@ import (
 	"testing"
 
 	help "github.com/featureform/helpers"
-	"github.com/featureform/helpers/etcd"
 	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
 )
-
-func TestGetEmptyTasksWithETCD(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Integration Test")
-	}
-	etcdConfig := etcd.Config{
-		Host: "localhost",
-		Port: "2379",
-	}
-	ctx := logging.NewTestContext(t)
-	manager, err := NewETCDTaskMetadataManager(ctx, etcdConfig)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	_, err = manager.GetAllTasks()
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-}
 
 func TestGetEmptyTasksWithPSQL(t *testing.T) {
 	if testing.Short() {

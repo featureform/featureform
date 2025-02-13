@@ -9,10 +9,10 @@ package provider
 
 import (
 	"fmt"
+
 	pl "github.com/featureform/provider/location"
 
 	"github.com/featureform/fferr"
-	fs "github.com/featureform/filestore"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
@@ -45,24 +45,6 @@ type OnlineStore interface {
 	DeleteTable(feature, variant string) error
 	Close() error
 	Provider
-}
-
-type ImportID string
-
-type Import interface {
-	Status() string
-	ErrorMessage() string
-}
-
-// This interface provides an abstraction for online stores that offer
-// bulk creation via import and was created to avoid having to make specific
-// online store implementation public for the purpose of calling specialized
-// methods on them. Currently, DynamoDB is the only online store that implements
-// this interface for the purpose of support the S3 import feature.
-type ImportableOnlineStore interface {
-	OnlineStore
-	ImportTable(feature, variant string, valueType types.ValueType, source fs.Filepath) (ImportID, error)
-	GetImport(id ImportID) (Import, error)
 }
 
 type OnlineStoreTable interface {

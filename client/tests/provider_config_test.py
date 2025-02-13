@@ -188,10 +188,60 @@ def test_dynamodb():
     conf = DynamodbConfig(
         region="region",
         credentials=AWSStaticCredentials(access_key="id", secret_key="key"),
-        should_import_from_s3=False,
+        table_tags={"owner": "featureform"},
     )
     serialized_config = conf.serialize()
     assert json.loads(serialized_config) == expected_config
+
+
+@pytest.mark.local
+@pytest.mark.parametrize(
+    "table_tags, expected_errors",
+    [
+        (  # Valid case
+            {"ValidKey": "ValidValue"},
+            [],
+        ),
+        (  # Invalid: Key exceeds 128 characters
+            {"K" * 129: "ValidValue"},
+            [
+                "Key '{}' exceeds the maximum length of 128 characters.".format(
+                    "K" * 129
+                )
+            ],
+        ),
+        (  # Invalid: Value exceeds 256 characters
+            {"ValidKey": "V" * 257},
+            ["Value for key 'ValidKey' exceeds the maximum length of 256 characters."],
+        ),
+        (  # Invalid: Key contains disallowed characters
+            {"Invalid!Key": "ValidValue"},
+            ["Key 'Invalid!Key' contains invalid characters."],
+        ),
+        (  # Invalid: Value contains disallowed characters
+            {"ValidKey": "Invalid!Value"},
+            ["Value 'Invalid!Value' contains invalid characters."],
+        ),
+        (  # Invalid: Key starts with 'aws'
+            {"awsRestrictedKey": "ValidValue"},
+            ["Key 'awsRestrictedKey' cannot start with 'aws'."],
+        ),
+        (  # Multiple errors in one case
+            {"awsKey!": "V" * 300},
+            [
+                "Value for key 'awsKey!' exceeds the maximum length of 256 characters.",
+                "Key 'awsKey!' contains invalid characters.",
+                "Key 'awsKey!' cannot start with 'aws'.",
+            ],
+        ),
+    ],
+)
+def test_dynamodb_table_tags(table_tags, expected_errors):
+    dummy_credentials = AWSStaticCredentials(access_key="test", secret_key="test")
+    config = DynamodbConfig(region="us-east-1", credentials=dummy_credentials)
+    errors = config.validate_table_tags(table_tags)
+
+    assert errors == expected_errors, f"Expected {expected_errors}, but got {errors}"
 
 
 @pytest.mark.local

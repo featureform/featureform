@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
 	db "github.com/jackc/pgx/v4"
@@ -52,11 +51,7 @@ func (q snowflakeSQLQueries) materializationDrop(tableName string) string {
 	return fmt.Sprintf("DROP TABLE %s", sanitize(tableName))
 }
 
-func (q snowflakeSQLQueries) dynamicIcebergTableCreate(tableName, query string, config metadata.ResourceSnowflakeConfig) (string, error) {
-	if err := config.Validate(); err != nil {
-		return "", err
-	}
-
+func (q snowflakeSQLQueries) dynamicIcebergTableCreate(tableName, query string, config metadata.ResourceSnowflakeConfig) string {
 	var sb strings.Builder
 
 	sb.WriteString(fmt.Sprintf("CREATE OR REPLACE DYNAMIC ICEBERG TABLE %s ", sanitize(tableName)))
@@ -75,37 +70,38 @@ func (q snowflakeSQLQueries) dynamicIcebergTableCreate(tableName, query string, 
 	sb.WriteString(fmt.Sprintf("INITIALIZE = %s ", config.DynamicTableConfig.Initialize))
 	sb.WriteString(fmt.Sprintf("AS %s", query))
 
-	return sb.String(), nil
+	return sb.String()
 }
 
-func (q snowflakeSQLQueries) resourceTableAsQuery(schema ResourceSchema, hasTimestamp bool) (string, error) {
+func (q snowflakeSQLQueries) staticIcebergTableCreate(tableName, query string, config metadata.ResourceSnowflakeConfig) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("SELECT IDENTIFIER('%s') AS entity, IDENTIFIER('%s') AS value, ", schema.Entity, schema.Value))
+	sb.WriteString(fmt.Sprintf("CREATE ICEBERG TABLE %s ", sanitize(tableName)))
+	sb.WriteString(fmt.Sprintf("EXTERNAL_VOLUME = '%s' ", config.DynamicTableConfig.ExternalVolume))
+	sb.WriteString(CATALOG_CLAUSE)
+	sb.WriteString(fmt.Sprintf("BASE_LOCATION = '%s' ", config.DynamicTableConfig.BaseLocation))
+	// TODO: Investigate the following keywords:
+	// * [ CATALOG_SYNC = '<open_catalog_integration_name>']
+	// * [ STORAGE_SERIALIZATION_POLICY = { COMPATIBLE | OPTIMIZED } ]
+	// * [ CHANGE_TRACKING = { TRUE | FALSE } ]
+	sb.WriteString(fmt.Sprintf("AS %s", query))
 
-	if hasTimestamp {
-		sb.WriteString(fmt.Sprintf("CAST(IDENTIFIER('%s') AS TIMESTAMP_NTZ(6)) AS ts ", schema.TS))
-	} else {
-		sb.WriteString(fmt.Sprintf("to_timestamp_ntz('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMP_NTZ(6) AS ts ", time.UnixMilli(0).UTC()))
-	}
-
-	sqlLoc, isSQLLocation := schema.SourceTable.(*pl.SQLLocation)
-	if !isSQLLocation {
-		return "", fferr.NewInvalidArgumentErrorf("source table is not an SQL location")
-	}
-
-	// NOTE: We need to use TableLocation() here to get the correct table name as we cannot assume the table
-	// is in the same database/schema as the current context.
-	sb.WriteString(fmt.Sprintf("FROM TABLE('%s')", SanitizeSnowflakeIdentifier(sqlLoc.TableLocation())))
-
-	return sb.String(), nil
+	return sb.String()
 }
 
-// TODO: (Erik) Determine whether the query without the timestamp is correct
+func (q snowflakeSQLQueries) viewCreate(tableName, query string) string {
+	var sb strings.Builder
+
+	sb.WriteString(fmt.Sprintf("CREATE VIEW %s ", sanitize(tableName)))
+	sb.WriteString(fmt.Sprintf("AS %s", query))
+
+	return sb.String()
+}
+
 func (q snowflakeSQLQueries) materializationCreateAsQuery(entity, value, ts, tableName string) string {
 	var sb strings.Builder
 
-	tsSelectStmt := fmt.Sprintf("CAST(IDENTIFIER('%s') AS TIMESTAMP_NTZ(6)) AS ts", ts)
+	tsSelectStmt := toIcebergTimestamp(ts)
 	tsOrderByStmt := fmt.Sprintf("ORDER BY IDENTIFIER('%s') DESC", ts)
 	if ts == "" {
 		tsSelectStmt = fmt.Sprintf("to_timestamp_ntz('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMP_NTZ(6) AS ts", time.UnixMilli(0).UTC())
@@ -141,4 +137,12 @@ func SanitizeSnowflakeIdentifier(obj pl.FullyQualifiedObject) string {
 	ident = append(ident, obj.Table)
 
 	return ident.Sanitize()
+}
+
+func toIcebergTimestamp(tsCol string) string {
+	if tsCol != "" {
+		return fmt.Sprintf("CAST(IDENTIFIER('%s') AS TIMESTAMP_NTZ(6)) AS ts ", tsCol)
+	} else {
+		return fmt.Sprintf("to_timestamp_ntz('%s', 'YYYY-DD-MM HH24:MI:SS +0000 UTC')::TIMESTAMP_NTZ(6) AS ts ", time.UnixMilli(0).UTC())
+	}
 }

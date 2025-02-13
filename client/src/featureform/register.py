@@ -216,6 +216,8 @@ class OfflineSQLProvider(OfflineProvider):
         schedule: str = "",
         tags: Optional[List[str]] = None,
         properties: Optional[Dict] = None,
+        resource_snowflake_config: Optional[ResourceSnowflakeConfig] = None,
+        type: TrainingSetType = TrainingSetType.DYNAMIC,
     ):
         return self.__registrar.register_training_set(
             name=name,
@@ -229,6 +231,8 @@ class OfflineSQLProvider(OfflineProvider):
             tags=tags if tags is not None else [],
             properties=properties if properties is not None else {},
             provider=self.name(),
+            resource_snowflake_config=resource_snowflake_config,
+            type=type,
         )
 
     def __eq__(self, __value: object) -> bool:
@@ -237,6 +241,125 @@ class OfflineSQLProvider(OfflineProvider):
             self.__provider == __value.__provider
             and self.__registrar == __value.__registrar
         )
+
+    def register_label(
+        self,
+        name: str,
+        entity_mappings: List[dict],
+        value_type: ScalarType,
+        dataset: "SubscriptableTransformation",
+        value_column: str,
+        timestamp_column: Optional[str] = None,
+        variant: str = "",
+        description: str = "",
+        owner: Union[str, UserRegistrar] = "",
+        resource_snowflake_config: Optional[ResourceSnowflakeConfig] = None,
+        tags: Optional[List[str]] = None,
+        properties: Optional[dict] = None,
+    ):
+        """
+        Register a multi-entity label on a SQL provider (currently only supported for Snowflake).
+
+        **Examples**:
+
+        ``` py
+        snowflake = client.get_provider("my_snowflake")
+        label = snowflake.register_label(
+            name="total_purchase_amount",
+            entity_mappings=[{"column": "user_id", "entity": "user"}, {"column": "product_id", "entity": "product"}],
+            value_type=ff.Float32,
+            dataset=purchases,
+            value_column="final_total",
+        )
+        ```
+
+        Args:
+            name (str): Name of the label
+            entity_mappings (List[dict]): A list of dictionaries mapping entity columns to entity names
+            value_type (ScalarType): The type of the label
+            dataset: The dataset the label is derived from
+            value_column (str): The column in the dataset that contains the label values
+            timestamp_column (str, optional): The column in the dataset that contains the timestamp
+            variant (str, optional): The variant of the label
+            description (str, optional): Description of the label
+            owner (Union[str, UserRegistrar], optional): Owner
+            resource_snowflake_config (ResourceSnowflakeConfig, optional): Snowflake specific configuration
+            tags (List[str], optional): Tags
+            properties (dict, optional): Properties
+
+        Returns:
+            label (LabelVariant): The label variant instance
+        """
+        if self.__provider.config.type() != "SNOWFLAKE_OFFLINE":
+            raise ValueError(
+                "Registering labels on SQL offline providers is currently only supported for Snowflake"
+            )
+        if variant == "":
+            variant = self.__registrar.get_run()
+
+        if not isinstance(entity_mappings, list) or len(entity_mappings) == 0:
+            raise ValueError("entity_mappings must be a non-empty list")
+
+        mappings = []
+        for m in entity_mappings:
+            if not isinstance(m, dict):
+                raise ValueError("entity_mappings must be a list of dictionaries")
+            column = m.get("column")
+            if not column:
+                raise ValueError("missing entity column in mapping")
+            entity = m.get("entity")
+            if not entity:
+                raise ValueError("missing entity name in mapping")
+            mappings.append(
+                EntityMapping(
+                    name=entity,
+                    entity_column=column,
+                )
+            )
+
+        if not ScalarType.has_value(value_type) and not isinstance(
+            value_type, ScalarType
+        ):
+            raise ValueError(
+                f"Invalid type for label {name} ({variant}). Must be a ScalarType or one of {ScalarType.get_values()}"
+            )
+        if isinstance(value_type, ScalarType):
+            value_type = value_type.value
+
+        if not hasattr(dataset, "name_variant"):
+            raise ValueError("Dataset must have a name_variant method")
+
+        source = dataset.name_variant()
+
+        if not value_column:
+            raise ValueError("value_column must be provided")
+
+        tags, properties = set_tags_properties(tags, properties)
+        if not isinstance(owner, str):
+            owner = owner.name()
+        if owner == "":
+            owner = self.__registrar.must_get_default_owner()
+
+        label = LabelVariant(
+            name=name,
+            variant=variant,
+            source=source,
+            value_type=value_type,
+            owner=owner,
+            description=description,
+            tags=tags,
+            properties=properties,
+            entity="",
+            location=EntityMappings(
+                mappings=mappings,
+                value_column=value_column,
+                timestamp_column=timestamp_column,
+            ),
+            resource_snowflake_config=resource_snowflake_config,
+        )
+
+        self.__registrar.add_resource(label)
+        return label
 
 
 class OfflineSparkProvider(OfflineProvider):
@@ -1527,9 +1650,7 @@ class FeatureColumnResource(ColumnResource):
             schedule=schedule,
             tags=tags,
             properties=properties,
-            resource_snowflake_config=set_resource_snowflake_config_defaults(
-                resource_snowflake_config
-            ),
+            resource_snowflake_config=resource_snowflake_config,
         )
 
 
@@ -2162,7 +2283,9 @@ class Registrar:
             DeprecationWarning,
         )
         mock_config = DynamodbConfig(
-            region="", access_key="", secret_key="", should_import_from_s3=False
+            region="",
+            access_key="",
+            secret_key="",
         )
         mock_provider = Provider(
             name=name, function="ONLINE", description="", team="", config=mock_config
@@ -3175,11 +3298,11 @@ class Registrar:
         name: str,
         credentials: Union[AWSStaticCredentials, AWSAssumeRoleCredentials],
         region: str,
-        should_import_from_s3: bool = False,
         description: str = "",
         team: str = "",
-        tags: List[str] = [],
-        properties: dict = {},
+        tags: Optional[List[str]] = None,
+        properties: Optional[dict] = None,
+        table_tags: Optional[dict] = None,
     ):
         """Register a DynamoDB provider.
 
@@ -3190,6 +3313,7 @@ class Registrar:
             description="A Dynamodb deployment we created for the Featureform quickstart",
             credentials=aws_creds,
             region="us-east-1"
+            table_tags={"owner": "featureform"}
         )
         ```
 
@@ -3197,20 +3321,21 @@ class Registrar:
             name (str): (Immutable) Name of DynamoDB provider to be registered
             region (str): (Immutable) Region to create dynamo tables
             credentials (Union[AWSStaticCredentials, AWSAssumeRoleCredentials]): (Mutable) AWS credentials with permissions to create DynamoDB tables
-            should_import_from_s3 (bool): (Mutable) Determines whether feature materialization will occur via a direct import of data from S3 to new table (see [docs](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/S3DataImport.HowItWorks.html) for details)
             description (str): (Mutable) Description of DynamoDB provider to be registered
             team (str): (Mutable) Name of team
             tags (List[str]): (Mutable) Optional grouping mechanism for resources
             properties (dict): (Mutable) Optional grouping mechanism for resources
+            table_tags (dict): (Mutable) Tags to be added to the DynamoDB tables
 
         Returns:
             dynamodb (OnlineProvider): Provider
         """
         tags, properties = set_tags_properties(tags, properties)
+
         config = DynamodbConfig(
             credentials=credentials,
             region=region,
-            should_import_from_s3=should_import_from_s3,
+            table_tags=table_tags if table_tags else {},
         )
         provider = Provider(
             name=name,
@@ -4621,6 +4746,7 @@ class Registrar:
         properties: dict = {},
         provider: str = "",
         resource_snowflake_config: Optional[ResourceSnowflakeConfig] = None,
+        type: TrainingSetType = TrainingSetType.DYNAMIC,
     ):
         """Register a training set.
 
@@ -4704,9 +4830,8 @@ class Registrar:
             tags=tags,
             properties=properties,
             provider=provider,
-            resource_snowflake_config=set_resource_snowflake_config_defaults(
-                resource_snowflake_config
-            ),
+            resource_snowflake_config=resource_snowflake_config,
+            type=type,
         )
         self.map_client_object_to_resource(resource, resource)
         self.__resources.append(resource)
@@ -4728,33 +4853,6 @@ class Registrar:
         model = Model(name, description="", tags=tags, properties=properties)
         self.__resources.append(model)
         return model
-
-
-def set_resource_snowflake_config_defaults(
-    resource_snowflake_config: Union[ResourceSnowflakeConfig, None],
-) -> ResourceSnowflakeConfig:
-    # Features and trainging sets cannot use the default target lag of DOWNSTREAM because we
-    # need to ensure that if users serve features or create training sets, they should be up
-    # to date within the target lag period. If no configuration is provided, we set the target
-    # lag to ONE_DAY_TARGET_LAG.
-    if not resource_snowflake_config:
-        resource_snowflake_config = ResourceSnowflakeConfig(
-            dynamic_table_config=SnowflakeDynamicTableConfig(
-                target_lag=ONE_DAY_TARGET_LAG,
-                refresh_mode=RefreshMode.AUTO,
-                initialize=Initialize.ON_CREATE,
-            )
-        )
-    # If the user has provided the warehouse but not any dynamic table config, we set the
-    # SnowflakeDynamicTableConfig to the default values (i.e. ONE_DAY_TARGET_LAG).
-    elif not resource_snowflake_config.dynamic_table_config:
-        resource_snowflake_config.dynamic_table_config = SnowflakeDynamicTableConfig(
-            target_lag=ONE_DAY_TARGET_LAG,
-            refresh_mode=RefreshMode.AUTO,
-            initialize=Initialize.ON_CREATE,
-        )
-
-    return resource_snowflake_config
 
 
 class ResourceClient:

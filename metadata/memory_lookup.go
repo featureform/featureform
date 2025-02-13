@@ -47,7 +47,7 @@ func (lookup MemoryResourceLookup) serializeResource(res Resource) ([]byte, erro
 	if err != nil {
 		return nil, err
 	}
-	msg := EtcdRowTemp{
+	msg := StoredRowTemp{
 		ResourceType:      res.ID().Type,
 		Message:           string(p),
 		StorageType:       RESOURCE,
@@ -61,14 +61,14 @@ func (lookup MemoryResourceLookup) serializeResource(res Resource) ([]byte, erro
 	return serialMsg, nil
 }
 
-// Deserializes object into ETCD Storage Object
-func (lookup MemoryResourceLookup) deserialize(value []byte) (EtcdRow, error) {
-	var tmp EtcdRowTemp
+// Deserializes object into the Storage Object
+func (lookup MemoryResourceLookup) deserialize(value []byte) (StoredRow, error) {
+	var tmp StoredRowTemp
 	if err := json.Unmarshal(value, &tmp); err != nil {
-		return EtcdRow{}, errors.Wrap(err, fmt.Sprintf("failed to parse resource: %s", value))
+		return StoredRow{}, errors.Wrap(err, fmt.Sprintf("failed to parse resource: %s", value))
 	}
-	msg := EtcdRow{
-		ResourceType:      tmp.ResourceType,
+	msg := StoredRow{
+		ResourceType:      ResourceType(tmp.ResourceType),
 		StorageType:       tmp.StorageType,
 		Message:           tmp.Message,
 		SerializedVersion: tmp.SerializedVersion,
@@ -90,7 +90,9 @@ func (lookup MemoryResourceLookup) Lookup(ctx context.Context, id ResourceID, op
 	}
 	qOpts := options.generateQueryOpts()
 	logger.Debugw("Query options", "options", qOpts, "key", key, "id", id)
+	logger.Info("Performing lookup on DB")
 	resp, err := lookup.Connection.Get(key, qOpts...)
+
 	if err != nil || len(resp) == 0 {
 		logger.Debug("Key not found")
 		return nil, fferr.NewKeyNotFoundError(key, err)
@@ -221,17 +223,17 @@ func (lookup MemoryResourceLookup) Submap(ctx context.Context, ids []ResourceID)
 		if err != nil {
 			return nil, fferr.NewKeyNotFoundError(key, err)
 		}
-		etcdStore, err := lookup.deserialize([]byte(resp))
+		storedRow, err := lookup.deserialize([]byte(resp))
 		if err != nil {
 			return nil, err
 		}
 
-		resource, err := CreateEmptyResource(etcdStore.ResourceType)
+		resource, err := CreateEmptyResource(storedRow.ResourceType)
 		if err != nil {
 			return nil, err
 		}
 
-		res, err := ParseResource(etcdStore, resource)
+		res, err := ParseResource(storedRow, resource)
 		if err != nil {
 			return nil, err
 		}
@@ -247,15 +249,15 @@ func (lookup MemoryResourceLookup) ListForType(ctx context.Context, t ResourceTy
 		return nil, err
 	}
 	for _, v := range resp {
-		etcdStore, err := lookup.deserialize([]byte(v))
+		storedRow, err := lookup.deserialize([]byte(v))
 		if err != nil {
 			return nil, err
 		}
-		resource, err := CreateEmptyResource(etcdStore.ResourceType)
+		resource, err := CreateEmptyResource(storedRow.ResourceType)
 		if err != nil {
 			return nil, err
 		}
-		parsedResource, err := ParseResource(etcdStore, resource)
+		parsedResource, err := ParseResource(storedRow, resource)
 		if err != nil {
 			logging.GlobalLogger.Errorw("Failed to parse resource", "error", err)
 			return nil, err
@@ -287,15 +289,15 @@ func (lookup MemoryResourceLookup) ListVariants(ctx context.Context, t ResourceT
 	}
 	startParsingTime := time.Now()
 	for _, v := range resp {
-		etcdStore, err := lookup.deserialize([]byte(v))
+		storedRow, err := lookup.deserialize([]byte(v))
 		if err != nil {
 			return nil, err
 		}
-		resource, err := CreateEmptyResource(etcdStore.ResourceType)
+		resource, err := CreateEmptyResource(storedRow.ResourceType)
 		if err != nil {
 			return nil, err
 		}
-		resource, err = ParseResource(etcdStore, resource)
+		resource, err = ParseResource(storedRow, resource)
 		if err != nil {
 			return nil, err
 		}
@@ -315,15 +317,15 @@ func (lookup MemoryResourceLookup) List(ctx context.Context) ([]Resource, error)
 		return nil, err
 	}
 	for _, v := range resp {
-		etcdStore, err := lookup.deserialize([]byte(v))
+		storedRow, err := lookup.deserialize([]byte(v))
 		if err != nil {
 			return nil, err
 		}
-		resource, err := CreateEmptyResource(etcdStore.ResourceType)
+		resource, err := CreateEmptyResource(storedRow.ResourceType)
 		if err != nil {
 			return nil, err
 		}
-		resource, err = ParseResource(etcdStore, resource)
+		resource, err = ParseResource(storedRow, resource)
 		if err != nil {
 			return nil, err
 		}

@@ -10,16 +10,14 @@ package tasks
 import (
 	"context"
 	"errors"
-	"fmt"
-	"github.com/featureform/logging"
 
 	"github.com/featureform/provider/provider_schema"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
 	pl "github.com/featureform/provider/location"
-	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
 )
 
@@ -53,19 +51,28 @@ func (t *LabelTask) Run() error {
 		return err
 	}
 
+	logger = t.logger.With("source", label.Source())
 	sourceNameVariant := label.Source()
-	logger.Infow("feature obj", "name", label.Name(), "source", label.Source(), "location", label.Location(), "location_col", label.LocationColumns())
+	loc, err := label.Location()
+	if err != nil {
+		logger.Errorw("Failed to get label location", "error", err)
+		return err
+	}
+	logger.Debugw("Label Location", "location", loc)
 
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for dependencies to complete..."); err != nil {
+		logger.Errorw("Failed to add run log", "error", err)
 		return err
 	}
 
 	source, err := t.awaitPendingSource(sourceNameVariant)
 	if err != nil {
+		logger.Errorw("Failed to await pending source", "error", err)
 		return err
 	}
 
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Fetching Offline Store..."); err != nil {
+		logger.Errorw("Failed to add run log", "error", err)
 		return err
 	}
 
@@ -73,16 +80,25 @@ func (t *LabelTask) Run() error {
 	if getStoreErr != nil {
 		return getStoreErr
 	}
-
+	defer func(sourceStore provider.OfflineStore, logger logging.Logger) {
+		err := sourceStore.Close()
+		if err != nil {
+			logger.Errorf("could not close offline store: %v", err)
+		}
+		logger.Debug("Closed offline store")
+	}(sourceStore, logger)
 	var sourceLocation pl.Location
 	var sourceLocationErr error
 	if source.IsSQLTransformation() || source.IsDFTransformation() {
+		logger.Debug("Getting transformation location")
 		sourceLocation, sourceLocationErr = source.GetTransformationLocation()
 	} else if source.IsPrimaryData() {
+		logger.Debug("Getting primary location")
 		sourceLocation, sourceLocationErr = source.GetPrimaryLocation()
 	}
 
 	if sourceLocationErr != nil {
+		logger.Errorw("Failed to get source location", "error", sourceLocationErr)
 		return sourceLocationErr
 	}
 
@@ -91,42 +107,28 @@ func (t *LabelTask) Run() error {
 		Variant: nameVariant.Variant,
 		Type:    provider.Label,
 	}
-	tmpSchema := label.LocationColumns().(metadata.ResourceVariantColumns)
 	schema := provider.ResourceSchema{
-		Entity:      tmpSchema.Entity,
-		Value:       tmpSchema.Value,
-		TS:          tmpSchema.TS,
-		SourceTable: sourceLocation,
+		SourceTable:    sourceLocation,
+		EntityMappings: loc,
 	}
 	logger.Debugw("Creating Label Resource Table", "id", labelID, "schema", schema)
 
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Registering Label from dataset..."); err != nil {
+		logger.Errorw("Failed to add run log", "error", err)
 		return err
 	}
-	logger.Debugw("Checking source store type", "type", fmt.Sprintf("%T", sourceStore))
-	opts := make([]provider.ResourceOption, 0)
-	if sourceStore.Type() == pt.SnowflakeOffline {
-		tempConfig, err := label.ResourceSnowflakeConfig()
-		if err != nil {
-			return err
-		}
-		snowflakeDynamicTableConfigOpts := &provider.ResourceSnowflakeConfigOption{
-			Config:    tempConfig.DynamicTableConfig,
-			Warehouse: tempConfig.Warehouse,
-		}
-		opts = append(opts, snowflakeDynamicTableConfigOpts)
-	}
-
-	if _, err := sourceStore.RegisterResourceFromSourceTable(labelID, schema, opts...); err != nil {
-		logger.Errorw("Failed to register resource from source table", "id", labelID, "opts length", len(opts), "error", err)
+	logger.Debugw("Calling offline store to register resource from source table")
+	if _, err := sourceStore.RegisterResourceFromSourceTable(labelID, schema); err != nil {
+		logger.Errorw("Failed to register resource from source table", "id", labelID, "error", err)
 		return err
 	}
 	logger.Debugw("Resource Table Created", "id", labelID, "schema", schema)
 
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Registration complete..."); err != nil {
+		logger.Errorw("Failed to add run log", "error", err)
 		return err
 	}
-
+	logger.Debugw("Label Registration Complete", "id", labelID)
 	return nil
 }
 

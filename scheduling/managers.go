@@ -12,7 +12,6 @@ import (
 
 	cfg "github.com/featureform/config"
 	"github.com/featureform/ffsync"
-	"github.com/featureform/helpers/etcd"
 	"github.com/featureform/helpers/notifications"
 	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
@@ -57,36 +56,6 @@ func NewMemoryTaskMetadataManager(ctx context.Context) (TaskMetadataManager, err
 		Storage:     storage,
 		idGenerator: generator,
 		notifier:    slackNotif,
-	}, nil
-}
-
-func NewETCDTaskMetadataManager(ctx context.Context, config etcd.Config) (TaskMetadataManager, error) {
-	logger := logging.GetLoggerFromContext(ctx)
-	logger.Warnw("Building deprecated Etcd task metadata manager")
-	etcdLocker, err := ffsync.NewETCDLocker(config)
-	if err != nil {
-		return TaskMetadataManager{}, err
-	}
-
-	etcdStorage, err := ss.NewETCDStorageImplementation(config)
-	if err != nil {
-		return TaskMetadataManager{}, err
-	}
-
-	etcdMetadataStorage := ss.MetadataStorage{
-		Locker:  etcdLocker,
-		Storage: etcdStorage,
-		Logger:  logging.NewLogger("etcdMetadataStorage"),
-	}
-
-	idGenerator, err := ffsync.NewETCDOrderedIdGenerator(config)
-	if err != nil {
-		return TaskMetadataManager{}, err
-	}
-
-	return TaskMetadataManager{
-		Storage:     etcdMetadataStorage,
-		idGenerator: idGenerator,
 	}, nil
 }
 

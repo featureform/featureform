@@ -12,6 +12,7 @@ import (
 	"crypto/sha256"
 	"encoding/gob"
 	"fmt"
+	ps "github.com/featureform/provider/provider_schema"
 	"math"
 	"reflect"
 	"strings"
@@ -27,8 +28,106 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func newSQLTransformationTest(tester offlineSqlStoreTester) *sqlTransformationTester {
-	data := newTestSQLTransformationData(tester.Type(), tester.Config())
+func TestTransformations(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+
+	testInfra := []struct {
+		tester offlineSqlTest
+	}{
+		{getConfiguredBigQueryTester(t, false)},
+		{getConfiguredSnowflakeTester(t, true)},
+		{getConfiguredPostgresTester(t, false)},
+	}
+
+	testSuite := map[string]func(t *testing.T, storeTester offlineSqlTest){
+		"RegisterTransformationOnPrimaryDatasetTest": RegisterTransformationOnPrimaryDatasetTest,
+		"RegisterChainedTransformationsTest":         RegisterChainedTransformationsTest,
+	}
+
+	for _, infra := range testInfra {
+		for testName, testCase := range testSuite {
+			providerName := infra.tester.storeTester.Type()
+			name := fmt.Sprintf("%s:%s", providerName, testName)
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				testCase(t, infra.tester)
+			})
+		}
+	}
+}
+
+func TestMaterializations(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+
+	testInfra := []struct {
+		tester offlineSqlTest
+	}{
+		{getConfiguredBigQueryTester(t, false)},
+		{getConfiguredSnowflakeTester(t, true)},
+		{getConfiguredPostgresTester(t, false)},
+	}
+
+	testSuite := map[string]func(t *testing.T, storeTester offlineSqlTest){
+		"RegisterMaterializationNoTimestampTest": RegisterMaterializationNoTimestampTest,
+		"RegisterMaterializationTimestampTest":   RegisterMaterializationTimestampTest,
+	}
+
+	for _, infra := range testInfra {
+		for testName, testCase := range testSuite {
+			providerName := infra.tester.storeTester.Type()
+			name := fmt.Sprintf("%s:%s", providerName, testName)
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				testCase(t, infra.tester)
+			})
+		}
+	}
+}
+
+func TestTrainingSets(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+
+	testInfra := []struct {
+		tester offlineSqlTest
+	}{
+		{
+			getConfiguredBigQueryTester(t, false),
+		},
+		{
+			getConfiguredSnowflakeTester(t, true),
+		},
+		{
+			getConfiguredPostgresTester(t, true),
+		},
+	}
+
+	testSuite := []trainingSetDatasetType{
+		tsDatasetFeaturesLabelTS,
+		tsDatasetFeaturesTSLabelNoTS,
+		tsDatasetFeaturesNoTSLabelTS,
+		tsDatasetFeaturesLabelNoTS,
+	}
+
+	for _, infra := range testInfra {
+		for _, testCase := range testSuite {
+			providerName := infra.tester.storeTester.Type()
+			name := fmt.Sprintf("%s:%s", providerName, string(testCase))
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				RegisterTrainingSet(t, infra.tester, testCase)
+			})
+		}
+	}
+}
+
+func newSQLTransformationTest(tester offlineSqlStoreTester, transformationQuery string, sanitizeTableNameFn func(object pl.FullyQualifiedObject) string) *sqlTransformationTester {
+	data := newTestSQLTransformationData(tester, transformationQuery, sanitizeTableNameFn)
 	return &sqlTransformationTester{
 		tester: tester,
 		data:   data,
@@ -41,7 +140,7 @@ type sqlTransformationTester struct {
 }
 
 func newSQLMaterializationTest(tester offlineSqlStoreTester, useTimestamps bool) *sqlMaterializationTester {
-	data := newTestSQLMaterializationData(useTimestamps)
+	data := newTestSQLMaterializationData(tester, useTimestamps)
 	return &sqlMaterializationTester{
 		tester: tester,
 		data:   data,
@@ -54,7 +153,7 @@ type sqlMaterializationTester struct {
 }
 
 func newSQLTrainingSetTest(tester offlineSqlStoreTester, tsDatasetType trainingSetDatasetType) *sqlTrainingSetTester {
-	data := newTestSQLTrainingSetData(tester.Type(), tester.Config(), tsDatasetType)
+	data := newTestSQLTrainingSetData(tester, tester.Type(), tester.Config(), tsDatasetType)
 	return &sqlTrainingSetTester{
 		tester: tester,
 		data:   data,
@@ -76,17 +175,6 @@ func initSqlPrimaryDataset(t *testing.T, tester offlineSqlStoreDatasetTester, lo
 	if dbName == "" {
 		t.Fatalf("expected database name to be non-empty")
 	}
-	t.Logf("Creating Database: %s\n", dbName)
-	if err := tester.CreateDatabase(dbName); err != nil {
-		t.Fatalf("could not create database: %v", err)
-	}
-
-	t.Cleanup(func() {
-		t.Logf("Dropping Database: %s\n", dbName)
-		if err := tester.DropDatabase(dbName); err != nil {
-			t.Fatalf("could not drop database: %v", err)
-		}
-	})
 
 	schemaName := sqlLoc.GetSchema()
 	if schemaName == "" {
@@ -143,13 +231,13 @@ func (a idCreator) create(t OfflineResourceType, name string) ResourceID {
 	}
 }
 
-func newTestSQLTransformationData(storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTransformationData {
-	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
+func newTestSQLTransformationData(tester offlineSqlStoreTester, transformationQuery string, sanitizeTableNameFn func(object pl.FullyQualifiedObject) string) testSQLTransformationData {
+	db := tester.GetTestDatabase()
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
 	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_WIND_DATA_TABLE")
 	sqlLoc := loc.(*pl.SQLLocation)
 	tableLoc := sqlLoc.TableLocation()
-	queryFmt := "SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)"
+	queryFmt := transformationQuery
 	idCreator := newIDCreator("test")
 	return testSQLTransformationData{
 		schema: TableSchema{
@@ -167,7 +255,7 @@ func newTestSQLTransformationData(storeType pt.Type, storeConfig pc.SerializedCo
 					ValueType: types.Float64,
 				},
 				{
-					Name:      "FETCH",
+					Name:      "FETCH_VALUE",
 					ValueType: types.Float64,
 				},
 				{
@@ -240,13 +328,13 @@ func newTestSQLTransformationData(storeType pt.Type, storeConfig pc.SerializedCo
 		config: TransformationConfig{
 			Type:          SQLTransformation,
 			TargetTableID: idCreator.create(Transformation, ""),
-			Query:         fmt.Sprintf(queryFmt, tableLoc.String()),
+			Query:         fmt.Sprintf(queryFmt, sanitizeTableNameFn(tableLoc)),
 			SourceMapping: []SourceMapping{
 				{
 					Template:       SanitizeSqlLocation(tableLoc),
 					Source:         tableLoc.String(),
-					ProviderType:   storeType,
-					ProviderConfig: storeConfig,
+					ProviderType:   tester.Type(),
+					ProviderConfig: tester.Config(),
 					Location:       loc,
 				},
 			},
@@ -281,10 +369,15 @@ func (d testSQLTransformationData) Assert(t *testing.T, actual PrimaryTable) {
 		t.Fatalf("could not get iterator: %v", err)
 	}
 
+	var expectedMap = map[string]GenericRecord{}
+	for i := 0; i < len(d.expected); i++ {
+		expectedMap[d.expected[i][entityIdx].(string)] = d.expected[i]
+	}
+
 	i := 0
 	for itr.Next() {
 		actual := itr.Values()
-		expected := d.expected[i]
+		expected := expectedMap[actual[entityIdx].(string)]
 		assert.Equal(t, expected[entityIdx].(string), actual[entityIdx].(string), "expected same entity")
 		assert.Equal(t, expected[avgWindSpeedIdx].(float64), actual[avgWindSpeedIdx].(float64), "expected same value for col 2")
 		assert.Equal(t, expected[avgWindDurationIdx].(float64), actual[avgWindDurationIdx].(float64), "expected same value for col 3")
@@ -297,8 +390,8 @@ func (d testSQLTransformationData) Assert(t *testing.T, actual PrimaryTable) {
 	}
 }
 
-func newTestSQLMaterializationData(useTimestamp bool) testSQLMaterializationData {
-	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
+func newTestSQLMaterializationData(tester offlineSqlStoreTester, useTimestamp bool) testSQLMaterializationData {
+	db := tester.GetTestDatabase()
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
 	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_WIND_DATA_TABLE")
 	idCreator := newIDCreator("test")
@@ -319,7 +412,7 @@ func newTestSQLMaterializationData(useTimestamp bool) testSQLMaterializationData
 					ValueType: types.Float64,
 				},
 				{
-					Name:      "FETCH",
+					Name:      "FETCH_VALUE",
 					ValueType: types.Float64,
 				},
 				{
@@ -550,16 +643,16 @@ const (
 	tsDatasetFeaturesLabelNoTS   trainingSetDatasetType = "features_label_no_ts"
 )
 
-func newTestSQLTrainingSetData(storeType pt.Type, storeConfig pc.SerializedConfig, tsDatasetType trainingSetDatasetType) testSQLTrainingSetData {
+func newTestSQLTrainingSetData(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig, tsDatasetType trainingSetDatasetType) testSQLTrainingSetData {
 	switch tsDatasetType {
 	case tsDatasetFeaturesLabelTS:
-		return getTrainingSetDatasetTS(storeType, storeConfig)
+		return getTrainingSetDatasetTS(tester, storeType, storeConfig)
 	case tsDatasetFeaturesTSLabelNoTS:
-		return getTrainingSetFeaturesTSLabelsNoTS(storeType, storeConfig)
+		return getTrainingSetFeaturesTSLabelsNoTS(tester, storeType, storeConfig)
 	case tsDatasetFeaturesNoTSLabelTS:
-		return getTrainingSetDatasetFeaturesNoTSLabelTS(storeType, storeConfig)
+		return getTrainingSetDatasetFeaturesNoTSLabelTS(tester, storeType, storeConfig)
 	case tsDatasetFeaturesLabelNoTS:
-		return getTrainingSetDatasetNoTS(storeType, storeConfig)
+		return getTrainingSetDatasetNoTS(tester, storeType, storeConfig)
 	default:
 		panic(fmt.Sprintf("unsupported training set dataset type: %s", tsDatasetType))
 	}
@@ -641,11 +734,12 @@ func (data testSQLTrainingSetData) HashStruct(v interface{}) ([]byte, error) {
 	return hash[:], nil
 }
 
-func getTrainingSetDatasetTS(storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
-	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
-	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_FEATURES_SURF_READINGS_TABLE")
-	labelLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_LABEL_WAVE_HEIGHT_TABLE")
+func getTrainingSetDatasetTS(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
+	db := tester.GetTestDatabase()
+	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_SURF_READINGS_TABLE")
+	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABEL_WAVE_HEIGHT_TABLE")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "wave_height_training_set")
 	labelID := idCreator.create(Label, "wave_height")
@@ -695,7 +789,7 @@ func getTrainingSetDatasetTS(storeType pt.Type, storeConfig pc.SerializedConfig)
 				{Name: "OBSERVED_ON", ValueType: types.Timestamp},
 			},
 		},
-		labelResourceSchema: ResourceSchema{Entity: "LOCATION_ID", Value: "WAVE_HEIGHT_FT", TS: "OBSERVED_ON", SourceTable: labelLoc},
+		labelResourceSchema: ResourceSchema{SourceTable: labelLoc, EntityMappings: metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "WAVE_HEIGHT_FT", TimestampColumn: "OBSERVED_ON"}},
 		labelRecords: []GenericRecord{
 			{"L0", "Linda Mar Beach", 4.0, time.Date(2024, 10, 29, 0, 0, 0, 0, time.UTC)},
 			{"L0", "Linda Mar Beach", 3.9, time.Date(2024, 10, 30, 0, 0, 0, 0, time.UTC)},
@@ -719,29 +813,36 @@ func getTrainingSetDatasetTS(storeType pt.Type, storeConfig pc.SerializedConfig)
 				ProviderType:        storeType,
 				ProviderConfig:      storeConfig,
 				TimestampColumnName: "OBSERVED_ON",
-				Location:            nil,
-				Columns: metadata.ResourceVariantColumns{
-					Entity: "ENTITY",
-					Value:  "VALUE",
-					TS:     "TS",
+				Location:            labelLoc,
+				EntityMappings: &metadata.EntityMappings{
+					Mappings: []metadata.EntityMapping{
+						{
+							Name:         "Location",
+							EntityColumn: "LOCATION_ID",
+						},
+					},
+					ValueColumn:     "WAVE_HEIGHT_FT",
+					TimestampColumn: "OBSERVED_ON",
 				},
 			},
 			Features: featureIDs,
 			FeatureSourceMappings: []SourceMapping{
-				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "SWELL_DIRECTION", TS: "MEASURED_ON"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WAVE_POWER_KJ", TS: "MEASURED_ON"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "SWELL_PERIOD_SEC", TS: "MEASURED_ON"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WIND_SPEED_KTS", TS: "MEASURED_ON"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "SWELL_DIRECTION", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "SWELL_DIRECTION", TimestampColumn: "MEASURED_ON"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WAVE_POWER_KJ", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "WAVE_POWER_KJ", TimestampColumn: "MEASURED_ON"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "SWELL_PERIOD_SEC", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "SWELL_PERIOD_SEC", TimestampColumn: "MEASURED_ON"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WIND_SPEED_KTS", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "WIND_SPEED_KTS", TimestampColumn: "MEASURED_ON"}},
 			},
+			Type: metadata.DynamicTrainingSet,
 		},
 	}
 }
 
-func getTrainingSetFeaturesTSLabelsNoTS(storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
-	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
-	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_FEATURES_SURF_READINGS_TABLE")
-	labelLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_LABEL_LOC_LEVEL_TABLE")
+func getTrainingSetFeaturesTSLabelsNoTS(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
+	db := tester.GetTestDatabase()
+	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_SURF_READINGS_TABLE")
+	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABEL_LOC_LEVEL_TABLE")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "location_level_training_set")
 	labelID := idCreator.create(Label, "location_level")
@@ -787,7 +888,7 @@ func getTrainingSetFeaturesTSLabelsNoTS(storeType pt.Type, storeConfig pc.Serial
 				{Name: "LEVEL", ValueType: types.String},
 			},
 		},
-		labelResourceSchema: ResourceSchema{Entity: "LOCATION_ID", Value: "LEVEL", SourceTable: labelLoc},
+		labelResourceSchema: ResourceSchema{SourceTable: labelLoc, EntityMappings: metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "LEVEL"}},
 		labelRecords: []GenericRecord{
 			{"L0", "Linda Mar Beach", "Beginner"},
 			{"L1", "Ocean Beach", "Intermediate"},
@@ -806,25 +907,27 @@ func getTrainingSetFeaturesTSLabelsNoTS(storeType pt.Type, storeConfig pc.Serial
 			LabelSourceMapping: SourceMapping{
 				ProviderType:   storeType,
 				ProviderConfig: storeConfig,
-				Location:       nil,
-				Columns:        metadata.ResourceVariantColumns{Entity: "ENTITY", Value: "VALUE"},
+				Location:       labelLoc,
+				EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "LEVEL"},
 			},
 			Features: featureIDs,
 			FeatureSourceMappings: []SourceMapping{
-				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WAVE_HEIGHT_FT", TS: "MEASURED_ON"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WAVE_POWER_KJ", TS: "MEASURED_ON"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "SWELL_PERIOD_SEC", TS: "MEASURED_ON"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WIND_SPEED_KTS", TS: "MEASURED_ON"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WAVE_HEIGHT_FT", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "WAVE_HEIGHT_FT", TimestampColumn: "MEASURED_ON"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WAVE_POWER_KJ", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "WAVE_POWER_KJ", TimestampColumn: "MEASURED_ON"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "SWELL_PERIOD_SEC", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "SWELL_PERIOD_SEC", TimestampColumn: "MEASURED_ON"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, TimestampColumnName: "MEASURED_ON", Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "LOCATION_ID", Value: "WIND_SPEED_KTS", TS: "MEASURED_ON"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "Location", EntityColumn: "LOCATION_ID"}}, ValueColumn: "WIND_SPEED_KTS", TimestampColumn: "MEASURED_ON"}},
 			},
+			Type: metadata.DynamicTrainingSet,
 		},
 	}
 }
 
-func getTrainingSetDatasetFeaturesNoTSLabelTS(storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
-	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
-	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_FEATURES_SURFERS_TABLE")
-	labelLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_LABEL_RIDES_TABLE")
+func getTrainingSetDatasetFeaturesNoTSLabelTS(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
+	db := tester.GetTestDatabase()
+	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_SURFERS_TABLE")
+	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABEL_RIDES_TABLE")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "successful_rides_training_set")
 	labelID := idCreator.create(Label, "successful_rides")
@@ -871,12 +974,7 @@ func getTrainingSetDatasetFeaturesNoTSLabelTS(storeType pt.Type, storeConfig pc.
 				{Name: "SUCCESSFUL_RIDES", ValueType: types.Int64},
 			},
 		},
-		labelResourceSchema: ResourceSchema{
-			Entity:      "SURFER_ID",
-			Value:       "SUCCESSFUL_RIDES",
-			TS:          "SESSION_DATE",
-			SourceTable: labelLoc,
-		},
+		labelResourceSchema: ResourceSchema{SourceTable: labelLoc, EntityMappings: metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "SUCCESSFUL_RIDES", TimestampColumn: "SESSION_DATE"}},
 		labelRecords: []GenericRecord{
 			{"1001", "101", time.Date(2024, 10, 15, 0, 0, 0, 0, time.UTC), 1.2, 5},
 			{"1002", "102", time.Date(2024, 10, 16, 0, 0, 0, 0, time.UTC), 2.5, 7},
@@ -900,24 +998,32 @@ func getTrainingSetDatasetFeaturesNoTSLabelTS(storeType pt.Type, storeConfig pc.
 				ProviderConfig:      storeConfig,
 				TimestampColumnName: "SESSION_DATE",
 				Location:            labelLoc,
-				Columns:             metadata.ResourceVariantColumns{Entity: "ENTITY", Value: "VALUE", TS: "TS"},
+				EntityMappings: &metadata.EntityMappings{
+					Mappings: []metadata.EntityMapping{
+						{Name: "surfer", EntityColumn: "SURFER_ID"},
+					},
+					ValueColumn:     "SUCCESSFUL_RIDES",
+					TimestampColumn: "SESSION_DATE",
+				},
 			},
 			Features: featureIDs,
 			FeatureSourceMappings: []SourceMapping{
-				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "EXPERIENCE_LEVEL"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "PREFERRED_BOARD_TYPE"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "WEIGHT_KG"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "HEIGHT_CM"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "EXPERIENCE_LEVEL"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "EXPERIENCE_LEVEL"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "PREFERRED_BOARD_TYPE"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "PREFERRED_BOARD_TYPE"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "WEIGHT_KG"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "WEIGHT_KG"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "HEIGHT_CM"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "HEIGHT_CM"}},
 			},
+			Type: metadata.DynamicTrainingSet,
 		},
 	}
 }
 
-func getTrainingSetDatasetNoTS(storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
-	db := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
-	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_FEATURES_FAV_SPOT_TABLE")
-	labelLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_LABEL_SURFER_LEVEL_TABLE")
+func getTrainingSetDatasetNoTS(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
+	db := tester.GetTestDatabase()
+	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_FAV_SPOT_TABLE")
+	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABEL_SURFER_LEVEL_TABLE")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "surfer_level_training_set")
 	labelID := idCreator.create(Label, "surfer_level")
@@ -960,11 +1066,7 @@ func getTrainingSetDatasetNoTS(storeType pt.Type, storeConfig pc.SerializedConfi
 				{Name: "RISK_TOLERANCE", ValueType: types.String},
 			},
 		},
-		labelResourceSchema: ResourceSchema{
-			Entity:      "SURFER_ID",
-			Value:       "SKILL_LEVEL",
-			SourceTable: labelLoc,
-		},
+		labelResourceSchema: ResourceSchema{SourceTable: labelLoc, EntityMappings: metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "SKILL_LEVEL"}},
 		labelRecords: []GenericRecord{
 			{"101", "Intermediate", "No", "Medium"},
 			{"102", "Advanced", "Yes", "High"},
@@ -984,15 +1086,79 @@ func getTrainingSetDatasetNoTS(storeType pt.Type, storeConfig pc.SerializedConfi
 				ProviderType:   storeType,
 				ProviderConfig: storeConfig,
 				Location:       labelLoc,
-				Columns:        metadata.ResourceVariantColumns{Entity: "ENTITY", Value: "VALUE"},
+				EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "SKILL_LEVEL"},
 			},
 			Features: featureIDs,
 			FeatureSourceMappings: []SourceMapping{
-				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "AVG_WAVE_HEIGHT_M"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "AVG_SUCCESS_RATE"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "FAV_SPOT"}},
-				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "MOST_USED_BOARD_TYPE"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "AVG_WAVE_HEIGHT_M"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "AVG_WAVE_HEIGHT_M"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "AVG_SUCCESS_RATE"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "AVG_SUCCESS_RATE"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "FAV_SPOT"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "FAV_SPOT"}},
+				{ProviderType: storeType, ProviderConfig: storeConfig, Location: loc, Columns: &metadata.ResourceVariantColumns{Entity: "SURFER_ID", Value: "MOST_USED_BOARD_TYPE"}, EntityMappings: &metadata.EntityMappings{Mappings: []metadata.EntityMapping{{Name: "surfer", EntityColumn: "SURFER_ID"}}, ValueColumn: "MOST_USED_BOARD_TYPE"}},
 			},
+			Type: metadata.DynamicTrainingSet,
 		},
 	}
+}
+
+func RegisterTransformationOnPrimaryDatasetTest(t *testing.T, tester offlineSqlTest) {
+	test := newSQLTransformationTest(tester.storeTester, tester.transformationQuery, tester.sanitizeTableName)
+	_ = initSqlPrimaryDataset(t, test.tester, test.data.location, test.data.schema, test.data.records)
+	if err := test.tester.CreateTransformation(test.data.config); err != nil {
+		t.Fatalf("could not create transformation: %v", err)
+	}
+	actual, err := test.tester.GetTransformationTable(test.data.config.TargetTableID)
+	if err != nil {
+		t.Fatalf("could not get transformation table: %v", err)
+	}
+	test.data.Assert(t, actual)
+}
+
+func RegisterChainedTransformationsTest(t *testing.T, tester offlineSqlTest) {
+	test := newSQLTransformationTest(tester.storeTester, tester.transformationQuery, tester.sanitizeTableName)
+	_ = initSqlPrimaryDataset(t, test.tester, test.data.location, test.data.schema, test.data.records)
+	if err := test.tester.CreateTransformation(test.data.config); err != nil {
+		t.Fatalf("could not create transformation: %v", err)
+	}
+	// CHAIN `SELECT *` TRANSFORMATION ON 1ST TRANSFORMATION
+	// Create chained transformation resource ID and table name
+	id := ResourceID{Name: "DUMMY_TABLE_TF2", Variant: "test", Type: Transformation}
+	table, err := ps.ResourceToTableName(Transformation.String(), id.Name, id.Variant)
+	if err != nil {
+		t.Fatalf("could not get transformation table: %v", err)
+	}
+	// Get the table name of the first transformation and create a SQL location for sanitization
+	srcDataset, err := ps.ResourceToTableName(Transformation.String(), test.data.config.TargetTableID.Name, test.data.config.TargetTableID.Variant)
+	if err != nil {
+		t.Fatalf("could not get transformation table name from resource ID: %v", err)
+	}
+	srcLoc := pl.NewSQLLocation(srcDataset).(*pl.SQLLocation)
+	// Copy the original config and modify the query and source mapping
+	config := test.data.config
+	config.TargetTableID = id
+	config.Query = fmt.Sprintf("SELECT * FROM %s", tester.sanitizeTableName(srcLoc.TableLocation()))
+	config.SourceMapping[0].Location = pl.NewSQLLocation(table)
+	// Create, get and assert the chained transformation
+	if err := test.tester.CreateTransformation(config); err != nil {
+		t.Fatalf("could not create transformation: %v", err)
+	}
+	actual, err := test.tester.GetTransformationTable(id)
+	if err != nil {
+		t.Fatalf("could not get transformation table: %v", err)
+	}
+	test.data.Assert(t, actual)
+}
+
+func RegisterTrainingSet(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType) {
+	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
+	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
+	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
+
+	if err := tsTest.tester.CreateTrainingSet(tsTest.data.def); err != nil {
+		t.Fatalf("could not create training set: %v", err)
+	}
+	ts, err := tsTest.tester.GetTrainingSet(tsTest.data.id)
+	if err != nil {
+		t.Fatalf("could not get training set: %v", err)
+	}
+	tsTest.data.Assert(t, ts)
 }

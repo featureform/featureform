@@ -129,10 +129,10 @@ func (bt *BaseTask) waitForRunCompletion(id []scheduling.TaskRunID) error {
 	return nil
 }
 
-func (t *BaseTask) awaitPendingSource(sourceNameVariant metadata.NameVariant) (*metadata.SourceVariant, error) {
+func (t *BaseTask) awaitPendingSource(ctx context.Context, sourceNameVariant metadata.NameVariant) (*metadata.SourceVariant, error) {
 	sourceStatus := scheduling.PENDING
 	for sourceStatus != scheduling.READY {
-		source, err := t.metadata.GetSourceVariant(context.Background(), sourceNameVariant)
+		source, err := t.metadata.GetSourceVariant(ctx, sourceNameVariant)
 		if err != nil {
 			return nil, err
 		}
@@ -152,5 +152,5 @@ func (t *BaseTask) awaitPendingSource(sourceNameVariant metadata.NameVariant) (*
 		}
 		time.Sleep(t.config.DependencyPollInterval)
 	}
-	return t.metadata.GetSourceVariant(context.Background(), sourceNameVariant)
+	return t.metadata.GetSourceVariant(ctx, sourceNameVariant)
 }

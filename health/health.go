@@ -26,8 +26,8 @@ func NewHealth(client *metadata.Client) *Health {
 	}
 }
 
-func (h *Health) CheckProvider(name string) (bool, error) {
-	rec, err := h.metadata.GetProvider(context.Background(), name)
+func (h *Health) CheckProvider(ctx context.Context, name string) (bool, error) {
+	rec, err := h.metadata.GetProvider(ctx, name)
 	if err != nil {
 		return false, err
 	}

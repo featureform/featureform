@@ -400,11 +400,12 @@ func initProvider(t *testing.T, providerType pt.Type, executorType pc.SparkExecu
 }
 
 func testSuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *Health, def metadata.ProviderDef) {
-	if err := client.Create(context.Background(), def); err != nil {
+	ctx := logging.NewTestContext(t)
+	if err := client.Create(ctx, def); err != nil {
 		t.Fatalf("Failed to create provider: %s", err)
 	}
 	t.Run(string(def.Name), func(t *testing.T) {
-		isHealthy, err := health.CheckProvider(def.Name)
+		isHealthy, err := health.CheckProvider(ctx, def.Name)
 		if err != nil {
 			t.Fatalf("Failed to check provider health: %s", err)
 		}
@@ -516,11 +517,12 @@ func testUnsuccessfulHealthCheck(t *testing.T, client *metadata.Client, health *
 	default:
 		t.Skip("Skipping unsupported provider type")
 	}
-	if err := client.Create(context.Background(), def); err != nil {
+	ctx := logging.NewTestContext(t)
+	if err := client.Create(ctx, def); err != nil {
 		t.Fatalf("Failed to create provider: %s", err)
 	}
 	t.Run(string(def.Name), func(t *testing.T) {
-		isHealthy, err := health.CheckProvider(def.Name)
+		isHealthy, err := health.CheckProvider(ctx, def.Name)
 		if err == nil {
 			t.Fatalf("(%s) Expected error but received none", def.Type)
 		}

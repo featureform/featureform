@@ -31,8 +31,8 @@ type TrainingSetTask struct {
 }
 
 func (t *TrainingSetTask) Run() error {
-	logger := t.logger.With("%#v\n", t.taskDef.Target)
-	ctx := logger.AttachToContext(context.Background())
+	_, ctx, logger := t.logger.InitializeRequestID(context.TODO())
+	logger = logger.With("%#v\n", t.taskDef.Target)
 	nv, ok := t.taskDef.Target.(scheduling.NameVariant)
 	if !ok {
 		logger.Errorw("cannot create a training set from target type", "type", t.taskDef.TargetType)
@@ -99,7 +99,7 @@ func (t *TrainingSetTask) Run() error {
 			return err
 		}
 		sourceNameVariant := featureResource.Source()
-		sourceVariant, err := t.awaitPendingSource(sourceNameVariant)
+		sourceVariant, err := t.awaitPendingSource(ctx, sourceNameVariant)
 		if err != nil {
 			logger.Errorw("Failed to wait on pending feature source", "error", err)
 			return err
@@ -133,7 +133,7 @@ func (t *TrainingSetTask) Run() error {
 		return err
 	}
 	labelSourceNameVariant := label.Source()
-	_, err = t.awaitPendingSource(labelSourceNameVariant)
+	_, err = t.awaitPendingSource(ctx, labelSourceNameVariant)
 	if err != nil {
 		logger.Errorw("Failed to wait on pending label source", "error", err)
 		return err
@@ -349,7 +349,7 @@ func (t *TrainingSetTask) getFeatureSourceMapping(ctx context.Context, feature *
 		return provider.SourceMapping{}, err
 	}
 	logger.Debugw("Feature Source Provider", "type", sourceProvider.Type())
-	featureSource, err := t.getFeatureSourceTableName(sourceProvider, feature)
+	featureSource, err := t.getFeatureSourceTableName(ctx, sourceProvider, feature)
 	if err != nil {
 		return provider.SourceMapping{}, err
 	}
@@ -450,11 +450,11 @@ func (t *TrainingSetTask) getResourceLocation(provider *metadata.Provider, table
 	return location, err
 }
 
-func (t *TrainingSetTask) getFeatureSourceTableName(p *metadata.Provider, feature *metadata.FeatureVariant) (string, error) {
+func (t *TrainingSetTask) getFeatureSourceTableName(ctx context.Context, p *metadata.Provider, feature *metadata.FeatureVariant) (string, error) {
 	var resourceType provider.OfflineResourceType
 	switch pt.Type(p.Type()) {
 	case pt.SnowflakeOffline, pt.BigQueryOffline, pt.PostgresOffline:
-		return t.getSourceTableNameForNonMaterializedProviders(feature)
+		return t.getSourceTableNameForNonMaterializedProviders(ctx, feature)
 	case pt.MemoryOffline, pt.MySqlOffline, pt.ClickHouseOffline, pt.RedshiftOffline, pt.SparkOffline, pt.K8sOffline:
 		resourceType = provider.Feature
 	default:
@@ -471,9 +471,9 @@ func (t *TrainingSetTask) getFeatureSourceTableName(p *metadata.Provider, featur
 // we need all rows for a given entity to correctly create a training set. Therefore, we now use the source variant
 // as the source of a feature and allow the training set query to determine how to handle the source data based on
 // the presence/absence of timestamps in both the features and label.
-func (t *TrainingSetTask) getSourceTableNameForNonMaterializedProviders(feature *metadata.FeatureVariant) (string, error) {
+func (t *TrainingSetTask) getSourceTableNameForNonMaterializedProviders(ctx context.Context, feature *metadata.FeatureVariant) (string, error) {
 	sourceNv := feature.Source()
-	sv, err := t.metadata.GetSourceVariant(context.TODO(), sourceNv)
+	sv, err := t.metadata.GetSourceVariant(ctx, sourceNv)
 	if err != nil {
 		t.logger.Errorw("could not get source variant", "name_variant", sourceNv, "err", err)
 		return "", err

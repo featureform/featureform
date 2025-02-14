@@ -9,6 +9,7 @@ import os
 import platform
 import warnings
 from collections import namedtuple
+from requests.adapters import HTTPAdapter, Retry
 
 import docker
 import requests
@@ -158,6 +159,30 @@ class DockerDeployment(Deployment):
                 else:
                     print(f"\t\t{filename} already exists. Skipping...")
 
+        # We wait for a bit for the Featureform container to be fully running.
+        # We do this by sending a request (with retries), and wait until it's successful (or error after
+        # max tries).
+        session = requests.Session()
+        retries = Retry(
+            total=10,
+            backoff_max=5,
+            # Total sleep time = {backoff factor} * (2 ** ({number of previous retries}))
+            # https://urllib3.readthedocs.io/en/stable/reference/urllib3.util.html#urllib3.util.Retry
+            backoff_factor=0.2,
+            # Sometimes Featureform returns a 502 Bad Gateway when it's still initializing.
+            # The others are just added as defaults just in case.
+            status_forcelist=[500, 502, 503, 504],
+        )
+        adapter = HTTPAdapter(max_retries=retries)
+        session.mount('http://', adapter)
+
+        try:
+            response = session.get('http://localhost:80')
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            print("Unable to connect to featureform container: ", e)
+            return False
+
         print("\nFeatureform is now running!")
         print("To access the dashboard, visit http://localhost:80")
 
@@ -169,6 +194,7 @@ class DockerDeployment(Deployment):
             print(
                 "To apply definition files, run `featureform apply <file.py> --host http://localhost:7878 --insecure`"
             )
+
         return True
 
     def stop(self) -> bool:

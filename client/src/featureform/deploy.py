@@ -177,7 +177,7 @@ class DockerDeployment(Deployment):
         session.mount('http://', adapter)
 
         try:
-            response = session.get('http://localhost:80')
+            response = session.get('http://localhost:80', timeout=60)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             print("Unable to connect to featureform container: ", e)

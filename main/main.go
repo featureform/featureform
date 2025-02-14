@@ -88,7 +88,7 @@ func main() {
 
 	/****************************************** DB Migrations **********************************************************/
 
-	if config.ShouldRunGooseMigrationExecutable() {
+	if appConfig.StateProviderType == config.PostgresStateProvider && config.ShouldRunGooseMigrationExecutable() {
 		logger.Info("Running goose migrations")
 		pool, err := init.GetOrCreatePostgresPool(ctx)
 		if err != nil {

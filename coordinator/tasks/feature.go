@@ -64,7 +64,7 @@ func (t *FeatureTask) Run() error {
 	}
 
 	sourceNameVariant := feature.Source()
-	source, err := t.awaitPendingSource(sourceNameVariant)
+	source, err := t.awaitPendingSource(ctx, sourceNameVariant)
 	if err != nil {
 		return err
 	}

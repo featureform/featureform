@@ -195,7 +195,7 @@ func (logger Logger) WithProvider(providerType, providerName string) Logger {
 	if providerType != "" {
 		newValues["provider-type"] = providerType
 		logger.SugaredLogger = logger.SugaredLogger.With("provider-type", providerType)
-	} else {
+	} else if providerType != SkipProviderType {
 		logger.Warn("Provider type is empty")
 	}
 

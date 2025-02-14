@@ -65,7 +65,7 @@ func (t *LabelTask) Run() error {
 		return err
 	}
 
-	source, err := t.awaitPendingSource(sourceNameVariant)
+	source, err := t.awaitPendingSource(ctx, sourceNameVariant)
 	if err != nil {
 		logger.Errorw("Failed to await pending source", "error", err)
 		return err

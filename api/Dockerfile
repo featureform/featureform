@@ -20,12 +20,9 @@ COPY ./storage ./storage
 COPY ./schema ./schema
 COPY ./lib/ ./lib/
 COPY ./filestore/ ./filestore/
-COPY ./metadata/*.go ./metadata/
+COPY ./metadata/ ./metadata/
 COPY ./integrations/ ./integrations/
 COPY ./lib/ ./lib/
-COPY ./metadata/search/ ./metadata/search/
-COPY ./metadata/proto/ ./metadata/proto/
-COPY ./metadata/equivalence/ ./metadata/equivalence/
 COPY ./proto/ ./proto/
 COPY ./helpers/ ./helpers/
 COPY ./logging/ ./logging/

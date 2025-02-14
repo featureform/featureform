@@ -82,17 +82,17 @@ func (sf *SnowflakeConfig) Redacted() *SnowflakeConfig {
 		redactedSessionParams[key] = redacted.String
 	}
 	return &SnowflakeConfig{
-		Username: sf.Username,
-		Password: redacted.String,
+		Username:       sf.Username,
+		Password:       redacted.String,
 		AccountLocator: sf.AccountLocator,
-		Organization: sf.Organization,
-		Account: sf.Account,
-		Database: sf.Database,
-		Schema: sf.Schema,
-		Warehouse: sf.Warehouse,
-		Role: sf.Role,
-		Catalog: sf.Catalog,
-		SessionParams: redactedSessionParams,
+		Organization:   sf.Organization,
+		Account:        sf.Account,
+		Database:       sf.Database,
+		Schema:         sf.Schema,
+		Warehouse:      sf.Warehouse,
+		Role:           sf.Role,
+		Catalog:        sf.Catalog,
+		SessionParams:  redactedSessionParams,
 	}
 }
 

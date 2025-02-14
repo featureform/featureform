@@ -31,18 +31,14 @@ COPY ./schema ./schema
 COPY ./lib/ ./lib/
 COPY ./filestore/ ./filestore/
 COPY ./logging/ ./logging/
-COPY ./metadata/*.go ./metadata/
-COPY ./metadata/proto/ ./metadata/proto/
+COPY ./metadata/ ./metadata/
 COPY ./db ./db
 COPY ./helpers/ ./helpers/
 COPY ./integrations/ ./integrations/
-COPY ./metadata/search/ ./metadata/search/
-COPY ./metadata/equivalence/ ./metadata/equivalence/
-COPY ./metadata/server/server.go ./metadata/main/server.go
 COPY ./provider/ ./provider
 COPY ./config/ ./config/
 
-RUN go build ./metadata/main/server.go
+RUN go build ./metadata/server/server.go
 
 FROM alpine
 

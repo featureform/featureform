@@ -10,16 +10,17 @@ package provider
 import (
 	"database/sql"
 	"fmt"
-
-	"github.com/featureform/helpers"
-	pc "github.com/featureform/provider/provider_config"
-	pt "github.com/featureform/provider/provider_type"
-	"github.com/joho/godotenv"
-
 	"os"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/joho/godotenv"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/featureform/helpers"
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 )
 
 func TestOfflineStoreClickhouse(t *testing.T) {
@@ -206,10 +207,8 @@ func TestSplit(t *testing.T) {
 	}
 	t.Logf("train count: %d", trainCount)
 
-	// loop through test
 	var testCount int
 	for test.Next() {
-		// print features and labels
 		t.Logf("features %v and labels %v\n", test.Features(), test.Label())
 		testCount++
 	}
@@ -221,5 +220,97 @@ func TestSplit(t *testing.T) {
 	}
 	if !health {
 		t.Fatalf("health check failed")
+	}
+}
+
+func TestClickhouseCastTableItemType(t *testing.T) {
+	q := clickhouseSQLQueries{}
+
+	var (
+		maxInt = int(^uint(0) >> 1)
+	)
+
+	testTime := time.Date(2025, time.February, 13, 12, 0, 0, 0, time.UTC)
+
+	testCases := []struct {
+		name     string
+		input    interface{}
+		typeSpec interface{}
+		expected interface{}
+	}{
+		{
+			name:     "Nil input returns nil",
+			input:    nil,
+			typeSpec: chInt,
+			expected: nil,
+		},
+		{
+			name:     "chInt simple conversion",
+			input:    42,
+			typeSpec: chInt,
+			expected: 42,
+		},
+		{
+			name:     "chInt with Nullable wrapper",
+			input:    42,
+			typeSpec: "Nullable(" + chInt + ")",
+			expected: 42,
+		},
+		{
+			name:     "chInt32 conversion",
+			input:    int32(42),
+			typeSpec: chInt32,
+			expected: 42,
+		},
+		{
+			name:     "chUInt32 in range conversion",
+			input:    uint32(100),
+			typeSpec: chUInt32,
+			expected: 100, // converted to int
+		},
+		{
+			name:     "chUInt32 out of range returns original",
+			input:    uint32(3000000000), // 3e9 > 2^31-1 (2147483647)
+			typeSpec: chUInt32,
+			expected: uint32(3000000000),
+		},
+		{
+			name:     "chInt64 in range conversion",
+			input:    int64(42),
+			typeSpec: chInt64,
+			expected: 42,
+		},
+		{
+			name:     "chUInt64 in range conversion",
+			input:    uint64(100),
+			typeSpec: chUInt64,
+			expected: 100, // converted to int
+		},
+		{
+			name:     "chUInt64 out of range returns original",
+			input:    uint64(maxInt) + 1,
+			typeSpec: chUInt64,
+			expected: uint64(maxInt) + 1,
+		},
+		{
+			name:     "chDateTime valid time",
+			input:    testTime,
+			typeSpec: chDateTime,
+			expected: testTime,
+		},
+		{
+			name:     "chDateTime invalid type returns default UnixMilli",
+			input:    "not a time",
+			typeSpec: chDateTime,
+			expected: time.UnixMilli(0).UTC(),
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc // capture loop variable
+		t.Run(tc.name, func(t *testing.T) {
+			result := q.castTableItemType(tc.input, tc.typeSpec)
+			assert.Equal(t, tc.expected, result)
+		})
 	}
 }

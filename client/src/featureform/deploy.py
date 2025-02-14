@@ -169,8 +169,10 @@ class DockerDeployment(Deployment):
             # Total sleep time = {backoff factor} * (2 ** ({number of previous retries}))
             # https://urllib3.readthedocs.io/en/stable/reference/urllib3.util.html#urllib3.util.Retry
             backoff_factor=0.2,
-            # Sometimes Featureform returns a 502 Bad Gateway when it's still initializing.
-            # The others are just added as defaults just in case.
+            # request only retries non-server side errors (i.e. non 5xx errors). However,
+            # sometimes Featureform returns a 502 Bad Gateway when it's still initializing.
+            # So we add it to this list of retry-able errors (as well as others, to attempt to
+            # make it less flaky).
             status_forcelist=[500, 502, 503, 504],
         )
         adapter = HTTPAdapter(max_retries=retries)

@@ -15,10 +15,12 @@ import (
 	"testing"
 	"time"
 
-	pc "github.com/featureform/provider/provider_config"
-	pt "github.com/featureform/provider/provider_type"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
+	"github.com/stretchr/testify/assert"
+
+	pc "github.com/featureform/provider/provider_config"
+	pt "github.com/featureform/provider/provider_type"
 )
 
 func TestOfflineStoreRedshift(t *testing.T) {
@@ -124,5 +126,78 @@ func destroyRedshiftDatabase(c pc.RedshiftConfig) error {
 		} else {
 			continue
 		}
+	}
+}
+
+func TestRedshiftCastTableItemType(t *testing.T) {
+	q := redshiftSQLQueries{}
+
+	// Prepare a fixed time value for testing.
+	testTime := time.Date(2025, time.February, 13, 12, 0, 0, 0, time.UTC)
+
+	// Table-driven test cases.
+	testCases := []struct {
+		name     string
+		input    interface{}
+		typeSpec interface{}
+		expected interface{}
+	}{
+		{
+			name:     "Nil input returns nil",
+			input:    nil,
+			typeSpec: rsInt,
+			expected: nil,
+		},
+		{
+			name:     "rsInt conversion",
+			input:    int64(42),
+			typeSpec: rsInt,
+			expected: int32(42),
+		},
+		{
+			name:     "rsBigInt conversion",
+			input:    int64(42),
+			typeSpec: rsBigInt,
+			expected: 42,
+		},
+		{
+			name:     "rsFloat conversion",
+			input:    3.14,
+			typeSpec: rsFloat,
+			expected: 3.14,
+		},
+		{
+			name:     "rsString conversion",
+			input:    "hello",
+			typeSpec: rsString,
+			expected: "hello",
+		},
+		{
+			name:     "rsBool conversion",
+			input:    true,
+			typeSpec: rsBool,
+			expected: true,
+		},
+		{
+			name:     "rsTimestamp conversion",
+			input:    testTime,
+			typeSpec: rsTimestamp,
+			expected: testTime,
+		},
+		{
+			name:     "Default case returns input unchanged",
+			input:    "unchanged",
+			typeSpec: "unknown", // unrecognized type specifier
+			expected: "unchanged",
+		},
+	}
+
+	// Execute each test case.
+	for _, tc := range testCases {
+		tc := tc // capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+			result := q.castTableItemType(tc.input, tc.typeSpec)
+			assert.Equal(t, tc.expected, result)
+		})
 	}
 }

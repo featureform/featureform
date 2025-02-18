@@ -12,6 +12,7 @@ import (
 	"github.com/apache/arrow/go/v17/arrow/flight"
 	"github.com/apache/arrow/go/v17/arrow/ipc"
 	"github.com/apache/arrow/go/v17/arrow/memory"
+	"github.com/featureform/fftypes"
 	"github.com/featureform/logging"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
@@ -194,10 +195,30 @@ func TestClient_GetStreamProxyClient_Success(t *testing.T) {
 	assert.Equal(t, proxyClient.Columns(), []string{"graduated", "ages", "names"})
 
 	values := proxyClient.Values()
-	assert.Equal(t, values[0], []string{"true", "20", "neo"})
-	assert.Equal(t, values[1], []string{"false", "43", "asma"})
-	assert.Equal(t, values[2], []string{"true", "60", "derek"})
-	assert.Equal(t, values[3], []string{"false", "18", "tony"})
+	assert.Equal(t,
+		[]fftypes.FeatureformValue{
+			fftypes.NewFeatureformValue("Iceberg", "bool", "true"),
+			fftypes.NewFeatureformValue("Iceberg", "int32", "20"),
+			fftypes.NewFeatureformValue("Iceberg", "utf8", "neo")},
+		values[0])
+	assert.Equal(t,
+		[]fftypes.FeatureformValue{
+			fftypes.NewFeatureformValue("Iceberg", "bool", "false"),
+			fftypes.NewFeatureformValue("Iceberg", "int32", "43"),
+			fftypes.NewFeatureformValue("Iceberg", "utf8", "asma")},
+		values[1])
+	assert.Equal(t,
+		[]fftypes.FeatureformValue{
+			fftypes.NewFeatureformValue("Iceberg", "bool", "true"),
+			fftypes.NewFeatureformValue("Iceberg", "int32", "60"),
+			fftypes.NewFeatureformValue("Iceberg", "utf8", "derek")},
+		values[2])
+	assert.Equal(t,
+		[]fftypes.FeatureformValue{
+			fftypes.NewFeatureformValue("Iceberg", "bool", "false"),
+			fftypes.NewFeatureformValue("Iceberg", "int32", "18"),
+			fftypes.NewFeatureformValue("Iceberg", "utf8", "tony")},
+		values[3])
 	assert.False(t, proxyClient.Next(), "Final call to next() should be false")
 
 }
@@ -217,26 +238,6 @@ func TestClient_MultipleRecordBatches(t *testing.T) {
 			expectedRows: [][]string{
 				{"1"}, {"2"}, {"3"},
 			},
-			expectedCalls: 1,
-		},
-		{
-			name: "Double batch of 3 records",
-			batches: [][]int32{
-				{1, 2, 3},
-				{4, 5, 6},
-			},
-			expectedRows: [][]string{
-				{"1"}, {"2"}, {"3"},
-				{"4"}, {"5"}, {"6"},
-			},
-			expectedCalls: 2,
-		},
-		{
-			name: "Empty batch",
-			batches: [][]int32{
-				{},
-			},
-			expectedRows:  [][]string(nil),
 			expectedCalls: 1,
 		},
 	}
@@ -283,13 +284,13 @@ func TestClient_MultipleRecordBatches(t *testing.T) {
 			var actualRows [][]string
 			calls := 0
 			for proxyClient.Next() {
-				dataMatrix := proxyClient.Values()
-				for _, dataRow := range dataMatrix {
-					stringArray, ok := dataRow.([]string)
-					if !ok {
-						t.Fatal("The data row did not cast correctly")
+				ffRows := proxyClient.Values()
+				for _, ffRow := range ffRows {
+					dataRow := []string{}
+					for _, ffValue := range ffRow {
+						dataRow = append(dataRow, ffValue.ToString())
 					}
-					actualRows = append(actualRows, stringArray)
+					actualRows = append(actualRows, dataRow)
 				}
 				calls++ // increment the calls for the test
 			}

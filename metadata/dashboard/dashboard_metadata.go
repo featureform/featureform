@@ -2972,21 +2972,16 @@ func (m *MetadataServer) GetIcebergData(c *gin.Context) {
 
 	m.logger.Info("Proxy connection established, iterating stream data...")
 	for proxyIterator.Next() {
-		// todo: the types project work should update this to use real types
-		dataMatrix := proxyIterator.Values()
-		// extract the interface data
-		for _, dataRow := range dataMatrix {
-			stringArray, ok := dataRow.([]string) // expect string array
-			if !ok {
-				fetchError := &FetchError{
-					StatusCode: http.StatusInternalServerError,
-					Type:       "GetIcebergData - Datarow type assert",
-				}
-				m.logger.Errorw("unable to type assert data row: %v", dataRow)
-				c.JSON(fetchError.StatusCode, fetchError.Error())
-				return
+		// todo: extract the ffValues as strings. fine in this use case (preview data)
+		// although we can enforce using FeatureformValues across all apps to including parsing json, etc.
+		ffRows := proxyIterator.Values()
+		// we can simplify this or create a helper function to extract the data
+		for _, ffRow := range ffRows {
+			dataRow := []string{}
+			for _, ffValue := range ffRow {
+				dataRow = append(dataRow, ffValue.ToString()) // quick & easy toString() call
 			}
-			response.Rows = append(response.Rows, stringArray)
+			response.Rows = append(response.Rows, dataRow)
 		}
 	}
 

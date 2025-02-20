@@ -414,7 +414,7 @@ type MockVariantsStore struct {
 	Opts       []query.Query
 }
 
-func (m *MockVariantsStore) Set(key, value string) error {
+func (m *MockVariantsStore) Set(ctx context.Context, key, value string) error {
 	return nil
 }
 

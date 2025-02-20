@@ -17,7 +17,6 @@ import (
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	dm "github.com/featureform/metadata/dashboard"
-	"github.com/featureform/metadata/search"
 )
 
 func main() {
@@ -43,20 +42,6 @@ func main() {
 	defer logger.LogIfErr("Failed to close service-level resources", init.Close())
 	metadataHost := help.GetEnv("METADATA_HOST", "localhost")
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")
-	searchHost := help.GetEnv("MEILISEARCH_HOST", "localhost")
-	searchPort := help.GetEnv("MEILISEARCH_PORT", "7700")
-	searchEndpoint := fmt.Sprintf("http://%s:%s", searchHost, searchPort)
-	searchApiKey := help.GetEnv("MEILISEARCH_APIKEY", "")
-	logger.Infof("Connecting to typesense at: %s\n", searchEndpoint)
-	sc, err := search.NewMeilisearch(&search.MeilisearchParams{
-		Host:   searchHost,
-		Port:   searchPort,
-		ApiKey: searchApiKey,
-	})
-	if err != nil {
-		logger.Panicw("Failed to create new meil search", err)
-	}
-	dm.SearchClient = sc
 	metadataAddress := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	logger.Infof("Looking for metadata at: %s\n", metadataAddress)
 	client, err := metadata.NewClient(metadataAddress, logger)

@@ -554,7 +554,7 @@ func startServ(ctx context.Context, t *testing.T) (*metadata.MetadataServer, str
 		Logger:      logging.GetLoggerFromContext(ctx),
 		TaskManager: manager,
 	}
-	serv, err := metadata.NewMetadataServer(config)
+	serv, err := metadata.NewMetadataServer(ctx, config)
 	if err != nil {
 		panic(err)
 	}

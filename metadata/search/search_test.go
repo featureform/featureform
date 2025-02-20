@@ -8,193 +8,150 @@
 package search
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
-	help "github.com/featureform/helpers"
+	"github.com/featureform/config"
+	"github.com/featureform/helpers/postgres"
+	"github.com/featureform/helpers/tests"
+	"github.com/featureform/logging"
 )
 
-func getPort() string {
-	return help.GetEnv("MEILISEARCH_PORT", "7700")
-}
-
-func getApikey() string {
-	return help.GetEnv("MEILISEARCH_API_KEY", "")
-}
-
-func TestFullSearch(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-	params := MeilisearchParams{
-		Host:   "localhost",
-		Port:   getPort(),
-		ApiKey: getApikey(),
-	}
-	searcher, err := NewMeilisearch(&params)
-	if err != nil {
-		t.Fatalf("Failed to Initialize Search %s", err)
-	}
-	res := ResourceDoc{
-		Name:    "name",
-		Variant: "default",
-		Type:    "string",
-		Tags:    []string{"tag1", "tag2"},
-	}
-	if err := searcher.Upsert(res); err != nil {
-		t.Fatalf("Failed to Upsert %s", err)
-	}
-	if _, err := searcher.RunSearch("name"); err != nil {
-		t.Fatalf("Failed to start search %s", err)
-	}
-	if _, err := searcher.RunSearch("tag1"); err != nil {
-		t.Fatalf("Failed to start search %s", err)
-	}
-	if err := searcher.DeleteAll(); err != nil {
-		t.Fatalf("Failed to reset %s", err)
-	}
-}
-
-func TestCharacters(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-	params := MeilisearchParams{
-		Host:   "localhost",
-		Port:   getPort(),
-		ApiKey: getApikey(),
-	}
-	searcher, errSearcher := NewMeilisearch(&params)
-	if errSearcher != nil {
-		t.Fatalf("Failed to initialize %s", errSearcher)
-	}
-	if err := searcher.DeleteAll(); err != nil {
-		t.Fatalf("Failed to Delete %s", err)
-	}
+func insertIntoSearchResources(ctx context.Context, pool *postgres.Pool) error {
 	resources := []ResourceDoc{
 		{
 			Name:    "hero-typesense-film",
 			Variant: "default_variant",
 			Type:    "string-normal",
+			Tags:    []string{},
 		}, {
 			Name:    "wine_sonoma_county",
 			Variant: "second_variant",
 			Type:    "general",
+			Tags:    []string{},
 		}, {
 			Name:    "hero",
 			Variant: "default-shirt",
 			Type:    "string",
-		}, {
-			Name:    "Hero",
-			Variant: "second_variant",
-			Type:    "Entity",
-		}, {
-			Name:    "juice-dataset-sonome",
-			Variant: "third_variant_backup",
-			Type:    "Feature",
+			Tags:    []string{},
+		},
+		{
+			Name:    "test_name",
+			Variant: "test_variant",
+			Type:    "test_type",
+			Tags:    []string{"tag1", "tag2"},
 		},
 	}
-	for _, resource := range resources {
-		if err := searcher.Upsert(resource); err != nil {
-			t.Fatalf("Failed to Upsert %s", err)
+	for _, res := range resources {
+		_, err := pool.Exec(ctx, `
+        INSERT INTO search_resources (id, name, variant, type, tags)
+        VALUES ($1, $2, $3, $4, $5)`,
+			fmt.Sprintf("%s__%s__%s", res.Type, res.Name, res.Variant), // Construct ID
+			res.Name,
+			res.Variant,
+			res.Type,
+			res.Tags,
+		)
+		if err != nil {
+			return err
 		}
 	}
-	results, errRunsearch := searcher.RunSearch("film")
-	if errRunsearch != nil {
-		t.Fatalf("Failed to start search %s", errRunsearch)
+
+	return nil
+}
+
+func TestPSQLSearch(t *testing.T) {
+	ctx := logging.NewTestContext(t)
+	testDbName, dbCleanup := tests.CreateTestDatabase(ctx, t, config.GetMigrationPath())
+	defer dbCleanup()
+	postgresParams := tests.GetTestPostgresParams(testDbName)
+
+	var err error
+	pool, err := postgres.NewPool(ctx, postgresParams)
+	if err != nil {
+		t.Fatalf("Failed to initialize Postgres Pool: %v", err)
 	}
-	namesFilm := []string{
-		"hero-typesense-film",
+	defer pool.Close()
+	err = insertIntoSearchResources(ctx, pool)
+	if err != nil {
+		t.Fatalf("Failed to Insert into Search Resources: %s", err)
 	}
-	if len(results) == 0 {
-		t.Fatalf("Failed to return any search")
+	searcher, err := NewPostgres(ctx, pool)
+	if err != nil {
+		t.Fatalf("Failed to Initialize Postgres Search: %s", err)
 	}
-	for i, hit := range results {
-		if hit.Name != namesFilm[i] {
-			t.Fatalf("Failed to return correct search'film'")
-		}
+	psqlTest := PSQLSearchTest{
+		ctx:      ctx,
+		t:        t,
+		searcher: searcher,
 	}
-	resultsSonoma, errRunsearch := searcher.RunSearch("sonoma")
-	if errRunsearch != nil {
-		t.Fatalf("Failed to start search %s", errRunsearch)
+	psqlTest.Run()
+}
+
+type PSQLSearchTest struct {
+	ctx      context.Context
+	t        *testing.T
+	searcher Searcher
+}
+
+func (test *PSQLSearchTest) Run() {
+	t := test.t
+	searcher := test.searcher
+	ctx := test.ctx
+	testFns := map[string]func(*testing.T, context.Context, Searcher){
+		"TestPostgresFullSearch": testPostgresFullSearch,
+		"TestPostgresCharacters": testPostgresCharacters,
 	}
-	namesSonoma := []string{
-		"wine_sonoma_county",
-		"juice-dataset-sonome",
+
+	for name, fn := range testFns {
+		t.Run(name, func(t *testing.T) {
+			fn(t, ctx, searcher)
+		})
 	}
-	if len(results) == 0 {
-		t.Fatalf("Failed to return any search")
-	}
-	for i, hit := range resultsSonoma {
-		if hit.Name != namesSonoma[i] {
-			t.Fatalf("Failed to return correct search for 'sonoma'")
-		}
-	}
-	if err := searcher.DeleteAll(); err != nil {
-		t.Fatalf("Failed to Delete %s", err)
+
+	if err := searcher.DeleteAll(ctx); err != nil {
+		t.Fatalf("Failed to Delete: %s", err)
 	}
 }
 
-func TestOrder(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-	params := MeilisearchParams{
-		Host:   "localhost",
-		Port:   getPort(),
-		ApiKey: getApikey(),
-	}
-	searcher, err := NewMeilisearch(&params)
+func testPostgresFullSearch(t *testing.T, ctx context.Context, searcher Searcher) {
+
+	// Test searching by name
+	results, err := searcher.RunSearch(ctx, "test_name")
 	if err != nil {
-		t.Fatalf("Failed to initialize %s", err)
+		t.Fatalf("Failed to search by name: %s", err)
 	}
-	if err := searcher.DeleteAll(); err != nil {
-		t.Fatalf("Failed to Delete %s", err)
+	if len(results) != 1 || results[0].Name != "test_name" {
+		t.Fatal("Failed to find document by name")
 	}
-	resources := []ResourceDoc{
-		{
-			Name:    "heroic",
-			Variant: "default",
-			Type:    "Feature",
-		}, {
-			Name:    "wine",
-			Variant: "second",
-			Type:    "Feature",
-		}, {
-			Name:    "hero",
-			Variant: "default-1",
-			Type:    "Trainingset",
-		}, {
-			Name:    "Hero",
-			Variant: "second",
-			Type:    "Label",
-		}, {
-			Name:    "her o",
-			Variant: "third",
-			Type:    "Feature",
-		},
+
+	// Test searching by tag
+	results, err = searcher.RunSearch(ctx, "tag1")
+	if err != nil {
+		t.Fatalf("Failed to search by tag: %s", err)
 	}
-	for _, resource := range resources {
-		if err := searcher.Upsert(resource); err != nil {
-			t.Fatalf("Failed to Upsert %s", err)
-		}
+	if len(results) != 1 || results[0].Name != "test_name" {
+		t.Fatal("Failed to find document by tag")
 	}
-	results, errRunsearch := searcher.RunSearch("hero")
-	if errRunsearch != nil {
-		t.Fatalf("Failed to start search %s", errRunsearch)
+}
+
+func testPostgresCharacters(t *testing.T, ctx context.Context, searcher Searcher) {
+	// Test partial word matching
+	results, err := searcher.RunSearch(ctx, "film")
+	if err != nil {
+		t.Fatalf("Failed to search: %s", err)
 	}
-	names := []string{
-		"hero",
-		"Hero",
-		"heroic",
-		"her o",
+	if len(results) != 1 || results[0].Name != "hero-typesense-film" {
+		t.Fatal("Failed to find document with partial word match")
 	}
-	for i, hit := range results {
-		if hit.Name != names[i] {
-			t.Fatalf("Failed to return correct search\n"+
-				"Expected: %s, Got: %s\n", names[i], hit.Name)
-		}
+
+	// Test multiple word matching
+	results, err = searcher.RunSearch(ctx, "sonoma county")
+	if err != nil {
+		t.Fatalf("Failed to search: %s", err)
 	}
-	//if err := searcher.DeleteAll(); err != nil {
-	//	t.Fatalf("Failed to Delete %s", err)
-	//}
+	if len(results) != 1 || results[0].Name != "wine_sonoma_county" {
+		t.Fatal("Failed to find document with multiple word match")
+	}
 }

@@ -83,11 +83,11 @@ func StorageSet(t *testing.T, storage metadataStorageImplementation) {
 			fferr.NewInternalError(fmt.Errorf("key '%s' already exists", "key1")),
 		},
 	}
-
+	ctx := logging.NewTestContext(t)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			for _, kv := range test.keys {
-				err := storage.Set(kv.key, kv.value)
+				err := storage.Set(ctx, kv.key, kv.value)
 				if (err != nil && err.Error() != test.err.Error()) || (err != nil && test.err == nil) {
 					t.Errorf("Set(%s, %s): expected error %v, got %v", kv.key, kv.value, test.err, err)
 				}
@@ -120,10 +120,10 @@ func StorageGet(t *testing.T, storage metadataStorageImplementation) {
 			value: "value1",
 		},
 	}
-
+	ctx := logging.NewTestContext(t)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			err := storage.Set(test.key, test.value)
+			err := storage.Set(ctx, test.key, test.value)
 			if err != nil {
 				t.Fatalf("Set(%s, %s) failed: %v", test.key, test.value, err)
 			}
@@ -201,11 +201,11 @@ func StorageList(t *testing.T, storage metadataStorageImplementation) {
 			mustBeEqual:   false,
 		},
 	}
-
+	ctx := logging.NewTestContext(t)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			for key, value := range test.keys {
-				err := storage.Set(key, value)
+				err := storage.Set(ctx, key, value)
 				if err != nil {
 					t.Fatalf("Set(%s, %s) failed: %v", key, value, err)
 				}
@@ -258,10 +258,11 @@ func StorageDelete(t *testing.T, storage metadataStorageImplementation) {
 			deleteValue: "",
 		},
 	}
+	ctx := logging.NewTestContext(t)
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			err := storage.Set(test.setKey, test.setValue)
+			err := storage.Set(ctx, test.setKey, test.setValue)
 			if err != nil {
 				t.Fatalf("Set(%s, %s) failed: %v", test.setKey, test.setValue, err)
 			}
@@ -324,10 +325,11 @@ func testCreate(t *testing.T, ms MetadataStorage) {
 		"Simple":   {"createTest/key1", "value1", nil},
 		"EmptyKey": {"", "value1", fferr.NewLockEmptyKeyError()},
 	}
+	ctx := logging.NewTestContext(t)
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			err := ms.Create(test.key, test.value)
+			err := ms.Create(ctx, test.key, test.value)
 			if err != nil && err.Error() != test.err.Error() {
 				t.Errorf("Create(%s, %s): expected error %v, got %v", test.key, test.value, test.err, err)
 			}
@@ -412,9 +414,11 @@ func testUpdate(t *testing.T, ms MetadataStorage) {
 		},
 	}
 
+	ctx := logging.NewTestContext(t)
+
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			err := ms.Create(test.key, test.value)
+			err := ms.Create(ctx, test.key, test.value)
 			if err != nil {
 				t.Fatalf("Create(%s, %s) failed: %v", test.key, test.value, err)
 			}
@@ -489,11 +493,12 @@ func testList(t *testing.T, ms MetadataStorage) {
 			expectedError: fferr.NewLockEmptyKeyError(),
 		},
 	}
+	ctx := logging.NewTestContext(t)
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			for key, value := range test.keys {
-				err := ms.Create(key, value)
+				err := ms.Create(ctx, key, value)
 				if err != nil {
 					t.Fatalf("Create(%s, %s) failed: %v", key, value, err)
 				}
@@ -538,10 +543,10 @@ func testGet(t *testing.T, ms MetadataStorage) {
 			value: "value1",
 		},
 	}
-
+	ctx := logging.NewTestContext(t)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			err := ms.Create(test.key, test.value)
+			err := ms.Create(ctx, test.key, test.value)
 			if err != nil {
 				t.Fatalf("Create(%s, %s) failed: %v", test.key, test.value, err)
 			}
@@ -571,10 +576,10 @@ func testDelete(t *testing.T, ms MetadataStorage) {
 	tests := map[string]TestCase{
 		"Simple": {"deleteTest/key1", "value1", nil},
 	}
-
+	ctx := logging.NewTestContext(t)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			err := ms.Create(test.key, test.value)
+			err := ms.Create(ctx, test.key, test.value)
 			if err != nil {
 				t.Fatalf("Create(%s, %s) failed: %v", test.key, test.value, err)
 			}

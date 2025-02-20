@@ -178,7 +178,7 @@ func (lookup MemoryResourceLookup) SetJob(ctx context.Context, id ResourceID, sc
 		return err
 	}
 	jobKey := GetJobKey(id)
-	if err := lookup.Connection.Create(jobKey, string(serialized)); err != nil {
+	if err := lookup.Connection.Create(ctx, jobKey, string(serialized)); err != nil {
 		return err
 	}
 
@@ -196,21 +196,28 @@ func (lookup MemoryResourceLookup) SetSchedule(ctx context.Context, id ResourceI
 		return err
 	}
 	jobKey := GetScheduleJobKey(id)
-	if err := lookup.Connection.Create(jobKey, string(serialized)); err != nil {
+	if err := lookup.Connection.Create(ctx, jobKey, string(serialized)); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (lookup MemoryResourceLookup) Set(ctx context.Context, id ResourceID, res Resource) error {
+	logger := logging.GetLoggerFromContext(ctx).With("resource-id", id)
+	logger.Debugw("Serializing resource")
 	serRes, err := lookup.serializeResource(res)
 	if err != nil {
+		logger.Errorw("Failed to serialize resource", "error", err)
 		return err
 	}
 	key := createKey(id)
-	if err := lookup.Connection.Create(key, string(serRes)); err != nil {
+	logger = logger.With("key", key)
+	logger.Debugw("Creating resource")
+	if err := lookup.Connection.Create(logger.AttachToContext(ctx), key, string(serRes)); err != nil {
+		logger.Errorw("Failed to create resource", "error", err)
 		return err
 	}
+	logger.Infow("Resource set successfully")
 	return nil
 }
 

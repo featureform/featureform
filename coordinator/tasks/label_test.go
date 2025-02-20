@@ -30,7 +30,7 @@ func startServ(t *testing.T, ctx context.Context, logger logging.Logger) (*metad
 		TaskManager: manager,
 		Logger:      logger,
 	}
-	serv, err := metadata.NewMetadataServer(config)
+	serv, err := metadata.NewMetadataServer(ctx, config)
 	if err != nil {
 		panic(err)
 	}

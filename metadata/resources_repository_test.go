@@ -125,9 +125,9 @@ func (ts *TestMetadataServer) SetResourcesReady(ctx context.Context, resourceIDs
 			require.NoError(ts.t, err, "Failed to get task ID")
 			lastTask := taskID[len(taskID)-1]
 			run, err := ts.server.taskManager.GetLatestRun(lastTask)
-			err = ts.server.taskManager.SetRunStatus(run.ID, lastTask, &pb.ResourceStatus{Status: pb.ResourceStatus_RUNNING})
+			err = ts.server.taskManager.SetRunStatus(ctx, run.ID, lastTask, &pb.ResourceStatus{Status: pb.ResourceStatus_RUNNING})
 			require.NoError(ts.t, err, "Failed to set run status", "resource: %v", id)
-			err = ts.server.taskManager.SetRunStatus(run.ID, lastTask, &pb.ResourceStatus{Status: pb.ResourceStatus_READY})
+			err = ts.server.taskManager.SetRunStatus(ctx, run.ID, lastTask, &pb.ResourceStatus{Status: pb.ResourceStatus_READY})
 			require.NoError(ts.t, err, "Failed to set run status", "resource: %v", id)
 		}
 	}

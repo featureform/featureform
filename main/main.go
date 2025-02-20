@@ -126,6 +126,7 @@ func main() {
 	/******************************************** Metadata ************************************************************/
 
 	mLogger := logging.NewLogger("metadata")
+	mCtx := mLogger.AttachToContext(ctx)
 
 	config := &metadata.Config{
 		Logger:      mLogger,
@@ -133,7 +134,7 @@ func main() {
 		TaskManager: manager,
 	}
 
-	server, err := metadata.NewMetadataServer(config)
+	server, err := metadata.NewMetadataServer(mCtx, config)
 	if err != nil {
 		logger.Panicw("Failed to create metadata server", "Err", err)
 	}

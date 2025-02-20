@@ -63,6 +63,8 @@ func getConfig(connectionString string, logger logging.Logger) (*pgxpool.Config,
 	return dbConfig, nil
 }
 
+type NewPoolFunc func(ctx context.Context, config Config) (*Pool, error)
+
 func NewPool(ctx context.Context, config Config) (*Pool, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 	logger.With("psql-connect-config", config.Redacted())

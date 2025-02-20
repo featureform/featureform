@@ -8,76 +8,25 @@
 package search
 
 import (
+	"context"
 	"fmt"
 
-	"regexp"
-	"strings"
-	"time"
+	"github.com/featureform/fferr"
+	"github.com/featureform/helpers/postgres"
+	"github.com/featureform/logging"
 
-	re "github.com/avast/retry-go/v4"
-	ms "github.com/meilisearch/meilisearch-go"
+	"github.com/lib/pq"
 )
 
 type Searcher interface {
-	Upsert(ResourceDoc) error
-	RunSearch(q string) ([]ResourceDoc, error)
-	DeleteAll() error
+	RunSearch(ctx context.Context, q string) ([]ResourceDoc, error)
+	DeleteAll(context.Context) error
 }
 
-type NewMeilisearchFunc func(params *MeilisearchParams) (Searcher, error)
+type NewPostgresFunc func(ctx context.Context, pool *postgres.Pool) (Searcher, error)
 
-type MeilisearchParams struct {
-	Host   string
-	Port   string
-	ApiKey string
-}
-
-type Search struct {
-	client *ms.Client
-}
-
-func NewMeilisearch(params *MeilisearchParams) (Searcher, error) {
-	address := fmt.Sprintf("http://%s:%s", params.Host, params.Port)
-	client := ms.NewClient(ms.ClientConfig{
-		Host:   address,
-		APIKey: params.ApiKey,
-	})
-
-	search := Search{
-		client: client,
-	}
-
-	// Retries connection to meilisearch
-	err := healthCheck(client)
-	if err != nil {
-		return nil, fmt.Errorf("could not connect: %v", err)
-	}
-
-	if err := search.initializeCollection(); err != nil {
-		return nil, fmt.Errorf("could not initialize collection: %v", err)
-	}
-	return &search, nil
-}
-
-func healthCheck(client *ms.Client) error {
-	err := re.Do(
-		func() error {
-			if _, errRetr := client.Health(); errRetr != nil {
-				if strings.Contains(errRetr.Error(), "connection refused") {
-					fmt.Printf("could not connect to search. retrying...\n")
-				} else {
-					return re.Unrecoverable(errRetr)
-				}
-				return errRetr
-			}
-			return nil
-		},
-		re.DelayType(func(n uint, err error, config *re.Config) time.Duration {
-			return re.BackOffDelay(n, err, config)
-		}),
-		re.Attempts(10),
-	)
-	return err
+type PostgresSearch struct {
+	pool *postgres.Pool
 }
 
 type ResourceDoc struct {
@@ -87,112 +36,65 @@ type ResourceDoc struct {
 	Tags    []string
 }
 
-func (s Search) waitForSync(taskUID int64) error {
-	task, err := s.client.GetTask(taskUID)
-	if err != nil {
-		return fmt.Errorf("could not get task: %v", err)
-	}
-	for task.Status != ms.TaskStatusSucceeded {
-		task, err = s.client.GetTask(taskUID)
-		if err != nil {
-			return fmt.Errorf("could not get task: %v", err)
-		}
-		if task.Status == ms.TaskStatusFailed {
-			return fmt.Errorf(task.Error.Code)
-		}
-	}
-	return nil
+func NewPostgres(ctx context.Context, pool *postgres.Pool) (Searcher, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger.Debugw("Initializing Postgres search", "pool", pool)
+	search := &PostgresSearch{pool: pool}
+	return search, nil
 }
 
-func (s Search) initializeCollection() error {
-	resp, err := s.client.CreateIndex(&ms.IndexConfig{
-		Uid:        "resources",
-		PrimaryKey: "ID",
-	})
+func (s *PostgresSearch) RunSearch(ctx context.Context, q string) ([]ResourceDoc, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger.Infow("Searching for resources", "query", q)
+	query := `
+	SELECT name, type, variant, tags
+	FROM search_resources
+	WHERE search_vector @@ plainto_tsquery('english', $1)
+	ORDER BY ts_rank(search_vector, plainto_tsquery('english', $1)) DESC
+	`
+
+	rows, err := s.pool.Query(ctx, query, q)
 	if err != nil {
-		return fmt.Errorf("index creation request failed: %v", err)
+		logger.Errorw("failed to execute search", "err", err, "query", query)
+		return nil, fferr.NewExecutionError("Postgres", fmt.Errorf("failed to execute search: %v", err))
+	}
+	defer rows.Close()
+
+	var results []ResourceDoc
+	for rows.Next() {
+		var doc ResourceDoc
+		if err := rows.Scan(&doc.Name, &doc.Type, &doc.Variant, pq.Array(&doc.Tags)); err != nil {
+			logger.Errorw("failed to scan row", "err", err)
+			return nil, fferr.NewInternalErrorf("failed to scan row: %v", err)
+		}
+		results = append(results, doc)
+	}
+	if err := rows.Err(); err != nil {
+		logger.Errorw("failed to iterate over rows", "err", err)
+		return nil, fferr.NewInternalErrorf("failed to iterate over rows: %v", err)
 	}
 
-	err = s.waitForSync(resp.TaskUID)
-	if err != nil && err.Error() == "index_already_exists" {
-		return nil
-	} else if err != nil {
-		return fmt.Errorf("could not create index: %v", err)
-	}
-
-	return nil
+	return results, nil
 }
 
-func (s Search) Upsert(doc ResourceDoc) error {
-	rgx := regexp.MustCompile(`[@.\s]`)
-	documentId := rgx.ReplaceAllString(fmt.Sprintf("%s__%s__%s", doc.Type, doc.Name, doc.Variant), "_")
-	document := map[string]interface{}{
-		"ID":      documentId,
-		"Parsed":  strings.ReplaceAll(fmt.Sprintf("%s__%s__%s", doc.Type, doc.Name, doc.Variant), "_", " "),
-		"Name":    doc.Name,
-		"Type":    doc.Type,
-		"Variant": doc.Variant,
-		"Tags":    doc.Tags,
-	}
-	resp, err := s.client.Index("resources").UpdateDocuments(document)
+func (s *PostgresSearch) DeleteAll(ctx context.Context) error {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger.Info("deleting all resources")
+	_, err := s.pool.Exec(ctx, "TRUNCATE TABLE search_resources")
 	if err != nil {
+		logger.Errorw("failed to delete all tables", "err", err)
 		return err
 	}
-	if err := s.waitForSync(resp.TaskUID); err != nil {
-		fmt.Printf("Could not Upsert %#v: %v", document, err)
-	}
 	return nil
-}
-
-func (s Search) DeleteAll() error {
-	_, err := s.client.DeleteIndex("resources")
-	if err != nil {
-		return fmt.Errorf("failed to delete index: %v", err)
-	}
-	return nil
-}
-
-func (s Search) RunSearch(q string) ([]ResourceDoc, error) {
-	results, err := s.client.Index("resources").Search(q, &ms.SearchRequest{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to search: %v", err)
-	}
-
-	var searchResults []ResourceDoc
-
-	for _, hit := range results.Hits {
-		doc := hit.(map[string]interface{})
-
-		var tags []string
-		if tagSlice, ok := doc["Tags"].([]interface{}); ok {
-			for _, tag := range tagSlice {
-				if strTag, ok := tag.(string); ok {
-					tags = append(tags, strTag)
-				}
-			}
-		}
-		searchResults = append(searchResults, ResourceDoc{
-			Name:    doc["Name"].(string),
-			Type:    doc["Type"].(string),
-			Variant: doc["Variant"].(string),
-			Tags:    tags,
-		})
-
-	}
-	return searchResults, nil
 }
 
 type SearchMock struct {
 }
 
-func (s SearchMock) Upsert(doc ResourceDoc) error {
+func (s SearchMock) DeleteAll(ctx context.Context) error {
 	return nil
 }
 
-func (s SearchMock) DeleteAll() error {
-	return nil
-}
-
-func (s SearchMock) RunSearch(q string) ([]ResourceDoc, error) {
+func (s SearchMock) RunSearch(ctx context.Context, q string) ([]ResourceDoc, error) {
 	return nil, nil
 }

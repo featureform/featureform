@@ -9,45 +9,24 @@ package ffsync
 
 import (
 	"fmt"
-	"github.com/jonboulle/clockwork"
 	"testing"
 
-	"github.com/featureform/helpers"
+	"github.com/featureform/config"
 	"github.com/featureform/helpers/postgres"
+	"github.com/featureform/helpers/tests"
 	"github.com/featureform/logging"
+	"github.com/jonboulle/clockwork"
 )
 
 func TestPSQLLocker(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	var host, username, password, port, dbName, sslMode string
-
-	if *useEnv {
-		host = helpers.GetEnv("POSTGRES_HOST", "localhost")
-		username = helpers.GetEnv("POSTGRES_USER", "postgres")
-		password = helpers.GetEnv("POSTGRES_PASSWORD", "mysecretpassword")
-		port = helpers.GetEnv("POSTGRES_PORT", "5432")
-		dbName = helpers.GetEnv("POSTGRES_DB", "postgres")
-		sslMode = helpers.GetEnv("POSTGRES_SSL_MODE", "disable")
-	} else {
-		host = "127.0.0.1"
-		port = pgPort
-		username = "postgres"
-		password = "mysecretpassword"
-		dbName = "postgres"
-		sslMode = "disable"
-	}
-
-	cfg := postgres.Config{
-		Host:     host,
-		Port:     port,
-		User:     username,
-		Password: password,
-		DBName:   dbName,
-		SSLMode:  sslMode,
-	}
 	ctx := logging.NewTestContext(t)
+	testDbName, dbCleanup := tests.CreateTestDatabase(ctx, t, config.GetMigrationPath())
+	defer dbCleanup()
+	cfg := tests.GetTestPostgresParams(testDbName)
+
 	pool, err := postgres.NewPool(ctx, cfg)
 	if err != nil {
 		t.Fatalf("Failed to create postgres pool with config: %v . Err: %v", cfg, err)

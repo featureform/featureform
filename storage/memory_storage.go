@@ -8,6 +8,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -26,7 +27,7 @@ type memoryStorageImplementation struct {
 	storage *sync.Map
 }
 
-func (m *memoryStorageImplementation) Set(key string, value string) error {
+func (m *memoryStorageImplementation) Set(ctx context.Context, key string, value string) error {
 	if key == "" {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("cannot set an empty key"))
 	}

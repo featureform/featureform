@@ -21,28 +21,6 @@ import (
 
 func NewPSQLStorageImplementation(ctx context.Context, db *postgres.Pool, tableName string) (metadataStorageImplementation, error) {
 	logger := logging.GetLoggerFromContext(ctx)
-	indexName := "ff_key_pattern"
-	sanitizedName := postgres.Sanitize(tableName)
-	// Create a table to store the key-value pairs
-	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (key VARCHAR(2048) PRIMARY KEY, value TEXT)", sanitizedName)
-	if _, err := db.Exec(ctx, tableCreationSQL); err != nil {
-		logger.Errorw("Failed to create table", "table-name", sanitizedName, "err", err)
-		return nil, fferr.NewInternalErrorf("failed to create table %s: %w", sanitizedName, err)
-	}
-
-	// This column is used in deletion
-	addClm := fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS marked_for_deletion_at TIMESTAMP DEFAULT null", sanitizedName)
-	if _, err := db.Exec(ctx, addClm); err != nil {
-		logger.Errorw("Failed to add deletion column", "table-name", sanitizedName, "err", err)
-		return nil, fferr.NewInternalErrorf("failed to add deletion column to %s: %w", sanitizedName, err)
-	}
-
-	// Add a text index to use for LIKE queries
-	indexCreationSQL := fmt.Sprintf("CREATE INDEX %s ON %s (key text_pattern_ops);", indexName, sanitizedName)
-	if _, err := db.Exec(ctx, indexCreationSQL); err != nil {
-		// Index probably aleady exists, ignore the error
-		logger.Warnf("failed to create index %s on %s: %v", indexName, sanitizedName, err)
-	}
 
 	return &PSQLStorageImplementation{
 		Db:        db,
@@ -57,18 +35,20 @@ type PSQLStorageImplementation struct {
 	logger    logging.Logger // TODO remove and pass in ctx
 }
 
-func (psql *PSQLStorageImplementation) Set(key string, value string) error {
+func (psql *PSQLStorageImplementation) Set(ctx context.Context, key string, value string) error {
+	logger := logging.GetLoggerFromContext(ctx)
 	if key == "" {
+		logger.Errorw("Cannot set an empty key")
 		return fferr.NewInvalidArgumentError(fmt.Errorf("cannot set an empty key"))
 	}
-
 	insertSQL := psql.setQuery()
-	psql.logger.Debugw("Setting key with query", "query", insertSQL, "key", key, "value", value)
-	_, err := psql.Db.Exec(context.Background(), insertSQL, key, value)
+	logger.Debugw("Setting key with query", "query", insertSQL, "key", key, "value", value)
+	_, err := psql.Db.Exec(ctx, insertSQL, key, value)
 	if err != nil {
-		return fferr.NewInternalErrorf("failed to set key %s: %w", key, err)
+		logger.Errorw("Failed to set key", "error", err)
+		return fferr.NewInternalErrorf("failed to set key %s in table %s: %w", key, psql.tableName, err)
 	}
-
+	logger.Debugw("Key set successfully")
 	return nil
 }
 

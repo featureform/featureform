@@ -19,6 +19,7 @@ type FF_Type int
 const (
 	NilType FF_Type = iota
 	Int
+	Int8
 	Int16
 	Int32
 	Int64

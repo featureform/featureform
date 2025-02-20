@@ -9,9 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/featureform/config"
 	"github.com/featureform/fferr"
-	help "github.com/featureform/helpers"
 	"github.com/featureform/helpers/postgres"
+	"github.com/featureform/helpers/tests"
 	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
 	pc "github.com/featureform/provider/provider_config"
@@ -20,17 +21,14 @@ import (
 )
 
 func startServPsql(t *testing.T) (*MetadataServer, string, func()) {
-	testDb, dbCleanup := createTestDatabase(t)
-	psqlConfig := postgres.Config{
-		Host:     help.GetEnv("POSTGRES_HOST", "localhost"),
-		Port:     help.GetEnv("POSTGRES_PORT", "5432"),
-		User:     help.GetEnv("POSTGRES_USER", "postgres"),
-		Password: help.GetEnv("POSTGRES_PASSWORD", "password"),
-		DBName:   testDb,
-		SSLMode:  help.GetEnv("POSTGRES_SSL_MODE", "disable"),
-	}
 	ctx := logging.NewTestContext(t)
+	testDbName, dbCleanup := tests.CreateTestDatabase(ctx, t, config.GetMigrationPath())
+	psqlConfig := tests.GetTestPostgresParams(testDbName)
+
 	pool, err := postgres.NewPool(ctx, psqlConfig)
+	if err != nil {
+		t.Fatalf("Failed to create postgres pool: %v", err)
+	}
 
 	manager, err := scheduling.NewPSQLTaskMetadataManager(ctx, pool)
 	if err != nil {
@@ -42,7 +40,7 @@ func startServPsql(t *testing.T) (*MetadataServer, string, func()) {
 		Logger:      logger,
 		TaskManager: manager,
 	}
-	serv, err := NewMetadataServer(config)
+	serv, err := NewMetadataServer(ctx, config)
 	if err != nil {
 		panic(err)
 	}

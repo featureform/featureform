@@ -782,13 +782,13 @@ func TestSetStatusByRunID(t *testing.T) {
 
 		// Set status to running before setting to failed
 		if test.SetStatus.Status == proto.ResourceStatus_FAILED {
-			err = manager.SetRunStatus(test.ForRun, test.ForTask, &proto.ResourceStatus{Status: proto.ResourceStatus_RUNNING})
+			err = manager.SetRunStatus(ctx, test.ForRun, test.ForTask, &proto.ResourceStatus{Status: proto.ResourceStatus_RUNNING})
 			if err != nil {
 				t.Fatalf("failed to set status correctly: %v", err)
 			}
 		}
 
-		err = manager.SetRunStatus(test.ForRun, test.ForTask, test.SetStatus)
+		err = manager.SetRunStatus(ctx, test.ForRun, test.ForTask, test.SetStatus)
 		if err != nil && test.shouldError {
 			return
 		} else if err != nil && !test.shouldError {
@@ -1326,28 +1326,29 @@ func TestGetIncompleteRuns(t *testing.T) {
 	}
 
 	setStatus := func(t *testing.T, manager TaskMetadataManager, run TaskRunMetadata, status Status) TaskRunMetadata {
+		ctx := logging.NewTestContext(t)
 		if status == PENDING {
 			return run
 		} else if status == RUNNING {
-			err := manager.SetRunStatus(run.ID, run.TaskId, &proto.ResourceStatus{Status: proto.ResourceStatus_RUNNING})
+			err := manager.SetRunStatus(ctx, run.ID, run.TaskId, &proto.ResourceStatus{Status: proto.ResourceStatus_RUNNING})
 			if err != nil {
 				t.Fatalf("failed to set run status: %v", err)
 			}
 		} else if status == FAILED {
-			err := manager.SetRunStatus(run.ID, run.TaskId, &proto.ResourceStatus{Status: proto.ResourceStatus_RUNNING})
+			err := manager.SetRunStatus(ctx, run.ID, run.TaskId, &proto.ResourceStatus{Status: proto.ResourceStatus_RUNNING})
 			if err != nil {
 				t.Fatalf("failed to set run status: %v", err)
 			}
-			err = manager.SetRunStatus(run.ID, run.TaskId, &proto.ResourceStatus{Status: proto.ResourceStatus_FAILED, ErrorMessage: "failed"})
+			err = manager.SetRunStatus(ctx, run.ID, run.TaskId, &proto.ResourceStatus{Status: proto.ResourceStatus_FAILED, ErrorMessage: "failed"})
 			if err != nil {
 				t.Fatalf("failed to set run status: %v", err)
 			}
 		} else if status == READY {
-			err := manager.SetRunStatus(run.ID, run.TaskId, &proto.ResourceStatus{Status: proto.ResourceStatus_RUNNING})
+			err := manager.SetRunStatus(ctx, run.ID, run.TaskId, &proto.ResourceStatus{Status: proto.ResourceStatus_RUNNING})
 			if err != nil {
 				t.Fatalf("failed to set run status: %v", err)
 			}
-			err = manager.SetRunStatus(run.ID, run.TaskId, &proto.ResourceStatus{Status: proto.ResourceStatus_READY})
+			err = manager.SetRunStatus(ctx, run.ID, run.TaskId, &proto.ResourceStatus{Status: proto.ResourceStatus_READY})
 			if err != nil {
 				t.Fatalf("failed to set run status: %v", err)
 			}
@@ -1485,6 +1486,7 @@ func (m *MockNotifier) ErrorNotification(resource, error string) error {
 }
 
 func Test_SetRunStatus_Invokes_Notification(t *testing.T) {
+	ctx := logging.NewTestContext(t)
 	locker, err := ffsync.NewMemoryLocker()
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -1518,18 +1520,18 @@ func Test_SetRunStatus_Invokes_Notification(t *testing.T) {
 	taskId := TaskID(ffsync.Uint64OrderedId(1))
 
 	//sets up the data layer for record retrieval
-	runErr := memoryStorage.Set("/tasks/runs/task_id=1", `{"taskID":1,"runs":[{"runID":1,"dateCreated":"2024-10-15T23:10:20.709277839Z"}]}`)
+	runErr := memoryStorage.Set(ctx, "/tasks/runs/task_id=1", `{"taskID":1,"runs":[{"runID":1,"dateCreated":"2024-10-15T23:10:20.709277839Z"}]}`)
 	if runErr != nil {
 		t.Fatalf("Failed to set run: %v", runErr)
 	}
 
-	taskErr := memoryStorage.Set("/tasks/metadata/task_id=1", `{"id":1,"name":"mytask","type":0,"target":{"name":"transactions-test",`+
+	taskErr := memoryStorage.Set(ctx, "/tasks/metadata/task_id=1", `{"id":1,"name":"mytask","type":0,"target":{"name":"transactions-test",`+
 		`"variant":"2024-10-15t18-10-18","type":"SOURCE_VARIANT"},"targetType":0,"dateCreated":"2024-10-15T23:10:20.709277839Z"}`)
 	if taskErr != nil {
 		t.Fatalf("Failed to set task: %v", taskErr)
 	}
 
-	metaErr := memoryStorage.Set("/tasks/runs/metadata/2024/10/15/23/10/task_id=1/run_id=1", `{"runId":1,"taskId":1, `+
+	metaErr := memoryStorage.Set(ctx, "/tasks/runs/metadata/2024/10/15/23/10/task_id=1/run_id=1", `{"runId":1,"taskId":1, `+
 		`"name":"Create Resource transactions-test (2024-10-15t18-10-18)","trigger":{"triggerName":"Apply"},`+
 		`"triggerType":1,"target":{"name":"transactions-test","variant":"2024-10-15t18-10-18","type":"SOURCE_VARIANT"},`+
 		`"targetType":0,"dependencies":null,"status":2,"startTime":"2024-10-15T23:10:20.709277839Z","endTime":"0001-01-01T00:00:00Z",`+
@@ -1539,7 +1541,7 @@ func Test_SetRunStatus_Invokes_Notification(t *testing.T) {
 	}
 
 	// will set the resource from PENDING state to RUNNING, fails on error
-	updateErr := taskManager.SetRunStatus(taskRunId, taskId, &proto.ResourceStatus{Status: proto.ResourceStatus_RUNNING})
+	updateErr := taskManager.SetRunStatus(ctx, taskRunId, taskId, &proto.ResourceStatus{Status: proto.ResourceStatus_RUNNING})
 	if updateErr != nil {
 		assert.FailNow(t, fmt.Sprintf("SetRunStatus() resulted in a runtime error of %v", updateErr))
 	}

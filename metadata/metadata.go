@@ -35,7 +35,6 @@ import (
 	"github.com/featureform/metadata/common"
 	"github.com/featureform/metadata/equivalence"
 	pb "github.com/featureform/metadata/proto"
-	"github.com/featureform/metadata/search"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -427,40 +426,6 @@ type resourceStatusImplementation interface {
 
 type resourceTaskImplementation interface {
 	TaskIDs() ([]scheduling.TaskID, error)
-}
-
-type SearchWrapper struct {
-	Searcher search.Searcher
-	ResourceLookup
-}
-
-func (wrapper SearchWrapper) Set(ctx context.Context, id ResourceID, res Resource) error {
-	if err := wrapper.ResourceLookup.Set(ctx, id, res); err != nil {
-		return err
-	}
-
-	var allTags []string
-	switch res.(type) {
-	case *sourceVariantResource:
-		allTags = res.(*sourceVariantResource).serialized.Tags.Tag
-
-	case *featureVariantResource:
-		allTags = res.(*featureVariantResource).serialized.Tags.Tag
-
-	case *labelVariantResource:
-		allTags = res.(*labelVariantResource).serialized.Tags.Tag
-
-	case *trainingSetVariantResource:
-		allTags = res.(*trainingSetVariantResource).serialized.Tags.Tag
-	}
-
-	doc := search.ResourceDoc{
-		Name:    id.Name,
-		Type:    id.Type.String(),
-		Tags:    allTags,
-		Variant: id.Variant,
-	}
-	return wrapper.Searcher.Upsert(doc)
 }
 
 type LocalResourceLookup map[ResourceID]Resource
@@ -1960,55 +1925,35 @@ func (serv *MetadataServer) SyncUnfinishedRuns(ctx context.Context, empty *schpr
 	return &schproto.Empty{}, nil
 }
 
-func NewMetadataServer(config *Config) (*MetadataServer, error) {
+func NewMetadataServer(ctx context.Context, config *Config) (*MetadataServer, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	if config == nil {
-		logging.GlobalLogger.Errorw("config cannot be nil")
+		logger.Errorw("config cannot be nil")
 		return nil, fferr.NewInternalErrorf("config cannot be nil")
 	}
 
-	config.Logger.Infow("Creating new metadata server", "address", config.Address)
+	logger.Infow("Creating new metadata server", "address", config.Address)
 
 	baseLookup := MemoryResourceLookup{config.TaskManager.Storage}
-	wrappedLookup, err := initializeLookup(config, &baseLookup, search.NewMeilisearch)
-	if err != nil {
-		config.Logger.Errorw("Failed to initialize lookup", "error", err)
-		return nil, fferr.NewInternalErrorf("failed to initialize lookup: %w", err)
-	}
 
 	resourcesRepo, err := NewResourcesRepositoryFromLookup(&baseLookup)
 	if err != nil {
-		config.Logger.Errorw("Failed to create resources repository", "error", err)
+		logger.Errorw("Failed to create resources repository", "error", err)
 		return nil, fferr.NewInternalErrorf("failed to create resources repository: %w", err)
 	}
 
 	if resourcesRepo == nil {
-		config.Logger.Errorw("resources repository is nil")
+		logger.Errorw("resources repository is nil")
 		return nil, fferr.NewInternalErrorf("resources repository is nil")
 	}
 
 	return &MetadataServer{
-		lookup:              wrappedLookup,
+		lookup:              &baseLookup,
 		address:             config.Address,
 		Logger:              config.Logger,
 		taskManager:         &config.TaskManager,
 		resourcesRepository: resourcesRepo,
 		slackNotifier:       *notifications.NewSlackNotifier(os.Getenv("SLACK_CHANNEL_ID"), config.Logger),
-	}, nil
-}
-
-func initializeLookup(config *Config, lookup *MemoryResourceLookup, newSearchStub search.NewMeilisearchFunc) (ResourceLookup, error) {
-	if config.SearchParams == nil {
-		config.Logger.Debug("No configuration search params are present, using non-search wrappped lookup")
-		return lookup, nil
-	}
-	searcher, err := newSearchStub(config.SearchParams)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SearchWrapper{
-		Searcher:       searcher,
-		ResourceLookup: lookup,
 	}, nil
 }
 
@@ -2156,7 +2101,7 @@ func (serv *MetadataServer) SetRunStatus(ctx context.Context, update *schproto.S
 		return nil, err
 	}
 
-	err = serv.taskManager.SetRunStatus(rid, tid, update.Status)
+	err = serv.taskManager.SetRunStatus(ctx, rid, tid, update.Status)
 	if err != nil {
 		logger.Errorw("failed to set run status", "run id", update.GetRunID().GetId(), "task id", update.GetTaskID().GetId(), "error", err)
 		return nil, err
@@ -2319,7 +2264,6 @@ func (sp LocalStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 
 type Config struct {
 	Logger       logging.Logger
-	SearchParams *search.MeilisearchParams
 	TaskManager  scheduling.TaskMetadataManager
 	Address      string
 }

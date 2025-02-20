@@ -34,6 +34,7 @@ import (
 	"github.com/featureform/storage"
 	"github.com/featureform/storage/query"
 	pr "github.com/featureform/streamer_proxy/proxy_client"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -2083,7 +2084,7 @@ func (m *MetadataServer) GetSearch(c *gin.Context) {
 		return
 	}
 
-	result, err := SearchClient.RunSearch(query)
+	result, err := SearchClient.RunSearch(c, query)
 	if err != nil {
 		m.logger.Errorw("Failed to fetch resources", "error", err)
 		c.JSON(http.StatusInternalServerError, "Failed to fetch resources")
@@ -2118,7 +2119,7 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	}
 
 	m.logger.Infow("Fetching location with source variant", "source", sv.Name(), "variant", sv.Variant())
-	ctx := logging.AddLoggerToContext(c, m.logger) //only need gin.Context for the logging
+	ctx := m.logger.AttachToContext(c) //only need gin.Context for the logging
 	location, locationErr := sv.GetLocation(ctx)
 
 	if locationErr != nil {
@@ -2597,18 +2598,6 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	replaceTags(resourceTypeParam, foundResource, &pb.Tags{Tag: requestBody.Tags})
 
 	m.lookup.Set(c, objID, foundResource)
-
-	updatedResource := search.ResourceDoc{
-		Name:    name,
-		Variant: variant,
-		Type:    resourceType.String(),
-		Tags:    requestBody.Tags,
-	}
-	// Update search index for Meilisearch
-	err = SearchClient.Upsert(updatedResource)
-	if err != nil {
-		m.logger.Error(err.Error())
-	}
 
 	c.JSON(http.StatusOK, TagResult{
 		Name:    name,

@@ -10,7 +10,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/featureform/config"
 	"github.com/featureform/config/bootstrap"
@@ -18,12 +17,10 @@ import (
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
-	"github.com/featureform/metadata/search"
 )
 
 func main() {
 	addr := helpers.GetEnv("METADATA_PORT", "8080")
-	enableSearch := helpers.GetEnv("ENABLE_SEARCH", "true")
 
 	logger := logging.NewLogger("metadata")
 	defer logger.Sync()
@@ -37,7 +34,7 @@ func main() {
 	logger.Info("Created initialization context with timeout", "timeout", initTimeout)
 	ctx, cancelFn := context.WithTimeout(context.Background(), initTimeout)
 	defer cancelFn()
-	initCtx := logger.AttachToContext(ctx)
+	ctx = logger.AttachToContext(ctx)
 	logger.Debug("Creating initializer")
 	init, err := bootstrap.NewInitializer(appConfig)
 	if err != nil {
@@ -60,7 +57,7 @@ func main() {
 	}
 
 	logger.Info("Getting task metadata manager")
-	manager, err := init.GetOrCreateTaskMetadataManager(initCtx)
+	manager, err := init.GetOrCreateTaskMetadataManager(ctx)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -70,15 +67,8 @@ func main() {
 		Address:     fmt.Sprintf(":%s", addr),
 		TaskManager: manager,
 	}
-	if enableSearch == "true" {
-		logger.Infow("Connecting to search", "host", os.Getenv("MEILISEARCH_HOST"), "port", os.Getenv("MEILISEARCH_PORT"))
-		config.SearchParams = &search.MeilisearchParams{
-			Port:   helpers.GetEnv("MEILISEARCH_PORT", "7700"),
-			Host:   helpers.GetEnv("MEILISEARCH_HOST", "localhost"),
-			ApiKey: helpers.GetEnv("MEILISEARCH_APIKEY", ""),
-		}
-	}
-	server, err := metadata.NewMetadataServer(config)
+
+	server, err := metadata.NewMetadataServer(ctx, config)
 	if err != nil {
 		logger.Panicw("Failed to create metadata server", "Err", err)
 	}

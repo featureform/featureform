@@ -45,15 +45,6 @@ func NewPSQLLocker(ctx context.Context, connPool *postgres.Pool) (Locker, error)
 		"lock-table-name", tableName,
 	)
 
-	// Create a table to store the locks
-	tableCreationSQL := createTableQuery(tableName)
-	logger.Debugw("Creating locker table if not exists", "query", tableCreationSQL)
-	if _, err := connPool.Exec(ctx, tableCreationSQL); err != nil {
-		errMsg := "failed to create psql locker table"
-		logger.Errorw(errMsg, "err", err)
-		return nil, fferr.NewInternalErrorf("%s: %w", errMsg, err)
-	}
-
 	return &psqlLocker{
 		connPool:  connPool,
 		tableName: tableName,
@@ -243,12 +234,6 @@ func (l *psqlLocker) Unlock(ctx context.Context, key Key) error {
 
 func (l *psqlLocker) Close() {
 	// No-op
-}
-
-// SQL Queries
-func createTableQuery(tableName string) string {
-	tableName = postgres.Sanitize(tableName)
-	return fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (owner VARCHAR(255), key VARCHAR(%d) NOT NULL, expiration TIMESTAMP NOT NULL, PRIMARY KEY (key));", tableName, maxKeyLength)
 }
 
 func (l *psqlLocker) lockQuery() string {

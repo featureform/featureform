@@ -27,6 +27,7 @@ env:
   AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
   FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
   FIRESTORE_CREDENTIALS: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
+  DB_MIGRATION_PATH: /home/runner/work/featureform-enterprise/featureform-enterprise/db/migrations
 
 jobs:
   jest-tests:

@@ -12,8 +12,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/featureform/helpers"
+	"github.com/featureform/config"
 	"github.com/featureform/helpers/postgres"
+	"github.com/featureform/helpers/tests"
 	"github.com/featureform/logging"
 
 	_ "github.com/lib/pq"
@@ -53,7 +54,7 @@ func TestOrderedIdGenerator(t *testing.T) {
 	testCases := []struct {
 		name      string
 		shortTest bool
-		createGen func(t *testing.T) (OrderedIdGenerator, error)
+		createGen func(t *testing.T, testDbName string) (OrderedIdGenerator, error)
 		deferFunc func(generator OrderedIdGenerator, t *testing.T)
 	}{
 		{
@@ -77,14 +78,16 @@ func TestOrderedIdGenerator(t *testing.T) {
 			},
 		},
 	}
+	ctx := logging.NewTestContext(t)
+	testDbName, dbCleanup := tests.CreateTestDatabase(ctx, t, config.GetMigrationPath())
+	defer dbCleanup()
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if !tc.shortTest && testing.Short() {
 				t.Skip()
 			}
-			ctx := context.Background()
-			generator, err := tc.createGen(t)
+			generator, err := tc.createGen(t, testDbName)
 			if err != nil {
 				t.Fatalf("failed to create %s ID generator: %v", tc.name, err)
 			}
@@ -119,37 +122,12 @@ func TestOrderedIdGenerator(t *testing.T) {
 	}
 }
 
-func createMemoryIdGenerator(t *testing.T) (OrderedIdGenerator, error) {
+func createMemoryIdGenerator(t *testing.T, testDbName string) (OrderedIdGenerator, error) {
 	return NewMemoryOrderedIdGenerator()
 }
 
-func createPSQLIdGenerator(t *testing.T) (OrderedIdGenerator, error) {
-	var host, username, password, port, dbName, sslMode string
-
-	if *useEnv {
-		host = helpers.GetEnv("POSTGRES_HOST", "localhost")
-		username = helpers.GetEnv("POSTGRES_USER", "postgres")
-		password = helpers.GetEnv("POSTGRES_PASSWORD", "mysecretpassword")
-		port = helpers.GetEnv("POSTGRES_PORT", "5432")
-		dbName = helpers.GetEnv("POSTGRES_DB", "postgres")
-		sslMode = helpers.GetEnv("POSTGRES_SSL_MODE", "disable")
-	} else {
-		host = "127.0.0.1"
-		port = pgPort
-		username = "postgres"
-		password = "mysecretpassword"
-		dbName = "postgres"
-		sslMode = "disable"
-	}
-
-	cfg := postgres.Config{
-		Host:     host,
-		Port:     port,
-		User:     username,
-		Password: password,
-		DBName:   dbName,
-		SSLMode:  sslMode,
-	}
+func createPSQLIdGenerator(t *testing.T, testDbName string) (OrderedIdGenerator, error) {
+	cfg := tests.GetTestPostgresParams(testDbName)
 	ctx := logging.NewTestContext(t)
 	pool, err := postgres.NewPool(ctx, cfg)
 	if err != nil {

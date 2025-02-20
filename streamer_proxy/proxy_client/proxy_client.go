@@ -11,20 +11,21 @@ import (
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/flight"
 	"github.com/featureform/fferr"
+	"github.com/featureform/fftypes"
 	"github.com/featureform/logging"
-	"github.com/featureform/provider"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 type StreamProxyClient struct {
-	client       flight.Client
-	flightStream flight.FlightService_DoGetClient
-	recordReader *flight.Reader
-	schema       *arrow.Schema
-	currentBatch arrow.Record
-	columns      []string
-	logger       logging.Logger
+	client          flight.Client
+	flightStream    flight.FlightService_DoGetClient
+	recordReader    *flight.Reader
+	schema          *arrow.Schema
+	currentBatch    arrow.Record
+	columns         []string
+	logger          logging.Logger
+	featureformRows [][]fftypes.FeatureformValue // todox: standin for the new type pkg
 }
 
 type ProxyQuery struct {
@@ -157,33 +158,40 @@ func GetStreamProxyClient(ctx context.Context, proxyReq ProxyRequest) (*StreamPr
 func (si *StreamProxyClient) Next() bool {
 	hasNext := si.recordReader.Next()
 	si.currentBatch = si.recordReader.Record()
+	si.featureformRows = nil
+
 	if !hasNext {
 		si.logger.Debug("recordReader.Next() returned false (no more records), setting currentBatch to nil")
 		si.currentBatch = nil
+		return false
 	}
-	return hasNext
-}
 
-func (si *StreamProxyClient) Values() provider.GenericRecord {
-	if si.currentBatch == nil {
-		si.logger.Warn("Record reader current batch is nil; returning nil")
-		return nil
-	}
-	rowMatrix := make(provider.GenericRecord, si.currentBatch.NumRows())
+	// todox: Ali make a "FeatureformRow" OF FeatureformValues
+	rowMatrix := make([][]fftypes.FeatureformValue, si.currentBatch.NumRows())
 
 	for i := 0; i < int(si.currentBatch.NumCols()); i++ {
 		currentCol := si.currentBatch.Column(i)
+		columnType := si.schema.Fields()[i].Type.String()
 
 		for cr := 0; cr < currentCol.Len(); cr++ {
-			cellString := currentCol.ValueStr(cr)
-
 			if rowMatrix[cr] == nil {
-				rowMatrix[cr] = []string{}
+				rowMatrix[cr] = []fftypes.FeatureformValue{}
 			}
-			rowMatrix[cr] = append(rowMatrix[cr].([]string), cellString)
+			ffValue := fftypes.NewFeatureformValue("Iceberg", columnType, currentCol.ValueStr(cr))
+			rowMatrix[cr] = append(rowMatrix[cr], ffValue)
 		}
 	}
-	return rowMatrix
+	si.featureformRows = rowMatrix
+	return true
+}
+
+// note: arrow uses columnar data
+func (si *StreamProxyClient) Values() [][]fftypes.FeatureformValue {
+	if si.featureformRows == nil {
+		si.logger.Warn("Record reader current batch is nil; returning nil")
+		return nil
+	}
+	return si.featureformRows
 }
 
 func (si *StreamProxyClient) Columns() []string {

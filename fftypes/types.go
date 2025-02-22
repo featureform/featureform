@@ -16,7 +16,13 @@ import (
 	"slices"
 	"strconv"
 	"time"
+
+	"github.com/featureform/fferr"
+	"github.com/featureform/logging"
 )
+
+// default logger (can override)
+var logger = logging.NewLogger("featureform types")
 
 // basic representation of our featureform types,
 // using iota for now, doesn't need an actual ordering for the moment
@@ -44,7 +50,7 @@ const (
 
 // our accepted numeric types
 var NumericTypes = []FF_Type{
-	Int, Int8, Int32, Int64, UInt8, UInt16, UInt32, UInt64, Float32, Float64}
+	Int, Int8, Int16, Int32, Int64, UInt8, UInt16, UInt32, UInt64, Float32, Float64}
 
 // todo: core structs. update the Value to fit a better type representation other than any/interface?
 type Value struct {
@@ -59,6 +65,7 @@ type Value struct {
 // will safely convert the value to a string
 func (v Value) ToString() string {
 	if v.IsNull || v.Value == nil {
+		logger.Info("value is null or nil, returning zeroed string")
 		return ""
 	}
 	switch val := v.Value.(type) {
@@ -67,13 +74,16 @@ func (v Value) ToString() string {
 	case int, int64, float64, bool:
 		return fmt.Sprintf("%v", val)
 	default:
-		return fmt.Sprintf("unsupported type: %T", val)
+		msg := fmt.Sprintf("unsupported type: %T", val)
+		logger.Info(msg)
+		return msg
 	}
 }
 
 func (v Value) ToInt() (int, error) {
 	if v.IsNull || v.Value == nil {
-		return 0, fmt.Errorf("value is NULL")
+		logger.Info("value is null or nil, returning error")
+		return 0, fferr.NewInternalErrorf("value is NULL")
 	}
 	switch val := v.Value.(type) {
 	case int:
@@ -83,15 +93,19 @@ func (v Value) ToInt() (int, error) {
 	case float64:
 		return int(val), nil
 	case string:
+		logger.Warnw("value is type 'string', converting to int")
 		return strconv.Atoi(val)
 	default:
-		return 0, fmt.Errorf("cannot convert %T to int", val)
+		defaultErr := fferr.NewInternalErrorf("cannot convert %T to int", val)
+		logger.Error(defaultErr)
+		return 0, defaultErr
 	}
 }
 
 func (v Value) ToFloat() (float64, error) {
 	if v.IsNull || v.Value == nil {
-		return 0, fmt.Errorf("value is NULL")
+		logger.Info("value is null or nil, returning error")
+		return 0, fferr.NewInternalErrorf("value is NULL")
 	}
 	switch val := v.Value.(type) {
 	case float64:
@@ -99,38 +113,49 @@ func (v Value) ToFloat() (float64, error) {
 	case int:
 		return float64(val), nil
 	case string:
+		logger.Warnw("value is type 'string', converting to float64")
 		return strconv.ParseFloat(val, 64)
 	default:
-		return 0, fmt.Errorf("cannot convert %T to float", val)
+		defaultErr := fferr.NewInternalErrorf("cannot convert %T to float", val)
+		logger.Error(defaultErr)
+		return 0, defaultErr
 	}
 }
 
 func (v Value) ToBool() (bool, error) {
 	if v.IsNull || v.Value == nil {
-		return false, fmt.Errorf("value is NULL")
+		logger.Info("value is null or nil, returning error")
+		return false, fferr.NewInternalErrorf("value is NULL")
 	}
 	switch val := v.Value.(type) {
 	case bool:
 		return val, nil
 	case string:
+		logger.Warnw("value is type 'string', converting to bool")
 		return strconv.ParseBool(val)
 	default:
-		return false, fmt.Errorf("cannot convert %T to bool", val)
+		defaultErr := fferr.NewInternalErrorf("cannot convert %T to bool", val)
+		logger.Error(defaultErr)
+		return false, defaultErr
 	}
 }
 
 // converts the value to a time.Time, but only if it's valid
 func (v Value) ToTime() (time.Time, error) {
 	if v.IsNull || v.Value == nil {
-		return time.Time{}, fmt.Errorf("value is NULL")
+		logger.Info("value is null or nil, returning error")
+		return time.Time{}, fferr.NewInternalErrorf("value is NULL")
 	}
 	switch val := v.Value.(type) {
 	case time.Time:
 		return val, nil
 	case string:
-		return time.Parse(time.RFC3339, val) // Example format, may need customization
+		logger.Warnw("value is type 'string', converting to time.Time")
+		return time.Parse(time.RFC3339, val)
 	default:
-		return time.Time{}, fmt.Errorf("cannot convert %T to time.Time", val)
+		defaultErr := fferr.NewInternalErrorf("cannot convert %T to time.Time", val)
+		logger.Error(defaultErr)
+		return time.Time{}, defaultErr
 	}
 }
 
@@ -151,6 +176,5 @@ func (v Value) IsText() bool {
 // just returns the raw interface value.
 // probably won't be used much, but could be useful.
 func (v Value) AsInterface() interface{} {
-
 	return v.Value
 }

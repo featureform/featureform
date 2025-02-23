@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,11 +20,81 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/featureform/helpers"
+	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 )
 
-func TestOfflineStoreClickhouse(t *testing.T) {
+type clickHouseOfflineStoreTester struct {
+	defaultDbName string
+	// TODO: Revisit whether we do want to store a long-running connection
+	// to the DB.
+	conn *sql.DB
+	*clickHouseOfflineStore
+}
+
+func (ch *clickHouseOfflineStoreTester) GetTestDatabase() string {
+	return ch.defaultDbName
+}
+
+func (ch *clickHouseOfflineStoreTester) CreateDatabase(name string) error {
+	return createClickHouseDatabase(ch.conn, name)
+}
+
+func (ch *clickHouseOfflineStoreTester) DropDatabase(name string) error {
+	_, err := ch.conn.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", SanitizeClickHouseIdentifier(name)))
+	return err
+}
+
+func (ch *clickHouseOfflineStoreTester) CreateSchema(database, schema string) error {
+	// ClickHouse doesn't have a concept like schemas.
+	// TODO: Maybe consider other approaches to this method.
+	return nil
+}
+
+func (ch *clickHouseOfflineStoreTester) CreateTable(loc pl.Location, schema TableSchema) (PrimaryTable, error) {
+	sqlLocation, ok := loc.(*pl.SQLLocation)
+	if !ok {
+		return nil, fmt.Errorf("Invalid location type, expected SQLLocation, got %T", loc)
+	}
+
+	db, err := ch.sqlOfflineStore.getDb(sqlLocation.GetDatabase(), sqlLocation.GetSchema())
+	if err != nil {
+		return nil, err
+	}
+
+	// don't need string builder here
+	var queryBuilder strings.Builder
+	queryBuilder.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", sanitizeClickHouseTableName(sqlLocation.TableLocation())))
+
+	// do strings .join after
+	for i, column := range schema.Columns {
+		if i > 0 {
+			queryBuilder.WriteString(", ")
+		}
+		columnType, err := ch.sqlOfflineStore.query.determineColumnType(column.ValueType)
+		if err != nil {
+			return nil, err
+		}
+		queryBuilder.WriteString(fmt.Sprintf("%s %s", column.Name, columnType))
+	}
+	queryBuilder.WriteString(") ENGINE=MergeTree ORDER BY ()")
+
+	query := queryBuilder.String()
+	_, err = db.Exec(query)
+	if err != nil {
+		return nil, err
+	}
+
+	return &clickhousePrimaryTable{
+		db:     db,
+		name:   sqlLocation.Location(),
+		query:  ch.sqlOfflineStore.query,
+		schema: schema,
+	}, nil
+}
+
+func TestOfflineStoreClickHouse(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
 	}
@@ -71,7 +142,7 @@ func TestOfflineStoreClickhouse(t *testing.T) {
 		SSL:      ssl,
 	}
 
-	if err := createClickHouseDatabase(clickHouseConfig); err != nil {
+	if err := createClickHouseDatabaseFromConfig(clickHouseConfig); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -88,22 +159,24 @@ func TestOfflineStoreClickhouse(t *testing.T) {
 	// test.RunSQL()
 }
 
-func createClickHouseDatabase(c pc.ClickHouseConfig) error {
+func createClickHouseDatabase(conn *sql.DB, dbName string) error {
+	if _, err := conn.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", SanitizeClickHouseIdentifier(dbName))); err != nil {
+		return err
+	}
+
+	if _, err := conn.Exec(fmt.Sprintf("CREATE DATABASE %s", SanitizeClickHouseIdentifier(dbName))); err != nil {
+		return err
+	}
+	return nil
+}
+
+func createClickHouseDatabaseFromConfig(c pc.ClickHouseConfig) error {
 	conn, err := sql.Open("clickhouse", fmt.Sprintf("clickhouse://%s:%d?username=%s&password=%s&secure=%t", c.Host, c.Port, c.Username, c.Password, c.SSL))
 	if err != nil {
 		return err
 	}
-	return createDatabases(c, conn)
-}
 
-func createDatabases(c pc.ClickHouseConfig, conn *sql.DB) error {
-	if _, err := conn.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", SanitizeClickHouseIdentifier(c.Database))); err != nil {
-		return err
-	}
-	if _, err := conn.Exec(fmt.Sprintf("CREATE DATABASE %s", SanitizeClickHouseIdentifier(c.Database))); err != nil {
-		return err
-	}
-	return nil
+	return createClickHouseDatabase(conn, c.Database)
 }
 
 func TestTrainingSet(t *testing.T) {
@@ -223,7 +296,7 @@ func TestSplit(t *testing.T) {
 	}
 }
 
-func TestClickhouseCastTableItemType(t *testing.T) {
+func TestClickHouseCastTableItemType(t *testing.T) {
 	q := clickhouseSQLQueries{}
 
 	var (
@@ -312,5 +385,98 @@ func TestClickhouseCastTableItemType(t *testing.T) {
 			result := q.castTableItemType(tc.input, tc.typeSpec)
 			assert.Equal(t, tc.expected, result)
 		})
+	}
+}
+
+func getClickHouseConfig(t *testing.T) (pc.ClickHouseConfig, error) {
+	err := godotenv.Load("../.env")
+	if err != nil {
+		t.Logf("could not open .env file... Checking environment: %s", err)
+	}
+
+	clickHouseDb := ""
+	ok := true
+	if clickHouseDb, ok = os.LookupEnv("CLICKHOUSE_DB"); !ok {
+		clickHouseDb = fmt.Sprintf("feature_form_%d", time.Now().UnixMilli())
+	}
+
+	username, ok := os.LookupEnv("CLICKHOUSE_USER")
+	if !ok {
+		t.Fatalf("missing CLICKHOUSE_USER variable")
+	}
+	password, ok := os.LookupEnv("CLICKHOUSE_PASSWORD")
+	if !ok {
+		t.Fatalf("missing CLICKHOUSE_PASSWORD variable")
+	}
+	host, ok := os.LookupEnv("CLICKHOUSE_HOST")
+	if !ok {
+		t.Fatalf("missing CLICKHOUSE_HOST variable")
+	}
+	portStr, ok := os.LookupEnv("CLICKHOUSE_PORT")
+	if !ok {
+		t.Fatalf("missing CLICKHOUSE_PORT variable")
+	}
+	ssl := helpers.GetEnvBool("CLICKHOUSE_SSL", false)
+
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		t.Fatalf("Failed to parse port to numeric: %v", portStr)
+	}
+
+	var clickHouseConfig = pc.ClickHouseConfig{
+		Host:     host,
+		Port:     uint16(port),
+		Username: username,
+		Password: password,
+		Database: clickHouseDb,
+		SSL:      ssl,
+	}
+
+	return clickHouseConfig, nil
+}
+
+func sanitizeClickHouseTableName(obj pl.FullyQualifiedObject) string {
+	name := ""
+	if obj.Database != "" {
+		name = obj.Database + "."
+	}
+	name += obj.Table
+	return name
+}
+
+func getConfiguredClickHouseTester(t *testing.T, useCrossDBJoins bool) offlineSqlTest {
+	clickHouseConfig, err := getClickHouseConfig(t)
+	if err != nil {
+		t.Fatalf("could not get clickhouse config: %s\n", err)
+	}
+
+	if err := createClickHouseDatabaseFromConfig(clickHouseConfig); err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	store, err := GetOfflineStore(pt.ClickHouseOffline, clickHouseConfig.Serialize())
+	if err != nil {
+		t.Fatalf("could not initialize store: %s\n", err)
+	}
+
+	// TODO: Revisit this
+	conn, err := sql.Open("clickhouse", fmt.Sprintf("clickhouse://%s:%d?username=%s&password=%s&secure=%t",
+		clickHouseConfig.Host,
+		clickHouseConfig.Port,
+		clickHouseConfig.Username,
+		clickHouseConfig.Password,
+		clickHouseConfig.SSL,
+	))
+	storeTester := clickHouseOfflineStoreTester{
+		conn:                   conn,
+		defaultDbName:          clickHouseConfig.Database,
+		clickHouseOfflineStore: store.(*clickHouseOfflineStore),
+	}
+
+	return offlineSqlTest{
+		storeTester:         &storeTester,
+		testCrossDbJoins:    useCrossDBJoins,
+		transformationQuery: "SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
+		sanitizeTableName:   sanitizeClickHouseTableName,
 	}
 }

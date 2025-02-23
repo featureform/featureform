@@ -265,7 +265,7 @@ func NewClickHouseOfflineStore(config pc.SerializedConfig) (*clickHouseOfflineSt
 	if getDbErr != nil {
 		return nil, fferr.NewConnectionError("failed to establish connection to ClickHouse: %v", getDbErr)
 	}
-	//we bypass NewSQLOfflineStore as we want to estalish our connection using non dsn syntax
+	//we bypass NewSQLOfflineStore as we want to establish our connection using non dsn syntax
 	return &clickHouseOfflineStore{sqlOfflineStore{
 		db:     db,
 		parent: sgConfig,

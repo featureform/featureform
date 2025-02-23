@@ -12,20 +12,22 @@ import (
 	"crypto/sha256"
 	"encoding/gob"
 	"fmt"
-	ps "github.com/featureform/provider/provider_schema"
 	"math"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	ps "github.com/featureform/provider/provider_schema"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestTransformations(t *testing.T) {
@@ -104,6 +106,9 @@ func TestTrainingSets(t *testing.T) {
 		},
 		{
 			getConfiguredPostgresTester(t, true),
+		},
+		{
+			getConfiguredClickHouseTester(t, false),
 		},
 	}
 

@@ -27,10 +27,10 @@ var logger = logging.NewLogger("featureform types")
 // basic representation of our featureform types,
 // using iota for now, doesn't need an actual ordering for the moment
 // todo: will change name later
-type FF_Type int
+type Type int
 
 const (
-	Int FF_Type = iota
+	Int Type = iota
 	Int8
 	Int16
 	Int32
@@ -49,7 +49,7 @@ const (
 )
 
 // our accepted numeric types
-var NumericTypes = []FF_Type{
+var NumericTypes = []Type{
 	Int, Int8, Int16, Int32, Int64, UInt8, UInt16, UInt32, UInt64, Float32, Float64}
 
 type Provider int
@@ -73,7 +73,7 @@ type Schema struct {
 type ColumnSchema struct {
 	Name       ColumnName
 	NativeType NativeType
-	Type       FF_Type
+	Type       Type
 	IsNullable bool
 }
 
@@ -84,7 +84,7 @@ type Value struct {
 	Provider   Provider
 	Name       ValueName   // the name of the value
 	NativeType NativeType  // todo: this will be some constant. is the provider's type (DynamoDB INT64)
-	Type       FF_Type     // this is our internal application type
+	Type       Type        // this is our internal application type
 	IsNull     bool        // indicates if the value from the provider should be considered Nil/NULL/None/Undefined
 	Value      interface{} // "FFValue" may update later to a diff type with extensible receiver methods
 }

@@ -87,6 +87,7 @@ type Value struct {
 	Type       Type        // this is our internal application type
 	IsNull     bool        // indicates if the value from the provider should be considered Nil/NULL/None/Undefined
 	Value      interface{} // "FFValue" may update later to a diff type with extensible receiver methods
+	// todo: should we encapsulate the value and make it private?
 }
 
 // will safely convert the value to a string

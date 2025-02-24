@@ -62,11 +62,28 @@ const (
 	// todo: expand
 )
 
+type NativeType string
+type ColumnName string
+
+type Schema struct {
+	Fields []ColumnSchema
+	// todo: can include more state or behavior, etc.
+}
+
+type ColumnSchema struct {
+	Name       ColumnName
+	NativeType NativeType
+	Type       FF_Type
+	IsNullable bool
+}
+
+type ValueName string
+
 // todo: core structs. update the Value to fit a better type representation other than any/interface?
 type Value struct {
 	Provider   Provider
-	Name       string      // the name of the value
-	NativeType string      // todo: this will be some constant. is the provider's type (DynamoDB INT64)
+	Name       ValueName   // the name of the value
+	NativeType NativeType  // todo: this will be some constant. is the provider's type (DynamoDB INT64)
 	Type       FF_Type     // this is our internal application type
 	IsNull     bool        // indicates if the value from the provider should be considered Nil/NULL/None/Undefined
 	Value      interface{} // "FFValue" may update later to a diff type with extensible receiver methods

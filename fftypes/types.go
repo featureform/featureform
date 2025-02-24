@@ -52,9 +52,19 @@ const (
 var NumericTypes = []FF_Type{
 	Int, Int8, Int16, Int32, Int64, UInt8, UInt16, UInt32, UInt64, Float32, Float64}
 
+type Provider int
+
+const (
+	Snowflake Provider = iota
+	Iceberg
+	DynamoDB
+	Arrow
+	// todo: expand
+)
+
 // todo: core structs. update the Value to fit a better type representation other than any/interface?
 type Value struct {
-	Provider   string      // where the value originated from, can be enumeration note: adding this for extra context
+	Provider   Provider
 	Name       string      // the name of the value
 	NativeType string      // todo: this will be some constant. is the provider's type (DynamoDB INT64)
 	Type       FF_Type     // this is our internal application type

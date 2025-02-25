@@ -8,6 +8,7 @@
 package provider
 
 import (
+	"github.com/featureform/fferr"
 	types "github.com/featureform/fftypes"
 	pl "github.com/featureform/provider/location"
 )
@@ -61,6 +62,54 @@ type ChunkedDatasetAdapter struct {
 	ChunkSize int64
 }
 
+func (adapter *ChunkedDatasetAdapter) NumChunks() (int, error) {
+	size, err := adapter.SizedDataset.Len()
+	if err != nil {
+		return 0, err
+	}
+
+	numChunks := size / adapter.ChunkSize
+	if size%adapter.ChunkSize > 0 {
+		numChunks++
+	}
+
+	return int(numChunks), nil
+}
+
+func (adapter *ChunkedDatasetAdapter) ChunkIterator(idx int) (SizedIterator, error) {
+	numChunks, err := adapter.NumChunks()
+	if err != nil {
+		return nil, err
+	}
+
+	if idx < 0 || idx >= numChunks {
+		return nil, fferr.NewInternalErrorf("chunk index out of range")
+	}
+
+	begin := int64(idx) * adapter.ChunkSize
+	end := begin + adapter.ChunkSize
+
+	size, err := adapter.SizedDataset.Len()
+	if err != nil {
+		return nil, err
+	}
+
+	if end > size {
+		end = size
+	}
+
+	iter, err := adapter.SegmentableDataset.IterateSegment(begin, end)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a wrapper that adds the Len method to any iterator
+	return &GenericSizedIterator{
+		NewIterator: iter,
+		length:      end - begin,
+	}, nil
+}
+
 // NewIterator is the generic interface to loop through any dataset in
 // Featureform.
 type NewIterator interface {
@@ -76,4 +125,13 @@ type NewIterator interface {
 type SizedIterator interface {
 	NewIterator
 	Len() (int64, error)
+}
+
+type GenericSizedIterator struct {
+	NewIterator
+	length int64
+}
+
+func (it *GenericSizedIterator) Len() (int64, error) {
+	return it.length, nil
 }

@@ -266,7 +266,23 @@ func (store *sqlOfflineStore) CheckHealth() (bool, error) {
 }
 
 func (store sqlOfflineStore) Delete(location pl.Location) error {
-	return fferr.NewInternalErrorf("delete not implemented")
+	logger := store.logger.With("location", location.Location())
+	if exists, err := store.tableExists(location); err != nil {
+		logger.Errorw("Failed to check if table exists", "error", err)
+		return err
+	} else if !exists {
+		logger.Errorw("Table does not exist")
+		return fferr.NewDatasetLocationNotFoundError(location.Location(), nil)
+	}
+
+	query := store.query.dropTable(location.Location())
+	logger.Debugw("Dropping table", "query", query)
+	if _, err := store.db.Exec(query); err != nil {
+		logger.Errorw("Failed to drop table", "error", err)
+		return fferr.NewExecutionError(pt.SnowflakeOffline.String(), err)
+	}
+	logger.Info("Successfully dropped table")
+	return nil
 }
 
 func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {

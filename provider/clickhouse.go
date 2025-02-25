@@ -74,6 +74,31 @@ func (store *clickHouseOfflineStore) getTrainingSetName(id ResourceID) (string, 
 	return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 }
 
+func (store *clickHouseOfflineStore) checkExists(location *clickhouse.Location) (bool, error) {
+	logger := store.logger.With("location", location)
+
+	dbConn, err := store.getDb(location.GetDatabase(), "")
+	if err != nil {
+		logger.Errorw("unable to get DB connection", "error", err)
+		return false, err
+	}
+
+	var n int
+	queries := []string{store.query.viewExists(), store.query.tableExists()}
+	for _, query := range queries {
+		err := dbConn.QueryRow(query, location.GetTable()).Scan(&n)
+		if err != nil {
+			logger.Errorw("unable to query for table", "error", err, "query", query)
+			return false, fferr.NewExecutionError(store.Type().String(), err)
+		}
+		if n > 0 {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 func (store *clickHouseOfflineStore) tableExists(id ResourceID) (bool, error) {
 	n := -1
 	var tableName string
@@ -220,6 +245,36 @@ func (store *clickHouseOfflineStore) getMaterializationTableName(id ResourceID) 
 	// NOTE: Given Clickhouse uses intermediate resource tables, the inbound resource ID will be Feature;
 	// however, the table must be named according to the FeatureMaterialization offline type.
 	return ps.ResourceToTableName(FeatureMaterialization.String(), id.Name, id.Variant)
+}
+
+func (store *clickHouseOfflineStore) Delete(location pl.Location) error {
+	logger := store.logger.With("location", location.Location())
+
+	clickHouseLocation, ok := location.(*clickhouse.Location)
+	if !ok {
+		errorMsg := fmt.Sprintf("location is not a ClickHouse location, location type: %T", location)
+		logger.Errorf(errorMsg)
+		return fferr.NewInvalidArgumentErrorf(errorMsg)
+	}
+
+	if exists, err := store.checkExists(clickHouseLocation); err != nil {
+		logger.Errorw("error checking if table exists", "error", err)
+		return err
+	} else if !exists {
+		logger.Errorw("table does not exist")
+		return fferr.NewDatasetLocationNotFoundError(location.Location(), nil)
+	}
+
+	query := store.query.dropTable(location.Location())
+	logger.Debugw("dropping table")
+
+	if _, err := store.db.Exec(query); err != nil {
+		logger.Errorw("error dropping table", "error", err)
+		return fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+	}
+
+	logger.Debugw("successfully dropped table")
+	return nil
 }
 
 func clickhouseOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {

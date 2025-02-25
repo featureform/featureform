@@ -10,8 +10,9 @@ package location
 import (
 	"encoding/json"
 	"fmt"
-	pb "github.com/featureform/metadata/proto"
 	"strings"
+
+	pb "github.com/featureform/metadata/proto"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
@@ -201,6 +202,14 @@ func (l *SQLLocation) Proto() *pb.Location {
 
 func NewFileLocation(path filestore.Filepath) Location {
 	return &FileStoreLocation{path: path}
+}
+
+func NewFileLocationFromURI(uri string) (Location, error) {
+	fp := filestore.FilePath{}
+	if err := fp.ParseFilePath(uri); err != nil {
+		return nil, fferr.NewInternalErrorf("invalid filestore path: %v", err)
+	}
+	return NewFileLocation(&fp), nil
 }
 
 type FileStoreLocation struct {

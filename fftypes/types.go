@@ -81,8 +81,6 @@ type ValueName string
 
 // todo: core structs. update the Value to fit a better type representation other than any/interface?
 type Value struct {
-	Provider   Provider
-	Name       ValueName   // the name of the value
 	NativeType NativeType  // todo: this will be some constant. is the provider's type (DynamoDB INT64)
 	Type       Type        // this is our internal application type
 	IsNull     bool        // indicates if the value from the provider should be considered Nil/NULL/None/Undefined

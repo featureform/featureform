@@ -66,7 +66,7 @@ func getConfiguredPostgresTester(t *testing.T, useCrossDBJoins bool) offlineSqlT
 	// TODO: Drop Schema
 
 	sanitizeTableName := func(obj pl.FullyQualifiedObject) string {
-		loc := pl.NewFullyQualifiedSQLLocation(obj.Database, obj.Schema, obj.Table).(*pl.SQLLocation)
+		loc := pl.NewFullyQualifiedSQLLocation(obj.Database, obj.Schema, obj.Table)
 		return helper.SanitizeLocation(*loc)
 	}
 

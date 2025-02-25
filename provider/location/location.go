@@ -72,11 +72,11 @@ type JSONLocation struct {
 	TableFormat    *string `json:"tableFormat,omitempty"`
 }
 
-func NewSQLLocation(table string) Location {
+func NewSQLLocation(table string) *SQLLocation {
 	return &SQLLocation{table: table}
 }
 
-func NewFullyQualifiedSQLLocation(database, schema, table string) Location {
+func NewFullyQualifiedSQLLocation(database, schema, table string) *SQLLocation {
 	return &SQLLocation{database: database, schema: schema, table: table}
 }
 

@@ -18,14 +18,15 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
+	"google.golang.org/api/option"
+
 	"github.com/featureform/logging"
 	"github.com/featureform/provider/location"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
-	"github.com/google/uuid"
-	"github.com/joho/godotenv"
-	"google.golang.org/api/option"
 )
 
 type bigQueryOfflineStoreTester struct {
@@ -226,7 +227,7 @@ func getConfiguredBigQueryTester(t *testing.T, useCrossDBJoins bool) offlineSqlT
 		// BigQuery requires a fully qualified location of a source table.
 		if obj.Database == "" || obj.Schema == "" {
 			datasetId := store.(*bqOfflineStore).query.DatasetId
-			srcLoc := pl.NewFullyQualifiedSQLLocation(offlineStoreTester.GetTestDatabase(), datasetId, obj.Table).(*pl.SQLLocation)
+			srcLoc := pl.NewFullyQualifiedSQLLocation(offlineStoreTester.GetTestDatabase(), datasetId, obj.Table)
 			return "`" + srcLoc.TableLocation().String() + "`"
 		}
 		return "`" + obj.String() + "`"

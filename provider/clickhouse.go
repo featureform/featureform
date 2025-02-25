@@ -20,11 +20,12 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/ClickHouse/clickhouse-go/v2"
+	chapi "github.com/ClickHouse/clickhouse-go/v2"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
+	"github.com/featureform/provider/clickhouse"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
@@ -240,17 +241,17 @@ func NewClickHouseOfflineStore(config pc.SerializedConfig) (*clickHouseOfflineSt
 	}
 	getDbFunc := func(database, schema string) (*sql.DB, error) {
 		clickhouseDb := database
-		if database != "" {
+		if clickhouseDb == "" {
 			clickhouseDb = cc.Database
 		}
-		return clickhouse.OpenDB(&clickhouse.Options{
+		return chapi.OpenDB(&chapi.Options{
 			Addr: []string{fmt.Sprintf("%s:%d", cc.Host, cc.Port)},
-			Auth: clickhouse.Auth{
+			Auth: chapi.Auth{
 				Database: clickhouseDb,
 				Username: cc.Username,
 				Password: cc.Password,
 			},
-			Settings: clickhouse.Settings{
+			Settings: chapi.Settings{
 				"final": "1",
 			},
 			TLS: t,
@@ -270,6 +271,7 @@ func NewClickHouseOfflineStore(config pc.SerializedConfig) (*clickHouseOfflineSt
 	if getDbErr != nil {
 		return nil, fferr.NewConnectionError("failed to establish connection to ClickHouse: %v", getDbErr)
 	}
+
 	//we bypass NewSQLOfflineStore as we want to establish our connection using non dsn syntax
 	return &clickHouseOfflineStore{
 		sqlOfflineStore{
@@ -280,7 +282,8 @@ func NewClickHouseOfflineStore(config pc.SerializedConfig) (*clickHouseOfflineSt
 				ProviderType:   pt.ClickHouseOffline,
 				ProviderConfig: config,
 			},
-			getDb: getDbFunc,
+			getDb:  getDbFunc,
+			logger: logging.NewLogger("clickhouse_offline_store_base_sql"),
 		},
 		logging.NewLogger("clickhouse_offline_store"),
 	}, nil
@@ -626,10 +629,6 @@ func (store *clickHouseOfflineStore) CheckHealth() (bool, error) {
 		return false, wrapped
 	}
 	return true, nil
-}
-
-func (store *clickHouseOfflineStore) Delete(location pl.Location) error {
-	return fferr.NewInternalErrorf("delete not implemented")
 }
 
 func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
@@ -1282,6 +1281,10 @@ func (q clickhouseSQLQueries) viewExists() string {
 
 func (q clickhouseSQLQueries) primaryTableCreate(name string, columnString string) string {
 	return fmt.Sprintf("CREATE TABLE %s ( %s ) ENGINE=MergeTree ORDER BY ()", SanitizeClickHouseIdentifier(name), columnString)
+}
+
+func (q clickhouseSQLQueries) dropTable(tableName string) string {
+	return fmt.Sprintf("DROP TABLE %s", tableName)
 }
 
 //func (q clickhouseSQLQueries) trainingRowSelect(columns string, trainingSetName string) string {

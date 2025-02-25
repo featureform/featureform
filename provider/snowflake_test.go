@@ -30,7 +30,6 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
-	"github.com/featureform/provider/types"
 )
 
 const (
@@ -597,15 +596,15 @@ func CrossDatabaseJoinTest(t *testing.T, tester offlineSqlTest) {
 	})
 
 	tableName1 := "DUMMY_TABLE"
-	sqlLocation := location.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", tableName1).(*location.SQLLocation)
-	records, err := createDummyTable(tester.storeTester, *sqlLocation, 3)
+	sqlLocation := location.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", tableName1)
+	records, err := createDummyTable(tester.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	tableName2 := "DUMMY_TABLE2"
-	sqlLocation2 := location.NewFullyQualifiedSQLLocation(dbName2, "PUBLIC", tableName2).(*location.SQLLocation)
-	records2, err := createDummyTable(tester.storeTester, *sqlLocation2, 10)
+	sqlLocation2 := location.NewFullyQualifiedSQLLocation(dbName2, "PUBLIC", tableName2)
+	records2, err := createDummyTable(tester.storeTester, sqlLocation2, 10)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
@@ -671,15 +670,15 @@ func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester offlineSqlTest) {
 
 	// Create the first table
 	tableName := "DUMMY_TABLE"
-	sqlLocation := location.NewFullyQualifiedSQLLocation("", schemaName1, tableName).(*location.SQLLocation)
-	records, err := createDummyTable(tester.storeTester, *sqlLocation, 3)
+	sqlLocation := location.NewFullyQualifiedSQLLocation("", schemaName1, tableName)
+	records, err := createDummyTable(tester.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	// Create the second table using the same table name
-	sqlLocation2 := location.NewFullyQualifiedSQLLocation("", schemaName2, tableName).(*location.SQLLocation)
-	records2, err := createDummyTable(tester.storeTester, *sqlLocation2, 10)
+	sqlLocation2 := location.NewFullyQualifiedSQLLocation("", schemaName2, tableName)
+	records2, err := createDummyTable(tester.storeTester, sqlLocation2, 10)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
@@ -732,8 +731,8 @@ func RegisterTableInDifferentDatabaseTest(t *testing.T, tester offlineSqlTest) {
 
 	// Create the table
 	tableName := "DUMMY_TABLE"
-	sqlLocation := location.NewFullyQualifiedSQLLocation(dbName, schemaName, tableName).(*location.SQLLocation)
-	records, err := createDummyTable(tester.storeTester, *sqlLocation, 3)
+	sqlLocation := location.NewFullyQualifiedSQLLocation(dbName, schemaName, tableName)
+	records, err := createDummyTable(tester.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
@@ -758,8 +757,8 @@ func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester of
 
 	// Create the table
 	tableName := "DUMMY_TABLE"
-	sqlLocation := location.NewFullyQualifiedSQLLocation("", schemaName, tableName).(*location.SQLLocation)
-	records, err := createDummyTable(storeTester.storeTester, *sqlLocation, 3)
+	sqlLocation := location.NewFullyQualifiedSQLLocation("", schemaName, tableName)
+	records, err := createDummyTable(storeTester.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
@@ -882,75 +881,6 @@ func RegisterTrainingSetWithType(t *testing.T, tester offlineSqlTest, tsDatasetT
 }
 
 // HELPER FUNCTIONS
-
-func createDummyTable(storeTester offlineSqlStoreTester, sqlLocation location.SQLLocation, numRows int) ([]GenericRecord, error) {
-	// Create the table
-	// create simple Schema
-	schema := TableSchema{
-		Columns: []TableColumn{
-			{
-				Name:      "ID",
-				ValueType: types.Int,
-			},
-			{
-				Name:      "NAME",
-				ValueType: types.String,
-			},
-		},
-	}
-
-	primaryTable, err := storeTester.CreateTable(&sqlLocation, schema)
-	if err != nil {
-		return nil, err
-	}
-
-	genericRecords := make([]GenericRecord, 0)
-	randomNum := uuid.NewString()[:5]
-	for i := 0; i < numRows; i++ {
-		genericRecords = append(genericRecords, []interface{}{i, fmt.Sprintf("Name_%d_%s", i, randomNum)})
-	}
-
-	if err := primaryTable.WriteBatch(genericRecords); err != nil {
-		return nil, err
-	}
-
-	return genericRecords, nil
-}
-
-func verifyPrimaryTable(t *testing.T, primary PrimaryTable, records []GenericRecord) {
-	t.Helper()
-	numRows, err := primary.NumRows()
-	if err != nil {
-		t.Fatalf("could not get number of rows: %v", err)
-	}
-
-	if numRows == 0 {
-		t.Fatalf("expected more than 0 rows")
-	}
-
-	iterator, err := primary.IterateSegment(100)
-	if err != nil {
-		t.Fatalf("Could not get generic iterator: %v", err)
-	}
-
-	i := 0
-	for iterator.Next() {
-		for j, v := range iterator.Values() {
-			// NOTE: we're handling float64 differently hear given the values returned by Snowflake have less precision
-			// and therefore are not equal unless we round them; if tests require handling of other types, we can add
-			// additional cases here, otherwise the default case will cover all other types
-			switch v.(type) {
-			case float64:
-				assert.True(t, floatsAreClose(v.(float64), records[i][j].(float64), floatTolerance), "expected same values")
-			case time.Time:
-				assert.Equal(t, records[i][j].(time.Time).Truncate(time.Microsecond), v.(time.Time).Truncate(time.Microsecond), "expected same values")
-			default:
-				assert.Equal(t, v, records[i][j], "expected same values")
-			}
-		}
-		i++
-	}
-}
 
 func getSnowflakeConfig(t *testing.T, dbName string) (pc.SnowflakeConfig, error) {
 	err := godotenv.Load("../.env")

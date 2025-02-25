@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/provider/clickhouse"
 	ps "github.com/featureform/provider/provider_schema"
 
 	"github.com/google/uuid"
@@ -164,23 +165,29 @@ func TestResourceTable(t *testing.T) {
 	}
 }
 
-func TestSnowflakeDelete(t *testing.T) {
+func TestDelete(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
 	}
 
 	testInfra := []struct {
-		tester offlineSqlTest
+		tester              offlineSqlTest
+		getLocationForTable func(dbName, tableName string) pl.Location
 	}{
 		//{getConfiguredBigQueryTester(t, false)},
 		//{getConfiguredSnowflakeTester(t, true)},
 		//{getConfiguredPostgresTester(t, false)},
-		{getConfiguredClickHouseTester(t, false)},
+		{
+			getConfiguredClickHouseTester(t, false),
+			func(dbName, tableName string) pl.Location {
+				return clickhouse.NewClickHouseLocationFromParts(dbName, tableName)
+			},
+		},
 	}
 
-	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
-		"DeleteTableTest": DeleteTableTest,
-		//"DeleteNotExistingTableTest": DeleteNotExistingTableTest,
+	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest, getLocationForTable func(string, string) pl.Location){
+		"DeleteTableTest":            DeleteTableTest,
+		"DeleteNotExistingTableTest": DeleteNotExistingTableTest,
 	}
 
 	for _, infra := range testInfra {
@@ -189,7 +196,7 @@ func TestSnowflakeDelete(t *testing.T) {
 			constTestCase := testCase
 			t.Run(constName, func(t *testing.T) {
 				t.Parallel()
-				constTestCase(t, infra.tester)
+				constTestCase(t, infra.tester, infra.getLocationForTable)
 			})
 		}
 	}
@@ -303,8 +310,7 @@ func (a idCreator) create(t OfflineResourceType, name string) ResourceID {
 func newTestSQLTransformationData(tester offlineSqlStoreTester, transformationQuery string, sanitizeTableNameFn func(object pl.FullyQualifiedObject) string) testSQLTransformationData {
 	db := tester.GetTestDatabase()
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_WIND_DATA_TABLE")
-	sqlLoc := loc.(*pl.SQLLocation)
+	sqlLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_WIND_DATA_TABLE")
 	tableLoc := sqlLoc.TableLocation()
 	queryFmt := transformationQuery
 	idCreator := newIDCreator("test")
@@ -393,7 +399,7 @@ func newTestSQLTransformationData(tester offlineSqlStoreTester, transformationQu
 				time.Date(2024, 10, 30, 0, 0, 0, 0, time.UTC),
 			},
 		},
-		location: loc,
+		location: sqlLoc,
 		config: TransformationConfig{
 			Type:          SQLTransformation,
 			TargetTableID: idCreator.create(Transformation, ""),
@@ -404,7 +410,7 @@ func newTestSQLTransformationData(tester offlineSqlStoreTester, transformationQu
 					Source:         tableLoc.String(),
 					ProviderType:   tester.Type(),
 					ProviderConfig: tester.Config(),
-					Location:       loc,
+					Location:       sqlLoc,
 				},
 			},
 		},
@@ -1200,7 +1206,7 @@ func RegisterChainedTransformationsTest(t *testing.T, tester offlineSqlTest) {
 	if err != nil {
 		t.Fatalf("could not get transformation table name from resource ID: %v", err)
 	}
-	srcLoc := pl.NewSQLLocation(srcDataset).(*pl.SQLLocation)
+	srcLoc := pl.NewSQLLocation(srcDataset)
 	// Copy the original config and modify the query and source mapping
 	config := test.data.config
 	config.TargetTableID = id
@@ -1311,7 +1317,7 @@ func RegisterInValidFeatureAndLabel(t *testing.T, tester offlineSqlTest, tsDatas
 	}
 }
 
-func DeleteTableTest(t *testing.T, tester offlineSqlTest) {
+func DeleteTableTest(t *testing.T, tester offlineSqlTest, getLocationForTable func(string, string) pl.Location) {
 	storeTester, ok := tester.storeTester.(offlineSqlStoreCreateDb)
 	if !ok {
 		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", tester.storeTester))
@@ -1330,17 +1336,17 @@ func DeleteTableTest(t *testing.T, tester offlineSqlTest) {
 
 	// Create the table
 	tableName := "DUMMY_TABLE"
-	sqlLocation := pl.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", tableName).(*pl.SQLLocation)
-	_, err := createDummyTable(tester.storeTester, *sqlLocation, 3)
+	location := getLocationForTable(dbName, tableName)
+	_, err := createDummyTable(tester.storeTester, location, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
-	if err := tester.storeTester.Delete(sqlLocation); err != nil {
+	if err := tester.storeTester.Delete(location); err != nil {
 		t.Fatalf("could not delete table: %v", err)
 	}
 }
 
-func DeleteNotExistingTableTest(t *testing.T, tester offlineSqlTest) {
+func DeleteNotExistingTableTest(t *testing.T, tester offlineSqlTest, getLocationForTable func(string, string) pl.Location) {
 	storeTester, ok := tester.storeTester.(offlineSqlStoreCreateDb)
 	if !ok {
 		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", tester.storeTester))
@@ -1352,7 +1358,7 @@ func DeleteNotExistingTableTest(t *testing.T, tester offlineSqlTest) {
 		t.Fatalf("could not create database: %v", err)
 	}
 
-	loc := pl.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", "NOT_EXISTING_TABLE").(*pl.SQLLocation)
+	loc := getLocationForTable(dbName, "NOT_EXISTING_TABLE")
 
 	deleteErr := tester.storeTester.Delete(loc)
 	if deleteErr == nil {
@@ -1360,5 +1366,74 @@ func DeleteNotExistingTableTest(t *testing.T, tester offlineSqlTest) {
 	}
 	if _, ok := deleteErr.(*fferr.DatasetNotFoundError); !ok {
 		t.Fatalf("expected DatasetNotFoundError")
+	}
+}
+
+func createDummyTable(storeTester offlineSqlStoreTester, location pl.Location, numRows int) ([]GenericRecord, error) {
+	// Create the table
+	// create simple Schema
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{
+				Name:      "ID",
+				ValueType: types.Int,
+			},
+			{
+				Name:      "NAME",
+				ValueType: types.String,
+			},
+		},
+	}
+
+	primaryTable, err := storeTester.CreateTable(location, schema)
+	if err != nil {
+		return nil, err
+	}
+
+	genericRecords := make([]GenericRecord, 0)
+	randomNum := uuid.NewString()[:5]
+	for i := 0; i < numRows; i++ {
+		genericRecords = append(genericRecords, []interface{}{i, fmt.Sprintf("Name_%d_%s", i, randomNum)})
+	}
+
+	if err := primaryTable.WriteBatch(genericRecords); err != nil {
+		return nil, err
+	}
+
+	return genericRecords, nil
+}
+
+func verifyPrimaryTable(t *testing.T, primary PrimaryTable, records []GenericRecord) {
+	t.Helper()
+	numRows, err := primary.NumRows()
+	if err != nil {
+		t.Fatalf("could not get number of rows: %v", err)
+	}
+
+	if numRows == 0 {
+		t.Fatalf("expected more than 0 rows")
+	}
+
+	iterator, err := primary.IterateSegment(100)
+	if err != nil {
+		t.Fatalf("Could not get generic iterator: %v", err)
+	}
+
+	i := 0
+	for iterator.Next() {
+		for j, v := range iterator.Values() {
+			// NOTE: we're handling float64 differently here given the values returned by Snowflake have less precision
+			// and therefore are not equal unless we round them; if tests require handling of other types, we can add
+			// additional cases here, otherwise the default case will cover all other types
+			switch v.(type) {
+			case float64:
+				assert.True(t, floatsAreClose(v.(float64), records[i][j].(float64), floatTolerance), "expected same values")
+			case time.Time:
+				assert.Equal(t, records[i][j].(time.Time).Truncate(time.Microsecond), v.(time.Time).Truncate(time.Microsecond), "expected same values")
+			default:
+				assert.Equal(t, v, records[i][j], "expected same values")
+			}
+		}
+		i++
 	}
 }

@@ -655,7 +655,7 @@ func (q defaultBQQueries) getDatasetId() string {
 }
 
 func (q defaultBQQueries) getRootLocation() *pl.SQLLocation {
-	return pl.NewFullyQualifiedSQLLocation(q.ProjectId, q.DatasetId, "").(*pl.SQLLocation)
+	return pl.NewFullyQualifiedSQLLocation(q.ProjectId, q.DatasetId, "")
 }
 
 type bqMaterialization struct {
@@ -990,8 +990,7 @@ func (store *bqOfflineStore) CreateTransformation(config TransformationConfig, o
 		return err
 	}
 
-	// TODO: We do just create it, but maybe still consider doing an error check here.
-	location := pl.NewSQLLocation(name).(*pl.SQLLocation)
+	location := pl.NewSQLLocation(name)
 	query := store.query.transformationCreate(*location, config.Query)
 
 	bqQ := store.client.Query(query)

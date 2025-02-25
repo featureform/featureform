@@ -17,7 +17,7 @@ import (
 // and schema
 type NewDataset interface {
 	Location() pl.Location
-	Iterator() (Iterator, error)
+	Iterator() (NewIterator, error)
 	Schema() (types.Schema, error)
 }
 
@@ -42,7 +42,7 @@ type SizedDataset interface {
 // to SizedIterator to see if the length is available.
 type SegmentableDataset interface {
 	NewDataset
-	IterateSegment(begin, end int64) (Iterator, error)
+	IterateSegment(begin, end int64) (NewIterator, error)
 }
 
 type ChunkedDataset interface {

@@ -65,7 +65,6 @@ func (v Value) ToString() (string, error) {
 		logger.Info("value is null, returning empty string")
 		return "", nil
 	}
-
 	if v.Value == nil {
 		logger.Info("value is nil, returning empty string")
 		return "", nil
@@ -95,7 +94,7 @@ func (v Value) ToInt() (int, error) {
 	case float64:
 		return int(val), nil
 	case string:
-		logger.Warnw("value is type 'string', converting to int")
+		logger.Debug("value is type 'string', converting to int")
 		return strconv.Atoi(val)
 	default:
 		defaultErr := fferr.NewInternalErrorf("cannot convert %T to int", val)
@@ -133,7 +132,7 @@ func (v Value) ToBool() (bool, error) {
 	case bool:
 		return val, nil
 	case string:
-		logger.Warnw("value is type 'string', converting to bool")
+		logger.Debug("value is type 'string', converting to bool")
 		return strconv.ParseBool(val)
 	default:
 		defaultErr := fferr.NewInternalErrorf("cannot convert %T to bool", val)
@@ -151,7 +150,7 @@ func (v Value) ToTime() (time.Time, error) {
 	case time.Time:
 		return val, nil
 	case string:
-		logger.Warnw("value is type 'string', converting to time.Time")
+		logger.Debug("value is type 'string', converting to time.Time")
 		return time.Parse(time.RFC3339, val)
 	default:
 		defaultErr := fferr.NewInternalErrorf("cannot convert %T to time.Time", val)

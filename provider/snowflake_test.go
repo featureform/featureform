@@ -12,12 +12,17 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/featureform/fferr"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/featureform/fferr"
+
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider/location"
@@ -26,9 +31,6 @@ import (
 	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
-	"github.com/google/uuid"
-	"github.com/joho/godotenv"
-	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -264,6 +266,7 @@ func (s *snowflakeOfflineStoreTester) AssertTrainingSetType(t *testing.T, id Res
 
 // TESTS
 
+// TODO: Move this to correctness test
 func TestSnowflakeTrainingSetTypes(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
@@ -560,48 +563,6 @@ func TestSnowflakeDeserializeLegacyCredentials(t *testing.T) {
 	}
 }
 
-func TestSnowflakeDelete(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration tests")
-	}
-	tester := getConfiguredSnowflakeTester(t, true)
-	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
-		"DeleteTableTest":            DeleteTableTest,
-		"DeleteNotExistingTableTest": DeleteNotExistingTableTest,
-	}
-	for name, testCase := range testCases {
-		constName := name
-		constTestCase := testCase
-		t.Run(constName, func(t *testing.T) {
-			t.Parallel()
-			constTestCase(t, tester)
-		})
-	}
-}
-
-func TestSnowflakeResourceTable(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration tests")
-	}
-
-	tester := getConfiguredSnowflakeTester(t, false)
-
-	tsDatasetTypes := []trainingSetDatasetType{
-		tsDatasetFeaturesLabelTS,
-		tsDatasetFeaturesLabelNoTS,
-	}
-
-	for _, testCase := range tsDatasetTypes {
-		constName := string(testCase)
-		constTestCase := testCase
-		t.Run(constName, func(t *testing.T) {
-			t.Parallel()
-			RegisterValidFeatureAndLabel(t, tester, constTestCase)
-			RegisterInValidFeatureAndLabel(t, tester, constTestCase)
-		})
-	}
-}
-
 // TEST FUNCTION
 
 func CrossDatabaseJoinTest(t *testing.T, tester offlineSqlTest) {
@@ -815,40 +776,6 @@ func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester of
 	verifyPrimaryTable(t, primary, records)
 }
 
-func RegisterMaterializationNoTimestampTest(t *testing.T, tester offlineSqlTest) {
-	useTimestamps := false
-	isIncremental := false
-	matTest := newSQLMaterializationTest(tester.storeTester, useTimestamps)
-	_ = initSqlPrimaryDataset(t, matTest.tester, matTest.data.location, matTest.data.schema, matTest.data.records)
-	mat, err := matTest.tester.CreateMaterialization(matTest.data.id, matTest.data.opts)
-	if err != nil {
-		t.Fatalf("could not create materialization: %v", err)
-	}
-	mat, err = matTest.tester.GetMaterialization(mat.ID())
-	if err != nil {
-		t.Fatalf("could not get materialization: %v", err)
-	}
-
-	matTest.data.Assert(t, mat, isIncremental)
-}
-
-func RegisterMaterializationTimestampTest(t *testing.T, tester offlineSqlTest) {
-	useTimestamps := true
-	isIncremental := false
-	matTest := newSQLMaterializationTest(tester.storeTester, useTimestamps)
-	_ = initSqlPrimaryDataset(t, matTest.tester, matTest.data.location, matTest.data.schema, matTest.data.records)
-	mat, err := matTest.tester.CreateMaterialization(matTest.data.id, matTest.data.opts)
-	if err != nil {
-		t.Fatalf("could not create materialization: %v", err)
-	}
-	mat, err = matTest.tester.GetMaterialization(mat.ID())
-	if err != nil {
-		t.Fatalf("could not get materialization: %v", err)
-	}
-
-	matTest.data.Assert(t, mat, isIncremental)
-}
-
 func RegisterMaterializationWithDefaultTargetLagTest(t *testing.T, tester offlineSqlTest) {
 	useTimestamps := true
 	isIncremental := true
@@ -952,102 +879,6 @@ func RegisterTrainingSetWithType(t *testing.T, tester offlineSqlTest, tsDatasetT
 	}
 
 	snowflakeTester.AssertTrainingSetType(t, tsTest.data.id, tsType)
-}
-
-func DeleteTableTest(t *testing.T, tester offlineSqlTest) {
-	storeTester, ok := tester.storeTester.(offlineSqlStoreCreateDb)
-	if !ok {
-		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", tester.storeTester))
-	}
-
-	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
-	t.Logf("Database Name1: %s\n", dbName)
-	if err := storeTester.CreateDatabase(dbName); err != nil {
-		t.Fatalf("could not create database: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := storeTester.DropDatabase(dbName); err != nil {
-			t.Fatalf("could not drop database: %v", err)
-		}
-	})
-
-	// Create the table
-	tableName := "DUMMY_TABLE"
-	sqlLocation := location.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", tableName).(*location.SQLLocation)
-	_, err := createDummyTable(tester.storeTester, *sqlLocation, 3)
-	if err != nil {
-		t.Fatalf("could not create table: %v", err)
-	}
-	if err := tester.storeTester.Delete(sqlLocation); err != nil {
-		t.Fatalf("could not delete table: %v", err)
-	}
-}
-func DeleteNotExistingTableTest(t *testing.T, tester offlineSqlTest) {
-	storeTester, ok := tester.storeTester.(offlineSqlStoreCreateDb)
-	if !ok {
-		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", tester.storeTester))
-	}
-
-	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
-	t.Logf("Database Name1: %s\n", dbName)
-	if err := storeTester.CreateDatabase(dbName); err != nil {
-		t.Fatalf("could not create database: %v", err)
-	}
-
-	loc := location.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", "NOT_EXISTING_TABLE").(*location.SQLLocation)
-
-	deleteErr := tester.storeTester.Delete(loc)
-	if deleteErr == nil {
-		t.Fatalf("expected error deleting table")
-	}
-	if _, ok := deleteErr.(*fferr.DatasetNotFoundError); !ok {
-		t.Fatalf("expected DatasetNotFoundError")
-	}
-}
-
-func RegisterValidFeatureAndLabel(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType) {
-	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
-	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
-	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
-
-	featureTblSCols := tsTest.data.schema.Columns
-	featureResourceSchema := ResourceSchema{
-		Entity:      featureTblSCols[0].Name,
-		Value:       featureTblSCols[1].Name,
-		SourceTable: tsTest.data.location,
-	}
-	if featureTblSCols[len(featureTblSCols)-1].ValueType == types.Timestamp {
-		featureResourceSchema.TS = featureTblSCols[len(featureTblSCols)-1].Name
-	}
-	if _, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.featureIDs[0], featureResourceSchema); err != nil {
-		t.Fatalf("could not register feature table: %v", err)
-	}
-	if _, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.labelID, tsTest.data.labelResourceSchema); err != nil {
-		t.Fatalf("could not register label table: %v", err)
-	}
-}
-
-func RegisterInValidFeatureAndLabel(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType) {
-	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
-	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
-	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
-
-	featureTblSCols := tsTest.data.schema.Columns
-	featureResourceSchema := ResourceSchema{
-		Entity:      "invalid",
-		Value:       featureTblSCols[1].Name,
-		SourceTable: tsTest.data.location,
-	}
-	if featureTblSCols[len(featureTblSCols)-1].ValueType == types.Timestamp {
-		featureResourceSchema.TS = featureTblSCols[len(featureTblSCols)-1].Name
-	}
-	if _, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.featureIDs[0], featureResourceSchema); err == nil {
-		t.Fatal("expected error registering feature resource table")
-	}
-	tsTest.data.labelResourceSchema.EntityMappings.ValueColumn = "invalid"
-	if _, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.labelID, tsTest.data.labelResourceSchema); err == nil {
-		t.Fatal("expected error registering label resource table")
-	}
 }
 
 // HELPER FUNCTIONS

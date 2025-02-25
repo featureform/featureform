@@ -55,7 +55,7 @@ func (ch *clickHouseOfflineStoreTester) CreateSchema(database, schema string) er
 func (ch *clickHouseOfflineStoreTester) CreateTable(loc pl.Location, schema TableSchema) (PrimaryTable, error) {
 	sqlLocation, ok := loc.(*pl.SQLLocation)
 	if !ok {
-		return nil, fmt.Errorf("Invalid location type, expected SQLLocation, got %T", loc)
+		return nil, fmt.Errorf("invalid location type, expected SQLLocation, got %T", loc)
 	}
 
 	db, err := ch.sqlOfflineStore.getDb(sqlLocation.GetDatabase(), sqlLocation.GetSchema())
@@ -86,8 +86,14 @@ func (ch *clickHouseOfflineStoreTester) CreateTable(loc pl.Location, schema Tabl
 		return nil, err
 	}
 
+	newDb, err := ch.getDb(sqlLocation.GetDatabase(), "")
+	if err != nil {
+		logger.Errorw("error connecting to new database", "error", err)
+		return nil, err
+	}
+
 	return &clickhousePrimaryTable{
-		db:     db,
+		db:     newDb,
 		name:   sqlLocation.Location(),
 		query:  ch.sqlOfflineStore.query,
 		schema: schema,

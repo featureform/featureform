@@ -10,8 +10,9 @@ package location
 import (
 	"encoding/json"
 	"fmt"
-	pb "github.com/featureform/metadata/proto"
 	"strings"
+
+	pb "github.com/featureform/metadata/proto"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
@@ -1563,7 +1564,7 @@ func (q clickhouseSQLQueries) transformationExists() string {
 }
 
 func (q clickhouseSQLQueries) getColumns(db *sql.DB, tableName string) ([]TableColumn, error) {
-	qry := "SELECT name FROM system.columns WHERE table = ?"
+	qry := "SELECT name FROM system.columns WHERE table = ? AND database = currentDatabase()"
 	rows, err := db.Query(qry, tableName)
 	if err != nil {
 		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)

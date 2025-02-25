@@ -102,7 +102,7 @@ func TestNewDataset(t *testing.T) {
 
 	assert.Equal(t, location, ds.Location())
 	sch, err := ds.Schema()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, schema, sch)
 }
 
@@ -116,8 +116,9 @@ func TestWriteableDataset(t *testing.T) {
 	}
 	err = ds.WriteBatch(rows)
 	require.NoError(t, err)
-	assert.NoError(t, err)
-	assert.Equal(t, int64(2), int64(len(ds.data)))
+	length, err := ds.Len()
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), length)
 }
 
 func TestSizedDataset(t *testing.T) {
@@ -132,7 +133,6 @@ func TestSizedDataset(t *testing.T) {
 
 	size, err := ds.Len()
 	require.NoError(t, err)
-	assert.NoError(t, err)
 	assert.Equal(t, int64(2), size)
 }
 
@@ -146,12 +146,12 @@ func TestSegmentableDataset(t *testing.T) {
 	}, types.Schema{Fields: []types.ColumnSchema{{Name: "id", NativeType: "int"}}}, location)
 
 	iter, err := ds.IterateSegment(1, 3)
-	assert.NoError(t, err)
-	assert.NotNil(t, iter)
+	require.NoError(t, err)
+	require.NotNil(t, iter)
 
-	assert.True(t, iter.Next())
+	require.True(t, iter.Next())
 	assert.Equal(t, types.Row{types.Value{NativeType: "int", Type: types.Int, Value: 2}}, iter.Values())
-	assert.True(t, iter.Next())
+	require.True(t, iter.Next())
 	assert.Equal(t, types.Row{types.Value{NativeType: "int", Type: types.Int, Value: 3}}, iter.Values())
 	assert.False(t, iter.Next())
 }
@@ -199,6 +199,7 @@ func TestChunkedDatasetAdapter(t *testing.T) {
 	t.Run("FirstChunk", func(t *testing.T) {
 		iter, err := adapter.ChunkIterator(0)
 		require.NoError(t, err)
+		require.NotNil(t, iter)
 
 		// Verify chunk size
 		size, err := iter.Len()
@@ -220,6 +221,7 @@ func TestChunkedDatasetAdapter(t *testing.T) {
 	t.Run("LastChunk", func(t *testing.T) {
 		iter, err := adapter.ChunkIterator(3)
 		require.NoError(t, err)
+		require.NotNil(t, iter)
 
 		// Verify chunk size
 		size, err := iter.Len()
@@ -227,7 +229,7 @@ func TestChunkedDatasetAdapter(t *testing.T) {
 		assert.Equal(t, int64(1), size)
 
 		// Verify chunk contents
-		assert.True(t, iter.Next())
+		require.True(t, iter.Next())
 		val := iter.Values()
 		assert.Equal(t, 10, val[0].Value)
 		assert.False(t, iter.Next(), "Should have only one element")

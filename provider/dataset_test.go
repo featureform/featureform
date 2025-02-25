@@ -43,7 +43,11 @@ func (ds *InMemoryDataset) Len() (int64, error) {
 }
 
 func (ds *InMemoryDataset) IterateSegment(begin, end int64) (NewIterator, error) {
-	if begin < 0 || end > int64(len(ds.data)) || begin > end {
+	size, err := ds.Len()
+	if err != nil {
+		return nil, err
+	}
+	if begin < 0 || end > size || begin > end {
 		return nil, errors.New("invalid segment range")
 	}
 	return &InMemoryIterator{data: ds.data[begin:end], index: -1}, nil
@@ -67,7 +71,7 @@ func (it *InMemoryIterator) Values() types.Row {
 }
 
 func (it *InMemoryIterator) Schema() (types.Schema, error) {
-	return types.Schema{}, nil // Mock implementation
+	return types.Schema{}, nil
 }
 
 func (it *InMemoryIterator) Err() error {
@@ -98,7 +102,10 @@ func TestWriteableDataset(t *testing.T) {
 	location, err := pl.NewFileLocationFromURI("file://test")
 	require.NoError(t, err)
 	ds := NewInMemoryDataset([]types.Row{}, types.Schema{Fields: []types.ColumnSchema{{Name: "id", NativeType: "int"}}}, location)
-	rows := []types.Row{{types.Value{NativeType: "int", Type: types.Int, Value: 4}}, {types.Value{NativeType: "int", Type: types.Int, Value: 5}}}
+	rows := []types.Row{
+		{types.Value{NativeType: "int", Type: types.Int, Value: 4}},
+		{types.Value{NativeType: "int", Type: types.Int, Value: 5}},
+	}
 	err = ds.WriteBatch(rows)
 	require.NoError(t, err)
 	assert.NoError(t, err)
@@ -106,7 +113,10 @@ func TestWriteableDataset(t *testing.T) {
 }
 
 func TestSizedDataset(t *testing.T) {
-	data := []types.Row{{types.Value{NativeType: "int", Type: types.Int, Value: 1}}, {types.Value{NativeType: "int", Type: types.Int, Value: 2}}}
+	data := []types.Row{
+		{types.Value{NativeType: "int", Type: types.Int, Value: 1}},
+		{types.Value{NativeType: "int", Type: types.Int, Value: 2}},
+	}
 	schema := types.Schema{Fields: []types.ColumnSchema{{Name: "id", NativeType: "int"}}}
 	location, err := pl.NewFileLocationFromURI("file://test")
 	require.NoError(t, err)

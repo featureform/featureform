@@ -168,12 +168,13 @@ func TestResourceTable(t *testing.T) {
 
 	for _, infra := range testInfra {
 		for _, testCase := range tsDatasetTypes {
-			constName := string(testCase)
-			constTestCase := testCase
-			t.Run(constName, func(t *testing.T) {
+			testName := string(testCase)
+			providerName := infra.tester.storeTester.Type()
+			name := fmt.Sprintf("%s:%s", providerName, testName)
+			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				RegisterValidFeatureAndLabel(t, infra.tester, constTestCase)
-				RegisterInValidFeatureAndLabel(t, infra.tester, constTestCase)
+				RegisterValidFeatureAndLabel(t, infra.tester, testCase)
+				RegisterInValidFeatureAndLabel(t, infra.tester, testCase)
 			})
 		}
 	}
@@ -199,12 +200,12 @@ func TestDelete(t *testing.T) {
 	}
 
 	for _, infra := range testInfra {
-		for name, testCase := range testCases {
-			constName := name
-			constTestCase := testCase
-			t.Run(constName, func(t *testing.T) {
+		for testName, testCase := range testCases {
+			providerName := infra.tester.storeTester.Type()
+			name := fmt.Sprintf("%s:%s", providerName, testName)
+			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				constTestCase(t, infra.tester)
+				testCase(t, infra.tester)
 			})
 		}
 	}

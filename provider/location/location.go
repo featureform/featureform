@@ -10,8 +10,9 @@ package location
 import (
 	"encoding/json"
 	"fmt"
-	pb "github.com/featureform/metadata/proto"
 	"strings"
+
+	pb "github.com/featureform/metadata/proto"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
@@ -71,11 +72,11 @@ type JSONLocation struct {
 	TableFormat    *string `json:"tableFormat,omitempty"`
 }
 
-func NewSQLLocation(table string) Location {
+func NewSQLLocation(table string) *SQLLocation {
 	return &SQLLocation{table: table}
 }
 
-func NewFullyQualifiedSQLLocation(database, schema, table string) Location {
+func NewFullyQualifiedSQLLocation(database, schema, table string) *SQLLocation {
 	return &SQLLocation{database: database, schema: schema, table: table}
 }
 

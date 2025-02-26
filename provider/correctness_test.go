@@ -12,20 +12,23 @@ import (
 	"crypto/sha256"
 	"encoding/gob"
 	"fmt"
-	ps "github.com/featureform/provider/provider_schema"
 	"math"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/featureform/fferr"
+	ps "github.com/featureform/provider/provider_schema"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestTransformations(t *testing.T) {
@@ -34,14 +37,28 @@ func TestTransformations(t *testing.T) {
 	}
 
 	testInfra := []struct {
-		tester offlineSqlTest
+		tester              offlineSqlTest
+		transformationQuery string
 	}{
-		{getConfiguredBigQueryTester(t, false)},
-		{getConfiguredSnowflakeTester(t, true)},
-		{getConfiguredPostgresTester(t, false)},
+		{
+			getConfiguredBigQueryTester(t, false),
+			"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, TIMESTAMP(timestamp) as date FROM %s GROUP BY location_id, TIMESTAMP(timestamp)",
+		},
+		{
+			getConfiguredSnowflakeTester(t, true),
+			"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)",
+		},
+		{
+			getConfiguredPostgresTester(t, false),
+			"SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
+		},
+		{
+			getConfiguredClickHouseTester(t, false),
+			"SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
+		},
 	}
 
-	testSuite := map[string]func(t *testing.T, storeTester offlineSqlTest){
+	testSuite := map[string]func(t *testing.T, storeTester offlineSqlTest, transformationQuery string){
 		"RegisterTransformationOnPrimaryDatasetTest": RegisterTransformationOnPrimaryDatasetTest,
 		"RegisterChainedTransformationsTest":         RegisterChainedTransformationsTest,
 	}
@@ -52,7 +69,7 @@ func TestTransformations(t *testing.T) {
 			name := fmt.Sprintf("%s:%s", providerName, testName)
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				testCase(t, infra.tester)
+				testCase(t, infra.tester, infra.transformationQuery)
 			})
 		}
 	}
@@ -69,6 +86,7 @@ func TestMaterializations(t *testing.T) {
 		{getConfiguredBigQueryTester(t, false)},
 		{getConfiguredSnowflakeTester(t, true)},
 		{getConfiguredPostgresTester(t, false)},
+		{getConfiguredClickHouseTester(t, false)},
 	}
 
 	testSuite := map[string]func(t *testing.T, storeTester offlineSqlTest){
@@ -105,6 +123,9 @@ func TestTrainingSets(t *testing.T) {
 		{
 			getConfiguredPostgresTester(t, true),
 		},
+		{
+			getConfiguredClickHouseTester(t, false),
+		},
 	}
 
 	testSuite := []trainingSetDatasetType{
@@ -121,6 +142,69 @@ func TestTrainingSets(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 				RegisterTrainingSet(t, infra.tester, testCase)
+			})
+		}
+	}
+}
+
+func TestResourceTable(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+
+	testInfra := []struct {
+		tester offlineSqlTest
+	}{
+		{getConfiguredBigQueryTester(t, false)},
+		{getConfiguredSnowflakeTester(t, true)},
+		{getConfiguredPostgresTester(t, false)},
+		{getConfiguredClickHouseTester(t, false)},
+	}
+
+	tsDatasetTypes := []trainingSetDatasetType{
+		tsDatasetFeaturesLabelTS,
+		tsDatasetFeaturesLabelNoTS,
+	}
+
+	for _, infra := range testInfra {
+		for _, testCase := range tsDatasetTypes {
+			constName := string(testCase)
+			constTestCase := testCase
+			t.Run(constName, func(t *testing.T) {
+				t.Parallel()
+				RegisterValidFeatureAndLabel(t, infra.tester, constTestCase)
+				RegisterInValidFeatureAndLabel(t, infra.tester, constTestCase)
+			})
+		}
+	}
+}
+
+func TestDelete(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+
+	testInfra := []struct {
+		tester offlineSqlTest
+	}{
+		//{getConfiguredBigQueryTester(t, false)},
+		{getConfiguredSnowflakeTester(t, true)},
+		//{getConfiguredPostgresTester(t, false)},
+		{getConfiguredClickHouseTester(t, false)},
+	}
+
+	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
+		"DeleteTableTest":            DeleteTableTest,
+		"DeleteNotExistingTableTest": DeleteNotExistingTableTest,
+	}
+
+	for _, infra := range testInfra {
+		for name, testCase := range testCases {
+			constName := name
+			constTestCase := testCase
+			t.Run(constName, func(t *testing.T) {
+				t.Parallel()
+				constTestCase(t, infra.tester)
 			})
 		}
 	}
@@ -234,8 +318,7 @@ func (a idCreator) create(t OfflineResourceType, name string) ResourceID {
 func newTestSQLTransformationData(tester offlineSqlStoreTester, transformationQuery string, sanitizeTableNameFn func(object pl.FullyQualifiedObject) string) testSQLTransformationData {
 	db := tester.GetTestDatabase()
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_WIND_DATA_TABLE")
-	sqlLoc := loc.(*pl.SQLLocation)
+	sqlLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_WIND_DATA_TABLE")
 	tableLoc := sqlLoc.TableLocation()
 	queryFmt := transformationQuery
 	idCreator := newIDCreator("test")
@@ -324,7 +407,7 @@ func newTestSQLTransformationData(tester offlineSqlStoreTester, transformationQu
 				time.Date(2024, 10, 30, 0, 0, 0, 0, time.UTC),
 			},
 		},
-		location: loc,
+		location: sqlLoc,
 		config: TransformationConfig{
 			Type:          SQLTransformation,
 			TargetTableID: idCreator.create(Transformation, ""),
@@ -335,7 +418,7 @@ func newTestSQLTransformationData(tester offlineSqlStoreTester, transformationQu
 					Source:         tableLoc.String(),
 					ProviderType:   tester.Type(),
 					ProviderConfig: tester.Config(),
-					Location:       loc,
+					Location:       sqlLoc,
 				},
 			},
 		},
@@ -737,9 +820,9 @@ func (data testSQLTrainingSetData) HashStruct(v interface{}) ([]byte, error) {
 func getTrainingSetDatasetTS(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := tester.GetTestDatabase()
 	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_SURF_READINGS_TABLE")
+	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_ALL_TIMESTAMPS")
 	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABEL_WAVE_HEIGHT_TABLE")
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABELS_ALL_TIMESTAMPS")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "wave_height_training_set")
 	labelID := idCreator.create(Label, "wave_height")
@@ -840,9 +923,9 @@ func getTrainingSetDatasetTS(tester offlineSqlStoreTester, storeType pt.Type, st
 func getTrainingSetFeaturesTSLabelsNoTS(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := tester.GetTestDatabase()
 	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_SURF_READINGS_TABLE")
+	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_FEATURE_TIMESTAMPS")
 	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABEL_LOC_LEVEL_TABLE")
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABELS_FEATURE_TIMESTAMPS")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "location_level_training_set")
 	labelID := idCreator.create(Label, "location_level")
@@ -925,9 +1008,9 @@ func getTrainingSetFeaturesTSLabelsNoTS(tester offlineSqlStoreTester, storeType 
 func getTrainingSetDatasetFeaturesNoTSLabelTS(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := tester.GetTestDatabase()
 	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_SURFERS_TABLE")
+	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_LABEL_TIMESTAMPS")
 	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABEL_RIDES_TABLE")
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABELS_LABEL_TIMESTAMPS")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "successful_rides_training_set")
 	labelID := idCreator.create(Label, "successful_rides")
@@ -1021,9 +1104,9 @@ func getTrainingSetDatasetFeaturesNoTSLabelTS(tester offlineSqlStoreTester, stor
 func getTrainingSetDatasetNoTS(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := tester.GetTestDatabase()
 	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_FAV_SPOT_TABLE")
+	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_NO_TIMESTAMPS")
 	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABEL_SURFER_LEVEL_TABLE")
+	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABELS_NO_TIMESTAMPS")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "surfer_level_training_set")
 	labelID := idCreator.create(Label, "surfer_level")
@@ -1100,8 +1183,8 @@ func getTrainingSetDatasetNoTS(tester offlineSqlStoreTester, storeType pt.Type, 
 	}
 }
 
-func RegisterTransformationOnPrimaryDatasetTest(t *testing.T, tester offlineSqlTest) {
-	test := newSQLTransformationTest(tester.storeTester, tester.transformationQuery, tester.sanitizeTableName)
+func RegisterTransformationOnPrimaryDatasetTest(t *testing.T, tester offlineSqlTest, transformationQuery string) {
+	test := newSQLTransformationTest(tester.storeTester, transformationQuery, tester.sanitizeTableName)
 	_ = initSqlPrimaryDataset(t, test.tester, test.data.location, test.data.schema, test.data.records)
 	if err := test.tester.CreateTransformation(test.data.config); err != nil {
 		t.Fatalf("could not create transformation: %v", err)
@@ -1113,8 +1196,8 @@ func RegisterTransformationOnPrimaryDatasetTest(t *testing.T, tester offlineSqlT
 	test.data.Assert(t, actual)
 }
 
-func RegisterChainedTransformationsTest(t *testing.T, tester offlineSqlTest) {
-	test := newSQLTransformationTest(tester.storeTester, tester.transformationQuery, tester.sanitizeTableName)
+func RegisterChainedTransformationsTest(t *testing.T, tester offlineSqlTest, transformationQuery string) {
+	test := newSQLTransformationTest(tester.storeTester, transformationQuery, tester.sanitizeTableName)
 	_ = initSqlPrimaryDataset(t, test.tester, test.data.location, test.data.schema, test.data.records)
 	if err := test.tester.CreateTransformation(test.data.config); err != nil {
 		t.Fatalf("could not create transformation: %v", err)
@@ -1131,7 +1214,7 @@ func RegisterChainedTransformationsTest(t *testing.T, tester offlineSqlTest) {
 	if err != nil {
 		t.Fatalf("could not get transformation table name from resource ID: %v", err)
 	}
-	srcLoc := pl.NewSQLLocation(srcDataset).(*pl.SQLLocation)
+	srcLoc := pl.NewSQLLocation(srcDataset)
 	// Copy the original config and modify the query and source mapping
 	config := test.data.config
 	config.TargetTableID = id
@@ -1161,4 +1244,205 @@ func RegisterTrainingSet(t *testing.T, tester offlineSqlTest, tsDatasetType trai
 		t.Fatalf("could not get training set: %v", err)
 	}
 	tsTest.data.Assert(t, ts)
+}
+
+func RegisterMaterializationNoTimestampTest(t *testing.T, tester offlineSqlTest) {
+	useTimestamps := false
+	isIncremental := false
+	matTest := newSQLMaterializationTest(tester.storeTester, useTimestamps)
+	_ = initSqlPrimaryDataset(t, matTest.tester, matTest.data.location, matTest.data.schema, matTest.data.records)
+	mat, err := matTest.tester.CreateMaterialization(matTest.data.id, matTest.data.opts)
+	if err != nil {
+		t.Fatalf("could not create materialization: %v", err)
+	}
+	mat, err = matTest.tester.GetMaterialization(mat.ID())
+	if err != nil {
+		t.Fatalf("could not get materialization: %v", err)
+	}
+
+	matTest.data.Assert(t, mat, isIncremental)
+}
+
+func RegisterMaterializationTimestampTest(t *testing.T, tester offlineSqlTest) {
+	useTimestamps := true
+	isIncremental := false
+	matTest := newSQLMaterializationTest(tester.storeTester, useTimestamps)
+	_ = initSqlPrimaryDataset(t, matTest.tester, matTest.data.location, matTest.data.schema, matTest.data.records)
+	mat, err := matTest.tester.CreateMaterialization(matTest.data.id, matTest.data.opts)
+	if err != nil {
+		t.Fatalf("could not create materialization: %v", err)
+	}
+	mat, err = matTest.tester.GetMaterialization(mat.ID())
+	if err != nil {
+		t.Fatalf("could not get materialization: %v", err)
+	}
+
+	matTest.data.Assert(t, mat, isIncremental)
+}
+
+func RegisterValidFeatureAndLabel(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType) {
+	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
+	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
+	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
+
+	featureTblSCols := tsTest.data.schema.Columns
+	featureResourceSchema := ResourceSchema{
+		Entity:      featureTblSCols[0].Name,
+		Value:       featureTblSCols[1].Name,
+		SourceTable: tsTest.data.location,
+	}
+	if featureTblSCols[len(featureTblSCols)-1].ValueType == types.Timestamp {
+		featureResourceSchema.TS = featureTblSCols[len(featureTblSCols)-1].Name
+	}
+	if _, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.featureIDs[0], featureResourceSchema); err != nil {
+		t.Fatalf("could not register feature table: %v", err)
+	}
+	if _, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.labelID, tsTest.data.labelResourceSchema); err != nil {
+		t.Fatalf("could not register label table: %v", err)
+	}
+}
+
+func RegisterInValidFeatureAndLabel(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType) {
+	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
+	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
+	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
+
+	featureTblSCols := tsTest.data.schema.Columns
+	featureResourceSchema := ResourceSchema{
+		Entity:      "invalid",
+		Value:       featureTblSCols[1].Name,
+		SourceTable: tsTest.data.location,
+	}
+	if featureTblSCols[len(featureTblSCols)-1].ValueType == types.Timestamp {
+		featureResourceSchema.TS = featureTblSCols[len(featureTblSCols)-1].Name
+	}
+	if _, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.featureIDs[0], featureResourceSchema); err == nil {
+		t.Fatal("expected error registering feature resource table")
+	}
+	tsTest.data.labelResourceSchema.EntityMappings.ValueColumn = "invalid"
+	if _, err := tsTest.tester.RegisterResourceFromSourceTable(tsTest.data.labelID, tsTest.data.labelResourceSchema); err == nil {
+		t.Fatal("expected error registering label resource table")
+	}
+}
+
+func DeleteTableTest(t *testing.T, tester offlineSqlTest) {
+	storeTester, ok := tester.storeTester.(offlineSqlStoreCreateDb)
+	if !ok {
+		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", tester.storeTester))
+	}
+
+	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
+	t.Logf("Database Name1: %s\n", dbName)
+	if err := storeTester.CreateDatabase(dbName); err != nil {
+		t.Fatalf("could not create database: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := storeTester.DropDatabase(dbName); err != nil {
+			t.Fatalf("could not drop database: %v", err)
+		}
+	})
+
+	// Create the table
+	tableName := "DUMMY_TABLE"
+	location := pl.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", tableName)
+	_, err := createDummyTable(tester.storeTester, location, 3)
+
+	if _, err = createDummyTable(tester.storeTester, location, 3); err != nil {
+		t.Fatalf("could not create table: %v", err)
+	}
+	if err := tester.storeTester.Delete(location); err != nil {
+		t.Fatalf("could not delete table: %v", err)
+	}
+}
+
+func DeleteNotExistingTableTest(t *testing.T, tester offlineSqlTest) {
+	storeTester, ok := tester.storeTester.(offlineSqlStoreCreateDb)
+	if !ok {
+		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", tester.storeTester))
+	}
+
+	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
+	t.Logf("Database Name1: %s\n", dbName)
+	if err := storeTester.CreateDatabase(dbName); err != nil {
+		t.Fatalf("could not create database: %v", err)
+	}
+
+	loc := pl.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", "NOT_EXISTING_TABLE")
+
+	deleteErr := tester.storeTester.Delete(loc)
+	if deleteErr == nil {
+		t.Fatalf("expected error deleting table")
+	}
+	if _, ok := deleteErr.(*fferr.DatasetNotFoundError); !ok {
+		t.Fatalf("expected DatasetNotFoundError")
+	}
+}
+
+func createDummyTable(storeTester offlineSqlStoreTester, location pl.Location, numRows int) ([]GenericRecord, error) {
+	// Create the table
+	// create simple Schema
+	schema := TableSchema{
+		Columns: []TableColumn{
+			{
+				Name:      "ID",
+				ValueType: types.Int,
+			},
+			{
+				Name:      "NAME",
+				ValueType: types.String,
+			},
+		},
+	}
+
+	primaryTable, err := storeTester.CreateTable(location, schema)
+	if err != nil {
+		return nil, err
+	}
+
+	genericRecords := make([]GenericRecord, 0)
+	randomNum := uuid.NewString()[:5]
+	for i := 0; i < numRows; i++ {
+		genericRecords = append(genericRecords, []interface{}{i, fmt.Sprintf("Name_%d_%s", i, randomNum)})
+	}
+
+	if err := primaryTable.WriteBatch(genericRecords); err != nil {
+		return nil, err
+	}
+
+	return genericRecords, nil
+}
+
+func verifyPrimaryTable(t *testing.T, primary PrimaryTable, records []GenericRecord) {
+	t.Helper()
+	numRows, err := primary.NumRows()
+	if err != nil {
+		t.Fatalf("could not get number of rows: %v", err)
+	}
+
+	if numRows == 0 {
+		t.Fatalf("expected more than 0 rows")
+	}
+
+	iterator, err := primary.IterateSegment(100)
+	if err != nil {
+		t.Fatalf("Could not get generic iterator: %v", err)
+	}
+
+	i := 0
+	for iterator.Next() {
+		for j, v := range iterator.Values() {
+			// NOTE: we're handling float64 differently here given the values returned by Snowflake have less precision
+			// and therefore are not equal unless we round them; if tests require handling of other types, we can add
+			// additional cases here, otherwise the default case will cover all other types
+			switch v.(type) {
+			case float64:
+				assert.True(t, floatsAreClose(v.(float64), records[i][j].(float64), floatTolerance), "expected same values")
+			case time.Time:
+				assert.Equal(t, records[i][j].(time.Time).Truncate(time.Microsecond), v.(time.Time).Truncate(time.Microsecond), "expected same values")
+			default:
+				assert.Equal(t, v, records[i][j], "expected same values")
+			}
+		}
+		i++
+	}
 }

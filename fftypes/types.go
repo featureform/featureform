@@ -58,7 +58,6 @@ type Value struct {
 	Type       Type
 	IsNull     bool
 	Value      any
-
 }
 
 func (v Value) ToString() (string, error) {

@@ -11,38 +11,162 @@
 
 package types
 
-// basic representation of our featureform types,
-// using iota for now, doesn't need an actual ordering for the moment
-// todo: will change name later
-type FF_Type int
+import (
+	"fmt"
+	"slices"
+	"strconv"
+	"time"
+
+	"github.com/featureform/fferr"
+	"github.com/featureform/logging"
+)
+
+var logger = logging.NewLogger("featureform types")
+
+type Type int
 
 const (
-	NilType FF_Type = iota
-	Int
-	Int8
-	Int16
-	Int32
+	Int Type = iota
 	Int64
-	UInt8
-	UInt16
-	UInt32
-	UInt64
-	Float32
 	Float64
 	String
 	Bool
 	Timestamp
 	Datetime
+	// todo: include byte/array/list enum. may skip for 1st iteration?
 )
 
-// todo: core structs. update the Value to fit a better type representation other than any/interface?
-type Value struct {
-	// Provider   string      // where the value originated from, can be enumeration note: we may not need this extra context
-	Name       string      // the name of the value
-	NativeType string      // todo: this will be some constant. is the provider's type (DynamoDB INT64)
-	Type       FF_Type     // this is our type
-	Value      interface{} // "FFValue" may update later to a diff type with extensible receiver methods
+var NumericTypes = []Type{Int, Int64, Float64}
+
+type NativeType string
+type ColumnName string
+
+type Schema struct {
+	Fields []ColumnSchema
+	// todo: can include more state or behavior, etc.
 }
 
-// todo: a row represents a list of featureform values, can also have extension methods
-type Row []Value
+type ColumnSchema struct {
+	Name       ColumnName
+	NativeType NativeType
+	Type       Type
+	IsNullable bool
+}
+
+type Value struct {
+	NativeType NativeType
+	Type       Type
+	IsNull     bool
+	Value      any
+}
+
+func (v Value) ToString() (string, error) {
+	if v.IsNull {
+		logger.Info("value is null, returning empty string")
+		return "", nil
+	}
+	if v.Value == nil {
+		logger.Info("value is nil, returning empty string")
+		return "", nil
+	}
+	switch val := v.Value.(type) {
+	case string:
+		return val, nil
+	case int, int64, float64, bool:
+		return fmt.Sprintf("%v", val), nil
+	default:
+		defaultErr := fferr.NewInternalErrorf("unsupported type: %T", val)
+		logger.Error(defaultErr)
+		return "", defaultErr
+	}
+}
+
+func (v Value) ToInt() (int, error) {
+	if v.IsNull || v.Value == nil {
+		logger.Info("value is null or nil, returning error")
+		return 0, fferr.NewInternalErrorf("value is NULL")
+	}
+	switch val := v.Value.(type) {
+	case int:
+		return val, nil
+	case int64:
+		return int(val), nil
+	case float64:
+		return int(val), nil
+	case string:
+		logger.Debug("value is type 'string', converting to int")
+		return strconv.Atoi(val)
+	default:
+		defaultErr := fferr.NewInternalErrorf("cannot convert %T to int", val)
+		logger.Error(defaultErr)
+		return 0, defaultErr
+	}
+}
+
+func (v Value) ToFloat() (float64, error) {
+	if v.IsNull || v.Value == nil {
+		logger.Info("value is null or nil, returning error")
+		return 0, fferr.NewInternalErrorf("value is NULL")
+	}
+	switch val := v.Value.(type) {
+	case float64:
+		return val, nil
+	case int:
+		return float64(val), nil
+	case string:
+		logger.Warnw("value is type 'string', converting to float64")
+		return strconv.ParseFloat(val, 64)
+	default:
+		defaultErr := fferr.NewInternalErrorf("cannot convert %T to float", val)
+		logger.Error(defaultErr)
+		return 0, defaultErr
+	}
+}
+
+func (v Value) ToBool() (bool, error) {
+	if v.IsNull || v.Value == nil {
+		logger.Info("value is null or nil, returning error")
+		return false, fferr.NewInternalErrorf("value is NULL")
+	}
+	switch val := v.Value.(type) {
+	case bool:
+		return val, nil
+	case string:
+		logger.Debug("value is type 'string', converting to bool")
+		return strconv.ParseBool(val)
+	default:
+		defaultErr := fferr.NewInternalErrorf("cannot convert %T to bool", val)
+		logger.Error(defaultErr)
+		return false, defaultErr
+	}
+}
+
+func (v Value) ToTime() (time.Time, error) {
+	if v.IsNull || v.Value == nil {
+		logger.Info("value is null or nil, returning error")
+		return time.Time{}, fferr.NewInternalErrorf("value is NULL")
+	}
+	switch val := v.Value.(type) {
+	case time.Time:
+		return val, nil
+	case string:
+		logger.Debug("value is type 'string', converting to time.Time")
+		return time.Parse(time.RFC3339, val)
+	default:
+		defaultErr := fferr.NewInternalErrorf("cannot convert %T to time.Time", val)
+		logger.Error(defaultErr)
+		return time.Time{}, defaultErr
+	}
+}
+
+func (v Value) IsNumeric() bool {
+	return slices.Contains(NumericTypes, v.Type)
+}
+
+func (v Value) IsText() bool {
+	return v.Type == String
+}
+
+func (v Value) AsAny() any {
+	return v.Value
+}

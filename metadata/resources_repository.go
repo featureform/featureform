@@ -73,6 +73,13 @@ const (
 		UPDATE ff_task_metadata
 		SET key = concat('DELETED__', key, to_char(now(), 'YYYYMMDDTHH24MISS'))
 		WHERE key = $1;`
+
+	sqlDeleteFromSearch = `-- name: DeleteFromSearch :exec
+		DELETE FROM search_resources
+		WHERE id = REGEXP_REPLACE($1, '[@.\s]', '_', 'g')
+			AND name = $2
+			AND type = $3
+			AND COALESCE(variant, '') = $4;`
 )
 
 type AsyncDeletionHandler func(ctx context.Context, resId ResourceID, logger logging.Logger) error
@@ -109,11 +116,10 @@ func NewResourcesRepositoryFromLookup(resourceLookup ResourceLookup) (ResourcesR
 	switch lookup := resourceLookup.(type) {
 	case *LocalResourceLookup:
 		return NewInMemoryResourcesRepository(lookup), nil
-
-	case *MemoryResourceLookup:
+	case *MetadataStorageResourceLookup:
 
 		if lookup.Connection.Storage == nil {
-			return nil, fferr.NewInternalErrorf("MemoryResourceLookup.Storage is nil")
+			return nil, fferr.NewInternalErrorf("MetadataStorageResourceLookup.Storage is nil")
 		}
 		switch lookup.Connection.Storage.Type() {
 		case storage.MemoryMetadataStorage:
@@ -272,6 +278,11 @@ func (r *sqlResourcesRepository) MarkForDeletion(ctx context.Context, resourceID
 				return err
 			}
 
+			if err := r.deleteFromSearch(ctx, tx, resourceID); err != nil {
+				logger.Errorw("error deleting from search", "error", err)
+				return err
+			}
+
 			if err := r.deleteEdges(ctx, tx, resourceID, logger); err != nil {
 				logger.Errorw("error deleting edges", "error", err)
 				return err
@@ -366,6 +377,10 @@ func (r *sqlResourcesRepository) PruneResource(
 			for _, dep := range deps {
 				if err := r.markDeleted(ctx, tx, dep, logger); err != nil {
 					logger.Errorf("error marking %s for deletion: %v", dep, err)
+					return err
+				}
+				if err := r.deleteFromSearch(ctx, tx, dep); err != nil {
+					logger.Errorf("error deleting from search for %s: %v", dep, err)
 					return err
 				}
 			}
@@ -635,6 +650,15 @@ func (r *sqlResourcesRepository) deleteFromParent(ctx context.Context, tx pgx.Tx
 			logger.Errorw("error deleting from parent", "parent", parent, "resource", resourceID, "error", err)
 			return fferr.NewInternalErrorf("could not delete from parent %s: %v", parent, err)
 		}
+	}
+	return nil
+}
+
+func (r *sqlResourcesRepository) deleteFromSearch(ctx context.Context, tx pgx.Tx, resID common.ResourceID) error {
+	logger := logging.GetLoggerFromContext(ctx)
+	if _, err := tx.Exec(ctx, sqlDeleteFromSearch, resID.ToKey(), resID.Name, resID.Type.String(), resID.Variant); err != nil {
+		logger.Errorw("error deleting from search", "error", err)
+		return fferr.NewInternalErrorf("error deleting from search for key %s: %v", resID.ToKey(), err)
 	}
 	return nil
 }

@@ -1,4 +1,4 @@
-package search
+package metadata
 
 import (
 	"testing"
@@ -7,10 +7,14 @@ import (
 	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/helpers/tests"
 	"github.com/featureform/logging"
+
 	"github.com/stretchr/testify/require"
 )
 
 func TestSearchTablesTrigger(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
 	ctx := logging.NewTestContext(t)
 	dbName, cleanup := tests.CreateTestDatabase(ctx, t, config.GetMigrationPath())
 	defer cleanup()
@@ -95,6 +99,9 @@ func TestSearchTablesTrigger(t *testing.T) {
 }
 
 func TestSearchTablesMultipleVariants(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
 	ctx := logging.NewTestContext(t)
 	dbName, cleanup := tests.CreateTestDatabase(ctx, t, config.GetMigrationPath())
 	defer cleanup()

@@ -233,6 +233,45 @@ func (psql *PSQLStorageImplementation) Close() {
 	// No-op
 }
 
+func (psql *PSQLStorageImplementation) Type() MetadataStorageType {
+	return PSQLMetadataStorage
+}
+
+func (psql *PSQLStorageImplementation) Search(ctx context.Context, q string, opts ...query.Query) (map[string]string, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger.Infow("Initiating PSQL search", "searchquery", q)
+	if len(opts) > 0 {
+		logger.Warnw("Search with options is not supported in PSQL", "options", opts)
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("search with options is not supported in PSQL"))
+	}
+	// Format the query with the table name
+	query := fmt.Sprintf(getSearchQuery(), postgres.Sanitize(psql.tableName))
+	logger.Debugw("Search query", "query", query)
+	rows, err := psql.Db.Query(ctx, query, q)
+	if err != nil {
+		logger.Errorw("Failed to execute search query", "query", query, "error", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	results := make(map[string]string)
+	for rows.Next() {
+		var key, value string
+		err := rows.Scan(&key, &value)
+		if err != nil {
+			logger.Errorw("Error scanning search result", "error", err)
+			continue
+		}
+		logger.Debugw("Found search result in search table", "key", key)
+		results[key] = value
+	}
+	if err := rows.Err(); err != nil {
+		logger.Errorw("Error getting all search results successfully", "error", err)
+		return nil, fferr.NewInternalErrorf("Error getting all search results successfully: %w", err)
+	}
+	return results, nil
+}
+
 // SQL Queries
 func (psql *PSQLStorageImplementation) setQuery() string {
 	return fmt.Sprintf("INSERT INTO %s (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2", postgres.Sanitize(psql.tableName))
@@ -240,6 +279,20 @@ func (psql *PSQLStorageImplementation) setQuery() string {
 
 func (psql *PSQLStorageImplementation) deleteQuery() string {
 	return fmt.Sprintf("DELETE FROM %s WHERE key = $1 RETURNING value", postgres.Sanitize(psql.tableName))
+}
+
+func getSearchQuery() string {
+	return `
+	WITH ranked_results AS (
+		SELECT id, ts_rank(search_vector, plainto_tsquery('english', $1)) as rank
+		FROM search_resources
+		WHERE search_vector @@ plainto_tsquery('english', $1)
+	)
+	SELECT t.key, t.value
+	FROM ranked_results r
+	JOIN %s t ON t.key = r.id
+	ORDER BY r.rank DESC
+	`
 }
 
 func (psql *PSQLStorageImplementation) Type() MetadataStorageType {

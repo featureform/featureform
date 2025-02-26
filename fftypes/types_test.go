@@ -22,7 +22,9 @@ func TestToString(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, tc.value.ToString())
+			str, err := tc.value.ToString()
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expected, str)
 		})
 	}
 }
@@ -35,7 +37,6 @@ func TestToInt(t *testing.T) {
 		expectsErr bool
 	}{
 		{"Valid int", types.Value{Type: types.Int, Value: 100}, 100, false},
-		{"Float to int", types.Value{Type: types.Float32, Value: 100.5}, 100, false},
 		{"String to int", types.Value{Type: types.String, Value: "200"}, 200, false},
 		{"Invalid string", types.Value{Type: types.String, Value: "abc"}, 0, true},
 		{"Null value", types.Value{Type: types.Int, Value: nil, IsNull: true}, 0, true},
@@ -145,15 +146,7 @@ func TestIsNumeric(t *testing.T) {
 	}{
 		{"String value", types.Value{Type: types.String, Value: "do not redeem"}, false},
 		{"Integer value", types.Value{Type: types.Int, Value: 0}, true},
-		{"Int8 value", types.Value{Type: types.Int8, Value: int8(10)}, true},
-		{"Int16 value", types.Value{Type: types.Int16, Value: int16(20)}, true},
-		{"Int32 value", types.Value{Type: types.Int32, Value: int32(30)}, true},
 		{"Int64 value", types.Value{Type: types.Int64, Value: int64(40)}, true},
-		{"UInt8 value", types.Value{Type: types.UInt8, Value: uint8(50)}, true},
-		{"UInt16 value", types.Value{Type: types.UInt16, Value: uint16(60)}, true},
-		{"UInt32 value", types.Value{Type: types.UInt32, Value: uint32(70)}, true},
-		{"UInt64 value", types.Value{Type: types.UInt64, Value: uint64(80)}, true},
-		{"Float32 value", types.Value{Type: types.Float32, Value: float32(3.43)}, true},
 		{"Float64 value", types.Value{Type: types.Float64, Value: 17.38}, true},
 		{"Boolean value", types.Value{Type: types.Bool, Value: true}, false},
 		{"Timestamp value", types.Value{Type: types.Timestamp, Value: "2024-01-01T12:00:00Z"}, false},
@@ -176,15 +169,7 @@ func TestIsText(t *testing.T) {
 	}{
 		{"String value", types.Value{Type: types.String, Value: "do not redeem"}, true},
 		{"Integer value", types.Value{Type: types.Int, Value: 0}, false},
-		{"Int8 value", types.Value{Type: types.Int8, Value: int8(10)}, false},
-		{"Int16 value", types.Value{Type: types.Int16, Value: int16(20)}, false},
-		{"Int32 value", types.Value{Type: types.Int32, Value: int32(30)}, false},
 		{"Int64 value", types.Value{Type: types.Int64, Value: int64(40)}, false},
-		{"UInt8 value", types.Value{Type: types.UInt8, Value: uint8(50)}, false},
-		{"UInt16 value", types.Value{Type: types.UInt16, Value: uint16(60)}, false},
-		{"UInt32 value", types.Value{Type: types.UInt32, Value: uint32(70)}, false},
-		{"UInt64 value", types.Value{Type: types.UInt64, Value: uint64(80)}, false},
-		{"Float32 value", types.Value{Type: types.Float32, Value: float32(3.43)}, false},
 		{"Float64 value", types.Value{Type: types.Float64, Value: 17.38}, false},
 		{"Boolean value", types.Value{Type: types.Bool, Value: true}, false},
 		{"Timestamp value", types.Value{Type: types.Timestamp, Value: "2024-01-01T12:00:00Z"}, false},

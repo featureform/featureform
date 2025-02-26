@@ -21,46 +21,22 @@ import (
 	"github.com/featureform/logging"
 )
 
-// default logger (can override)
 var logger = logging.NewLogger("featureform types")
 
-// basic representation of our featureform types,
-// using iota for now, doesn't need an actual ordering for the moment
-// todo: will change name later
 type Type int
 
 const (
 	Int Type = iota
-	Int8
-	Int16
-	Int32
 	Int64
-	UInt8
-	UInt16
-	UInt32
-	UInt64
-	Float32
 	Float64
 	String
 	Bool
 	Timestamp
 	Datetime
-	// todo: include byte/array/list enum
+	// todo: include byte/array/list enum. may skip for 1st iteration?
 )
 
-// our accepted numeric types
-var NumericTypes = []Type{
-	Int, Int8, Int16, Int32, Int64, UInt8, UInt16, UInt32, UInt64, Float32, Float64}
-
-type Provider int
-
-const (
-	Snowflake Provider = iota
-	Iceberg
-	DynamoDB
-	Arrow
-	// todo: expand
-)
+var NumericTypes = []Type{Int, Int64, Float64}
 
 type NativeType string
 type ColumnName string
@@ -77,32 +53,32 @@ type ColumnSchema struct {
 	IsNullable bool
 }
 
-type ValueName string
-
-// todo: core structs. update the Value to fit a better type representation other than any/interface?
 type Value struct {
-	NativeType NativeType  // todo: this will be some constant. is the provider's type (DynamoDB INT64)
-	Type       Type        // this is our internal application type
-	IsNull     bool        // indicates if the value from the provider should be considered Nil/NULL/None/Undefined
-	Value      interface{} // "FFValue" may update later to a diff type with extensible receiver methods
-	// todo: should we encapsulate the value and make it private?
+	NativeType NativeType
+	Type       Type
+	IsNull     bool
+	Value      any
+
 }
 
-// will safely convert the value to a string
-func (v Value) ToString() string {
-	if v.IsNull || v.Value == nil {
-		logger.Info("value is null or nil, returning zeroed string")
-		return ""
+func (v Value) ToString() (string, error) {
+	if v.IsNull {
+		logger.Info("value is null, returning empty string")
+		return "", nil
+	}
+	if v.Value == nil {
+		logger.Info("value is nil, returning empty string")
+		return "", nil
 	}
 	switch val := v.Value.(type) {
 	case string:
-		return val
+		return val, nil
 	case int, int64, float64, bool:
-		return fmt.Sprintf("%v", val)
+		return fmt.Sprintf("%v", val), nil
 	default:
-		msg := fmt.Sprintf("unsupported type: %T", val)
-		logger.Info(msg)
-		return msg
+		defaultErr := fferr.NewInternalErrorf("unsupported type: %T", val)
+		logger.Error(defaultErr)
+		return "", defaultErr
 	}
 }
 
@@ -119,7 +95,7 @@ func (v Value) ToInt() (int, error) {
 	case float64:
 		return int(val), nil
 	case string:
-		logger.Warnw("value is type 'string', converting to int")
+		logger.Debug("value is type 'string', converting to int")
 		return strconv.Atoi(val)
 	default:
 		defaultErr := fferr.NewInternalErrorf("cannot convert %T to int", val)
@@ -157,7 +133,7 @@ func (v Value) ToBool() (bool, error) {
 	case bool:
 		return val, nil
 	case string:
-		logger.Warnw("value is type 'string', converting to bool")
+		logger.Debug("value is type 'string', converting to bool")
 		return strconv.ParseBool(val)
 	default:
 		defaultErr := fferr.NewInternalErrorf("cannot convert %T to bool", val)
@@ -166,7 +142,6 @@ func (v Value) ToBool() (bool, error) {
 	}
 }
 
-// converts the value to a time.Time, but only if it's valid
 func (v Value) ToTime() (time.Time, error) {
 	if v.IsNull || v.Value == nil {
 		logger.Info("value is null or nil, returning error")
@@ -176,7 +151,7 @@ func (v Value) ToTime() (time.Time, error) {
 	case time.Time:
 		return val, nil
 	case string:
-		logger.Warnw("value is type 'string', converting to time.Time")
+		logger.Debug("value is type 'string', converting to time.Time")
 		return time.Parse(time.RFC3339, val)
 	default:
 		defaultErr := fferr.NewInternalErrorf("cannot convert %T to time.Time", val)
@@ -185,12 +160,6 @@ func (v Value) ToTime() (time.Time, error) {
 	}
 }
 
-// todo: we can use a isNumeric() style check directly on the VALUE, but
-// IMO defeats the purpose of tracking our own internal type
-// since the provider value might be a number, but one that doesn't fit
-// into FF_Value's accepted types. don't want to throw the caller off
-// by assuming they can safely handle a number (as reported by the provider)
-// if your lib can't handle it since it falls outside of our types
 func (v Value) IsNumeric() bool {
 	return slices.Contains(NumericTypes, v.Type)
 }
@@ -199,8 +168,6 @@ func (v Value) IsText() bool {
 	return v.Type == String
 }
 
-// just returns the raw interface value.
-// probably won't be used much, but could be useful.
-func (v Value) AsInterface() interface{} {
+func (v Value) AsAny() any {
 	return v.Value
 }

@@ -346,3 +346,7 @@ func (m *MockResource) TaskIDs() ([]scheduling.TaskID, error) {
 	}
 	return taskIDs, nil
 }
+
+func (m *MockResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{}
+}

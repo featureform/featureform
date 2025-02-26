@@ -255,12 +255,10 @@ func TestSizedIterator(t *testing.T) {
 		InMemoryIterator: InMemoryIterator{data: data, index: -1},
 	}
 
-	// Test Len method
 	length, err := iter.Len()
 	require.NoError(t, err)
 	assert.Equal(t, int64(3), length)
 
-	// Test iteration
 	count := 0
 	for iter.Next() {
 		count++

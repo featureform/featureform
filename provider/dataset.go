@@ -8,6 +8,8 @@
 package provider
 
 import (
+	"sync"
+
 	"github.com/featureform/fferr"
 	types "github.com/featureform/fftypes"
 	pl "github.com/featureform/provider/location"
@@ -51,21 +53,36 @@ type ChunkedDataset interface {
 	ChunkIterator(idx int) (SizedIterator, error)
 }
 
+type SizedSegmentableDataset interface {
+	SizedDataset
+	SegmentableDataset
+}
+
 // ChunkedDatasetAdapter takes a SizedSegmentableDataset
 // and adapts it to include the ChunkedDataset methods
 // by using Len() and IterateSegment() to create
 // chunk iterators of size ChunkSize (last chunk will be
 // <= ChunkSize).
 type ChunkedDatasetAdapter struct {
-	SizedDataset
-	SegmentableDataset
+	SizedSegmentableDataset
 	ChunkSize int64
+
+	size     int64
+	sizeErr  error
+	sizeOnce sync.Once
+}
+
+func (adapter *ChunkedDatasetAdapter) getSize() (int64, error) {
+	adapter.sizeOnce.Do(func() {
+		adapter.size, adapter.sizeErr = adapter.SizedSegmentableDataset.Len()
+	})
+	return adapter.size, adapter.sizeErr
 }
 
 func (adapter *ChunkedDatasetAdapter) NumChunks() (int, error) {
-	size, err := adapter.SizedDataset.Len()
+	size, err := adapter.getSize()
 	if err != nil {
-		return 0, err
+		return -1, err
 	}
 
 	numChunks := size / adapter.ChunkSize
@@ -89,7 +106,7 @@ func (adapter *ChunkedDatasetAdapter) ChunkIterator(idx int) (SizedIterator, err
 	begin := int64(idx) * adapter.ChunkSize
 	end := begin + adapter.ChunkSize
 
-	size, err := adapter.SizedDataset.Len()
+	size, err := adapter.SizedSegmentableDataset.Len()
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +115,7 @@ func (adapter *ChunkedDatasetAdapter) ChunkIterator(idx int) (SizedIterator, err
 		end = size
 	}
 
-	iter, err := adapter.SegmentableDataset.IterateSegment(begin, end)
+	iter, err := adapter.SizedSegmentableDataset.IterateSegment(begin, end)
 	if err != nil {
 		return nil, err
 	}

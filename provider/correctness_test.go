@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/provider/clickhouse"
 	ps "github.com/featureform/provider/provider_schema"
 
 	"github.com/google/uuid"
@@ -87,6 +86,7 @@ func TestMaterializations(t *testing.T) {
 		{getConfiguredBigQueryTester(t, false)},
 		{getConfiguredSnowflakeTester(t, true)},
 		{getConfiguredPostgresTester(t, false)},
+		{getConfiguredClickHouseTester(t, false)},
 	}
 
 	testSuite := map[string]func(t *testing.T, storeTester offlineSqlTest){
@@ -155,15 +155,15 @@ func TestResourceTable(t *testing.T) {
 	testInfra := []struct {
 		tester offlineSqlTest
 	}{
-		//{getConfiguredBigQueryTester(t, false)},
-		//{getConfiguredSnowflakeTester(t, true)},
-		//{getConfiguredPostgresTester(t, false)},
+		{getConfiguredBigQueryTester(t, false)},
+		{getConfiguredSnowflakeTester(t, true)},
+		{getConfiguredPostgresTester(t, false)},
 		{getConfiguredClickHouseTester(t, false)},
 	}
 
 	tsDatasetTypes := []trainingSetDatasetType{
 		tsDatasetFeaturesLabelTS,
-		//tsDatasetFeaturesLabelNoTS,
+		tsDatasetFeaturesLabelNoTS,
 	}
 
 	for _, infra := range testInfra {
@@ -188,7 +188,7 @@ func TestDelete(t *testing.T) {
 		tester offlineSqlTest
 	}{
 		//{getConfiguredBigQueryTester(t, false)},
-		//{getConfiguredSnowflakeTester(t, true)},
+		{getConfiguredSnowflakeTester(t, true)},
 		//{getConfiguredPostgresTester(t, false)},
 		{getConfiguredClickHouseTester(t, false)},
 	}

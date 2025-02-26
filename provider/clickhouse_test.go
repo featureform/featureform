@@ -20,7 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/featureform/helpers"
-	"github.com/featureform/provider/clickhouse"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -54,12 +53,12 @@ func (ch *clickHouseOfflineStoreTester) CreateSchema(database, schema string) er
 }
 
 func (ch *clickHouseOfflineStoreTester) CreateTable(loc pl.Location, schema TableSchema) (PrimaryTable, error) {
-	sqlLocation, ok := loc.(*clickhouse.Location)
+	sqlLocation, ok := loc.(*pl.SQLLocation)
 	if !ok {
 		return nil, fmt.Errorf("invalid location type, expected SQLLocation, got %T", loc)
 	}
 
-	db, err := ch.sqlOfflineStore.getDb(sqlLocation.GetDatabase(), sqlLocation.GetSchema())
+	db, err := ch.sqlOfflineStore.getDb(sqlLocation.GetDatabase(), "")
 	if err != nil {
 		return nil, err
 	}

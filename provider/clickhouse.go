@@ -23,6 +23,7 @@ import (
 	chapi "github.com/ClickHouse/clickhouse-go/v2"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/helpers/stringset"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider/clickhouse"
@@ -250,14 +251,13 @@ func (store *clickHouseOfflineStore) getMaterializationTableName(id ResourceID) 
 func (store *clickHouseOfflineStore) Delete(location pl.Location) error {
 	logger := store.logger.With("location", location.Location())
 
-	clickHouseLocation, ok := location.(*clickhouse.Location)
-	if !ok {
-		errorMsg := fmt.Sprintf("location is not a ClickHouse location, location type: %T", location)
-		logger.Errorf(errorMsg)
-		return fferr.NewInvalidArgumentErrorf(errorMsg)
+	chLocation, err := clickhouse.NewLocation(location)
+	if err != nil {
+		logger.Errorw("invalid location type", "error", err)
+		return err
 	}
 
-	if exists, err := store.checkExists(clickHouseLocation); err != nil {
+	if exists, err := store.checkExists(chLocation); err != nil {
 		logger.Errorw("error checking if table exists", "error", err)
 		return err
 	} else if !exists {
@@ -265,7 +265,7 @@ func (store *clickHouseOfflineStore) Delete(location pl.Location) error {
 		return fferr.NewDatasetLocationNotFoundError(location.Location(), nil)
 	}
 
-	query := store.query.dropTable(location.Location())
+	query := store.query.dropTable(chLocation.Location())
 	logger.Debugw("dropping table")
 
 	if _, err := store.db.Exec(query); err != nil {
@@ -423,7 +423,7 @@ func (table *clickhouseOfflineTable) WriteBatch(recs []ResourceRecord) error {
 }
 
 func (table *clickhouseOfflineTable) Location() pl.Location {
-	return pl.NewSQLLocation(table.name)
+	return clickhouse.NewLocationFromParts("", table.name)
 }
 
 type clickhousePrimaryTable struct {
@@ -643,33 +643,74 @@ func (it *clickHouseTableIterator) Close() error {
 }
 
 func (store *clickHouseOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
+	logger := store.logger.With("id", id, "schema", schema, "opts", opts)
+
 	if len(opts) > 0 {
-		return nil, fferr.NewInternalErrorf("ClickHouse does not support resource options")
+		errorMsg := "ClickHouse does not support resource options"
+		logger.Errorw(errorMsg)
+		return nil, fferr.NewInternalErrorf(errorMsg)
 	}
+
 	if err := id.check(Feature, Label); err != nil {
+		logger.Errorw("invalid resource type, must be feature or label")
 		return nil, err
 	}
-	if exists, err := store.tableExists(id); err != nil {
-		return nil, err
-	} else if exists {
-		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
-	}
-	if schema.Entity == "" || schema.Value == "" {
-		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("non-empty entity and value columns required"))
-	}
-	tableName, err := store.getResourceTableName(id)
+
+	chLocation, err := clickhouse.NewLocation(schema.SourceTable)
 	if err != nil {
+		logger.Errorw("source table location is not ClickHouse compatible")
+		return nil, fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+	}
+
+	expectedColumns, err := schema.ToColumnStringSet(id.Type)
+	if err != nil {
+		logger.Errorw("failed to get expected columns", "error", err)
 		return nil, err
 	}
 
-	if err := store.query.registerResources(store.db, tableName, schema); err != nil {
+	// TODO: This is done because the method on the query interface expects a
+	// FullyQualifiedObject. That should ideally be refactored, as well as other
+	// general Location refactorings. Once that is done, this can be removed.
+	fullyQualifiedObject := pl.FullyQualifiedObject{
+		Database: chLocation.GetDatabase(),
+		Schema:   "",
+		Table:    chLocation.GetTable(),
 	}
 
-	return &clickhouseOfflineTable{
-		db:    store.db,
-		name:  tableName,
-		query: store.query,
-	}, nil
+	query, err := store.query.resourceTableColumns(fullyQualifiedObject)
+	if err != nil {
+		logger.Errorw("error creating resourceTableColumns query", "error", err)
+		return nil, err
+	}
+
+	// TODO: Deduplicate this with the one in snowflake provider
+	rows, err := store.db.Query(query)
+	if err != nil {
+		logger.Errorw("failed to query resource table columns", "error", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	actual := make(stringset.StringSet)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			logger.Errorw("Failed to scan resource table columns", "error", err)
+			return nil, err
+		}
+		actual.Add(strings.ToUpper(column))
+	}
+	if err := rows.Err(); err != nil {
+		logger.Errorw("Error iterating over resource table columns", "error", err)
+		return nil, err
+	}
+	if !actual.Contains(expectedColumns) {
+		diff := expectedColumns.Difference(actual)
+		logger.Errorw("Source table does not have expected columns", "diff", diff.List())
+		return nil, fferr.NewInvalidArgumentErrorf("source table does not have expected columns: %v", diff.List())
+	}
+
+	return nil, nil
 }
 
 func (store *clickHouseOfflineStore) AsOfflineStore() (OfflineStore, error) {
@@ -687,9 +728,22 @@ func (store *clickHouseOfflineStore) CheckHealth() (bool, error) {
 }
 
 func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
+	logger := store.logger.With("resourceId", id)
+
+	logger.Debug("Registering primary from source table")
+
+	chLocation, err := clickhouse.NewLocation(tableLocation)
+	if err != nil {
+		errorMsg := fmt.Sprintf("source table %s is not a compatible ClickHouse location, actual: %T", tableLocation, tableLocation)
+		logger.Error(errorMsg)
+		return nil, fferr.NewInvalidArgumentErrorf(errorMsg)
+	}
+
 	if err := id.check(Primary); err != nil {
+		logger.Errorw("Resource type is not primary", "err", err)
 		return nil, err
 	}
+
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if exists {
@@ -699,7 +753,7 @@ func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceI
 	if err != nil {
 		return nil, err
 	}
-	query := store.query.primaryTableRegister(tableName, tableLocation.Location())
+	query := store.query.primaryTableRegister(tableName, chLocation.Location())
 	if _, err := store.db.Exec(query); err != nil {
 		wrapped := fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 		wrapped.AddDetail("table_name", tableName)
@@ -1315,7 +1369,7 @@ func (store *clickHouseOfflineStore) ResourceLocation(id ResourceID, resource an
 		return nil, err
 	}
 
-	return pl.NewSQLLocation(tableName), err
+	return clickhouse.NewLocationFromParts("", tableName), err
 }
 
 func (store *clickHouseOfflineStore) Close() error {
@@ -1340,6 +1394,27 @@ func (q clickhouseSQLQueries) primaryTableCreate(name string, columnString strin
 
 func (q clickhouseSQLQueries) dropTable(tableName string) string {
 	return fmt.Sprintf("DROP TABLE %s", tableName)
+}
+
+func (q clickhouseSQLQueries) resourceTableColumns(obj pl.FullyQualifiedObject) (string, error) {
+	const resourceColumnsTemplate = `
+SELECT name FROM system.columns WHERE {{if .database}} database='{{.database}}' AND {{end}} table='{{.table}}';
+`
+
+	tmpl := template.Must(template.New("clickhouseResourceColumns").Parse(resourceColumnsTemplate))
+
+	values := map[string]any{
+		"database": obj.Database,
+		"table":    obj.Table,
+	}
+
+	var sb strings.Builder
+	err := tmpl.Execute(&sb, values)
+	if err != nil {
+		return "", err
+	}
+
+	return sb.String(), nil
 }
 
 //func (q clickhouseSQLQueries) trainingRowSelect(columns string, trainingSetName string) string {

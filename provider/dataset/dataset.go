@@ -5,9 +5,10 @@
 // Copyright 2025 FeatureForm Inc.
 //
 
-package provider
+package dataset
 
 import (
+	. "context"
 	"sync"
 
 	"github.com/featureform/fferr"
@@ -15,12 +16,12 @@ import (
 	pl "github.com/featureform/provider/location"
 )
 
-// NewDataset is the base interface required by most of the
+// Dataset is the base interface required by most of the
 // OfflineStore interface. It provides a location, iterator,
 // and schema
-type NewDataset interface {
+type Dataset interface {
 	Location() pl.Location
-	Iterator() (NewIterator, error)
+	Iterator(ctx Context) (Iterator, error)
 	Schema() (types.Schema, error)
 }
 
@@ -28,13 +29,13 @@ type NewDataset interface {
 // especially file based one, writing single rows is expensive. It's
 // preferable to write as many things as possible in a single batch.
 type WriteableDataset interface {
-	NewDataset
-	WriteBatch([]types.Row) error
+	Dataset
+	WriteBatch(Context, []types.Row) error
 }
 
 // SizedDataset is a Dataset where the size can be cheaply calculated.
 type SizedDataset interface {
-	NewDataset
+	Dataset
 	Len() (int64, error)
 }
 
@@ -44,13 +45,13 @@ type SizedDataset interface {
 // in range of the dataset. You can try casting Iterator
 // to SizedIterator to see if the length is available.
 type SegmentableDataset interface {
-	NewDataset
-	IterateSegment(begin, end int64) (NewIterator, error)
+	Dataset
+	IterateSegment(ctx Context, begin, end int64) (Iterator, error)
 }
 
 type ChunkedDataset interface {
 	NumChunks() (int, error)
-	ChunkIterator(idx int) (SizedIterator, error)
+	ChunkIterator(ctx Context, idx int) (SizedIterator, error)
 }
 
 type SizedSegmentableDataset interface {
@@ -93,7 +94,7 @@ func (adapter *ChunkedDatasetAdapter) NumChunks() (int, error) {
 	return int(numChunks), nil
 }
 
-func (adapter *ChunkedDatasetAdapter) ChunkIterator(idx int) (SizedIterator, error) {
+func (adapter *ChunkedDatasetAdapter) ChunkIterator(ctx Context, idx int) (SizedIterator, error) {
 	numChunks, err := adapter.NumChunks()
 	if err != nil {
 		return nil, err
@@ -115,22 +116,22 @@ func (adapter *ChunkedDatasetAdapter) ChunkIterator(idx int) (SizedIterator, err
 		end = size
 	}
 
-	iter, err := adapter.SizedSegmentableDataset.IterateSegment(begin, end)
+	iter, err := adapter.SizedSegmentableDataset.IterateSegment(ctx, begin, end)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create a wrapper that adds the Len method to any iterator
 	return &GenericSizedIterator{
-		NewIterator: iter,
-		length:      end - begin,
+		Iterator: iter,
+		length:   end - begin,
 	}, nil
 }
 
-// NewIterator is the generic interface to loop through any dataset in
+// Iterator is the generic interface to loop through any dataset in
 // Featureform.
-type NewIterator interface {
-	Next() bool
+type Iterator interface {
+	Next(Context) bool
 	Values() types.Row
 	Schema() (types.Schema, error)
 	Err() error
@@ -140,12 +141,12 @@ type NewIterator interface {
 // SizedIterator is an Iterator where we can cheaply check
 // the full length.
 type SizedIterator interface {
-	NewIterator
+	Iterator
 	Len() (int64, error)
 }
 
 type GenericSizedIterator struct {
-	NewIterator
+	Iterator
 	length int64
 }
 

@@ -1,6 +1,7 @@
-package provider
+package dataset
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	types "github.com/featureform/fftypes"
+	"github.com/featureform/logging"
 	pl "github.com/featureform/provider/location"
 )
 
@@ -25,7 +27,7 @@ func (ds *InMemoryDataset) Location() pl.Location {
 	return ds.location
 }
 
-func (ds *InMemoryDataset) Iterator() (NewIterator, error) {
+func (ds *InMemoryDataset) Iterator(ctx context.Context) (Iterator, error) {
 	return &InMemoryIterator{data: ds.data, index: -1}, nil
 }
 
@@ -33,7 +35,7 @@ func (ds *InMemoryDataset) Schema() (types.Schema, error) {
 	return ds.schema, nil
 }
 
-func (ds *InMemoryDataset) WriteBatch(rows []types.Row) error {
+func (ds *InMemoryDataset) WriteBatch(ctx context.Context, rows []types.Row) error {
 	ds.data = append(ds.data, rows...)
 	return nil
 }
@@ -42,7 +44,7 @@ func (ds *InMemoryDataset) Len() (int64, error) {
 	return int64(len(ds.data)), nil
 }
 
-func (ds *InMemoryDataset) IterateSegment(begin, end int64) (NewIterator, error) {
+func (ds *InMemoryDataset) IterateSegment(ctx context.Context, begin, end int64) (Iterator, error) {
 	size, err := ds.Len()
 	if err != nil {
 		return nil, err
@@ -58,7 +60,7 @@ type InMemoryIterator struct {
 	index int
 }
 
-func (it *InMemoryIterator) Next() bool {
+func (it *InMemoryIterator) Next(ctx context.Context) bool {
 	if it.index+1 < len(it.data) {
 		it.index++
 		return true
@@ -91,6 +93,8 @@ func (it *SizedInMemoryIterator) Len() (int64, error) {
 }
 
 func TestNewDataset(t *testing.T) {
+	ctx := logging.NewTestContext(t)
+
 	data := []types.Row{
 		{types.Value{NativeType: "int", Type: types.Int, Value: 1}},
 		{types.Value{NativeType: "int", Type: types.Int, Value: 2}},
@@ -104,9 +108,15 @@ func TestNewDataset(t *testing.T) {
 	sch, err := ds.Schema()
 	require.NoError(t, err)
 	assert.Equal(t, schema, sch)
+
+	iter, err := ds.Iterator(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, iter)
 }
 
 func TestWriteableDataset(t *testing.T) {
+	ctx := logging.NewTestContext(t)
+
 	location, err := pl.NewFileLocationFromURI("file://test")
 	require.NoError(t, err)
 	ds := NewInMemoryDataset([]types.Row{}, types.Schema{Fields: []types.ColumnSchema{{Name: "id", NativeType: "int"}}}, location)
@@ -114,7 +124,7 @@ func TestWriteableDataset(t *testing.T) {
 		{types.Value{NativeType: "int", Type: types.Int, Value: 4}},
 		{types.Value{NativeType: "int", Type: types.Int, Value: 5}},
 	}
-	err = ds.WriteBatch(rows)
+	err = ds.WriteBatch(ctx, rows)
 	require.NoError(t, err)
 	length, err := ds.Len()
 	require.NoError(t, err)
@@ -137,6 +147,8 @@ func TestSizedDataset(t *testing.T) {
 }
 
 func TestSegmentableDataset(t *testing.T) {
+	ctx := logging.NewTestContext(t)
+
 	location, err := pl.NewFileLocationFromURI("file://test")
 	require.NoError(t, err)
 	ds := NewInMemoryDataset([]types.Row{
@@ -145,18 +157,20 @@ func TestSegmentableDataset(t *testing.T) {
 		{types.Value{NativeType: "int", Type: types.Int, Value: 3}},
 	}, types.Schema{Fields: []types.ColumnSchema{{Name: "id", NativeType: "int"}}}, location)
 
-	iter, err := ds.IterateSegment(1, 3)
+	iter, err := ds.IterateSegment(ctx, 1, 3)
 	require.NoError(t, err)
 	require.NotNil(t, iter)
 
-	require.True(t, iter.Next())
+	require.True(t, iter.Next(ctx))
 	assert.Equal(t, types.Row{types.Value{NativeType: "int", Type: types.Int, Value: 2}}, iter.Values())
-	require.True(t, iter.Next())
+	require.True(t, iter.Next(ctx))
 	assert.Equal(t, types.Row{types.Value{NativeType: "int", Type: types.Int, Value: 3}}, iter.Values())
-	assert.False(t, iter.Next())
+	assert.False(t, iter.Next(ctx))
 }
 
 func TestInvalidSegmentableDataset(t *testing.T) {
+	ctx := logging.NewTestContext(t)
+
 	location, err := pl.NewFileLocationFromURI("file://test")
 	require.NoError(t, err)
 	ds := NewInMemoryDataset([]types.Row{
@@ -164,12 +178,14 @@ func TestInvalidSegmentableDataset(t *testing.T) {
 		{types.Value{NativeType: "int", Type: types.Int, Value: 2}},
 	}, types.Schema{Fields: []types.ColumnSchema{{Name: "id", NativeType: "int"}}}, location)
 
-	iter, err := ds.IterateSegment(-1, 3)
+	iter, err := ds.IterateSegment(ctx, -1, 3)
 	assert.Error(t, err)
 	assert.Nil(t, iter)
 }
 
 func TestChunkedDatasetAdapter(t *testing.T) {
+	ctx := logging.NewTestContext(t)
+
 	// Setup: Create a dataset with 10 rows
 	data := make([]types.Row, 10)
 	for i := 0; i < 10; i++ {
@@ -182,9 +198,8 @@ func TestChunkedDatasetAdapter(t *testing.T) {
 
 	// Create adapter with chunk size of 3
 	adapter := ChunkedDatasetAdapter{
-		SizedDataset:       ds,
-		SegmentableDataset: ds,
-		ChunkSize:          3,
+		SizedSegmentableDataset: ds,
+		ChunkSize:               3,
 	}
 
 	// Test 1: Verify correct number of chunks
@@ -197,7 +212,8 @@ func TestChunkedDatasetAdapter(t *testing.T) {
 
 	// Test 2: Verify first chunk (should have 3 elements)
 	t.Run("FirstChunk", func(t *testing.T) {
-		iter, err := adapter.ChunkIterator(0)
+		// Create test context for this subtest
+		iter, err := adapter.ChunkIterator(ctx, 0)
 		require.NoError(t, err)
 		require.NotNil(t, iter)
 
@@ -209,7 +225,8 @@ func TestChunkedDatasetAdapter(t *testing.T) {
 		// Verify chunk contents
 		expectedValues := []int{1, 2, 3}
 		i := 0
-		for iter.Next() {
+		// Pass context to Next
+		for iter.Next(ctx) {
 			val := iter.Values()
 			assert.Equal(t, expectedValues[i], val[0].Value)
 			i++
@@ -219,7 +236,7 @@ func TestChunkedDatasetAdapter(t *testing.T) {
 
 	// Test 3: Verify last chunk (should have only 1 element)
 	t.Run("LastChunk", func(t *testing.T) {
-		iter, err := adapter.ChunkIterator(3)
+		iter, err := adapter.ChunkIterator(ctx, 3)
 		require.NoError(t, err)
 		require.NotNil(t, iter)
 
@@ -229,22 +246,23 @@ func TestChunkedDatasetAdapter(t *testing.T) {
 		assert.Equal(t, int64(1), size)
 
 		// Verify chunk contents
-		require.True(t, iter.Next())
+		require.True(t, iter.Next(ctx))
 		val := iter.Values()
 		assert.Equal(t, 10, val[0].Value)
-		assert.False(t, iter.Next(), "Should have only one element")
+		assert.False(t, iter.Next(ctx), "Should have only one element")
 	})
 
 	// Test 4: Verify error handling for out-of-bounds chunk
 	t.Run("OutOfBoundsChunk", func(t *testing.T) {
-		iter, err := adapter.ChunkIterator(4)
+		iter, err := adapter.ChunkIterator(ctx, 4)
 		assert.Error(t, err)
 		assert.Nil(t, iter)
 	})
 }
 
 func TestSizedIterator(t *testing.T) {
-	// Create a SizedIterator implementation
+	ctx := logging.NewTestContext(t)
+
 	data := []types.Row{
 		{types.Value{NativeType: "int", Type: types.Int, Value: 1}},
 		{types.Value{NativeType: "int", Type: types.Int, Value: 2}},
@@ -260,7 +278,7 @@ func TestSizedIterator(t *testing.T) {
 	assert.Equal(t, int64(3), length)
 
 	count := 0
-	for iter.Next() {
+	for iter.Next(ctx) {
 		count++
 		val := iter.Values()
 		assert.Equal(t, count, val[0].Value)

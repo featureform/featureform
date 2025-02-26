@@ -481,9 +481,8 @@ func getConfiguredClickHouseTester(t *testing.T, useCrossDBJoins bool) offlineSq
 	}
 
 	return offlineSqlTest{
-		storeTester:         &storeTester,
-		testCrossDbJoins:    useCrossDBJoins,
-		transformationQuery: "SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
-		sanitizeTableName:   sanitizeClickHouseTableName,
+		storeTester:       &storeTester,
+		testCrossDbJoins:  useCrossDBJoins,
+		sanitizeTableName: sanitizeClickHouseTableName,
 	}
 }

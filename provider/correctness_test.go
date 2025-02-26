@@ -38,14 +38,28 @@ func TestTransformations(t *testing.T) {
 	}
 
 	testInfra := []struct {
-		tester offlineSqlTest
+		tester              offlineSqlTest
+		transformationQuery string
 	}{
-		{getConfiguredBigQueryTester(t, false)},
-		{getConfiguredSnowflakeTester(t, true)},
-		{getConfiguredPostgresTester(t, false)},
+		{
+			getConfiguredBigQueryTester(t, false),
+			"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, TIMESTAMP(timestamp) as date FROM %s GROUP BY location_id, TIMESTAMP(timestamp)",
+		},
+		{
+			getConfiguredSnowflakeTester(t, true),
+			"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)",
+		},
+		{
+			getConfiguredPostgresTester(t, false),
+			"SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
+		},
+		{
+			getConfiguredClickHouseTester(t, false),
+			"SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
+		},
 	}
 
-	testSuite := map[string]func(t *testing.T, storeTester offlineSqlTest){
+	testSuite := map[string]func(t *testing.T, storeTester offlineSqlTest, transformationQuery string){
 		"RegisterTransformationOnPrimaryDatasetTest": RegisterTransformationOnPrimaryDatasetTest,
 		"RegisterChainedTransformationsTest":         RegisterChainedTransformationsTest,
 	}
@@ -56,7 +70,7 @@ func TestTransformations(t *testing.T) {
 			name := fmt.Sprintf("%s:%s", providerName, testName)
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				testCase(t, infra.tester)
+				testCase(t, infra.tester, infra.transformationQuery)
 			})
 		}
 	}
@@ -171,21 +185,15 @@ func TestDelete(t *testing.T) {
 	}
 
 	testInfra := []struct {
-		tester              offlineSqlTest
-		getLocationForTable func(dbName, tableName string) pl.Location
+		tester offlineSqlTest
 	}{
 		//{getConfiguredBigQueryTester(t, false)},
 		//{getConfiguredSnowflakeTester(t, true)},
 		//{getConfiguredPostgresTester(t, false)},
-		{
-			getConfiguredClickHouseTester(t, false),
-			func(dbName, tableName string) pl.Location {
-				return clickhouse.NewClickHouseLocationFromParts(dbName, tableName)
-			},
-		},
+		{getConfiguredClickHouseTester(t, false)},
 	}
 
-	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest, getLocationForTable func(string, string) pl.Location){
+	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
 		"DeleteTableTest":            DeleteTableTest,
 		"DeleteNotExistingTableTest": DeleteNotExistingTableTest,
 	}
@@ -196,7 +204,7 @@ func TestDelete(t *testing.T) {
 			constTestCase := testCase
 			t.Run(constName, func(t *testing.T) {
 				t.Parallel()
-				constTestCase(t, infra.tester, infra.getLocationForTable)
+				constTestCase(t, infra.tester)
 			})
 		}
 	}
@@ -1175,8 +1183,8 @@ func getTrainingSetDatasetNoTS(tester offlineSqlStoreTester, storeType pt.Type, 
 	}
 }
 
-func RegisterTransformationOnPrimaryDatasetTest(t *testing.T, tester offlineSqlTest) {
-	test := newSQLTransformationTest(tester.storeTester, tester.transformationQuery, tester.sanitizeTableName)
+func RegisterTransformationOnPrimaryDatasetTest(t *testing.T, tester offlineSqlTest, transformationQuery string) {
+	test := newSQLTransformationTest(tester.storeTester, transformationQuery, tester.sanitizeTableName)
 	_ = initSqlPrimaryDataset(t, test.tester, test.data.location, test.data.schema, test.data.records)
 	if err := test.tester.CreateTransformation(test.data.config); err != nil {
 		t.Fatalf("could not create transformation: %v", err)
@@ -1188,8 +1196,8 @@ func RegisterTransformationOnPrimaryDatasetTest(t *testing.T, tester offlineSqlT
 	test.data.Assert(t, actual)
 }
 
-func RegisterChainedTransformationsTest(t *testing.T, tester offlineSqlTest) {
-	test := newSQLTransformationTest(tester.storeTester, tester.transformationQuery, tester.sanitizeTableName)
+func RegisterChainedTransformationsTest(t *testing.T, tester offlineSqlTest, transformationQuery string) {
+	test := newSQLTransformationTest(tester.storeTester, transformationQuery, tester.sanitizeTableName)
 	_ = initSqlPrimaryDataset(t, test.tester, test.data.location, test.data.schema, test.data.records)
 	if err := test.tester.CreateTransformation(test.data.config); err != nil {
 		t.Fatalf("could not create transformation: %v", err)
@@ -1317,7 +1325,7 @@ func RegisterInValidFeatureAndLabel(t *testing.T, tester offlineSqlTest, tsDatas
 	}
 }
 
-func DeleteTableTest(t *testing.T, tester offlineSqlTest, getLocationForTable func(string, string) pl.Location) {
+func DeleteTableTest(t *testing.T, tester offlineSqlTest) {
 	storeTester, ok := tester.storeTester.(offlineSqlStoreCreateDb)
 	if !ok {
 		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", tester.storeTester))
@@ -1336,9 +1344,10 @@ func DeleteTableTest(t *testing.T, tester offlineSqlTest, getLocationForTable fu
 
 	// Create the table
 	tableName := "DUMMY_TABLE"
-	location := getLocationForTable(dbName, tableName)
+	location := pl.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", tableName)
 	_, err := createDummyTable(tester.storeTester, location, 3)
-	if err != nil {
+
+	if _, err = createDummyTable(tester.storeTester, location, 3); err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 	if err := tester.storeTester.Delete(location); err != nil {
@@ -1346,7 +1355,7 @@ func DeleteTableTest(t *testing.T, tester offlineSqlTest, getLocationForTable fu
 	}
 }
 
-func DeleteNotExistingTableTest(t *testing.T, tester offlineSqlTest, getLocationForTable func(string, string) pl.Location) {
+func DeleteNotExistingTableTest(t *testing.T, tester offlineSqlTest) {
 	storeTester, ok := tester.storeTester.(offlineSqlStoreCreateDb)
 	if !ok {
 		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", tester.storeTester))
@@ -1358,7 +1367,7 @@ func DeleteNotExistingTableTest(t *testing.T, tester offlineSqlTest, getLocation
 		t.Fatalf("could not create database: %v", err)
 	}
 
-	loc := getLocationForTable(dbName, "NOT_EXISTING_TABLE")
+	loc := pl.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", "NOT_EXISTING_TABLE")
 
 	deleteErr := tester.storeTester.Delete(loc)
 	if deleteErr == nil {

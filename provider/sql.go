@@ -265,7 +265,7 @@ func (store *sqlOfflineStore) CheckHealth() (bool, error) {
 	return true, nil
 }
 
-func (store sqlOfflineStore) Delete(location pl.Location) error {
+func (store *sqlOfflineStore) Delete(location pl.Location) error {
 	logger := store.logger.With("location", location.Location())
 	if exists, err := store.tableExists(location); err != nil {
 		logger.Errorw("Failed to check if table exists", "error", err)

@@ -12,10 +12,9 @@ import (
 )
 
 type offlineSqlTest struct {
-	storeTester         offlineSqlStoreTester
-	testCrossDbJoins    bool
-	transformationQuery string
-	sanitizeTableName   func(obj location.FullyQualifiedObject) string
+	storeTester       offlineSqlStoreTester
+	testCrossDbJoins  bool
+	sanitizeTableName func(obj location.FullyQualifiedObject) string
 }
 
 type offlineSqlStoreCoreTester interface {

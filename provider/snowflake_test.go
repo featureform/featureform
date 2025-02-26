@@ -995,9 +995,8 @@ func getConfiguredSnowflakeTester(t *testing.T, useCrossDBJoins bool) offlineSql
 	}
 
 	return offlineSqlTest{
-		storeTester:         offlineStoreTester,
-		testCrossDbJoins:    useCrossDBJoins,
-		transformationQuery: "SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)",
-		sanitizeTableName:   func(obj pl.FullyQualifiedObject) string { return SanitizeSnowflakeIdentifier(obj) },
+		storeTester:       offlineStoreTester,
+		testCrossDbJoins:  useCrossDBJoins,
+		sanitizeTableName: func(obj pl.FullyQualifiedObject) string { return SanitizeSnowflakeIdentifier(obj) },
 	}
 }

@@ -564,14 +564,14 @@ func TestSnowflakeDeserializeLegacyCredentials(t *testing.T) {
 
 // TEST FUNCTION
 
-func CrossDatabaseJoinTest(t *testing.T, tester offlineSqlTest) {
-	if !tester.testCrossDbJoins {
+func CrossDatabaseJoinTest(t *testing.T, test offlineSqlTest) {
+	if !test.testConfig.testCrossDbJoins {
 		t.Skip("skipping cross database join test")
 	}
 
-	storeTester, ok := tester.storeTester.(offlineSqlStoreCreateDb)
+	storeTester, ok := test.storeTester.(offlineSqlStoreCreateDb)
 	if !ok {
-		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", tester.storeTester))
+		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", test.storeTester))
 	}
 
 	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
@@ -597,20 +597,20 @@ func CrossDatabaseJoinTest(t *testing.T, tester offlineSqlTest) {
 
 	tableName1 := "DUMMY_TABLE"
 	sqlLocation := location.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", tableName1)
-	records, err := createDummyTable(tester.storeTester, sqlLocation, 3)
+	records, err := createDummyTable(test.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	tableName2 := "DUMMY_TABLE2"
 	sqlLocation2 := location.NewFullyQualifiedSQLLocation(dbName2, "PUBLIC", tableName2)
-	records2, err := createDummyTable(tester.storeTester, sqlLocation2, 10)
+	records2, err := createDummyTable(test.storeTester, sqlLocation2, 10)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	// Register the tables
-	primary1, primaryErr := tester.storeTester.RegisterPrimaryFromSourceTable(
+	primary1, primaryErr := test.storeTester.RegisterPrimaryFromSourceTable(
 		ResourceID{Name: tableName1, Variant: "test", Type: Primary},
 		sqlLocation,
 	)
@@ -618,7 +618,7 @@ func CrossDatabaseJoinTest(t *testing.T, tester offlineSqlTest) {
 		t.Fatalf("could not register primary table: %v", primaryErr)
 	}
 
-	primary2, primaryErr := tester.storeTester.RegisterPrimaryFromSourceTable(
+	primary2, primaryErr := test.storeTester.RegisterPrimaryFromSourceTable(
 		ResourceID{Name: tableName2, Variant: "test", Type: Primary},
 		sqlLocation2,
 	)
@@ -638,13 +638,13 @@ func CrossDatabaseJoinTest(t *testing.T, tester offlineSqlTest) {
 		Query:         fmt.Sprintf("SELECT NAME FROM %s UNION SELECT NAME FROM %s", sqlLocation.TableLocation().String(), sqlLocation2.TableLocation().String()),
 	}
 
-	err = tester.storeTester.CreateTransformation(tfConfig)
+	err = test.storeTester.CreateTransformation(tfConfig)
 	if err != nil {
 		t.Fatalf("could not create transformation: %v", err)
 	}
 
 	// Verify the union table contents
-	tfTable, err := tester.storeTester.GetTransformationTable(targetTableId)
+	tfTable, err := test.storeTester.GetTransformationTable(targetTableId)
 	if err != nil {
 		t.Fatalf("could not get transformation table: %v", err)
 	}
@@ -775,10 +775,10 @@ func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester of
 	verifyPrimaryTable(t, primary, records)
 }
 
-func RegisterMaterializationWithDefaultTargetLagTest(t *testing.T, tester offlineSqlTest) {
+func RegisterMaterializationWithDefaultTargetLagTest(t *testing.T, test offlineSqlTest) {
 	useTimestamps := true
 	isIncremental := true
-	matTest := newSQLMaterializationTest(tester.storeTester, useTimestamps)
+	matTest := newSQLMaterializationTest(test, useTimestamps)
 	primary := initSqlPrimaryDataset(t, matTest.tester, matTest.data.location, matTest.data.schema, matTest.data.records)
 	matTest.data.opts.ResourceSnowflakeConfig = &metadata.ResourceSnowflakeConfig{
 		DynamicTableConfig: &metadata.SnowflakeDynamicTableConfig{
@@ -794,7 +794,7 @@ func RegisterMaterializationWithDefaultTargetLagTest(t *testing.T, tester offlin
 		t.Fatalf("could not write batch: %v", err)
 	}
 
-	snowflakeTester, isSnowflakeTester := tester.storeTester.(*snowflakeOfflineStoreTester)
+	snowflakeTester, isSnowflakeTester := test.storeTester.(*snowflakeOfflineStoreTester)
 	if !isSnowflakeTester {
 		t.Fatalf("expected store tester to be snowflakeOfflineStoreTester")
 	}
@@ -811,10 +811,10 @@ func RegisterMaterializationWithDefaultTargetLagTest(t *testing.T, tester offlin
 	matTest.data.Assert(t, matIncr, isIncremental)
 }
 
-func RegisterMaterializationWithDifferentWarehouseTest(t *testing.T, tester offlineSqlTest) {
+func RegisterMaterializationWithDifferentWarehouseTest(t *testing.T, test offlineSqlTest) {
 	useTimestamps := true
 	isIncremental := true
-	matTest := newSQLMaterializationTest(tester.storeTester, useTimestamps)
+	matTest := newSQLMaterializationTest(test, useTimestamps)
 	primary := initSqlPrimaryDataset(t, matTest.tester, matTest.data.location, matTest.data.schema, matTest.data.records)
 	warehouse := "TEST_WH"
 	matTest.data.opts.ResourceSnowflakeConfig = &metadata.ResourceSnowflakeConfig{
@@ -832,7 +832,7 @@ func RegisterMaterializationWithDifferentWarehouseTest(t *testing.T, tester offl
 		t.Fatalf("could not write batch: %v", err)
 	}
 
-	snowflakeTester, isSnowflakeTester := tester.storeTester.(*snowflakeOfflineStoreTester)
+	snowflakeTester, isSnowflakeTester := test.storeTester.(*snowflakeOfflineStoreTester)
 	if !isSnowflakeTester {
 		t.Fatalf("expected store tester to be snowflakeOfflineStoreTester")
 	}
@@ -857,8 +857,8 @@ func RegisterMaterializationWithDifferentWarehouseTest(t *testing.T, tester offl
 	matTest.data.Assert(t, matIncr, isIncremental)
 }
 
-func RegisterTrainingSetWithType(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType, tsType metadata.TrainingSetType) {
-	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
+func RegisterTrainingSetWithType(t *testing.T, test offlineSqlTest, tsDatasetType trainingSetDatasetType, tsType metadata.TrainingSetType) {
+	tsTest := newSQLTrainingSetTest(test, tsDatasetType)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
 
@@ -872,7 +872,7 @@ func RegisterTrainingSetWithType(t *testing.T, tester offlineSqlTest, tsDatasetT
 	}
 	tsTest.data.Assert(t, ts)
 
-	snowflakeTester, isSnowflakeTester := tester.storeTester.(*snowflakeOfflineStoreTester)
+	snowflakeTester, isSnowflakeTester := test.storeTester.(*snowflakeOfflineStoreTester)
 	if !isSnowflakeTester {
 		t.Fatalf("expected store tester to be snowflakeOfflineStoreTester")
 	}
@@ -995,8 +995,10 @@ func getConfiguredSnowflakeTester(t *testing.T, useCrossDBJoins bool) offlineSql
 	}
 
 	return offlineSqlTest{
-		storeTester:       offlineStoreTester,
-		testCrossDbJoins:  useCrossDBJoins,
-		sanitizeTableName: func(obj pl.FullyQualifiedObject) string { return SanitizeSnowflakeIdentifier(obj) },
+		storeTester: offlineStoreTester,
+		testConfig: offlineSqlTestConfig{
+			testCrossDbJoins:  useCrossDBJoins,
+			sanitizeTableName: func(obj pl.FullyQualifiedObject) string { return SanitizeSnowflakeIdentifier(obj) },
+		},
 	}
 }

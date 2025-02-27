@@ -234,8 +234,10 @@ func getConfiguredBigQueryTester(t *testing.T, useCrossDBJoins bool) offlineSqlT
 	}
 
 	return offlineSqlTest{
-		storeTester:       offlineStoreTester,
-		testCrossDbJoins:  useCrossDBJoins,
-		sanitizeTableName: sanitizeTableNameFunc,
+		storeTester: offlineStoreTester,
+		testConfig: offlineSqlTestConfig{
+			testCrossDbJoins:  useCrossDBJoins,
+			sanitizeTableName: sanitizeTableNameFunc,
+		},
 	}
 }

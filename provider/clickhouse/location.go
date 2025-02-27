@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/featureform/fferr"
 	pl "github.com/featureform/provider/location"
 )
 
@@ -23,10 +24,9 @@ func NewLocation(location pl.Location) (*Location, error) {
 	case *Location:
 		return loc, nil
 	case *pl.SQLLocation:
-		// TODO: Re-enable
-		//if loc.GetSchema() != "" {
-		//	return nil, fferr.NewInvalidArgumentErrorf("clickhouse location must not have schema, location: %v", location)
-		//}
+		if loc.GetSchema() != "" {
+			return nil, fferr.NewInvalidArgumentErrorf("clickhouse location must not have schema, location: %v", location)
+		}
 		return &Location{SQLLocation: loc}, nil
 	default:
 		return nil, fmt.Errorf("invalid location type for ClickHouse Location, got %T", loc)

@@ -71,9 +71,11 @@ func getConfiguredPostgresTester(t *testing.T, useCrossDBJoins bool) offlineSqlT
 	}
 
 	return offlineSqlTest{
-		storeTester:       &storeTester,
-		testCrossDbJoins:  useCrossDBJoins,
-		sanitizeTableName: sanitizeTableName,
+		storeTester: &storeTester,
+		testConfig: offlineSqlTestConfig{
+			testCrossDbJoins:  useCrossDBJoins,
+			sanitizeTableName: sanitizeTableName,
+		},
 	}
 }
 

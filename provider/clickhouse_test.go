@@ -480,8 +480,11 @@ func getConfiguredClickHouseTester(t *testing.T, useCrossDBJoins bool) offlineSq
 	}
 
 	return offlineSqlTest{
-		storeTester:       &storeTester,
-		testCrossDbJoins:  useCrossDBJoins,
-		sanitizeTableName: sanitizeClickHouseTableName,
+		storeTester: &storeTester,
+		testConfig: offlineSqlTestConfig{
+			testCrossDbJoins:         useCrossDBJoins,
+			sanitizeTableName:        sanitizeClickHouseTableName,
+			removeSchemaFromLocation: true,
+		},
 	}
 }

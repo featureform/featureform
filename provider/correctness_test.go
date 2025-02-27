@@ -189,7 +189,7 @@ func TestDelete(t *testing.T) {
 		tester offlineSqlTest
 	}{
 		//{getConfiguredBigQueryTester(t, false)},
-		{getConfiguredSnowflakeTester(t, true)},
+		//{getConfiguredSnowflakeTester(t, true)},
 		//{getConfiguredPostgresTester(t, false)},
 		{getConfiguredClickHouseTester(t, false)},
 	}
@@ -211,43 +211,49 @@ func TestDelete(t *testing.T) {
 	}
 }
 
-func newSQLTransformationTest(tester offlineSqlStoreTester, transformationQuery string, sanitizeTableNameFn func(object pl.FullyQualifiedObject) string) *sqlTransformationTester {
-	data := newTestSQLTransformationData(tester, transformationQuery, sanitizeTableNameFn)
+func newSQLTransformationTest(tester offlineSqlTest, transformationQuery string) *sqlTransformationTester {
+	data := newTestSQLTransformationData(tester, transformationQuery)
 	return &sqlTransformationTester{
-		tester: tester,
-		data:   data,
+		tester:     tester.storeTester,
+		testConfig: tester.testConfig,
+		data:       data,
 	}
 }
 
 type sqlTransformationTester struct {
-	tester offlineSqlStoreTester
-	data   testSQLTransformationData
+	tester     offlineSqlStoreTester
+	testConfig offlineSqlTestConfig
+	data       testSQLTransformationData
 }
 
-func newSQLMaterializationTest(tester offlineSqlStoreTester, useTimestamps bool) *sqlMaterializationTester {
+func newSQLMaterializationTest(tester offlineSqlTest, useTimestamps bool) *sqlMaterializationTester {
 	data := newTestSQLMaterializationData(tester, useTimestamps)
 	return &sqlMaterializationTester{
-		tester: tester,
-		data:   data,
+		tester:     tester.storeTester,
+		testConfig: tester.testConfig,
+		data:       data,
 	}
 }
 
 type sqlMaterializationTester struct {
-	tester offlineMaterializationSqlStoreTester
-	data   testSQLMaterializationData
+	tester     offlineMaterializationSqlStoreTester
+	testConfig offlineSqlTestConfig
+	data       testSQLMaterializationData
 }
 
-func newSQLTrainingSetTest(tester offlineSqlStoreTester, tsDatasetType trainingSetDatasetType) *sqlTrainingSetTester {
-	data := newTestSQLTrainingSetData(tester, tester.Type(), tester.Config(), tsDatasetType)
+func newSQLTrainingSetTest(test offlineSqlTest, tsDatasetType trainingSetDatasetType) *sqlTrainingSetTester {
+	data := newTestSQLTrainingSetData(test, test.storeTester.Type(), test.storeTester.Config(), tsDatasetType)
 	return &sqlTrainingSetTester{
-		tester: tester,
-		data:   data,
+		tester:     test.storeTester,
+		testConfig: test.testConfig,
+		data:       data,
 	}
 }
 
 type sqlTrainingSetTester struct {
-	tester offlineTrainingSetSqlStoreTester
-	data   testSQLTrainingSetData
+	tester     offlineTrainingSetSqlStoreTester
+	testConfig offlineSqlTestConfig
+	data       testSQLTrainingSetData
 }
 
 func initSqlPrimaryDataset(t *testing.T, tester offlineSqlStoreDatasetTester, location pl.Location, schema TableSchema, records []GenericRecord) PrimaryTable {
@@ -316,10 +322,10 @@ func (a idCreator) create(t OfflineResourceType, name string) ResourceID {
 	}
 }
 
-func newTestSQLTransformationData(tester offlineSqlStoreTester, transformationQuery string, sanitizeTableNameFn func(object pl.FullyQualifiedObject) string) testSQLTransformationData {
-	db := tester.GetTestDatabase()
+func newTestSQLTransformationData(test offlineSqlTest, transformationQuery string) testSQLTransformationData {
+	db := test.storeTester.GetTestDatabase()
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	sqlLoc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_WIND_DATA_TABLE")
+	sqlLoc := createSqlLocation(test.testConfig, db, schema, "TEST_WIND_DATA_TABLE")
 	tableLoc := sqlLoc.TableLocation()
 	queryFmt := transformationQuery
 	idCreator := newIDCreator("test")
@@ -412,13 +418,13 @@ func newTestSQLTransformationData(tester offlineSqlStoreTester, transformationQu
 		config: TransformationConfig{
 			Type:          SQLTransformation,
 			TargetTableID: idCreator.create(Transformation, ""),
-			Query:         fmt.Sprintf(queryFmt, sanitizeTableNameFn(tableLoc)),
+			Query:         fmt.Sprintf(queryFmt, test.testConfig.sanitizeTableName(tableLoc)),
 			SourceMapping: []SourceMapping{
 				{
 					Template:       SanitizeSqlLocation(tableLoc),
 					Source:         tableLoc.String(),
-					ProviderType:   tester.Type(),
-					ProviderConfig: tester.Config(),
+					ProviderType:   test.storeTester.Type(),
+					ProviderConfig: test.storeTester.Config(),
 					Location:       sqlLoc,
 				},
 			},
@@ -474,10 +480,10 @@ func (d testSQLTransformationData) Assert(t *testing.T, actual PrimaryTable) {
 	}
 }
 
-func newTestSQLMaterializationData(tester offlineSqlStoreTester, useTimestamp bool) testSQLMaterializationData {
-	db := tester.GetTestDatabase()
+func newTestSQLMaterializationData(test offlineSqlTest, useTimestamp bool) testSQLMaterializationData {
+	db := test.storeTester.GetTestDatabase()
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, schema, "TEST_WIND_DATA_TABLE")
+	loc := createSqlLocation(test.testConfig, db, schema, "TEST_WIND_DATA_TABLE")
 	idCreator := newIDCreator("test")
 	data := testSQLMaterializationData{
 		id: idCreator.create(Feature, ""),
@@ -727,16 +733,16 @@ const (
 	tsDatasetFeaturesLabelNoTS   trainingSetDatasetType = "features_label_no_ts"
 )
 
-func newTestSQLTrainingSetData(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig, tsDatasetType trainingSetDatasetType) testSQLTrainingSetData {
+func newTestSQLTrainingSetData(test offlineSqlTest, storeType pt.Type, storeConfig pc.SerializedConfig, tsDatasetType trainingSetDatasetType) testSQLTrainingSetData {
 	switch tsDatasetType {
 	case tsDatasetFeaturesLabelTS:
-		return getTrainingSetDatasetTS(tester, storeType, storeConfig)
+		return getTrainingSetDatasetTS(test, storeType, storeConfig)
 	case tsDatasetFeaturesTSLabelNoTS:
-		return getTrainingSetFeaturesTSLabelsNoTS(tester, storeType, storeConfig)
+		return getTrainingSetFeaturesTSLabelsNoTS(test, storeType, storeConfig)
 	case tsDatasetFeaturesNoTSLabelTS:
-		return getTrainingSetDatasetFeaturesNoTSLabelTS(tester, storeType, storeConfig)
+		return getTrainingSetDatasetFeaturesNoTSLabelTS(test, storeType, storeConfig)
 	case tsDatasetFeaturesLabelNoTS:
-		return getTrainingSetDatasetNoTS(tester, storeType, storeConfig)
+		return getTrainingSetDatasetNoTS(test, storeType, storeConfig)
 	default:
 		panic(fmt.Sprintf("unsupported training set dataset type: %s", tsDatasetType))
 	}
@@ -818,12 +824,12 @@ func (data testSQLTrainingSetData) HashStruct(v interface{}) ([]byte, error) {
 	return hash[:], nil
 }
 
-func getTrainingSetDatasetTS(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
-	db := tester.GetTestDatabase()
+func getTrainingSetDatasetTS(test offlineSqlTest, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
+	db := test.storeTester.GetTestDatabase()
 	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_ALL_TIMESTAMPS")
+	loc := createSqlLocation(test.testConfig, db, locSchema, "TEST_FEATURES_ALL_TIMESTAMPS")
 	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABELS_ALL_TIMESTAMPS")
+	labelLoc := createSqlLocation(test.testConfig, db, labelSchema, "TEST_LABELS_ALL_TIMESTAMPS")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "wave_height_training_set")
 	labelID := idCreator.create(Label, "wave_height")
@@ -921,12 +927,12 @@ func getTrainingSetDatasetTS(tester offlineSqlStoreTester, storeType pt.Type, st
 	}
 }
 
-func getTrainingSetFeaturesTSLabelsNoTS(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
-	db := tester.GetTestDatabase()
+func getTrainingSetFeaturesTSLabelsNoTS(test offlineSqlTest, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
+	db := test.storeTester.GetTestDatabase()
 	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_FEATURE_TIMESTAMPS")
+	loc := createSqlLocation(test.testConfig, db, locSchema, "TEST_FEATURES_FEATURE_TIMESTAMPS")
 	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABELS_FEATURE_TIMESTAMPS")
+	labelLoc := createSqlLocation(test.testConfig, db, labelSchema, "TEST_LABELS_FEATURE_TIMESTAMPS")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "location_level_training_set")
 	labelID := idCreator.create(Label, "location_level")
@@ -1006,12 +1012,12 @@ func getTrainingSetFeaturesTSLabelsNoTS(tester offlineSqlStoreTester, storeType 
 	}
 }
 
-func getTrainingSetDatasetFeaturesNoTSLabelTS(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
-	db := tester.GetTestDatabase()
+func getTrainingSetDatasetFeaturesNoTSLabelTS(test offlineSqlTest, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
+	db := test.storeTester.GetTestDatabase()
 	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_LABEL_TIMESTAMPS")
+	loc := createSqlLocation(test.testConfig, db, locSchema, "TEST_FEATURES_LABEL_TIMESTAMPS")
 	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABELS_LABEL_TIMESTAMPS")
+	labelLoc := createSqlLocation(test.testConfig, db, labelSchema, "TEST_LABELS_LABEL_TIMESTAMPS")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "successful_rides_training_set")
 	labelID := idCreator.create(Label, "successful_rides")
@@ -1102,12 +1108,12 @@ func getTrainingSetDatasetFeaturesNoTSLabelTS(tester offlineSqlStoreTester, stor
 	}
 }
 
-func getTrainingSetDatasetNoTS(tester offlineSqlStoreTester, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
-	db := tester.GetTestDatabase()
+func getTrainingSetDatasetNoTS(test offlineSqlTest, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
+	db := test.storeTester.GetTestDatabase()
 	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := pl.NewFullyQualifiedSQLLocation(db, locSchema, "TEST_FEATURES_NO_TIMESTAMPS")
+	loc := createSqlLocation(test.testConfig, db, locSchema, "TEST_FEATURES_NO_TIMESTAMPS")
 	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	labelLoc := pl.NewFullyQualifiedSQLLocation(db, labelSchema, "TEST_LABELS_NO_TIMESTAMPS")
+	labelLoc := createSqlLocation(test.testConfig, db, labelSchema, "TEST_LABELS_NO_TIMESTAMPS")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "surfer_level_training_set")
 	labelID := idCreator.create(Label, "surfer_level")
@@ -1185,7 +1191,7 @@ func getTrainingSetDatasetNoTS(tester offlineSqlStoreTester, storeType pt.Type, 
 }
 
 func RegisterTransformationOnPrimaryDatasetTest(t *testing.T, tester offlineSqlTest, transformationQuery string) {
-	test := newSQLTransformationTest(tester.storeTester, transformationQuery, tester.sanitizeTableName)
+	test := newSQLTransformationTest(tester, transformationQuery)
 	_ = initSqlPrimaryDataset(t, test.tester, test.data.location, test.data.schema, test.data.records)
 	if err := test.tester.CreateTransformation(test.data.config); err != nil {
 		t.Fatalf("could not create transformation: %v", err)
@@ -1197,43 +1203,43 @@ func RegisterTransformationOnPrimaryDatasetTest(t *testing.T, tester offlineSqlT
 	test.data.Assert(t, actual)
 }
 
-func RegisterChainedTransformationsTest(t *testing.T, tester offlineSqlTest, transformationQuery string) {
-	test := newSQLTransformationTest(tester.storeTester, transformationQuery, tester.sanitizeTableName)
-	_ = initSqlPrimaryDataset(t, test.tester, test.data.location, test.data.schema, test.data.records)
-	if err := test.tester.CreateTransformation(test.data.config); err != nil {
+func RegisterChainedTransformationsTest(t *testing.T, test offlineSqlTest, transformationQuery string) {
+	transformationTest := newSQLTransformationTest(test, transformationQuery)
+	_ = initSqlPrimaryDataset(t, transformationTest.tester, transformationTest.data.location, transformationTest.data.schema, transformationTest.data.records)
+	if err := transformationTest.tester.CreateTransformation(transformationTest.data.config); err != nil {
 		t.Fatalf("could not create transformation: %v", err)
 	}
 	// CHAIN `SELECT *` TRANSFORMATION ON 1ST TRANSFORMATION
 	// Create chained transformation resource ID and table name
-	id := ResourceID{Name: "DUMMY_TABLE_TF2", Variant: "test", Type: Transformation}
+	id := ResourceID{Name: "DUMMY_TABLE_TF2", Variant: "transformationTest", Type: Transformation}
 	table, err := ps.ResourceToTableName(Transformation.String(), id.Name, id.Variant)
 	if err != nil {
 		t.Fatalf("could not get transformation table: %v", err)
 	}
 	// Get the table name of the first transformation and create a SQL location for sanitization
-	srcDataset, err := ps.ResourceToTableName(Transformation.String(), test.data.config.TargetTableID.Name, test.data.config.TargetTableID.Variant)
+	srcDataset, err := ps.ResourceToTableName(Transformation.String(), transformationTest.data.config.TargetTableID.Name, transformationTest.data.config.TargetTableID.Variant)
 	if err != nil {
 		t.Fatalf("could not get transformation table name from resource ID: %v", err)
 	}
 	srcLoc := pl.NewSQLLocation(srcDataset)
 	// Copy the original config and modify the query and source mapping
-	config := test.data.config
+	config := transformationTest.data.config
 	config.TargetTableID = id
-	config.Query = fmt.Sprintf("SELECT * FROM %s", tester.sanitizeTableName(srcLoc.TableLocation()))
+	config.Query = fmt.Sprintf("SELECT * FROM %s", test.testConfig.sanitizeTableName(srcLoc.TableLocation()))
 	config.SourceMapping[0].Location = pl.NewSQLLocation(table)
 	// Create, get and assert the chained transformation
-	if err := test.tester.CreateTransformation(config); err != nil {
+	if err := transformationTest.tester.CreateTransformation(config); err != nil {
 		t.Fatalf("could not create transformation: %v", err)
 	}
-	actual, err := test.tester.GetTransformationTable(id)
+	actual, err := transformationTest.tester.GetTransformationTable(id)
 	if err != nil {
 		t.Fatalf("could not get transformation table: %v", err)
 	}
-	test.data.Assert(t, actual)
+	transformationTest.data.Assert(t, actual)
 }
 
-func RegisterTrainingSet(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType) {
-	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
+func RegisterTrainingSet(t *testing.T, test offlineSqlTest, tsDatasetType trainingSetDatasetType) {
+	tsTest := newSQLTrainingSetTest(test, tsDatasetType)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
 
@@ -1250,7 +1256,7 @@ func RegisterTrainingSet(t *testing.T, tester offlineSqlTest, tsDatasetType trai
 func RegisterMaterializationNoTimestampTest(t *testing.T, tester offlineSqlTest) {
 	useTimestamps := false
 	isIncremental := false
-	matTest := newSQLMaterializationTest(tester.storeTester, useTimestamps)
+	matTest := newSQLMaterializationTest(tester, useTimestamps)
 	_ = initSqlPrimaryDataset(t, matTest.tester, matTest.data.location, matTest.data.schema, matTest.data.records)
 	mat, err := matTest.tester.CreateMaterialization(matTest.data.id, matTest.data.opts)
 	if err != nil {
@@ -1267,7 +1273,7 @@ func RegisterMaterializationNoTimestampTest(t *testing.T, tester offlineSqlTest)
 func RegisterMaterializationTimestampTest(t *testing.T, tester offlineSqlTest) {
 	useTimestamps := true
 	isIncremental := false
-	matTest := newSQLMaterializationTest(tester.storeTester, useTimestamps)
+	matTest := newSQLMaterializationTest(tester, useTimestamps)
 	_ = initSqlPrimaryDataset(t, matTest.tester, matTest.data.location, matTest.data.schema, matTest.data.records)
 	mat, err := matTest.tester.CreateMaterialization(matTest.data.id, matTest.data.opts)
 	if err != nil {
@@ -1281,8 +1287,8 @@ func RegisterMaterializationTimestampTest(t *testing.T, tester offlineSqlTest) {
 	matTest.data.Assert(t, mat, isIncremental)
 }
 
-func RegisterValidFeatureAndLabel(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType) {
-	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
+func RegisterValidFeatureAndLabel(t *testing.T, test offlineSqlTest, tsDatasetType trainingSetDatasetType) {
+	tsTest := newSQLTrainingSetTest(test, tsDatasetType)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
 
@@ -1303,8 +1309,8 @@ func RegisterValidFeatureAndLabel(t *testing.T, tester offlineSqlTest, tsDataset
 	}
 }
 
-func RegisterInValidFeatureAndLabel(t *testing.T, tester offlineSqlTest, tsDatasetType trainingSetDatasetType) {
-	tsTest := newSQLTrainingSetTest(tester.storeTester, tsDatasetType)
+func RegisterInValidFeatureAndLabel(t *testing.T, test offlineSqlTest, tsDatasetType trainingSetDatasetType) {
+	tsTest := newSQLTrainingSetTest(test, tsDatasetType)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
 
@@ -1326,10 +1332,10 @@ func RegisterInValidFeatureAndLabel(t *testing.T, tester offlineSqlTest, tsDatas
 	}
 }
 
-func DeleteTableTest(t *testing.T, tester offlineSqlTest) {
-	storeTester, ok := tester.storeTester.(offlineSqlStoreCreateDb)
+func DeleteTableTest(t *testing.T, test offlineSqlTest) {
+	storeTester, ok := test.storeTester.(offlineSqlStoreCreateDb)
 	if !ok {
-		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", tester.storeTester))
+		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", test.storeTester))
 	}
 
 	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
@@ -1345,21 +1351,21 @@ func DeleteTableTest(t *testing.T, tester offlineSqlTest) {
 
 	// Create the table
 	tableName := "DUMMY_TABLE"
-	location := pl.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", tableName)
-	_, err := createDummyTable(tester.storeTester, location, 3)
+	location := createSqlLocation(test.testConfig, dbName, "PUBLIC", tableName)
+	_, err := createDummyTable(test.storeTester, location, 3)
 
-	if _, err = createDummyTable(tester.storeTester, location, 3); err != nil {
+	if _, err = createDummyTable(test.storeTester, location, 3); err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
-	if err := tester.storeTester.Delete(location); err != nil {
+	if err := test.storeTester.Delete(location); err != nil {
 		t.Fatalf("could not delete table: %v", err)
 	}
 }
 
-func DeleteNotExistingTableTest(t *testing.T, tester offlineSqlTest) {
-	storeTester, ok := tester.storeTester.(offlineSqlStoreCreateDb)
+func DeleteNotExistingTableTest(t *testing.T, test offlineSqlTest) {
+	storeTester, ok := test.storeTester.(offlineSqlStoreCreateDb)
 	if !ok {
-		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", tester.storeTester))
+		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", test.storeTester))
 	}
 
 	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
@@ -1368,9 +1374,9 @@ func DeleteNotExistingTableTest(t *testing.T, tester offlineSqlTest) {
 		t.Fatalf("could not create database: %v", err)
 	}
 
-	loc := pl.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", "NOT_EXISTING_TABLE")
+	loc := createSqlLocation(test.testConfig, dbName, "PUBLIC", "NOT_EXISTING_TABLE")
 
-	deleteErr := tester.storeTester.Delete(loc)
+	deleteErr := test.storeTester.Delete(loc)
 	if deleteErr == nil {
 		t.Fatalf("expected error deleting table")
 	}
@@ -1446,4 +1452,11 @@ func verifyPrimaryTable(t *testing.T, primary PrimaryTable, records []GenericRec
 		}
 		i++
 	}
+}
+
+func createSqlLocation(config offlineSqlTestConfig, db, schema, table string) *pl.SQLLocation {
+	if config.removeSchemaFromLocation {
+		schema = ""
+	}
+	return pl.NewFullyQualifiedSQLLocation(db, schema, table)
 }

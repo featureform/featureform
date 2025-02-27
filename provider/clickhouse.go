@@ -1174,9 +1174,6 @@ func (store *clickHouseOfflineStore) CreateTrainingSet(def TrainingSetDef) error
 
 	logger.Debugw("Built training set query", "query", tsQuery)
 
-	//if err := store.query.trainingSetCreate(&store.sqlOfflineStore, def, tableName, label.name); err != nil {
-	//	return err
-	//}
 	if _, err := store.db.Exec(tsQuery); err != nil {
 		logger.Errorw("Failed to create training set table", "error", err)
 		return err
@@ -1409,11 +1406,6 @@ SELECT name FROM system.columns WHERE {{if .database}} database='{{.database}}' 
 
 	return sb.String(), nil
 }
-
-//func (q clickhouseSQLQueries) trainingRowSelect(columns string, trainingSetName string) string {
-//	// ensures random order - table is ordered by _row which is inserted at insert time
-//	return fmt.Sprintf("SELECT * EXCEPT _row FROM (SELECT %s FROM %s ORDER BY _row ASC)", columns, SanitizeClickHouseIdentifier(trainingSetName))
-//}
 
 func (q clickhouseSQLQueries) trainingRowSplitSelect(columns string, trainingSetSplitName string) (string, string) {
 	testSplitQuery := fmt.Sprintf("SELECT * EXCEPT _row FROM (SELECT %s FROM %s WHERE `is_test` = 1 ORDER BY _row ASC)", columns, trainingSetSplitName)

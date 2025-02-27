@@ -22,19 +22,19 @@ import (
 )
 
 // Create Resource Lookup Using ETCD
-type MemoryResourceLookup struct {
+type MetadataStorageResourceLookup struct {
 	Connection storage.MetadataStorage
 }
 
 // Wrapper around Resource/Job messages. Allows top level storage for info about saved value
-type MemoryRow struct {
+type MetadataStorageRow struct {
 	ResourceType      ResourceType //Resource Type. For use when getting stored keys
 	StorageType       StorageType  //Type of storage. Resource or Job
 	Message           []byte       //Contents to be stored
 	SerializedVersion int          //Checks if its serialized using JSON or proto
 }
 
-type MemoryRowTemp struct {
+type MetadataStorageRowTemp struct {
 	ResourceType      ResourceType
 	StorageType       StorageType //Type of storage. Resource or Job
 	Message           []byte      //Contents to be stored
@@ -42,7 +42,7 @@ type MemoryRowTemp struct {
 }
 
 // Serializes the entire ETCD Storage Object to be put into ETCD
-func (lookup MemoryResourceLookup) serializeResource(res Resource) ([]byte, error) {
+func (lookup MetadataStorageResourceLookup) serializeResource(res Resource) ([]byte, error) {
 	p, err := protojson.Marshal(res.Proto())
 	if err != nil {
 		return nil, err
@@ -62,7 +62,7 @@ func (lookup MemoryResourceLookup) serializeResource(res Resource) ([]byte, erro
 }
 
 // Deserializes object into the Storage Object
-func (lookup MemoryResourceLookup) deserialize(value []byte) (StoredRow, error) {
+func (lookup MetadataStorageResourceLookup) deserialize(value []byte) (StoredRow, error) {
 	var tmp StoredRowTemp
 	if err := json.Unmarshal(value, &tmp); err != nil {
 		return StoredRow{}, errors.Wrap(err, fmt.Sprintf("failed to parse resource: %s", value))
@@ -76,7 +76,7 @@ func (lookup MemoryResourceLookup) deserialize(value []byte) (StoredRow, error) 
 	return msg, nil
 }
 
-func (lookup MemoryResourceLookup) Lookup(ctx context.Context, id ResourceID, opts ...ResourceLookupOption) (Resource, error) {
+func (lookup MetadataStorageResourceLookup) Lookup(ctx context.Context, id ResourceID, opts ...ResourceLookupOption) (Resource, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 	key := createKey(id)
 	logger.With("lookup-key", key)
@@ -119,7 +119,7 @@ func (lookup MemoryResourceLookup) Lookup(ctx context.Context, id ResourceID, op
 	return resource, nil
 }
 
-func (lookup MemoryResourceLookup) Delete(ctx context.Context, id ResourceID) error {
+func (lookup MetadataStorageResourceLookup) Delete(ctx context.Context, id ResourceID) error {
 	logger := logging.NewLogger("lookup")
 	key := createKey(id)
 	logger = logger.With("key", key)
@@ -132,7 +132,7 @@ func (lookup MemoryResourceLookup) Delete(ctx context.Context, id ResourceID) er
 	return nil
 }
 
-func (lookup MemoryResourceLookup) GetCountWithPrefix(ctx context.Context, id string) (int, error) {
+func (lookup MetadataStorageResourceLookup) GetCountWithPrefix(ctx context.Context, id string) (int, error) {
 	get, err := lookup.Connection.List(id)
 	if err != nil {
 		return 0, err
@@ -140,7 +140,7 @@ func (lookup MemoryResourceLookup) GetCountWithPrefix(ctx context.Context, id st
 	return len(get), nil
 }
 
-func (lookup MemoryResourceLookup) Has(ctx context.Context, id ResourceID) (bool, error) {
+func (lookup MetadataStorageResourceLookup) Has(ctx context.Context, id ResourceID) (bool, error) {
 	key := createKey(id)
 	count, err := lookup.GetCountWithPrefix(ctx, key)
 	if err != nil {
@@ -152,7 +152,7 @@ func (lookup MemoryResourceLookup) Has(ctx context.Context, id ResourceID) (bool
 	return true, nil
 }
 
-func (lookup MemoryResourceLookup) HasJob(ctx context.Context, id ResourceID) (bool, error) {
+func (lookup MetadataStorageResourceLookup) HasJob(ctx context.Context, id ResourceID) (bool, error) {
 	job_key := GetJobKey(id)
 	count, err := lookup.GetCountWithPrefix(ctx, job_key)
 	if err != nil {
@@ -164,7 +164,7 @@ func (lookup MemoryResourceLookup) HasJob(ctx context.Context, id ResourceID) (b
 	return true, nil
 }
 
-func (lookup MemoryResourceLookup) SetJob(ctx context.Context, id ResourceID, schedule string) error {
+func (lookup MetadataStorageResourceLookup) SetJob(ctx context.Context, id ResourceID, schedule string) error {
 	if jobAlreadySet, _ := lookup.HasJob(ctx, id); jobAlreadySet {
 		return fferr.NewInternalErrorf("job %v has already been created", id)
 	}
@@ -185,7 +185,7 @@ func (lookup MemoryResourceLookup) SetJob(ctx context.Context, id ResourceID, sc
 	return nil
 }
 
-func (lookup MemoryResourceLookup) SetSchedule(ctx context.Context, id ResourceID, schedule string) error {
+func (lookup MetadataStorageResourceLookup) SetSchedule(ctx context.Context, id ResourceID, schedule string) error {
 	coordinatorScheduleJob := CoordinatorScheduleJob{
 		Attempts: 0,
 		Resource: id,
@@ -202,7 +202,7 @@ func (lookup MemoryResourceLookup) SetSchedule(ctx context.Context, id ResourceI
 	return nil
 }
 
-func (lookup MemoryResourceLookup) Set(ctx context.Context, id ResourceID, res Resource) error {
+func (lookup MetadataStorageResourceLookup) Set(ctx context.Context, id ResourceID, res Resource) error {
 	logger := logging.GetLoggerFromContext(ctx).With("resource-id", id)
 	logger.Debugw("Serializing resource")
 	serRes, err := lookup.serializeResource(res)
@@ -221,7 +221,7 @@ func (lookup MemoryResourceLookup) Set(ctx context.Context, id ResourceID, res R
 	return nil
 }
 
-func (lookup MemoryResourceLookup) Submap(ctx context.Context, ids []ResourceID) (ResourceLookup, error) {
+func (lookup MetadataStorageResourceLookup) Submap(ctx context.Context, ids []ResourceID) (ResourceLookup, error) {
 	resources := make(LocalResourceLookup, len(ids))
 
 	for _, id := range ids {
@@ -249,7 +249,7 @@ func (lookup MemoryResourceLookup) Submap(ctx context.Context, ids []ResourceID)
 	return resources, nil
 }
 
-func (lookup MemoryResourceLookup) ListForType(ctx context.Context, t ResourceType) ([]Resource, error) {
+func (lookup MetadataStorageResourceLookup) ListForType(ctx context.Context, t ResourceType) ([]Resource, error) {
 	resources := make([]Resource, 0)
 	resp, err := lookup.Connection.List(t.String())
 	if err != nil {
@@ -276,7 +276,7 @@ func (lookup MemoryResourceLookup) ListForType(ctx context.Context, t ResourceTy
 	return resources, nil
 }
 
-func (lookup MemoryResourceLookup) ListVariants(ctx context.Context, t ResourceType, name string, opts ...ResourceLookupOption) ([]Resource, error) {
+func (lookup MetadataStorageResourceLookup) ListVariants(ctx context.Context, t ResourceType, name string, opts ...ResourceLookupOption) ([]Resource, error) {
 	logger := logging.NewLogger("memmory_lookup.go:ListVariants")
 	startTime := time.Now()
 	resources := make([]Resource, 0)
@@ -317,7 +317,7 @@ func (lookup MemoryResourceLookup) ListVariants(ctx context.Context, t ResourceT
 	return resources, nil
 }
 
-func (lookup MemoryResourceLookup) List(ctx context.Context) ([]Resource, error) {
+func (lookup MetadataStorageResourceLookup) List(ctx context.Context) ([]Resource, error) {
 	resources := make([]Resource, 0)
 	resp, err := lookup.Connection.List("")
 	if err != nil {
@@ -341,7 +341,7 @@ func (lookup MemoryResourceLookup) List(ctx context.Context) ([]Resource, error)
 	return resources, nil
 }
 
-func (lookup *MemoryResourceLookup) SetStatus(ctx context.Context, id ResourceID, status *pb.ResourceStatus) error {
+func (lookup *MetadataStorageResourceLookup) SetStatus(ctx context.Context, id ResourceID, status *pb.ResourceStatus) error {
 	res, err := lookup.Lookup(ctx, id)
 	if err != nil {
 		return err
@@ -353,4 +353,40 @@ func (lookup *MemoryResourceLookup) SetStatus(ctx context.Context, id ResourceID
 		return err
 	}
 	return nil
+}
+
+func (lookup MetadataStorageResourceLookup) Search(ctx context.Context, q string) ([]Resource, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger.Infow("Searching for resources", "searchquery", q)
+
+	searchResults, err := lookup.Connection.Storage.Search(ctx, q)
+	if err != nil {
+		logger.Errorw("failed to execute search", "query", q, "err", err)
+		return nil, fferr.NewExecutionError("Postgres", fmt.Errorf("failed to execute search: %v", err))
+	}
+
+	results := make([]Resource, 0)
+	for key, val := range searchResults {
+		individualLogger := logger.With("key", key)
+		individualLogger.Debugw("Deserializing key")
+		msg, err := lookup.deserialize([]byte(val))
+		if err != nil {
+			individualLogger.Errorw("Failed to deserialize resource from DB", "err", err)
+			continue
+		}
+		individualLogger.Debug("Create empty resource", "resource-type", msg.ResourceType)
+		resType, err := CreateEmptyResource(msg.ResourceType)
+		if err != nil {
+			individualLogger.Errorw("Failed to create empty resource", "resource-type", msg.ResourceType, "err", err)
+			continue
+		}
+		individualLogger.Debug("Parsing resource")
+		resource, err := ParseResource(msg, resType)
+		if err != nil {
+			individualLogger.Errorw("Failed to parse resource from DB", "err", err)
+			continue
+		}
+		results = append(results, resource)
+	}
+	return results, nil
 }

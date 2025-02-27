@@ -392,39 +392,12 @@ func TestClickHouseCastTableItemType(t *testing.T) {
 }
 
 func getClickHouseConfig(t *testing.T) (pc.ClickHouseConfig, error) {
-	err := godotenv.Load("../.env")
-	if err != nil {
-		t.Logf("could not open .env file... Checking environment: %s", err)
-	}
-
-	clickHouseDb := ""
-	ok := true
-	if clickHouseDb, ok = os.LookupEnv("CLICKHOUSE_DB"); !ok {
-		clickHouseDb = fmt.Sprintf("feature_form_%d", time.Now().UnixMilli())
-	}
-
-	username, ok := os.LookupEnv("CLICKHOUSE_USER")
-	if !ok {
-		t.Fatalf("missing CLICKHOUSE_USER variable")
-	}
-	password, ok := os.LookupEnv("CLICKHOUSE_PASSWORD")
-	if !ok {
-		t.Fatalf("missing CLICKHOUSE_PASSWORD variable")
-	}
-	host, ok := os.LookupEnv("CLICKHOUSE_HOST")
-	if !ok {
-		t.Fatalf("missing CLICKHOUSE_HOST variable")
-	}
-	portStr, ok := os.LookupEnv("CLICKHOUSE_PORT")
-	if !ok {
-		t.Fatalf("missing CLICKHOUSE_PORT variable")
-	}
+	clickHouseDb := helpers.GetEnv("CLICKHOUSE_DB", fmt.Sprintf("feature_form_%d", time.Now().UnixMilli()))
+	username := helpers.MustGetTestingEnv(t, "CLICKHOUSE_USER")
+	password := helpers.MustGetTestingEnv(t, "CLICKHOUSE_PASSWORD")
+	host := helpers.MustGetTestingEnv(t, "CLICKHOUSE_HOST")
+	port := helpers.GetEnvInt("CLICKHOUSE_PORT", 9000)
 	ssl := helpers.GetEnvBool("CLICKHOUSE_SSL", false)
-
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		t.Fatalf("Failed to parse port to numeric: %v", portStr)
-	}
 
 	var clickHouseConfig = pc.ClickHouseConfig{
 		Host:     host,

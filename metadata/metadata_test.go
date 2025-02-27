@@ -15,12 +15,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/scheduling"
 
 	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
-	"github.com/featureform/metadata/search"
 	"github.com/stretchr/testify/assert"
 	grpc_status "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -681,18 +679,6 @@ func TestServeGracefulStop(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatalf("GracefulStop did not work")
 	}
-}
-
-type MockSearcher struct {
-	search.Searcher
-}
-
-func mockNewPostgres(ctx context.Context, pool *postgres.Pool) (search.Searcher, error) {
-	return &MockSearcher{}, nil
-}
-
-func mockNewPool(ctx context.Context, config postgres.Config) (*postgres.Pool, error) {
-	return &postgres.Pool{}, nil
 }
 
 func TestCreate(t *testing.T) {

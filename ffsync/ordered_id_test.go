@@ -54,7 +54,7 @@ func TestOrderedIdGenerator(t *testing.T) {
 	testCases := []struct {
 		name      string
 		shortTest bool
-		createGen func(t *testing.T, testDbName string) (OrderedIdGenerator, error)
+		createGen func(t *testing.T, ctx context.Context) (OrderedIdGenerator, error)
 		deferFunc func(generator OrderedIdGenerator, t *testing.T)
 	}{
 		{
@@ -79,15 +79,13 @@ func TestOrderedIdGenerator(t *testing.T) {
 		},
 	}
 	ctx := logging.NewTestContext(t)
-	testDbName, dbCleanup := tests.CreateTestDatabase(ctx, t, config.GetMigrationPath())
-	defer dbCleanup()
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if !tc.shortTest && testing.Short() {
 				t.Skip()
 			}
-			generator, err := tc.createGen(t, testDbName)
+			generator, err := tc.createGen(t, ctx)
 			if err != nil {
 				t.Fatalf("failed to create %s ID generator: %v", tc.name, err)
 			}
@@ -122,13 +120,14 @@ func TestOrderedIdGenerator(t *testing.T) {
 	}
 }
 
-func createMemoryIdGenerator(t *testing.T, testDbName string) (OrderedIdGenerator, error) {
+func createMemoryIdGenerator(t *testing.T, ctx context.Context) (OrderedIdGenerator, error) {
 	return NewMemoryOrderedIdGenerator()
 }
 
-func createPSQLIdGenerator(t *testing.T, testDbName string) (OrderedIdGenerator, error) {
+func createPSQLIdGenerator(t *testing.T, ctx context.Context) (OrderedIdGenerator, error) {
+	testDbName, dbCleanup := tests.CreateTestDatabase(ctx, t, config.GetMigrationPath())
+	defer dbCleanup()
 	cfg := tests.GetTestPostgresParams(testDbName)
-	ctx := logging.NewTestContext(t)
 	pool, err := postgres.NewPool(ctx, cfg)
 	if err != nil {
 		t.Fatalf("Failed to create postgres pool with config: %v . Err: %v", cfg, err)

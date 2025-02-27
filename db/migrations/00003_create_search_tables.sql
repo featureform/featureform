@@ -40,35 +40,42 @@ CREATE OR REPLACE FUNCTION sync_to_search_resources()
 RETURNS TRIGGER AS $$
 DECLARE
     message_json jsonb;
+    type_value text;
 BEGIN
     -- First parse the outer JSON to get the Message field
     message_json := (NEW.value::jsonb->>'Message')::jsonb;
     
-    INSERT INTO search_resources (
-        id,
-        name,
-        type,
-        variant,
-        tags
-    )
-    SELECT
-        REGEXP_REPLACE(NEW.key, '[@.\s]', '_', 'g'),
-        SPLIT_PART(NEW.key, '__', 2),                 -- Get name (middle part)
-        SPLIT_PART(NEW.key, '__', 1),                 -- Get type (first part)
-        COALESCE(NULLIF(SPLIT_PART(NEW.key, '__', 3), ''), ''),  -- Get variant (last part)
-        CASE 
-            WHEN message_json->'tags'->'tag' IS NOT NULL THEN
-                (SELECT array_agg(elem::text)
-                 FROM jsonb_array_elements_text(message_json->'tags'->'tag') AS elem)
-            ELSE
-                ARRAY[]::TEXT[]
-        END
-    ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
-        type = EXCLUDED.type,
-        variant = EXCLUDED.variant,
-        tags = EXCLUDED.tags,
-        updated_at = CURRENT_TIMESTAMP;
+    -- Get the type value first
+    type_value := SPLIT_PART(NEW.key, '__', 1);
+    
+    -- Only proceed if type is not 'DELETED'
+    IF type_value != 'DELETED' THEN
+        INSERT INTO search_resources (
+            id,
+            name,
+            type,
+            variant,
+            tags
+        )
+        SELECT
+            REGEXP_REPLACE(NEW.key, '[@.\s]', '_', 'g'),
+            SPLIT_PART(NEW.key, '__', 2),                 -- Get name (middle part)
+            type_value,                                   -- Use the extracted type
+            COALESCE(NULLIF(SPLIT_PART(NEW.key, '__', 3), ''), ''),  -- Get variant (last part)
+            CASE 
+                WHEN message_json->'tags'->'tag' IS NOT NULL THEN
+                    (SELECT array_agg(elem::text)
+                     FROM jsonb_array_elements_text(message_json->'tags'->'tag') AS elem)
+                ELSE
+                    ARRAY[]::TEXT[]
+            END
+        ON CONFLICT (id) DO UPDATE SET
+            name = EXCLUDED.name,
+            type = EXCLUDED.type,
+            variant = EXCLUDED.variant,
+            tags = EXCLUDED.tags,
+            updated_at = CURRENT_TIMESTAMP;
+    END IF;
     
     RETURN NEW;
 END;
@@ -105,6 +112,7 @@ BEGIN
                 ARRAY[]::TEXT[]
         END as tags
     FROM ff_task_metadata
+    WHERE SPLIT_PART(key, '__', 1) != 'DELETED'
     ON CONFLICT (id) DO UPDATE SET
         name = EXCLUDED.name,
         type = EXCLUDED.type,

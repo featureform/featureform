@@ -195,7 +195,7 @@ func destroyBigQueryDataset(c pc.BigQueryConfig) error {
 	return err
 }
 
-func getConfiguredBigQueryTester(t *testing.T, useCrossDBJoins bool) offlineSqlTest {
+func getConfiguredBigQueryTester(t *testing.T) offlineSqlTest {
 	logger := logging.NewTestLogger(t)
 
 	bigQueryConfig, err := getBigQueryConfig(t)
@@ -236,7 +236,6 @@ func getConfiguredBigQueryTester(t *testing.T, useCrossDBJoins bool) offlineSqlT
 	return offlineSqlTest{
 		storeTester: offlineStoreTester,
 		testConfig: offlineSqlTestConfig{
-			testCrossDbJoins:  useCrossDBJoins,
 			sanitizeTableName: sanitizeTableNameFunc,
 		},
 	}

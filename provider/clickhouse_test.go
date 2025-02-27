@@ -447,7 +447,7 @@ func sanitizeClickHouseTableName(obj pl.FullyQualifiedObject) string {
 	return name
 }
 
-func getConfiguredClickHouseTester(t *testing.T, useCrossDBJoins bool) offlineSqlTest {
+func getConfiguredClickHouseTester(t *testing.T) offlineSqlTest {
 	clickHouseConfig, err := getClickHouseConfig(t)
 	if err != nil {
 		t.Fatalf("could not get clickhouse config: %s\n", err)
@@ -478,7 +478,6 @@ func getConfiguredClickHouseTester(t *testing.T, useCrossDBJoins bool) offlineSq
 	return offlineSqlTest{
 		storeTester: &storeTester,
 		testConfig: offlineSqlTestConfig{
-			testCrossDbJoins:         useCrossDBJoins,
 			sanitizeTableName:        sanitizeClickHouseTableName,
 			removeSchemaFromLocation: true,
 		},

@@ -38,7 +38,7 @@ func TestOfflineStorePostgres(t *testing.T) {
 	//test.RunSQL()
 }
 
-func getConfiguredPostgresTester(t *testing.T, useCrossDBJoins bool) offlineSqlTest {
+func getConfiguredPostgresTester(t *testing.T) offlineSqlTest {
 	postgresConfig, err := getPostgresConfig(t, "")
 	if err != nil {
 		t.Fatalf("could not get postgres config: %s\n", err)
@@ -73,7 +73,6 @@ func getConfiguredPostgresTester(t *testing.T, useCrossDBJoins bool) offlineSqlT
 	return offlineSqlTest{
 		storeTester: &storeTester,
 		testConfig: offlineSqlTestConfig{
-			testCrossDbJoins:  useCrossDBJoins,
 			sanitizeTableName: sanitizeTableName,
 		},
 	}

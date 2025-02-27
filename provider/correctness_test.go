@@ -41,19 +41,19 @@ func TestTransformations(t *testing.T) {
 		transformationQuery string
 	}{
 		{
-			getConfiguredBigQueryTester(t, false),
+			getConfiguredBigQueryTester(t),
 			"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, TIMESTAMP(timestamp) as date FROM %s GROUP BY location_id, TIMESTAMP(timestamp)",
 		},
 		{
-			getConfiguredSnowflakeTester(t, true),
+			getConfiguredSnowflakeTester(t),
 			"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)",
 		},
 		{
-			getConfiguredPostgresTester(t, false),
+			getConfiguredPostgresTester(t),
 			"SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
 		},
 		{
-			getConfiguredClickHouseTester(t, false),
+			getConfiguredClickHouseTester(t),
 			"SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
 		},
 	}
@@ -83,10 +83,10 @@ func TestMaterializations(t *testing.T) {
 	testInfra := []struct {
 		tester offlineSqlTest
 	}{
-		{getConfiguredBigQueryTester(t, false)},
-		{getConfiguredSnowflakeTester(t, true)},
-		{getConfiguredPostgresTester(t, false)},
-		{getConfiguredClickHouseTester(t, false)},
+		{getConfiguredBigQueryTester(t)},
+		{getConfiguredSnowflakeTester(t)},
+		{getConfiguredPostgresTester(t)},
+		{getConfiguredClickHouseTester(t)},
 	}
 
 	testSuite := map[string]func(t *testing.T, storeTester offlineSqlTest){
@@ -115,16 +115,16 @@ func TestTrainingSets(t *testing.T) {
 		tester offlineSqlTest
 	}{
 		{
-			getConfiguredBigQueryTester(t, false),
+			getConfiguredBigQueryTester(t),
 		},
 		{
-			getConfiguredSnowflakeTester(t, true),
+			getConfiguredSnowflakeTester(t),
 		},
 		{
-			getConfiguredPostgresTester(t, true),
+			getConfiguredPostgresTester(t),
 		},
 		{
-			getConfiguredClickHouseTester(t, false),
+			getConfiguredClickHouseTester(t),
 		},
 	}
 
@@ -157,10 +157,10 @@ func TestResourceTable(t *testing.T) {
 	}{
 		// TODO: Fix and enable
 		//{getConfiguredBigQueryTester(t, false)},
-		{getConfiguredSnowflakeTester(t, true)},
+		{getConfiguredSnowflakeTester(t)},
 		// TODO: Fix and enable
 		//{getConfiguredPostgresTester(t, false)},
-		{getConfiguredClickHouseTester(t, false)},
+		{getConfiguredClickHouseTester(t)},
 	}
 
 	tsDatasetTypes := []trainingSetDatasetType{
@@ -192,10 +192,10 @@ func TestDelete(t *testing.T) {
 	}{
 		// TODO: Fix and enable
 		//{getConfiguredBigQueryTester(t, false)},
-		{getConfiguredSnowflakeTester(t, true)},
+		{getConfiguredSnowflakeTester(t)},
 		// TODO: Fix and enable
 		//{getConfiguredPostgresTester(t, false)},
-		{getConfiguredClickHouseTester(t, false)},
+		{getConfiguredClickHouseTester(t)},
 	}
 
 	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
@@ -221,25 +221,39 @@ func TestSchemas(t *testing.T) {
 	}
 
 	testInfra := []struct {
-		tester offlineSqlTest
+		tester           offlineSqlTest
+		testCrossDbJoins bool
 	}{
-		{getConfiguredSnowflakeTester(t, true)},
+		{
+			getConfiguredSnowflakeTester(t),
+			true,
+		},
 	}
 
 	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
 		"RegisterTableInDifferentDatabaseTest":           RegisterTableInDifferentDatabaseTest,
 		"RegisterTableInSameDatabaseDifferentSchemaTest": RegisterTableInSameDatabaseDifferentSchemaTest,
 		"RegisterTwoTablesInSameSchemaTest":              RegisterTwoTablesInSameSchemaTest,
-		"CrossDatabaseJoinTest":                          CrossDatabaseJoinTest,
+	}
+
+	crossDatabaseJoinTestCases := map[string]func(t *testing.T, storeTester offlineSqlTest, testCrossDbJoins bool){
+		"CrossDatabaseJoinTest": CrossDatabaseJoinTest,
 	}
 
 	for _, infra := range testInfra {
+		providerName := infra.tester.storeTester.Type()
 		for testName, testCase := range testCases {
-			providerName := infra.tester.storeTester.Type()
 			name := fmt.Sprintf("%s:%s", providerName, testName)
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 				testCase(t, infra.tester)
+			})
+		}
+		for testName, testCase := range crossDatabaseJoinTestCases {
+			name := fmt.Sprintf("%s:%s", providerName, testName)
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				testCase(t, infra.tester, infra.testCrossDbJoins)
 			})
 		}
 	}
@@ -253,7 +267,7 @@ func TestTrainingSetTypes(t *testing.T) {
 	testInfra := []struct {
 		tester offlineSqlTest
 	}{
-		{getConfiguredSnowflakeTester(t, true)},
+		{getConfiguredSnowflakeTester(t)},
 	}
 
 	tsTypes := map[metadata.TrainingSetType]trainingSetDatasetType{
@@ -1632,6 +1646,99 @@ func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester offlineSqlTest) {
 	// Verify the table contents
 	verifyPrimaryTable(t, primary1, records)
 	verifyPrimaryTable(t, primary2, records2)
+}
+
+func CrossDatabaseJoinTest(t *testing.T, test offlineSqlTest, testCrossDbJoins bool) {
+	if !test.testConfig.testCrossDbJoins {
+		t.Skip("skipping cross database join test")
+	}
+
+	storeTester, ok := test.storeTester.(offlineSqlStoreCreateDb)
+	if !ok {
+		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", test.storeTester))
+	}
+
+	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
+	t.Logf("Database Name1: %s\n", dbName)
+	if err := storeTester.CreateDatabase(dbName); err != nil {
+		t.Fatalf("could not create database: %v", err)
+	}
+
+	dbName2 := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
+	t.Logf("Database Name2: %s\n", dbName2)
+	if err := storeTester.CreateDatabase(dbName2); err != nil {
+		t.Fatalf("could not create database: %v", err)
+	}
+
+	t.Cleanup(func() {
+		if err := storeTester.DropDatabase(dbName); err != nil {
+			t.Fatalf("could not drop database: %v", err)
+		}
+		if err := storeTester.DropDatabase(dbName2); err != nil {
+			t.Fatalf("could not drop database: %v", err)
+		}
+	})
+
+	tableName1 := "DUMMY_TABLE"
+	sqlLocation := pl.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", tableName1)
+	records, err := createDummyTable(test.storeTester, sqlLocation, 3)
+	if err != nil {
+		t.Fatalf("could not create table: %v", err)
+	}
+
+	tableName2 := "DUMMY_TABLE2"
+	sqlLocation2 := pl.NewFullyQualifiedSQLLocation(dbName2, "PUBLIC", tableName2)
+	records2, err := createDummyTable(test.storeTester, sqlLocation2, 10)
+	if err != nil {
+		t.Fatalf("could not create table: %v", err)
+	}
+
+	// Register the tables
+	primary1, primaryErr := test.storeTester.RegisterPrimaryFromSourceTable(
+		ResourceID{Name: tableName1, Variant: "test", Type: Primary},
+		sqlLocation,
+	)
+	if primaryErr != nil {
+		t.Fatalf("could not register primary table: %v", primaryErr)
+	}
+
+	primary2, primaryErr := test.storeTester.RegisterPrimaryFromSourceTable(
+		ResourceID{Name: tableName2, Variant: "test", Type: Primary},
+		sqlLocation2,
+	)
+	if primaryErr != nil {
+		t.Fatalf("could not register primary table: %v", primaryErr)
+	}
+
+	// Verify the table contents
+	verifyPrimaryTable(t, primary1, records)
+	verifyPrimaryTable(t, primary2, records2)
+
+	targetTableId := ResourceID{Name: "DUMMY_TABLE_TF", Variant: "test", Type: Transformation}
+	// union the tables using a transformation
+	tfConfig := TransformationConfig{
+		Type:          SQLTransformation,
+		TargetTableID: targetTableId,
+		Query:         fmt.Sprintf("SELECT NAME FROM %s UNION SELECT NAME FROM %s", sqlLocation.TableLocation().String(), sqlLocation2.TableLocation().String()),
+	}
+
+	err = test.storeTester.CreateTransformation(tfConfig)
+	if err != nil {
+		t.Fatalf("could not create transformation: %v", err)
+	}
+
+	// Verify the union table contents
+	tfTable, err := test.storeTester.GetTransformationTable(targetTableId)
+	if err != nil {
+		t.Fatalf("could not get transformation table: %v", err)
+	}
+
+	numRows, err := tfTable.NumRows()
+	if err != nil {
+		t.Fatalf("could not get number of rows: %v", err)
+	}
+
+	assert.Equal(t, int64(13), numRows, "expected 13 rows")
 }
 
 func newSqlLocation(config offlineSqlTestConfig, db, schema, table string) *pl.SQLLocation {

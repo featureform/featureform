@@ -22,7 +22,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
-	"github.com/stretchr/testify/assert"
 
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider/location"
@@ -514,99 +513,6 @@ func TestSnowflakeDeserializeLegacyCredentials(t *testing.T) {
 
 // TEST FUNCTION
 
-func CrossDatabaseJoinTest(t *testing.T, test offlineSqlTest) {
-	if !test.testConfig.testCrossDbJoins {
-		t.Skip("skipping cross database join test")
-	}
-
-	storeTester, ok := test.storeTester.(offlineSqlStoreCreateDb)
-	if !ok {
-		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", test.storeTester))
-	}
-
-	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
-	t.Logf("Database Name1: %s\n", dbName)
-	if err := storeTester.CreateDatabase(dbName); err != nil {
-		t.Fatalf("could not create database: %v", err)
-	}
-
-	dbName2 := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
-	t.Logf("Database Name2: %s\n", dbName2)
-	if err := storeTester.CreateDatabase(dbName2); err != nil {
-		t.Fatalf("could not create database: %v", err)
-	}
-
-	t.Cleanup(func() {
-		if err := storeTester.DropDatabase(dbName); err != nil {
-			t.Fatalf("could not drop database: %v", err)
-		}
-		if err := storeTester.DropDatabase(dbName2); err != nil {
-			t.Fatalf("could not drop database: %v", err)
-		}
-	})
-
-	tableName1 := "DUMMY_TABLE"
-	sqlLocation := location.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", tableName1)
-	records, err := createDummyTable(test.storeTester, sqlLocation, 3)
-	if err != nil {
-		t.Fatalf("could not create table: %v", err)
-	}
-
-	tableName2 := "DUMMY_TABLE2"
-	sqlLocation2 := location.NewFullyQualifiedSQLLocation(dbName2, "PUBLIC", tableName2)
-	records2, err := createDummyTable(test.storeTester, sqlLocation2, 10)
-	if err != nil {
-		t.Fatalf("could not create table: %v", err)
-	}
-
-	// Register the tables
-	primary1, primaryErr := test.storeTester.RegisterPrimaryFromSourceTable(
-		ResourceID{Name: tableName1, Variant: "test", Type: Primary},
-		sqlLocation,
-	)
-	if primaryErr != nil {
-		t.Fatalf("could not register primary table: %v", primaryErr)
-	}
-
-	primary2, primaryErr := test.storeTester.RegisterPrimaryFromSourceTable(
-		ResourceID{Name: tableName2, Variant: "test", Type: Primary},
-		sqlLocation2,
-	)
-	if primaryErr != nil {
-		t.Fatalf("could not register primary table: %v", primaryErr)
-	}
-
-	// Verify the table contents
-	verifyPrimaryTable(t, primary1, records)
-	verifyPrimaryTable(t, primary2, records2)
-
-	targetTableId := ResourceID{Name: "DUMMY_TABLE_TF", Variant: "test", Type: Transformation}
-	// union the tables using a transformation
-	tfConfig := TransformationConfig{
-		Type:          SQLTransformation,
-		TargetTableID: targetTableId,
-		Query:         fmt.Sprintf("SELECT NAME FROM %s UNION SELECT NAME FROM %s", sqlLocation.TableLocation().String(), sqlLocation2.TableLocation().String()),
-	}
-
-	err = test.storeTester.CreateTransformation(tfConfig)
-	if err != nil {
-		t.Fatalf("could not create transformation: %v", err)
-	}
-
-	// Verify the union table contents
-	tfTable, err := test.storeTester.GetTransformationTable(targetTableId)
-	if err != nil {
-		t.Fatalf("could not get transformation table: %v", err)
-	}
-
-	numRows, err := tfTable.NumRows()
-	if err != nil {
-		t.Fatalf("could not get number of rows: %v", err)
-	}
-
-	assert.Equal(t, int64(13), numRows, "expected 13 rows")
-}
-
 func RegisterMaterializationWithDefaultTargetLagTest(t *testing.T, test offlineSqlTest) {
 	useTimestamps := true
 	isIncremental := true
@@ -797,7 +703,7 @@ func destroySnowflakeDatabase(c pc.SnowflakeConfig) error {
 	return nil
 }
 
-func getConfiguredSnowflakeTester(t *testing.T, useCrossDBJoins bool) offlineSqlTest {
+func getConfiguredSnowflakeTester(t *testing.T) offlineSqlTest {
 	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	t.Logf("Creating Parent Database: %s\n", dbName)
 	snowflakeConfig, err := getSnowflakeConfig(t, dbName)
@@ -829,7 +735,6 @@ func getConfiguredSnowflakeTester(t *testing.T, useCrossDBJoins bool) offlineSql
 	return offlineSqlTest{
 		storeTester: offlineStoreTester,
 		testConfig: offlineSqlTestConfig{
-			testCrossDbJoins:  useCrossDBJoins,
 			sanitizeTableName: func(obj pl.FullyQualifiedObject) string { return SanitizeSnowflakeIdentifier(obj) },
 		},
 	}

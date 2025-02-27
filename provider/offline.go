@@ -11,12 +11,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	tsq "github.com/featureform/provider/tsquery"
 	"reflect"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	types2 "github.com/featureform/fftypes"
+	tsq "github.com/featureform/provider/tsquery"
 
 	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"
@@ -851,6 +853,14 @@ type TableSchema struct {
 	Columns []TableColumn
 	// The complete URL that points to the location of the data file
 	SourceTable string
+}
+
+func (schema *TableSchema) ToTypesSchema() types2.Schema {
+	schemaMap := make(map[string]types.ValueType)
+	for _, col := range schema.Columns {
+		schemaMap[col.Name] = col.ValueType
+	}
+	return schemaMap
 }
 
 type TableSchemaJSONWrapper struct {

@@ -26,6 +26,7 @@ import (
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
+	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
@@ -1367,6 +1368,30 @@ func (pt *sqlPrimaryTable) NumRows() (int64, error) {
 		return 0, wrapped
 	}
 	return n, nil
+}
+
+func (pt *sqlPrimaryTable) ToDataset() (dataset.Dataset, error) {
+	columns, err := pt.query.getColumns(pt.db, pt.name)
+	if err != nil {
+		return nil, err
+	}
+	columnNames := make([]string, 0)
+	for _, col := range columns {
+		columnNames = append(columnNames, sanitize(col.Name))
+	}
+	names := strings.Join(columnNames[:], ", ")
+	query := fmt.Sprintf("SELECT %s FROM %s", names, sanitize(pt.name))
+	rows, err := pt.db.Query(query)
+	if err != nil {
+		wrapped := fferr.NewExecutionError(pt.providerType.String(), err)
+		wrapped.AddDetail("table_name", pt.name)
+		return nil, wrapped
+	}
+	colTypes, err := pt.getValueColumnTypes(pt.name)
+	if err != nil {
+		return nil, err
+	}
+	return newsqlDataset(rows, colTypes, columnNames, pt.query, pt.providerType), nil
 }
 
 func determineColumnType(valueType types.ValueType) (string, error) {

@@ -10,13 +10,16 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/featureform/config"
 	"github.com/featureform/config/bootstrap"
 	"github.com/featureform/coordinator"
+	"github.com/google/uuid"
 
 	"github.com/featureform/coordinator/spawner"
+	ct "github.com/featureform/coordinator/types"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -73,35 +76,26 @@ func main() {
 
 	config := coordinator.SchedulerConfig{
 		TaskPollInterval: func() time.Duration {
-			interval, err := time.ParseDuration(help.GetEnv("TASK_POLL_INTERVAL", "1s"))
-			if err != nil {
-				logger.Errorw("Invalid TASK_POLL_INTERVAL")
-				panic(err.Error())
-			}
-			return interval
+			return appConfig.SchedulerTaskPollInterval
 		}(),
 		TaskStatusSyncInterval: func() time.Duration {
-			interval, err := time.ParseDuration(help.GetEnv("TASK_STATUS_SYNC_INTERVAL", "1h"))
-			if err != nil {
-				logger.Errorw("Invalid TASK_STATUS_SYNC_INTERVAL")
-				panic(err.Error())
-			}
-			return interval
+			return appConfig.SchedulerTaskStatusSyncInterval
 		}(),
 		DependencyPollInterval: func() time.Duration {
-			interval, err := time.ParseDuration(help.GetEnv("TASK_DEPENDENCY_POLL_INTERVAL", "1s"))
-			if err != nil {
-				logger.Errorw("Invalid TASK_DEPENDENCY_POLL_INTERVAL")
-				panic(err.Error())
-			}
-			return interval
+			return appConfig.SchedulerDependencyPollInterval
 		}(),
+		TaskDistributionInterval: appConfig.SchedulerTaskDistributionInterval,
 	}
 
 	logger.Info("Dependencies created. Starting Scheduler...")
-	scheduler := coordinator.NewScheduler(client, logger, spawnerInstance, manager.Storage.Locker, config)
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "featureform-coordinator-" + uuid.New().String()[0:8]
+		logger.Warnw("Failed to get hostname; using random hostname", "err", err, "hostname", hostname)
+	}
+	scheduler := coordinator.NewScheduler(initCtx, ct.SchedulerID(hostname), client, spawnerInstance, manager.Storage.Locker, config)
 
-	err = scheduler.Start()
+	err = scheduler.Start(context.Background())
 	if err != nil {
 		panic(err.Error())
 	}

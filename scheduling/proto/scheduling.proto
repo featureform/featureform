@@ -29,6 +29,7 @@ service Tasks {
   rpc AddRunLog(Log) returns (Empty);
   rpc SetRunEndTime(RunEndTimeUpdate) returns (Empty);
   rpc WatchForCancel(TaskRunID) returns (featureform.serving.metadata.proto.ResourceStatus);
+  rpc SetRunSchedulerID(SetRunSchedulerIDRequest) returns (Empty);
 }
 
 message TaskID {
@@ -148,6 +149,8 @@ message TaskRunMetadata {
   RunID last_successful = 14;
   ResumeID resumeID = 15;
   bool isDelete = 16;
+  string schedulerID = 17;
+  string runIteration = 18;
 }
 
 message TaskRunList {
@@ -155,3 +158,10 @@ message TaskRunList {
 }
 
 message Empty {}
+
+message SetRunSchedulerIDRequest {
+  RunID runID = 1;
+  TaskID taskID = 2;
+  string schedulerID = 3;
+  string runIteration = 4;
+}

@@ -2471,22 +2471,6 @@ func (variant *LabelVariant) isTable() bool {
 	return reflect.TypeOf(variant.serialized.GetLocation()) == reflect.TypeOf(&pb.LabelVariant_Columns{})
 }
 
-func (variant *LabelVariant) LocationColumns() interface{} {
-	logger := logging.GlobalLogger.With("label_name", variant.Name(), "label_variant", variant.Name())
-	src := variant.serialized.GetColumns()
-	if src == nil {
-		logger.Errorw("Columns location is nil")
-		return nil
-	}
-	columns := ResourceVariantColumns{
-		Entity: src.Entity,
-		Value:  src.Value,
-		TS:     src.Ts,
-	}
-	logger.Debugw("Deprecated location columns", "columns", columns)
-	return columns
-}
-
 func (variant *LabelVariant) Tags() Tags {
 	return variant.fetchTagsFn.Tags()
 }

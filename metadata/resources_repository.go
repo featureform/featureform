@@ -116,8 +116,8 @@ func NewResourcesRepositoryFromLookup(resourceLookup ResourceLookup) (ResourcesR
 	switch lookup := resourceLookup.(type) {
 	case *LocalResourceLookup:
 		return NewInMemoryResourcesRepository(lookup), nil
-	case *MetadataStorageResourceLookup:
 
+	case *MetadataStorageResourceLookup:
 		if lookup.Connection.Storage == nil {
 			return nil, fferr.NewInternalErrorf("MetadataStorageResourceLookup.Storage is nil")
 		}

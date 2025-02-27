@@ -329,3 +329,7 @@ type FeatureformApp struct {
 	// This will only be set when StateProviderType is PostgresStateProvider
 	Postgres *postgres.Config
 }
+
+func GetMaterializationWorkerPoolSize() int {
+	return helpers.GetEnvInt("MATERIALIZATION_WORKER_POOL_SIZE", 30)
+}

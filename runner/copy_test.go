@@ -8,6 +8,7 @@
 package runner
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -134,7 +135,7 @@ type mockOnlineTableBatch struct {
 	DataTable sync.Map
 }
 
-func (m *mockOnlineTableBatch) BatchSet(items []provider.SetItem) error {
+func (m *mockOnlineTableBatch) BatchSet(ctx context.Context, items []provider.SetItem) error {
 	for _, item := range items {
 		m.DataTable.Store(item.Entity, item.Value)
 	}

@@ -8,6 +8,7 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 
 	pl "github.com/featureform/provider/location"
@@ -65,7 +66,7 @@ type VectorStoreTable interface {
 
 type BatchOnlineTable interface {
 	OnlineStoreTable
-	BatchSet([]SetItem) error
+	BatchSet(ctx context.Context, items []SetItem) error
 	MaxBatchSize() (int, error)
 }
 

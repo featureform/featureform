@@ -99,3 +99,7 @@ func (m *memoryStorageImplementation) Close() {
 func (m *memoryStorageImplementation) Type() MetadataStorageType {
 	return MemoryMetadataStorage
 }
+
+func (m *memoryStorageImplementation) Search(ctx context.Context, q string, opts ...query.Query) (map[string]string, error) {
+	return m.List(q, opts...)
+}

@@ -106,6 +106,15 @@ func (r ResourceType) String() string {
 	return pb.ResourceType_name[int32(r)]
 }
 
+func ResourceTypeFromString(s string) (ResourceType, error) {
+	resourceType, ok := pb.ResourceType_value[s]
+	if !ok {
+		logging.GlobalLogger.Errorw("Unknown ResourceType", "resource-type", s)
+		return -1, fferr.NewInvalidArgumentError(fmt.Errorf("unknown resource type: %s", s))
+	}
+	return ResourceType(resourceType), nil
+}
+
 func (r ResourceType) Serialized() pb.ResourceType {
 	return pb.ResourceType(r)
 }
@@ -309,6 +318,14 @@ type Resource interface {
 	UpdateStatus(*pb.ResourceStatus) error
 	UpdateSchedule(string) error
 	Update(ResourceLookup, Resource) error
+	ToDashboardDoc() ResourceDashboardDoc
+}
+
+type ResourceDashboardDoc struct {
+	Name    string
+	Variant string
+	Type    string
+	Tags    []string
 }
 
 func isDirectDependency(ctx context.Context, lookup ResourceLookup, dependency, parent Resource) (bool, error) {
@@ -417,6 +434,7 @@ type ResourceLookup interface {
 	SetStatus(context.Context, ResourceID, *pb.ResourceStatus) error
 	SetSchedule(context.Context, ResourceID, string) error
 	Delete(context.Context, ResourceID) error
+	Search(context.Context, string) ([]Resource, error)
 }
 
 type resourceStatusImplementation interface {
@@ -542,6 +560,10 @@ func (lookup LocalResourceLookup) Delete(ctx context.Context, id ResourceID) err
 	return fferr.NewInternalErrorf("not implemented")
 }
 
+func (lookup LocalResourceLookup) Search(ctx context.Context, q string) ([]Resource, error) {
+	return nil, fferr.NewInternalErrorf("not implemented")
+}
+
 type sourceResource struct {
 	serialized *pb.Source
 }
@@ -610,6 +632,13 @@ func (resource *sourceResource) Update(lookup ResourceLookup, updateRes Resource
 	wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
 	wrapped.AddDetail("resource_type", resource.ID().Type.String())
 	return wrapped
+}
+
+func (resource *sourceResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name: resource.serialized.Name,
+		Type: SOURCE.String(),
+	}
 }
 
 type sourceVariantResource struct {
@@ -756,6 +785,15 @@ func (resource *sourceVariantResource) Owner() string {
 	return resource.serialized.Owner
 }
 
+func (resource *sourceVariantResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name:    resource.serialized.Name,
+		Type:    SOURCE_VARIANT.String(),
+		Variant: resource.serialized.Variant,
+		Tags:    resource.serialized.Tags.Tag,
+	}
+}
+
 type featureResource struct {
 	serialized *pb.Feature
 }
@@ -824,6 +862,13 @@ func (resource *featureResource) Update(lookup ResourceLookup, updateRes Resourc
 	wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
 	wrapped.AddDetail("resource_type", resource.ID().Type.String())
 	return wrapped
+}
+
+func (resource *featureResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name: resource.serialized.Name,
+		Type: FEATURE.String(),
+	}
 }
 
 type featureVariantResource struct {
@@ -995,6 +1040,15 @@ func (resource *featureVariantResource) Owner() string {
 	return resource.serialized.Owner
 }
 
+func (resource *featureVariantResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name:    resource.serialized.Name,
+		Type:    FEATURE_VARIANT.String(),
+		Variant: resource.serialized.Variant,
+		Tags:    resource.serialized.Tags.Tag,
+	}
+}
+
 type labelResource struct {
 	serialized *pb.Label
 }
@@ -1063,6 +1117,13 @@ func (resource *labelResource) Update(lookup ResourceLookup, updateRes Resource)
 	wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
 	wrapped.AddDetail("resource_type", resource.ID().Type.String())
 	return wrapped
+}
+
+func (resource *labelResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name: resource.serialized.Name,
+		Type: LABEL.String(),
+	}
 }
 
 type labelVariantResource struct {
@@ -1240,6 +1301,15 @@ func (resource *labelVariantResource) Owner() string {
 	return resource.serialized.Owner
 }
 
+func (resource *labelVariantResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name:    resource.serialized.Name,
+		Type:    LABEL_VARIANT.String(),
+		Variant: resource.serialized.Variant,
+		Tags:    resource.serialized.Tags.Tag,
+	}
+}
+
 type trainingSetResource struct {
 	serialized *pb.TrainingSet
 }
@@ -1308,6 +1378,13 @@ func (resource *trainingSetResource) Update(lookup ResourceLookup, updateRes Res
 	wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
 	wrapped.AddDetail("resource_type", resource.ID().Type.String())
 	return wrapped
+}
+
+func (resource *trainingSetResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name: resource.serialized.Name,
+		Type: TRAINING_SET.String(),
+	}
 }
 
 type trainingSetVariantResource struct {
@@ -1503,6 +1580,15 @@ func (resource *trainingSetVariantResource) Validate(ctx context.Context, lookup
 	return nil
 }
 
+func (resource *trainingSetVariantResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name:    resource.serialized.Name,
+		Type:    TRAINING_SET_VARIANT.String(),
+		Variant: resource.serialized.Variant,
+		Tags:    resource.serialized.Tags.Tag,
+	}
+}
+
 type modelResource struct {
 	serialized *pb.Model
 }
@@ -1596,6 +1682,14 @@ func (resource *modelResource) Update(lookup ResourceLookup, updateRes Resource)
 	return nil
 }
 
+func (resource *modelResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name: resource.serialized.Name,
+		Type: MODEL.String(),
+		Tags: resource.serialized.Tags.Tag,
+	}
+}
+
 type userResource struct {
 	serialized *pb.User
 }
@@ -1678,6 +1772,14 @@ func (resource *userResource) Update(lookup ResourceLookup, updateRes Resource) 
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, userUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, userUpdate.Properties)
 	return nil
+}
+
+func (resource *userResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name: resource.serialized.Name,
+		Type: USER.String(),
+		Tags: resource.serialized.Tags.Tag,
+	}
 }
 
 type providerResource struct {
@@ -1812,6 +1914,14 @@ func (resource *providerResource) isValidConfigUpdate(configUpdate pc.Serialized
 	}
 }
 
+func (resource *providerResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name: resource.serialized.Name,
+		Type: PROVIDER.String(),
+		Tags: resource.serialized.Tags.Tag,
+	}
+}
+
 type entityResource struct {
 	serialized *pb.Entity
 }
@@ -1889,6 +1999,14 @@ func (resource *entityResource) Update(lookup ResourceLookup, updateRes Resource
 	return nil
 }
 
+func (resource *entityResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name: resource.serialized.Name,
+		Type: ENTITY.String(),
+		Tags: resource.serialized.Tags.Tag,
+	}
+}
+
 type MetadataServer struct {
 	Logger      logging.Logger
 	lookup      ResourceLookup
@@ -1934,7 +2052,7 @@ func NewMetadataServer(ctx context.Context, config *Config) (*MetadataServer, er
 
 	logger.Infow("Creating new metadata server", "address", config.Address)
 
-	baseLookup := MemoryResourceLookup{config.TaskManager.Storage}
+	baseLookup := MetadataStorageResourceLookup{config.TaskManager.Storage}
 
 	resourcesRepo, err := NewResourcesRepositoryFromLookup(&baseLookup)
 	if err != nil {

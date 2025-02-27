@@ -226,4 +226,6 @@ type metadataStorageImplementation interface {
 	Close()
 	// Type returns the type of the storage
 	Type() MetadataStorageType
+	// Search returns all the keys that match the query
+	Search(ctx context.Context, q string, opts ...query.Query) (map[string]string, error)
 }

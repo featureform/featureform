@@ -69,7 +69,7 @@ export const searchColumns = [
     hide: false,
     renderCell: function (params) {
       const resourceType =
-        Resource[searchTypeMap[params.row.Type?.toUpperCase()]];
+        Resource[searchTypeMap[params.row?.Type?.toUpperCase()]];
       return (
         <>
           <TypeIcon iconKey={params.row?.Type} />

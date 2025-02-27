@@ -221,12 +221,10 @@ func TestSchemas(t *testing.T) {
 	}
 
 	testInfra := []struct {
-		tester           offlineSqlTest
-		testCrossDbJoins bool
+		tester offlineSqlTest
 	}{
 		{
 			getConfiguredSnowflakeTester(t),
-			true,
 		},
 	}
 
@@ -234,10 +232,6 @@ func TestSchemas(t *testing.T) {
 		"RegisterTableInDifferentDatabaseTest":           RegisterTableInDifferentDatabaseTest,
 		"RegisterTableInSameDatabaseDifferentSchemaTest": RegisterTableInSameDatabaseDifferentSchemaTest,
 		"RegisterTwoTablesInSameSchemaTest":              RegisterTwoTablesInSameSchemaTest,
-	}
-
-	crossDatabaseJoinTestCases := map[string]func(t *testing.T, storeTester offlineSqlTest, testCrossDbJoins bool){
-		"CrossDatabaseJoinTest": CrossDatabaseJoinTest,
 	}
 
 	for _, infra := range testInfra {
@@ -249,11 +243,33 @@ func TestSchemas(t *testing.T) {
 				testCase(t, infra.tester)
 			})
 		}
-		for testName, testCase := range crossDatabaseJoinTestCases {
+	}
+}
+
+func TestCrossDatabaseJoin(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+
+	testInfra := []struct {
+		tester offlineSqlTest
+	}{
+		{
+			getConfiguredSnowflakeTester(t),
+		},
+	}
+
+	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
+		"CrossDatabaseJoinTest": CrossDatabaseJoinTest,
+	}
+
+	for _, infra := range testInfra {
+		providerName := infra.tester.storeTester.Type()
+		for testName, testCase := range testCases {
 			name := fmt.Sprintf("%s:%s", providerName, testName)
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				testCase(t, infra.tester, infra.testCrossDbJoins)
+				testCase(t, infra.tester)
 			})
 		}
 	}
@@ -1648,11 +1664,7 @@ func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester offlineSqlTest) {
 	verifyPrimaryTable(t, primary2, records2)
 }
 
-func CrossDatabaseJoinTest(t *testing.T, test offlineSqlTest, testCrossDbJoins bool) {
-	if !test.testConfig.testCrossDbJoins {
-		t.Skip("skipping cross database join test")
-	}
-
+func CrossDatabaseJoinTest(t *testing.T, test offlineSqlTest) {
 	storeTester, ok := test.storeTester.(offlineSqlStoreCreateDb)
 	if !ok {
 		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", test.storeTester))

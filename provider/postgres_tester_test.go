@@ -170,7 +170,6 @@ func TestPostgresSchemas(t *testing.T) {
 	tester := offlineSqlTest{
 		storeTester: offlineStoreTester,
 		testConfig: offlineSqlTestConfig{
-			testCrossDbJoins:         false,
 			sanitizeTableName:        nil,
 			removeSchemaFromLocation: false,
 		},

@@ -17,7 +17,6 @@ type offlineSqlTest struct {
 }
 
 type offlineSqlTestConfig struct {
-	testCrossDbJoins bool
 	// sanitizeTableName is used to manually sanitize the tables, as most of the correctness
 	// tests assume a Snowflake-like identifier quoting interface. This is used as a stop-gap
 	// until locations are refactored, and the tests are truly generic over the location interface.

@@ -215,6 +215,65 @@ func TestDelete(t *testing.T) {
 	}
 }
 
+func TestSchemas(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+
+	testInfra := []struct {
+		tester offlineSqlTest
+	}{
+		{getConfiguredSnowflakeTester(t, true)},
+	}
+
+	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
+		"RegisterTableInDifferentDatabaseTest":           RegisterTableInDifferentDatabaseTest,
+		"RegisterTableInSameDatabaseDifferentSchemaTest": RegisterTableInSameDatabaseDifferentSchemaTest,
+		"RegisterTwoTablesInSameSchemaTest":              RegisterTwoTablesInSameSchemaTest,
+		"CrossDatabaseJoinTest":                          CrossDatabaseJoinTest,
+	}
+
+	for _, infra := range testInfra {
+		for testName, testCase := range testCases {
+			providerName := infra.tester.storeTester.Type()
+			name := fmt.Sprintf("%s:%s", providerName, testName)
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				testCase(t, infra.tester)
+			})
+		}
+	}
+}
+
+func TestTrainingSetTypes(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration tests")
+	}
+
+	testInfra := []struct {
+		tester offlineSqlTest
+	}{
+		{getConfiguredSnowflakeTester(t, true)},
+	}
+
+	tsTypes := map[metadata.TrainingSetType]trainingSetDatasetType{
+		metadata.DynamicTrainingSet: tsDatasetFeaturesLabelTS,
+		metadata.StaticTrainingSet:  tsDatasetFeaturesTSLabelNoTS,
+		metadata.ViewTrainingSet:    tsDatasetFeaturesNoTSLabelTS,
+	}
+
+	for _, infra := range testInfra {
+		for tsType, dataSetType := range tsTypes {
+			providerName := infra.tester.storeTester.Type()
+			name := fmt.Sprintf("%s:%s", providerName, tsType)
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				RegisterTrainingSetWithType(t, infra.tester, dataSetType, tsType)
+			})
+		}
+	}
+}
+
 func newSQLTransformationTest(tester offlineSqlTest, transformationQuery string) *sqlTransformationTester {
 	data := newTestSQLTransformationData(tester, transformationQuery)
 	return &sqlTransformationTester{
@@ -1455,6 +1514,124 @@ func verifyPrimaryTable(t *testing.T, primary PrimaryTable, records []GenericRec
 		}
 		i++
 	}
+}
+
+func RegisterTableInDifferentDatabaseTest(t *testing.T, tester offlineSqlTest) {
+	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
+
+	storeTester, ok := tester.storeTester.(offlineSqlStoreCreateDb)
+	if !ok {
+		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", tester.storeTester))
+	}
+
+	err := storeTester.CreateDatabase(dbName)
+	if err != nil {
+		t.Fatalf("could not create database: %v", err)
+	}
+
+	t.Cleanup(func() {
+		if err := storeTester.DropDatabase(dbName); err != nil {
+			t.Fatalf("could not drop database: %v", err)
+		}
+	})
+
+	// Create the schema
+	schemaName := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	if err := tester.storeTester.CreateSchema(dbName, schemaName); err != nil {
+		t.Fatalf("could not create schema: %v", err)
+	}
+
+	// Create the table
+	tableName := "DUMMY_TABLE"
+	sqlLocation := pl.NewFullyQualifiedSQLLocation(dbName, schemaName, tableName)
+	records, err := createDummyTable(tester.storeTester, sqlLocation, 3)
+	if err != nil {
+		t.Fatalf("could not create table: %v", err)
+	}
+
+	primary, primaryErr := tester.storeTester.RegisterPrimaryFromSourceTable(
+		ResourceID{Name: tableName, Variant: "test", Type: Primary},
+		sqlLocation,
+	)
+	if primaryErr != nil {
+		t.Fatalf("could not register primary table: %v", primaryErr)
+	}
+
+	// Verify the table contents
+	verifyPrimaryTable(t, primary, records)
+}
+
+func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester offlineSqlTest) {
+	schemaName := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	if err := storeTester.storeTester.CreateSchema("", schemaName); err != nil {
+		t.Fatalf("could not create schema: %v", err)
+	}
+
+	// Create the table
+	tableName := "DUMMY_TABLE"
+	sqlLocation := pl.NewFullyQualifiedSQLLocation("", schemaName, tableName)
+	records, err := createDummyTable(storeTester.storeTester, sqlLocation, 3)
+	if err != nil {
+		t.Fatalf("could not create table: %v", err)
+	}
+
+	primary, primaryErr := storeTester.storeTester.RegisterPrimaryFromSourceTable(
+		ResourceID{Name: tableName, Variant: "test", Type: Primary},
+		sqlLocation,
+	)
+	if primaryErr != nil {
+		t.Fatalf("could not register primary table: %v", primaryErr)
+	}
+
+	// Verify the table contents
+	verifyPrimaryTable(t, primary, records)
+}
+
+func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester offlineSqlTest) {
+	schemaName1 := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	schemaName2 := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
+	if err := tester.storeTester.CreateSchema("", schemaName1); err != nil {
+		t.Fatalf("could not create schema: %v", err)
+	}
+
+	if err := tester.storeTester.CreateSchema("", schemaName2); err != nil {
+		t.Fatalf("could not create schema: %v", err)
+	}
+
+	// Create the first table
+	tableName := "DUMMY_TABLE"
+	sqlLocation := pl.NewFullyQualifiedSQLLocation("", schemaName1, tableName)
+	records, err := createDummyTable(tester.storeTester, sqlLocation, 3)
+	if err != nil {
+		t.Fatalf("could not create table: %v", err)
+	}
+
+	// Create the second table using the same table name
+	sqlLocation2 := pl.NewFullyQualifiedSQLLocation("", schemaName2, tableName)
+	records2, err := createDummyTable(tester.storeTester, sqlLocation2, 10)
+	if err != nil {
+		t.Fatalf("could not create table: %v", err)
+	}
+
+	primary1, primaryErr := tester.storeTester.RegisterPrimaryFromSourceTable(
+		ResourceID{Name: "tb1", Variant: "test", Type: Primary},
+		sqlLocation,
+	)
+	if primaryErr != nil {
+		t.Fatalf("could not register primary table: %v", primaryErr)
+	}
+
+	primary2, primaryErr := tester.storeTester.RegisterPrimaryFromSourceTable(
+		ResourceID{Name: "tb2", Variant: "test", Type: Primary},
+		sqlLocation2,
+	)
+	if primaryErr != nil {
+		t.Fatalf("could not register primary table: %v", primaryErr)
+	}
+
+	// Verify the table contents
+	verifyPrimaryTable(t, primary1, records)
+	verifyPrimaryTable(t, primary2, records2)
 }
 
 func newSqlLocation(config offlineSqlTestConfig, db, schema, table string) *pl.SQLLocation {

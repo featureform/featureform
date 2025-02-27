@@ -683,7 +683,6 @@ func (store *clickHouseOfflineStore) RegisterResourceFromSourceTable(id Resource
 		return nil, err
 	}
 
-	// TODO: Deduplicate this with the one in snowflake provider
 	rows, err := store.db.Query(query)
 	if err != nil {
 		logger.Errorw("failed to query resource table columns", "error", err)
@@ -1126,11 +1125,6 @@ func (store *clickHouseOfflineStore) buildTrainingSetQuery(def TrainingSetDef, t
 	store.logger.Debugw("Building training set query...", "def", def)
 
 	sanitizeTableNameFn := func(loc pl.Location) (string, error) {
-		//lblLoc, isSQLLocation := loc.(*pl.SQLLocation)
-		//if !isSQLLocation {
-		//	return "", fferr.NewInternalErrorf("label location is not an SQL location")
-		//}
-		//return SanitizeSnowflakeIdentifier(lblLoc.TableLocation()), nil
 		return loc.Location(), nil
 	}
 	params, err := def.ToBuilderParams(store.logger, sanitizeTableNameFn)
@@ -1153,7 +1147,6 @@ func (store *clickHouseOfflineStore) buildTrainingSetQuery(def TrainingSetDef, t
 
 	var sb strings.Builder
 
-	// TODO: Validate the ORDER BY
 	sb.WriteString(fmt.Sprintf("CREATE OR REPLACE TABLE `%s` ORDER BY () AS ", tableName))
 	sb.WriteString(tsQuery)
 	return sb.String(), nil

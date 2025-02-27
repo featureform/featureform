@@ -294,7 +294,3 @@ func getSearchQuery() string {
 	ORDER BY r.rank DESC
 	`
 }
-
-func (psql *PSQLStorageImplementation) Type() MetadataStorageType {
-	return PSQLMetadataStorage
-}

@@ -324,7 +324,7 @@ type Resource interface {
 type ResourceDashboardDoc struct {
 	Name    string
 	Variant string
-	Type    ResourceType
+	Type    string
 	Tags    []string
 }
 
@@ -637,7 +637,7 @@ func (resource *sourceResource) Update(lookup ResourceLookup, updateRes Resource
 func (resource *sourceResource) ToDashboardDoc() ResourceDashboardDoc {
 	return ResourceDashboardDoc{
 		Name: resource.serialized.Name,
-		Type: SOURCE,
+		Type: SOURCE.String(),
 	}
 }
 
@@ -788,7 +788,7 @@ func (resource *sourceVariantResource) Owner() string {
 func (resource *sourceVariantResource) ToDashboardDoc() ResourceDashboardDoc {
 	return ResourceDashboardDoc{
 		Name:    resource.serialized.Name,
-		Type:    SOURCE_VARIANT,
+		Type:    SOURCE_VARIANT.String(),
 		Variant: resource.serialized.Variant,
 		Tags:    resource.serialized.Tags.Tag,
 	}
@@ -867,7 +867,7 @@ func (resource *featureResource) Update(lookup ResourceLookup, updateRes Resourc
 func (resource *featureResource) ToDashboardDoc() ResourceDashboardDoc {
 	return ResourceDashboardDoc{
 		Name: resource.serialized.Name,
-		Type: FEATURE,
+		Type: FEATURE.String(),
 	}
 }
 
@@ -1043,7 +1043,7 @@ func (resource *featureVariantResource) Owner() string {
 func (resource *featureVariantResource) ToDashboardDoc() ResourceDashboardDoc {
 	return ResourceDashboardDoc{
 		Name:    resource.serialized.Name,
-		Type:    FEATURE_VARIANT,
+		Type:    FEATURE_VARIANT.String(),
 		Variant: resource.serialized.Variant,
 		Tags:    resource.serialized.Tags.Tag,
 	}
@@ -1122,7 +1122,7 @@ func (resource *labelResource) Update(lookup ResourceLookup, updateRes Resource)
 func (resource *labelResource) ToDashboardDoc() ResourceDashboardDoc {
 	return ResourceDashboardDoc{
 		Name: resource.serialized.Name,
-		Type: LABEL,
+		Type: LABEL.String(),
 	}
 }
 
@@ -1304,7 +1304,7 @@ func (resource *labelVariantResource) Owner() string {
 func (resource *labelVariantResource) ToDashboardDoc() ResourceDashboardDoc {
 	return ResourceDashboardDoc{
 		Name:    resource.serialized.Name,
-		Type:    LABEL_VARIANT,
+		Type:    LABEL_VARIANT.String(),
 		Variant: resource.serialized.Variant,
 		Tags:    resource.serialized.Tags.Tag,
 	}
@@ -1383,7 +1383,7 @@ func (resource *trainingSetResource) Update(lookup ResourceLookup, updateRes Res
 func (resource *trainingSetResource) ToDashboardDoc() ResourceDashboardDoc {
 	return ResourceDashboardDoc{
 		Name: resource.serialized.Name,
-		Type: TRAINING_SET,
+		Type: TRAINING_SET.String(),
 	}
 }
 
@@ -1583,7 +1583,7 @@ func (resource *trainingSetVariantResource) Validate(ctx context.Context, lookup
 func (resource *trainingSetVariantResource) ToDashboardDoc() ResourceDashboardDoc {
 	return ResourceDashboardDoc{
 		Name:    resource.serialized.Name,
-		Type:    TRAINING_SET_VARIANT,
+		Type:    TRAINING_SET_VARIANT.String(),
 		Variant: resource.serialized.Variant,
 		Tags:    resource.serialized.Tags.Tag,
 	}
@@ -1685,7 +1685,7 @@ func (resource *modelResource) Update(lookup ResourceLookup, updateRes Resource)
 func (resource *modelResource) ToDashboardDoc() ResourceDashboardDoc {
 	return ResourceDashboardDoc{
 		Name: resource.serialized.Name,
-		Type: MODEL,
+		Type: MODEL.String(),
 		Tags: resource.serialized.Tags.Tag,
 	}
 }
@@ -1777,7 +1777,7 @@ func (resource *userResource) Update(lookup ResourceLookup, updateRes Resource) 
 func (resource *userResource) ToDashboardDoc() ResourceDashboardDoc {
 	return ResourceDashboardDoc{
 		Name: resource.serialized.Name,
-		Type: USER,
+		Type: USER.String(),
 		Tags: resource.serialized.Tags.Tag,
 	}
 }
@@ -1917,7 +1917,7 @@ func (resource *providerResource) isValidConfigUpdate(configUpdate pc.Serialized
 func (resource *providerResource) ToDashboardDoc() ResourceDashboardDoc {
 	return ResourceDashboardDoc{
 		Name: resource.serialized.Name,
-		Type: PROVIDER,
+		Type: PROVIDER.String(),
 		Tags: resource.serialized.Tags.Tag,
 	}
 }
@@ -2002,7 +2002,7 @@ func (resource *entityResource) Update(lookup ResourceLookup, updateRes Resource
 func (resource *entityResource) ToDashboardDoc() ResourceDashboardDoc {
 	return ResourceDashboardDoc{
 		Name: resource.serialized.Name,
-		Type: ENTITY,
+		Type: ENTITY.String(),
 		Tags: resource.serialized.Tags.Tag,
 	}
 }

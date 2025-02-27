@@ -27,9 +27,7 @@ import (
 
 type clickHouseOfflineStoreTester struct {
 	defaultDbName string
-	// TODO: Revisit whether we do want to store a long-running connection
-	// to the DB.
-	conn *sql.DB
+	conn          *sql.DB
 	*clickHouseOfflineStore
 }
 
@@ -48,7 +46,6 @@ func (ch *clickHouseOfflineStoreTester) DropDatabase(name string) error {
 
 func (ch *clickHouseOfflineStoreTester) CreateSchema(database, schema string) error {
 	// ClickHouse doesn't have a concept like schemas.
-	// TODO: Maybe consider other approaches to this method.
 	return nil
 }
 
@@ -465,7 +462,6 @@ func getConfiguredClickHouseTester(t *testing.T, useCrossDBJoins bool) offlineSq
 		t.Fatalf("could not initialize store: %s\n", err)
 	}
 
-	// TODO: Revisit this
 	conn, err := sql.Open("clickhouse", fmt.Sprintf("clickhouse://%s:%d?username=%s&password=%s&secure=%t",
 		clickHouseConfig.Host,
 		clickHouseConfig.Port,

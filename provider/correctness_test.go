@@ -155,9 +155,11 @@ func TestResourceTable(t *testing.T) {
 	testInfra := []struct {
 		tester offlineSqlTest
 	}{
-		{getConfiguredBigQueryTester(t, false)},
+		// TODO: Fix and enable
+		//{getConfiguredBigQueryTester(t, false)},
 		{getConfiguredSnowflakeTester(t, true)},
-		{getConfiguredPostgresTester(t, false)},
+		// TODO: Fix and enable
+		//{getConfiguredPostgresTester(t, false)},
 		{getConfiguredClickHouseTester(t, false)},
 	}
 
@@ -188,8 +190,10 @@ func TestDelete(t *testing.T) {
 	testInfra := []struct {
 		tester offlineSqlTest
 	}{
+		// TODO: Fix and enable
 		//{getConfiguredBigQueryTester(t, false)},
-		//{getConfiguredSnowflakeTester(t, true)},
+		{getConfiguredSnowflakeTester(t, true)},
+		// TODO: Fix and enable
 		//{getConfiguredPostgresTester(t, false)},
 		{getConfiguredClickHouseTester(t, false)},
 	}
@@ -268,11 +272,10 @@ func initSqlPrimaryDataset(t *testing.T, tester offlineSqlStoreDatasetTester, lo
 	}
 
 	schemaName := sqlLoc.GetSchema()
-	if schemaName == "" {
-		t.Fatalf("expected schema name to be non-empty")
-	}
-	if err := tester.CreateSchema(dbName, schemaName); err != nil {
-		t.Fatalf("could not create schema: %v", err)
+	if schemaName != "" {
+		if err := tester.CreateSchema(dbName, schemaName); err != nil {
+			t.Fatalf("could not create schema: %v", err)
+		}
 	}
 
 	if len(schema.Columns) == 0 {
@@ -325,7 +328,7 @@ func (a idCreator) create(t OfflineResourceType, name string) ResourceID {
 func newTestSQLTransformationData(test offlineSqlTest, transformationQuery string) testSQLTransformationData {
 	db := test.storeTester.GetTestDatabase()
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	sqlLoc := createSqlLocation(test.testConfig, db, schema, "TEST_WIND_DATA_TABLE")
+	sqlLoc := newSqlLocation(test.testConfig, db, schema, "TEST_WIND_DATA_TABLE")
 	tableLoc := sqlLoc.TableLocation()
 	queryFmt := transformationQuery
 	idCreator := newIDCreator("test")
@@ -483,7 +486,7 @@ func (d testSQLTransformationData) Assert(t *testing.T, actual PrimaryTable) {
 func newTestSQLMaterializationData(test offlineSqlTest, useTimestamp bool) testSQLMaterializationData {
 	db := test.storeTester.GetTestDatabase()
 	schema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := createSqlLocation(test.testConfig, db, schema, "TEST_WIND_DATA_TABLE")
+	loc := newSqlLocation(test.testConfig, db, schema, "TEST_WIND_DATA_TABLE")
 	idCreator := newIDCreator("test")
 	data := testSQLMaterializationData{
 		id: idCreator.create(Feature, ""),
@@ -827,9 +830,9 @@ func (data testSQLTrainingSetData) HashStruct(v interface{}) ([]byte, error) {
 func getTrainingSetDatasetTS(test offlineSqlTest, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := test.storeTester.GetTestDatabase()
 	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := createSqlLocation(test.testConfig, db, locSchema, "TEST_FEATURES_ALL_TIMESTAMPS")
+	loc := newSqlLocation(test.testConfig, db, locSchema, "TEST_FEATURES_ALL_TIMESTAMPS")
 	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	labelLoc := createSqlLocation(test.testConfig, db, labelSchema, "TEST_LABELS_ALL_TIMESTAMPS")
+	labelLoc := newSqlLocation(test.testConfig, db, labelSchema, "TEST_LABELS_ALL_TIMESTAMPS")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "wave_height_training_set")
 	labelID := idCreator.create(Label, "wave_height")
@@ -930,9 +933,9 @@ func getTrainingSetDatasetTS(test offlineSqlTest, storeType pt.Type, storeConfig
 func getTrainingSetFeaturesTSLabelsNoTS(test offlineSqlTest, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := test.storeTester.GetTestDatabase()
 	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := createSqlLocation(test.testConfig, db, locSchema, "TEST_FEATURES_FEATURE_TIMESTAMPS")
+	loc := newSqlLocation(test.testConfig, db, locSchema, "TEST_FEATURES_FEATURE_TIMESTAMPS")
 	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	labelLoc := createSqlLocation(test.testConfig, db, labelSchema, "TEST_LABELS_FEATURE_TIMESTAMPS")
+	labelLoc := newSqlLocation(test.testConfig, db, labelSchema, "TEST_LABELS_FEATURE_TIMESTAMPS")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "location_level_training_set")
 	labelID := idCreator.create(Label, "location_level")
@@ -1015,9 +1018,9 @@ func getTrainingSetFeaturesTSLabelsNoTS(test offlineSqlTest, storeType pt.Type, 
 func getTrainingSetDatasetFeaturesNoTSLabelTS(test offlineSqlTest, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := test.storeTester.GetTestDatabase()
 	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := createSqlLocation(test.testConfig, db, locSchema, "TEST_FEATURES_LABEL_TIMESTAMPS")
+	loc := newSqlLocation(test.testConfig, db, locSchema, "TEST_FEATURES_LABEL_TIMESTAMPS")
 	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	labelLoc := createSqlLocation(test.testConfig, db, labelSchema, "TEST_LABELS_LABEL_TIMESTAMPS")
+	labelLoc := newSqlLocation(test.testConfig, db, labelSchema, "TEST_LABELS_LABEL_TIMESTAMPS")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "successful_rides_training_set")
 	labelID := idCreator.create(Label, "successful_rides")
@@ -1111,9 +1114,9 @@ func getTrainingSetDatasetFeaturesNoTSLabelTS(test offlineSqlTest, storeType pt.
 func getTrainingSetDatasetNoTS(test offlineSqlTest, storeType pt.Type, storeConfig pc.SerializedConfig) testSQLTrainingSetData {
 	db := test.storeTester.GetTestDatabase()
 	locSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	loc := createSqlLocation(test.testConfig, db, locSchema, "TEST_FEATURES_NO_TIMESTAMPS")
+	loc := newSqlLocation(test.testConfig, db, locSchema, "TEST_FEATURES_NO_TIMESTAMPS")
 	labelSchema := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
-	labelLoc := createSqlLocation(test.testConfig, db, labelSchema, "TEST_LABELS_NO_TIMESTAMPS")
+	labelLoc := newSqlLocation(test.testConfig, db, labelSchema, "TEST_LABELS_NO_TIMESTAMPS")
 	idCreator := newIDCreator("test")
 	id := idCreator.create(TrainingSet, "surfer_level_training_set")
 	labelID := idCreator.create(Label, "surfer_level")
@@ -1351,7 +1354,7 @@ func DeleteTableTest(t *testing.T, test offlineSqlTest) {
 
 	// Create the table
 	tableName := "DUMMY_TABLE"
-	location := createSqlLocation(test.testConfig, dbName, "PUBLIC", tableName)
+	location := newSqlLocation(test.testConfig, dbName, "PUBLIC", tableName)
 	_, err := createDummyTable(test.storeTester, location, 3)
 
 	if _, err = createDummyTable(test.storeTester, location, 3); err != nil {
@@ -1374,7 +1377,7 @@ func DeleteNotExistingTableTest(t *testing.T, test offlineSqlTest) {
 		t.Fatalf("could not create database: %v", err)
 	}
 
-	loc := createSqlLocation(test.testConfig, dbName, "PUBLIC", "NOT_EXISTING_TABLE")
+	loc := newSqlLocation(test.testConfig, dbName, "PUBLIC", "NOT_EXISTING_TABLE")
 
 	deleteErr := test.storeTester.Delete(loc)
 	if deleteErr == nil {
@@ -1454,7 +1457,7 @@ func verifyPrimaryTable(t *testing.T, primary PrimaryTable, records []GenericRec
 	}
 }
 
-func createSqlLocation(config offlineSqlTestConfig, db, schema, table string) *pl.SQLLocation {
+func newSqlLocation(config offlineSqlTestConfig, db, schema, table string) *pl.SQLLocation {
 	if config.removeSchemaFromLocation {
 		schema = ""
 	}

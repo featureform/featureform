@@ -279,7 +279,7 @@ func (store *sqlOfflineStore) Delete(location pl.Location) error {
 	logger.Debugw("Dropping table", "query", query)
 	if _, err := store.db.Exec(query); err != nil {
 		logger.Errorw("Failed to drop table", "error", err)
-		return fferr.NewExecutionError(pt.SnowflakeOffline.String(), err)
+		return fferr.NewExecutionError(store.Type().String(), err)
 	}
 	logger.Info("Successfully dropped table")
 	return nil

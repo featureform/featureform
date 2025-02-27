@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/featureform/logging"
+	"github.com/featureform/provider/clickhouse"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
@@ -231,7 +232,7 @@ func (t *TrainingSetTask) getLabelSourceMapping(ctx context.Context, label *meta
 	}
 	logger.Debugw("Label Provider", "type", labelProvider.Type())
 	switch pt.Type(labelProvider.Type()) {
-	case pt.SnowflakeOffline, pt.BigQueryOffline, pt.PostgresOffline:
+	case pt.SnowflakeOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.ClickHouseOffline:
 		logger.Debugw("Getting label source mapping from source ...")
 		return t.getLabelSourceMappingFromSource(label, labelProvider, ctx)
 	default:
@@ -444,6 +445,12 @@ func (t *TrainingSetTask) getResourceLocation(provider *metadata.Provider, table
 			return nil, err
 		}
 		location = pl.NewFullyQualifiedSQLLocation(config.Database, config.Schema, tableName)
+	case pt.ClickHouseOffline:
+		config := pc.ClickHouseConfig{}
+		if err := config.Deserialize(provider.SerializedConfig()); err != nil {
+			return nil, err
+		}
+		location = clickhouse.NewLocationFromParts(config.Database, tableName)
 	default:
 		t.logger.Errorf("unsupported provider type: %s", provider.Type())
 	}
@@ -453,9 +460,9 @@ func (t *TrainingSetTask) getResourceLocation(provider *metadata.Provider, table
 func (t *TrainingSetTask) getFeatureSourceTableName(ctx context.Context, p *metadata.Provider, feature *metadata.FeatureVariant) (string, error) {
 	var resourceType provider.OfflineResourceType
 	switch pt.Type(p.Type()) {
-	case pt.SnowflakeOffline, pt.BigQueryOffline, pt.PostgresOffline:
+	case pt.SnowflakeOffline, pt.BigQueryOffline, pt.PostgresOffline, pt.ClickHouseOffline:
 		return t.getSourceTableNameForNonMaterializedProviders(ctx, feature)
-	case pt.MemoryOffline, pt.MySqlOffline, pt.ClickHouseOffline, pt.RedshiftOffline, pt.SparkOffline, pt.K8sOffline:
+	case pt.MemoryOffline, pt.MySqlOffline, pt.RedshiftOffline, pt.SparkOffline, pt.K8sOffline:
 		resourceType = provider.Feature
 	default:
 		t.logger.Errorw("unsupported provider type", "type", p.Type())

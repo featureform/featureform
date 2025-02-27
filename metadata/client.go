@@ -2415,7 +2415,7 @@ func (variant *LabelVariant) IsLegacyLocation() bool {
 	return false
 }
 
-// Location returns either Columns, which is now deprecated but could still be in use in users storage provider, or EntityMappings.
+// Location returns EntityMappings, instead of the outdated Columns.
 func (variant *LabelVariant) Location() (EntityMappings, error) {
 	logger := logging.GlobalLogger.With("label_name", variant.Name(), "label_variant", variant.Name())
 	switch loc := variant.serialized.GetLocation().(type) {

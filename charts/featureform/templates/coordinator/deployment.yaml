@@ -49,6 +49,8 @@ spec:
               value: {{ .Values.k8sRunnerEnable | quote }}
             - name: WORKER_IMAGE
               value: "{{ .Values.repository  }}/worker:{{ .Values.versionOverride | default .Chart.AppVersion }}"
+            - name: MATERIALIZATION_WORKER_POOL_SIZE
+              value: {{ .Values.coordinator.execution.materializationWorkerPoolSize | quote }}
             - name: PANDAS_RUNNER_IMAGE
               value: "{{ .Values.repository | default .Values.repository }}/k8s_runner:{{ .Values.versionOverride | default .Chart.AppVersion }}"
             - name: DEBUG

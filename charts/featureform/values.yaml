@@ -158,6 +158,7 @@ coordinator:
     taskPollInterval: "1m"
     taskStatusSyncInterval: "1h"
     taskDependencyPollInterval: "1m"
+    materializationWorkerPoolSize: 30
 
 # Configuration for the Dashboard frontend
 dashboard:

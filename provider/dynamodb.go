@@ -298,6 +298,24 @@ func (store *dynamodbOnlineStore) getFromMetadataTable(tablename string) (*dynam
 	return tableMeta, nil
 }
 
+func (store *dynamodbOnlineStore) deleteFromMetadataTable(ctx context.Context, tablename string) error {
+	input := &dynamodb.DeleteItemInput{
+		TableName: aws.String(defaultMetadataTableName),
+		Key: map[string]types.AttributeValue{
+			"Tablename": &types.AttributeValueMemberS{
+				Value: tablename,
+			},
+		},
+	}
+	_, err := store.client.DeleteItem(ctx, input)
+	if err != nil {
+		wrappedErr := fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
+		wrappedErr.AddDetail("tablename", tablename)
+		return wrappedErr
+	}
+	return nil
+}
+
 func formatDynamoTableName(prefix, feature, variant string) string {
 	tablename := fmt.Sprintf("%s__%s__%s", sn.Custom(prefix, "[^a-zA-Z0-9_]"), sn.Custom(feature, "[^a-zA-Z0-9_]"), sn.Custom(variant, "[^a-zA-Z0-9_]"))
 	return sn.Custom(tablename, "[^a-zA-Z0-9_.\\-]")
@@ -359,19 +377,28 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 }
 
 func (store *dynamodbOnlineStore) DeleteTable(feature, variant string) error {
+	logger := store.logger.WithResource(logging.FeatureVariant, feature, variant)
+	tableName := formatDynamoTableName(store.prefix, feature, variant)
+	logger.Debugw("Deleting feature table from DynamoDB ...", "tablename", tableName)
 	params := &dynamodb.DeleteTableInput{
-		TableName: aws.String(formatDynamoTableName(store.prefix, feature, variant)),
+		TableName: aws.String(tableName),
 	}
 	_, err := store.client.DeleteTable(context.TODO(), params)
 	if err != nil {
 		var notFoundErr *types.ResourceNotFoundException
 		if errors.As(err, &notFoundErr) {
+			logger.Errorw("Table not found", "err", err)
 			return fferr.NewDatasetNotFoundError(feature, variant, err)
 		} else {
+			logger.Errorw("Failed to delete feature table from DynamoDB", "err", err)
 			return fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
 		}
 	}
-
+	if err := store.deleteFromMetadataTable(context.TODO(), tableName); err != nil {
+		logger.Errorw("Failed to delete feature table from DynamoDB metadata table", "err", err)
+		return err
+	}
+	logger.Debugw("Successfully deleted feature table from DynamoDB")
 	return nil
 }
 

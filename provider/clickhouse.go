@@ -84,9 +84,9 @@ func (store *clickHouseOfflineStore) checkExists(location *clickhouse.Location) 
 		return false, err
 	}
 
-	var n int
 	queries := []string{store.query.viewExists(), store.query.tableExists()}
 	for _, query := range queries {
+		var n int
 		err := dbConn.QueryRow(query, location.GetTable()).Scan(&n)
 		if err != nil {
 			logger.Errorw("unable to query for table", "error", err, "query", query)

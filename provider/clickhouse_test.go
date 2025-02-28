@@ -149,16 +149,18 @@ func TestOfflineStoreClickHouse(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 
-	store, err := GetOfflineStore(pt.ClickHouseOffline, clickHouseConfig.Serialize())
+	_, err = GetOfflineStore(pt.ClickHouseOffline, clickHouseConfig.Serialize())
 	if err != nil {
 		t.Fatalf("could not initialize store: %s\n", err)
 	}
 
-	test := OfflineStoreTest{
-		t:     t,
-		store: store,
-	}
-	test.Run()
+	// No longer using offline tests for ClickHouse, moved to correctness tests.
+	// Remove this at some point.
+	//test := OfflineStoreTest{
+	//	t:     t,
+	//	store: store,
+	//}
+	// test.Run()
 	// test.RunSQL()
 }
 

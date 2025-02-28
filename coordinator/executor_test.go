@@ -18,6 +18,7 @@ import (
 
 	"github.com/featureform/coordinator/spawner"
 	"github.com/featureform/coordinator/tasks"
+	ct "github.com/featureform/coordinator/types"
 	"github.com/featureform/fferr"
 	"github.com/featureform/ffsync"
 	"github.com/featureform/logging"
@@ -130,6 +131,11 @@ func (m MyMockedTaskClient) EndRun(tid s.TaskID, rid s.TaskRunID) error {
 	return args.Error(0)
 }
 
+func (m *MyMockedTaskClient) SetRunSchedulerID(ctx context.Context, tid s.TaskID, runID s.TaskRunID, schedulerID string, runIteration string) error {
+	// TODO implement me
+	return nil
+}
+
 type MyMockedSpawner struct {
 	mock.Mock
 }
@@ -149,7 +155,7 @@ func NewExecutor(locker ffsync.Locker, client metadata.Client, logger logging.Lo
 func TestExecutorRunLocked(t *testing.T) {
 	locker := new(MyMockedLocker)
 	taskClient := new(MyMockedTaskClient)
-	logger := logging.NewTestLogger(t)
+	ctx, logger := logging.NewTestContextAndLogger(t)
 
 	expectedTaskErr := fferr.NewKeyAlreadyLockedError("/tasklock/1", "/tasklock/1", nil)
 	locker.On("Lock", "/tasklock/1", false).Return(expectedTaskErr)
@@ -162,7 +168,7 @@ func TestExecutorRunLocked(t *testing.T) {
 	}
 	e := NewExecutor(locker, client, logger)
 
-	err := e.RunTask(s.TaskID(uintID(1)), s.TaskRunID(uintID(1)))
+	err := e.RunTask(ctx, ct.SchedulerID("test_scheduler"), s.TaskID(uintID(1)), s.TaskRunID(uintID(1)))
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -173,7 +179,7 @@ func TestExecutorRunLocked(t *testing.T) {
 func TestExecutorRunFetchFailed(t *testing.T) {
 	locker := new(MyMockedLocker)
 	taskClient := new(MyMockedTaskClient)
-	logger := logging.NewTestLogger(t)
+	ctx, logger := logging.NewTestContextAndLogger(t)
 
 	expectedErr := fferr.NewInternalErrorf("Failed to fetch task run")
 	locker.On("Lock", "/tasklock/1", false).Return(nil)
@@ -187,7 +193,7 @@ func TestExecutorRunFetchFailed(t *testing.T) {
 	}
 	e := NewExecutor(locker, client, logger)
 
-	err := e.RunTask(s.TaskID(uintID(1)), s.TaskRunID(uintID(1)))
+	err := e.RunTask(ctx, ct.SchedulerID("test_scheduler"), s.TaskID(uintID(1)), s.TaskRunID(uintID(1)))
 	if !reflect.DeepEqual(err, expectedErr) {
 		t.Errorf("Expected error %v, got %v", expectedErr, err)
 	}
@@ -197,7 +203,7 @@ func TestExecutorRunFetchFailed(t *testing.T) {
 func TestExecutorRunComplete(t *testing.T) {
 	locker := new(MyMockedLocker)
 	taskClient := new(MyMockedTaskClient)
-	logger := logging.NewTestLogger(t)
+	ctx, logger := logging.NewTestContextAndLogger(t)
 
 	locker.On("Lock", "/tasklock/1", false).Return(nil)
 	locker.On("Lock", "/runlock/1", false).Return(nil)
@@ -236,7 +242,7 @@ func TestExecutorRunComplete(t *testing.T) {
 			}
 			e := NewExecutor(locker, client, logger)
 
-			err := e.RunTask(s.TaskID(uintID(1)), s.TaskRunID(uintID(1)))
+			err := e.RunTask(ctx, ct.SchedulerID("test_scheduler"), s.TaskID(uintID(1)), s.TaskRunID(uintID(1)))
 			if err != nil {
 				t.Errorf("Expected no error, got %v", err)
 			}
@@ -265,7 +271,7 @@ func createDag(t *testing.T) s.TaskDAG {
 func TestExecutorWaitForFailedDependencies(t *testing.T) {
 	locker := new(MyMockedLocker)
 	taskClient := new(MyMockedTaskClient)
-	logger := logging.NewTestLogger(t)
+	ctx, logger := logging.NewTestContextAndLogger(t)
 
 	locker.On("Lock", "/tasklock/1", false).Return(nil)
 	locker.On("Lock", "/runlock/1", false).Return(nil)
@@ -328,7 +334,7 @@ func TestExecutorWaitForFailedDependencies(t *testing.T) {
 	}
 	e := NewExecutor(locker, client, logger)
 
-	err := e.RunTask(s.TaskID(uintID(1)), s.TaskRunID(uintID(1)))
+	err := e.RunTask(ctx, ct.SchedulerID("test_scheduler"), s.TaskID(uintID(1)), s.TaskRunID(uintID(1)))
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -338,7 +344,7 @@ func TestExecutorWaitForFailedDependencies(t *testing.T) {
 func TestExecutorWaitForCancelledDependencies(t *testing.T) {
 	locker := new(MyMockedLocker)
 	taskClient := new(MyMockedTaskClient)
-	logger := logging.NewTestLogger(t)
+	ctx, logger := logging.NewTestContextAndLogger(t)
 
 	locker.On("Lock", "/tasklock/1", false).Return(nil)
 	locker.On("Lock", "/runlock/1", false).Return(nil)
@@ -401,7 +407,7 @@ func TestExecutorWaitForCancelledDependencies(t *testing.T) {
 	}
 	e := NewExecutor(locker, client, logger)
 
-	err := e.RunTask(s.TaskID(uintID(1)), s.TaskRunID(uintID(1)))
+	err := e.RunTask(ctx, ct.SchedulerID("test_scheduler"), s.TaskID(uintID(1)), s.TaskRunID(uintID(1)))
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -456,7 +462,7 @@ func TestExecutorCancelTask(t *testing.T) {
 	t.Skip("Need to resolve a nil pointer error with the channel")
 	locker := new(MyMockedLocker)
 	taskClient := new(MyMockedTaskClient)
-	logger := logging.NewTestLogger(t)
+	ctx, logger := logging.NewTestContextAndLogger(t)
 
 	locker.On("Lock", "/tasklock/1", false).Return(nil)
 	locker.On("Lock", "/runlock/1", false).Return(nil)
@@ -497,7 +503,7 @@ func TestExecutorCancelTask(t *testing.T) {
 	}
 	e := NewExecutor(locker, client, logger)
 
-	err := e.RunTask(s.TaskID(uintID(1)), s.TaskRunID(uintID(1)))
+	err := e.RunTask(ctx, ct.SchedulerID("test_scheduler"), s.TaskID(uintID(1)), s.TaskRunID(uintID(1)))
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -507,7 +513,7 @@ func TestExecutorCancelTask(t *testing.T) {
 func TestExecutorSucceedTask(t *testing.T) {
 	locker := new(MyMockedLocker)
 	taskClient := new(MyMockedTaskClient)
-	logger := logging.NewTestLogger(t)
+	ctx, logger := logging.NewTestContextAndLogger(t)
 
 	locker.On("Lock", "/tasklock/1", false).Return(nil)
 	locker.On("Lock", "/runlock/1", false).Return(nil)
@@ -539,7 +545,7 @@ func TestExecutorSucceedTask(t *testing.T) {
 	}
 	e := NewExecutor(locker, client, logger)
 
-	err := e.RunTask(s.TaskID(uintID(1)), s.TaskRunID(uintID(1)))
+	err := e.RunTask(ctx, ct.SchedulerID("test_scheduler"), s.TaskID(uintID(1)), s.TaskRunID(uintID(1)))
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -613,7 +619,7 @@ func TestSourceTaskRun(t *testing.T) {
 		t.Fatalf("Expected 1 run to be created, got: %d", len(runs))
 	}
 
-	err = e.RunTask(runs[0].TaskId, runs[0].ID)
+	err = e.RunTask(ctx, ct.SchedulerID("test_scheduler"), runs[0].TaskId, runs[0].ID)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -715,7 +721,7 @@ func TestLabelTaskRun(t *testing.T) {
 		}
 	}
 
-	err = e.RunTask(labelTaskRun.TaskId, labelTaskRun.ID)
+	err = e.RunTask(ctx, ct.SchedulerID("test_scheduler"), labelTaskRun.TaskId, labelTaskRun.ID)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -866,7 +872,7 @@ func TestFeatureTaskRun(t *testing.T) {
 			featureTaskRun = run
 		}
 	}
-	err = e.RunTask(featureTaskRun.TaskId, featureTaskRun.ID)
+	err = e.RunTask(ctx, ct.SchedulerID("test_scheduler"), featureTaskRun.TaskId, featureTaskRun.ID)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -931,7 +937,7 @@ func TestTrainingSetTaskRun(t *testing.T) {
 	}
 
 	trainingSetTaskRun = runDiff[0]
-	err = e.RunTask(trainingSetTaskRun.TaskId, trainingSetTaskRun.ID)
+	err = e.RunTask(ctx, ct.SchedulerID("test_scheduler"), trainingSetTaskRun.TaskId, trainingSetTaskRun.ID)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -1001,7 +1007,7 @@ func TestTrainingSetLastRun(t *testing.T) {
 	}
 
 	trainingSetTaskRun = runDiff[0]
-	err = e.RunTask(trainingSetTaskRun.TaskId, trainingSetTaskRun.ID)
+	err = e.RunTask(ctx, ct.SchedulerID("test_scheduler"), trainingSetTaskRun.TaskId, trainingSetTaskRun.ID)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -1020,7 +1026,7 @@ func TestTrainingSetLastRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create run: %s", err.Error())
 		}
-		err = e.RunTask(run.TaskId, rid)
+		err = e.RunTask(ctx, ct.SchedulerID("test_scheduler"), run.TaskId, rid)
 		if err != nil {
 			t.Fatalf(err.Error())
 		}
@@ -1199,7 +1205,7 @@ func TestTaskRecovery(t *testing.T) {
 		t.Fatalf("Expected 1 run to be created, got: %d", len(runs))
 	}
 
-	err = e.RunTask(runs[0].TaskId, runs[0].ID)
+	err = e.RunTask(ctx, ct.SchedulerID("test_scheduler"), runs[0].TaskId, runs[0].ID)
 	if err == nil {
 		t.Fatalf("A panic should have been thrown and recovered to an error")
 	}

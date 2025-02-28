@@ -338,7 +338,7 @@ func parseSchedulerConfig(logger logging.Logger, cfg *FeatureformApp) fferr.Erro
 	cfg.SchedulerTaskStatusSyncInterval = taskStatusSyncInterval
 	cfg.SchedulerDependencyPollInterval = dependencyPollInterval
 	cfg.SchedulerTaskDistributionInterval = coordinatorInterval
-	logger.Infow("Scheduler config parsed from env", "config", cfg)
+	logger.Infow("Scheduler config parsed from env")
 	return nil
 }
 

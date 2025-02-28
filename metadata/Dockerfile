@@ -37,6 +37,7 @@ COPY ./helpers/ ./helpers/
 COPY ./integrations/ ./integrations/
 COPY ./provider/ ./provider
 COPY ./config/ ./config/
+COPY ./coordinator/types ./coordinator/types
 
 RUN go build ./metadata/server/server.go
 

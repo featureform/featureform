@@ -27,6 +27,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 
+	ct "github.com/featureform/coordinator/types"
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	"github.com/featureform/helpers/interceptors"
@@ -2319,6 +2320,28 @@ func (serv *MetadataServer) SetRunEndTime(ctx context.Context, update *schproto.
 	return &schproto.Empty{}, nil
 }
 
+func (serv *MetadataServer) SetRunSchedulerID(ctx context.Context, update *schproto.SetRunSchedulerIDRequest) (*schproto.Empty, error) {
+	_, _, logger := serv.Logger.InitializeRequestID(ctx)
+	logger.Debugw("SetRunSchedulerID", "scheduler_id", update.SchedulerID, "run_iteration", update.RunIteration)
+	rid, err := scheduling.ParseTaskRunID(update.GetRunID().GetId())
+	if err != nil {
+		logger.Errorw("failed to parse run id", "run id", update.GetRunID().GetId(), "error", err)
+		return nil, err
+	}
+	tid, err := scheduling.ParseTaskID(update.GetTaskID().GetId())
+	if err != nil {
+		logger.Errorw("failed to parse task id", "task id", update.GetTaskID().GetId(), "error", err)
+		return nil, err
+	}
+
+	err = serv.taskManager.SetRunSchedulerID(rid, tid, ct.SchedulerID(update.SchedulerID), update.RunIteration)
+	if err != nil {
+		logger.Errorw("failed to set run scheduler id", "run id", update.GetRunID().GetId(), "task id", update.GetTaskID().GetId(), "error", err)
+		return nil, err
+	}
+	return &schproto.Empty{}, nil
+}
+
 func (serv *MetadataServer) Serve() error {
 	if serv.grpcServer != nil {
 		return fferr.NewInternalErrorf("server already running")
@@ -2381,9 +2404,9 @@ func (sp LocalStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 }
 
 type Config struct {
-	Logger       logging.Logger
-	TaskManager  scheduling.TaskMetadataManager
-	Address      string
+	Logger      logging.Logger
+	TaskManager scheduling.TaskMetadataManager
+	Address     string
 }
 
 func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.ScheduleChangeRequest) (*pb.Empty, error) {

@@ -22,6 +22,7 @@ import (
 	"github.com/featureform/config/bootstrap"
 	"github.com/featureform/coordinator"
 	"github.com/featureform/coordinator/spawner"
+	ct "github.com/featureform/coordinator/types"
 	"github.com/featureform/db"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
@@ -30,6 +31,7 @@ import (
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/serving"
+	"github.com/google/uuid"
 
 	"google.golang.org/grpc"
 )
@@ -155,7 +157,12 @@ func main() {
 		TaskStatusSyncInterval: 1 * time.Minute,
 		DependencyPollInterval: 1 * time.Second,
 	}
-	scheduler := coordinator.NewScheduler(client, cLogger, &spawner.MemoryJobSpawner{}, manager.Storage.Locker, sconfig)
+	hostname, err := os.Hostname()
+	if err != nil {
+		logger.Errorw("Failed to get hostname", "err", err)
+		hostname = "featurform-coordinator-" + uuid.New().String()[0:8]
+	}
+	scheduler := coordinator.NewScheduler(initCtx, ct.SchedulerID(hostname), client, &spawner.MemoryJobSpawner{}, manager.Storage.Locker, sconfig)
 
 	/**************************************** Dashboard Backend *******************************************************/
 	dbLogger := logging.NewLogger("dashboard-metadata")
@@ -211,7 +218,7 @@ func main() {
 	}()
 
 	go func() {
-		err = scheduler.Start()
+		err = scheduler.Start(initCtx)
 		if err != nil {
 			cLogger.Errorw(err.Error())
 		}

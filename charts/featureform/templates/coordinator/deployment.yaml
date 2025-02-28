@@ -79,6 +79,8 @@ spec:
               value: {{ .Values.coordinator.execution.taskStatusSyncInterval | quote }}
             - name: TASK_DEPENDENCY_POLL_INTERVAL
               value: {{ .Values.coordinator.execution.taskDependencyPollInterval | quote }}
+            - name: TASK_DISTRIBUTION_INTERVAL
+              value: {{ .Values.coordinator.taskDistributionInterval | quote }}
           {{ if eq .Values.stateProvider "psql" }}
             - name: PSQL_USER
               valueFrom:

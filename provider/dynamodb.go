@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"reflect"
 	"strconv"
 	"time"
@@ -20,6 +19,7 @@ import (
 	pl "github.com/featureform/provider/location"
 
 	"github.com/araddon/dateparse"
+	re "github.com/avast/retry-go/v4"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/ratelimit"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
@@ -28,6 +28,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/smithy-go"
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
@@ -35,10 +36,7 @@ import (
 	se "github.com/featureform/provider/serialization"
 	vt "github.com/featureform/provider/types"
 	sn "github.com/mrz1836/go-sanitize"
-	"go.uber.org/zap"
 )
-
-const defaultMetadataTableName = "FeatureformMetadata"
 
 func init() {
 	if _, ok := serializers[dynamoSerializationVersion]; !ok {
@@ -47,14 +45,12 @@ func init() {
 }
 
 const (
-	// Serialization version to use for new tables
-	dynamoSerializationVersion = serializeV1
-)
-
-const (
 	// Default timeout when waiting for dynamoDB tables to be ready
 	defaultDynamoTableTimeout = 30 * time.Second
-	maxRetries                = 5
+	// Serialization version to use for new tables
+	dynamoSerializationVersion = serializeV1
+	defaultMetadataTableName   = "FeatureformMetadata"
+	dynamoDBThrottleErrorCode  = "ThrottlingException"
 )
 
 type dynamodbTableKey struct {
@@ -78,7 +74,7 @@ type dynamodbOnlineStore struct {
 	prefix string
 	BaseProvider
 	timeout            time.Duration
-	logger             *zap.SugaredLogger
+	logger             logging.Logger
 	accessKey          string
 	secretKey          string
 	region             string
@@ -146,6 +142,7 @@ func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, e
 		config.WithRetryer(func() aws.Retryer {
 			return retry.AddWithMaxBackoffDelay(retry.NewStandard(func(o *retry.StandardOptions) {
 				o.RateLimiter = ratelimit.None
+				o.MaxAttempts = 25
 			}), defaultDynamoTableTimeout)
 		}),
 	}
@@ -179,14 +176,21 @@ func NewDynamodbOnlineStore(options *pc.DynamodbConfig) (*dynamodbOnlineStore, e
 	}
 	logger := logging.NewLogger("dynamodb")
 	tags := toDynamoDBTags(options.Tags)
-	if err := CreateMetadataTable(client, logger.SugaredLogger, tags); err != nil {
+	if err := CreateMetadataTable(client, logger, tags); err != nil {
 		return nil, err
 	}
-	return &dynamodbOnlineStore{client, options.Prefix, BaseProvider{
-		ProviderType:   pt.DynamoDBOnline,
-		ProviderConfig: options.Serialized(),
-	}, defaultDynamoTableTimeout, logger.SugaredLogger,
-		accessKey, secretKey, options.Region, options.StronglyConsistent, tags,
+	return &dynamodbOnlineStore{client, options.Prefix,
+		BaseProvider{
+			ProviderType:   pt.DynamoDBOnline,
+			ProviderConfig: options.Serialized(),
+		},
+		defaultDynamoTableTimeout,
+		logger,
+		accessKey,
+		secretKey,
+		options.Region,
+		options.StronglyConsistent,
+		tags,
 	}, nil
 }
 
@@ -200,7 +204,7 @@ func (store *dynamodbOnlineStore) Close() error {
 }
 
 // TODO(simba) make table name a param
-func CreateMetadataTable(client *dynamodb.Client, logger *zap.SugaredLogger, tags []types.Tag) error {
+func CreateMetadataTable(client *dynamodb.Client, logger logging.Logger, tags []types.Tag) error {
 	tableName := defaultMetadataTableName
 	params := &dynamodb.CreateTableInput{
 		TableName: aws.String(tableName),
@@ -300,12 +304,16 @@ func formatDynamoTableName(prefix, feature, variant string) string {
 }
 
 func (store *dynamodbOnlineStore) GetTable(feature, variant string) (OnlineStoreTable, error) {
+	logger := store.logger.WithResource(logging.FeatureVariant, feature, variant)
 	key := dynamodbTableKey{store.prefix, feature, variant}
+	logger.Debugw("Getting feature table from DynamoDB metadata table ...", "key", key)
 	meta, err := store.getFromMetadataTable(formatDynamoTableName(store.prefix, feature, variant))
 	if err != nil {
+		logger.Errorw("Failed to get feature table from DynamoDB metadata table", "err", err)
 		return nil, fferr.NewDatasetNotFoundError(feature, variant, err)
 	}
 	table := &dynamodbOnlineTable{client: store.client, key: key, valueType: meta.Valuetype, version: meta.Version, stronglyConsistent: store.stronglyConsistent}
+	logger.Debugw("Successfully got feature table from DynamoDB metadata table")
 	return table, nil
 }
 
@@ -385,15 +393,19 @@ func (store dynamodbOnlineStore) Delete(location pl.Location) error {
 // maxDynamoBatchSize is the max amount of items that can be written to Dynamo at once. It's a dynamo set limitation.
 const maxDynamoBatchSize = 25
 
-func (table dynamodbOnlineTable) BatchSet(items []SetItem) error {
+func (table dynamodbOnlineTable) BatchSet(ctx context.Context, items []SetItem) error {
+	logger := logging.GetLoggerFromContext(ctx)
 	if len(items) > maxDynamoBatchSize {
+		logger.Errorw("Batch write too large", "items", len(items), "max", maxDynamoBatchSize)
 		return fferr.NewInternalErrorf(
 			"Cannot batch write %d items.\nMax: %d\n", len(items), maxDynamoBatchSize)
 	}
 	serialized := make([]map[string]types.AttributeValue, len(items))
+	logger.Debugw("Serializing items", "item_count", len(items))
 	for i, item := range items {
 		dynamoValue, err := serializers[table.version].Serialize(table.valueType, item.Value)
 		if err != nil {
+			logger.Errorw("Error serializing item", "item", item, "err", err)
 			return err
 		}
 		serialized[i] = map[string]types.AttributeValue{
@@ -401,40 +413,56 @@ func (table dynamodbOnlineTable) BatchSet(items []SetItem) error {
 			"FeatureValue":    dynamoValue,
 		}
 	}
+	logger.Debugw("Successfully serialized items", "item_count", len(serialized))
 	reqs := make([]types.WriteRequest, len(serialized))
 	for i, serItem := range serialized {
 		reqs[i] = types.WriteRequest{PutRequest: &types.PutRequest{Item: serItem}}
 	}
-	batchInput := &dynamodb.BatchWriteItemInput{
-		RequestItems: map[string][]types.WriteRequest{
-			table.key.ToTableName(): reqs,
-		},
-	}
 
-	if err := table.batchSetWithRetry(context.TODO(), batchInput); err != nil {
-		return err
+	unprocessedItems := &reqs
+	for len(*unprocessedItems) > 0 {
+		batchInput := &dynamodb.BatchWriteItemInput{
+			RequestItems: map[string][]types.WriteRequest{
+				table.key.ToTableName(): *unprocessedItems,
+			},
+		}
+		logger.Debugw("Writing items to dynamo ...", "item_count", len(*unprocessedItems))
+		output, err := table.client.BatchWriteItem(ctx, batchInput)
+		table.logBatchWriteItemError(logger, err)
+		if err != nil {
+			continue
+		}
+		*unprocessedItems = table.handleUnprocessedItem(logger, output)
 	}
+	logger.Debugw("Successfully wrote items to dynamo", "item_count", len(*unprocessedItems))
 	return nil
 }
 
-func (table dynamodbOnlineTable) batchSetWithRetry(ctx context.Context, input *dynamodb.BatchWriteItemInput) error {
-	totalWaitedTime := time.Duration(0)
-	for attempts := 0; attempts < maxRetries; attempts++ {
-		output, err := table.client.BatchWriteItem(ctx, input)
-		if err != nil {
-			return fferr.NewExecutionError("DynamoDB", err)
-		}
-		if len(output.UnprocessedItems) == 0 {
-			return nil
-		}
-
-		input.RequestItems = output.UnprocessedItems
-
-		waitTime, newTotalWait := exponentialBackoff(attempts, totalWaitedTime)
-		time.Sleep(waitTime)
-		totalWaitedTime = newTotalWait
+// Given we're effectively ignoring DynamoDB operation errors knowing they are either throttling,
+// provisioning, or networking issues, we log all errors as warnings to allow for debugging in the
+// event of a real issue.
+func (table dynamodbOnlineTable) logBatchWriteItemError(logger logging.Logger, err error) {
+	if err == nil {
+		return
 	}
-	return fferr.NewExecutionError("DynamoDB", fmt.Errorf("failed to write all items after %d retries, unprocessed items: %d", maxRetries, len(input.RequestItems)))
+	var ge *smithy.GenericAPIError
+	if errors.As(err, &ge) {
+		if ge.ErrorCode() != dynamoDBThrottleErrorCode {
+			logger.Warnw("Encountered unexpected generic API error code on BatchWriteItem", "code", ge.ErrorCode(), "msg", ge.ErrorMessage())
+		} else {
+			logger.Warnw("Encountered throttling error on BatchWriteItem", "code", ge.ErrorCode(), "msg", ge.ErrorMessage())
+		}
+		return
+	}
+	logger.Warnw("Encountered unexpected error on BatchWriteItem", "err", err, "err_type", fmt.Sprintf("%T", err))
+}
+
+func (table dynamodbOnlineTable) handleUnprocessedItem(logger logging.Logger, output *dynamodb.BatchWriteItemOutput) []types.WriteRequest {
+	if len(output.UnprocessedItems) > 0 {
+		logger.Warnw("Some items were not processed, retrying...", "unprocessed_count", len(output.UnprocessedItems))
+		return output.UnprocessedItems[table.key.ToTableName()]
+	}
+	return nil
 }
 
 func (table dynamodbOnlineTable) MaxBatchSize() (int, error) {
@@ -503,41 +531,26 @@ func (table dynamodbOnlineTable) Get(entity string) (interface{}, error) {
 // We can't use waitForDynamoTable since we need to ignore most tcp and network errors and
 // continue to retry.
 func waitForDynamoDB(client *dynamodb.Client) error {
-	totalWait := time.Duration(0)
-
-	for attempts := 0; attempts < maxRetries; attempts++ {
-		_, err := client.DescribeTable(context.TODO(), &dynamodb.DescribeTableInput{
-			TableName: aws.String("FEATUREFORM-PING"), // Arbitrary name
-		})
-
-		if err != nil {
-			var resourceNotFoundErr *types.ResourceNotFoundException
-			if errors.As(err, &resourceNotFoundErr) {
-				// The table doesn't exist, but DynamoDB responded, meaning it's ready.
-				return nil
+	return re.Do(
+		func() error {
+			_, err := client.DescribeTable(context.TODO(), &dynamodb.DescribeTableInput{
+				TableName: aws.String("FEATUREFORM-PING"), // Arbitrary name
+			})
+			if err != nil {
+				var resourceNotFoundErr *types.ResourceNotFoundException
+				if errors.As(err, &resourceNotFoundErr) {
+					// The table doesn't exist, but DynamoDB responded, meaning it's ready.
+					return nil
+				} else {
+					return err
+				}
 			}
-		} else {
-			// DescribeTable succeeded, indicating DynamoDB is ready and the table exists.
 			return nil
-		}
-
-		waitTime, newTotalWait := exponentialBackoff(attempts, totalWait)
-		time.Sleep(waitTime)
-		totalWait = newTotalWait
-	}
-
-	return errors.New("DynamoDB is not ready after the maximum number of retries")
-}
-
-// exponentialBackoff handles the waiting with exponential backoff. TODO ditch for a resilience library
-func exponentialBackoff(attempt int, totalWaitedTime time.Duration) (time.Duration, time.Duration) {
-	// Using math.Pow to calculate the exponential increase
-	timeToWaitBeforeRetry := time.Second * time.Duration(math.Pow(2, float64(attempt)))
-	if totalWaitedTime+timeToWaitBeforeRetry > defaultDynamoTableTimeout {
-		// If we're going to wait longer than the timeout, just wait the remaining time
-		timeToWaitBeforeRetry = defaultDynamoTableTimeout - totalWaitedTime
-	}
-	return timeToWaitBeforeRetry, totalWaitedTime + timeToWaitBeforeRetry
+		},
+		re.DelayType(func(n uint, err error, config *re.Config) time.Duration {
+			return re.BackOffDelay(n, err, config)
+		}),
+	)
 }
 
 // waitForDynamoDB waits for a DynamoDB table.

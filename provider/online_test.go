@@ -7,6 +7,7 @@
 package provider
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -152,7 +153,7 @@ func testBatchSetGetEntity(t *testing.T, store OnlineStore) {
 	singleEnt := "e"
 	singleVal := "val"
 	singleSet := []SetItem{{singleEnt, singleVal}}
-	if err := batchTable.BatchSet(singleSet); err != nil {
+	if err := batchTable.BatchSet(context.Background(), singleSet); err != nil {
 		t.Fatalf("Failed to set single entity: %s", err)
 	}
 	gotVal, err := tab.Get(singleEnt)
@@ -168,7 +169,7 @@ func testBatchSetGetEntity(t *testing.T, store OnlineStore) {
 		value := fmt.Sprintf("value_%d", i)
 		maxSet[i] = SetItem{entity, value}
 	}
-	if err := batchTable.BatchSet(maxSet); err != nil {
+	if err := batchTable.BatchSet(context.Background(), maxSet); err != nil {
 		t.Fatalf("Failed to set multi entity: %s", err)
 	}
 	for _, item := range maxSet {
@@ -182,7 +183,7 @@ func testBatchSetGetEntity(t *testing.T, store OnlineStore) {
 		}
 	}
 	overSizedSet := append(maxSet, SetItem{"a", "b"})
-	if err := batchTable.BatchSet(overSizedSet); err == nil {
+	if err := batchTable.BatchSet(context.Background(), overSizedSet); err == nil {
 		t.Fatalf("Succeeded to batch set over max size")
 	}
 }

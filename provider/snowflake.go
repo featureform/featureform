@@ -375,28 +375,60 @@ func (sf *snowflakeOfflineStore) AsOfflineStore() (OfflineStore, error) {
 
 func (sf snowflakeOfflineStore) Delete(location pl.Location) error {
 	logger := sf.logger.With("location", location.Location())
-	if exists, err := sf.sqlOfflineStore.tableExists(location); err != nil {
+
+	logger.Debug("Deleting table ...")
+	sqlLoc, ok := location.(*pl.SQLLocation)
+	if !ok {
+		logger.Errorw("Location is not an SQL location", "location_type", fmt.Sprintf("%T", location))
+		return fferr.NewInternalErrorf("location is not an SQL location")
+	}
+	logger.Debug("Checking if table exists ...")
+	exists, err := sf.sqlOfflineStore.checkExists(sqlLoc)
+	if err != nil {
 		logger.Errorw("Failed to check if table exists", "error", err)
 		return err
-	} else if !exists {
+	}
+	if !exists {
 		logger.Errorw("Table does not exist")
 		return fferr.NewDatasetLocationNotFoundError(location.Location(), nil)
 	}
 
-	sqlLoc, isSqlLoc := location.(*pl.SQLLocation)
-	if !isSqlLoc {
-		logger.Errorw("Location is not an SQL location", "location_type", fmt.Sprintf("%T", location))
-		return fferr.NewInternalErrorf("location is not an SQL location")
+	queries := []string{
+		sf.sfQueries.dropTableQuery(*sqlLoc),
+		sf.sfQueries.dropViewQuery(*sqlLoc),
 	}
 
-	query := sf.sfQueries.dropTableQuery(*sqlLoc)
-	logger.Debugw("Dropping table", "query", query)
-	if _, err := sf.db.Exec(query); err != nil {
-		logger.Errorw("Failed to drop table", "error", err)
-		return sf.handleErr(fferr.NewExecutionError(pt.SnowflakeOffline.String(), err), err)
+	var (
+		dropSuccessful bool
+		errs           []error
+	)
+	logger.Debugw("Running drop queries", "queries", queries)
+	for _, q := range queries {
+		logger.Debugw("Executing drop query", "query", q)
+		if _, err := sf.db.Exec(q); err != nil {
+			logger.Errorw("Failed to execute drop query", "query", q, "error", err)
+			handledErr := sf.handleErr(fferr.NewExecutionError(pt.SnowflakeOffline.String(), err), err)
+			errs = append(errs, handledErr)
+			continue
+		} else {
+			logger.Debugw("Successfully executed drop query", "query", q)
+			dropSuccessful = true
+			break
+		}
 	}
-	logger.Info("Successfully dropped table")
-	return nil
+
+	if dropSuccessful && len(errs) < 2 {
+		logger.Infow("Successfully dropped table", "table", sqlLoc)
+		return nil
+	}
+
+	if len(errs) > 0 {
+		logger.Errorw("Failed to drop table", "errors", errs)
+		return fferr.NewInternalErrorf("failed to drop table")
+	}
+
+	logger.Errorw("Failed to drop table due to unknown errors")
+	return fferr.NewExecutionError(pt.SnowflakeOffline.String(), fmt.Errorf("failed to drop table due to errors"))
 }
 
 // handleErr attempts to add the Snowflake query and session IDs to a wrapped error to aid

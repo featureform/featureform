@@ -153,9 +153,10 @@ func main() {
 	}
 
 	sconfig := coordinator.SchedulerConfig{
-		TaskPollInterval:       1 * time.Second,
-		TaskStatusSyncInterval: 1 * time.Minute,
-		DependencyPollInterval: 1 * time.Second,
+		TaskPollInterval:         1 * time.Second,
+		TaskStatusSyncInterval:   1 * time.Minute,
+		DependencyPollInterval:   1 * time.Second,
+		TaskDistributionInterval: 1,
 	}
 	hostname, err := os.Hostname()
 	if err != nil {

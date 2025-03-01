@@ -12,10 +12,18 @@ import (
 )
 
 type offlineSqlTest struct {
-	storeTester         offlineSqlStoreTester
-	testCrossDbJoins    bool
-	transformationQuery string
-	sanitizeTableName   func(obj location.FullyQualifiedObject) string
+	testConfig  offlineSqlTestConfig
+	storeTester offlineSqlStoreTester
+}
+
+type offlineSqlTestConfig struct {
+	// sanitizeTableName is used to manually sanitize the tables, as most of the correctness
+	// tests assume a Snowflake-like identifier quoting interface. This is used as a stop-gap
+	// until locations are refactored, and the tests are truly generic over the location interface.
+	sanitizeTableName func(obj location.FullyQualifiedObject) string
+	// removeSchemaFromLocation is used to manually "zero" out the schema in any SQLLocations. This is used
+	// as a stop-gap until proper Location based support in the tests / providers is implemented.
+	removeSchemaFromLocation bool
 }
 
 type offlineSqlStoreCoreTester interface {

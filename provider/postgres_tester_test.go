@@ -19,11 +19,12 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/lib/pq"
 
+	"github.com/google/uuid"
+	_ "github.com/lib/pq" // PostgreSQL driver
+
 	"github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
-	"github.com/google/uuid"
-	_ "github.com/lib/pq" // PostgreSQL driver
 )
 
 // sqlOfflineStore for PostgreSQL implementation
@@ -167,8 +168,11 @@ func TestPostgresSchemas(t *testing.T) {
 	}
 
 	tester := offlineSqlTest{
-		storeTester:      offlineStoreTester,
-		testCrossDbJoins: false,
+		storeTester: offlineStoreTester,
+		testConfig: offlineSqlTestConfig{
+			sanitizeTableName:        nil,
+			removeSchemaFromLocation: false,
+		},
 	}
 
 	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){

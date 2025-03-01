@@ -506,6 +506,7 @@ func TestLabelVariant_ToShallowMap(t *testing.T) {
 				protoStringer:        protoStringer{tt.serialized},
 				fetchTagsFn:          fetchTagsFn{tt.serialized},
 				fetchPropertiesFn:    fetchPropertiesFn{tt.serialized},
+				fetchEntityFn:        fetchEntityFn{tt.serialized},
 			}
 			if got := variant.ToShallowMap(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ToShallowMap() = %v, want %v", got, tt.want)

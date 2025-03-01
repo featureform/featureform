@@ -11,12 +11,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	tsq "github.com/featureform/provider/tsquery"
 	"reflect"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	tsq "github.com/featureform/provider/tsquery"
 
 	"github.com/google/uuid"
 	"github.com/mitchellh/mapstructure"

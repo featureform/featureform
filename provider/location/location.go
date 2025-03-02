@@ -76,7 +76,7 @@ func NewSQLLocation(table string) *SQLLocation {
 	return &SQLLocation{table: table}
 }
 
-func NewFullyQualifiedSQLLocation(database, schema, table string) *SQLLocation {
+func NewSQLLocationFromParts(database, schema, table string) *SQLLocation {
 	return &SQLLocation{database: database, schema: schema, table: table}
 }
 
@@ -400,7 +400,7 @@ func FromProto(pbLocation *pb.Location) (Location, error) {
 
 	switch loc := pbLocation.Location.(type) {
 	case *pb.Location_Table:
-		return NewFullyQualifiedSQLLocation(loc.Table.Database, loc.Table.Schema, loc.Table.Name), nil
+		return NewSQLLocationFromParts(loc.Table.Database, loc.Table.Schema, loc.Table.Name), nil
 
 	case *pb.Location_Filestore:
 		// Handle FileStoreTable case

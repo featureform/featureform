@@ -1573,7 +1573,7 @@ func RegisterTableInDifferentDatabaseTest(t *testing.T, tester offlineSqlTest) {
 
 	// Create the table
 	tableName := "DUMMY_TABLE"
-	sqlLocation := pl.NewFullyQualifiedSQLLocation(dbName, schemaName, tableName)
+	sqlLocation := pl.NewSQLLocationFromParts(dbName, schemaName, tableName)
 	records, err := createDummyTable(tester.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
@@ -1599,7 +1599,7 @@ func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester of
 
 	// Create the table
 	tableName := "DUMMY_TABLE"
-	sqlLocation := pl.NewFullyQualifiedSQLLocation("", schemaName, tableName)
+	sqlLocation := pl.NewSQLLocationFromParts("", schemaName, tableName)
 	records, err := createDummyTable(storeTester.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
@@ -1630,14 +1630,14 @@ func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester offlineSqlTest) {
 
 	// Create the first table
 	tableName := "DUMMY_TABLE"
-	sqlLocation := pl.NewFullyQualifiedSQLLocation("", schemaName1, tableName)
+	sqlLocation := pl.NewSQLLocationFromParts("", schemaName1, tableName)
 	records, err := createDummyTable(tester.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	// Create the second table using the same table name
-	sqlLocation2 := pl.NewFullyQualifiedSQLLocation("", schemaName2, tableName)
+	sqlLocation2 := pl.NewSQLLocationFromParts("", schemaName2, tableName)
 	records2, err := createDummyTable(tester.storeTester, sqlLocation2, 10)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
@@ -1692,14 +1692,14 @@ func CrossDatabaseJoinTest(t *testing.T, test offlineSqlTest) {
 	})
 
 	tableName1 := "DUMMY_TABLE"
-	sqlLocation := pl.NewFullyQualifiedSQLLocation(dbName, "PUBLIC", tableName1)
+	sqlLocation := pl.NewSQLLocationFromParts(dbName, "PUBLIC", tableName1)
 	records, err := createDummyTable(test.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	tableName2 := "DUMMY_TABLE2"
-	sqlLocation2 := pl.NewFullyQualifiedSQLLocation(dbName2, "PUBLIC", tableName2)
+	sqlLocation2 := pl.NewSQLLocationFromParts(dbName2, "PUBLIC", tableName2)
 	records2, err := createDummyTable(test.storeTester, sqlLocation2, 10)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
@@ -1757,5 +1757,5 @@ func newSqlLocation(config offlineSqlTestConfig, db, schema, table string) *pl.S
 	if config.removeSchemaFromLocation {
 		schema = ""
 	}
-	return pl.NewFullyQualifiedSQLLocation(db, schema, table)
+	return pl.NewSQLLocationFromParts(db, schema, table)
 }

@@ -24,6 +24,7 @@ import (
 	db "github.com/jackc/pgx/v4"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/helpers/stringset"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
@@ -416,7 +417,7 @@ func (store *sqlOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema
 		return nil, err
 	}
 
-	location := pl.NewFullyQualifiedSQLLocation(dbName, schemaName, name)
+	location := pl.NewSQLLocationFromParts(dbName, schemaName, name)
 	return &sqlPrimaryTable{
 		db:           db,
 		name:         name, // TODO get rid of this and just use location
@@ -509,7 +510,7 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 	if err != nil {
 		return nil, err
 	}
-	sqlLocation := pl.NewFullyQualifiedSQLLocation(dbName, schemaName, name)
+	sqlLocation := pl.NewSQLLocationFromParts(dbName, schemaName, name)
 
 	return &sqlPrimaryTable{
 		db:           store.db,

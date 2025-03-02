@@ -227,7 +227,7 @@ func getConfiguredBigQueryTester(t *testing.T) offlineSqlTest {
 		// BigQuery requires a fully qualified location of a source table.
 		if obj.Database == "" || obj.Schema == "" {
 			datasetId := store.(*bqOfflineStore).query.DatasetId
-			srcLoc := pl.NewFullyQualifiedSQLLocation(offlineStoreTester.GetTestDatabase(), datasetId, obj.Table)
+			srcLoc := pl.NewSQLLocationFromParts(offlineStoreTester.GetTestDatabase(), datasetId, obj.Table)
 			return "`" + srcLoc.TableLocation().String() + "`"
 		}
 		return "`" + obj.String() + "`"

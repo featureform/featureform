@@ -8,12 +8,9 @@
 package provider
 
 import (
-	"context"
 	"fmt"
-	"strings"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/helpers/stringset"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
@@ -21,8 +18,9 @@ import (
 	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 
-	tsq "github.com/featureform/provider/tsquery"
 	snowflake "github.com/snowflakedb/gosnowflake"
+
+	tsq "github.com/featureform/provider/tsquery"
 )
 
 // sqlColumnType is used to specify the column type of a resource value.

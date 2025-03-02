@@ -16,6 +16,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	_ "github.com/lib/pq"
+	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -26,9 +30,6 @@ import (
 	pt "github.com/featureform/provider/provider_type"
 	tsq "github.com/featureform/provider/tsquery"
 	"github.com/featureform/provider/types"
-	_ "github.com/lib/pq"
-	"google.golang.org/api/iterator"
-	"google.golang.org/api/option"
 )
 
 const (
@@ -655,7 +656,7 @@ func (q defaultBQQueries) getDatasetId() string {
 }
 
 func (q defaultBQQueries) getRootLocation() *pl.SQLLocation {
-	return pl.NewFullyQualifiedSQLLocation(q.ProjectId, q.DatasetId, "")
+	return pl.NewSQLLocationFromParts(q.ProjectId, q.DatasetId, "")
 }
 
 type bqMaterialization struct {
@@ -852,7 +853,7 @@ func (table *bqOfflineTable) WriteBatch(recs []ResourceRecord) error {
 }
 
 func (table *bqOfflineTable) Location() pl.Location {
-	return pl.NewFullyQualifiedSQLLocation(table.query.DatasetId, "", table.name)
+	return pl.NewSQLLocationFromParts(table.query.DatasetId, "", table.name)
 }
 
 type bqOfflineStore struct {

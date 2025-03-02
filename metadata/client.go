@@ -3232,7 +3232,7 @@ func (variant *SourceVariant) GetPrimaryLocation() (pl.Location, error) {
 	}
 	switch pt := variant.serialized.GetPrimaryData().GetLocation().(type) {
 	case *pb.PrimaryData_Table:
-		return pl.NewFullyQualifiedSQLLocation(
+		return pl.NewSQLLocationFromParts(
 			pt.Table.GetDatabase(),
 			pt.Table.GetSchema(),
 			pt.Table.GetName(),
@@ -3258,7 +3258,7 @@ func (variant *SourceVariant) GetTransformationLocation() (pl.Location, error) {
 	switch pt := variant.serialized.GetTransformation().GetLocation().(type) {
 	case *pb.Transformation_Table:
 		table := pt.Table.GetName()
-		return pl.NewFullyQualifiedSQLLocation(pt.Table.GetDatabase(), pt.Table.GetSchema(), table), nil
+		return pl.NewSQLLocationFromParts(pt.Table.GetDatabase(), pt.Table.GetSchema(), table), nil
 		//return pl.NewSQLLocation(table), nil
 	case *pb.Transformation_Filestore:
 		fp := filestore.FilePath{}

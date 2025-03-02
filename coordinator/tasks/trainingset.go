@@ -432,19 +432,19 @@ func (t *TrainingSetTask) getResourceLocation(provider *metadata.Provider, table
 		}
 		// TODO: (Erik) determine if we want to use the Catalog location instead of SQL location; technically,
 		// Snowflake references tables in a catalog no differently than it does other table types.
-		location = pl.NewFullyQualifiedSQLLocation(config.Database, config.Schema, tableName)
+		location = pl.NewSQLLocationFromParts(config.Database, config.Schema, tableName)
 	case pt.BigQueryOffline:
 		config := pc.BigQueryConfig{}
 		if err := config.Deserialize(provider.SerializedConfig()); err != nil {
 			return nil, err
 		}
-		location = pl.NewFullyQualifiedSQLLocation(config.ProjectId, config.DatasetId, tableName)
+		location = pl.NewSQLLocationFromParts(config.ProjectId, config.DatasetId, tableName)
 	case pt.PostgresOffline:
 		config := pc.PostgresConfig{}
 		if err := config.Deserialize(provider.SerializedConfig()); err != nil {
 			return nil, err
 		}
-		location = pl.NewFullyQualifiedSQLLocation(config.Database, config.Schema, tableName)
+		location = pl.NewSQLLocationFromParts(config.Database, config.Schema, tableName)
 	case pt.ClickHouseOffline:
 		config := pc.ClickHouseConfig{}
 		if err := config.Deserialize(provider.SerializedConfig()); err != nil {

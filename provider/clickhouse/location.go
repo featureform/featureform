@@ -34,7 +34,7 @@ func NewLocation(location pl.Location) (*Location, error) {
 }
 
 func NewLocationFromParts(dbName, tableName string) *Location {
-	return &Location{SQLLocation: pl.NewFullyQualifiedSQLLocation(dbName, "", tableName)}
+	return &Location{SQLLocation: pl.NewSQLLocationFromParts(dbName, "", tableName)}
 }
 
 func (l *Location) IsRelative() bool {

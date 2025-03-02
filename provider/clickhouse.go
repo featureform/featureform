@@ -642,6 +642,48 @@ func (it *clickHouseTableIterator) Close() error {
 	return nil
 }
 
+func (store *clickHouseOfflineStore) validateColumnsExist(id ResourceID, loc pl.FullyQualifiedObject, schema ResourceSchema) error {
+	expectedColumns, err := schema.ToColumnStringSet(id.Type)
+	if err != nil {
+		logger.Errorw("failed to get expected columns", "error", err)
+		return err
+	}
+
+	query, err := store.query.resourceTableColumns(loc)
+	if err != nil {
+		logger.Errorw("error creating resourceTableColumns query", "error", err)
+		return err
+	}
+
+	rows, err := store.db.Query(query)
+	if err != nil {
+		logger.Errorw("failed to query resource table columns", "error", err)
+		return err
+	}
+	defer rows.Close()
+
+	actual := make(stringset.StringSet)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			logger.Errorw("Failed to scan resource table columns", "error", err)
+			return err
+		}
+		actual.Add(strings.ToUpper(column))
+	}
+	if err := rows.Err(); err != nil {
+		logger.Errorw("Error iterating over resource table columns", "error", err)
+		return err
+	}
+	if !actual.Contains(expectedColumns) {
+		diff := expectedColumns.Difference(actual)
+		logger.Errorw("Source table does not have expected columns", "diff", diff.List())
+		return fferr.NewInvalidArgumentErrorf("source table does not have expected columns: %v", diff.List())
+	}
+
+	return nil
+}
+
 func (store *clickHouseOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
 	logger := store.logger.With("id", id, "schema", schema, "opts", opts)
 
@@ -662,12 +704,6 @@ func (store *clickHouseOfflineStore) RegisterResourceFromSourceTable(id Resource
 		return nil, fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
 	}
 
-	expectedColumns, err := schema.ToColumnStringSet(id.Type)
-	if err != nil {
-		logger.Errorw("failed to get expected columns", "error", err)
-		return nil, err
-	}
-
 	// TODO: This is done because the method on the query interface expects a
 	// FullyQualifiedObject. That should ideally be refactored, as well as other
 	// general Location refactorings. Once that is done, this can be removed.
@@ -677,36 +713,10 @@ func (store *clickHouseOfflineStore) RegisterResourceFromSourceTable(id Resource
 		Table:    chLocation.GetTable(),
 	}
 
-	query, err := store.query.resourceTableColumns(fullyQualifiedObject)
+	err = store.validateColumnsExist(id, fullyQualifiedObject, schema)
 	if err != nil {
-		logger.Errorw("error creating resourceTableColumns query", "error", err)
+		logger.Errorw("error validating resource columns", "error", err)
 		return nil, err
-	}
-
-	rows, err := store.db.Query(query)
-	if err != nil {
-		logger.Errorw("failed to query resource table columns", "error", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	actual := make(stringset.StringSet)
-	for rows.Next() {
-		var column string
-		if err := rows.Scan(&column); err != nil {
-			logger.Errorw("Failed to scan resource table columns", "error", err)
-			return nil, err
-		}
-		actual.Add(strings.ToUpper(column))
-	}
-	if err := rows.Err(); err != nil {
-		logger.Errorw("Error iterating over resource table columns", "error", err)
-		return nil, err
-	}
-	if !actual.Contains(expectedColumns) {
-		diff := expectedColumns.Difference(actual)
-		logger.Errorw("Source table does not have expected columns", "diff", diff.List())
-		return nil, fferr.NewInvalidArgumentErrorf("source table does not have expected columns: %v", diff.List())
 	}
 
 	return nil, nil

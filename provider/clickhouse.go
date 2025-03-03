@@ -423,7 +423,7 @@ func (table *clickhouseOfflineTable) WriteBatch(recs []ResourceRecord) error {
 }
 
 func (table *clickhouseOfflineTable) Location() pl.Location {
-	return clickhouse.NewLocationFromParts("", table.name)
+	return clickhouse.NewLocationFromTableName(table.name)
 }
 
 type clickhousePrimaryTable struct {

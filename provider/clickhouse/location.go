@@ -33,6 +33,10 @@ func NewLocation(location pl.Location) (*Location, error) {
 	}
 }
 
+func NewLocationFromTableName(tableName string) *Location {
+	return &Location{SQLLocation: pl.NewSQLLocation(tableName)}
+}
+
 func NewLocationFromParts(dbName, tableName string) *Location {
 	return &Location{SQLLocation: pl.NewSQLLocationFromParts(dbName, "", tableName)}
 }

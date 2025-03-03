@@ -444,6 +444,10 @@ func getConfiguredClickHouseTester(t *testing.T) offlineSqlTest {
 		clickHouseConfig.Password,
 		clickHouseConfig.SSL,
 	))
+	t.Cleanup(func() {
+		conn.Close()
+	})
+
 	storeTester := clickHouseOfflineStoreTester{
 		conn:                   conn,
 		defaultDbName:          clickHouseConfig.Database,

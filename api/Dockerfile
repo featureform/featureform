@@ -35,6 +35,7 @@ COPY ./config/ ./config/
 COPY ./health ./health
 COPY ./scheduling ./scheduling
 COPY ./api/ ./api/
+COPY ./coordinator/types ./coordinator/types
 
 WORKDIR ./api/main/
 

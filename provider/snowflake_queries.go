@@ -121,6 +121,11 @@ func (q snowflakeSQLQueries) dropTableQuery(loc pl.SQLLocation) string {
 	return fmt.Sprintf("DROP TABLE %s", SanitizeSqlLocation(obj))
 }
 
+func (q snowflakeSQLQueries) dropViewQuery(loc pl.SQLLocation) string {
+	obj := loc.TableLocation()
+	return fmt.Sprintf("DROP VIEW %s", SanitizeSqlLocation(obj))
+}
+
 func SanitizeSnowflakeIdentifier(obj pl.FullyQualifiedObject) string {
 	ident := db.Identifier{}
 

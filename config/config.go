@@ -205,6 +205,10 @@ func parseFeatureformApp(logger logging.Logger) (*FeatureformApp, fferr.Error) {
 		logger.Errorw("Failed to parse state backend", "err", err)
 		return nil, err
 	}
+	if err := parseSchedulerConfig(logger, &cfg); err != nil {
+		logger.Errorw("Failed to parse scheduler config", "err", err)
+		return nil, err
+	}
 	return &cfg, nil
 }
 
@@ -302,6 +306,42 @@ func parsePostgres(logger logging.Logger) (*postgres.Config, fferr.Error) {
 	return &cfg, nil
 }
 
+func parseSchedulerConfig(logger logging.Logger, cfg *FeatureformApp) fferr.Error {
+	defaultEnvs := map[string]string{
+		"FF_TASK_POLL_INTERVAL":        "1s",
+		"FF_TASK_STATUS_SYNC_INTERVAL": "1h",
+		"FF_DEPENDENCY_POLL_INTERVAL":  "1s",
+	}
+	logger.Debugw("Parsing scheduler config from env.")
+	envs := fillEnvMap(logger, defaultEnvs)
+	taskPollInterval, err := time.ParseDuration(envs["FF_TASK_POLL_INTERVAL"])
+	if err != nil {
+		logger.Errorw("Invalid TASK_POLL_INTERVAL", "err", err, "env", envs["FF_TASK_POLL_INTERVAL"])
+		return fferr.NewInternalError(err)
+	}
+	taskStatusSyncInterval, err := time.ParseDuration(envs["FF_TASK_STATUS_SYNC_INTERVAL"])
+	if err != nil {
+		logger.Errorw("Invalid TASK_STATUS_SYNC_INTERVAL", "err", err, "env", envs["FF_TASK_STATUS_SYNC_INTERVAL"])
+		return fferr.NewInternalError(err)
+	}
+	dependencyPollInterval, err := time.ParseDuration(envs["FF_DEPENDENCY_POLL_INTERVAL"])
+	if err != nil {
+		logger.Errorw("Invalid TASK_DEPENDENCY_POLL_INTERVAL", "err", err, "env", envs["FF_DEPENDENCY_POLL_INTERVAL"])
+		return fferr.NewInternalError(err)
+	}
+	coordinatorInterval := helpers.GetEnvInt("TASK_DISTRIBUTION_INTERVAL", 1)
+	if coordinatorInterval < 1 {
+		logger.Info("TASK_DISTRIBUTION_INTERVAL must be greater than 0, using default value of 1")
+		coordinatorInterval = 1
+	}
+	cfg.SchedulerTaskPollInterval = taskPollInterval
+	cfg.SchedulerTaskStatusSyncInterval = taskStatusSyncInterval
+	cfg.SchedulerDependencyPollInterval = dependencyPollInterval
+	cfg.SchedulerTaskDistributionInterval = coordinatorInterval
+	logger.Infow("Scheduler config parsed from env")
+	return nil
+}
+
 func fillEnvMap(logger logging.Logger, defaultEnvs map[string]string) map[string]string {
 	envs := make(map[string]string)
 	for env, defVal := range defaultEnvs {
@@ -328,4 +368,13 @@ type FeatureformApp struct {
 	StateProviderType StateProviderType
 	// This will only be set when StateProviderType is PostgresStateProvider
 	Postgres *postgres.Config
+	// Scheduler Configuration
+	SchedulerTaskPollInterval         time.Duration
+	SchedulerTaskStatusSyncInterval   time.Duration
+	SchedulerDependencyPollInterval   time.Duration
+	SchedulerTaskDistributionInterval int
+}
+
+func GetMaterializationWorkerPoolSize() int {
+	return helpers.GetEnvInt("MATERIALIZATION_WORKER_POOL_SIZE", 30)
 }

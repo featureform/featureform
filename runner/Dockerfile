@@ -42,9 +42,12 @@ COPY config/ ./config/
 COPY logging/ ./logging/
 COPY types/ ./types/
 COPY kubernetes/ ./kubernetes/
-COPY ./metadata ./metadata
+COPY metadata/*.go ./metadata/
+COPY metadata/equivalence/* ./metadata/equivalence/
+COPY ./metadata/common/ ./metadata/common/
 COPY ./provider/ ./provider/
 COPY runner/worker/main/main.go ./runner/worker/main/main.go
+COPY ./coordinator/types ./coordinator/types
 
 ENV CGO_ENABLED=1
 RUN go build -o worker ./runner/worker/main

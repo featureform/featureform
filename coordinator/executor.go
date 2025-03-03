@@ -8,6 +8,7 @@
 package coordinator
 
 import (
+	"context"
 	"fmt"
 	"runtime/debug"
 	"time"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/featureform/coordinator/spawner"
 	"github.com/featureform/coordinator/tasks"
+	ct "github.com/featureform/coordinator/types"
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -37,8 +39,8 @@ type Executor struct {
 
 // We should only need to pass the runID here, but the way the data is stored doesn't allow that atm
 // without searching through all tasks
-func (e *Executor) RunTask(tid scheduling.TaskID, rid scheduling.TaskRunID) error {
-	logger := e.logger.With("execution_id", uuid.NewString(), "task_id", tid, "run_id", rid)
+func (e *Executor) RunTask(ctx context.Context, sid ct.SchedulerID, tid scheduling.TaskID, rid scheduling.TaskRunID) error {
+	logger := e.logger.With("execution_id", uuid.NewString(), "scheduler_id", sid, "task_id", tid, "run_id", rid)
 	logger.Debug("Checking if task is lockable")
 	unlockTask, err := e.locker.LockTask(tid, false)
 	if _, ok := err.(*fferr.KeyAlreadyLockedError); ok {
@@ -134,6 +136,15 @@ func (e *Executor) RunTask(tid scheduling.TaskID, rid scheduling.TaskRunID) erro
 		if err := e.metadata.Tasks.SetRunStatus(tid, rid, scheduling.RUNNING, nil); err != nil {
 			logger.Errorw("Failed to set run status to running", "error", err)
 			return err
+		}
+		runIteration, isStr := ctx.Value(ct.RunIterationContextKey("runIteration")).(string)
+		if !isStr {
+			logger.Error("Failed to get run iteration from context due to invalid int type; setting runIteration to 0")
+			runIteration = "0"
+		}
+		logger.Debugw("Setting run scheduler ID ...", "run_iteration", runIteration)
+		if err := e.metadata.Tasks.SetRunSchedulerID(ctx, tid, rid, string(sid), runIteration); err != nil {
+			logger.Errorw("Failed to set run scheduler ID", "error", err)
 		}
 	} else if run.Status == scheduling.RUNNING {
 		logger.Infow("Rerunning previously attempted task")

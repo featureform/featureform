@@ -22,7 +22,6 @@
     "immer": "9.0.15",
     "jspdf": "2.5.1",
     "jspdf-autotable": "3.5.28",
-    "meilisearch": "0.31.1",
     "next": "12.2.5",
     "prometheus-query": "3.2.5",
     "react": "18.3.1",

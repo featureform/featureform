@@ -121,9 +121,6 @@ RUN curl -sL https://deb.nodesource.com/setup_18.x | sh
 RUN apt-get update
 RUN apt-get install -y nodejs
 
-# Install MeiliSearch
-# RUN curl -L https://install.meilisearch.com | sh
-
 # Install goose for migrations
 RUN go install github.com/pressly/goose/v3/cmd/goose@v3.18.0
 

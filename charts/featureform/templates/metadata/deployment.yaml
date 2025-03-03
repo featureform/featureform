@@ -42,12 +42,6 @@ spec:
             - containerPort: 8080
           resources: {}
           env:
-            - name: MEILISEARCH_PORT
-              value: {{ .Values.meilisearch.port | quote }}
-            - name: MEILISEARCH_HOST
-              value: {{ .Values.meilisearch.host }}
-            - name: MEILISEARCH_APIKEY
-              value: {{ .Values.meilisearch.apikey | quote }}
             - name: FF_STATE_PROVIDER
               value: {{ .Values.stateProvider | quote }}
             - name: FEATUREFORM_DEBUG_LOGGING

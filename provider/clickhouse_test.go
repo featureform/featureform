@@ -146,7 +146,7 @@ func TestOfflineStoreClickHouse(t *testing.T) {
 		SSL:      ssl,
 	}
 
-	if err := createClickHouseDatabaseFromConfig(clickHouseConfig); err != nil {
+	if err := createClickHouseDatabaseFromConfig(t, clickHouseConfig); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -176,11 +176,14 @@ func createClickHouseDatabase(conn *sql.DB, dbName string) error {
 	return nil
 }
 
-func createClickHouseDatabaseFromConfig(c pc.ClickHouseConfig) error {
+func createClickHouseDatabaseFromConfig(t *testing.T, c pc.ClickHouseConfig) error {
 	conn, err := sql.Open("clickhouse", fmt.Sprintf("clickhouse://%s:%d?username=%s&password=%s&secure=%t", c.Host, c.Port, c.Username, c.Password, c.SSL))
 	if err != nil {
 		return err
 	}
+	t.Cleanup(func() {
+		conn.Close()
+	})
 
 	return createClickHouseDatabase(conn, c.Database)
 }
@@ -429,7 +432,7 @@ func getConfiguredClickHouseTester(t *testing.T) offlineSqlTest {
 		t.Fatalf("could not get clickhouse config: %s\n", err)
 	}
 
-	if err := createClickHouseDatabaseFromConfig(clickHouseConfig); err != nil {
+	if err := createClickHouseDatabaseFromConfig(t, clickHouseConfig); err != nil {
 		t.Fatalf("%v", err)
 	}
 

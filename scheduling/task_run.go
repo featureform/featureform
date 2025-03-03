@@ -14,6 +14,7 @@ import (
 	"time"
 
 	mapset "github.com/deckarep/golang-set/v2"
+	ct "github.com/featureform/coordinator/types"
 
 	pb "github.com/featureform/metadata/proto"
 	sch "github.com/featureform/scheduling/proto"
@@ -228,6 +229,8 @@ type TaskRunMetadata struct {
 	LastSuccessful TaskRunID       `json:"lastSuccessful"`
 	IsDelete       bool            `json:"isDelete"`
 	ResumeID       ptypes.ResumeID `json:"resumeID"`
+	SchedulerID    ct.SchedulerID  `json:"schedulerId"`
+	RunIteration   string          `json:"runIteration"`
 	ErrorProto     *pb.ErrorStatus
 }
 
@@ -255,8 +258,10 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 		Error          string          `json:"error"`
 		ResumeID       string          `json:"resumeID"`
 		ErrorProto     *pb.ErrorStatus
-		LastSuccessful uint64 `json:"lastSuccessful"`
-		IsDelete       bool   `json:"isDelete"`
+		LastSuccessful uint64         `json:"lastSuccessful"`
+		IsDelete       bool           `json:"isDelete"`
+		SchedulerID    ct.SchedulerID `json:"schedulerId"`
+		RunIteration   string         `json:"runIteration"`
 	}
 
 	var temp tempConfig
@@ -294,6 +299,8 @@ func (t *TaskRunMetadata) Unmarshal(data []byte) error {
 	t.Logs = temp.Logs
 	t.Error = temp.Error
 	t.IsDelete = temp.IsDelete
+	t.RunIteration = temp.RunIteration
+	t.SchedulerID = temp.SchedulerID
 
 	triggerMap := make(map[string]interface{})
 	if err := json.Unmarshal(temp.Trigger, &triggerMap); err != nil {
@@ -374,6 +381,8 @@ func (run *TaskRunMetadata) ToProto() (*sch.TaskRunMetadata, error) {
 		ResumeID:       &sch.ResumeID{Id: run.ResumeID.String()},
 		LastSuccessful: lsid,
 		IsDelete:       run.IsDelete,
+		RunIteration:   run.RunIteration,
+		SchedulerID:    string(run.SchedulerID),
 	}
 
 	taskRunMetadata, err := setTriggerProto(taskRunMetadata, run.Trigger)
@@ -503,6 +512,8 @@ func TaskRunMetadataFromProto(run *sch.TaskRunMetadata) (TaskRunMetadata, error)
 		ResumeID:       ptypes.ResumeID(run.GetResumeID().GetId()),
 		LastSuccessful: lsid,
 		IsDelete:       run.IsDelete,
+		SchedulerID:    ct.SchedulerID(run.SchedulerID),
+		RunIteration:   run.RunIteration,
 	}, nil
 }
 

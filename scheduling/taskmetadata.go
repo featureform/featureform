@@ -15,6 +15,7 @@ import (
 
 	mapset "github.com/deckarep/golang-set/v2"
 
+	ct "github.com/featureform/coordinator/types"
 	"github.com/featureform/helpers/notifications"
 	"github.com/featureform/metadata/proto"
 
@@ -673,4 +674,32 @@ func (m *TaskMetadataManager) WatchForCancel(runID TaskRunID, taskID TaskID) err
 
 	}
 	return nil
+}
+
+func (m *TaskMetadataManager) SetRunSchedulerID(tid TaskID, runID TaskRunID, schedulerID ct.SchedulerID, runIteration string) error {
+	fetchedMetadata, getRunErr := m.GetRunByID(tid, runID)
+	if getRunErr != nil {
+		return getRunErr
+	}
+
+	updateSchedulerID := func(runMetadata string) (string, error) {
+		updatedRunMetadata := TaskRunMetadata{}
+		unmarshalErr := updatedRunMetadata.Unmarshal([]byte(runMetadata))
+		if unmarshalErr != nil {
+			intErr := fferr.NewInternalError(unmarshalErr)
+			return "", intErr
+		}
+		updatedRunMetadata.SchedulerID = schedulerID
+		updatedRunMetadata.RunIteration = runIteration
+		serializedMetadata, marshalErr := updatedRunMetadata.Marshal()
+		if marshalErr != nil {
+			return "", marshalErr
+		}
+		return string(serializedMetadata), nil
+	}
+
+	taskRunMetadataKey := TaskRunMetadataKey{taskID: tid, runID: fetchedMetadata.ID, date: fetchedMetadata.StartTime}
+	updateErr := m.Storage.Update(taskRunMetadataKey.String(), updateSchedulerID)
+
+	return updateErr
 }

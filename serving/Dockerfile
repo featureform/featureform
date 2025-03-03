@@ -38,6 +38,7 @@ COPY ./kubernetes/ ./kubernetes/
 COPY ./metrics/ ./metrics/
 COPY ./provider/ ./provider/
 COPY serving/main/main.go ./serving/main/main.go
+COPY ./coordinator/types ./coordinator/types
 
 RUN go build ./serving/main/main.go
 

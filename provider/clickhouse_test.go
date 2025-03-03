@@ -80,12 +80,13 @@ func (ch *clickHouseOfflineStoreTester) CreateTable(loc pl.Location, schema Tabl
 	query := queryBuilder.String()
 	_, err = db.Exec(query)
 	if err != nil {
+		ch.logger.Errorw("error executing query", "query", query, "error", err)
 		return nil, err
 	}
 
 	newDb, err := ch.getDb(sqlLocation.GetDatabase(), "")
 	if err != nil {
-		logger.Errorw("error connecting to new database", "error", err)
+		ch.logger.Errorw("error connecting to new database", "error", err)
 		return nil, err
 	}
 
@@ -145,7 +146,7 @@ func TestOfflineStoreClickHouse(t *testing.T) {
 		SSL:      ssl,
 	}
 
-	if err := createClickHouseDatabaseFromConfig(clickHouseConfig); err != nil {
+	if err := createClickHouseDatabaseFromConfig(t, clickHouseConfig); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -175,11 +176,14 @@ func createClickHouseDatabase(conn *sql.DB, dbName string) error {
 	return nil
 }
 
-func createClickHouseDatabaseFromConfig(c pc.ClickHouseConfig) error {
+func createClickHouseDatabaseFromConfig(t *testing.T, c pc.ClickHouseConfig) error {
 	conn, err := sql.Open("clickhouse", fmt.Sprintf("clickhouse://%s:%d?username=%s&password=%s&secure=%t", c.Host, c.Port, c.Username, c.Password, c.SSL))
 	if err != nil {
 		return err
 	}
+	t.Cleanup(func() {
+		conn.Close()
+	})
 
 	return createClickHouseDatabase(conn, c.Database)
 }
@@ -416,9 +420,9 @@ func getClickHouseConfig(t *testing.T) (pc.ClickHouseConfig, error) {
 func sanitizeClickHouseTableName(obj pl.FullyQualifiedObject) string {
 	name := ""
 	if obj.Database != "" {
-		name = obj.Database + "."
+		name = SanitizeClickHouseIdentifier(obj.Database) + "."
 	}
-	name += obj.Table
+	name += SanitizeClickHouseIdentifier(obj.Table)
 	return name
 }
 
@@ -428,7 +432,7 @@ func getConfiguredClickHouseTester(t *testing.T) offlineSqlTest {
 		t.Fatalf("could not get clickhouse config: %s\n", err)
 	}
 
-	if err := createClickHouseDatabaseFromConfig(clickHouseConfig); err != nil {
+	if err := createClickHouseDatabaseFromConfig(t, clickHouseConfig); err != nil {
 		t.Fatalf("%v", err)
 	}
 
@@ -444,6 +448,10 @@ func getConfiguredClickHouseTester(t *testing.T) offlineSqlTest {
 		clickHouseConfig.Password,
 		clickHouseConfig.SSL,
 	))
+	t.Cleanup(func() {
+		conn.Close()
+	})
+
 	storeTester := clickHouseOfflineStoreTester{
 		conn:                   conn,
 		defaultDbName:          clickHouseConfig.Database,

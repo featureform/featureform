@@ -423,7 +423,7 @@ func (table *clickhouseOfflineTable) WriteBatch(recs []ResourceRecord) error {
 }
 
 func (table *clickhouseOfflineTable) Location() pl.Location {
-	return clickhouse.NewLocationFromParts("", table.name)
+	return clickhouse.NewLocationFromTableName(table.name)
 }
 
 type clickhousePrimaryTable struct {
@@ -643,6 +643,8 @@ func (it *clickHouseTableIterator) Close() error {
 }
 
 func (store *clickHouseOfflineStore) validateColumnsExist(id ResourceID, loc pl.FullyQualifiedObject, schema ResourceSchema) error {
+	logger := store.logger.With("id", id, "location", loc, "schema", schema)
+
 	expectedColumns, err := schema.ToColumnStringSet(id.Type)
 	if err != nil {
 		logger.Errorw("failed to get expected columns", "error", err)

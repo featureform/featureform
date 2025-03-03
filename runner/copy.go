@@ -8,10 +8,12 @@
 package runner
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
 
+	"github.com/featureform/config"
 	"github.com/featureform/logging"
 
 	"github.com/featureform/fferr"
@@ -27,11 +29,6 @@ import (
 // to the inference store avoid blocking the writer loop below; after some initial testing,
 // 1M records seems to be a good buffer size
 const resourceRecordBufferSize = 1_000_000
-
-// We create a pool of goroutines per materialization chunk runner to make Set requests to
-// the inference store asynchronously; after some initial testing, 500 workers appears to
-// offer the best results
-const workerPoolSize = 500
 
 // This breaks tests currently and may have unintended consequences. More work to be done.
 const providerCachingEnabled = false
@@ -64,14 +61,22 @@ func (m *MaterializedChunkRunner) IsUpdateJob() bool {
 
 func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 	logger := logging.NewLogger("Copy_to_Online")
+	_, ctx, logger := logger.InitializeRequestID(context.TODO())
 	done := make(chan interface{})
 	jobWatcher := &SyncWatcher{
 		ResultSync:  &ResultSync{},
 		DoneChannel: done,
 	}
+	// We create a pool of goroutines per materialization chunk runner to make Set requests to
+	// the inference store asynchronously; after some initial testing, 500 workers appears to
+	// offer the best results
+	workerPoolSize := config.GetMaterializationWorkerPoolSize()
+	logger.Debugw("worker pool size", "worker_pool_size", workerPoolSize)
 	go func() {
+		logger.Debugw("starting materialized chunk runner", "chunk_idx", m.ChunkIdx)
 		it, err := m.Materialized.IterateChunk(m.ChunkIdx)
 		if err != nil {
+			logger.Errorw("error getting iterator", "error", err)
 			jobWatcher.EndWatch(err)
 			return
 		}
@@ -99,13 +104,14 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		batchTable, supportsBatch := m.Table.(provider.BatchOnlineTable)
 		var setterFn func()
 		if supportsBatch {
-			logger.Debugw("using batch table", "table", m.Table)
+			logger.Debugw("using batch table", "batch_table", fmt.Sprintf("%T", batchTable))
 			maxBatch, err := batchTable.MaxBatchSize()
 			if maxBatch <= 0 {
 				logger.Errorf("max batch size must be greater than 0")
 				jobWatcher.EndWatch(fferr.NewInternalErrorf("Max batch size must be greater than 0"))
 				return
 			}
+			logger.Debugw("max batch size", "max_batch_size", maxBatch)
 			setterFn = func() {
 				defer wg.Done()
 				if err != nil {
@@ -120,7 +126,8 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 				for record := range ch {
 					buffer = append(buffer, provider.SetItem{record.Entity, record.Value})
 					if len(buffer) == maxBatch {
-						if err := batchTable.BatchSet(buffer); err != nil {
+						logger.Debugw("setting batch", "batch_size", len(buffer))
+						if err := batchTable.BatchSet(ctx, buffer); err != nil {
 							logger.Errorf("error setting batch: %v", err)
 							select {
 							case errCh <- err:
@@ -132,7 +139,8 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 				}
 				// Clear the buffer
 				if len(buffer) != 0 {
-					if err := batchTable.BatchSet(buffer); err != nil {
+					logger.Debugw("setting batch", "batch_size", len(buffer))
+					if err := batchTable.BatchSet(ctx, buffer); err != nil {
 						logger.Errorf("error setting batch: %v", err)
 						select {
 						case errCh <- err:
@@ -143,6 +151,7 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 				}
 			}
 		} else {
+			logger.Debugw("using single set table", "table", fmt.Sprintf("%T", m.Table))
 			setterFn = func() {
 				defer wg.Done()
 				for record := range ch {

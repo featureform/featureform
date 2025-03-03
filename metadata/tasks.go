@@ -38,6 +38,7 @@ type TaskService interface {
 	SetRunResumeID(tid s.TaskID, runID s.TaskRunID, resumeID ptypes.ResumeID) error
 	AddRunLog(taskID s.TaskID, runID s.TaskRunID, msg string) error
 	EndRun(tid s.TaskID, runID s.TaskRunID) error
+	SetRunSchedulerID(ctx context.Context, tid s.TaskID, runID s.TaskRunID, schedulerID string, runIteration string) error
 }
 
 type Tasks struct {
@@ -275,6 +276,24 @@ func (t *Tasks) EndRun(tid s.TaskID, runID s.TaskRunID) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (t *Tasks) SetRunSchedulerID(ctx context.Context, tid s.TaskID, runID s.TaskRunID, schedulerID string, runIteration string) error {
+	logger := logging.GetLoggerFromContext(ctx).With("task_id", tid.String(), "run_id", runID.String(), "scheduler_id", schedulerID)
+	logger.Debugw("Setting scheduler ID for task run ...")
+	update := &schproto.SetRunSchedulerIDRequest{
+		TaskID:       &schproto.TaskID{Id: tid.String()},
+		RunID:        &schproto.RunID{Id: runID.String()},
+		SchedulerID:  schedulerID,
+		RunIteration: runIteration,
+	}
+	_, err := t.GrpcConn.SetRunSchedulerID(ctx, update)
+	if err != nil {
+		logger.Errorw("Failed to set scheduler ID", "error", err)
+		return err
+	}
+	logger.Debugw("Successfully set scheduler ID for task run")
 	return nil
 }
 

@@ -14,10 +14,28 @@ import ReduxWrapper from '../../../components/redux/wrapper/ReduxWrapper';
 import TEST_THEME from '../../../styles/theme';
 import MetricsDropdown from './MetricsDropdown';
 
+
+// Add this at the very top of your test file, before any imports
+global.fetch = jest.fn();
+
 jest.mock('./QueryDropdown', () => {
   const comp = () => <div />;
   comp.displayName = 'mock';
   return comp;
+});
+
+// Then in your test setup
+beforeAll(() => {
+  global.fetch.mockImplementation(() => 
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({})
+    })
+  );
+});
+
+beforeEach(() => {
+  global.fetch.mockClear();
 });
 
 describe('Metrics Dropdown tests', () => {
@@ -36,10 +54,6 @@ describe('Metrics Dropdown tests', () => {
       </>
     );
   };
-
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
 
   afterEach(() => {
     cleanup();

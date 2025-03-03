@@ -145,7 +145,6 @@ jobs:
             ,testing/bigquery
             ,testing/gcs
             ,testing/redis
-            ,testing/meilisearch
             ,testing/pinecone
             ,testing/cassandra
           parse-json-secrets: true
@@ -189,13 +188,6 @@ jobs:
 
       - name: Unit Tests
         run: go test ./... -short
-
-      - name: Install Search Container
-        run: docker pull getmeili/meilisearch:v1.0
-
-      - name: Start Search
-        run: |
-          docker run -d -p $MEILISEARCH_PORT:7700 getmeili/meilisearch:v1.0
 
       - uses: getong/redis-action@v1
         with:
@@ -475,7 +467,6 @@ jobs:
             ,testing/bigquery
             ,testing/gcs
             ,testing/redis
-            ,testing/meilisearch
             ,testing/pinecone
             ,testing/cassandra
           parse-json-secrets: true
@@ -638,7 +629,6 @@ jobs:
             ,testing/bigquery
             ,testing/gcs
             ,testing/redis
-            ,testing/meilisearch
             ,testing/pinecone
             ,testing/cassandra
           parse-json-secrets: true
@@ -803,7 +793,6 @@ jobs:
             ,testing/bigquery
             ,testing/gcs
             ,testing/redis
-            ,testing/meilisearch
             ,testing/pinecone
             ,testing/cassandra
           parse-json-secrets: true

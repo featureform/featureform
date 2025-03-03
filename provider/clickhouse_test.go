@@ -80,12 +80,13 @@ func (ch *clickHouseOfflineStoreTester) CreateTable(loc pl.Location, schema Tabl
 	query := queryBuilder.String()
 	_, err = db.Exec(query)
 	if err != nil {
+		ch.logger.Errorw("error executing query", "query", query, "error", err)
 		return nil, err
 	}
 
 	newDb, err := ch.getDb(sqlLocation.GetDatabase(), "")
 	if err != nil {
-		logger.Errorw("error connecting to new database", "error", err)
+		ch.logger.Errorw("error connecting to new database", "error", err)
 		return nil, err
 	}
 

@@ -1444,7 +1444,6 @@ func DeleteTableTest(t *testing.T, test offlineSqlTest) {
 	// Create the table
 	tableName := "DUMMY_TABLE"
 	location := newSqlLocation(test.testConfig, dbName, "PUBLIC", tableName)
-	_, err := createDummyTable(test.storeTester, location, 3)
 
 	if _, err = createDummyTable(test.storeTester, location, 3); err != nil {
 		t.Fatalf("could not create table: %v", err)

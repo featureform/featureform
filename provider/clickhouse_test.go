@@ -416,9 +416,9 @@ func getClickHouseConfig(t *testing.T) (pc.ClickHouseConfig, error) {
 func sanitizeClickHouseTableName(obj pl.FullyQualifiedObject) string {
 	name := ""
 	if obj.Database != "" {
-		name = obj.Database + "."
+		name = SanitizeClickHouseIdentifier(obj.Database) + "."
 	}
-	name += obj.Table
+	name += SanitizeClickHouseIdentifier(obj.Table)
 	return name
 }
 

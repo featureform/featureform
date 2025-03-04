@@ -115,6 +115,7 @@ class DockerDeployment(Deployment):
             try:
                 print(f"Checking if {config.name} container exists...")
                 container = self._client.containers.get(config.name)
+                print(f"\tContainer {container.name} has status {container.status}")
                 if container.status == "running":
                     print(f"\tContainer {config.name} is already running. Skipping...")
                     continue

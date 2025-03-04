@@ -121,6 +121,9 @@ class DockerDeployment(Deployment):
                 elif container.status == "exited":
                     print(f"\tContainer {config.name} is stopped. Starting...")
                     container.start()
+                elif container.status == "created":
+                    print(f"\tContainer {config.name} is created, but not running. Starting...")
+                    container.start()
             except docker.errors.APIError as e:
                 if e.status_code == 409:
                     print(f"\tContainer {config.name} already exists. Skipping...")

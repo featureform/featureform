@@ -265,8 +265,24 @@ func (store *sqlOfflineStore) CheckHealth() (bool, error) {
 	return true, nil
 }
 
-func (store sqlOfflineStore) Delete(location pl.Location) error {
-	return fferr.NewInternalErrorf("delete not implemented")
+func (store *sqlOfflineStore) Delete(location pl.Location) error {
+	logger := store.logger.With("location", location.Location())
+	if exists, err := store.tableExists(location); err != nil {
+		logger.Errorw("Failed to check if table exists", "error", err)
+		return err
+	} else if !exists {
+		logger.Errorw("Table does not exist")
+		return fferr.NewDatasetLocationNotFoundError(location.Location(), nil)
+	}
+
+	query := store.query.dropTable(location.Location())
+	logger.Debugw("Dropping table", "query", query)
+	if _, err := store.db.Exec(query); err != nil {
+		logger.Errorw("Failed to drop table", "error", err)
+		return fferr.NewExecutionError(store.Type().String(), err)
+	}
+	logger.Info("Successfully dropped table")
+	return nil
 }
 
 func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
@@ -400,7 +416,7 @@ func (store *sqlOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema
 		return nil, err
 	}
 
-	location, _ := pl.NewFullyQualifiedSQLLocation(dbName, schemaName, name).(*pl.SQLLocation)
+	location := pl.NewSQLLocationFromParts(dbName, schemaName, name)
 	return &sqlPrimaryTable{
 		db:           db,
 		name:         name, // TODO get rid of this and just use location
@@ -493,7 +509,7 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 	if err != nil {
 		return nil, err
 	}
-	sqlLocation := pl.NewFullyQualifiedSQLLocation(dbName, schemaName, name).(*pl.SQLLocation)
+	sqlLocation := pl.NewSQLLocationFromParts(dbName, schemaName, name)
 
 	return &sqlPrimaryTable{
 		db:           store.db,

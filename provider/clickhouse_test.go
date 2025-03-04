@@ -41,7 +41,11 @@ func (ch *clickHouseOfflineStoreTester) CreateDatabase(name string) error {
 
 func (ch *clickHouseOfflineStoreTester) DropDatabase(name string) error {
 	_, err := ch.conn.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", SanitizeClickHouseIdentifier(name)))
-	return err
+	if err != nil {
+		ch.logger.Errorw("dropping database", "error", err)
+		return err
+	}
+	return nil
 }
 
 func (ch *clickHouseOfflineStoreTester) CreateSchema(database, schema string) error {
@@ -50,13 +54,18 @@ func (ch *clickHouseOfflineStoreTester) CreateSchema(database, schema string) er
 }
 
 func (ch *clickHouseOfflineStoreTester) CreateTable(loc pl.Location, schema TableSchema) (PrimaryTable, error) {
+	logger := ch.logger.With("location", loc, "schema", schema)
+
 	sqlLocation, ok := loc.(*pl.SQLLocation)
 	if !ok {
-		return nil, fmt.Errorf("invalid location type, expected SQLLocation, got %T", loc)
+		errMsg := fmt.Sprintf("invalid location type, expected SQLLocation, got %T", loc)
+		logger.Errorw(errMsg)
+		return nil, fmt.Errorf(errMsg)
 	}
 
 	db, err := ch.sqlOfflineStore.getDb(sqlLocation.GetDatabase(), "")
 	if err != nil {
+		logger.Errorw("could not get db", "error", err)
 		return nil, err
 	}
 
@@ -71,6 +80,7 @@ func (ch *clickHouseOfflineStoreTester) CreateTable(loc pl.Location, schema Tabl
 		}
 		columnType, err := ch.sqlOfflineStore.query.determineColumnType(column.ValueType)
 		if err != nil {
+			logger.Errorw("determining column type", "valueType", column.Type, "error", err)
 			return nil, err
 		}
 		queryBuilder.WriteString(fmt.Sprintf("%s %s", column.Name, columnType))
@@ -80,13 +90,13 @@ func (ch *clickHouseOfflineStoreTester) CreateTable(loc pl.Location, schema Tabl
 	query := queryBuilder.String()
 	_, err = db.Exec(query)
 	if err != nil {
-		ch.logger.Errorw("error executing query", "query", query, "error", err)
+		logger.Errorw("error executing query", "query", query, "error", err)
 		return nil, err
 	}
 
 	newDb, err := ch.getDb(sqlLocation.GetDatabase(), "")
 	if err != nil {
-		ch.logger.Errorw("error connecting to new database", "error", err)
+		logger.Errorw("error connecting to new database", "error", err)
 		return nil, err
 	}
 

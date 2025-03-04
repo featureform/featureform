@@ -36,7 +36,7 @@ func (ch *clickHouseOfflineStoreTester) GetTestDatabase() string {
 }
 
 func (ch *clickHouseOfflineStoreTester) CreateDatabase(name string) error {
-	return createClickHouseDatabase(ch.conn, name)
+	return createOrReplaceClickHouseDatabase(ch.conn, name)
 }
 
 func (ch *clickHouseOfflineStoreTester) DropDatabase(name string) error {
@@ -175,7 +175,7 @@ func TestOfflineStoreClickHouse(t *testing.T) {
 	// test.RunSQL()
 }
 
-func createClickHouseDatabase(conn *sql.DB, dbName string) error {
+func createOrReplaceClickHouseDatabase(conn *sql.DB, dbName string) error {
 	if _, err := conn.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", SanitizeClickHouseIdentifier(dbName))); err != nil {
 		return err
 	}
@@ -195,7 +195,7 @@ func createClickHouseDatabaseFromConfig(t *testing.T, c pc.ClickHouseConfig) err
 		conn.Close()
 	})
 
-	return createClickHouseDatabase(conn, c.Database)
+	return createOrReplaceClickHouseDatabase(conn, c.Database)
 }
 
 func TestTrainingSet(t *testing.T) {

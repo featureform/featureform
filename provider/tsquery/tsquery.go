@@ -19,8 +19,12 @@ const (
 
 type QueryConfig struct {
 	UseAsOfJoin bool
-	QuoteChar   string
-	QuoteTable  bool
+	// If true, then the ASOF JOIN will use normal join syntax.
+	// Otherwise, will use the MATCH_CONDITION(...) ON(...) syntax.
+	// UseAsOfJoin must be true for this to take effect.
+	AsOfJoinUseNormalJoinSyntax bool
+	QuoteChar                   string
+	QuoteTable                  bool
 }
 
 type BuilderParams struct {
@@ -176,7 +180,7 @@ type asOfJoins []asOfJoin
 func (j asOfJoins) ToSQL(config QueryConfig) string {
 	joins := make([]string, len(j))
 	for i, join := range j {
-		joins[i] = join.ToSQL()
+		joins[i] = join.ToSQL(config)
 	}
 	return strings.Join(joins, " ")
 }
@@ -387,11 +391,17 @@ type asOfJoin struct {
 }
 
 // ToSQL creates an ASOF JOIN between the label and feature tables.
-func (j asOfJoin) ToSQL() string {
+func (j asOfJoin) ToSQL(config QueryConfig) string {
 	joinClause := fmt.Sprintf("%s %s %s", joinAsOf, j.ft.SanitizedTableName, j.alias)
-	matchCondition := fmt.Sprintf("MATCH_CONDITION(l.%s >= %s.%s)", j.lblTS, j.alias, j.ft.TS)
-	onClause := fmt.Sprintf("ON(l.%s = %s.%s)", j.lblEntity, j.alias, j.ft.Entity)
-	return fmt.Sprintf("%s %s %s", joinClause, matchCondition, onClause)
+	var matchClause string
+	if config.AsOfJoinUseNormalJoinSyntax {
+		matchClause += fmt.Sprintf("ON l.%s = %s.%s", j.lblEntity, j.alias, j.ft.Entity)
+		matchClause += fmt.Sprintf(" AND l.%s >= %s.%s", j.lblTS, j.alias, j.ft.TS)
+	} else {
+		matchClause += fmt.Sprintf("MATCH_CONDITION(l.%s >= %s.%s)", j.lblTS, j.alias, j.ft.TS)
+		matchClause += fmt.Sprintf(" ON(l.%s = %s.%s)", j.lblEntity, j.alias, j.ft.Entity)
+	}
+	return fmt.Sprintf("%s %s", joinClause, matchClause)
 }
 
 // col represents a column in the SELECT clause, with a table alias, column name, and column alias.

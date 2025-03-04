@@ -38,7 +38,7 @@ func TestOfflineStorePostgres(t *testing.T) {
 	//test.RunSQL()
 }
 
-func getConfiguredPostgresTester(t *testing.T, useCrossDBJoins bool) offlineSqlTest {
+func getConfiguredPostgresTester(t *testing.T) offlineSqlTest {
 	postgresConfig, err := getPostgresConfig(t, "")
 	if err != nil {
 		t.Fatalf("could not get postgres config: %s\n", err)
@@ -66,15 +66,15 @@ func getConfiguredPostgresTester(t *testing.T, useCrossDBJoins bool) offlineSqlT
 	// TODO: Drop Schema
 
 	sanitizeTableName := func(obj pl.FullyQualifiedObject) string {
-		loc := pl.NewFullyQualifiedSQLLocation(obj.Database, obj.Schema, obj.Table).(*pl.SQLLocation)
+		loc := pl.NewSQLLocationFromParts(obj.Database, obj.Schema, obj.Table)
 		return helper.SanitizeLocation(*loc)
 	}
 
 	return offlineSqlTest{
-		storeTester:         &storeTester,
-		testCrossDbJoins:    useCrossDBJoins,
-		transformationQuery: "SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
-		sanitizeTableName:   sanitizeTableName,
+		storeTester: &storeTester,
+		testConfig: offlineSqlTestConfig{
+			sanitizeTableName: sanitizeTableName,
+		},
 	}
 }
 

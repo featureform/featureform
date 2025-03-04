@@ -21,8 +21,9 @@ import (
 	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 
-	tsq "github.com/featureform/provider/tsquery"
 	snowflake "github.com/snowflakedb/gosnowflake"
+
+	tsq "github.com/featureform/provider/tsquery"
 )
 
 // sqlColumnType is used to specify the column type of a resource value.

@@ -12,11 +12,13 @@
 package provider
 
 import (
-	"cloud.google.com/go/firestore"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
+	"cloud.google.com/go/firestore"
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	pl "github.com/featureform/provider/location"
@@ -29,7 +31,6 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"time"
 )
 
 const (
@@ -361,7 +362,7 @@ func (store *firestoreOnlineStore) Delete(location pl.Location) error {
 
 func (table firestoreOnlineTable) Set(entity string, value interface{}) error {
 	// Set is just a special case of batch writing.
-	err := table.BatchSet([]SetItem{{
+	err := table.BatchSet(context.Background(), []SetItem{{
 		Entity: entity,
 		Value:  value,
 	}})
@@ -399,13 +400,13 @@ const maxFirestoreBatchSize = 20
 
 func (table firestoreOnlineTable) MaxBatchSize() (int, error) { return maxFirestoreBatchSize, nil }
 
-func (table firestoreOnlineTable) BatchSet(items []SetItem) error {
+func (table firestoreOnlineTable) BatchSet(ctx context.Context, items []SetItem) error {
 	if len(items) > maxFirestoreBatchSize {
 		return fferr.NewInternalErrorf(
 			"Cannot batch write %d items.\nMax: %d\n", len(items), maxFirestoreBatchSize)
 	}
 
-	bulkWriter := table.client.BulkWriter(context.TODO())
+	bulkWriter := table.client.BulkWriter(ctx)
 
 	for _, item := range items {
 		serializedValue, err := table.serializer.Serialize(table.valueType, item.Value)

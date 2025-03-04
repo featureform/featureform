@@ -10,12 +10,12 @@ package logging
 import (
 	"context"
 	"encoding/json"
-	"github.com/featureform/metadata/proto"
 	"io"
 	"sync"
 	"testing"
 
 	"github.com/featureform/helpers"
+	"github.com/featureform/metadata/proto"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -264,7 +264,7 @@ func (logger Logger) InitializeRequestID(ctx context.Context) (RequestID, contex
 }
 
 func (logger Logger) AttachToContext(ctx context.Context) context.Context {
-	return AddLoggerToContext(ctx, logger)
+	return addLoggerToContext(ctx, logger)
 }
 
 func GetRequestIDFromContext(ctx context.Context) RequestID {
@@ -307,7 +307,7 @@ func AttachRequestID(id RequestID, ctx context.Context, logger Logger) context.C
 	return ctx
 }
 
-func AddLoggerToContext(ctx context.Context, logger Logger) context.Context {
+func addLoggerToContext(ctx context.Context, logger Logger) context.Context {
 	return context.WithValue(ctx, LoggerKey, logger)
 }
 

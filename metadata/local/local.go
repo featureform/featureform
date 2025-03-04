@@ -28,7 +28,7 @@ func main() {
 		Address:     fmt.Sprintf(":%s", addr),
 		TaskManager: meta,
 	}
-	server, err := metadata.NewMetadataServer(config)
+	server, err := metadata.NewMetadataServer(ctx, config)
 	if err != nil {
 		logger.Panicw("Failed to create metadata server", "Err", err)
 	}

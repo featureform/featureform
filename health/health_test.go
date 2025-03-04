@@ -184,7 +184,7 @@ func initMetadataServer(ctx context.Context, logger logging.Logger, t *testing.T
 		Logger:      logger,
 		TaskManager: manager,
 	}
-	server, err := metadata.NewMetadataServer(config)
+	server, err := metadata.NewMetadataServer(ctx, config)
 	if err != nil {
 		panic(err)
 	}

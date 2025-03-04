@@ -19,7 +19,6 @@ import (
 
 	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
-	"github.com/featureform/metadata/search"
 	"github.com/stretchr/testify/assert"
 	grpc_status "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -558,7 +557,7 @@ func startServ(t *testing.T, ctx context.Context, logger logging.Logger) (*Metad
 		Logger:      logger,
 		TaskManager: manager,
 	}
-	serv, err := NewMetadataServer(config)
+	serv, err := NewMetadataServer(ctx, config)
 	if err != nil {
 		panic(err)
 	}
@@ -581,8 +580,7 @@ func startServNoPanic(t *testing.T, ctx context.Context, logger logging.Logger) 
 		Logger:      logger,
 		TaskManager: manager,
 	}
-
-	serv, err := NewMetadataServer(config)
+	serv, err := NewMetadataServer(ctx, config)
 	if err != nil {
 		panic(err)
 	}
@@ -663,7 +661,7 @@ func TestServeGracefulStop(t *testing.T) {
 		Address:     ":0",
 		TaskManager: manager,
 	}
-	serv, err := NewMetadataServer(config)
+	serv, err := NewMetadataServer(ctx, config)
 	if err != nil {
 		t.Fatalf("Failed to create metadata server: %s", err)
 	}
@@ -680,45 +678,6 @@ func TestServeGracefulStop(t *testing.T) {
 	case <-errChan:
 	case <-time.After(5 * time.Second):
 		t.Fatalf("GracefulStop did not work")
-	}
-}
-
-type MockSearcher struct {
-	search.Searcher
-}
-
-func mockNewMeilisearch(params *search.MeilisearchParams) (search.Searcher, error) {
-	return &MockSearcher{}, nil
-}
-
-func TestLookupWrapInitialize(t *testing.T) {
-	ctx, logger := logging.NewTestContextAndLogger(t)
-	manager, err := scheduling.NewMemoryTaskMetadataManager(ctx)
-	if err != nil {
-		t.Fatal("New memory manager failed to instantiate", err.Error())
-	}
-
-	searchParams := search.MeilisearchParams{
-		Host:   "host", //exact values not needed
-		Port:   "port",
-		ApiKey: "key",
-	}
-	config := &Config{
-		SearchParams: &searchParams,
-		Logger:       logger,
-		Address:      ":0",
-		TaskManager:  manager,
-	}
-
-	lookup := MemoryResourceLookup{config.TaskManager.Storage}
-	resultWrap, err := initializeLookup(config, &lookup, mockNewMeilisearch)
-	if err != nil {
-		t.Fatal("initialize returned an error:", err.Error())
-	}
-
-	assert.NotNil(t, resultWrap)
-	if _, ok := resultWrap.(*SearchWrapper); !ok {
-		t.Fatalf("expected lookup of type *SearchWrapper but got %T", resultWrap)
 	}
 }
 

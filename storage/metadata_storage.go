@@ -31,21 +31,22 @@ func (s *MetadataStorage) unlockWithLogger(ctx context.Context, Locker ffsync.Lo
 	}
 }
 
-func (s *MetadataStorage) Create(key string, value string) error {
-	ctx := context.Background()
-	reqID := uuid.NewString()
-	ctx = context.WithValue(ctx, "request_id", reqID)
-
-	logger := s.Logger.With("key", key, "request_id", reqID)
-	logger.Debug("Creating key")
+func (s *MetadataStorage) Create(ctx context.Context, key string, value string) error {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger.Debug("Locking key")
 	lock, err := s.Locker.Lock(ctx, key, true)
 	if err != nil {
+		logger.Errorw("Error locking key", "error", err)
 		return err
 	}
 
 	defer s.unlockWithLogger(ctx, s.Locker, lock, logger)
-
-	return s.Storage.Set(key, value)
+	if err := s.Storage.Set(ctx, key, value); err != nil {
+		logger.Errorw("Error setting key", "error", err)
+		return err
+	}
+	logger.Debug("Key set successfully")
+	return nil
 }
 
 func (s *MetadataStorage) MultiCreate(data map[string]string) error {
@@ -67,7 +68,7 @@ func (s *MetadataStorage) MultiCreate(data map[string]string) error {
 
 	// Set all values
 	for key, value := range data {
-		err := s.Storage.Set(key, value)
+		err := s.Storage.Set(ctx, key, value)
 		if err != nil {
 			return err
 		}
@@ -98,7 +99,7 @@ func (s *MetadataStorage) Update(key string, updateFn func(string) (string, erro
 		return err
 	}
 
-	return s.Storage.Set(key, newValue)
+	return s.Storage.Set(ctx, key, newValue)
 }
 
 func (s *MetadataStorage) List(prefix string, opts ...query.Query) (map[string]string, error) {
@@ -210,7 +211,7 @@ const (
 
 type metadataStorageImplementation interface {
 	// Set stores the value for the key and updates it if it already exists
-	Set(key string, value string) error
+	Set(ctx context.Context, key string, value string) error
 	// Get returns the value for the key
 	Get(key string, opts ...query.Query) (string, error)
 	// List returns all the keys and values that match the query
@@ -225,4 +226,6 @@ type metadataStorageImplementation interface {
 	Close()
 	// Type returns the type of the storage
 	Type() MetadataStorageType
+	// Search returns all the keys that match the query
+	Search(ctx context.Context, q string, opts ...query.Query) (map[string]string, error)
 }

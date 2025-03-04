@@ -27,6 +27,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 
+	ct "github.com/featureform/coordinator/types"
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	"github.com/featureform/helpers/interceptors"
@@ -35,7 +36,6 @@ import (
 	"github.com/featureform/metadata/common"
 	"github.com/featureform/metadata/equivalence"
 	pb "github.com/featureform/metadata/proto"
-	"github.com/featureform/metadata/search"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -105,6 +105,15 @@ func (r ResourceType) ToLoggingResourceType() logging.ResourceType {
 
 func (r ResourceType) String() string {
 	return pb.ResourceType_name[int32(r)]
+}
+
+func ResourceTypeFromString(s string) (ResourceType, error) {
+	resourceType, ok := pb.ResourceType_value[s]
+	if !ok {
+		logging.GlobalLogger.Errorw("Unknown ResourceType", "resource-type", s)
+		return -1, fferr.NewInvalidArgumentError(fmt.Errorf("unknown resource type: %s", s))
+	}
+	return ResourceType(resourceType), nil
 }
 
 func (r ResourceType) Serialized() pb.ResourceType {
@@ -310,6 +319,14 @@ type Resource interface {
 	UpdateStatus(*pb.ResourceStatus) error
 	UpdateSchedule(string) error
 	Update(ResourceLookup, Resource) error
+	ToDashboardDoc() ResourceDashboardDoc
+}
+
+type ResourceDashboardDoc struct {
+	Name    string
+	Variant string
+	Type    string
+	Tags    []string
 }
 
 func isDirectDependency(ctx context.Context, lookup ResourceLookup, dependency, parent Resource) (bool, error) {
@@ -418,6 +435,7 @@ type ResourceLookup interface {
 	SetStatus(context.Context, ResourceID, *pb.ResourceStatus) error
 	SetSchedule(context.Context, ResourceID, string) error
 	Delete(context.Context, ResourceID) error
+	Search(context.Context, string) ([]Resource, error)
 }
 
 type resourceStatusImplementation interface {
@@ -427,40 +445,6 @@ type resourceStatusImplementation interface {
 
 type resourceTaskImplementation interface {
 	TaskIDs() ([]scheduling.TaskID, error)
-}
-
-type SearchWrapper struct {
-	Searcher search.Searcher
-	ResourceLookup
-}
-
-func (wrapper SearchWrapper) Set(ctx context.Context, id ResourceID, res Resource) error {
-	if err := wrapper.ResourceLookup.Set(ctx, id, res); err != nil {
-		return err
-	}
-
-	var allTags []string
-	switch res.(type) {
-	case *sourceVariantResource:
-		allTags = res.(*sourceVariantResource).serialized.Tags.Tag
-
-	case *featureVariantResource:
-		allTags = res.(*featureVariantResource).serialized.Tags.Tag
-
-	case *labelVariantResource:
-		allTags = res.(*labelVariantResource).serialized.Tags.Tag
-
-	case *trainingSetVariantResource:
-		allTags = res.(*trainingSetVariantResource).serialized.Tags.Tag
-	}
-
-	doc := search.ResourceDoc{
-		Name:    id.Name,
-		Type:    id.Type.String(),
-		Tags:    allTags,
-		Variant: id.Variant,
-	}
-	return wrapper.Searcher.Upsert(doc)
 }
 
 type LocalResourceLookup map[ResourceID]Resource
@@ -577,6 +561,10 @@ func (lookup LocalResourceLookup) Delete(ctx context.Context, id ResourceID) err
 	return fferr.NewInternalErrorf("not implemented")
 }
 
+func (lookup LocalResourceLookup) Search(ctx context.Context, q string) ([]Resource, error) {
+	return nil, fferr.NewInternalErrorf("not implemented")
+}
+
 type sourceResource struct {
 	serialized *pb.Source
 }
@@ -645,6 +633,13 @@ func (resource *sourceResource) Update(lookup ResourceLookup, updateRes Resource
 	wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
 	wrapped.AddDetail("resource_type", resource.ID().Type.String())
 	return wrapped
+}
+
+func (resource *sourceResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name: resource.serialized.Name,
+		Type: SOURCE.String(),
+	}
 }
 
 type sourceVariantResource struct {
@@ -791,6 +786,15 @@ func (resource *sourceVariantResource) Owner() string {
 	return resource.serialized.Owner
 }
 
+func (resource *sourceVariantResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name:    resource.serialized.Name,
+		Type:    SOURCE_VARIANT.String(),
+		Variant: resource.serialized.Variant,
+		Tags:    resource.serialized.Tags.Tag,
+	}
+}
+
 type featureResource struct {
 	serialized *pb.Feature
 }
@@ -859,6 +863,13 @@ func (resource *featureResource) Update(lookup ResourceLookup, updateRes Resourc
 	wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
 	wrapped.AddDetail("resource_type", resource.ID().Type.String())
 	return wrapped
+}
+
+func (resource *featureResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name: resource.serialized.Name,
+		Type: FEATURE.String(),
+	}
 }
 
 type featureVariantResource struct {
@@ -1030,6 +1041,15 @@ func (resource *featureVariantResource) Owner() string {
 	return resource.serialized.Owner
 }
 
+func (resource *featureVariantResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name:    resource.serialized.Name,
+		Type:    FEATURE_VARIANT.String(),
+		Variant: resource.serialized.Variant,
+		Tags:    resource.serialized.Tags.Tag,
+	}
+}
+
 type labelResource struct {
 	serialized *pb.Label
 }
@@ -1098,6 +1118,13 @@ func (resource *labelResource) Update(lookup ResourceLookup, updateRes Resource)
 	wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
 	wrapped.AddDetail("resource_type", resource.ID().Type.String())
 	return wrapped
+}
+
+func (resource *labelResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name: resource.serialized.Name,
+		Type: LABEL.String(),
+	}
 }
 
 type labelVariantResource struct {
@@ -1275,6 +1302,15 @@ func (resource *labelVariantResource) Owner() string {
 	return resource.serialized.Owner
 }
 
+func (resource *labelVariantResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name:    resource.serialized.Name,
+		Type:    LABEL_VARIANT.String(),
+		Variant: resource.serialized.Variant,
+		Tags:    resource.serialized.Tags.Tag,
+	}
+}
+
 type trainingSetResource struct {
 	serialized *pb.TrainingSet
 }
@@ -1343,6 +1379,13 @@ func (resource *trainingSetResource) Update(lookup ResourceLookup, updateRes Res
 	wrapped := fferr.NewDatasetAlreadyExistsError(resource.ID().Name, resource.ID().Variant, nil)
 	wrapped.AddDetail("resource_type", resource.ID().Type.String())
 	return wrapped
+}
+
+func (resource *trainingSetResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name: resource.serialized.Name,
+		Type: TRAINING_SET.String(),
+	}
 }
 
 type trainingSetVariantResource struct {
@@ -1538,6 +1581,15 @@ func (resource *trainingSetVariantResource) Validate(ctx context.Context, lookup
 	return nil
 }
 
+func (resource *trainingSetVariantResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name:    resource.serialized.Name,
+		Type:    TRAINING_SET_VARIANT.String(),
+		Variant: resource.serialized.Variant,
+		Tags:    resource.serialized.Tags.Tag,
+	}
+}
+
 type modelResource struct {
 	serialized *pb.Model
 }
@@ -1631,6 +1683,14 @@ func (resource *modelResource) Update(lookup ResourceLookup, updateRes Resource)
 	return nil
 }
 
+func (resource *modelResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name: resource.serialized.Name,
+		Type: MODEL.String(),
+		Tags: resource.serialized.Tags.Tag,
+	}
+}
+
 type userResource struct {
 	serialized *pb.User
 }
@@ -1713,6 +1773,14 @@ func (resource *userResource) Update(lookup ResourceLookup, updateRes Resource) 
 	resource.serialized.Tags = UnionTags(resource.serialized.Tags, userUpdate.Tags)
 	resource.serialized.Properties = mergeProperties(resource.serialized.Properties, userUpdate.Properties)
 	return nil
+}
+
+func (resource *userResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name: resource.serialized.Name,
+		Type: USER.String(),
+		Tags: resource.serialized.Tags.Tag,
+	}
 }
 
 type providerResource struct {
@@ -1847,6 +1915,14 @@ func (resource *providerResource) isValidConfigUpdate(configUpdate pc.Serialized
 	}
 }
 
+func (resource *providerResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name: resource.serialized.Name,
+		Type: PROVIDER.String(),
+		Tags: resource.serialized.Tags.Tag,
+	}
+}
+
 type entityResource struct {
 	serialized *pb.Entity
 }
@@ -1924,6 +2000,14 @@ func (resource *entityResource) Update(lookup ResourceLookup, updateRes Resource
 	return nil
 }
 
+func (resource *entityResource) ToDashboardDoc() ResourceDashboardDoc {
+	return ResourceDashboardDoc{
+		Name: resource.serialized.Name,
+		Type: ENTITY.String(),
+		Tags: resource.serialized.Tags.Tag,
+	}
+}
+
 type MetadataServer struct {
 	Logger      logging.Logger
 	lookup      ResourceLookup
@@ -1960,55 +2044,35 @@ func (serv *MetadataServer) SyncUnfinishedRuns(ctx context.Context, empty *schpr
 	return &schproto.Empty{}, nil
 }
 
-func NewMetadataServer(config *Config) (*MetadataServer, error) {
+func NewMetadataServer(ctx context.Context, config *Config) (*MetadataServer, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	if config == nil {
-		logging.GlobalLogger.Errorw("config cannot be nil")
+		logger.Errorw("config cannot be nil")
 		return nil, fferr.NewInternalErrorf("config cannot be nil")
 	}
 
-	config.Logger.Infow("Creating new metadata server", "address", config.Address)
+	logger.Infow("Creating new metadata server", "address", config.Address)
 
-	baseLookup := MemoryResourceLookup{config.TaskManager.Storage}
-	wrappedLookup, err := initializeLookup(config, &baseLookup, search.NewMeilisearch)
-	if err != nil {
-		config.Logger.Errorw("Failed to initialize lookup", "error", err)
-		return nil, fferr.NewInternalErrorf("failed to initialize lookup: %w", err)
-	}
+	baseLookup := MetadataStorageResourceLookup{config.TaskManager.Storage}
 
 	resourcesRepo, err := NewResourcesRepositoryFromLookup(&baseLookup)
 	if err != nil {
-		config.Logger.Errorw("Failed to create resources repository", "error", err)
+		logger.Errorw("Failed to create resources repository", "error", err)
 		return nil, fferr.NewInternalErrorf("failed to create resources repository: %w", err)
 	}
 
 	if resourcesRepo == nil {
-		config.Logger.Errorw("resources repository is nil")
+		logger.Errorw("resources repository is nil")
 		return nil, fferr.NewInternalErrorf("resources repository is nil")
 	}
 
 	return &MetadataServer{
-		lookup:              wrappedLookup,
+		lookup:              &baseLookup,
 		address:             config.Address,
 		Logger:              config.Logger,
 		taskManager:         &config.TaskManager,
 		resourcesRepository: resourcesRepo,
 		slackNotifier:       *notifications.NewSlackNotifier(os.Getenv("SLACK_CHANNEL_ID"), config.Logger),
-	}, nil
-}
-
-func initializeLookup(config *Config, lookup *MemoryResourceLookup, newSearchStub search.NewMeilisearchFunc) (ResourceLookup, error) {
-	if config.SearchParams == nil {
-		config.Logger.Debug("No configuration search params are present, using non-search wrappped lookup")
-		return lookup, nil
-	}
-	searcher, err := newSearchStub(config.SearchParams)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SearchWrapper{
-		Searcher:       searcher,
-		ResourceLookup: lookup,
 	}, nil
 }
 
@@ -2156,7 +2220,7 @@ func (serv *MetadataServer) SetRunStatus(ctx context.Context, update *schproto.S
 		return nil, err
 	}
 
-	err = serv.taskManager.SetRunStatus(rid, tid, update.Status)
+	err = serv.taskManager.SetRunStatus(ctx, rid, tid, update.Status)
 	if err != nil {
 		logger.Errorw("failed to set run status", "run id", update.GetRunID().GetId(), "task id", update.GetTaskID().GetId(), "error", err)
 		return nil, err
@@ -2256,6 +2320,28 @@ func (serv *MetadataServer) SetRunEndTime(ctx context.Context, update *schproto.
 	return &schproto.Empty{}, nil
 }
 
+func (serv *MetadataServer) SetRunSchedulerID(ctx context.Context, update *schproto.SetRunSchedulerIDRequest) (*schproto.Empty, error) {
+	_, _, logger := serv.Logger.InitializeRequestID(ctx)
+	logger.Debugw("SetRunSchedulerID", "scheduler_id", update.SchedulerID, "run_iteration", update.RunIteration)
+	rid, err := scheduling.ParseTaskRunID(update.GetRunID().GetId())
+	if err != nil {
+		logger.Errorw("failed to parse run id", "run id", update.GetRunID().GetId(), "error", err)
+		return nil, err
+	}
+	tid, err := scheduling.ParseTaskID(update.GetTaskID().GetId())
+	if err != nil {
+		logger.Errorw("failed to parse task id", "task id", update.GetTaskID().GetId(), "error", err)
+		return nil, err
+	}
+
+	err = serv.taskManager.SetRunSchedulerID(rid, tid, ct.SchedulerID(update.SchedulerID), update.RunIteration)
+	if err != nil {
+		logger.Errorw("failed to set run scheduler id", "run id", update.GetRunID().GetId(), "task id", update.GetTaskID().GetId(), "error", err)
+		return nil, err
+	}
+	return &schproto.Empty{}, nil
+}
+
 func (serv *MetadataServer) Serve() error {
 	if serv.grpcServer != nil {
 		return fferr.NewInternalErrorf("server already running")
@@ -2318,10 +2404,9 @@ func (sp LocalStorageProvider) GetResourceLookup() (ResourceLookup, error) {
 }
 
 type Config struct {
-	Logger       logging.Logger
-	SearchParams *search.MeilisearchParams
-	TaskManager  scheduling.TaskMetadataManager
-	Address      string
+	Logger      logging.Logger
+	TaskManager scheduling.TaskMetadataManager
+	Address     string
 }
 
 func (serv *MetadataServer) RequestScheduleChange(ctx context.Context, req *pb.ScheduleChangeRequest) (*pb.Empty, error) {

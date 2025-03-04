@@ -121,14 +121,18 @@ RUN curl -sL https://deb.nodesource.com/setup_18.x | sh
 RUN apt-get update
 RUN apt-get install -y nodejs
 
-# Install MeiliSearch
-RUN curl -L https://install.meilisearch.com | sh
+# Install goose for migrations
+RUN go install github.com/pressly/goose/v3/cmd/goose@v3.18.0
+
+# Copy migrations directory
+COPY db/migrations /app/db/migrations
 
 # Install and initialize internal postgres for app state
 RUN apt-get update && apt-get install -y postgresql postgresql-contrib
 USER postgres
 RUN /etc/init.d/postgresql start && \
-    psql --command "ALTER USER postgres WITH PASSWORD 'password';"
+    psql --command "ALTER USER postgres WITH PASSWORD 'password';" && \
+    goose -dir /app/db/migrations postgres "host=localhost user=postgres password=password dbname=postgres sslmode=disable" up
 USER root
 
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
@@ -173,11 +177,9 @@ COPY --from=runner /app/dashboard ./dashboard
 
 ENV SERVING_PORT="8082"
 ENV SERVING_HOST="0.0.0.0"
-ENV MEILI_LOG_LEVEL="WARN"
 ENV FEATUREFORM_HOST="localhost"
 ENV FF_STATE_PROVIDER="psql"
 ENV USE_CLIENT_MODE="true"
-ENV RDS_HOST="host.docker.internal"
 
 EXPOSE 7878
 EXPOSE 80

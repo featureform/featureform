@@ -21,7 +21,6 @@ import (
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
-	"github.com/featureform/metadata/search"
 	"github.com/featureform/provider"
 	"github.com/featureform/provider/provider_type"
 	ss "github.com/featureform/storage"
@@ -42,7 +41,6 @@ func GetMetadataServer(t *testing.T) MetadataServer {
 }
 
 func GetTestGinContext(mockRecorder *httptest.ResponseRecorder) *gin.Context {
-	SearchClient = search.SearchMock{}
 	gin.SetMode(gin.TestMode)
 	ctx, _ := gin.CreateTestContext(mockRecorder)
 	ctx.Request = &http.Request{
@@ -161,7 +159,7 @@ func TestPostTags(t *testing.T) {
 		SkipListLocking: true,
 		Logger:          logger,
 	}
-	lookup := metadata.MemoryResourceLookup{Connection: storage}
+	lookup := metadata.MetadataStorageResourceLookup{Connection: storage}
 	lookup.Set(context.Background(), res, resource)
 
 	client := &metadata.Client{}
@@ -414,7 +412,7 @@ type MockVariantsStore struct {
 	Opts       []query.Query
 }
 
-func (m *MockVariantsStore) Set(key, value string) error {
+func (m *MockVariantsStore) Set(ctx context.Context, key, value string) error {
 	return nil
 }
 
@@ -445,6 +443,10 @@ func (m *MockVariantsStore) Close() {
 
 func (m *MockVariantsStore) Type() ss.MetadataStorageType {
 	return ss.MemoryMetadataStorage
+}
+
+func (m *MockVariantsStore) Search(ctx context.Context, q string, opts ...query.Query) (map[string]string, error) {
+	return nil, nil
 }
 
 func TestGetFeatureVariants(t *testing.T) {

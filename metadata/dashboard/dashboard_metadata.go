@@ -24,7 +24,6 @@ import (
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
-	"github.com/featureform/metadata/search"
 	"github.com/featureform/proto"
 	"github.com/featureform/provider"
 	pl "github.com/featureform/provider/location"
@@ -34,13 +33,12 @@ import (
 	"github.com/featureform/storage"
 	"github.com/featureform/storage/query"
 	pr "github.com/featureform/streamer_proxy/proxy_client"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
-
-var SearchClient search.Searcher
 
 const (
 	Online       = "online"
@@ -83,7 +81,7 @@ func NewMetadataServer(logger logging.Logger, client *metadata.Client, storagePr
 		client:          client,
 		logger:          logger,
 		StorageProvider: storageProvider,
-		lookup:          &metadata.MemoryResourceLookup{Connection: storageProvider},
+		lookup:          &metadata.MetadataStorageResourceLookup{Connection: storageProvider},
 	}, nil
 }
 
@@ -2079,15 +2077,20 @@ func (m *MetadataServer) FailRunningJobs(c *gin.Context) {
 func (m *MetadataServer) GetSearch(c *gin.Context) {
 	query, ok := c.GetQuery("q")
 	if !ok {
+		m.logger.Errorw("Missing query")
 		c.JSON(http.StatusInternalServerError, "Missing query")
 		return
 	}
-
-	result, err := SearchClient.RunSearch(query)
+	m.logger.Debugw("Get search", "query", query)
+	resourceList, err := m.lookup.Search(c, query)
 	if err != nil {
 		m.logger.Errorw("Failed to fetch resources", "error", err)
 		c.JSON(http.StatusInternalServerError, "Failed to fetch resources")
 		return
+	}
+	result := make([]metadata.ResourceDashboardDoc, len(resourceList))
+	for i, res := range resourceList {
+		result[i] = res.ToDashboardDoc()
 	}
 	c.JSON(http.StatusOK, result)
 }
@@ -2118,7 +2121,7 @@ func (m *MetadataServer) GetSourceData(c *gin.Context) {
 	}
 
 	m.logger.Infow("Fetching location with source variant", "source", sv.Name(), "variant", sv.Variant())
-	ctx := logging.AddLoggerToContext(c, m.logger) //only need gin.Context for the logging
+	ctx := m.logger.AttachToContext(c) //only need gin.Context for the logging
 	location, locationErr := sv.GetLocation(ctx)
 
 	if locationErr != nil {
@@ -2597,18 +2600,6 @@ func (m *MetadataServer) PostTags(c *gin.Context) {
 	replaceTags(resourceTypeParam, foundResource, &pb.Tags{Tag: requestBody.Tags})
 
 	m.lookup.Set(c, objID, foundResource)
-
-	updatedResource := search.ResourceDoc{
-		Name:    name,
-		Variant: variant,
-		Type:    resourceType.String(),
-		Tags:    requestBody.Tags,
-	}
-	// Update search index for Meilisearch
-	err = SearchClient.Upsert(updatedResource)
-	if err != nil {
-		m.logger.Error(err.Error())
-	}
 
 	c.JSON(http.StatusOK, TagResult{
 		Name:    name,

@@ -125,9 +125,9 @@ func (ts *TestMetadataServer) SetResourcesReady(ctx context.Context, resourceIDs
 			require.NoError(ts.t, err, "Failed to get task ID")
 			lastTask := taskID[len(taskID)-1]
 			run, err := ts.server.taskManager.GetLatestRun(lastTask)
-			err = ts.server.taskManager.SetRunStatus(run.ID, lastTask, &pb.ResourceStatus{Status: pb.ResourceStatus_RUNNING})
+			err = ts.server.taskManager.SetRunStatus(ctx, run.ID, lastTask, &pb.ResourceStatus{Status: pb.ResourceStatus_RUNNING})
 			require.NoError(ts.t, err, "Failed to set run status", "resource: %v", id)
-			err = ts.server.taskManager.SetRunStatus(run.ID, lastTask, &pb.ResourceStatus{Status: pb.ResourceStatus_READY})
+			err = ts.server.taskManager.SetRunStatus(ctx, run.ID, lastTask, &pb.ResourceStatus{Status: pb.ResourceStatus_READY})
 			require.NoError(ts.t, err, "Failed to set run status", "resource: %v", id)
 		}
 	}
@@ -159,14 +159,27 @@ func TestDeleteProvider(t *testing.T) {
 	t.Run("Delete existing provider", func(t *testing.T) {
 		testServer.SetupTestData(t, resources, true)
 
-		// Attempt to delete the provider
-		err := testServer.repo.MarkForDeletion(ctx, common.ResourceID{
+		// Test search before deletion
+		results, err := testServer.repo.Search(ctx, "mockOfflineToDelete")
+		require.NoError(t, err)
+
+		// Find the specific provider in results
+		foundProvider := false
+		for _, res := range results {
+			id := res.ID()
+			if id.Name == "mockOfflineToDelete" && id.Type == PROVIDER {
+				foundProvider = true
+				break
+			}
+		}
+		require.True(t, foundProvider, "Provider should be found in search results before deletion")
+
+		err = testServer.repo.MarkForDeletion(ctx, common.ResourceID{
 			Name: "mockOfflineToDelete",
 			Type: common.PROVIDER,
 		}, noOpAsyncHandler)
 		require.NoError(t, err)
 
-		// Verify the provider is deleted
 		res, err := testServer.repo.Lookup(ctx, ResourceID{
 			Name: "mockOfflineToDelete",
 			Type: PROVIDER,
@@ -176,6 +189,10 @@ func TestDeleteProvider(t *testing.T) {
 		require.ErrorAs(t, err, &keyNotFoundErr)
 		require.Nil(t, res)
 
+		// Verify resource is removed from search after deletion
+		results, err = testServer.repo.Search(ctx, "mockOfflineToDelete")
+		require.NoError(t, err)
+		require.Len(t, results, 0)
 	})
 
 	t.Run("Delete non-existent provider", func(t *testing.T) {
@@ -261,8 +278,23 @@ func TestDeletePrimary(t *testing.T) {
 	t.Run("Delete existing primary", func(t *testing.T) {
 		testServer.SetupTestData(t, resources, true)
 
+		// Test search before deletion
+		results, err := testServer.repo.Search(ctx, "primarydata")
+		require.NoError(t, err)
+
+		// Find the specific provider in results
+		foundProvider := false
+		for _, res := range results {
+			id := res.ID()
+			if id.Name == "primarydata" && id.Type == SOURCE_VARIANT {
+				foundProvider = true
+				break
+			}
+		}
+		require.True(t, foundProvider, "Provider should be found in search results before deletion")
+
 		// Attempt to delete the primary
-		err := testServer.repo.MarkForDeletion(ctx, common.ResourceID{
+		err = testServer.repo.MarkForDeletion(ctx, common.ResourceID{
 			Name:    "primarydata",
 			Variant: "var",
 			Type:    common.SOURCE_VARIANT,
@@ -279,6 +311,22 @@ func TestDeletePrimary(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		require.Equal(t, res.ID().Name, "primarydata")
+
+		// Verify resource is removed from search after deletion
+		results, err = testServer.repo.Search(ctx, "primarydata")
+		require.NoError(t, err)
+		require.Len(t, results, 1, "Expected only SOURCE. SOURCE_VARIANT is deleted")
+
+		// Find the specific provider in results
+		foundProvider = false
+		for _, res := range results {
+			id := res.ID()
+			if id.Name == "primarydata" && id.Type == SOURCE {
+				foundProvider = true
+				break
+			}
+		}
+		require.True(t, foundProvider, "Provider should be found in search results before deletion")
 	})
 
 	t.Run("Delete non-existent primary", func(t *testing.T) {

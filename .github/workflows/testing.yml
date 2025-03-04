@@ -27,6 +27,7 @@ env:
   AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
   FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
   FIRESTORE_CREDENTIALS: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
+  DB_MIGRATION_PATH: /home/runner/work/featureform/featureform/db/migrations
 
 jobs:
   jest-tests:
@@ -144,7 +145,6 @@ jobs:
             ,testing/bigquery
             ,testing/gcs
             ,testing/redis
-            ,testing/meilisearch
             ,testing/pinecone
             ,testing/cassandra
           parse-json-secrets: true
@@ -188,13 +188,6 @@ jobs:
 
       - name: Unit Tests
         run: go test ./... -short
-
-      - name: Install Search Container
-        run: docker pull getmeili/meilisearch:v1.0
-
-      - name: Start Search
-        run: |
-          docker run -d -p $MEILISEARCH_PORT:7700 getmeili/meilisearch:v1.0
 
       - uses: getong/redis-action@v1
         with:
@@ -474,7 +467,6 @@ jobs:
             ,testing/bigquery
             ,testing/gcs
             ,testing/redis
-            ,testing/meilisearch
             ,testing/pinecone
             ,testing/cassandra
           parse-json-secrets: true
@@ -637,7 +629,6 @@ jobs:
             ,testing/bigquery
             ,testing/gcs
             ,testing/redis
-            ,testing/meilisearch
             ,testing/pinecone
             ,testing/cassandra
           parse-json-secrets: true
@@ -802,7 +793,6 @@ jobs:
             ,testing/bigquery
             ,testing/gcs
             ,testing/redis
-            ,testing/meilisearch
             ,testing/pinecone
             ,testing/cassandra
           parse-json-secrets: true

@@ -95,13 +95,6 @@ searchjob:
   image:
     name: "search-loader"
 
-# These values override the values in the 3rd party meilisearch chart
-meilisearch:
-  fullnameOverride: featureform-search
-  port: 7700
-  host: featureform-search
-  apikey: ""
-
 prometheus:
   port: 9090
   replicaCount: 1
@@ -131,6 +124,14 @@ coordinator:
   host: "featureform-coordinator"
   port: 80
 
+  # taskDistributionInterval represents the range over which random numbers are generated to
+  # determine whether a specific coordinator pod will select tasks to run;
+  # Featureform uses a stochastic approach to task distribution to avoid
+  # querying the Kubernetes API for the number of coordinator pods in the cluster.
+  # A value of 1 assumes 1 coordinator pod; however, if you have multiple coordinator pods,
+  # you should set this value to 2 or 3 to ensure that tasks are distributed across all pods.
+  taskDistributionInterval: 1
+
   image:
     name: coordinator
 
@@ -158,6 +159,7 @@ coordinator:
     taskPollInterval: "1m"
     taskStatusSyncInterval: "1h"
     taskDependencyPollInterval: "1m"
+    materializationWorkerPoolSize: 30
 
 # Configuration for the Dashboard frontend
 dashboard:

@@ -6,7 +6,6 @@
 //
 
 import Resource from './Resource.js';
-const SearchClient = require('./Search.js');
 // Set to true run locally
 const local = false;
 
@@ -182,11 +181,6 @@ if (typeof window !== 'undefined') {
 }
 
 var API_URL = '//' + hostname + ':' + port;
-const SEARCH_URL = {
-  port: '7700',
-  host: hostname,
-  apiKey: '',
-};
 
 if (process.env.REACT_APP_API_URL) {
   API_URL = process.env.REACT_APP_API_URL.trim();
@@ -205,11 +199,6 @@ if (typeof process.env.REACT_APP_PROMETHEUS_URL != 'undefined') {
 }
 
 export default class ResourcesAPI {
-  static searchClient = new SearchClient(
-    SEARCH_URL.port,
-    SEARCH_URL.host,
-    SEARCH_URL.apiKey
-  );
   async checkStatus() {
     try {
       const res = await fetch(API_URL, {
@@ -229,9 +218,8 @@ export default class ResourcesAPI {
     if (local) {
       return { data: testListData[type] };
     } else {
-      fetchAddress = `${API_URL + '/data'}${
-        resourceType.urlPath
-      }?pageSize=${pageSize}&offset=${offset}`;
+      fetchAddress = `${API_URL + '/data'}${resourceType.urlPath
+        }?pageSize=${pageSize}&offset=${offset}`;
     }
     if (process.env.REACT_APP_EMPTY_RESOURCE_VIEW === 'true') {
       fetchAddress = '/data/lists/wine-data-empty.json';
@@ -304,28 +292,28 @@ export default class ResourcesAPI {
     return query === null
       ? {}
       : fetch(`${API_URL}/data/search?q=${query}`, {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
-          .then((res) => res.json())
-          .catch((error) => {
-            console.error(error);
-          });
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+        .then((res) => res.json())
+        .catch((error) => {
+          console.error(error);
+        });
   }
 
   fetchSourceModalData(name, variant = 'default') {
     return name === null
       ? {}
       : fetch(`${API_URL}/data/sourcedata?name=${name}&variant=${variant}`, {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
-          .then((res) => res.json())
-          .catch((error) => {
-            console.error(error);
-          });
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+        .then((res) => res.json())
+        .catch((error) => {
+          console.error(error);
+        });
   }
 
   async fetchVariantSearchStub() {

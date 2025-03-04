@@ -8,6 +8,7 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -26,7 +27,7 @@ type memoryStorageImplementation struct {
 	storage *sync.Map
 }
 
-func (m *memoryStorageImplementation) Set(key string, value string) error {
+func (m *memoryStorageImplementation) Set(ctx context.Context, key string, value string) error {
 	if key == "" {
 		return fferr.NewInvalidArgumentError(fmt.Errorf("cannot set an empty key"))
 	}
@@ -97,4 +98,8 @@ func (m *memoryStorageImplementation) Close() {
 
 func (m *memoryStorageImplementation) Type() MetadataStorageType {
 	return MemoryMetadataStorage
+}
+
+func (m *memoryStorageImplementation) Search(ctx context.Context, q string, opts ...query.Query) (map[string]string, error) {
+	return m.List(q, opts...)
 }

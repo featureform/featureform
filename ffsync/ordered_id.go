@@ -18,6 +18,7 @@ import (
 	"github.com/featureform/fferr"
 	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
+
 	_ "github.com/lib/pq"
 )
 
@@ -109,18 +110,7 @@ func NewPSQLOrderedIdGenerator(
 	logger := logging.GetLoggerFromContext(ctx).WithValues(map[string]any{
 		"ordered-id-table-name": tableName,
 	})
-	// Create the id table if it doesn't exist
-	// TODO(ali) move this to goose
-	logger.Info("Creating ordered id table in postgres if it doesn't exist")
-	tableCreationSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (namespace VARCHAR(2048) PRIMARY KEY, current_id BIGINT)", postgres.Sanitize(tableName))
-	logger.Debugw("OrderedID table creation query", "query", tableCreationSQL)
-	if _, err := connPool.Exec(context.Background(), tableCreationSQL); err != nil {
-		logger.Errorw(
-			"Failed to create OrderedID table in postgres",
-			"query", tableCreationSQL, "error", err,
-		)
-		return nil, fferr.NewInternalErrorf("failed to create table %s: %w", tableName, err)
-	}
+
 	logger.Infow("Successfully created OrderedIDGenerator for postgres")
 	return &pgIdGenerator{
 		connPool:  connPool,

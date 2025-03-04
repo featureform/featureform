@@ -15,6 +15,7 @@ import (
 
 	mapset "github.com/deckarep/golang-set/v2"
 
+	ct "github.com/featureform/coordinator/types"
 	"github.com/featureform/helpers/notifications"
 	"github.com/featureform/metadata/proto"
 
@@ -96,7 +97,7 @@ func (m *TaskMetadataManager) CreateTask(ctx context.Context, name string, tType
 	}
 
 	key := TaskMetadataKey{taskID: metadata.ID}
-	err = m.Storage.Create(key.String(), string(serializedMetadata))
+	err = m.Storage.Create(ctx, key.String(), string(serializedMetadata))
 	if err != nil {
 		return TaskMetadata{}, err
 	}
@@ -111,7 +112,7 @@ func (m *TaskMetadataManager) CreateTask(ctx context.Context, name string, tType
 	}
 
 	taskRunKey := TaskRunKey{taskID: metadata.ID}
-	err = m.Storage.Create(taskRunKey.String(), string(serializedRuns))
+	err = m.Storage.Create(ctx, taskRunKey.String(), string(serializedRuns))
 	if err != nil {
 		return TaskMetadata{}, err
 	}
@@ -459,7 +460,7 @@ func (m *TaskMetadataManager) GetUnfinishedTaskRuns() (TaskRunList, error) {
 	return runs, nil
 }
 
-func (m *TaskMetadataManager) SetRunStatus(runID TaskRunID, taskID TaskID, status *proto.ResourceStatus) error {
+func (m *TaskMetadataManager) SetRunStatus(ctx context.Context, runID TaskRunID, taskID TaskID, status *proto.ResourceStatus) error {
 	fetchedMetadata, getRunErr := m.GetRunByID(taskID, runID)
 	if getRunErr != nil {
 		return getRunErr
@@ -488,7 +489,7 @@ func (m *TaskMetadataManager) SetRunStatus(runID TaskRunID, taskID TaskID, statu
 		}
 
 		if Status(status.Status) == PENDING || Status(status.Status) == RUNNING {
-			createErr := m.Storage.Create(UnfinishedTaskRunPath(runID), fetchedMetadata.TaskId.String())
+			createErr := m.Storage.Create(ctx, UnfinishedTaskRunPath(runID), fetchedMetadata.TaskId.String())
 			if createErr != nil {
 				return "", createErr
 			}
@@ -673,4 +674,32 @@ func (m *TaskMetadataManager) WatchForCancel(runID TaskRunID, taskID TaskID) err
 
 	}
 	return nil
+}
+
+func (m *TaskMetadataManager) SetRunSchedulerID(tid TaskID, runID TaskRunID, schedulerID ct.SchedulerID, runIteration string) error {
+	fetchedMetadata, getRunErr := m.GetRunByID(tid, runID)
+	if getRunErr != nil {
+		return getRunErr
+	}
+
+	updateSchedulerID := func(runMetadata string) (string, error) {
+		updatedRunMetadata := TaskRunMetadata{}
+		unmarshalErr := updatedRunMetadata.Unmarshal([]byte(runMetadata))
+		if unmarshalErr != nil {
+			intErr := fferr.NewInternalError(unmarshalErr)
+			return "", intErr
+		}
+		updatedRunMetadata.SchedulerID = schedulerID
+		updatedRunMetadata.RunIteration = runIteration
+		serializedMetadata, marshalErr := updatedRunMetadata.Marshal()
+		if marshalErr != nil {
+			return "", marshalErr
+		}
+		return string(serializedMetadata), nil
+	}
+
+	taskRunMetadataKey := TaskRunMetadataKey{taskID: tid, runID: fetchedMetadata.ID, date: fetchedMetadata.StartTime}
+	updateErr := m.Storage.Update(taskRunMetadataKey.String(), updateSchedulerID)
+
+	return updateErr
 }

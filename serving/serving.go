@@ -14,6 +14,8 @@ package serving
 import (
 	"context"
 	"fmt"
+	"io"
+	"sync"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
@@ -23,9 +25,6 @@ import (
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
-
-	"io"
-	"sync"
 )
 
 const (

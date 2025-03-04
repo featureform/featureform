@@ -1,14 +1,3 @@
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/.
-//
-// Copyright 2024 FeatureForm Inc.
-//
-
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
 package types
 
 import (
@@ -28,7 +17,7 @@ func init() {
 }
 
 const (
-	NilType   ScalarType = ""
+	//NilType   ScalarType = ""  // we have this because
 	Int       ScalarType = "int"
 	Int8      ScalarType = "int8"
 	Int16     ScalarType = "int16"
@@ -47,7 +36,7 @@ const (
 )
 
 var ScalarTypes = map[ScalarType]bool{
-	NilType:   true,
+	//NilType:   true,
 	Int:       true,
 	Int8:      true,
 	Int16:     true,
@@ -66,7 +55,7 @@ var ScalarTypes = map[ScalarType]bool{
 }
 
 var scalarToProto = map[ScalarType]pb.ScalarType{
-	NilType: pb.ScalarType_NULL,
+	//NilType: pb.ScalarType_NULL,
 	Int:     pb.ScalarType_INT,
 	Int32:   pb.ScalarType_INT32,
 	Int64:   pb.ScalarType_INT64,
@@ -316,4 +305,35 @@ func (vt ValueTypeJSONWrapper) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, fferr.NewInternalError(fmt.Errorf("could not marshal value type: %v", vt.ValueType))
 	}
+}
+
+type ColumnSchema struct {
+	Name       ColumnName
+	NativeType NativeType
+	Type       ValueType
+	//IsNullable bool
+}
+
+type Value struct {
+	NativeType NativeType
+	Type       ValueType
+	//IsNull     bool
+	Value any
+}
+
+type NativeType string
+type ColumnName string
+
+type Schema struct {
+	Fields []ColumnSchema
+	// todo: can include more state or behavior, etc.
+}
+
+// ColumnNames returns a slice of all column names in the schema
+func (s Schema) ColumnNames() []string {
+	names := make([]string, len(s.Fields))
+	for i, field := range s.Fields {
+		names[i] = string(field.Name)
+	}
+	return names
 }

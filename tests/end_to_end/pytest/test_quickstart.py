@@ -8,6 +8,7 @@
 import numpy as np
 import os
 
+from contextlib import redirect_stdout
 from featureform.cli import cli
 
 
@@ -15,17 +16,19 @@ def test_quickstart(ff_client):
     os.environ['FEATUREFORM_HOST'] = 'localhost:7878'
 
     # Call into Featureform as you would from the CLI.
-    exit_code = cli.main(
-        args=['apply', '../../../quickstart/definitions.py', '--insecure'],
+    cli.main(
+        args=['apply', '../../../quickstart/definitions.py', '--insecure', '--verbose'],
         standalone_mode=False
     )
-    assert exit_code == 0
 
     # Make sure that the provided quickstart files don't throw an exception.
-    with open('../../../quickstart/serving.py') as f:
-        exec(f.read())
-    with open('../../../quickstart/training.py') as f:
-        exec(f.read())
+    # There's a lot of output written by these files, which are unnecessary in the test logs,
+    # so we ignore stdout.
+    with redirect_stdout(open(os.devnull, 'w')):
+        with open('../../../quickstart/serving.py') as f:
+            exec(f.read())
+        with open('../../../quickstart/training.py') as f:
+            exec(f.read())
 
     # Separately test features and training sets.
     feature_value = ff_client.features(

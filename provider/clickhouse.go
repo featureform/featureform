@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"

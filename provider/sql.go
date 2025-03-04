@@ -1712,7 +1712,7 @@ func (q defaultOfflineSQLQueries) primaryTableRegister(tableName string, sourceN
 
 func (q defaultOfflineSQLQueries) getColumns(db *sql.DB, name string) ([]TableColumn, error) {
 	bind := q.newVariableBindingIterator()
-	qry := fmt.Sprintf("SELECT column_name FROM information_schema.columns WHERE table_name = %s and table_schema = CURRENT_SCHEMA() order by ordinal_position", bind.Next())
+	qry := fmt.Sprintf("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = %s and table_schema = CURRENT_SCHEMA() order by ordinal_position", bind.Next())
 	rows, err := db.Query(qry, name)
 	if err != nil {
 		wrapped := fferr.NewExecutionError("SQL", err)

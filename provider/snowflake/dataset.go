@@ -148,7 +148,7 @@ func (it *Iterator) Next(ctx context.Context) bool {
 		return false
 	}
 
-	serializer := SnowflakeSerializer{}
+	serializer := Serializer{}
 
 	values := make([]interface{}, len(columns))
 	pointers := make([]interface{}, len(columns))

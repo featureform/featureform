@@ -14,14 +14,14 @@ import (
 
 const serializeSnowflakeV1 = "snowflake-v1"
 
-type SnowflakeSerializer struct{}
+type Serializer struct{}
 
-func (ser SnowflakeSerializer) Version() string {
+func (ser Serializer) Version() string {
 	return serializeSnowflakeV1
 }
 
 // Serialize converts a Go value to a Snowflake value based on the specified type
-func (ser SnowflakeSerializer) Serialize(t vt.ValueType, value any) (any, error) {
+func (ser Serializer) Serialize(t vt.ValueType, value any) (any, error) {
 	if value == nil {
 		return nil, nil
 	}
@@ -32,7 +32,7 @@ func (ser SnowflakeSerializer) Serialize(t vt.ValueType, value any) (any, error)
 	}
 }
 
-func (ser SnowflakeSerializer) serializeVector(t vt.ValueType, value any) (any, error) {
+func (ser Serializer) serializeVector(t vt.ValueType, value any) (any, error) {
 	vecT := t.(vt.VectorType)
 	scalar := vecT.Scalar()
 
@@ -66,7 +66,7 @@ func (ser SnowflakeSerializer) serializeVector(t vt.ValueType, value any) (any, 
 	return vals, nil
 }
 
-func (ser SnowflakeSerializer) serializeScalar(t vt.ValueType, value any) (any, error) {
+func (ser Serializer) serializeScalar(t vt.ValueType, value any) (any, error) {
 	if value == nil {
 		return nil, nil
 	}
@@ -178,7 +178,7 @@ func (ser SnowflakeSerializer) serializeScalar(t vt.ValueType, value any) (any, 
 }
 
 // Deserialize converts a Snowflake value to a Go value based on the specified type
-func (ser SnowflakeSerializer) Deserialize(t vt.ValueType, value any) (any, error) {
+func (ser Serializer) Deserialize(t vt.ValueType, value any) (any, error) {
 	version := ser.Version()
 	if value == nil {
 		return nil, nil
@@ -438,7 +438,6 @@ func deserializeScalar(t vt.ValueType, value any, version string) (any, error) {
 	}
 }
 
-// Helper functions for type casting
 func CastNumberToInt(v any) (int, error) {
 	switch casted := v.(type) {
 	case int:

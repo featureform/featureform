@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,11 +20,95 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/featureform/helpers"
+	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 )
 
-func TestOfflineStoreClickhouse(t *testing.T) {
+type clickHouseOfflineStoreTester struct {
+	defaultDbName string
+	conn          *sql.DB
+	*clickHouseOfflineStore
+}
+
+func (ch *clickHouseOfflineStoreTester) GetTestDatabase() string {
+	return ch.defaultDbName
+}
+
+func (ch *clickHouseOfflineStoreTester) CreateDatabase(name string) error {
+	return createOrReplaceClickHouseDatabase(ch.conn, name)
+}
+
+func (ch *clickHouseOfflineStoreTester) DropDatabase(name string) error {
+	_, err := ch.conn.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", SanitizeClickHouseIdentifier(name)))
+	if err != nil {
+		ch.logger.Errorw("dropping database", "error", err)
+		return err
+	}
+	return nil
+}
+
+func (ch *clickHouseOfflineStoreTester) CreateSchema(database, schema string) error {
+	// ClickHouse doesn't have a concept like schemas.
+	return nil
+}
+
+func (ch *clickHouseOfflineStoreTester) CreateTable(loc pl.Location, schema TableSchema) (PrimaryTable, error) {
+	logger := ch.logger.With("location", loc, "schema", schema)
+
+	sqlLocation, ok := loc.(*pl.SQLLocation)
+	if !ok {
+		errMsg := fmt.Sprintf("invalid location type, expected SQLLocation, got %T", loc)
+		logger.Errorw(errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+
+	db, err := ch.sqlOfflineStore.getDb(sqlLocation.GetDatabase(), "")
+	if err != nil {
+		logger.Errorw("could not get db", "error", err)
+		return nil, err
+	}
+
+	// don't need string builder here
+	var queryBuilder strings.Builder
+	queryBuilder.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", sanitizeClickHouseTableName(sqlLocation.TableLocation())))
+
+	// do strings .join after
+	for i, column := range schema.Columns {
+		if i > 0 {
+			queryBuilder.WriteString(", ")
+		}
+		columnType, err := ch.sqlOfflineStore.query.determineColumnType(column.ValueType)
+		if err != nil {
+			logger.Errorw("determining column type", "valueType", column.Type, "error", err)
+			return nil, err
+		}
+		queryBuilder.WriteString(fmt.Sprintf("%s %s", column.Name, columnType))
+	}
+	queryBuilder.WriteString(") ENGINE=MergeTree ORDER BY ()")
+
+	query := queryBuilder.String()
+	_, err = db.Exec(query)
+	if err != nil {
+		logger.Errorw("error executing query", "query", query, "error", err)
+		return nil, err
+	}
+
+	newDb, err := ch.getDb(sqlLocation.GetDatabase(), "")
+	if err != nil {
+		logger.Errorw("error connecting to new database", "error", err)
+		return nil, err
+	}
+
+	return &clickhousePrimaryTable{
+		db:     newDb,
+		name:   sqlLocation.GetTable(),
+		query:  ch.sqlOfflineStore.query,
+		schema: schema,
+	}, nil
+}
+
+func TestOfflineStoreClickHouse(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
 	}
@@ -71,39 +156,46 @@ func TestOfflineStoreClickhouse(t *testing.T) {
 		SSL:      ssl,
 	}
 
-	if err := createClickHouseDatabase(clickHouseConfig); err != nil {
+	if err := createClickHouseDatabaseFromConfig(t, clickHouseConfig); err != nil {
 		t.Fatalf("%v", err)
 	}
 
-	store, err := GetOfflineStore(pt.ClickHouseOffline, clickHouseConfig.Serialize())
+	_, err = GetOfflineStore(pt.ClickHouseOffline, clickHouseConfig.Serialize())
 	if err != nil {
 		t.Fatalf("could not initialize store: %s\n", err)
 	}
 
-	test := OfflineStoreTest{
-		t:     t,
-		store: store,
-	}
-	test.Run()
+	// No longer using offline tests for ClickHouse, moved to correctness tests.
+	// Remove this at some point.
+	//test := OfflineStoreTest{
+	//	t:     t,
+	//	store: store,
+	//}
+	// test.Run()
 	// test.RunSQL()
 }
 
-func createClickHouseDatabase(c pc.ClickHouseConfig) error {
+func createOrReplaceClickHouseDatabase(conn *sql.DB, dbName string) error {
+	if _, err := conn.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", SanitizeClickHouseIdentifier(dbName))); err != nil {
+		return err
+	}
+
+	if _, err := conn.Exec(fmt.Sprintf("CREATE DATABASE %s", SanitizeClickHouseIdentifier(dbName))); err != nil {
+		return err
+	}
+	return nil
+}
+
+func createClickHouseDatabaseFromConfig(t *testing.T, c pc.ClickHouseConfig) error {
 	conn, err := sql.Open("clickhouse", fmt.Sprintf("clickhouse://%s:%d?username=%s&password=%s&secure=%t", c.Host, c.Port, c.Username, c.Password, c.SSL))
 	if err != nil {
 		return err
 	}
-	return createDatabases(c, conn)
-}
+	t.Cleanup(func() {
+		conn.Close()
+	})
 
-func createDatabases(c pc.ClickHouseConfig, conn *sql.DB) error {
-	if _, err := conn.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", SanitizeClickHouseIdentifier(c.Database))); err != nil {
-		return err
-	}
-	if _, err := conn.Exec(fmt.Sprintf("CREATE DATABASE %s", SanitizeClickHouseIdentifier(c.Database))); err != nil {
-		return err
-	}
-	return nil
+	return createOrReplaceClickHouseDatabase(conn, c.Database)
 }
 
 func TestTrainingSet(t *testing.T) {
@@ -223,7 +315,7 @@ func TestSplit(t *testing.T) {
 	}
 }
 
-func TestClickhouseCastTableItemType(t *testing.T) {
+func TestClickHouseCastTableItemType(t *testing.T) {
 	q := clickhouseSQLQueries{}
 
 	var (
@@ -312,5 +404,75 @@ func TestClickhouseCastTableItemType(t *testing.T) {
 			result := q.castTableItemType(tc.input, tc.typeSpec)
 			assert.Equal(t, tc.expected, result)
 		})
+	}
+}
+
+func getClickHouseConfig(t *testing.T) (pc.ClickHouseConfig, error) {
+	clickHouseDb := helpers.GetEnv("CLICKHOUSE_DB", fmt.Sprintf("feature_form_%d", time.Now().UnixMilli()))
+	username := helpers.MustGetTestingEnv(t, "CLICKHOUSE_USER")
+	password := helpers.MustGetTestingEnv(t, "CLICKHOUSE_PASSWORD")
+	host := helpers.MustGetTestingEnv(t, "CLICKHOUSE_HOST")
+	port := helpers.GetEnvInt("CLICKHOUSE_PORT", 9000)
+	ssl := helpers.GetEnvBool("CLICKHOUSE_SSL", false)
+
+	var clickHouseConfig = pc.ClickHouseConfig{
+		Host:     host,
+		Port:     uint16(port),
+		Username: username,
+		Password: password,
+		Database: clickHouseDb,
+		SSL:      ssl,
+	}
+
+	return clickHouseConfig, nil
+}
+
+func sanitizeClickHouseTableName(obj pl.FullyQualifiedObject) string {
+	name := ""
+	if obj.Database != "" {
+		name = SanitizeClickHouseIdentifier(obj.Database) + "."
+	}
+	name += SanitizeClickHouseIdentifier(obj.Table)
+	return name
+}
+
+func getConfiguredClickHouseTester(t *testing.T) offlineSqlTest {
+	clickHouseConfig, err := getClickHouseConfig(t)
+	if err != nil {
+		t.Fatalf("could not get clickhouse config: %s\n", err)
+	}
+
+	if err := createClickHouseDatabaseFromConfig(t, clickHouseConfig); err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	store, err := GetOfflineStore(pt.ClickHouseOffline, clickHouseConfig.Serialize())
+	if err != nil {
+		t.Fatalf("could not initialize store: %s\n", err)
+	}
+
+	conn, err := sql.Open("clickhouse", fmt.Sprintf("clickhouse://%s:%d?username=%s&password=%s&secure=%t",
+		clickHouseConfig.Host,
+		clickHouseConfig.Port,
+		clickHouseConfig.Username,
+		clickHouseConfig.Password,
+		clickHouseConfig.SSL,
+	))
+	t.Cleanup(func() {
+		conn.Close()
+	})
+
+	storeTester := clickHouseOfflineStoreTester{
+		conn:                   conn,
+		defaultDbName:          clickHouseConfig.Database,
+		clickHouseOfflineStore: store.(*clickHouseOfflineStore),
+	}
+
+	return offlineSqlTest{
+		storeTester: &storeTester,
+		testConfig: offlineSqlTestConfig{
+			sanitizeTableName:        sanitizeClickHouseTableName,
+			removeSchemaFromLocation: true,
+		},
 	}
 }

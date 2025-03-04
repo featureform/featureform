@@ -2351,17 +2351,38 @@ func WrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
 }
 
 func (variant *LabelVariant) ToShallowMap() LabelVariantResource {
+	logger := logging.GlobalLogger.WithResource(logging.LabelVariant, variant.Name(), variant.Variant())
+	loc, err := variant.Location()
+	if err != nil {
+		logger.Errorw("Failed to get location", "error", err)
+	}
+	locMap := make(map[string]string)
+	locMap["Value"] = loc.ValueColumn
+	locMap["TS"] = loc.TimestampColumn
+	entityCols := make([]string, len(loc.Mappings))
+	entities := make([]string, len(loc.Mappings))
+	if len(loc.Mappings) == 1 {
+		entityCols[0] = loc.Mappings[0].EntityColumn
+	} else {
+		for i, mapping := range loc.Mappings {
+			entityCols[i] = fmt.Sprintf("%s:%s", mapping.Name, mapping.EntityColumn)
+		}
+	}
+	// TODO: The entity pill in the dashboard is clickable so we cannot add both entity names
+	entities[0] = loc.Mappings[0].Name
+	locMap["Source"] = ""
+	locMap["Entity"] = strings.Join(entityCols, ", ")
 	return LabelVariantResource{
 		Created:     variant.Created(),
 		Description: variant.Description(),
-		Entity:      variant.Entity(),
+		Entity:      strings.Join(entities, ", "),
 		Name:        variant.Name(),
 		DataType:    typeString(variant),
 		Variant:     variant.Variant(),
 		Owner:       variant.Owner(),
 		Provider:    variant.Provider(),
 		Source:      variant.Source(),
-		Location:    columnsToMap(variant.LocationColumns().(ResourceVariantColumns)),
+		Location:    locMap,
 		Status:      variant.Status().String(),
 		Error:       variant.Error(),
 		Tags:        variant.Tags(),
@@ -2415,7 +2436,7 @@ func (variant *LabelVariant) IsLegacyLocation() bool {
 	return false
 }
 
-// Location returns either Columns, which is now deprecated but could still be in use in users storage provider, or EntityMappings.
+// Location returns EntityMappings, instead of the outdated Columns.
 func (variant *LabelVariant) Location() (EntityMappings, error) {
 	logger := logging.GlobalLogger.With("label_name", variant.Name(), "label_variant", variant.Name())
 	switch loc := variant.serialized.GetLocation().(type) {
@@ -2448,22 +2469,6 @@ func (variant *LabelVariant) Location() (EntityMappings, error) {
 
 func (variant *LabelVariant) isTable() bool {
 	return reflect.TypeOf(variant.serialized.GetLocation()) == reflect.TypeOf(&pb.LabelVariant_Columns{})
-}
-
-func (variant *LabelVariant) LocationColumns() interface{} {
-	logger := logging.GlobalLogger.With("label_name", variant.Name(), "label_variant", variant.Name())
-	src := variant.serialized.GetColumns()
-	if src == nil {
-		logger.Errorw("Columns location is nil")
-		return nil
-	}
-	columns := ResourceVariantColumns{
-		Entity: src.Entity,
-		Value:  src.Value,
-		TS:     src.Ts,
-	}
-	logger.Debugw("Deprecated location columns", "columns", columns)
-	return columns
 }
 
 func (variant *LabelVariant) Tags() Tags {
@@ -3227,7 +3232,7 @@ func (variant *SourceVariant) GetPrimaryLocation() (pl.Location, error) {
 	}
 	switch pt := variant.serialized.GetPrimaryData().GetLocation().(type) {
 	case *pb.PrimaryData_Table:
-		return pl.NewFullyQualifiedSQLLocation(
+		return pl.NewSQLLocationFromParts(
 			pt.Table.GetDatabase(),
 			pt.Table.GetSchema(),
 			pt.Table.GetName(),
@@ -3253,7 +3258,7 @@ func (variant *SourceVariant) GetTransformationLocation() (pl.Location, error) {
 	switch pt := variant.serialized.GetTransformation().GetLocation().(type) {
 	case *pb.Transformation_Table:
 		table := pt.Table.GetName()
-		return pl.NewFullyQualifiedSQLLocation(pt.Table.GetDatabase(), pt.Table.GetSchema(), table), nil
+		return pl.NewSQLLocationFromParts(pt.Table.GetDatabase(), pt.Table.GetSchema(), table), nil
 		//return pl.NewSQLLocation(table), nil
 	case *pb.Transformation_Filestore:
 		fp := filestore.FilePath{}

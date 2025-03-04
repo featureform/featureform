@@ -18,14 +18,15 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
+	"google.golang.org/api/option"
+
 	"github.com/featureform/logging"
 	"github.com/featureform/provider/location"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
-	"github.com/google/uuid"
-	"github.com/joho/godotenv"
-	"google.golang.org/api/option"
 )
 
 type bigQueryOfflineStoreTester struct {
@@ -194,7 +195,7 @@ func destroyBigQueryDataset(c pc.BigQueryConfig) error {
 	return err
 }
 
-func getConfiguredBigQueryTester(t *testing.T, useCrossDBJoins bool) offlineSqlTest {
+func getConfiguredBigQueryTester(t *testing.T) offlineSqlTest {
 	logger := logging.NewTestLogger(t)
 
 	bigQueryConfig, err := getBigQueryConfig(t)
@@ -226,16 +227,16 @@ func getConfiguredBigQueryTester(t *testing.T, useCrossDBJoins bool) offlineSqlT
 		// BigQuery requires a fully qualified location of a source table.
 		if obj.Database == "" || obj.Schema == "" {
 			datasetId := store.(*bqOfflineStore).query.DatasetId
-			srcLoc := pl.NewFullyQualifiedSQLLocation(offlineStoreTester.GetTestDatabase(), datasetId, obj.Table).(*pl.SQLLocation)
+			srcLoc := pl.NewSQLLocationFromParts(offlineStoreTester.GetTestDatabase(), datasetId, obj.Table)
 			return "`" + srcLoc.TableLocation().String() + "`"
 		}
 		return "`" + obj.String() + "`"
 	}
 
 	return offlineSqlTest{
-		storeTester:         offlineStoreTester,
-		testCrossDbJoins:    useCrossDBJoins,
-		transformationQuery: "SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, TIMESTAMP(timestamp) as date FROM %s GROUP BY location_id, TIMESTAMP(timestamp)",
-		sanitizeTableName:   sanitizeTableNameFunc,
+		storeTester: offlineStoreTester,
+		testConfig: offlineSqlTestConfig{
+			sanitizeTableName: sanitizeTableNameFunc,
+		},
 	}
 }

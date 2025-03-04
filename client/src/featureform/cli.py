@@ -220,7 +220,7 @@ def apply(host, cert, insecure, files, dry_run, no_wait, verbose):
                 f"Argument must be a path to a file, directory or URL with a valid schema (http:// or https://): {file}"
             )
     asynchronous = no_wait
-    return client.apply(asynchronous=asynchronous, verbose=verbose)
+    client.apply(asynchronous=asynchronous, verbose=verbose)
 
 
 @cli.command()

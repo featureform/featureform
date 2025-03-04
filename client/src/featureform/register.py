@@ -4960,13 +4960,13 @@ class ResourceClient:
             resource_state = state()
             if resource_state.is_empty():
                 print("No resources to apply")
-                return
+                return 0
 
             print(f"Applying Run: {get_run()}")
 
             if self._dry_run:
                 print(resource_state.sorted_list())
-                return
+                return 0
 
             resource_state.create_all(
                 self._stub,
@@ -4979,7 +4979,7 @@ class ResourceClient:
 
             if not asynchronous and self._stub:
                 resources = resource_state.sorted_list()
-                display_statuses(self._stub, resources, self._host, verbose=verbose)
+                return display_statuses(self._stub, resources, self._host, verbose=verbose)
         finally:
             if feature_flag.is_enabled("FF_GET_EQUIVALENT_VARIANTS", True):
                 set_run("")

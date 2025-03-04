@@ -6,21 +6,28 @@
 #
 
 import numpy as np
+import os
+
+from featureform.cli import cli
+
 
 def test_quickstart(ff_client):
-    # Exec the definitions file downloaded by the docker_quickstart_deployment.
-    with open("../../../quickstart/definitions.py", "r") as file:
-        content = file.read()
-        # In tests, we don't run Featureform in a Docker container. So we
-        # replace the host endpoints for the various containers with localhost.
-        content = content.replace('host.docker.internal', 'localhost')
+    os.environ['FEATUREFORM_HOST'] = 'localhost:7878'
 
-        code = compile(content, "definitions.py", "exec")
-        file_globals = {}
-        exec(code, file_globals)
+    # Call into Featureform as you would from the CLI.
+    exit_code = cli.main(
+        args=['apply', '../../../quickstart/definitions.py', '--insecure'],
+        standalone_mode=False
+    )
+    assert exit_code == 0
 
-    ff_client.apply()
+    # Make sure that the provided quickstart files don't throw an exception.
+    with open('../../../quickstart/serving.py') as f:
+        exec(f.read())
+    with open('../../../quickstart/training.py') as f:
+        exec(f.read())
 
+    # Separately test features and training sets.
     feature_value = ff_client.features(
         [("avg_transactions", "quickstart")],
         {"user": "C1214240"}

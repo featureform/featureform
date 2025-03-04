@@ -47,8 +47,10 @@ RUNNING = ResourceStatus.RUNNING.value
 
 def display_statuses(
     grpc_client: GrpcClient, resources: List[Resource], host, verbose=False
-):
-    StatusDisplayer(grpc_client, resources, verbose=verbose).display(host)
+) -> int:
+    status = StatusDisplayer(grpc_client, resources, verbose=verbose)
+    status.display(host)
+    return 0 if len(status.failed_list) == 0 else 1
 
 
 @dataclass

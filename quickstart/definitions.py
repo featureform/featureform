@@ -3,7 +3,7 @@ import featureform as ff
 
 postgres = ff.register_postgres(
     name="postgres-quickstart",
-    host="host.docker.internal",  # The docker dns name for postgres
+    host="172.17.0.1", # The IP address of the default network bridge
     port="5432",
     user="postgres",
     password="password",
@@ -13,7 +13,7 @@ postgres = ff.register_postgres(
 
 redis = ff.register_redis(
     name="redis-quickstart",
-    host="host.docker.internal",  # The docker dns name for redis
+    host="172.17.0.1", # The IP address of the default network bridge
     port=6379,
 )
 

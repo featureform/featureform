@@ -7,7 +7,6 @@ import (
 
 	"github.com/featureform/fferr"
 	types "github.com/featureform/fftypes"
-	"github.com/featureform/provider"
 	"github.com/featureform/provider/dataset"
 	"github.com/featureform/provider/location"
 )
@@ -15,7 +14,6 @@ import (
 type Dataset struct {
 	db       *sql.DB
 	location location.SQLLocation
-	query    provider.OfflineTableQueries
 	schema   types.Schema
 	limit    int
 }
@@ -132,7 +130,7 @@ func (it *Iterator) Next(ctx context.Context) bool {
 		it.rows.Close()
 		return false
 	default:
-		// Continue with normal operation
+		// continue
 	}
 
 	if !it.rows.Next() {

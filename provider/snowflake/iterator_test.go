@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/featureform/fftypes"
+	"github.com/featureform/logging"
 	"github.com/featureform/provider/location"
 )
 
@@ -305,7 +306,7 @@ func TestIterator_Next(t *testing.T) {
 			iterator := NewIterator(result, tc.schema)
 
 			// Test the Next method
-			ctx := context.Background()
+			ctx := logging.NewTestContext(t)
 			hasNext := iterator.Next(ctx)
 			require.True(t, hasNext)
 			require.NoError(t, iterator.Err())
@@ -363,7 +364,7 @@ func TestIterator_ColumnCountMismatch(t *testing.T) {
 	iterator := NewIterator(result, schema)
 
 	// Test the Next method - should fail due to column count mismatch
-	ctx := context.Background()
+	ctx := logging.NewTestContext(t)
 	hasNext := iterator.Next(ctx)
 	require.False(t, hasNext)
 	require.Error(t, iterator.Err())
@@ -471,7 +472,7 @@ func TestIterator_DeserializeError(t *testing.T) {
 	iterator := NewIterator(result, schema)
 
 	// Test the Next method - should call Next() successfully but fail during scan
-	ctx := context.Background()
+	ctx := logging.NewTestContext(t)
 	hasNext := iterator.Next(ctx)
 
 	require.False(t, hasNext)
@@ -511,12 +512,11 @@ func TestDataset_Iterator(t *testing.T) {
 	mock.ExpectQuery(expectedSQL).WillReturnRows(rows)
 
 	// Get an iterator from the dataset
-	ctx := context.Background()
+	ctx := logging.NewTestContext(t)
 	iterator, err := ds.Iterator(ctx)
 	require.NoError(t, err)
 	defer iterator.Close()
 
-	// Check that we can iterate through the results
 	for i := 0; i < 2; i++ {
 		hasNext := iterator.Next(ctx)
 		require.True(t, hasNext)

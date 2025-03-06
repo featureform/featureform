@@ -65,5 +65,5 @@ RUN cat $SPARK_SCRIPT_PATH | md5sum \
     | awk '{print $1}' \
     | xargs echo -n > /app/provider/scripts/spark/offline_store_spark_runner_md5.txt
 
-EXPOSE 8080
+EXPOSE 7878
 ENTRYPOINT ["./main"]

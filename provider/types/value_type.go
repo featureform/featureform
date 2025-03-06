@@ -17,9 +17,10 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/golang/protobuf/proto"
+
 	"github.com/featureform/fferr"
 	pb "github.com/featureform/metadata/proto"
-	"github.com/golang/protobuf/proto"
 )
 
 func init() {

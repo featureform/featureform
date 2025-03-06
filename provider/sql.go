@@ -1369,6 +1369,30 @@ func (pt *sqlPrimaryTable) NumRows() (int64, error) {
 	return n, nil
 }
 
+//func (pt *sqlPrimaryTable) ToDataset() (dataset.Dataset, error) {
+//	columns, err := pt.query.getColumns(pt.db, pt.name)
+//	if err != nil {
+//		return nil, err
+//	}
+//	columnNames := make([]string, 0)
+//	for _, col := range columns {
+//		columnNames = append(columnNames, sanitize(col.Name))
+//	}
+//	names := strings.Join(columnNames[:], ", ")
+//	query := fmt.Sprintf("SELECT %s FROM %s", names, sanitize(pt.name))
+//	rows, err := pt.db.Query(query)
+//	if err != nil {
+//		wrapped := fferr.NewExecutionError(pt.providerType.String(), err)
+//		wrapped.AddDetail("table_name", pt.name)
+//		return nil, wrapped
+//	}
+//	colTypes, err := pt.getValueColumnTypes(pt.name)
+//	if err != nil {
+//		return nil, err
+//	}
+//	return newsqlDataset(rows, colTypes, columnNames, pt.query, pt.providerType), nil
+//}
+
 func determineColumnType(valueType types.ValueType) (string, error) {
 	switch valueType {
 	case types.Int, types.Int32, types.Int64:
@@ -1687,7 +1711,7 @@ func (q defaultOfflineSQLQueries) primaryTableRegister(tableName string, sourceN
 
 func (q defaultOfflineSQLQueries) getColumns(db *sql.DB, name string) ([]TableColumn, error) {
 	bind := q.newVariableBindingIterator()
-	qry := fmt.Sprintf("SELECT column_name FROM information_schema.columns WHERE table_name = %s and table_schema = CURRENT_SCHEMA() order by ordinal_position", bind.Next())
+	qry := fmt.Sprintf("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = %s and table_schema = CURRENT_SCHEMA() order by ordinal_position", bind.Next())
 	rows, err := db.Query(qry, name)
 	if err != nil {
 		wrapped := fferr.NewExecutionError("SQL", err)

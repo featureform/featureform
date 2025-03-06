@@ -67,6 +67,9 @@ type OnlineServer struct {
 }
 
 func NewApiServer(logger logging.Logger, address string, metaAddr string, srvAddr string) (*ApiServer, error) {
+	if srvAddr == "" {
+		logger.Info("API server not connecting to serving endpoint")
+	}
 	return &ApiServer{
 		Logger:  logger,
 		address: address,
@@ -1409,6 +1412,7 @@ func (serv *OnlineServer) GetResourceLocation(ctx context.Context, req *srv.Reso
 func (serv *ApiServer) Serve() error {
 	logger := logging.NewLogger("serve")
 	logger.Infow("Starting server", "address", serv.address)
+	featureServingEnabled := serv.online.address != ""
 	if serv.grpcServer != nil {
 		logger.Errorw("Server already running")
 		return fferr.NewInternalError(fmt.Errorf("server already running"))
@@ -1428,10 +1432,15 @@ func (serv *ApiServer) Serve() error {
 		logger.Errorw("Failed to dial metadata server", "error", err)
 		return fferr.NewInternalError(err)
 	}
-	servConn, err := grpc.Dial(serv.online.address, opts...)
-	if err != nil {
-		logger.Errorw("Failed to dial serving server", "error", err)
-		return fferr.NewInternalError(err)
+	if featureServingEnabled {
+		servConn, err := grpc.Dial(serv.online.address, opts...)
+		if err != nil {
+			logger.Errorw("Failed to dial serving server", "error", err)
+			return fferr.NewInternalError(err)
+		}
+		serv.online.client = srv.NewFeatureClient(servConn)
+	} else {
+		logger.Infow("Feature serving disabled, skipping...")
 	}
 	serv.metadata.meta = pb.NewMetadataClient(metaConn)
 	client, err := metadata.NewClient(serv.metadata.address, serv.Logger)
@@ -1440,7 +1449,6 @@ func (serv *ApiServer) Serve() error {
 		return err
 	}
 	serv.metadata.client = client
-	serv.online.client = srv.NewFeatureClient(servConn)
 	serv.metadata.health = health.NewHealth(client)
 	logger.Infof("Created metadata client successfully.")
 	return serv.ServeOnListener(lis)

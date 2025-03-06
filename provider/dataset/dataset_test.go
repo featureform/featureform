@@ -27,7 +27,7 @@ func (ds *InMemoryDataset) Location() pl.Location {
 	return ds.location
 }
 
-func (ds *InMemoryDataset) Iterator(limit int, ctx context.Context) (Iterator, error) {
+func (ds *InMemoryDataset) Iterator(ctx context.Context) (Iterator, error) {
 	return &InMemoryIterator{data: ds.data, index: -1}, nil
 }
 

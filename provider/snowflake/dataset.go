@@ -17,10 +17,15 @@ type Dataset struct {
 	location location.SQLLocation
 	query    provider.OfflineTableQueries
 	schema   types.Schema
+	limit    int
 }
 
-func NewDataset(location location.SQLLocation, schema types.Schema) Dataset {
-	return Dataset{location: location, schema: schema}
+func NewDataset(location location.SQLLocation, schema types.Schema, limit int) Dataset {
+	var lmt = limit
+	if limit == 0 {
+		lmt = -1
+	}
+	return Dataset{location: location, schema: schema, limit: lmt}
 }
 
 func (ds Dataset) Location() location.Location {
@@ -67,14 +72,14 @@ func (ds Dataset) getSchema(tableName string) (types.Schema, error) {
 	return schema, nil
 }
 
-func (ds Dataset) Iterator(limit int, ctx context.Context) (dataset.Iterator, error) {
+func (ds Dataset) Iterator(ctx context.Context) (dataset.Iterator, error) {
 	var query string
 	colNames := ds.schema.ColumnNames()
 	tableName := ds.location.GetTable()
-	if limit == -1 {
+	if ds.limit == -1 {
 		query = fmt.Sprintf("SELECT %s FROM %s", colNames, tableName)
 	} else {
-		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", colNames, tableName, limit)
+		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", colNames, tableName, ds.limit)
 	}
 	rows, err := ds.db.Query(query)
 	if err != nil {
@@ -87,7 +92,6 @@ func (ds Dataset) Schema() (types.Schema, error) {
 	return ds.schema, nil
 }
 
-// Iterator implements the dataset.Iterator interface for Snowflake
 type Iterator struct {
 	rows          *sql.Rows
 	currentValues types.Row
@@ -95,7 +99,6 @@ type Iterator struct {
 	err           error
 }
 
-// NewIterator creates a new Iterator from sql.Rows and schema
 func NewIterator(rows *sql.Rows, schema types.Schema) dataset.Iterator {
 	return &Iterator{
 		rows:   rows,
@@ -103,22 +106,18 @@ func NewIterator(rows *sql.Rows, schema types.Schema) dataset.Iterator {
 	}
 }
 
-// Values returns the current row values
 func (it *Iterator) Values() types.Row {
 	return it.currentValues
 }
 
-// Schema returns the dataset schema
 func (it *Iterator) Schema() (types.Schema, error) {
 	return it.schema, nil
 }
 
-// Err returns any error that occurred during iteration
 func (it *Iterator) Err() error {
 	return it.err
 }
 
-// Close closes the underlying database rows
 func (it *Iterator) Close() error {
 	if err := it.rows.Close(); err != nil {
 		return fferr.NewConnectionError("Snowflake", err)
@@ -171,9 +170,8 @@ func (it *Iterator) Next(ctx context.Context) bool {
 			return false
 		}
 
-		// Determine the ValueType for this field
 		var fieldType types.ValueType
-		fieldType = SnowflakeTypeMap[string(it.schema.Fields[i].NativeType)]
+		fieldType = TypeMap[it.schema.Fields[i].NativeType]
 
 		if val == nil {
 			// Handle NULL values

@@ -17,7 +17,6 @@ import (
 	"sync"
 	"time"
 
-	types2 "github.com/featureform/fftypes"
 	tsq "github.com/featureform/provider/tsquery"
 
 	"github.com/google/uuid"
@@ -853,14 +852,6 @@ type TableSchema struct {
 	Columns []TableColumn
 	// The complete URL that points to the location of the data file
 	SourceTable string
-}
-
-func (schema *TableSchema) ToTypesSchema() types2.Schema {
-	schemaMap := make(map[string]types.ValueType)
-	for _, col := range schema.Columns {
-		schemaMap[col.Name] = col.ValueType
-	}
-	return schemaMap
 }
 
 type TableSchemaJSONWrapper struct {

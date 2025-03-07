@@ -60,7 +60,6 @@ provider/test_files/output/part-000*.parquet
 
 # Test Requirements:
 tls.crt
-transactions.csv
 
 # Docker Deploy
 featureform_quickstart

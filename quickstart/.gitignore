@@ -1,0 +1,2 @@
+# transactions.csv ignored by project .gitignore, include it here
+!transactions.csv

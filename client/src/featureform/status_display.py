@@ -131,7 +131,6 @@ class ResourceTableRow:
 
 
 class StatusDisplayer:
-    did_error: bool = False
     RESOURCE_TYPES_TO_CHECK = {
         FeatureVariant,
         OnDemandFeatureVariant,
@@ -237,12 +236,7 @@ class StatusDisplayer:
                         table_group = Group(*tables)  # Unpack the tables list
                         live.update(table_group, refresh=True)
 
-                    # This block is used for testing
-                    # Tests check for both stderr and an exception
-                    # If we don't throw an exception, then tests will pass even when things fail to register
-                    # We also print all the error messages because the table does not get saved when
-                    # capturing stdout/stderr
-                    if self.verbose and self.did_error:
+                    if len(self.failed_list):
                         statuses = self.create_error_message()
                         sys.tracebacklimit = 0
                         raise Exception("Some resources failed to create\n" + statuses)

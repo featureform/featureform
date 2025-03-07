@@ -28,6 +28,9 @@ def test_deployment_class(quickstart):
     assert deployment.config == []
 
 
+# Scoping fixtures down to 'function' level, needed because the mocker
+# fixture leaks to other tests.
+@pytest.fixture(scope='function')
 @pytest.mark.parametrize(
     "deploy, expected_config",
     [

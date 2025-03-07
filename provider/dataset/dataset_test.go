@@ -11,12 +11,12 @@ import (
 	pl "github.com/featureform/provider/location"
 )
 
-// DatasetTestCase holds a dataset and expected values for testing
 type DatasetTestCase struct {
 	Dataset        Dataset
 	ExpectedData   []types.Row
 	ExpectedSchema types.Schema
 	Location       pl.Location
+
 	// DatasetFactory creates a new dataset with the same configuration as Dataset
 	// Used for tests that modify the dataset (e.g., write tests)
 	DatasetFactory func() Dataset
@@ -161,10 +161,6 @@ func testWriteableDataset(t *testing.T, ds WriteableDataset, tc DatasetTestCase)
 	// This test will modify the dataset by writing new rows to it
 	t.Run("WriteBatch", func(t *testing.T) {
 		ctx := logging.NewTestContext(t)
-
-		// Note: This test modifies the original dataset by adding rows.
-		// If you need to keep the original dataset unchanged, you would need to
-		// create a new dataset with the same properties before running this test.
 
 		// Create new rows to write
 		newRows := []types.Row{

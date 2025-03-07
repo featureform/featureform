@@ -257,14 +257,14 @@ def search(query, host, cert, insecure):
     "--quickstart", is_flag=True, help="Install Featureform Quickstart as well"
 )
 @click.option(
-    "--include_clickhouse",
+    "--clickhouse",
     is_flag=True,
     help="Includes ClickHouse in the deployment. Requires quickstart.",
 )
-def deploy(deploy_type, quickstart, include_clickhouse):
+def deploy(deploy_type, quickstart, clickhouse):
     print(f"Deploying Featureform on {deploy_type.capitalize()}")
     if deploy_type.lower() == "docker":
-        deployment = DockerDeployment(quickstart, clickhouse=include_clickhouse)
+        deployment = DockerDeployment(quickstart, clickhouse=clickhouse)
     else:
         supported_types = ", ".join(SUPPORTED_DEPLOY_TYPES)
         raise ValueError(

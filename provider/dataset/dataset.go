@@ -65,8 +65,15 @@ type SizedSegmentableDataset interface {
 // chunk iterators of size ChunkSize (last chunk will be
 // <= ChunkSize).
 type ChunkedDatasetAdapter struct {
-	SizedSegmentableDataset
-	ChunkSize int64
+func (adapter *ChunkedDatasetAdapter) getSize() (int64, error) {
+	if adapter.ChunkSize <= 0 {
+		return 0, fferr.NewInternalErrorf("chunk size must be > 0")
+	}
+	adapter.sizeOnce.Do(func() {
+		adapter.size, adapter.sizeErr = adapter.SizedSegmentableDataset.Len()
+	})
+	return adapter.size, adapter.sizeErr
+}
 
 	size     int64
 	sizeErr  error

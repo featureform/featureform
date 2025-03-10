@@ -3,7 +3,7 @@ import featureform as ff
 
 clickhouse = ff.register_clickhouse(
     name="clickhouse-quickstart",
-    host="host.docker.internal",  # The docker dns name for ClickHouse
+    host="172.17.0.1",  # The default Docker gateway address
     port=9000,
     user="default",
     password="",
@@ -13,7 +13,7 @@ clickhouse = ff.register_clickhouse(
 
 redis = ff.register_redis(
     name="redis-quickstart",
-    host="host.docker.internal",  # The docker dns name for redis
+    host="172.17.0.1",  # The default Docker gateway address
     port=6379,
 )
 

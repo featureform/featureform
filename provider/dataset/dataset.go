@@ -16,7 +16,7 @@ import (
 	pl "github.com/featureform/provider/location"
 )
 
-// Dataset is the base interface required by most of the
+// SqlDataset is the base interface required by most of the
 // OfflineStore interface. It provides a location, iterator,
 // and schema
 type Dataset interface {
@@ -25,7 +25,7 @@ type Dataset interface {
 	Schema() (types.Schema, error)
 }
 
-// WriteableDataset is a Dataset that you can write to. For some datasets,
+// WriteableDataset is a SqlDataset that you can write to. For some datasets,
 // especially file based one, writing single rows is expensive. It's
 // preferable to write as many things as possible in a single batch.
 type WriteableDataset interface {
@@ -33,7 +33,7 @@ type WriteableDataset interface {
 	WriteBatch(Context, []types.Row) error
 }
 
-// SizedDataset is a Dataset where the size can be cheaply calculated.
+// SizedDataset is a SqlDataset where the size can be cheaply calculated.
 type SizedDataset interface {
 	Dataset
 	Len() (int64, error)
@@ -42,7 +42,7 @@ type SizedDataset interface {
 // SegmentableDataset allows a user to easily iterate
 // an arbitrary segment of the dataset. Note that it
 // doesn't guarantee the end of the iterator is actually
-// in range of the dataset. You can try casting Iterator
+// in range of the dataset. You can try casting SqlIterator
 // to SizedIterator to see if the length is available.
 type SegmentableDataset interface {
 	Dataset
@@ -131,7 +131,7 @@ func (adapter *ChunkedDatasetAdapter) ChunkIterator(ctx Context, idx int) (Sized
 	}, nil
 }
 
-// Iterator is the generic interface to loop through any dataset in
+// SqlIterator is the generic interface to loop through any dataset in
 // Featureform.
 type Iterator interface {
 	Next(Context) bool
@@ -141,7 +141,7 @@ type Iterator interface {
 	Close() error
 }
 
-// SizedIterator is an Iterator where we can cheaply check
+// SizedIterator is an SqlIterator where we can cheaply check
 // the full length.
 type SizedIterator interface {
 	Iterator

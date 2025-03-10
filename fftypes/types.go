@@ -321,6 +321,8 @@ type Value struct {
 type NativeType string
 type ColumnName string
 
+type NativeToValueTypeMapper map[NativeType]ValueType
+
 type Schema struct {
 	Fields []ColumnSchema
 	// todo: can include more state or behavior, etc.

@@ -28,7 +28,7 @@ func RunDatasetTestSuite(t *testing.T, tc DatasetTestCase) {
 		testBasicProperties(t, tc)
 	})
 
-	t.Run("Iterator", func(t *testing.T) {
+	t.Run("SqlIterator", func(t *testing.T) {
 		testIterator(t, tc)
 	})
 
@@ -45,7 +45,7 @@ func RunDatasetTestSuite(t *testing.T, tc DatasetTestCase) {
 				var ok bool
 				datasetToTest, ok = freshDataset.(WriteableDataset)
 				if !ok {
-					t.Fatalf("Dataset created by factory does not implement WriteableDataset")
+					t.Fatalf("SqlDataset created by factory does not implement WriteableDataset")
 				}
 			} else {
 				// Otherwise, use the original but warn about it
@@ -81,10 +81,10 @@ func testIteratorSize(t *testing.T, iter Iterator, expectedSize int64) (isSized 
 		return false
 	}
 
-	t.Logf("Iterator of type %T implements SizedIterator", iter)
+	t.Logf("SqlIterator of type %T implements SizedIterator", iter)
 	size, err := sizedIter.Len()
 	require.NoError(t, err)
-	assert.Equal(t, expectedSize, size, "Iterator size doesn't match expected length")
+	assert.Equal(t, expectedSize, size, "SqlIterator size doesn't match expected length")
 	return true
 }
 
@@ -111,11 +111,11 @@ func testIterator(t *testing.T, tc DatasetTestCase) {
 
 	i := 0
 	for iter.Next(ctx) {
-		require.Less(t, i, len(tc.ExpectedData), "Iterator returned more rows than expected")
+		require.Less(t, i, len(tc.ExpectedData), "SqlIterator returned more rows than expected")
 		assert.Equal(t, tc.ExpectedData[i], iter.Values())
 		i++
 	}
-	assert.Equal(t, len(tc.ExpectedData), i, "Iterator did not return all expected rows")
+	assert.Equal(t, len(tc.ExpectedData), i, "SqlIterator did not return all expected rows")
 }
 
 func testSegmentIterator(t *testing.T, tc DatasetTestCase) {
@@ -130,7 +130,7 @@ func testSegmentIterator(t *testing.T, tc DatasetTestCase) {
 	// Test segment from 1 to end
 	segmentable, ok := tc.Dataset.(SegmentableDataset)
 	if !ok {
-		t.Skip("Dataset is not segmentable")
+		t.Skip("SqlDataset is not segmentable")
 		return
 	}
 
@@ -151,10 +151,10 @@ func testSegmentIterator(t *testing.T, tc DatasetTestCase) {
 
 	// Verify iterator returns expected segment
 	for i := start; i < end; i++ {
-		require.True(t, iter.Next(ctx), "Iterator ended prematurely")
+		require.True(t, iter.Next(ctx), "SqlIterator ended prematurely")
 		assert.Equal(t, tc.ExpectedData[i], iter.Values())
 	}
-	assert.False(t, iter.Next(ctx), "Iterator did not end as expected")
+	assert.False(t, iter.Next(ctx), "SqlIterator did not end as expected")
 }
 
 func testWriteableDataset(t *testing.T, ds WriteableDataset, tc DatasetTestCase) {
@@ -200,13 +200,13 @@ func testWriteableDataset(t *testing.T, ds WriteableDataset, tc DatasetTestCase)
 			if rowIdx < len(expectedDataAfterWrite) {
 				assert.Equal(t, expectedDataAfterWrite[rowIdx], iter.Values())
 			} else {
-				t.Errorf("Iterator returned more rows than expected")
+				t.Errorf("SqlIterator returned more rows than expected")
 			}
 			rowIdx++
 		}
 
 		assert.Equal(t, len(expectedDataAfterWrite), rowIdx,
-			"Iterator did not return all expected rows")
+			"SqlIterator did not return all expected rows")
 	})
 }
 

@@ -89,11 +89,11 @@ Now that we have everything running, we'll walk through what was done to create 
 
 ## Apply
 
-If we download the definitions.py file, we can see what Featureform is doing when we run `featureform apply`.
-
 We will be using Postgres for our example, however the ClickHouse provider works the same way,
 and passing the `--clickhouse` flag during deployment should have downloaded a similar `definitions.py` file with
 ClickHouse being the source provider.
+
+If we download the definitions.py file, we can see what Featureform is doing when we run `featureform apply`.
 
 First we register the Postgres and Redis containers as providers so Featureform is aware of them.
 

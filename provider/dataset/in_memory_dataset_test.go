@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	types "github.com/featureform/fftypes"
 	pl "github.com/featureform/provider/location"
+	"github.com/featureform/types"
 )
 
 func TestInMemoryDataset(t *testing.T) {

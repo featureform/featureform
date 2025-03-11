@@ -6,9 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	types "github.com/featureform/fftypes"
 	"github.com/featureform/logging"
 	pl "github.com/featureform/provider/location"
+	"github.com/featureform/types"
 )
 
 type DatasetTestCase struct {

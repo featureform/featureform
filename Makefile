@@ -360,6 +360,28 @@ test_pyspark:
 test_pandas:
 	pytest -v -s --cov=offline_store_pandas_runner provider/scripts/k8s/tests/ --cov-report term-missing
 
+test_metadata_integration: create_venv gen_grpc
+	docker compose -f tests/docker/metadata-docker-compose.yml up -d
+	source .pytest-venv/bin/activate && \
+	pytest -vv -s tests/metadata_integration;
+	docker compose -f tests/docker/metadata-docker-compose.yml down
+
+test_python_streamer: create_venv gen_grpc
+	source .pytest-venv/bin/activate && \
+	set -a && \
+	source .env && \
+	set +a && \
+	pytest -vv -s streamer;
+
+create_venv:
+	if [ ! -d ".pytest-venv" ]; then \
+	    python3 -m venv .pytest-venv; \
+	fi;
+	source .pytest-venv/bin/activate && \
+	pip install --upgrade pip setuptools wheel pytest build pytest-cov && \
+	python3 -m build ./client/ && \
+	pip3 install client/dist/*.whl && \
+	pip3 install --force-reinstall --no-deps client/dist/*.whl
 
 ##############################################  GO TESTS ###############################################################
 test_offline: gen_grpc 					## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark | clickhouse)`

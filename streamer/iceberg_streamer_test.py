@@ -8,13 +8,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 import pyarrow as pa
-from iceberg_streamer import StreamerService
 import json
-
-
-@pytest.fixture(scope="module")
-def streamer_service():
-    return StreamerService()
 
 
 @pytest.mark.local
@@ -39,11 +33,11 @@ def test_do_get_invalid_ticket_format(ticket_input, streamer_service):
     [
         (
             "{}",
-            "Missing required request fields: namespace, table, client.region",
+            "Missing required request fields: namespace, table",
         ),
         (
             '{"namespace": "my_namespace"}',
-            "Missing required request fields: table, client.region",
+            "Missing required request fields: table",
         ),
         (
             '{"namespace": "my_namespace", "table": "my_table", "client.region": "some_region"}',
@@ -51,11 +45,11 @@ def test_do_get_invalid_ticket_format(ticket_input, streamer_service):
         ),
         (
             '{"namespace": "my_namespace", "table": "my_table", "client.role-arn": "my_role"}',
-            "Missing required request fields: client.region",
+            "Missing required Glue config fields: client.region",
         ),
         (
             '{"namespace": "my_namespace", "table": "my_table", "client.access-key-id": "my_key"}',
-            "Missing required request fields: client.region"
+            "Missing required Glue config fields: client.region"
         ),
     ],
 )

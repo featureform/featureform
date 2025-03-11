@@ -53,6 +53,7 @@ require (
 	cloud.google.com/go v0.118.0 // indirect
 	cloud.google.com/go/auth v0.14.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.7 // indirect
+	github.com/apache/arrow/go/v18 v18.0.0-20241007013041-ab95a4d25142 // indirect
 	github.com/bitly/go-hostpool v0.1.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect

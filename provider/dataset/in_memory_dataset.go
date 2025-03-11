@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	types "github.com/featureform/fftypes"
 	pl "github.com/featureform/provider/location"
+	"github.com/featureform/types"
 )
 
 type InMemoryDataset struct {

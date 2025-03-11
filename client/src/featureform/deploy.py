@@ -51,9 +51,14 @@ class DockerDeployment(Deployment):
     def __init__(self, quickstart: bool, clickhouse: bool = False):
         super().__init__(quickstart)
 
+        definitions_file = (
+            "https://featureform-demo-files.s3.us-east-1.amazonaws.com/clickhouse/definitions.py" if clickhouse
+            else "https://featureform-demo-files.s3.amazonaws.com/definitions.py"
+        )
+
         self._quickstart_directory = "quickstart"
         self._quickstart_files = [
-            "https://featureform-demo-files.s3.amazonaws.com/definitions.py",
+            definitions_file,
             "https://featureform-demo-files.s3.amazonaws.com/serving.py",
             "https://featureform-demo-files.s3.amazonaws.com/training.py",
         ]
@@ -97,7 +102,7 @@ class DockerDeployment(Deployment):
             quickstart_deployment.append(
                 DOCKER_CONFIG(
                     name="quickstart-clickhouse",
-                    image="clickhouse/clickhouse-server",
+                    image="featureformcom/quickstart-clickhouse",
                     port={"9000/tcp": 9000, "8123/tcp": 8123},
                     detach_mode=True,
                     env={},

@@ -28,9 +28,6 @@ def test_deployment_class(quickstart):
     assert deployment.config == []
 
 
-# Scoping fixtures down to 'function' level, needed because the mocker
-# fixture leaks to other tests.
-@pytest.fixture(scope='function')
 @pytest.mark.parametrize(
     "deploy, expected_config",
     [
@@ -66,7 +63,6 @@ def test_deployment_status(deployment, expected_status, request):
     assert status == expected_status
 
 
-@pytest.skip(reason='This was not being properly tested before, and will need to fix it later')
 @pytest.mark.parametrize(
     "deployment, expected_failure",
     [
@@ -74,7 +70,15 @@ def test_deployment_status(deployment, expected_status, request):
         ("docker_quickstart_deployment", False),
     ],
 )
-def test_deployment(deployment, expected_failure, request):
+def test_deployment(deployment, expected_failure, request, mocker):
+    import requests
+
+    mocker.patch("docker.from_env")
+
+    mock_response = mocker.Mock()
+    mock_response.status_code = 200
+    mocker.patch.object(requests.Session, "get", return_value=mock_response)
+
     d = request.getfixturevalue(deployment)
     assert d.start() == (not expected_failure)
     assert d.stop() == (not expected_failure)

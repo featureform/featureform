@@ -377,6 +377,14 @@ jobs:
 
       - run: ls
 
+      - name: Install Docker on macOS
+        if: runner.os == 'macOS'
+        # We actually use Colima, which is an open-source container
+        # runtime, and easier to work with in a CI/CD environment.
+        run: |
+          brew install colima docker
+          colima start
+
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}

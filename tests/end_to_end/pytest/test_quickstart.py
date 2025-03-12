@@ -11,13 +11,19 @@ import os
 from contextlib import redirect_stdout
 from featureform.cli import cli
 
+QUICKSTART_FILES_BASE_DIR = '../../../quickstart/static_files'
 
 def test_quickstart(ff_client):
     os.environ['FEATUREFORM_HOST'] = 'localhost:7878'
 
     # Call into Featureform as you would from the CLI.
     cli.main(
-        args=['apply', '../../../quickstart/definitions.py', '--insecure', '--verbose'],
+        args=[
+            'apply',
+            os.path.join(QUICKSTART_FILES_BASE_DIR, 'definitions.py'),
+            '--insecure',
+            '--verbose'
+        ],
         standalone_mode=False
     )
 
@@ -25,9 +31,9 @@ def test_quickstart(ff_client):
     # There's a lot of output written by these files, which are unnecessary in the test logs,
     # so we ignore stdout.
     with redirect_stdout(open(os.devnull, 'w')):
-        with open('../../../quickstart/serving.py') as f:
+        with open(os.path.join(QUICKSTART_FILES_BASE_DIR, 'serving.py')) as f:
             exec(f.read())
-        with open('../../../quickstart/training.py') as f:
+        with open(os.path.join(QUICKSTART_FILES_BASE_DIR, 'training.py')) as f:
             exec(f.read())
 
     # Separately test features and training sets.

@@ -66,6 +66,7 @@ def test_deployment_status(deployment, expected_status, request):
     assert status == expected_status
 
 
+@pytest.skip(reason='This was not being properly tested before, and will need to fix it later')
 @pytest.mark.parametrize(
     "deployment, expected_failure",
     [

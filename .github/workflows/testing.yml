@@ -86,7 +86,7 @@ jobs:
         ports:
           - 6379:6379
       postgres:
-        image: postgres
+        image: featureformcom/postgres
         ports:
           - 5432:5432
         env:
@@ -100,7 +100,7 @@ jobs:
           --health-retries=10
 
       clickhouse:
-        image: clickhouse/clickhouse-server
+        image: featureformcom/quickstart-clickhouse
         ports:
           - 9001:9000
         env:

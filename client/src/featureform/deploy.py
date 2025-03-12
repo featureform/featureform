@@ -174,7 +174,6 @@ class DockerDeployment(Deployment):
         session = requests.Session()
         retries = Retry(
             total=10,
-            backoff_max=5,
             # Total sleep time = {backoff factor} * (2 ** ({number of previous retries}))
             # https://urllib3.readthedocs.io/en/stable/reference/urllib3.util.html#urllib3.util.Retry
             backoff_factor=0.2,

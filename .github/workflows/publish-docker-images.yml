@@ -26,7 +26,7 @@ jobs:
     defaults:
       run:
         working-directory: ./
-    runs-on: ubuntu-latest
+    runs-on: DockerBuild
     steps:
       - uses: actions/checkout@v2
 
@@ -74,7 +74,7 @@ jobs:
     defaults:
       run:
         working-directory: ./
-    runs-on: ubuntu-latest
+    runs-on: DockerBuild
     steps:
       - uses: actions/checkout@v2
 
@@ -109,7 +109,7 @@ jobs:
     defaults:
       run:
         working-directory: ./
-    runs-on: ubuntu-latest
+    runs-on: DockerBuild
     steps:
       - uses: actions/checkout@v2
 
@@ -144,7 +144,7 @@ jobs:
     defaults:
       run:
         working-directory: ./
-    runs-on: ubuntu-latest
+    runs-on: DockerBuild
     steps:
       - uses: actions/checkout@v2
 
@@ -179,7 +179,7 @@ jobs:
     defaults:
       run:
         working-directory: ./
-    runs-on: ubuntu-latest
+    runs-on: DockerBuild
     steps:
       - uses: actions/checkout@v2
 
@@ -214,7 +214,7 @@ jobs:
     defaults:
       run:
         working-directory: ./
-    runs-on: ubuntu-latest
+    runs-on: DockerBuild
     steps:
       - uses: actions/checkout@v2
 
@@ -249,7 +249,7 @@ jobs:
     defaults:
       run:
         working-directory: ./
-    runs-on: ubuntu-latest
+    runs-on: DockerBuild
     steps:
       - uses: actions/checkout@v2
 
@@ -284,7 +284,7 @@ jobs:
     defaults:
       run:
         working-directory: ./
-    runs-on: ubuntu-latest
+    runs-on: DockerBuild
     steps:
       - uses: actions/checkout@v2
 
@@ -319,7 +319,7 @@ jobs:
     defaults:
       run:
         working-directory: ./
-    runs-on: ubuntu-latest
+    runs-on: DockerBuild
     steps:
       - uses: actions/checkout@v2
 
@@ -354,7 +354,7 @@ jobs:
     defaults:
       run:
         working-directory: ./
-    runs-on: ubuntu-latest
+    runs-on: DockerBuild
     steps:
       - uses: actions/checkout@v2
 
@@ -389,7 +389,7 @@ jobs:
     defaults:
       run:
         working-directory: ./
-    runs-on: ubuntu-latest
+    runs-on: DockerBuild
     steps:
       - uses: actions/checkout@v2
 
@@ -424,7 +424,7 @@ jobs:
     defaults:
       run:
         working-directory: ./
-    runs-on: ubuntu-latest
+    runs-on: DockerBuild
     steps:
       - uses: actions/checkout@v2
 

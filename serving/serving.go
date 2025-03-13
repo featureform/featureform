@@ -563,6 +563,10 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 
 	// check if primarySqlTable
 	if sql, ok := primary.(*provider.SqlPrimaryTable); ok {
+		if _, err := pt.GetConverter(pt.Type(providerEntry.Type())); err != nil {
+			// continue
+			return primary.IterateSegment(limit)
+		}
 		ds, err := sql.ToDataset()
 		if err != nil {
 			return nil, err

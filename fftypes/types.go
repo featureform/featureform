@@ -32,10 +32,10 @@ const (
 	Bool      ScalarType = "bool"
 	Timestamp ScalarType = "time.Time"
 	Datetime  ScalarType = "datetime"
+	Unknown   ScalarType = "unknown"
 )
 
 var ScalarTypes = map[ScalarType]bool{
-	//NilType:   true,
 	Int:       true,
 	Int8:      true,
 	Int16:     true,
@@ -51,6 +51,7 @@ var ScalarTypes = map[ScalarType]bool{
 	Bool:      true,
 	Timestamp: true,
 	Datetime:  true,
+	Unknown:   true,
 }
 
 var scalarToProto = map[ScalarType]pb.ScalarType{
@@ -320,6 +321,8 @@ type Value struct {
 
 type NativeType string
 type ColumnName string
+
+type NativeToValueTypeMapper map[NativeType]ValueType
 
 type Schema struct {
 	Fields []ColumnSchema

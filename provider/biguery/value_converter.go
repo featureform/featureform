@@ -38,12 +38,10 @@ func (c Converter) ConvertValue(nativeType NativeType, value any) (Value, error)
 
 	mappedType, ok := TypeMap[nativeType]
 	if !ok {
-		return Value{}, fferr.NewTypeErrorf("UNKNOWN", value,
-			fmt.Errorf("no mapping found for nativeType: %v", nativeType))
+		return Value{}, fferr.NewInternalErrorf("Unknown native type: %s", nativeType)
 	}
+
 	vType := mappedType
-	// ... rest of the function implementation
-}
 	var converted any
 	var err error
 	if !vType.IsVector() {

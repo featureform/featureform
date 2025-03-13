@@ -26,6 +26,7 @@ import (
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
+	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
@@ -363,7 +364,7 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tabl
 		return nil, err
 	}
 
-	return &sqlPrimaryTable{
+	return &SqlPrimaryTable{
 		db:          dbConn,
 		name:        sqlLocation.Location(),
 		sqlLocation: sqlLocation,
@@ -399,7 +400,7 @@ func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSche
 	return table, nil
 }
 
-func (store *sqlOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema TableSchema) (*sqlPrimaryTable, error) {
+func (store *sqlOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema TableSchema) (*SqlPrimaryTable, error) {
 	query, err := store.createsqlPrimaryTableQuery(name, schema)
 	if err != nil {
 		return nil, err
@@ -417,7 +418,7 @@ func (store *sqlOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema
 	}
 
 	location := pl.NewSQLLocationFromParts(dbName, schemaName, name)
-	return &sqlPrimaryTable{
+	return &SqlPrimaryTable{
 		db:           db,
 		name:         name, // TODO get rid of this and just use location
 		sqlLocation:  location,
@@ -471,7 +472,7 @@ func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID, source metadata.Sou
 		return nil, err
 	}
 
-	return &sqlPrimaryTable{
+	return &SqlPrimaryTable{
 		db:           dbConn,
 		name:         sqlLocation.GetTable(),
 		sqlLocation:  sqlLocation,
@@ -511,7 +512,7 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 	}
 	sqlLocation := pl.NewSQLLocationFromParts(dbName, schemaName, name)
 
-	return &sqlPrimaryTable{
+	return &SqlPrimaryTable{
 		db:           store.db,
 		name:         name,
 		sqlLocation:  sqlLocation,
@@ -1271,7 +1272,7 @@ type sqlOfflineTable struct {
 	providerType pt.Type
 }
 
-type sqlPrimaryTable struct {
+type SqlPrimaryTable struct {
 	db           *sql.DB
 	name         string
 	sqlLocation  *pl.SQLLocation
@@ -1284,7 +1285,7 @@ func (table *sqlPrimaryTable) GetName() string {
 	return table.name
 }
 
-func (table *sqlPrimaryTable) Write(rec GenericRecord) error {
+func (table *SqlPrimaryTable) Write(rec GenericRecord) error {
 	tb := sanitize(table.name)
 	columns := table.getColumnNameString()
 	placeholder := table.query.createValuePlaceholderString(table.schema.Columns)
@@ -1299,7 +1300,7 @@ func (table *sqlPrimaryTable) Write(rec GenericRecord) error {
 	return nil
 }
 
-func (table *sqlPrimaryTable) WriteBatch(recs []GenericRecord) error {
+func (table *SqlPrimaryTable) WriteBatch(recs []GenericRecord) error {
 	for _, rec := range recs {
 		if err := table.Write(rec); err != nil {
 			return err
@@ -1308,7 +1309,7 @@ func (table *sqlPrimaryTable) WriteBatch(recs []GenericRecord) error {
 	return nil
 }
 
-func (table *sqlPrimaryTable) getColumnNameString() string {
+func (table *SqlPrimaryTable) getColumnNameString() string {
 	columns := make([]string, 0)
 	for _, column := range table.schema.Columns {
 		columns = append(columns, column.Name)
@@ -1316,7 +1317,7 @@ func (table *sqlPrimaryTable) getColumnNameString() string {
 	return strings.Join(columns, ", ")
 }
 
-func (pt *sqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
+func (pt *SqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 	columns, err := pt.query.getColumns(pt.db, pt.name)
 	if err != nil {
 		return nil, err
@@ -1345,7 +1346,7 @@ func (pt *sqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error)
 	return newsqlGenericTableIterator(rows, colTypes, columnNames, pt.query, pt.providerType), nil
 }
 
-func (pt *sqlPrimaryTable) getValueColumnTypes(table string) ([]interface{}, error) {
+func (pt *SqlPrimaryTable) getValueColumnTypes(table string) ([]interface{}, error) {
 	query := pt.query.getValueColumnTypes(table)
 	rows, err := pt.db.Query(query)
 	if err != nil {
@@ -1371,7 +1372,7 @@ func (pt *sqlPrimaryTable) getValueColumnTypes(table string) ([]interface{}, err
 	return colTypes, nil
 }
 
-func (pt *sqlPrimaryTable) NumRows() (int64, error) {
+func (pt *SqlPrimaryTable) NumRows() (int64, error) {
 	n := int64(0)
 	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitize(pt.name))
 	rows := pt.db.QueryRow(query)

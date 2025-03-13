@@ -117,7 +117,7 @@ func (s *snowflakeOfflineStoreTester) CreateTable(loc location.Location, schema 
 	}
 
 	return &snowflakePrimaryTable{
-		sqlPrimaryTable{
+		SqlPrimaryTable{
 			db:           db,
 			name:         sqlLocation.Location(),
 			sqlLocation:  sqlLocation,

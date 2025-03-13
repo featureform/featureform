@@ -830,6 +830,7 @@ jobs:
           FF_GET_EQUIVALENT_VARIANTS: "true"
           FF_AUTOVARIANT_MICROSEC: "true"
           REDIS_HOST: "172.17.0.1"
+          POSTGRES_HOST: "172.17.0.1"
         run: pytest -vv -s -n 5 --no-cov
 
       - name: Users

@@ -79,7 +79,7 @@ func convertVector(t ValueType, value any) (any, error) {
 	length := list.Len()
 	if vecT.Dimension != 0 && int32(length) != vecT.Dimension {
 		errMsg := "Type error. Wrong length.\nFound %d\nExpected %d"
-		wrapped := fferr.NewTypeErrorf(vecT.String(), value, errMsg, vecT.Dimension, length)
+		wrapped := fferr.NewTypeErrorf(vecT.String(), value, errMsg, length, vecT.Dimension)
 		return nil, wrapped
 	}
 

@@ -13,8 +13,10 @@ from featureform.cli import cli
 
 QUICKSTART_FILES_BASE_DIR = '../../../quickstart/static_files'
 
-def test_quickstart(ff_client):
-    os.environ['FEATUREFORM_HOST'] = 'localhost:7878'
+def test_quickstart(ff_client, monkeypatch):
+    # Setting the environment variable without setting it globally,
+    # which may impact other tests.
+    monkeypatch.setenv('FEATUREFORM_HOST', 'localhost:7878')
 
     # Call into Featureform as you would from the CLI.
     cli.main(

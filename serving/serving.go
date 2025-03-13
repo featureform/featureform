@@ -14,6 +14,8 @@ package serving
 import (
 	"context"
 	"fmt"
+	"io"
+	"sync"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
@@ -21,11 +23,9 @@ import (
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/provider"
+	"github.com/featureform/provider/dataset"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
-
-	"io"
-	"sync"
 )
 
 const (
@@ -560,7 +560,37 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	if primary == nil {
 		return nil, fferr.NewInternalErrorf("primary table is nil for %s:%s", name, variant)
 	}
+
+	// check if primarySqlTable
+	if sql, ok := primary.(*provider.SqlPrimaryTable); ok {
+		ds, err := sql.ToDataset()
+		if err != nil {
+			return nil, err
+		}
+		it, err := ds.Iterator(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &NewIteratorToOldIteratorAdapter{it}, nil
+	}
 	return primary.IterateSegment(limit)
+}
+
+type NewIteratorToOldIteratorAdapter struct {
+	dataset.Iterator
+}
+
+func (it *NewIteratorToOldIteratorAdapter) Next() bool {
+	return it.Iterator.Next()
+}
+
+func (it *NewIteratorToOldIteratorAdapter) Values() provider.GenericRecord {
+	row := it.Iterator.Values()
+	gr := make(provider.GenericRecord, len(row))
+	for i, v := range row {
+		gr[i] = v.Value
+	}
+	return gr
 }
 
 func (serv *FeatureServer) addModel(ctx context.Context, model *pb.Model, features []*pb.FeatureID) error {

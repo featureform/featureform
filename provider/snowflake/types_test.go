@@ -1,4 +1,3 @@
-// PART 2: Snowflake test implementation (snowflake/type_test.go)
 package snowflake
 
 import (
@@ -43,10 +42,10 @@ func TestSnowflakeTypeConversions(t *testing.T) {
 		{"DATE", types.Datetime, utcTime, nil},
 		{"DATETIME", types.Datetime, utcTime, nil},
 		{"TIME", types.Datetime, utcTime, nil},
-		{"TIMESTAMP", types.Datetime, utcTime, nil},
-		{"TIMESTAMP_LTZ", types.Datetime, utcTime, nil},
-		{"TIMESTAMP_NTZ", types.Datetime, utcTime, nil},
-		{"TIMESTAMP_TZ", types.Datetime, utcTime, nil},
+		{"TIMESTAMP", types.Timestamp, utcTime, nil},     // Changed to Timestamp
+		{"TIMESTAMP_LTZ", types.Timestamp, utcTime, nil}, // Changed to Timestamp
+		{"TIMESTAMP_NTZ", types.Timestamp, utcTime, nil}, // Changed to Timestamp
+		{"TIMESTAMP_TZ", types.Timestamp, utcTime, nil},  // Changed to Timestamp
 	}
 
 	// Create a function to build a dataset with all test cases
@@ -89,12 +88,19 @@ func TestSnowflakeTypeConversions(t *testing.T) {
 		schema := types.Schema{Fields: schemaFields}
 		location := pl.NewSQLLocation("test_table")
 
-		// Create the dataset with schema and TypeMap
+		// Create the dataset with schema and sfConverter (not TypeMap)
 		return dataset.NewSqlDataset(db, *location, schema, sfConverter, 1)
 	}
 
-	// Run the test suite
-	harness.TypeMapTestSuite(t, TypeMap, testCases, createDataset)
+	// Create a type map for the test harness
+	// This maps Snowflake types to FFTypes value types
+	typeMap := make(types.NativeToValueTypeMapper)
+	for _, tc := range testCases {
+		typeMap[types.NativeType(tc.TypeName)] = tc.ExpectedType
+	}
+
+	// Run the test suite with the correct type map
+	harness.TypeMapTestSuite(t, typeMap, testCases, createDataset)
 }
 
 func TestTimestampTypeHandling(t *testing.T) {
@@ -141,7 +147,7 @@ func TestTimestampTypeHandling(t *testing.T) {
 					{
 						Name:       "timestamp_col",
 						NativeType: types.NativeType(tc.typeName),
-						Type:       types.Datetime, // Set the type explicitly
+						Type:       types.Timestamp, // Changed to Timestamp
 					},
 				},
 			}

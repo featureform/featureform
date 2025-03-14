@@ -2,15 +2,21 @@ package types
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
+	"time"
+
+	"github.com/araddon/dateparse"
+
+	"github.com/featureform/fferr"
 )
 
 type ValueConverter[T any] interface {
+	IsSupportedType(nativeType NativeType) bool
 	ConvertValue(nativeType NativeType, value T) (Value, error)
-	GetTypeMap() NativeToValueTypeMapper
 }
 
-func CastNumberToInt(v any) (int, error) {
+func ConvertNumberToInt(v any) (int, error) {
 	switch casted := v.(type) {
 	case int:
 		return casted, nil
@@ -33,7 +39,7 @@ func CastNumberToInt(v any) (int, error) {
 	}
 }
 
-func CastNumberToInt32(v any) (int32, error) {
+func ConvertNumberToInt32(v any) (int32, error) {
 	switch casted := v.(type) {
 	case int:
 		return int32(casted), nil
@@ -56,7 +62,7 @@ func CastNumberToInt32(v any) (int32, error) {
 	}
 }
 
-func CastNumberToInt64(v any) (int64, error) {
+func ConvertNumberToInt64(v any) (int64, error) {
 	switch casted := v.(type) {
 	case int:
 		return int64(casted), nil
@@ -75,7 +81,7 @@ func CastNumberToInt64(v any) (int64, error) {
 	}
 }
 
-func CastNumberToFloat32(v any) (float32, error) {
+func ConvertNumberToFloat32(v any) (float32, error) {
 	switch casted := v.(type) {
 	case int:
 		return float32(casted), nil
@@ -98,7 +104,7 @@ func CastNumberToFloat32(v any) (float32, error) {
 	}
 }
 
-func CastNumberToFloat64(v any) (float64, error) {
+func ConvertNumberToFloat64(v any) (float64, error) {
 	switch casted := v.(type) {
 	case int:
 		return float64(casted), nil
@@ -117,7 +123,7 @@ func CastNumberToFloat64(v any) (float64, error) {
 	}
 }
 
-func CastBool(v any) (bool, error) {
+func ConvertToBool(v any) (bool, error) {
 	switch casted := v.(type) {
 	case bool:
 		return casted, nil
@@ -131,5 +137,148 @@ func CastBool(v any) (bool, error) {
 		return casted != 0, nil
 	default:
 		return false, fmt.Errorf("cannot cast %T to bool", v)
+	}
+}
+
+func ConvertToString(v any) (string, error) {
+	switch v := v.(type) {
+	case string:
+		return v, nil
+	case int:
+		return strconv.Itoa(v), nil
+	case int32:
+		return strconv.FormatInt(int64(v), 10), nil
+	case int64:
+		return strconv.FormatInt(v, 10), nil
+	case float32:
+		return strconv.FormatFloat(float64(v), 'f', -1, 32), nil
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64), nil
+	case bool:
+		return strconv.FormatBool(v), nil
+	default:
+		wrapped := fferr.NewTypeError(string(String), v, nil)
+		return "", wrapped
+	}
+}
+
+func ConvertDatetime(v any) (time.Time, error) {
+	switch x := v.(type) {
+	case time.Time:
+		return x.UTC(), nil
+	case string:
+		dt, err := dateparse.ParseIn(x, time.UTC)
+		if err != nil {
+			wrapped := fferr.NewTypeError(Datetime.String(), v, err)
+			return time.Time{}, wrapped
+		}
+		return dt.UTC(), nil
+	case int, int32, int64, float32, float64:
+		unixTime, err := ConvertNumberToInt64(x)
+		if err != nil {
+			wrapped := fferr.NewTypeError(Datetime.String(), v, err)
+			return time.Time{}, wrapped
+		}
+		return time.Unix(unixTime, 0).UTC(), nil
+	default:
+		wrapped := fferr.NewTypeError(Datetime.String(), v, nil)
+		return time.Time{}, wrapped
+	}
+}
+
+func ConvertVectorValue(value any) (ScalarType, any, error) {
+	list := reflect.ValueOf(value)
+	if list.Kind() != reflect.Slice {
+		err := fferr.NewTypeError("vector", value, nil)
+		return Unknown, nil, err
+	}
+
+	length := list.Len()
+	vals := make([]any, length)
+	for i := 0; i < length; i++ {
+		vals[i] = list.Index(i).Interface()
+	}
+
+	// Infer the scalar type from the first non-nil element
+	var scalarType ScalarType
+	for i := 0; i < length; i++ {
+		elem := list.Index(i).Interface()
+		if elem != nil {
+			scalarType = inferScalarType(elem)
+			break
+		}
+	}
+
+	if scalarType == "" || scalarType == Unknown {
+		err := fferr.NewInternalErrorf("Type conversion failed due to unknown scalar type")
+		return Unknown, nil, err
+	}
+
+	// Convert to a typed slice based on inferred scalar type
+	var converted any
+	var err error
+	switch scalarType {
+	case Int:
+		converted, err = convertList[int](scalarType, vals)
+	case Int32:
+		converted, err = convertList[int32](scalarType, vals)
+	case Int64:
+		converted, err = convertList[int64](scalarType, vals)
+	case Float32:
+		converted, err = convertList[float32](scalarType, vals)
+	case Float64:
+		converted, err = convertList[float64](scalarType, vals)
+	case Bool:
+		converted, err = convertList[bool](scalarType, vals)
+	case String:
+		converted, err = convertList[string](scalarType, vals)
+	default:
+		err := fferr.NewInternalErrorf("Type conversion not supported for inferred vector type")
+		err.AddDetail("inferred_type", fmt.Sprintf("%v", scalarType))
+		return Unknown, nil, err
+	}
+
+	if err != nil {
+		return Unknown, nil, err
+	}
+
+	return scalarType, converted, nil
+}
+
+func convertList[T any](scalar ScalarType, values []any) ([]T, error) {
+	result := make([]T, len(values))
+	for i, value := range values {
+		casted, ok := value.(T)
+		if !ok {
+			wrapped := fferr.NewInternalErrorf("Type conversion failed due to wrong type")
+			wrapped.AddDetail("found_type", fmt.Sprintf("%T", value))
+			wrapped.AddDetail("expected_type", scalar.String())
+			wrapped.AddDetail("list_element", strconv.Itoa(i))
+			return nil, wrapped
+		}
+		result[i] = casted
+	}
+	return result, nil
+}
+
+// inferScalarType attempts to determine the scalar type of a value
+func inferScalarType(value any) ScalarType {
+	switch value.(type) {
+	case int:
+		return Int
+	case int32:
+		return Int32
+	case int64:
+		return Int64
+	case float32:
+		return Float32
+	case float64:
+		return Float64
+	case bool:
+		return Bool
+	case string:
+		return String
+	default:
+		return Unknown
 	}
 }

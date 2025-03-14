@@ -175,42 +175,42 @@ func convertScalar(t ValueType, value any) (any, error) {
 
 	switch t {
 	case Int:
-		intVal, err := CastNumberToInt(value)
+		intVal, err := ConvertNumberToInt(value)
 		if err != nil {
 			wrapped := fferr.NewTypeError(t.String(), value, err)
 			return nil, wrapped
 		}
 		return intVal, nil
 	case Int32:
-		intVal, err := CastNumberToInt32(value)
+		intVal, err := ConvertNumberToInt32(value)
 		if err != nil {
 			wrapped := fferr.NewTypeError(t.String(), value, err)
 			return nil, wrapped
 		}
 		return intVal, nil
 	case Int64:
-		intVal, err := CastNumberToInt64(value)
+		intVal, err := ConvertNumberToInt64(value)
 		if err != nil {
 			wrapped := fferr.NewTypeError(t.String(), value, err)
 			return nil, wrapped
 		}
 		return intVal, nil
 	case Float32:
-		floatVal, err := CastNumberToFloat32(value)
+		floatVal, err := ConvertNumberToFloat32(value)
 		if err != nil {
 			wrapped := fferr.NewTypeError(t.String(), value, err)
 			return nil, wrapped
 		}
 		return floatVal, nil
 	case Float64:
-		floatVal, err := CastNumberToFloat64(value)
+		floatVal, err := ConvertNumberToFloat64(value)
 		if err != nil {
 			wrapped := fferr.NewTypeError(t.String(), value, err)
 			return nil, wrapped
 		}
 		return floatVal, nil
 	case Bool:
-		casted, err := CastBool(value)
+		casted, err := ConvertToBool(value)
 		if err != nil {
 			wrapped := fferr.NewTypeError(t.String(), value, err)
 			return nil, wrapped
@@ -249,7 +249,7 @@ func convertScalar(t ValueType, value any) (any, error) {
 			}
 			return dt.UTC(), nil
 		case int, int32, int64, float32, float64:
-			unixTime, err := CastNumberToInt64(v)
+			unixTime, err := ConvertNumberToInt64(v)
 			if err != nil {
 				wrapped := fferr.NewTypeError(t.String(), value, err)
 				return nil, wrapped

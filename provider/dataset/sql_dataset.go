@@ -77,8 +77,7 @@ func getSchema(db *sql.DB, converter types.ValueConverter[any], tableName string
 			return types.Schema{}, wrapped
 		}
 
-		typeMap := converter.GetTypeMap()
-		vType, ok := typeMap[types.NativeType(dataType)]
+		ok := converter.IsSupportedType(types.NativeType(dataType))
 		if !ok {
 			return types.Schema{}, fferr.NewInternalErrorf("Unknown native type: %v", dataType)
 		}
@@ -86,7 +85,6 @@ func getSchema(db *sql.DB, converter types.ValueConverter[any], tableName string
 		column := types.ColumnSchema{
 			Name:       types.ColumnName(columnName),
 			NativeType: types.NativeType(dataType),
-			Type:       vType,
 		}
 		fields = append(fields, column)
 	}

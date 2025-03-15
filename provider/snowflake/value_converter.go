@@ -49,7 +49,7 @@ var SupportedTypes = map[types.NativeType]bool{
 	"ARRAY": true,
 }
 
-var sfConverter = Converter{}
+var SfConverter = Converter{}
 
 func init() {
 	Register()
@@ -57,7 +57,7 @@ func init() {
 
 func Register() {
 	logging.GlobalLogger.Info("Registering Snowflake converter")
-	provider_type.RegisterConverter(provider_type.SnowflakeOffline, sfConverter)
+	provider_type.RegisterConverter(provider_type.SnowflakeOffline, SfConverter)
 }
 
 type Converter struct{}

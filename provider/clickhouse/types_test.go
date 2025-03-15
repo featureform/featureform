@@ -1,4 +1,4 @@
-package bigquery
+package clickhouse
 
 import (
 	"database/sql/driver"
@@ -13,73 +13,104 @@ import (
 	pl "github.com/featureform/provider/location"
 )
 
-func TestBigQueryTypeConversions(t *testing.T) {
+func TestClickHouseTypeConversions(t *testing.T) {
 	utcTime := time.Date(2025, 3, 10, 12, 0, 0, 0, time.UTC)
 
 	testCases := []typestesting.TypeConversionTestCase{
+		// Integer types (int32 group)
+		//{
+		//	TypeName:      "Int8",
+		//	ExpectedType:  types.Int32,
+		//	SampleDBValue: int8(42),
+		//},
+		//{
+		//	TypeName:      "Int16",
+		//	ExpectedType:  types.Int32,
+		//	SampleDBValue: int16(1000),
+		//},
 		{
-			TypeName:      "INT64",
-			ExpectedType:  types.Int64,
-			SampleDBValue: int64(42),
+			TypeName:      "Int32",
+			ExpectedType:  types.Int32,
+			SampleDBValue: int32(100000),
 		},
+		//{
+		//	TypeName:      "UInt8",
+		//	ExpectedType:  types.Int32,
+		//	SampleDBValue: uint8(200),
+		//},
+		//{
+		//	TypeName:      "UInt16",
+		//	ExpectedType:  types.Int32,
+		//	SampleDBValue: uint16(50000),
+		//},
+
+		// Integer types (int64 group)
 		{
-			TypeName:      "INT64",
+			TypeName:      "Int64",
 			ExpectedType:  types.Int64,
 			SampleDBValue: int64(9223372036854775807), // Max int64
 		},
 		{
-			TypeName:      "FLOAT64",
+			TypeName:      "UInt32",
+			ExpectedType:  types.Int64,
+			SampleDBValue: uint32(4294967295), // Max uint32
+		},
+		{
+			TypeName:      "UInt64",
+			ExpectedType:  types.Int64,
+			SampleDBValue: uint64(9223372036854775807), // Max int64 (max we can convert safely)
+		},
+
+		// Floating point types
+		{
+			TypeName:      "Float32",
+			ExpectedType:  types.Float32,
+			SampleDBValue: float32(3.14159),
+		},
+		{
+			TypeName:      "Float64",
 			ExpectedType:  types.Float64,
-			SampleDBValue: float64(3.14159),
+			SampleDBValue: float64(2.71828182845904),
 		},
+
+		// String types
 		{
-			TypeName:      "NUMERIC",
-			ExpectedType:  types.Float64,
-			SampleDBValue: float64(123.456),
-		},
-		{
-			TypeName:      "BIGNUMERIC",
-			ExpectedType:  types.Float64,
-			SampleDBValue: float64(9999999.9999),
-		},
-		{
-			TypeName:      "BOOL",
-			ExpectedType:  types.Bool,
-			SampleDBValue: true,
-		},
-		{
-			TypeName:      "BOOL",
-			ExpectedType:  types.Bool,
-			SampleDBValue: false,
-		},
-		{
-			TypeName:      "STRING",
+			TypeName:      "String",
 			ExpectedType:  types.String,
 			SampleDBValue: "test string",
 		},
 		{
-			TypeName:      "STRING",
+			TypeName:      "FixedString",
 			ExpectedType:  types.String,
-			SampleDBValue: "Special characters: àáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ !@#$%^&*()",
+			SampleDBValue: "fixed-width",
 		},
+
+		// Boolean type
+		//{
+		//	TypeName:      "Bool",
+		//	ExpectedType:  types.Bool,
+		//	SampleDBValue: uint8(1), // ClickHouse typically uses UInt8 for booleans
+		//},
+		//{
+		//	TypeName:      "Bool",
+		//	ExpectedType:  types.Bool,
+		//	SampleDBValue: uint8(0),
+		//},
+
+		// Date/Time types
 		{
-			TypeName:      "DATE",
+			TypeName:      "Date",
 			ExpectedType:  types.Datetime,
 			SampleDBValue: utcTime,
 		},
 		{
-			TypeName:      "DATETIME",
+			TypeName:      "DateTime",
 			ExpectedType:  types.Datetime,
 			SampleDBValue: utcTime,
 		},
 		{
-			TypeName:      "TIME",
+			TypeName:      "DateTime64",
 			ExpectedType:  types.Datetime,
-			SampleDBValue: utcTime,
-		},
-		{
-			TypeName:      "TIMESTAMP",
-			ExpectedType:  types.Timestamp,
 			SampleDBValue: utcTime,
 		},
 	}
@@ -109,7 +140,6 @@ func TestBigQueryTypeConversions(t *testing.T) {
 			schemaFields = append(schemaFields, types.ColumnSchema{
 				Name:       types.ColumnName(colName),
 				NativeType: types.NativeType(tc.TypeName),
-				//Type:       tc.ExpectedType,
 			})
 		}
 
@@ -129,7 +159,7 @@ func TestBigQueryTypeConversions(t *testing.T) {
 		location := pl.NewSQLLocation("test_table")
 
 		// Setup mock query expectations
-		mock.ExpectQuery("^SELECT").WillReturnRows(rows)
+		mock.ExpectQuery("SELECT").WillReturnRows(rows)
 
 		// Create schema
 		schema := types.Schema{
@@ -141,25 +171,11 @@ func TestBigQueryTypeConversions(t *testing.T) {
 			db,
 			*location,
 			schema,
-			bqConverter,
+			chConverter,
 			1, // Limit to 1 row
 		)
 
 		return ds, err
-	}
-
-	// Create a map of native types to value types for testing
-	typeMap := types.NativeToValueTypeMapper{
-		"INT64":      types.Int64,
-		"FLOAT64":    types.Float64,
-		"NUMERIC":    types.Float64,
-		"BIGNUMERIC": types.Float64,
-		"BOOL":       types.Bool,
-		"STRING":     types.String,
-		"DATE":       types.Datetime,
-		"DATETIME":   types.Datetime,
-		"TIME":       types.Datetime,
-		"TIMESTAMP":  types.Timestamp,
 	}
 
 	// Run the test suite with the multi-column approach

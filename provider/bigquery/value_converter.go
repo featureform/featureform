@@ -1,267 +1,166 @@
 package bigquery
 
 import (
-	"fmt"
-	"reflect"
-	"strconv"
-	"time"
-
-	"github.com/araddon/dateparse"
-
 	"github.com/featureform/fferr"
-	. "github.com/featureform/fftypes"
+	types "github.com/featureform/fftypes"
+	"github.com/featureform/logging"
 	"github.com/featureform/provider/provider_type"
 )
 
-var bqConverter = Converter{TypeMap: TypeMap}
+// SupportedTypes is a set of all supported BigQuery types
+// NOTE: If you add a new type here, make sure to add a corresponding conversion function in ConvertValue
+var SupportedTypes = map[types.NativeType]bool{
+	// Integer types
+	"INT64": true,
 
-type Converter struct {
-	TypeMap NativeToValueTypeMapper
+	// Floating point types
+	"FLOAT64":    true,
+	"NUMERIC":    true,
+	"BIGNUMERIC": true,
+
+	// Boolean type
+	"BOOL": true,
+
+	// String type
+	"STRING": true,
+
+	// Date/Time types
+	"DATE":      true,
+	"DATETIME":  true,
+	"TIME":      true,
+	"TIMESTAMP": true,
+
+	// Array type
+	"ARRAY": true,
 }
+
+var bqConverter = Converter{}
 
 func init() {
-	provider_type.RegisterConverter(provider_type.BigQueryOffline, Converter{TypeMap: TypeMap})
+	Register()
 }
 
-func (c Converter) GetTypeMap() NativeToValueTypeMapper {
-	return c.TypeMap
+func Register() {
+	logging.GlobalLogger.Info("Registering BigQuery converter")
+	provider_type.RegisterConverter(provider_type.BigQueryOffline, bqConverter)
 }
 
-func (c Converter) ConvertValue(nativeType NativeType, value any) (Value, error) {
+type Converter struct{}
+
+func (c Converter) IsSupportedType(nativeType types.NativeType) bool {
+	_, exists := SupportedTypes[nativeType]
+	return exists
+}
+
+// ConvertValue converts a value from its BigQuery representation to a types.Value
+func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.Value, error) {
+	// Handle nil values
 	if value == nil {
-		return Value{
+		return types.Value{
 			NativeType: nativeType,
 			Type:       nil,
 			Value:      nil,
 		}, nil
 	}
 
-	mappedType, ok := TypeMap[nativeType]
-	if !ok {
-		return Value{}, fferr.NewInternalErrorf("Unknown native type: %s", nativeType)
+	// Check if the type is supported
+	if !c.IsSupportedType(nativeType) {
+		return types.Value{}, fferr.NewInternalErrorf("Unsupported BigQuery type: %s", nativeType)
 	}
 
-	vType := mappedType
-	var converted any
-	var err error
-	if !vType.IsVector() {
-		converted, err = convertScalar(vType, value)
-	} else {
-		converted, err = convertVector(vType, value)
-	}
-	if err != nil {
-		return Value{}, err
-	}
-
-	return Value{
-		NativeType: nativeType,
-		Type:       vType,
-		Value:      converted,
-	}, nil
-}
-
-func convertVector(t ValueType, value any) (any, error) {
-	vecT := t.(VectorType)
-	scalar := vecT.Scalar()
-
-	list := reflect.ValueOf(value)
-	if list.Kind() != reflect.Slice {
-		wrapped := fferr.NewTypeError(vecT.String(), value, nil)
-		return nil, wrapped
-	}
-
-	length := list.Len()
-	if vecT.Dimension != 0 && int32(length) != vecT.Dimension {
-		errMsg := "Type error. Wrong length.\nFound %d\nExpected %d"
-		wrapped := fferr.NewTypeErrorf(vecT.String(), value, errMsg, vecT.Dimension, length)
-		return nil, wrapped
-	}
-
-	// Try to infer scalar type if it's unknown
-	if scalar == "" || scalar == "UNKNOWN" {
-		for i := 0; i < length; i++ {
-			elem := list.Index(i).Interface()
-			if elem != nil {
-				scalar = inferScalarType(elem)
-				break
-			}
-		}
-	}
-
-	if scalar == "UNKNOWN" {
-		wrapped := fferr.NewInternalErrorf("Unable to infer scalar type for vector")
-		wrapped.AddDetail("vector", fmt.Sprintf("%v", value))
-		return nil, wrapped
-	}
-
-	vals := make([]any, length)
-	for i := 0; i < length; i++ {
-		elem := list.Index(i).Interface()
-		val, err := convertScalar(scalar, elem)
+	// Convert the value based on the native type
+	switch nativeType {
+	// Integer types
+	case "INT64":
+		convertedValue, err := types.ConvertNumberToInt64(value)
 		if err != nil {
-			if typed, ok := err.(fferr.Error); ok {
-				typed.AddDetail("list_element", strconv.Itoa(i))
-			}
-			return nil, err
+			return types.Value{}, err
 		}
-		vals[i] = val
-	}
+		return types.Value{
+			NativeType: nativeType,
+			Type:       types.Int64,
+			Value:      convertedValue,
+		}, nil
 
-	// Convert to a typed slice based on inferred scalar type
-	switch scalar {
-	case Int:
-		return convertList[int](scalar, vals)
-	case Int32:
-		return convertList[int32](scalar, vals)
-	case Int64:
-		return convertList[int64](scalar, vals)
-	case Float32:
-		return convertList[float32](scalar, vals)
-	case Float64:
-		return convertList[float64](scalar, vals)
-	case Bool:
-		return convertList[bool](scalar, vals)
-	case String:
-		return convertList[string](scalar, vals)
+	// Floating point types
+	case "FLOAT64", "NUMERIC", "BIGNUMERIC":
+		convertedValue, err := types.ConvertNumberToFloat64(value)
+		if err != nil {
+			return types.Value{}, err
+		}
+		return types.Value{
+			NativeType: nativeType,
+			Type:       types.Float64,
+			Value:      convertedValue,
+		}, nil
+
+	// String type
+	case "STRING":
+		convertedValue, err := types.ConvertToString(value)
+		if err != nil {
+			return types.Value{}, err
+		}
+		return types.Value{
+			NativeType: nativeType,
+			Type:       types.String,
+			Value:      convertedValue,
+		}, nil
+
+	// Boolean type
+	case "BOOL":
+		convertedValue, err := types.ConvertToBool(value)
+		if err != nil {
+			return types.Value{}, err
+		}
+		return types.Value{
+			NativeType: nativeType,
+			Type:       types.Bool,
+			Value:      convertedValue,
+		}, nil
+
+	// Date/Time types
+	case "DATE", "DATETIME", "TIME":
+		convertedValue, err := types.ConvertDatetime(value)
+		if err != nil {
+			return types.Value{}, err
+		}
+		return types.Value{
+			NativeType: nativeType,
+			Type:       types.Datetime,
+			Value:      convertedValue,
+		}, nil
+
+	case "TIMESTAMP":
+		convertedValue, err := types.ConvertDatetime(value)
+		if err != nil {
+			return types.Value{}, err
+		}
+		return types.Value{
+			NativeType: nativeType,
+			Type:       types.Timestamp,
+			Value:      convertedValue,
+		}, nil
+
+	// Array type
+	case "ARRAY":
+		// Extract the array elements and infer the scalar type
+		scalarType, convertedValue, err := types.ConvertVectorValue(value)
+		if err != nil {
+			return types.Value{}, err
+		}
+
+		return types.Value{
+			NativeType: nativeType,
+			Type: types.VectorType{
+				ScalarType:  scalarType,
+				Dimension:   1, // BigQuery arrays are 1-dimensional
+				IsEmbedding: false,
+			},
+			Value: convertedValue,
+		}, nil
+
 	default:
-		wrapped := fferr.NewInternalErrorf("Type conversion not supported for inferred vector type")
-		wrapped.AddDetail("inferred_type", fmt.Sprintf("%v", scalar))
-		return nil, wrapped
-	}
-}
-
-// inferScalarType attempts to determine the scalar type of a value
-func inferScalarType(value any) ScalarType {
-	switch value.(type) {
-	case int:
-		return Int
-	case int32:
-		return Int32
-	case int64:
-		return Int64
-	case float32:
-		return Float32
-	case float64:
-		return Float64
-	case bool:
-		return Bool
-	case string:
-		return String
-	default:
-		return "UNKNOWN"
-	}
-}
-
-func convertList[T any](scalar ScalarType, values []any) ([]T, error) {
-	result := make([]T, len(values))
-	for i, value := range values {
-		casted, ok := value.(T)
-		if !ok {
-			wrapped := fferr.NewInternalErrorf("Type conversion failed due to wrong type")
-			wrapped.AddDetail("found_type", fmt.Sprintf("%T", value))
-			wrapped.AddDetail("expected_type", scalar.String())
-			wrapped.AddDetail("list_element", strconv.Itoa(i))
-			return nil, wrapped
-		}
-		result[i] = casted
-	}
-	return result, nil
-}
-
-func convertScalar(t ValueType, value any) (any, error) {
-	if value == nil {
-		return nil, nil
-	}
-
-	switch t {
-	case Int:
-		intVal, err := ConvertNumberToInt(value)
-		if err != nil {
-			wrapped := fferr.NewTypeError(t.String(), value, err)
-			return nil, wrapped
-		}
-		return intVal, nil
-	case Int32:
-		intVal, err := ConvertNumberToInt32(value)
-		if err != nil {
-			wrapped := fferr.NewTypeError(t.String(), value, err)
-			return nil, wrapped
-		}
-		return intVal, nil
-	case Int64:
-		intVal, err := ConvertNumberToInt64(value)
-		if err != nil {
-			wrapped := fferr.NewTypeError(t.String(), value, err)
-			return nil, wrapped
-		}
-		return intVal, nil
-	case Float32:
-		floatVal, err := ConvertNumberToFloat32(value)
-		if err != nil {
-			wrapped := fferr.NewTypeError(t.String(), value, err)
-			return nil, wrapped
-		}
-		return floatVal, nil
-	case Float64:
-		floatVal, err := ConvertNumberToFloat64(value)
-		if err != nil {
-			wrapped := fferr.NewTypeError(t.String(), value, err)
-			return nil, wrapped
-		}
-		return floatVal, nil
-	case Bool:
-		casted, err := ConvertToBool(value)
-		if err != nil {
-			wrapped := fferr.NewTypeError(t.String(), value, err)
-			return nil, wrapped
-		}
-		return casted, nil
-	case String:
-		// Try to convert to string if possible
-		switch v := value.(type) {
-		case string:
-			return v, nil
-		case int:
-			return strconv.Itoa(v), nil
-		case int32:
-			return strconv.FormatInt(int64(v), 10), nil
-		case int64:
-			return strconv.FormatInt(v, 10), nil
-		case float32:
-			return strconv.FormatFloat(float64(v), 'f', -1, 32), nil
-		case float64:
-			return strconv.FormatFloat(v, 'f', -1, 64), nil
-		case bool:
-			return strconv.FormatBool(v), nil
-		default:
-			wrapped := fferr.NewTypeError(t.String(), value, nil)
-			return nil, wrapped
-		}
-	case Timestamp, Datetime:
-		switch v := value.(type) {
-		case time.Time:
-			return v.UTC(), nil
-		case string:
-			dt, err := dateparse.ParseIn(v, time.UTC)
-			if err != nil {
-				wrapped := fferr.NewTypeError(t.String(), value, err)
-				return nil, wrapped
-			}
-			return dt.UTC(), nil
-		case int, int32, int64, float32, float64:
-			unixTime, err := ConvertNumberToInt64(v)
-			if err != nil {
-				wrapped := fferr.NewTypeError(t.String(), value, err)
-				return nil, wrapped
-			}
-			return time.Unix(unixTime, 0).UTC(), nil
-		default:
-			wrapped := fferr.NewTypeError(t.String(), value, nil)
-			return nil, wrapped
-		}
-	default:
-		wrapped := fferr.NewInternalErrorf("Type conversion not supported")
-		wrapped.AddDetail("type", fmt.Sprintf("%v", t))
-		return nil, wrapped
+		// This should never happen since we check IsSupportedType above
+		return types.Value{}, fferr.NewInternalErrorf("Unsupported BigQuery type: %s", nativeType)
 	}
 }

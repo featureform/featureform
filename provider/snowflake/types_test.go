@@ -65,7 +65,7 @@ func TestSnowflakeTypeConversions(t *testing.T) {
 			schemaFields = append(schemaFields, types.ColumnSchema{
 				Name:       types.ColumnName(tc.TypeName),
 				NativeType: types.NativeType(tc.TypeName),
-				Type:       tc.ExpectedType, // Important: Set the expected type in schema
+				//Type:       tc.ExpectedType, // Important: Set the expected type in schema
 			})
 		}
 
@@ -100,7 +100,7 @@ func TestSnowflakeTypeConversions(t *testing.T) {
 	}
 
 	// Run the test suite with the correct type map
-	harness.TypeMapTestSuite(t, typeMap, testCases, createDataset)
+	harness.TypeMapTestSuite(t, testCases, createDataset)
 }
 
 func TestTimestampTypeHandling(t *testing.T) {
@@ -147,7 +147,7 @@ func TestTimestampTypeHandling(t *testing.T) {
 					{
 						Name:       "timestamp_col",
 						NativeType: types.NativeType(tc.typeName),
-						Type:       types.Timestamp, // Changed to Timestamp
+						//Type:       types.Timestamp, // Changed to Timestamp
 					},
 				},
 			}

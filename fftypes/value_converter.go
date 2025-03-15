@@ -135,6 +135,10 @@ func ConvertToBool(v any) (bool, error) {
 		return casted != 0, nil
 	case int64:
 		return casted != 0, nil
+	case int8:
+		return casted != 0, nil
+	case uint8:
+		return casted != 0, nil
 	default:
 		return false, fmt.Errorf("cannot cast %T to bool", v)
 	}
@@ -261,7 +265,6 @@ func convertList[T any](scalar ScalarType, values []any) ([]T, error) {
 	return result, nil
 }
 
-// inferScalarType attempts to determine the scalar type of a value
 func inferScalarType(value any) ScalarType {
 	switch value.(type) {
 	case int:

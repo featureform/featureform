@@ -223,7 +223,8 @@ func (it *SqlIterator) Next() bool {
 	// This avoids allocating a new slice on each Next() call, reducing GC pressure
 	// especially important for large datasets with many rows
 	for i, val := range it.valueBuffers {
-		convertedVal, err := it.converter.ConvertValue(it.schema.Fields[i].NativeType, val)
+		nativeType := it.schema.Fields[i].NativeType
+		convertedVal, err := it.converter.ConvertValue(nativeType, val)
 		if err != nil {
 			it.err = err
 			it.Close()

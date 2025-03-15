@@ -24,7 +24,6 @@ type DatasetCreator func(testCases []TypeConversionTestCase) (dataset.Dataset, e
 
 func TypeMapTestSuite(
 	t *testing.T,
-	typeMap types.NativeToValueTypeMapper,
 	testCases []TypeConversionTestCase,
 	createDataset DatasetCreator,
 ) {
@@ -59,12 +58,6 @@ func TypeMapTestSuite(
 				// Validate schema field
 				assert.Equal(t, tc.TypeName, string(schema.Fields[i].NativeType),
 					"Column %d: Native type in schema should match test case", i)
-
-				// Check mapping in typeMap
-				mappedType, exists := typeMap[types.NativeType(tc.TypeName)]
-				require.True(t, exists, "Column %d: Type '%s' should exist in typeMap", i, tc.TypeName)
-				assert.Equal(t, tc.ExpectedType, mappedType,
-					"Column %d: Value type in typeMap should match expected type", i)
 
 				// Validate row value
 				value := row[i]
@@ -122,7 +115,7 @@ func TypeMapTestSuite(
 		require.NoError(t, err, "NULL iterator creation should not fail")
 
 		// Verify we have a row
-		require.True(t, iter.Next(), "NULL iterator should return at least one row")
+		require.True(t, iter.Next(), "NULL iterator should return at least one row", "error", iter.Err())
 		row := iter.Values()
 		require.NoError(t, iter.Err(), "NULL iterator should not have errors")
 

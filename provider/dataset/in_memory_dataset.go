@@ -56,7 +56,7 @@ type InMemoryIterator struct {
 	index int
 }
 
-func (it *InMemoryIterator) Next(ctx context.Context) bool {
+func (it *InMemoryIterator) Next() bool {
 	if it.index+1 < len(it.data) {
 		it.index++
 		return true
@@ -70,6 +70,10 @@ func (it *InMemoryIterator) Values() types.Row {
 
 func (it *InMemoryIterator) Schema() (types.Schema, error) {
 	return types.Schema{}, nil
+}
+
+func (it *InMemoryIterator) Columns() []string {
+	return make([]string, 0)
 }
 
 func (it *InMemoryIterator) Err() error {

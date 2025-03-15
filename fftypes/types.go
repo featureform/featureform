@@ -32,10 +32,10 @@ const (
 	Bool      ScalarType = "bool"
 	Timestamp ScalarType = "time.Time"
 	Datetime  ScalarType = "datetime"
+	Unknown   ScalarType = "unknown"
 )
 
 var ScalarTypes = map[ScalarType]bool{
-	//NilType:   true,
 	Int:       true,
 	Int8:      true,
 	Int16:     true,
@@ -51,6 +51,7 @@ var ScalarTypes = map[ScalarType]bool{
 	Bool:      true,
 	Timestamp: true,
 	Datetime:  true,
+	Unknown:   true,
 }
 
 var scalarToProto = map[ScalarType]pb.ScalarType{
@@ -309,7 +310,7 @@ func (vt ValueTypeJSONWrapper) MarshalJSON() ([]byte, error) {
 type ColumnSchema struct {
 	Name       ColumnName
 	NativeType NativeType
-	Type       ValueType
+	//Type       ValueType // I dont' think we need this
 }
 
 type Value struct {
@@ -320,6 +321,15 @@ type Value struct {
 
 type NativeType string
 type ColumnName string
+
+type NativeToValueTypeMapper map[NativeType]ValueType
+
+// Simple function type that can handle any input and output type
+type TypeConverter func(interface{}) (interface{}, error)
+
+type TypeConverterMapping map[string]TypeConverter
+
+//type ValueConverter func(NativeType, any) (Value, error)
 
 type Schema struct {
 	Fields []ColumnSchema

@@ -95,13 +95,6 @@ searchjob:
   image:
     name: "search-loader"
 
-# These values override the values in the 3rd party meilisearch chart
-meilisearch:
-  fullnameOverride: featureform-search
-  port: 7700
-  host: featureform-search
-  apikey: ""
-
 prometheus:
   port: 9090
   replicaCount: 1

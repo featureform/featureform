@@ -41,12 +41,6 @@ spec:
               value: {{ .Values.metadata.port | quote }}
             - name: METADATA_HTTP_PORT
               value: {{ .Values.dashboardmetadata.port | quote }}
-            - name: MEILISEARCH_PORT
-              value: {{ .Values.meilisearch.port | quote }}
-            - name: MEILISEARCH_HOST
-              value: {{ .Values.meilisearch.host }}
-            - name: MEILISEARCH_APIKEY
-              value: {{ .Values.meilisearch.apikey | quote }}
             - name: FEATUREFORM_DEBUG_LOGGING
               value: {{ .Values.debug | quote }}
             - name: FEATUREFORM_VERSION

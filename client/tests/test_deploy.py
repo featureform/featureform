@@ -70,7 +70,15 @@ def test_deployment_status(deployment, expected_status, request):
         ("docker_quickstart_deployment", False),
     ],
 )
-def test_deployment(deployment, expected_failure, request):
+def test_deployment(deployment, expected_failure, request, mocker):
+    import requests
+
+    mocker.patch("docker.from_env")
+
+    mock_response = mocker.Mock()
+    mock_response.status_code = 200
+    mocker.patch.object(requests.Session, "get", return_value=mock_response)
+
     d = request.getfixturevalue(deployment)
     assert d.start() == (not expected_failure)
     assert d.stop() == (not expected_failure)

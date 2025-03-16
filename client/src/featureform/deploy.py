@@ -9,6 +9,7 @@ import os
 import platform
 import warnings
 from collections import namedtuple
+from requests.adapters import HTTPAdapter, Retry
 
 import docker
 import requests
@@ -50,9 +51,14 @@ class DockerDeployment(Deployment):
     def __init__(self, quickstart: bool, clickhouse: bool = False):
         super().__init__(quickstart)
 
+        definitions_file = (
+            "https://featureform-demo-files.s3.us-east-1.amazonaws.com/clickhouse/definitions.py" if clickhouse
+            else "https://featureform-demo-files.s3.amazonaws.com/definitions.py"
+        )
+
         self._quickstart_directory = "quickstart"
         self._quickstart_files = [
-            "https://featureform-demo-files.s3.amazonaws.com/definitions.py",
+            definitions_file,
             "https://featureform-demo-files.s3.amazonaws.com/serving.py",
             "https://featureform-demo-files.s3.amazonaws.com/training.py",
         ]
@@ -96,7 +102,7 @@ class DockerDeployment(Deployment):
             quickstart_deployment.append(
                 DOCKER_CONFIG(
                     name="quickstart-clickhouse",
-                    image="clickhouse/clickhouse-server",
+                    image="featureformcom/quickstart-clickhouse",
                     port={"9000/tcp": 9000, "8123/tcp": 8123},
                     detach_mode=True,
                     env={},
@@ -114,11 +120,15 @@ class DockerDeployment(Deployment):
             try:
                 print(f"Checking if {config.name} container exists...")
                 container = self._client.containers.get(config.name)
+                print(f'\tContainer {container.name} has status "{container.status}"')
                 if container.status == "running":
                     print(f"\tContainer {config.name} is already running. Skipping...")
                     continue
                 elif container.status == "exited":
                     print(f"\tContainer {config.name} is stopped. Starting...")
+                    container.start()
+                elif container.status == "created":
+                    print(f"\tContainer {config.name} is created, but not running. Starting...")
                     container.start()
             except docker.errors.APIError as e:
                 if e.status_code == 409:
@@ -158,6 +168,31 @@ class DockerDeployment(Deployment):
                 else:
                     print(f"\t\t{filename} already exists. Skipping...")
 
+        # We wait for a bit for the Featureform container to be fully running.
+        # We do this by sending a request (with retries), and wait until it's successful (or error after
+        # max tries).
+        session = requests.Session()
+        retries = Retry(
+            total=10,
+            # Total sleep time = {backoff factor} * (2 ** ({number of previous retries}))
+            # https://urllib3.readthedocs.io/en/stable/reference/urllib3.util.html#urllib3.util.Retry
+            backoff_factor=0.2,
+            # request only retries non-server side errors (i.e. non 5xx errors). However,
+            # sometimes Featureform returns a 502 Bad Gateway when it's still initializing.
+            # So we add it to this list of retry-able errors (as well as others, to attempt to
+            # make it less flaky).
+            status_forcelist=[500, 502, 503, 504],
+        )
+        adapter = HTTPAdapter(max_retries=retries)
+        session.mount('http://', adapter)
+
+        try:
+            response = session.get('http://localhost:80', timeout=60)
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            print("Unable to connect to featureform container: ", e)
+            return False
+
         print("\nFeatureform is now running!")
         print("To access the dashboard, visit http://localhost:80")
 
@@ -169,6 +204,7 @@ class DockerDeployment(Deployment):
             print(
                 "To apply definition files, run `featureform apply <file.py> --host http://localhost:7878 --insecure`"
             )
+
         return True
 
     def stop(self) -> bool:

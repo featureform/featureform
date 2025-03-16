@@ -336,16 +336,51 @@ func (store *sqlOfflineStore) validateResourceColumns(id ResourceID, schema Reso
 }
 
 func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
-	logger := store.logger.WithResource(logging.ResourceType(id.Type.String()), id.Name, id.Variant).With("schema", schema, "opts", opts)
+	logger := logging.NewLogger("sql").WithProvider(store.Type().String(), "SQL").With("id", id, "schema", schema, "opts", opts)
+	logger.Debugw("Registering resource from source table")
 	if len(opts) > 0 {
-		return nil, fferr.NewInvalidArgumentErrorf("snowflake offline store does not currently support resource options")
+		logger.Errorw("resource options not supported")
+		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("resource options not supported"))
 	}
-	err := store.validateResourceColumns(id, schema)
-	if err != nil {
-		logger.Errorw("error registering resource from source table", "error", err)
+	if err := id.check(Feature, Label); err != nil {
+		logger.Errorw("id check failed", "error", err)
 		return nil, err
 	}
-	return nil, nil
+
+	// Special casing Postgres, which doesn't actually register
+	// intermediate resource tables.
+	if _, ok := store.query.(*postgresSQLQueries); ok {
+		logger.Debug("Skipping registering resource due to Postgres")
+		return nil, nil
+	}
+
+	if exists, err := store.tableExistsForResourceId(id); err != nil {
+		logger.Errorw("table exists check failed", "error", err)
+		return nil, err
+	} else if exists {
+		logger.Errorw("table already exists")
+		return nil, fferr.NewDatasetAlreadyExistsError(id.Name, id.Variant, nil)
+	}
+	if err := schema.Validate(); err != nil {
+		logger.Errorw("schema validation failed")
+	}
+	tableName, err := store.getResourceTableName(id)
+	if err != nil {
+		logger.Errorw("table name generation failed", "error", err)
+		return nil, err
+	}
+
+	if err := store.query.registerResources(store.db, tableName, schema); err != nil {
+		logger.Errorw("Register resources failed", "table", tableName, "schema", schema, "error", err)
+		return nil, err
+	}
+
+	return &sqlOfflineTable{
+		db:           store.db,
+		name:         tableName,
+		query:        store.query,
+		providerType: store.Type(),
+	}, nil
 }
 
 func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {

@@ -136,7 +136,6 @@ type Iterator interface {
 	Next() bool
 	Values() types.Row
 	Schema() (types.Schema, error)
-	Columns() []string
 	Err() error
 	Close() error
 }

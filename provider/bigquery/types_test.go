@@ -148,20 +148,5 @@ func TestBigQueryTypeConversions(t *testing.T) {
 		return ds, err
 	}
 
-	// Create a map of native types to value types for testing
-	typeMap := types.NativeToValueTypeMapper{
-		"INT64":      types.Int64,
-		"FLOAT64":    types.Float64,
-		"NUMERIC":    types.Float64,
-		"BIGNUMERIC": types.Float64,
-		"BOOL":       types.Bool,
-		"STRING":     types.String,
-		"DATE":       types.Datetime,
-		"DATETIME":   types.Datetime,
-		"TIME":       types.Datetime,
-		"TIMESTAMP":  types.Timestamp,
-	}
-
-	// Run the test suite with the multi-column approach
 	typestesting.TypeMapTestSuite(t, testCases, createDataset)
 }

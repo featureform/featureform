@@ -39,7 +39,11 @@ func TestOfflineStorePostgres(t *testing.T) {
 }
 
 func getConfiguredPostgresTester(t *testing.T) offlineSqlTest {
-	postgresConfig, err := getPostgresConfig(t, "")
+	return getConfiguredPostgresTesterFromDatabase(t, "")
+}
+
+func getConfiguredPostgresTesterFromDatabase(t *testing.T, dbName string) offlineSqlTest {
+	postgresConfig, err := getPostgresConfig(t, dbName)
 	if err != nil {
 		t.Fatalf("could not get postgres config: %s\n", err)
 	}
@@ -54,7 +58,7 @@ func getConfiguredPostgresTester(t *testing.T) offlineSqlTest {
 		t.Fatalf("could not initialize offline store: %s\n", err)
 	}
 
-	dbName := postgresConfig.Database
+	dbName = postgresConfig.Database
 	storeTester := postgresOfflineStoreTester{
 		defaultDbName:   dbName,
 		sqlOfflineStore: offlineStore.(*sqlOfflineStore),

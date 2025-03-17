@@ -37,26 +37,39 @@ func (p *postgresOfflineStoreTester) GetTestDatabase() string {
 	return p.defaultDbName
 }
 
-func (p *postgresOfflineStoreTester) CreateDatabase(name string) error {
+func (p *postgresOfflineStoreTester) CreateDatabase(t *testing.T, name string) (offlineSqlStoreCreateDb, error) {
 	db, err := p.sqlOfflineStore.getDb("", "")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Postgres doesn't have a CREATE DATABASE IF EXISTS clause, so we just drop and recreate it.
 	query := fmt.Sprintf("DROP DATABASE IF EXISTS %s", pq.QuoteIdentifier(name))
 	_, err = db.Exec(query)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	query = fmt.Sprintf("CREATE DATABASE %s", pq.QuoteIdentifier(name))
 	_, err = db.Exec(query)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	db, err = p.sqlOfflineStore.getDb(name, "public")
+	if err != nil {
+		return nil, err
+	}
+
+	// There are a few places where we assume the "PUBLIC" (case-sensitive) schema exists, so creating it here.
+	query = fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", pq.QuoteIdentifier("PUBLIC"))
+	_, err = db.Exec(query)
+	if err != nil {
+		return nil, err
+	}
+
+	newStoreTester := getConfiguredPostgresTesterFromDatabase(t, name).storeTester.(*postgresOfflineStoreTester)
+	return newStoreTester, nil
 }
 
 func (p *postgresOfflineStoreTester) DropDatabase(name string) error {
@@ -101,15 +114,6 @@ func (p *postgresOfflineStoreTester) CreateTable(loc location.Location, schema T
 		return nil, fmt.Errorf("invalid location type")
 	}
 
-	var currentDb, currentSchema string
-	query := fmt.Sprintf("SELECT current_database(), current_schema()")
-	err := p.sqlOfflineStore.db.QueryRow(query).Scan(&currentDb, &currentSchema)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println("Current Database: ", currentDb)
-	fmt.Println("Current Schema: ", currentSchema)
-
 	db, err := p.sqlOfflineStore.getDb(sqlLocation.GetDatabase(), sqlLocation.GetSchema())
 	if err != nil {
 		return nil, err
@@ -129,7 +133,7 @@ func (p *postgresOfflineStoreTester) CreateTable(loc location.Location, schema T
 	}
 	queryBuilder.WriteString(")")
 
-	query = queryBuilder.String()
+	query := queryBuilder.String()
 	_, tblErr := db.Exec(query)
 	if tblErr != nil {
 		return nil, tblErr

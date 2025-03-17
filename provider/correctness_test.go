@@ -1432,7 +1432,8 @@ func DeleteTableTest(t *testing.T, test offlineSqlTest) {
 
 	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	t.Logf("Database Name1: %s\n", dbName)
-	if err := storeTester.CreateDatabase(dbName); err != nil {
+	storeTester, err := storeTester.CreateDatabase(t, dbName)
+	if err != nil {
 		t.Fatalf("could not create database: %v", err)
 	}
 	t.Cleanup(func() {
@@ -1445,10 +1446,10 @@ func DeleteTableTest(t *testing.T, test offlineSqlTest) {
 	tableName := "DUMMY_TABLE"
 	location := newSqlLocation(test.testConfig, dbName, "PUBLIC", tableName)
 
-	if _, err = createDummyTable(test.storeTester, location, 3); err != nil {
+	if _, err = createDummyTable(storeTester, location, 3); err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
-	if err := test.storeTester.Delete(location); err != nil {
+	if err := storeTester.Delete(location); err != nil {
 		t.Fatalf("could not delete table: %v", err)
 	}
 }
@@ -1461,7 +1462,8 @@ func DeleteNotExistingTableTest(t *testing.T, test offlineSqlTest) {
 
 	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	t.Logf("Database Name1: %s\n", dbName)
-	if err := storeTester.CreateDatabase(dbName); err != nil {
+	storeTester, err := storeTester.CreateDatabase(t, dbName)
+	if err != nil {
 		t.Fatalf("could not create database: %v", err)
 	}
 
@@ -1553,7 +1555,7 @@ func RegisterTableInDifferentDatabaseTest(t *testing.T, tester offlineSqlTest) {
 		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", tester.storeTester))
 	}
 
-	err := storeTester.CreateDatabase(dbName)
+	storeTester, err := storeTester.CreateDatabase(t, dbName)
 	if err != nil {
 		t.Fatalf("could not create database: %v", err)
 	}
@@ -1671,41 +1673,43 @@ func CrossDatabaseJoinTest(t *testing.T, test offlineSqlTest) {
 
 	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	t.Logf("Database Name1: %s\n", dbName)
-	if err := storeTester.CreateDatabase(dbName); err != nil {
+	storeTester1, err := storeTester.CreateDatabase(t, dbName)
+	if err != nil {
 		t.Fatalf("could not create database: %v", err)
 	}
 
 	dbName2 := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	t.Logf("Database Name2: %s\n", dbName2)
-	if err := storeTester.CreateDatabase(dbName2); err != nil {
+	storeTester2, err := storeTester.CreateDatabase(t, dbName2)
+	if err != nil {
 		t.Fatalf("could not create database: %v", err)
 	}
 
 	t.Cleanup(func() {
-		if err := storeTester.DropDatabase(dbName); err != nil {
+		if err := storeTester1.DropDatabase(dbName); err != nil {
 			t.Fatalf("could not drop database: %v", err)
 		}
-		if err := storeTester.DropDatabase(dbName2); err != nil {
+		if err := storeTester2.DropDatabase(dbName2); err != nil {
 			t.Fatalf("could not drop database: %v", err)
 		}
 	})
 
 	tableName1 := "DUMMY_TABLE"
 	sqlLocation := pl.NewSQLLocationFromParts(dbName, "PUBLIC", tableName1)
-	records, err := createDummyTable(test.storeTester, sqlLocation, 3)
+	records, err := createDummyTable(storeTester1, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	tableName2 := "DUMMY_TABLE2"
 	sqlLocation2 := pl.NewSQLLocationFromParts(dbName2, "PUBLIC", tableName2)
-	records2, err := createDummyTable(test.storeTester, sqlLocation2, 10)
+	records2, err := createDummyTable(storeTester2, sqlLocation2, 10)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	// Register the tables
-	primary1, primaryErr := test.storeTester.RegisterPrimaryFromSourceTable(
+	primary1, primaryErr := storeTester1.RegisterPrimaryFromSourceTable(
 		ResourceID{Name: tableName1, Variant: "test", Type: Primary},
 		sqlLocation,
 	)
@@ -1713,7 +1717,7 @@ func CrossDatabaseJoinTest(t *testing.T, test offlineSqlTest) {
 		t.Fatalf("could not register primary table: %v", primaryErr)
 	}
 
-	primary2, primaryErr := test.storeTester.RegisterPrimaryFromSourceTable(
+	primary2, primaryErr := storeTester2.RegisterPrimaryFromSourceTable(
 		ResourceID{Name: tableName2, Variant: "test", Type: Primary},
 		sqlLocation2,
 	)
@@ -1733,13 +1737,13 @@ func CrossDatabaseJoinTest(t *testing.T, test offlineSqlTest) {
 		Query:         fmt.Sprintf("SELECT NAME FROM %s UNION SELECT NAME FROM %s", sqlLocation.TableLocation().String(), sqlLocation2.TableLocation().String()),
 	}
 
-	err = test.storeTester.CreateTransformation(tfConfig)
+	err = storeTester1.CreateTransformation(tfConfig)
 	if err != nil {
 		t.Fatalf("could not create transformation: %v", err)
 	}
 
 	// Verify the union table contents
-	tfTable, err := test.storeTester.GetTransformationTable(targetTableId)
+	tfTable, err := storeTester2.GetTransformationTable(targetTableId)
 	if err != nil {
 		t.Fatalf("could not get transformation table: %v", err)
 	}

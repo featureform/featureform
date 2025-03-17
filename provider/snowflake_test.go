@@ -47,13 +47,13 @@ func (s *snowflakeOfflineStoreTester) GetTestDatabase() string {
 	return s.defaultDbName
 }
 
-func (s *snowflakeOfflineStoreTester) CreateDatabase(name string) error {
+func (s *snowflakeOfflineStoreTester) CreateDatabase(_ *testing.T, name string) (offlineSqlStoreCreateDb, error) {
 	db, err := s.sqlOfflineStore.getDb("", "")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	_, err = db.Exec("CREATE DATABASE IF NOT EXISTS " + sanitize(name))
-	return err
+	return s, err
 }
 
 func (s *snowflakeOfflineStoreTester) DropDatabase(name string) error {

@@ -347,6 +347,11 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 		return nil, err
 	}
 
+	if err := store.validateResourceColumns(id, schema); err != nil {
+		logger.Errorw("error validating resource columns", "error", err)
+		return nil, err
+	}
+
 	// Special casing Postgres, which doesn't actually register
 	// intermediate resource tables.
 	if _, ok := store.query.(*postgresSQLQueries); ok {

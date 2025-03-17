@@ -8,6 +8,7 @@ import (
 
 	"github.com/featureform/fferr"
 	types "github.com/featureform/fftypes"
+	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/provider/location"
 )
 
@@ -47,7 +48,7 @@ func NewSqlDatasetWithAutoSchema(
 	converter types.ValueConverter[any],
 	limit int,
 ) (SqlDataset, error) {
-	schema, err := getSchema(db, converter, location.GetTable())
+	schema, err := getSchema(db, converter, location)
 	if err != nil {
 		return SqlDataset{}, err
 	}
@@ -56,32 +57,49 @@ func NewSqlDatasetWithAutoSchema(
 }
 
 // getSchema extracts schema information from the database
-func getSchema(db *sql.DB, converter types.ValueConverter[any], tableName string) (types.Schema, error) {
-	// This query is Snowflake-specific - might need adapter pattern for other DBs
-	qry := "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ? AND table_schema = CURRENT_SCHEMA() ORDER BY ordinal_position"
+func getSchema(db *sql.DB, converter types.ValueConverter[any], tableName location.SQLLocation) (types.Schema, error) {
+	// Extract schema and table name
+	tblName := tableName.GetTable()
+	schema := tableName.GetSchema()
 
-	rows, err := db.Query(qry, tableName)
+	// Corrected Query: Ensure both `table_name` and `table_schema` are matched
+	qry := `SELECT column_name, data_type 
+	        FROM information_schema.columns 
+	        WHERE table_name = ? 
+	        AND table_schema = ? 
+	        ORDER BY ordinal_position`
+
+	// Debugging print (remove in production)
+	fmt.Printf("Querying schema: %q, table: %q\n", schema, tblName)
+
+	// Execute query with both parameters
+	rows, err := db.Query(qry, tblName, schema)
 	if err != nil {
 		wrapped := fferr.NewExecutionError("SQL", err)
-		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("schema", schema)
+		wrapped.AddDetail("table_name", tblName)
 		return types.Schema{}, wrapped
 	}
 	defer rows.Close()
 
+	// Process result set
 	fields := make([]types.ColumnSchema, 0)
 	for rows.Next() {
 		var columnName, dataType string
 		if err := rows.Scan(&columnName, &dataType); err != nil {
 			wrapped := fferr.NewExecutionError("SQL", err)
-			wrapped.AddDetail("table_name", tableName)
+			wrapped.AddDetail("schema", schema)
+			wrapped.AddDetail("table_name", tblName)
 			return types.Schema{}, wrapped
 		}
 
+		// Ensure the type is supported
 		ok := converter.IsSupportedType(types.NativeType(dataType))
 		if !ok {
 			return types.Schema{}, fferr.NewInternalErrorf("Unknown native type: %v", dataType)
 		}
 
+		// Append column details
 		column := types.ColumnSchema{
 			Name:       types.ColumnName(columnName),
 			NativeType: types.NativeType(dataType),
@@ -89,9 +107,11 @@ func getSchema(db *sql.DB, converter types.ValueConverter[any], tableName string
 		fields = append(fields, column)
 	}
 
+	// Check for row iteration errors
 	if err := rows.Err(); err != nil {
 		wrapped := fferr.NewExecutionError("SQL", err)
-		wrapped.AddDetail("table_name", tableName)
+		wrapped.AddDetail("schema", schema)
+		wrapped.AddDetail("table_name", tblName)
 		return types.Schema{}, wrapped
 	}
 
@@ -104,14 +124,14 @@ func (ds SqlDataset) Location() location.Location {
 
 func (ds SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
 	colNames := ds.schema.ColumnNames()
-	tableName := ds.location.GetTable()
 	cols := strings.Join(colNames[:], ", ")
 
+	loc := postgres.SanitizeLocation(ds.location)
 	var query string
 	if ds.limit == -1 {
-		query = fmt.Sprintf("SELECT %s FROM %s", cols, tableName)
+		query = fmt.Sprintf("SELECT %s FROM %s", cols, loc)
 	} else {
-		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", cols, tableName, ds.limit)
+		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", cols, loc, ds.limit)
 	}
 
 	rows, err := ds.db.QueryContext(ctx, query)

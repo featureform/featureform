@@ -86,7 +86,7 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 	// Convert the value based on the native type
 	switch nativeType {
 	// Integer types
-	case "INTEGER", "SMALLINT":
+	case "INTEGER", "SMALLINT": // snowflake ignores these types and uses number
 		convertedValue, err := types.ConvertNumberToInt32(value)
 		if err != nil {
 			return types.Value{}, err

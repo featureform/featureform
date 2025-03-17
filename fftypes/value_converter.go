@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -191,6 +192,16 @@ func ConvertDatetime(v any) (time.Time, error) {
 }
 
 func ConvertVectorValue(value any) (ScalarType, any, error) {
+	// Step 1: Handle JSON string returned by Snowflake
+	if strVal, ok := value.(string); ok {
+		var jsonArray []any
+		if err := json.Unmarshal([]byte(strVal), &jsonArray); err != nil {
+			return Unknown, nil, fferr.NewInternalErrorf("Failed to parse Snowflake array JSON: %v", err)
+		}
+		value = jsonArray
+	}
+
+	// Step 2: Process the array as a slice
 	list := reflect.ValueOf(value)
 	if list.Kind() != reflect.Slice {
 		err := fferr.NewTypeError("vector", value, nil)
@@ -203,10 +214,10 @@ func ConvertVectorValue(value any) (ScalarType, any, error) {
 		vals[i] = list.Index(i).Interface()
 	}
 
-	// Infer the scalar type from the first non-nil element
+	// Step 3: Infer scalar type
 	var scalarType ScalarType
 	for i := 0; i < length; i++ {
-		elem := list.Index(i).Interface()
+		elem := vals[i]
 		if elem != nil {
 			scalarType = inferScalarType(elem)
 			break
@@ -218,7 +229,7 @@ func ConvertVectorValue(value any) (ScalarType, any, error) {
 		return Unknown, nil, err
 	}
 
-	// Convert to a typed slice based on inferred scalar type
+	// Step 4: Convert to a typed slice based on inferred scalar type
 	var converted any
 	var err error
 	switch scalarType {

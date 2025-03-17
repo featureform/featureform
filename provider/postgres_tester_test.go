@@ -68,13 +68,33 @@ func (p *postgresOfflineStoreTester) CreateDatabase(t *testing.T, name string) (
 		return nil, err
 	}
 
+	// Close the connection to the "public" schema.
+	err = db.Close()
+	if err != nil {
+		return nil, err
+	}
+
 	newStoreTester := getConfiguredPostgresTesterFromDatabase(t, name).storeTester.(*postgresOfflineStoreTester)
+
+	// Set the default schema to "PUBLIC"
+	query = fmt.Sprintf("SET search_path TO %s", pq.QuoteIdentifier("PUBLIC"))
+	_, err = newStoreTester.db.Exec(query)
+	if err != nil {
+		return nil, err
+	}
+
+	newDb, err := newStoreTester.sqlOfflineStore.getDb(name, "PUBLIC")
+	if err != nil {
+		return nil, err
+	}
+	newStoreTester.db = newDb
+
 	return newStoreTester, nil
 }
 
 func (p *postgresOfflineStoreTester) DropDatabase(name string) error {
 	// First, get the connection to the PostgreSQL server.
-	db, err := p.sqlOfflineStore.getDb("", "")
+	db, err := p.sqlOfflineStore.getDb("postgres", "public")
 	if err != nil {
 		return err
 	}

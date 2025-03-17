@@ -158,8 +158,7 @@ func TestResourceTable(t *testing.T) {
 		// TODO: Fix and enable
 		//{getConfiguredBigQueryTester(t, false)},
 		{getConfiguredSnowflakeTester(t)},
-		// TODO: Fix and enable
-		//{getConfiguredPostgresTester(t, false)},
+		{getConfiguredPostgresTester(t)},
 		{getConfiguredClickHouseTester(t)},
 	}
 
@@ -193,8 +192,7 @@ func TestDelete(t *testing.T) {
 		// TODO: Fix and enable
 		//{getConfiguredBigQueryTester(t, false)},
 		{getConfiguredSnowflakeTester(t)},
-		// TODO: Fix and enable
-		//{getConfiguredPostgresTester(t, false)},
+		{getConfiguredPostgresTester(t)},
 		{getConfiguredClickHouseTester(t)},
 	}
 

@@ -324,7 +324,6 @@ type ColumnName string
 
 type NativeToValueTypeMapper map[NativeType]ValueType
 
-// Simple function type that can handle any input and output type
 type TypeConverter func(interface{}) (interface{}, error)
 
 type TypeConverterMapping map[string]TypeConverter

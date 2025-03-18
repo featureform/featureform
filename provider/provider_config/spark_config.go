@@ -102,6 +102,9 @@ func (s *SparkConfig) Deserialize(config SerializedConfig) error {
 	default:
 	}
 
+	if s.ExecutorConfig == nil {
+		return fferr.NewInternalErrorf("Invalid Config, executor config not set")
+	}
 	if err := s.ExecutorConfig.Deserialize(execData); err != nil {
 		return err
 	}
@@ -121,6 +124,7 @@ func (s *SparkConfig) Deserialize(config SerializedConfig) error {
 	case fs.HDFS:
 		s.StoreConfig = &HDFSFileStoreConfig{}
 	default:
+		return fferr.NewInternalErrorf("Unknown store type: %s", s.StoreType)
 	}
 
 	if err := s.StoreConfig.Deserialize(storeData); err != nil {

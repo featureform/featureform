@@ -12,28 +12,66 @@
 package arrow
 
 import (
-	"github.com/featureform/fferr"
-	"github.com/featureform/logging"
+	"github.com/featureform/core"
 	"github.com/featureform/provider/dataset"
 	"github.com/featureform/provider/location"
+	pc "github.com/featureform/provider/provider_config"
+	"github.com/featureform/streamer"
 	"github.com/featureform/types"
-
-	arrowlib "github.com/apache/arrow/go/v18/arrow"
 )
 
-type Dataset struct {
-	loc    location.Location
-	schema types.Schema
+type StreamerDataset struct {
+	// TODO move this out of struct
+	Ctx    *core.Context
+	Client *streamer.Client
+	Loc    location.Location
+	Config pc.SparkConfig
+	Limit  int64
 }
 
-func (ds *Dataset) Location() location.Location {
-	return ds.loc
+func (ds *StreamerDataset) Location() location.Location {
+	return ds.Loc
 }
 
-func (ds *Dataset) Iterator() (dataset.Iterator, error) {
-	return nil, nil
+func (ds *StreamerDataset) Iterator() (dataset.Iterator, error) {
+	req, err := streamer.RequestFromSparkConfig(ds.Ctx, ds.Config, ds.Loc)
+	if err != nil {
+		ds.Ctx.Errorw("Failed to get request from spark config", "err", err)
+		return nil, err
+	}
+	arrSchema, err := ds.Client.GetSchema(ds.Ctx, req)
+	if err != nil {
+		ds.Ctx.Errorw("Failed to get schema", "loc", ds.Loc, "err", err)
+		return nil, err
+	}
+	schema, err := ConvertSchema(arrSchema)
+	if err != nil {
+		ds.Ctx.Errorw("Failed to convert schema", "loc", ds.Loc, "arrSchema", arrSchema, "err", err)
+		return nil, err
+	}
+	reader, err := ds.Client.GetReader(ds.Ctx, req, streamer.DatasetOptions{Limit: ds.Limit})
+	if err != nil {
+		ds.Ctx.Errorw("Failed to get reader", "loc", ds.Loc, "err", err)
+		return nil, err
+	}
+	return newIterator(reader, schema)
 }
 
-func (ds *Dataset) Schema() (types.Schema, error) {
-	return ds.schema, nil
+func (ds *StreamerDataset) Schema() (types.Schema, error) {
+	req, err := streamer.RequestFromSparkConfig(ds.Ctx, ds.Config, ds.Loc)
+	if err != nil {
+		ds.Ctx.Errorw("Failed to get request from spark config", "err", err)
+		return types.Schema{}, err
+	}
+	arrSchema, err := ds.Client.GetSchema(ds.Ctx, req)
+	if err != nil {
+		ds.Ctx.Errorw("Failed to get schema", "loc", ds.Loc, "err", err)
+		return types.Schema{}, err
+	}
+	schema, err := ConvertSchema(arrSchema)
+	if err != nil {
+		ds.Ctx.Errorw("Failed to convert schema", "loc", ds.Loc, "arrSchema", arrSchema, "err", err)
+		return types.Schema{}, err
+	}
+	return schema, nil
 }

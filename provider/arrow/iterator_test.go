@@ -107,7 +107,9 @@ func TestIterator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create iterator: %s", err)
 	}
-	if gotSchema := iter.Schema(); !gotSchema.Equals(schema) {
+	if gotSchema, err := iter.Schema(); err != nil {
+		t.Fatalf("Iterator schema returned err %v", err)
+	} else if !gotSchema.Equals(schema) {
 		t.Fatalf("Iterator schema doesn't match constructor")
 	}
 	rows := make(types.Rows, 0)

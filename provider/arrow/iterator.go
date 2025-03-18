@@ -111,8 +111,8 @@ func (iter *Iterator) Err() error {
 	return iter.reader.Err()
 }
 
-func (iter *Iterator) Schema() types.Schema {
+func (iter *Iterator) Schema() (types.Schema, error) {
 	iter.mtx.RLock()
 	defer iter.mtx.RUnlock()
-	return iter.schema
+	return iter.schema, nil
 }

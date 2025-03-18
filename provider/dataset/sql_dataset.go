@@ -129,6 +129,7 @@ func (ds SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
 	colNames := ds.schema.ColumnNames()
 	cols := strings.Join(colNames, ", ")
 
+	// TODO: Have a generic sanitization based on provider type
 	loc := postgres.SanitizeLocation(ds.location)
 	var query string
 	if ds.limit == -1 {

@@ -29,13 +29,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/smithy-go"
+	sn "github.com/mrz1836/go-sanitize"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	se "github.com/featureform/provider/serialization"
 	vt "github.com/featureform/provider/types"
-	sn "github.com/mrz1836/go-sanitize"
 )
 
 func init() {
@@ -46,7 +47,7 @@ func init() {
 
 const (
 	// Default timeout when waiting for dynamoDB tables to be ready
-	defaultDynamoTableTimeout = 30 * time.Second
+	defaultDynamoTableTimeout = 60 * time.Second
 	// Serialization version to use for new tables
 	dynamoSerializationVersion = serializeV1
 	defaultMetadataTableName   = "FeatureformMetadata"

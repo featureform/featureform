@@ -182,6 +182,6 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 		}, nil
 	default:
 		// This should never happen since we check IsSupported above
-		return types.Value{}, fferr.NewUnsupportedTypeError(nativeType)
+		return types.Value{}, fferr.NewUnsupportedTypeError(string(nativeType))
 	}
 }

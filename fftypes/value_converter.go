@@ -1,9 +1,7 @@
 package types
 
 import (
-	"encoding/json"
 	"fmt"
-	"reflect"
 	"strconv"
 	"time"
 
@@ -188,111 +186,5 @@ func ConvertDatetime(v any) (time.Time, error) {
 	default:
 		wrapped := fferr.NewTypeError(Datetime.String(), v, nil)
 		return time.Time{}, wrapped
-	}
-}
-
-func ConvertVectorValue(value any) (ScalarType, any, error) {
-	// Step 1: Handle JSON string
-	if strVal, ok := value.(string); ok {
-		var jsonArray []any
-		if err := json.Unmarshal([]byte(strVal), &jsonArray); err != nil {
-			return Unknown, nil, fferr.NewInternalErrorf("Failed to parse array JSON: %v", err)
-		}
-		value = jsonArray
-	}
-
-	// Step 2: Process the array as a slice
-	list := reflect.ValueOf(value)
-	if list.Kind() != reflect.Slice {
-		err := fferr.NewTypeError("vector", value, nil)
-		return Unknown, nil, err
-	}
-
-	length := list.Len()
-	vals := make([]any, length)
-	for i := 0; i < length; i++ {
-		vals[i] = list.Index(i).Interface()
-	}
-
-	// Step 3: Infer scalar type
-	var scalarType ScalarType
-	for i := 0; i < length; i++ {
-		elem := vals[i]
-		if elem != nil {
-			scalarType = inferScalarType(elem)
-			break
-		}
-	}
-
-	if scalarType == "" || scalarType == Unknown {
-		err := fferr.NewInternalErrorf("Type conversion failed due to unknown scalar type")
-		return Unknown, nil, err
-	}
-
-	// Step 4: Convert to a typed slice based on inferred scalar type
-	var converted any
-	var err error
-	switch scalarType {
-	case Int:
-		converted, err = convertList[int](scalarType, vals)
-	case Int32:
-		converted, err = convertList[int32](scalarType, vals)
-	case Int64:
-		converted, err = convertList[int64](scalarType, vals)
-	case Float32:
-		converted, err = convertList[float32](scalarType, vals)
-	case Float64:
-		converted, err = convertList[float64](scalarType, vals)
-	case Bool:
-		converted, err = convertList[bool](scalarType, vals)
-	case String:
-		converted, err = convertList[string](scalarType, vals)
-	default:
-		err := fferr.NewInternalErrorf("Type conversion not supported for inferred vector type")
-		err.AddDetail("inferred_type", fmt.Sprintf("%v", scalarType))
-		return Unknown, nil, err
-	}
-
-	if err != nil {
-		return Unknown, nil, err
-	}
-
-	return scalarType, converted, nil
-}
-
-func convertList[T any](scalar ScalarType, values []any) ([]T, error) {
-	result := make([]T, len(values))
-	for i, value := range values {
-		casted, ok := value.(T)
-		if !ok {
-			wrapped := fferr.NewInternalErrorf("Type conversion failed due to wrong type")
-			wrapped.AddDetail("found_type", fmt.Sprintf("%T", value))
-			wrapped.AddDetail("expected_type", scalar.String())
-			wrapped.AddDetail("list_element", strconv.Itoa(i))
-			return nil, wrapped
-		}
-		result[i] = casted
-	}
-	return result, nil
-}
-
-func inferScalarType(value any) ScalarType {
-	switch value.(type) {
-	case int:
-		return Int
-	case int32:
-		return Int32
-	case int64:
-		return Int64
-	case float32:
-		return Float32
-	case float64:
-		return Float64
-	case bool:
-		return Bool
-	case string:
-		return String
-	default:
-		return Unknown
 	}
 }

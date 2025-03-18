@@ -144,34 +144,6 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 			Type:       types.Timestamp,
 			Value:      convertedValue,
 		}, nil
-
-	// Array type
-	case "ARRAY":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type: types.VectorType{
-					ScalarType:  types.Float64, // Default scalar type
-					Dimension:   1,
-					IsEmbedding: false,
-				},
-				Value: nil,
-			}, nil
-		}
-		scalarType, convertedValue, err := types.ConvertVectorValue(value)
-		if err != nil {
-			return types.Value{}, err
-		}
-		return types.Value{
-			NativeType: nativeType,
-			Type: types.VectorType{
-				ScalarType:  scalarType,
-				Dimension:   1, // BigQuery arrays are 1-dimensional
-				IsEmbedding: false,
-			},
-			Value: convertedValue,
-		}, nil
-
 	default:
 		return types.Value{}, fferr.NewUnsupportedTypeError(string(nativeType))
 	}

@@ -413,7 +413,6 @@ func TestSnowflakeTypeConversions(t *testing.T) {
 	// Create a map of column names to their values for easier testing
 	columnValues := make(map[string]interface{})
 	schema := it.Schema()
-	require.NoError(t, err, "Failed to get schema")
 	for i, col := range schema.ColumnNames() {
 		columnValues[col] = row[i].Value
 	}

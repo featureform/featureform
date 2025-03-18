@@ -7,33 +7,6 @@ import (
 	"github.com/featureform/provider/provider_type"
 )
 
-// SupportedTypes is a set of all supported BigQuery types
-// NOTE: If you add a new type here, make sure to add a corresponding conversion function in ConvertValue
-var SupportedTypes = map[types.NativeType]bool{
-	// Integer types
-	"INT64": true,
-
-	// Floating point types
-	"FLOAT64":    true,
-	"NUMERIC":    true,
-	"BIGNUMERIC": true,
-
-	// Boolean type
-	"BOOL": true,
-
-	// String type
-	"STRING": true,
-
-	// Date/Time types
-	"DATE":      true,
-	"DATETIME":  true,
-	"TIME":      true,
-	"TIMESTAMP": true,
-
-	// Array type
-	"ARRAY": true,
-}
-
 var bqConverter = Converter{}
 
 func init() {
@@ -47,31 +20,27 @@ func Register() {
 
 type Converter struct{}
 
-func (c Converter) IsSupportedType(nativeType types.NativeType) bool {
-	_, exists := SupportedTypes[nativeType]
-	return exists
+func (c Converter) GetType(nativeType types.NativeType) (types.ValueType, error) {
+	conv, err := c.ConvertValue(nativeType, nil)
+	if err != nil {
+		return nil, err
+	}
+	return conv.Type, nil
 }
 
 // ConvertValue converts a value from its BigQuery representation to a types.Value
 func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.Value, error) {
-	// Handle nil values
-	if value == nil {
-		return types.Value{
-			NativeType: nativeType,
-			Type:       nil,
-			Value:      nil,
-		}, nil
-	}
-
-	// Check if the type is supported
-	if !c.IsSupportedType(nativeType) {
-		return types.Value{}, fferr.NewInternalErrorf("Unsupported BigQuery type: %s", nativeType)
-	}
-
 	// Convert the value based on the native type
 	switch nativeType {
 	// Integer types
 	case "INT64":
+		if value == nil {
+			return types.Value{
+				NativeType: nativeType,
+				Type:       types.Int64,
+				Value:      nil,
+			}, nil
+		}
 		convertedValue, err := types.ConvertNumberToInt64(value)
 		if err != nil {
 			return types.Value{}, err
@@ -84,6 +53,13 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 
 	// Floating point types
 	case "FLOAT64", "NUMERIC", "BIGNUMERIC":
+		if value == nil {
+			return types.Value{
+				NativeType: nativeType,
+				Type:       types.Float64,
+				Value:      nil,
+			}, nil
+		}
 		convertedValue, err := types.ConvertNumberToFloat64(value)
 		if err != nil {
 			return types.Value{}, err
@@ -96,6 +72,13 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 
 	// String type
 	case "STRING":
+		if value == nil {
+			return types.Value{
+				NativeType: nativeType,
+				Type:       types.String,
+				Value:      nil,
+			}, nil
+		}
 		convertedValue, err := types.ConvertToString(value)
 		if err != nil {
 			return types.Value{}, err
@@ -108,6 +91,13 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 
 	// Boolean type
 	case "BOOL":
+		if value == nil {
+			return types.Value{
+				NativeType: nativeType,
+				Type:       types.Bool,
+				Value:      nil,
+			}, nil
+		}
 		convertedValue, err := types.ConvertToBool(value)
 		if err != nil {
 			return types.Value{}, err
@@ -120,6 +110,13 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 
 	// Date/Time types
 	case "DATE", "DATETIME", "TIME":
+		if value == nil {
+			return types.Value{
+				NativeType: nativeType,
+				Type:       types.Datetime,
+				Value:      nil,
+			}, nil
+		}
 		convertedValue, err := types.ConvertDatetime(value)
 		if err != nil {
 			return types.Value{}, err
@@ -131,6 +128,13 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 		}, nil
 
 	case "TIMESTAMP":
+		if value == nil {
+			return types.Value{
+				NativeType: nativeType,
+				Type:       types.Timestamp,
+				Value:      nil,
+			}, nil
+		}
 		convertedValue, err := types.ConvertDatetime(value)
 		if err != nil {
 			return types.Value{}, err
@@ -143,12 +147,21 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 
 	// Array type
 	case "ARRAY":
-		// Extract the array elements and infer the scalar type
+		if value == nil {
+			return types.Value{
+				NativeType: nativeType,
+				Type: types.VectorType{
+					ScalarType:  types.Float64, // Default scalar type
+					Dimension:   1,
+					IsEmbedding: false,
+				},
+				Value: nil,
+			}, nil
+		}
 		scalarType, convertedValue, err := types.ConvertVectorValue(value)
 		if err != nil {
 			return types.Value{}, err
 		}
-
 		return types.Value{
 			NativeType: nativeType,
 			Type: types.VectorType{
@@ -160,7 +173,6 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 		}, nil
 
 	default:
-		// This should never happen since we check IsSupportedType above
-		return types.Value{}, fferr.NewInternalErrorf("Unsupported BigQuery type: %s", nativeType)
+		return types.Value{}, fferr.NewUnsupportedTypeError(nativeType)
 	}
 }

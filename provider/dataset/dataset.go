@@ -135,7 +135,7 @@ func (adapter *ChunkedDatasetAdapter) ChunkIterator(ctx Context, idx int) (Sized
 type Iterator interface {
 	Next() bool
 	Values() types.Row
-	Schema() (types.Schema, error)
+	Schema() types.Schema
 	Err() error
 	Close() error
 }

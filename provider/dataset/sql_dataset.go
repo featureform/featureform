@@ -191,8 +191,8 @@ func (it *SqlIterator) Values() types.Row {
 	return it.currentValues
 }
 
-func (it *SqlIterator) Schema() (types.Schema, error) {
-	return it.schema, nil
+func (it *SqlIterator) Schema() types.Schema {
+	return it.schema
 }
 
 func (it *SqlIterator) Columns() []string {

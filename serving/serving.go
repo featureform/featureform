@@ -584,6 +584,10 @@ type NewIteratorToOldIteratorAdapter struct {
 	dataset.Iterator
 }
 
+func (it *NewIteratorToOldIteratorAdapter) Columns() []string {
+	return it.Iterator.Schema().ColumnNames()
+}
+
 func (it *NewIteratorToOldIteratorAdapter) Next() bool {
 	return it.Iterator.Next()
 }

@@ -69,8 +69,8 @@ func (it *InMemoryIterator) Values() types.Row {
 	return it.data[it.index]
 }
 
-func (it *InMemoryIterator) Schema() (types.Schema, error) {
-	return it.schema, nil
+func (it *InMemoryIterator) Schema() types.Schema {
+	return it.schema
 }
 
 func (it *InMemoryIterator) Err() error {

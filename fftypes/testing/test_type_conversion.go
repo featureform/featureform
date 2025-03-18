@@ -45,7 +45,7 @@ func TypeMapTestSuite(
 		require.NoError(t, iter.Err(), "Iterator should not have errors")
 
 		// Get schema
-		schema, err := iter.Schema()
+		schema := iter.Schema()
 		require.NoError(t, err, "Schema retrieval should not fail")
 
 		// Verify number of columns matches number of test cases

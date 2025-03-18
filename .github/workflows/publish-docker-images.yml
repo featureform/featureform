@@ -98,6 +98,7 @@ jobs:
         with:
           context: .
           file: ./api/Dockerfile
+          platforms: linux/amd64,linux/arm64
           tags: featureformcom/api-server:${{ env.TAG }}
           push: true
           cache-from: type=gha
@@ -133,6 +134,7 @@ jobs:
         with:
           context: .
           file: ./coordinator/Dockerfile
+          platforms: linux/amd64,linux/arm64
           tags: featureformcom/coordinator:${{ env.TAG }}
           push: true
           cache-from: type=gha
@@ -168,6 +170,7 @@ jobs:
         with:
           context: .
           file: ./dashboard/Dockerfile
+          platforms: linux/amd64,linux/arm64
           tags: featureformcom/dashboard:${{ env.TAG }}
           push: true
           cache-from: type=gha
@@ -203,6 +206,7 @@ jobs:
         with:
           context: .
           file: ./metadata/Dockerfile
+          platforms: linux/amd64,linux/arm64
           tags: featureformcom/metadata:${{ env.TAG }}
           push: true
           cache-from: type=gha
@@ -238,6 +242,7 @@ jobs:
         with:
           context: .
           file: ./metadata/dashboard/Dockerfile
+          platforms: linux/amd64,linux/arm64
           tags: featureformcom/metadata-dashboard:${{ env.TAG }}
           push: true
           cache-from: type=gha
@@ -273,6 +278,7 @@ jobs:
         with:
           context: .
           file: ./serving/Dockerfile
+          platforms: linux/amd64,linux/arm64
           tags: featureformcom/serving:${{ env.TAG }}
           push: true
           cache-from: type=gha
@@ -308,6 +314,7 @@ jobs:
         with:
           context: .
           file: ./runner/Dockerfile
+          platforms: linux/amd64,linux/arm64
           tags: featureformcom/worker:${{ env.TAG }}
           push: true
           cache-from: type=gha
@@ -343,6 +350,7 @@ jobs:
         with:
           context: .
           file: ./provider/scripts/k8s/Dockerfile
+          platforms: linux/amd64,linux/arm64
           tags: featureformcom/k8s_runner:${{ env.TAG }}
           push: true
           cache-from: type=gha
@@ -378,6 +386,7 @@ jobs:
         with:
           context: .
           file: ./db/Dockerfile
+          platforms: linux/amd64,linux/arm64
           tags: featureformcom/db-migration-up:${{ env.TAG }}
           push: true
           cache-from: type=gha
@@ -413,6 +422,7 @@ jobs:
         with:
           context: .
           file: ./streamer/Dockerfile
+          platforms: linux/amd64,linux/arm64
           tags: featureformcom/iceberg-streamer:${{ env.TAG }}
           push: true
           cache-from: type=gha
@@ -448,6 +458,7 @@ jobs:
         with:
           context: .
           file: ./streamer_proxy/Dockerfile
+          platforms: linux/amd64,linux/arm64
           tags: featureformcom/iceberg-proxy:${{ env.TAG }}
           push: true
           cache-from: type=gha

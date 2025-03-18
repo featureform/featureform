@@ -70,9 +70,6 @@ func getSchema(db *sql.DB, converter types.ValueConverter[any], tableName locati
 	        AND table_schema = ? 
 	        ORDER BY ordinal_position`
 
-	// Debugging print (remove in production)
-	fmt.Printf("Querying schema: %q, table: %q\n", schema, tblName)
-
 	// Execute query with both parameters
 	rows, err := db.Query(qry, tblName, schema)
 	if err != nil {

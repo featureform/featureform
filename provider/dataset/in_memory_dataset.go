@@ -52,8 +52,9 @@ func (ds *InMemoryDataset) IterateSegment(ctx context.Context, begin, end int64)
 }
 
 type InMemoryIterator struct {
-	data  []types.Row
-	index int
+	data   []types.Row
+	schema types.Schema
+	index  int
 }
 
 func (it *InMemoryIterator) Next() bool {
@@ -69,11 +70,7 @@ func (it *InMemoryIterator) Values() types.Row {
 }
 
 func (it *InMemoryIterator) Schema() (types.Schema, error) {
-	return types.Schema{}, nil
-}
-
-func (it *InMemoryIterator) Columns() []string {
-	return make([]string, 0)
+	return it.schema, nil
 }
 
 func (it *InMemoryIterator) Err() error {

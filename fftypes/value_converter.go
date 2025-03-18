@@ -13,7 +13,7 @@ import (
 )
 
 type ValueConverter[T any] interface {
-	IsSupportedType(nativeType NativeType) bool
+	GetType(nativeType NativeType) (ValueType, error)
 	ConvertValue(nativeType NativeType, value T) (Value, error)
 }
 
@@ -192,11 +192,11 @@ func ConvertDatetime(v any) (time.Time, error) {
 }
 
 func ConvertVectorValue(value any) (ScalarType, any, error) {
-	// Step 1: Handle JSON string returned by Snowflake
+	// Step 1: Handle JSON string
 	if strVal, ok := value.(string); ok {
 		var jsonArray []any
 		if err := json.Unmarshal([]byte(strVal), &jsonArray); err != nil {
-			return Unknown, nil, fferr.NewInternalErrorf("Failed to parse Snowflake array JSON: %v", err)
+			return Unknown, nil, fferr.NewInternalErrorf("Failed to parse array JSON: %v", err)
 		}
 		value = jsonArray
 	}

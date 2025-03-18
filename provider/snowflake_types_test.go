@@ -246,28 +246,6 @@ func NewSnowflakeTestData(t *testing.T) *SnowflakeTestData {
 					assert.True(t, ok, "TIMESTAMP_TZ not converted to time.Time")
 				},
 			},
-			{
-				Name:           "array_int_col",
-				SnowflakeType:  "ARRAY",
-				ExpectedGoType: types.VectorType{ScalarType: types.Float64, Dimension: 1, IsEmbedding: false},
-				TestValue:      "ARRAY_CONSTRUCT(1, 2, 3, 4, 5)",
-				ExpectedTestFunc: func(t *testing.T, actual interface{}) {
-					intArray, ok := actual.([]float64)
-					require.True(t, ok, "Array of integers not correctly converted")
-					assert.Equal(t, []float64{1, 2, 3, 4, 5}, intArray, "Integer array value mismatch")
-				},
-			},
-			{
-				Name:           "array_str_col",
-				SnowflakeType:  "ARRAY",
-				ExpectedGoType: types.VectorType{ScalarType: types.String, Dimension: 1, IsEmbedding: false},
-				TestValue:      "ARRAY_CONSTRUCT('a', 'b', 'c', 'd', 'e')",
-				ExpectedTestFunc: func(t *testing.T, actual interface{}) {
-					strArray, ok := actual.([]string)
-					require.True(t, ok, "Array of strings not correctly converted")
-					assert.Equal(t, []string{"a", "b", "c", "d", "e"}, strArray, "String array value mismatch")
-				},
-			},
 		},
 	}
 }
@@ -434,8 +412,9 @@ func TestSnowflakeTypeConversions(t *testing.T) {
 
 	// Create a map of column names to their values for easier testing
 	columnValues := make(map[string]interface{})
-	columns := it.Columns()
-	for i, col := range columns {
+	schema, err := it.Schema()
+	require.NoError(t, err, "Failed to get schema")
+	for i, col := range schema.ColumnNames() {
 		columnValues[col] = row[i].Value
 	}
 

@@ -310,7 +310,7 @@ func (vt ValueTypeJSONWrapper) MarshalJSON() ([]byte, error) {
 type ColumnSchema struct {
 	Name       ColumnName
 	NativeType NativeType
-	//Type       ValueType // I dont' think we need this
+	Type       ValueType
 }
 
 type Value struct {

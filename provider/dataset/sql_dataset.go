@@ -9,6 +9,7 @@ import (
 	"github.com/featureform/fferr"
 	types "github.com/featureform/fftypes"
 	"github.com/featureform/helpers/postgres"
+	"github.com/featureform/logging"
 	"github.com/featureform/provider/location"
 )
 
@@ -94,15 +95,19 @@ func getSchema(db *sql.DB, converter types.ValueConverter[any], tableName locati
 		}
 
 		// Ensure the type is supported
-		ok := converter.IsSupportedType(types.NativeType(dataType))
-		if !ok {
-			return types.Schema{}, fferr.NewInternalErrorf("Unknown native type: %v", dataType)
+		valueType, err := converter.GetType(types.NativeType(dataType))
+		if err != nil {
+			wrapped := fferr.NewInternalErrorf("could not convert native type to value type: %v", err)
+			wrapped.AddDetail("schema", schema)
+			wrapped.AddDetail("table_name", tblName)
+			return types.Schema{}, wrapped
 		}
 
 		// Append column details
 		column := types.ColumnSchema{
 			Name:       types.ColumnName(columnName),
 			NativeType: types.NativeType(dataType),
+			Type:       valueType,
 		}
 		fields = append(fields, column)
 	}
@@ -123,8 +128,9 @@ func (ds SqlDataset) Location() location.Location {
 }
 
 func (ds SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
+	logger := logging.GetLoggerFromContext(ctx)
 	colNames := ds.schema.ColumnNames()
-	cols := strings.Join(colNames[:], ", ")
+	cols := strings.Join(colNames, ", ")
 
 	loc := postgres.SanitizeLocation(ds.location)
 	var query string
@@ -136,18 +142,15 @@ func (ds SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
 
 	rows, err := ds.db.QueryContext(ctx, query)
 	if err != nil {
+		logger.Errorw("Failed to execute query", "query", query, "error", err)
 		return nil, fferr.NewInternalErrorf("Failed to execute query: %v", err)
 	}
 
-	return NewSqlIterator(rows, ds.converter, ds.schema), nil
+	return NewSqlIterator(ctx, rows, ds.converter, ds.schema), nil
 }
 
 func (ds SqlDataset) Schema() (types.Schema, error) {
 	return ds.schema, nil
-}
-
-func (ds SqlDataset) ColumnNames() []string {
-	return ds.schema.ColumnNames()
 }
 
 type SqlIterator struct {
@@ -157,12 +160,14 @@ type SqlIterator struct {
 	schema        types.Schema
 	err           error
 	closed        bool
-	scanBuffers   []interface{} // Reusable buffer for SQL Scan
-	valueBuffers  []interface{} // Holds scanned values before conversion
-	rowBuffer     types.Row     // Reusable row buffer to avoid allocations on each Next call
+	scanBuffers   []any     // Reusable buffer for SQL Scan
+	valueBuffers  []any     // Holds scanned values before conversion
+	rowBuffer     types.Row // Reusable row buffer to avoid allocations on each Next call
+
+	ctx context.Context
 }
 
-func NewSqlIterator(rows *sql.Rows, converter types.ValueConverter[any], schema types.Schema) Iterator {
+func NewSqlIterator(ctx context.Context, rows *sql.Rows, converter types.ValueConverter[any], schema types.Schema) *SqlIterator {
 	// Pre-allocate buffers for scanning
 	columnCount := len(schema.Fields)
 	valueBuffers := make([]interface{}, columnCount)
@@ -181,6 +186,7 @@ func NewSqlIterator(rows *sql.Rows, converter types.ValueConverter[any], schema 
 		scanBuffers:  scanBuffers,
 		valueBuffers: valueBuffers,
 		rowBuffer:    rowBuffer,
+		ctx:          ctx,
 	}
 }
 

@@ -11,6 +11,8 @@ import (
 	"fmt"
 
 	"google.golang.org/grpc/codes"
+
+	types "github.com/featureform/fftypes"
 )
 
 func NewInternalError(err error) *InternalError {
@@ -97,5 +99,21 @@ func NewUnimplementedError(err error) *UnimplementedError {
 
 	return &UnimplementedError{
 		baseError,
+	}
+}
+
+type UnsupportedTypeError struct {
+	NativeType types.NativeType
+	baseError
+}
+
+func NewUnsupportedTypeError(nativeType types.NativeType) *UnsupportedTypeError {
+	err := fmt.Errorf("unsupported type: %s", nativeType)
+	baseError := newBaseError(err, "UNSUPPORTED_TYPE", codes.InvalidArgument)
+	baseError.AddDetail("native_type", string(nativeType))
+
+	return &UnsupportedTypeError{
+		NativeType: nativeType,
+		baseError:  baseError,
 	}
 }

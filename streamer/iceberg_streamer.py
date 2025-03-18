@@ -2,17 +2,117 @@
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-#  Copyright 2024 FeatureForm Inc.
+#  Copyright 2025 FeatureForm Inc.
 #
 
 import json
 import sys
 import signal
+from abc import ABC, abstractmethod
 from pyiceberg.catalog import load_catalog
-from pyarrow.flight import FlightServerBase, RecordBatchStream
+from pyarrow.flight import FlightServerBase, RecordBatchStream, SchemaResult
 
 port = 8085
-TWO_MILLION_RECORD_LIMIT = 2_000_000
+DEFAULT_RECORD_LIMIT = 2_000_000
+DEFAULT_CATALOG = "glue"
+
+class StreamConfig(ABC):
+    """
+    Abstract base class for stream configuration.
+    """
+    def __init__(self, config):
+        self.config = config
+
+    @classmethod
+    def from_ticket(cls, ticket) -> "StreamConfig":
+        """
+        Decode the flight ticket and create the appropriate StreamConfig instance.
+        """
+        try:
+            config_data = json.loads(ticket.ticket.decode("utf-8"))
+        except json.JSONDecodeError as e:
+            raise ValueError("Invalid JSON format in ticket") from e
+
+        return cls.from_dict(config_data)
+
+    @classmethod
+    def from_flight_command(cls, req) -> "StreamConfig":
+        """
+        Decode the command from a request and create the appropriate StreamConfig instance.
+        """
+        if not req.command:
+            raise ValueError("Request must be a flight command.")
+        try:
+            config_data = json.loads(req.command.decode("utf-8"))
+        except json.JSONDecodeError as e:
+            raise ValueError("Invalid JSON format in ticket") from e
+        return cls.from_dict(config_data)
+
+    @classmethod
+    def from_dict(cls, config_data: dict) -> "StreamConfig":
+        required_fields = ["namespace", "table"]
+        missing = [field for field in required_fields if not config_data.get(field)]
+        if missing:
+            raise ValueError(f"Missing required request fields: {', '.join(missing)}")
+
+        limit = config_data.get("limit")
+        if limit is not None:
+            if not isinstance(limit, int) or limit <= 0:
+                raise ValueError(
+                    f"Invalid 'limit' value: {limit}. Must be a positive integer value."
+                )
+
+        catalog_type = config_data.get("catalog_type", "glue").lower()
+        if catalog_type == "glue":
+            return GlueConfig.parse(config_data)
+        elif catalog_type == "":
+            raise ValueError(f"catalog_type must be set")
+        else:
+            raise ValueError(f"Unsupported catalog type: {catalog}")
+
+    def catalog_name(self):
+        return self.config.get("catalog", "default")
+
+    def namespace(self):
+        return self.config.get("namespace")
+
+    def table(self):
+        return self.config.get("table")
+
+    def limit(self):
+        return self.config.get("limit", DEFAULT_RECORD_LIMIT)
+
+    @abstractmethod
+    def load_catalog_kwargs(self):
+        """
+        Return the parameters needed to load the catalog.
+        """
+        pass
+
+class GlueConfig(StreamConfig):
+    @classmethod
+    def parse(cls, config_data: dict) -> "GlueConfig":
+        required_fields = ["client.region"]
+        missing = [field for field in required_fields if not config_data.get(field)]
+        if missing:
+            raise ValueError(f"Missing required Glue config fields: {', '.join(missing)}")
+        has_static_credentials = config_data.get("client.access-key-id") and config_data.get("client.secret-access-key")
+        has_role_arn = config_data.get("client.role-arn")
+        if not (has_static_credentials or has_role_arn):
+            raise ValueError(
+                "Invalid credentials: Provide either 'client.access-key-id' and 'client.secret-access-key' or 'client.role-arn'."
+            )
+        return cls(config_data)
+
+    def load_catalog_kwargs(self):
+        return {
+            "type": "glue",
+            "client.region": self.config["client.region"], # not optional
+            "client.access-key-id": self.config.get("client.access-key-id"),
+            "client.secret-access-key": self.config.get("client.secret-access-key"),
+            "client.role-arn": self.config.get("client.role-arn")
+        }
+
 
 class StreamerService(FlightServerBase):
     def __init__(self):
@@ -20,90 +120,36 @@ class StreamerService(FlightServerBase):
         super(StreamerService, self).__init__(location)
 
     def do_get(self, _, ticket):
-        ticket_json = ticket.ticket.decode("utf-8")
         print("Receiving flight ticket...")
-
-        try:
-            request_data = json.loads(ticket_json)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON format in ticket") from e
-
-        request_dict = {
-            "catalog": request_data.get("catalog", "default"),
-            "namespace": request_data.get("namespace"),
-            "table": request_data.get("table"),
-            "client.access-key-id": request_data.get("client.access-key-id"),
-            "client.secret-access-key": request_data.get("client.secret-access-key"),
-            "client.region": request_data.get("client.region"),
-            "client.role-arn": request_data.get("client.role-arn"),
-            "limit": request_data.get("limit", TWO_MILLION_RECORD_LIMIT),
-        }
-
-        print(f"Processing stream request for table: {request_dict['namespace']}.{request_dict['table']}")
-
-        required_fields = [
-            "namespace",
-            "table",
-            "client.region",
-        ]
-        missing_fields = [
-            field for field in required_fields if not request_dict.get(field)
-        ]
-        if missing_fields:
-            raise ValueError(
-                f"Missing required request fields: {', '.join(missing_fields)}"
-            )
-
-        # verify either "client.access-key-id" and "client.secret-access-key" OR "client.role-arn" is provided
-        has_static_credentials = request_dict.get("client.access-key-id") and request_dict.get("client.secret-access-key")
-        has_role_arn = request_dict.get("client.role-arn")
-        if not (has_static_credentials or has_role_arn):
-            raise ValueError(
-                "Invalid credentials: Provide either 'client.access-key-id' and 'client.secret-access-key' or 'client.role-arn'."
-            )
-
-        # validate the limit
-        limit = request_dict.get("limit")
-        if limit is not None:
-            if not isinstance(limit, int) or limit <= 0:
-                raise ValueError(
-                    f"Invalid 'limit' value: {limit}. Must be a positive integer value."
-                )
-
-        record_batch_reader = self.load_data_from_iceberg_table(request_dict)
+        config = StreamConfig.from_ticket(ticket)
+        table = self.load_iceberg_table(config)
+        batch_reader = table.scan(limit=config.limit()).to_arrow_batch_reader()
         print("Load complete. Returning batch reader to client.")
-        return RecordBatchStream(record_batch_reader)
+        return RecordBatchStream(batch_reader)
 
-    def load_data_from_iceberg_table(self, request_dict):
+    def get_schema(self, _, req):
+        print("Receiving get schema request...")
+        config = StreamConfig.from_flight_command(req)
+        table = self.load_iceberg_table(config)
+        schema = table.schema().as_arrow()
+        return SchemaResult(schema)
+
+    def load_iceberg_table(self, config: StreamConfig):
         print(
-            f"Loading table: {request_dict['namespace']}.{request_dict['table']} with catalog: {request_dict['catalog']}"
+            f"Loading table: {config.catalog_name()}.{config.namespace()}.{config.table()}"
         )
-
         try:
             catalog = load_catalog(
-                request_dict["catalog"],
-                **{
-                    "type": "glue",
-                    "client.region": request_dict["client.region"], # not optional
-                    "client.access-key-id": request_dict.get("client.access-key-id"),
-                    "client.secret-access-key": request_dict.get("client.secret-access-key"),
-                    "client.role-arn": request_dict.get("client.role-arn")
-                },
+                config.catalog_name(),
+                **config.load_catalog_kwargs(),
             )
-
-            iceberg_table = catalog.load_table(
-                (request_dict["namespace"], request_dict["table"])
+            return catalog.load_table(
+                (config.namespace(), config.table())
             )
         except Exception as e:
-            error_msg = f"Failed to load table {request_dict['namespace']}.{request_dict['table']}: {str(e)}"
+            error_msg = f"Failed to load table {catalog.namespace()}.{catalog.table()}: {str(e)}"
             print(error_msg)
             raise RuntimeError(error_msg) from e
-
-        # return the record reader
-        limit = request_dict["limit"]
-        scan = iceberg_table.scan(limit=limit)
-        print(f"Scan complete with limit({limit})")
-        return scan.to_arrow_batch_reader()
 
 def graceful_shutdown(server):
     print("Shutting down streamer service...")
@@ -117,5 +163,4 @@ if __name__ == "__main__":
     # close out gracefully
     signal.signal(signal.SIGINT, lambda _sig, _frame: graceful_shutdown(server))
     signal.signal(signal.SIGTERM, lambda _sign, _frame: graceful_shutdown(server))
-
     server.serve()

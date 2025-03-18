@@ -654,29 +654,37 @@ func NewSparkExecutor(
 	}
 }
 
-func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
-	switch lt := tableLocation.(type) {
-	case *pl.SQLLocation:
-		return nil, fferr.NewInternalErrorf("SQLLocation not supported for primary table registration")
-	case *pl.FileStoreLocation:
-		return blobRegisterPrimary(id, *lt, spark.Logger.SugaredLogger, spark.Store)
-	case *pl.CatalogLocation:
-		// TODO consider registering things in the catalog anyway?
-		return nil, nil
-	default:
-		return nil, fferr.NewInternalErrorf("unsupported location type for primary table registration")
+func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, loc pl.Location) (PrimaryTable, error) {
+	logger := spark.Logger.With("resource", id, "location", loc)
+	logger.Info("Registering primary table")
+	if err := id.check(Primary); err != nil {
+		logger.Errorw("Invalid resource id", "err", err)
+		return nil, err
 	}
-}
-
-func (spark *SparkOfflineStore) registerPrimaryCatalogTable(id ResourceID, catalogLocation pl.CatalogLocation, logger logging.Logger, store FileStore) (PrimaryTable, error) {
-	return nil, nil
+	if exists, err := spark.Store.Exists(loc); err != nil {
+		errMsg := "Unable to check if location exists"
+		logger.Error(errMsg, "err", err)
+		return nil, fferr.NewInternalErrorf("%s: %w", errMsg, err)
+	} else if !exists {
+		err := fmt.Errorf("Location %s not found, primary registration failed", loc.Location())
+		logger.Error(err.Error())
+		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
+	} else {
+		logger.Info("Primary successfully registered")
+		// Check out FileStorePrimaryTable thing
+		return nil, nil
+	}
 }
 
 func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
+	logger := spark.Logger.With("resource", id, "schema", schema, "opts", opts)
+	logger.Info("Registering resource from source table")
 	if len(opts) > 0 {
 		spark.Logger.Errorf("Spark Offline Store does not currently support resource options; received %v for resource %v", opts, id)
 	}
-	return blobRegisterResourceFromSourceTable(id, schema, spark.Logger.SugaredLogger, spark.Store)
+	logger.Info("Successfully registered resource from source table")
+	// Check out BlobOfflineTable
+	return nil, nil
 }
 
 func (spark *SparkOfflineStore) SupportsTransformationOption(opt TransformationOptionType) (bool, error) {

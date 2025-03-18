@@ -12,8 +12,8 @@ import (
 	"sync"
 
 	"github.com/featureform/fferr"
-	types "github.com/featureform/fftypes"
 	pl "github.com/featureform/provider/location"
+	"github.com/featureform/types"
 )
 
 // Dataset is the base interface required by most of the

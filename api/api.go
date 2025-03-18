@@ -10,11 +10,9 @@ package api
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -32,7 +30,6 @@ import (
 	"github.com/featureform/fferr"
 	"github.com/featureform/health"
 	"github.com/featureform/helpers"
-	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
@@ -1529,75 +1526,4 @@ func (serv *ApiServer) GracefulStop() error {
 	serv.grpcServer = nil
 	serv.listener = nil
 	return nil
-}
-
-func handleHealthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
-	w.WriteHeader(http.StatusOK)
-
-	_, err := io.WriteString(w, "OK")
-	if err != nil {
-		fmt.Printf("health check write response error: %+v", err)
-	}
-
-}
-
-func handleIndex(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
-	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusOK)
-
-	_, err := io.WriteString(w, `<html><body>Welcome to featureform</body></html>`)
-	if err != nil {
-		fmt.Printf("index / write response error: %+v", err)
-	}
-
-}
-
-func handleStatus(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	imageVersion := help.GetEnv("IMAGE_VERSION", "0.0.0")
-	currentTime := time.Now().UTC()
-	status := map[string]string{
-		"status":  "OK",
-		"app":     "featureform",
-		"version": imageVersion,
-		"time":    currentTime.Format("1/2/06, 3:04:05 PM MST"),
-	}
-
-	jsonResponse, err := json.Marshal(status)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write(jsonResponse)
-}
-
-func StartHttpsServer(port string) error {
-	mux := &http.ServeMux{}
-
-	mux.HandleFunc("/status", handleStatus)
-	// handles possible trailing slash
-	mux.HandleFunc("/status/", handleStatus)
-	// Health check endpoint will handle all /_ah/* requests
-	// e.g. /_ah/live, /_ah/ready and /_ah/lb
-	// Create separate routes for specific health requests as needed.
-	mux.HandleFunc("/_ah/", handleHealthCheck)
-	mux.HandleFunc("/", handleIndex)
-	// Add more routes as needed.
-
-	// Set timeouts so that a slow or malicious client doesn't hold resources forever.
-	httpsSrv := &http.Server{
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 5 * time.Second,
-		IdleTimeout:  60 * time.Second,
-		Handler:      mux,
-		Addr:         port,
-	}
-
-	fmt.Printf("starting HTTP server on port %s", port)
-
-	return httpsSrv.ListenAndServe()
 }

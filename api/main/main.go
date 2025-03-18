@@ -11,10 +11,12 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/joho/godotenv"
+
 	"github.com/featureform/api"
+	"github.com/featureform/health"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
-	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -42,7 +44,7 @@ func main() {
 
 	// We can make this smarter in the future
 	go func() {
-		err := api.StartHttpsServer(fmt.Sprintf(":%s", apiStatusPort))
+		err := health.StartHttpsServer(fmt.Sprintf(":%s", apiStatusPort))
 		if err != nil && err != http.ErrServerClosed {
 			panic(fmt.Sprintf("health check HTTP server failed: %+v", err))
 		}

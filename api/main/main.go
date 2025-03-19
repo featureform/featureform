@@ -9,7 +9,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/joho/godotenv"
 
@@ -42,13 +41,11 @@ func main() {
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	servingConn := fmt.Sprintf("%s:%s", servingHost, servingPort)
 
-	// We can make this smarter in the future
-	go func() {
-		err := health.StartHttpsServer(fmt.Sprintf(":%s", apiStatusPort))
-		if err != nil && err != http.ErrServerClosed {
-			panic(fmt.Sprintf("health check HTTP server failed: %+v", err))
-		}
-	}()
+	if err := health.StartHttpServer(logger, apiStatusPort); err != nil {
+		logger.Errorw("Error starting health check HTTP server", "error", err)
+		panic(fmt.Sprintf("health check HTTP server failed: %+v", err))
+	}
+
 	serv, err := api.NewApiServer(logger, apiConn, metadataConn, servingConn)
 	if err != nil {
 		fmt.Println(err)

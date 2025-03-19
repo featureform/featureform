@@ -9,12 +9,14 @@ package health
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
 	help "github.com/featureform/helpers"
+	"github.com/featureform/logging"
 )
 
 func handleHealthCheck(w http.ResponseWriter, r *http.Request) {
@@ -61,7 +63,7 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonResponse)
 }
 
-func StartHttpsServer(port string) error {
+func StartHttpServer(logger logging.Logger, port string) error {
 	mux := &http.ServeMux{}
 
 	mux.HandleFunc("/status", handleStatus)
@@ -74,16 +76,25 @@ func StartHttpsServer(port string) error {
 	mux.HandleFunc("/", handleIndex)
 	// Add more routes as needed.
 
+	addr := fmt.Sprintf(":%s", port)
+
 	// Set timeouts so that a slow or malicious client doesn't hold resources forever.
 	httpsSrv := &http.Server{
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 5 * time.Second,
 		IdleTimeout:  60 * time.Second,
 		Handler:      mux,
-		Addr:         port,
+		Addr:         addr,
 	}
 
-	fmt.Printf("starting health check HTTP server on port %s", port)
+	logger.Infow("starting health check HTTP server on port %s", port)
 
-	return httpsSrv.ListenAndServe()
+	go func() {
+		err := httpsSrv.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Errorw("error with health check HTTP server", "error", err)
+		}
+	}()
+
+	return nil
 }

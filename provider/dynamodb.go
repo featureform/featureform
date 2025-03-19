@@ -47,7 +47,7 @@ func init() {
 
 const (
 	// Default timeout when waiting for dynamoDB tables to be ready
-	defaultDynamoTableTimeout = 60 * time.Second
+	defaultDynamoTableTimeout = 45 * time.Second
 	// Serialization version to use for new tables
 	dynamoSerializationVersion = serializeV1
 	defaultMetadataTableName   = "FeatureformMetadata"

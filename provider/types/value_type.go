@@ -17,9 +17,10 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/golang/protobuf/proto"
+
 	"github.com/featureform/fferr"
 	pb "github.com/featureform/metadata/proto"
-	"github.com/golang/protobuf/proto"
 )
 
 func init() {
@@ -43,6 +44,7 @@ const (
 	Bool      ScalarType = "bool"
 	Timestamp ScalarType = "time.Time"
 	Datetime  ScalarType = "datetime"
+	Unknown   ScalarType = "unknown"
 )
 
 var ScalarTypes = map[ScalarType]bool{
@@ -62,6 +64,7 @@ var ScalarTypes = map[ScalarType]bool{
 	Bool:      true,
 	Timestamp: true,
 	Datetime:  true,
+	Unknown:   true,
 }
 
 var scalarToProto = map[ScalarType]pb.ScalarType{

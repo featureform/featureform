@@ -131,18 +131,16 @@ func (adapter *ChunkedDatasetAdapter) ChunkIterator(ctx Context, idx int) (Sized
 	}, nil
 }
 
-// Iterator is the generic interface to loop through any dataset in
-// Featureform.
+// Iterator is the generic interface to loop through any dataset in Featureform.
 type Iterator interface {
-	Next(Context) bool
+	Next() bool
 	Values() types.Row
-	Schema() (types.Schema, error)
+	Schema() types.Schema
 	Err() error
 	Close() error
 }
 
-// SizedIterator is an Iterator where we can cheaply check
-// the full length.
+// SizedIterator is an Iterator where we can cheaply check the full length.
 type SizedIterator interface {
 	Iterator
 	Len() (int64, error)

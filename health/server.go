@@ -87,7 +87,7 @@ func StartHttpServer(logger logging.Logger, port string) error {
 		Addr:         addr,
 	}
 
-	logger.Infow("starting health check HTTP server on port %s", port)
+	logger.Infof("starting health check HTTP server on port %s", port)
 
 	go func() {
 		err := httpsSrv.ListenAndServe()

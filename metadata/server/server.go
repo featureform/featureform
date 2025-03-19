@@ -14,6 +14,7 @@ import (
 	"github.com/featureform/config"
 	"github.com/featureform/config/bootstrap"
 	"github.com/featureform/db"
+	"github.com/featureform/health"
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -60,6 +61,13 @@ func main() {
 	manager, err := init.GetOrCreateTaskMetadataManager(ctx)
 	if err != nil {
 		panic(err.Error())
+	}
+
+	apiStatusPort := helpers.GetEnv("API_STATUS_PORT", "8443")
+	logger.Infow("Retrieved API status port from ENV", "port", apiStatusPort)
+	if err = health.StartHttpServer(logger, apiStatusPort); err != nil {
+		logger.Errorw("Failed to start health check", "err", err)
+		panic(err)
 	}
 
 	config := &metadata.Config{

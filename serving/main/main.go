@@ -16,6 +16,9 @@ import (
 	"net"
 	_ "net/http/pprof"
 
+	"google.golang.org/grpc"
+
+	"github.com/featureform/health"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/helpers/interceptors"
 	"github.com/featureform/logging"
@@ -23,7 +26,6 @@ import (
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/serving"
-	"google.golang.org/grpc"
 )
 
 func main() {
@@ -47,6 +49,13 @@ func main() {
 	metadataPort := help.GetEnv("METADATA_PORT", "8080")
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	logger.Infow("Using metadata conn", "conn_string", metadataConn)
+
+	apiStatusPort := help.GetEnv("API_STATUS_PORT", "8443")
+	logger.Infow("Retrieved API status port from ENV", "port", apiStatusPort)
+	if err = health.StartHttpServer(logger, apiStatusPort); err != nil {
+		logger.Errorw("Failed to start health check", "err", err)
+		panic(err)
+	}
 
 	meta, err := metadata.NewClient(metadataConn, logger)
 	if err != nil {

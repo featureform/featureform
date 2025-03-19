@@ -347,6 +347,8 @@ func (store *dynamodbOnlineStore) GetTable(feature, variant string) (OnlineStore
 }
 
 func (store *dynamodbOnlineStore) tableExists(feature, variant string) (bool, error) {
+	// We store tables in two places: DynamoDB and a metadata table. We need to check both to ensure consistency.
+
 	key := dynamodbTableKey{store.prefix, feature, variant}
 	tableName := formatDynamoTableName(store.prefix, feature, variant)
 

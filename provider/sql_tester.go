@@ -8,6 +8,8 @@
 package provider
 
 import (
+	"testing"
+
 	"github.com/featureform/provider/location"
 )
 
@@ -34,7 +36,7 @@ type offlineSqlStoreCoreTester interface {
 }
 
 type offlineSqlStoreCreateDb interface {
-	CreateDatabase(name string) error
+	CreateDatabase(t *testing.T, name string) (offlineSqlStoreCreateDb, error)
 	DropDatabase(name string) error
 	offlineSqlStoreTester
 }

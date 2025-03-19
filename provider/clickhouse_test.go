@@ -35,8 +35,8 @@ func (ch *clickHouseOfflineStoreTester) GetTestDatabase() string {
 	return ch.defaultDbName
 }
 
-func (ch *clickHouseOfflineStoreTester) CreateDatabase(name string) error {
-	return createOrReplaceClickHouseDatabase(ch.conn, name)
+func (ch *clickHouseOfflineStoreTester) CreateDatabase(_ *testing.T, name string) (offlineSqlStoreCreateDb, error) {
+	return ch, createOrReplaceClickHouseDatabase(ch.conn, name)
 }
 
 func (ch *clickHouseOfflineStoreTester) DropDatabase(name string) error {

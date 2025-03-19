@@ -45,8 +45,8 @@ func (bq *bigQueryOfflineStoreTester) TestDbName() string {
 	return bq.query.ProjectId
 }
 
-func (bq *bigQueryOfflineStoreTester) CreateDatabase(_ string) error {
-	return nil
+func (bq *bigQueryOfflineStoreTester) CreateDatabase(_ *testing.T, _ string) (offlineSqlStoreCreateDb, error) {
+	return bq, nil
 }
 
 func (bq *bigQueryOfflineStoreTester) DropDatabase(_ string) error {

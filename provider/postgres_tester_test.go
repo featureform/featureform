@@ -159,7 +159,7 @@ func (p *postgresOfflineStoreTester) CreateTable(loc location.Location, schema T
 		return nil, tblErr
 	}
 
-	return &sqlPrimaryTable{
+	return &SqlPrimaryTable{
 		db:           db,
 		name:         sqlLocation.Location(),
 		sqlLocation:  sqlLocation,

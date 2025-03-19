@@ -7,6 +7,14 @@
 
 package provider_type
 
+import (
+	"sync"
+
+	"github.com/featureform/fferr"
+	types "github.com/featureform/fftypes"
+	"github.com/featureform/logging"
+)
+
 type Type string
 
 func (t Type) String() string {
@@ -78,4 +86,30 @@ func GetOfflineTypes() []Type {
 
 func GetFileTypes() []Type {
 	return []Type{S3, GCS, HDFS, AZURE}
+}
+
+var (
+	converterRegistry = make(map[Type]types.ValueConverter[any])
+	registryLock      = sync.RWMutex{}
+)
+
+// RegisterConverter registers a converter for a provider type
+func RegisterConverter(t Type, converter types.ValueConverter[any]) {
+	logger := logging.GlobalLogger
+	logger.Infof("Registering converter for provider type %s", t.String())
+	registryLock.Lock()
+	defer registryLock.Unlock()
+	converterRegistry[t] = converter
+}
+
+// GetConverter retrieves a converter for a provider type
+func GetConverter(t Type) (types.ValueConverter[any], error) {
+	registryLock.RLock()
+	defer registryLock.RUnlock()
+
+	converter, exists := converterRegistry[t]
+	if !exists {
+		return nil, fferr.NewInternalErrorf("No converter found for provider type %s", t.String())
+	}
+	return converter, nil
 }

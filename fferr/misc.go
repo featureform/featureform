@@ -99,3 +99,17 @@ func NewUnimplementedError(err error) *UnimplementedError {
 		baseError,
 	}
 }
+
+type UnsupportedTypeError struct {
+	baseError
+}
+
+func NewUnsupportedTypeError(unsupportedType string) *UnsupportedTypeError {
+	err := fmt.Errorf("unsupported type: %s", unsupportedType)
+	baseError := newBaseError(err, "UNSUPPORTED_TYPE", codes.InvalidArgument)
+	baseError.AddDetail("native_type", unsupportedType)
+
+	return &UnsupportedTypeError{
+		baseError: baseError,
+	}
+}

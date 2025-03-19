@@ -16,6 +16,7 @@ import (
 
 	"github.com/featureform/fferr"
 	fs "github.com/featureform/filestore"
+	"github.com/featureform/health"
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -253,6 +254,13 @@ func main() {
 	}
 	proxyFlightServer.logger.Infof("Connected to Metadata at %s", metadataUrl)
 	proxyFlightServer.metadata = client
+
+	apiStatusPort := helpers.GetEnv("API_STATUS_PORT", "8443")
+	baseLogger.Infow("Retrieved API status port from ENV", "port", apiStatusPort)
+	if err = health.StartHttpServer(baseLogger, apiStatusPort); err != nil {
+		baseLogger.Errorw("Failed to start health check", "err", err)
+		panic(err)
+	}
 
 	grpcServer := grpc.NewServer()
 	listener, err := net.Listen("tcp", serverAddress)

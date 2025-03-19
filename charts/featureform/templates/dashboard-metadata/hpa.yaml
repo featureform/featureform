@@ -6,7 +6,7 @@
 #
 
 {{- if .Values.dashboardmetadata.autoscaling.enabled }}
-apiVersion: autoscaling/v2beta1
+apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 spec:
   scaleTargetRef:
@@ -20,12 +20,16 @@ spec:
     - type: Resource
       resource:
         name: cpu
-        targetAverageUtilization: {{ .Values.metadata.autoscaling.targetCPUUtilizationPercentage }}
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.metadata.autoscaling.targetCPUUtilizationPercentage }}
     {{- end }}
     {{- if .Values.dashboardmetadata.autoscaling.targetMemoryUtilizationPercentage }}
     - type: Resource
       resource:
         name: memory
-        targetAverageUtilization: {{ .Values.dashboardmetadata.autoscaling.targetMemoryUtilizationPercentage }}
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.dashboardmetadata.autoscaling.targetMemoryUtilizationPercentage }}
     {{- end }}
 {{- end }}

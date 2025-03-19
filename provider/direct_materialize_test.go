@@ -46,14 +46,6 @@ func TestDirectMaterialization(t *testing.T) {
 	}
 }
 
-func TestAli(t *testing.T) {
-	db := GetTestingDynamoDB(t, map[string]string{})
-	err := db.DeleteTable("direct_materialize_test", "t1")
-	if err != nil {
-		t.Fatalf("Failed to delete table: %s", err)
-	}
-}
-
 func setupResourceTable(t *testing.T, offline OfflineStore, variant string) {
 	// TODO make this work for all offline stores
 	location := pl.NewCatalogLocation("ff", "transactions2", "iceberg")

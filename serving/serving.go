@@ -23,7 +23,6 @@ import (
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/provider"
-	"github.com/featureform/provider/dataset"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
 )
@@ -575,30 +574,9 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 		if err != nil {
 			return nil, err
 		}
-		return &NewIteratorToOldIteratorAdapter{it}, nil
+		return &provider.NewIteratorToOldIteratorAdapter{Iterator: it}, nil
 	}
 	return primary.IterateSegment(limit)
-}
-
-type NewIteratorToOldIteratorAdapter struct {
-	dataset.Iterator
-}
-
-func (it *NewIteratorToOldIteratorAdapter) Columns() []string {
-	return it.Iterator.Schema().ColumnNames()
-}
-
-func (it *NewIteratorToOldIteratorAdapter) Next() bool {
-	return it.Iterator.Next()
-}
-
-func (it *NewIteratorToOldIteratorAdapter) Values() provider.GenericRecord {
-	row := it.Iterator.Values()
-	gr := make(provider.GenericRecord, len(row))
-	for i, v := range row {
-		gr[i] = v.Value
-	}
-	return gr
 }
 
 func (serv *FeatureServer) addModel(ctx context.Context, model *pb.Model, features []*pb.FeatureID) error {

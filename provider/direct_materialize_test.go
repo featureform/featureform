@@ -34,6 +34,12 @@ func TestDirectMaterialization(t *testing.T) {
 		setupResourceTable(t, offlineStore, variantUUID)
 		for onlineName, onlineStore := range onlineStores {
 			setupOnlineTable(t, onlineStore, variantUUID)
+			t.Cleanup(func() {
+				if err := onlineStore.DeleteTable("direct_materialize_test", variantUUID); err != nil {
+					t.Logf("Failed to drop online table: %s", err)
+				}
+			})
+
 			t.Logf("Testing offline store %s online store %s", offlineName, onlineName)
 			testName := fmt.Sprintf("direct_materialize_%s_into_%s", offlineName, onlineName)
 			// Setup the closure

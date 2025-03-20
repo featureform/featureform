@@ -23,7 +23,6 @@ import (
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/provider"
-	"github.com/featureform/provider/dataset"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
 )
@@ -575,7 +574,7 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 		if err != nil {
 			return nil, err
 		}
-		return &dataset.NewIteratorToOldIteratorAdapter{Iterator: it}, nil
+		return &provider.NewIteratorToOldIteratorAdapter{Iterator: it}, nil
 	}
 	return primary.IterateSegment(limit)
 }

@@ -32,6 +32,7 @@ const (
 	Bool      ScalarType = "bool"
 	Timestamp ScalarType = "time.Time"
 	Datetime  ScalarType = "datetime"
+	Unknown   ScalarType = "Unknown"
 )
 
 var ScalarTypes = map[ScalarType]bool{

@@ -12,9 +12,10 @@ import (
 	"strings"
 	"time"
 
+	db "github.com/jackc/pgx/v4"
+
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
-	db "github.com/jackc/pgx/v4"
 )
 
 const CATALOG_CLAUSE = "CATALOG = 'SNOWFLAKE' "
@@ -118,12 +119,12 @@ func (q snowflakeSQLQueries) materializationCreateAsQuery(entity, value, ts, tab
 
 func (q snowflakeSQLQueries) dropTableQuery(loc pl.SQLLocation) string {
 	obj := loc.TableLocation()
-	return fmt.Sprintf("DROP TABLE %s", SanitizeSqlLocation(obj))
+	return fmt.Sprintf("DROP TABLE %s", pl.SanitizeFullyQualifiedObject(obj))
 }
 
 func (q snowflakeSQLQueries) dropViewQuery(loc pl.SQLLocation) string {
 	obj := loc.TableLocation()
-	return fmt.Sprintf("DROP VIEW %s", SanitizeSqlLocation(obj))
+	return fmt.Sprintf("DROP VIEW %s", pl.SanitizeFullyQualifiedObject(obj))
 }
 
 func SanitizeSnowflakeIdentifier(obj pl.FullyQualifiedObject) string {

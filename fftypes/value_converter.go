@@ -74,7 +74,11 @@ func ConvertNumberToInt64(v any) (int64, error) {
 	case float64:
 		return int64(casted), nil
 	case string:
-		return strconv.ParseInt(casted, 10, 64)
+		intVal, err := strconv.ParseInt(casted, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("failed to parse int64 from string: %w", err)
+		}
+		return intVal, nil
 	default:
 		return 0, fmt.Errorf("cannot cast %T to int64", v)
 	}
@@ -116,7 +120,11 @@ func ConvertNumberToFloat64(v any) (float64, error) {
 	case float64:
 		return casted, nil
 	case string:
-		return strconv.ParseFloat(casted, 64)
+		floatVal, err := strconv.ParseFloat(casted, 64)
+		if err != nil {
+			return 0, fmt.Errorf("failed to parse float64 from string: %w", err)
+		}
+		return floatVal, nil
 	default:
 		return 0, fmt.Errorf("cannot cast %T to float64", v)
 	}

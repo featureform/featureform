@@ -352,7 +352,7 @@ func (store *dynamodbOnlineStore) tableExists(feature, variant string) (bool, er
 	key := dynamodbTableKey{store.prefix, feature, variant}
 	tableName := formatDynamoTableName(store.prefix, feature, variant)
 
-	logger := logger.With("tableName", tableName, "key", key)
+	logger := store.logger.With("tableName", tableName, "key", key)
 	logger.Debug("Checking if table exists in DynamoDB...")
 
 	// Check if table exists in DynamoDB

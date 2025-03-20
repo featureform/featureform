@@ -32,7 +32,6 @@ const (
 	Bool      ScalarType = "bool"
 	Timestamp ScalarType = "time.Time"
 	Datetime  ScalarType = "datetime"
-	Unknown   ScalarType = "unknown"
 )
 
 var ScalarTypes = map[ScalarType]bool{
@@ -51,7 +50,6 @@ var ScalarTypes = map[ScalarType]bool{
 	Bool:      true,
 	Timestamp: true,
 	Datetime:  true,
-	Unknown:   true,
 }
 
 var scalarToProto = map[ScalarType]pb.ScalarType{

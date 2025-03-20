@@ -13,6 +13,7 @@ import (
 
 	"github.com/featureform/fferr"
 	types "github.com/featureform/fftypes"
+	"github.com/featureform/provider"
 	pl "github.com/featureform/provider/location"
 )
 
@@ -153,4 +154,25 @@ type GenericSizedIterator struct {
 
 func (it *GenericSizedIterator) Len() (int64, error) {
 	return it.length, nil
+}
+
+type NewIteratorToOldIteratorAdapter struct {
+	Iterator
+}
+
+func (it *NewIteratorToOldIteratorAdapter) Columns() []string {
+	return it.Iterator.Schema().ColumnNames()
+}
+
+func (it *NewIteratorToOldIteratorAdapter) Next() bool {
+	return it.Iterator.Next()
+}
+
+func (it *NewIteratorToOldIteratorAdapter) Values() provider.GenericRecord {
+	row := it.Iterator.Values()
+	gr := make(provider.GenericRecord, len(row))
+	for i, v := range row {
+		gr[i] = v.Value
+	}
+	return gr
 }

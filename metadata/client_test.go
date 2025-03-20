@@ -49,7 +49,6 @@ func TestSourceVariant_IsTransformation(t *testing.T) {
 			variant := &SourceVariant{
 				serialized:           tt.fields.serialized,
 				fetchTrainingSetsFns: tt.fields.fetchTrainingSetsFns,
-				fetchFeaturesFns:     tt.fields.fetchFeaturesFns,
 				fetchLabelsFns:       tt.fields.fetchLabelsFns,
 				fetchProviderFns:     tt.fields.fetchProviderFns,
 				createdFn:            tt.fields.createdFn,
@@ -128,7 +127,6 @@ func TestSourceVariant_TransformationArgs(t *testing.T) {
 			variant := &SourceVariant{
 				serialized:           tt.fields.serialized,
 				fetchTrainingSetsFns: tt.fields.fetchTrainingSetsFns,
-				fetchFeaturesFns:     tt.fields.fetchFeaturesFns,
 				fetchLabelsFns:       tt.fields.fetchLabelsFns,
 				fetchProviderFns:     tt.fields.fetchProviderFns,
 				createdFn:            tt.fields.createdFn,

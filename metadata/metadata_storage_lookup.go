@@ -41,8 +41,8 @@ type MetadataStorageRowTemp struct {
 	SerializedVersion int         //Checks if its serialized using JSON or proto
 }
 
-// Serializes the entire ETCD Storage Object to be put into ETCD
-func (lookup MetadataStorageResourceLookup) serializeResource(res Resource) ([]byte, error) {
+// Serializes a Resource to be put into metadata
+func serializeResource(res Resource) ([]byte, error) {
 	p, err := protojson.Marshal(res.Proto())
 	if err != nil {
 		return nil, err
@@ -62,7 +62,7 @@ func (lookup MetadataStorageResourceLookup) serializeResource(res Resource) ([]b
 }
 
 // Deserializes object into the Storage Object
-func (lookup MetadataStorageResourceLookup) deserialize(value []byte) (StoredRow, error) {
+func deserialize(value []byte) (StoredRow, error) {
 	var tmp StoredRowTemp
 	if err := json.Unmarshal(value, &tmp); err != nil {
 		return StoredRow{}, errors.Wrap(err, fmt.Sprintf("failed to parse resource: %s", value))
@@ -74,6 +74,29 @@ func (lookup MetadataStorageResourceLookup) deserialize(value []byte) (StoredRow
 		SerializedVersion: tmp.SerializedVersion,
 	}
 	return msg, nil
+}
+
+func parseLookupResource(ctx context.Context, resp string) (Resource, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger.Debug("Deserializing key")
+	msg, err := deserialize([]byte(resp))
+	if err != nil {
+		logger.Errorw("Failed to deserialize resource from DB", "err", err)
+		return nil, err
+	}
+	logger.Debug("Create empty resource")
+	resType, err := CreateEmptyResource(msg.ResourceType)
+	if err != nil {
+		logger.Errorw("Failed to create empty resource", "err", err)
+		return nil, err
+	}
+	logger.Debug("Parsing resource")
+	resource, err := ParseResource(msg, resType)
+	if err != nil {
+		logger.Errorw("Failed to parse resource from DB", "err", err)
+		return nil, err
+	}
+	return resource, nil
 }
 
 func (lookup MetadataStorageResourceLookup) Lookup(ctx context.Context, id ResourceID, opts ...ResourceLookupOption) (Resource, error) {
@@ -97,26 +120,10 @@ func (lookup MetadataStorageResourceLookup) Lookup(ctx context.Context, id Resou
 		logger.Debug("Key not found")
 		return nil, fferr.NewKeyNotFoundError(key, err)
 	}
-	logger.Debug("Deserializing key")
-	msg, err := lookup.deserialize([]byte(resp))
-	if err != nil {
-		logger.Errorw("Failed to deserialize resource from DB", "err", err)
-		return nil, err
-	}
-	logger.Debug("Create empty resource")
-	resType, err := CreateEmptyResource(msg.ResourceType)
-	if err != nil {
-		logger.Errorw("Failed to create empty resource", "err", err)
-		return nil, err
-	}
-	logger.Debug("Parsing resource")
-	resource, err := ParseResource(msg, resType)
-	if err != nil {
-		logger.Errorw("Failed to parse resource from DB", "err", err)
-		return nil, err
-	}
 	logger.Info("DB lookup successful")
-	return resource, nil
+	ctx = logger.AttachToContext(ctx)
+
+	return parseLookupResource(ctx, resp)
 }
 
 func (lookup MetadataStorageResourceLookup) Delete(ctx context.Context, id ResourceID) error {
@@ -205,7 +212,7 @@ func (lookup MetadataStorageResourceLookup) SetSchedule(ctx context.Context, id 
 func (lookup MetadataStorageResourceLookup) Set(ctx context.Context, id ResourceID, res Resource) error {
 	logger := logging.GetLoggerFromContext(ctx).With("resource-id", id)
 	logger.Debugw("Serializing resource")
-	serRes, err := lookup.serializeResource(res)
+	serRes, err := serializeResource(res)
 	if err != nil {
 		logger.Errorw("Failed to serialize resource", "error", err)
 		return err
@@ -230,7 +237,7 @@ func (lookup MetadataStorageResourceLookup) Submap(ctx context.Context, ids []Re
 		if err != nil {
 			return nil, fferr.NewKeyNotFoundError(key, err)
 		}
-		storedRow, err := lookup.deserialize([]byte(resp))
+		storedRow, err := deserialize([]byte(resp))
 		if err != nil {
 			return nil, err
 		}
@@ -256,7 +263,7 @@ func (lookup MetadataStorageResourceLookup) ListForType(ctx context.Context, t R
 		return nil, err
 	}
 	for _, v := range resp {
-		storedRow, err := lookup.deserialize([]byte(v))
+		storedRow, err := deserialize([]byte(v))
 		if err != nil {
 			return nil, err
 		}
@@ -296,7 +303,7 @@ func (lookup MetadataStorageResourceLookup) ListVariants(ctx context.Context, t 
 	}
 	startParsingTime := time.Now()
 	for _, v := range resp {
-		storedRow, err := lookup.deserialize([]byte(v))
+		storedRow, err := deserialize([]byte(v))
 		if err != nil {
 			return nil, err
 		}
@@ -324,7 +331,7 @@ func (lookup MetadataStorageResourceLookup) List(ctx context.Context) ([]Resourc
 		return nil, err
 	}
 	for _, v := range resp {
-		storedRow, err := lookup.deserialize([]byte(v))
+		storedRow, err := deserialize([]byte(v))
 		if err != nil {
 			return nil, err
 		}
@@ -369,7 +376,7 @@ func (lookup MetadataStorageResourceLookup) Search(ctx context.Context, q string
 	for key, val := range searchResults {
 		individualLogger := logger.With("key", key)
 		individualLogger.Debugw("Deserializing key")
-		msg, err := lookup.deserialize([]byte(val))
+		msg, err := deserialize([]byte(val))
 		if err != nil {
 			individualLogger.Errorw("Failed to deserialize resource from DB", "err", err)
 			continue

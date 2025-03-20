@@ -69,6 +69,9 @@ const (
 	getDependencies = `-- name: GetDependencies :many
 		SELECT * FROM get_dependencies($1::integer, $2::text, $3::text);`
 
+	getDependenciesByType = `-- name: GetDependenciesByType :many
+		SELECT key, value FROM get_dependencies_by_type($1::integer, $2::text, $3::text, $4::integer);`
+
 	archiveSql = `-- name: Delete :exec
 		UPDATE ff_task_metadata
 		SET key = concat('DELETED__', key, to_char(now(), 'YYYYMMDDTHH24MISS'))
@@ -90,6 +93,7 @@ type ResourcesRepository interface {
 	MarkForDeletion(ctx context.Context, resourceID common.ResourceID, asyncDeletionHandler AsyncDeletionHandler) error
 	PruneResource(ctx context.Context, resourceID common.ResourceID, asyncDeletionHandler AsyncDeletionHandler) ([]common.ResourceID, error)
 	ResourceLookup
+	GetDependenciesByType(ctx context.Context, resourceID common.ResourceID, depType common.ResourceType) (map[string]string, error)
 }
 
 type SqlRepositoryConfig struct {
@@ -233,16 +237,40 @@ func (r *sqlResourcesRepository) GetDependencies(ctx context.Context, resourceID
 		WithResource(resourceID.Type.ToLoggingResourceType(), resourceID.Name, resourceID.Variant).
 		With("function", "getDependencies")
 
+	ctx = logger.AttachToContext(ctx)
+
 	var dependencies []common.ResourceID
 	err := r.withRetry(ctx, logger, func() error {
 		return r.withTx(ctx, logger, func(tx pgx.Tx) error {
 			var getDepsErr error
-			dependencies, getDepsErr = r.getDependencies(ctx, tx, resourceID, logger)
+			dependencies, getDepsErr = r.getDependencies(ctx, tx, resourceID)
 			return getDepsErr
 		})
 	})
 	if err != nil {
 		logger.Errorw("error getting dependencies", "error", err)
+		return nil, err
+	}
+	return dependencies, nil
+}
+
+func (r *sqlResourcesRepository) GetDependenciesByType(ctx context.Context, resourceID common.ResourceID, depType common.ResourceType) (map[string]string, error) {
+	logger := logging.GetLoggerFromContext(ctx).
+		WithResource(resourceID.Type.ToLoggingResourceType(), resourceID.Name, resourceID.Variant).
+		With("function", "getDependenciesByType")
+
+	ctx = logger.AttachToContext(ctx)
+
+	var dependencies map[string]string
+	err := r.withRetry(ctx, logger, func() error {
+		return r.withTx(ctx, logger, func(tx pgx.Tx) error {
+			var getDepsErr error
+			dependencies, getDepsErr = r.getDependenciesByType(ctx, tx, resourceID, depType)
+			return getDepsErr
+		})
+	})
+	if err != nil {
+		logger.Errorw("error getting dependencies by type", "dependency type", depType, "error", err)
 		return nil, err
 	}
 	return dependencies, nil
@@ -327,6 +355,8 @@ func (r *sqlResourcesRepository) PruneResource(
 	logger = logger.WithResource(resourceID.Type.ToLoggingResourceType(), resourceID.Name, resourceID.Variant).
 		With("function", "prune")
 
+	ctx = logger.AttachToContext(ctx)
+
 	err := r.withRetry(ctx, logger, func() error {
 		return r.withTx(ctx, logger, func(tx pgx.Tx) error {
 			resId := ResourceID{Name: resourceID.Name, Variant: resourceID.Variant, Type: ResourceType(resourceID.Type)}
@@ -338,7 +368,7 @@ func (r *sqlResourcesRepository) PruneResource(
 
 			// Step 1: Get all dependencies
 			logger.Debugf("Getting dependencies")
-			deps, err := r.getDependencies(ctx, tx, resourceID, logger)
+			deps, err := r.getDependencies(ctx, tx, resourceID)
 			if err != nil {
 				logger.Errorw("error getting dependencies", "error", err)
 				return err
@@ -473,7 +503,9 @@ func needsJob(res Resource) bool {
 	return false
 }
 
-func (r *sqlResourcesRepository) getDependencies(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID, logger logging.Logger) ([]common.ResourceID, error) {
+func (r *sqlResourcesRepository) getDependencies(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID) ([]common.ResourceID, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+
 	var dependencies []common.ResourceID
 	rows, err := tx.Query(ctx, getDependencies, resourceID.Type, resourceID.Name, resourceID.Variant)
 	if err != nil {
@@ -482,18 +514,15 @@ func (r *sqlResourcesRepository) getDependencies(ctx context.Context, tx pgx.Tx,
 	}
 	defer rows.Close()
 
-	// Iterate through the results
 	for rows.Next() {
 		var depType int
 		var depName, depVariant string
 
-		// Scan each row into local variables
 		if err := rows.Scan(&depType, &depName, &depVariant); err != nil {
-			logger.Errorw("error scanning dependency row", "error", err)
-			return nil, fferr.NewInternalErrorf("error scanning dependency row: %v", err)
+			logger.Errorw("error getting dependency from table row", "error", err)
+			return nil, fferr.NewInternalErrorf("error getting dependency from table row: %v", err)
 		}
 
-		// Append the result to the dependencies slice
 		dependencies = append(dependencies, common.ResourceID{
 			Type:    common.ResourceType(depType),
 			Name:    depName,
@@ -501,12 +530,39 @@ func (r *sqlResourcesRepository) getDependencies(ctx context.Context, tx pgx.Tx,
 		})
 	}
 
-	// Check for any errors during iteration
 	if err := rows.Err(); err != nil {
 		logger.Errorw("error iterating through dependencies", "error", err)
 		return nil, fferr.NewInternalErrorf("error iterating through dependencies: %v", err)
 	}
 
+	return dependencies, nil
+}
+
+func (r *sqlResourcesRepository) getDependenciesByType(ctx context.Context, tx pgx.Tx, resourceID common.ResourceID, dependencyType common.ResourceType) (map[string]string, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+
+	dependencies := make(map[string]string)
+	rows, err := tx.Query(ctx, getDependenciesByType, resourceID.Type, resourceID.Name, resourceID.Variant, dependencyType)
+	if err != nil {
+		logger.Errorw("error getting dependency rows", "error", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var key, value string
+		if err := rows.Scan(&key, &value); err != nil {
+			logger.Errorw("error getting dependency from table row", "error", err)
+			return nil, fferr.NewInternalErrorf("error getting dependency from table row: %v", err)
+		}
+		logger.Debugw("added dependency to map", "key", key)
+		dependencies[key] = value
+	}
+
+	if err := rows.Err(); err != nil {
+		logger.Errorw("error iterating through all dependencies", "error", err)
+		return nil, fferr.NewInternalErrorf("error iterating through all dependencies: %v", err)
+	}
 	return dependencies, nil
 }
 
@@ -689,4 +745,8 @@ func (r *inMemoryResourcesRepository) GetDependencies(ctx context.Context, resou
 
 func (r *inMemoryResourcesRepository) Archive(ctx context.Context, resourceID common.ResourceID) error {
 	return fferr.NewInternalErrorf("archive not supported in memory")
+}
+
+func (r *inMemoryResourcesRepository) GetDependenciesByType(ctx context.Context, resourceID common.ResourceID, depType common.ResourceType) (map[string]string, error) {
+	return nil, fferr.NewInternalErrorf("get dependencies by type not supported in memory")
 }

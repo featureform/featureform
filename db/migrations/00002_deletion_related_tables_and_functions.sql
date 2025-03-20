@@ -472,16 +472,12 @@ FROM dependency_chain dc;
 -- Note: Explicit cycle detection logic is handled in the WHERE clause above
 END;
 $function$;
-
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
 ALTER TABLE ff_task_metadata
 DROP COLUMN IF EXISTS marked_for_deletion_at;
-
-DROP FUNCTION IF EXISTS get_dependencies(integer, varchar, varchar);
-
 DROP TRIGGER IF EXISTS after_insert_ff_task_metadata ON ff_task_metadata;
 
 -- Drop functions
@@ -495,6 +491,7 @@ DROP FUNCTION IF EXISTS process_feature_variant(TEXT, TEXT);
 DROP FUNCTION IF EXISTS create_resource_key(INTEGER, TEXT, TEXT);
 DROP FUNCTION IF EXISTS parse_resource_key(TEXT, resource_component);
 DROP FUNCTION IF EXISTS add_edge(INTEGER, TEXT, TEXT, INTEGER, TEXT, TEXT);
+DROP FUNCTION IF EXISTS get_dependencies(integer, varchar, varchar);
 
 -- Drop table and enum type
 DROP TABLE IF EXISTS edges;

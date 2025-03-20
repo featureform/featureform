@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/featureform/scheduling"
+	"github.com/google/uuid"
 
 	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
@@ -27,7 +28,6 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
-	"github.com/google/uuid"
 )
 
 const PythonFunc = `def average_user_transaction(transactions):
@@ -1154,7 +1154,6 @@ func (test SourceVariantTest) Test(t *testing.T, client *Client, res interface{}
 	assertEqual(t, source.PrimaryDataTimestampColumn(), test.PrimaryDataTimestampColumn)
 	if shouldFetch {
 		testFetchProvider(t, client, source)
-		testFetchFeatures(t, client, source)
 		testFetchLabels(t, client, source)
 		testFetchTrainingSets(t, client, source)
 	}
@@ -1990,7 +1989,7 @@ func testListResources(t *testing.T, typ ResourceType, tests ResourceTests) {
 
 type featuresFetcher interface {
 	Features() NameVariants
-	FetchFeatures(*Client, context.Context) ([]*FeatureVariant, error)
+	FetchFeatures(context.Context, *Client) ([]*FeatureVariant, error)
 }
 
 func testFetchFeatures(t *testing.T, client *Client, fetcher featuresFetcher) {
@@ -1998,7 +1997,7 @@ func testFetchFeatures(t *testing.T, client *Client, fetcher featuresFetcher) {
 	if err != nil {
 		t.Fatalf("Failed to get subset: %s", err)
 	}
-	features, err := fetcher.FetchFeatures(client, context.Background())
+	features, err := fetcher.FetchFeatures(context.Background(), client)
 	if err != nil {
 		t.Fatalf("Failed to fetch features: %s", err)
 	}
@@ -2191,7 +2190,6 @@ func (mocker) GetProperties() *pb.Properties {
 func getSourceVariant() *SourceVariant {
 	sv := &SourceVariant{
 		serialized:           &pb.SourceVariant{Name: "test.name", Variant: "test.variant"},
-		fetchFeaturesFns:     fetchFeaturesFns{},
 		fetchLabelsFns:       fetchLabelsFns{},
 		fetchProviderFns:     fetchProviderFns{getter: mocker{}},
 		fetchTrainingSetsFns: fetchTrainingSetsFns{},

@@ -260,9 +260,9 @@ func (m *MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet, 
 	return variantMap, nil
 }
 
-func (m *MetadataServer) readFromSource(source *metadata.Source, deepCopy bool) (map[string]metadata.SourceVariantResource, *FetchError) {
+func (m *MetadataServer) readFromSource(ctx context.Context, source *metadata.Source, deepCopy bool) (map[string]metadata.SourceVariantResource, *FetchError) {
 	variantMap := make(map[string]metadata.SourceVariantResource)
-	variants, err := source.FetchVariants(m.client, context.Background())
+	variants, err := source.FetchVariants(m.client, ctx)
 	if err != nil {
 		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "source variants"}
 		m.logger.Errorw(fetchError.Error(), "Internal Error", err)
@@ -274,12 +274,16 @@ func (m *MetadataServer) readFromSource(source *metadata.Source, deepCopy bool) 
 		if deepCopy {
 			fetchGroup := new(errgroup.Group)
 			fetchGroup.Go(func() error {
-				f, err := m.getFeatures(variant.Features())
+				f, err := variant.FetchFeatures(ctx, m.client)
 				if err != nil {
 					m.logger.Errorw(err.Error(), "Internal Error", err)
 					return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information from features"}
 				}
-				sourceResource.Features = f
+				sourceResource.Features, err = m.toFeatureVariantResource(f)
+				if err != nil {
+					m.logger.Errorw(err.Error(), "Internal Error", err)
+					return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert FeatureVariant to FeatureVariantResource"}
+				}
 				return nil
 			})
 			fetchGroup.Go(func() error {
@@ -308,6 +312,17 @@ func (m *MetadataServer) readFromSource(source *metadata.Source, deepCopy bool) 
 
 	}
 	return variantMap, nil
+}
+
+func (m *MetadataServer) toFeatureVariantResource(featureVariants []*metadata.FeatureVariant) (map[string][]metadata.FeatureVariantResource, error) {
+	featureMap := make(map[string][]metadata.FeatureVariantResource)
+	for _, variant := range featureVariants {
+		if _, has := featureMap[variant.Name()]; !has {
+			featureMap[variant.Name()] = []metadata.FeatureVariantResource{}
+		}
+		featureMap[variant.Name()] = append(featureMap[variant.Name()], variant.ToShallowMap())
+	}
+	return featureMap, nil
 }
 
 func (m *MetadataServer) readFromLabel(label *metadata.Label, deepCopy bool) (map[string]metadata.LabelVariantResource, *FetchError) {
@@ -396,14 +411,14 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			Variants:       variantList,
 		})
 	case "sources":
-		source, err := m.client.GetSource(context.Background(), c.Param("resource"))
+		source, err := m.client.GetSource(c.Request.Context(), c.Param("resource"))
 		if err != nil {
 			fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "source"}
 			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
-		variantList, fetchError := m.readFromSource(source, true)
+		variantList, fetchError := m.readFromSource(c.Request.Context(), source, true)
 		if fetchError != nil {
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
@@ -770,7 +785,7 @@ func (m *MetadataServer) GetFeatureVariantResources(c *gin.Context) {
 			continue
 		}
 		featureNameVariant := metadata.NameVariant{Name: feature.Name, Variant: feature.DefaultVariant}
-		wrappedVariant, err := m.client.GetFeatureVariant(c, featureNameVariant)
+		wrappedVariant, err := m.client.GetFeatureVariant(c.Request.Context(), featureNameVariant)
 		if err != nil {
 			m.logger.Errorw("Could not get feature variant", "error", err)
 			continue
@@ -832,7 +847,7 @@ func (m *MetadataServer) GetSourceVariantResources(c *gin.Context) {
 			continue
 		}
 		sourceNameVariant := metadata.NameVariant{Name: source.Name, Variant: source.DefaultVariant}
-		wrappedVariant, err := m.client.GetSourceVariant(c, sourceNameVariant)
+		wrappedVariant, err := m.client.GetSourceVariant(c.Request.Context(), sourceNameVariant)
 		if err != nil {
 			m.logger.Errorw("Could not get source variant", "error", err)
 			continue
@@ -890,7 +905,7 @@ func (m *MetadataServer) GetLabelVariantResources(c *gin.Context) {
 			continue
 		}
 		labelNameVariant := metadata.NameVariant{Name: label.Name, Variant: label.DefaultVariant}
-		wrappedVariant, err := m.client.GetLabelVariant(c, labelNameVariant)
+		wrappedVariant, err := m.client.GetLabelVariant(c.Request.Context(), labelNameVariant)
 		if err != nil {
 			m.logger.Errorw("Could not get label variant", "error", err)
 			continue
@@ -1052,7 +1067,7 @@ func (m *MetadataServer) GetTrainingSetVariantResources(c *gin.Context) {
 			continue
 		}
 		trainingSetNameVariant := metadata.NameVariant{Name: trainingSet.Name, Variant: trainingSet.DefaultVariant}
-		wrappedVariant, err := m.client.GetTrainingSetVariant(c, trainingSetNameVariant)
+		wrappedVariant, err := m.client.GetTrainingSetVariant(c.Request.Context(), trainingSetNameVariant)
 		if err != nil {
 			m.logger.Errorw("Could not get training set variant", "error", err)
 			continue
@@ -1741,7 +1756,7 @@ func (m *MetadataServer) getSourceMetadataList(c *gin.Context, pageSize, offset 
 			continue
 		}
 		wrappedResource := metadata.WrapProtoSource(source)
-		variantList, fetchError := m.readFromSource(wrappedResource, false)
+		variantList, fetchError := m.readFromSource(c.Request.Context(), wrappedResource, false)
 		if fetchError != nil {
 			m.logger.Errorw(fetchError.Error())
 			c.JSON(fetchError.StatusCode, fetchError.Error())

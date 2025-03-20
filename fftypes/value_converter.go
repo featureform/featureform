@@ -122,7 +122,7 @@ func ConvertNumberToFloat64(v any) (float64, error) {
 	case string:
 		floatVal, err := strconv.ParseFloat(casted, 64)
 		if err != nil {
-			return 0, fmt.Errorf("failed to parse float32 from string: %w", err)
+			return 0, fmt.Errorf("failed to parse float64 from string: %w", err)
 		}
 		return floatVal, nil
 	default:

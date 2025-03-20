@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"strings"
 
+	psql "github.com/jackc/pgx/v4"
+
 	pb "github.com/featureform/metadata/proto"
 
 	"github.com/featureform/fferr"
@@ -101,6 +103,22 @@ func (f FullyQualifiedObject) String() string {
 	parts = append(parts, f.Table)
 
 	return strings.Join(parts, ".")
+}
+
+func SanitizeFullyQualifiedObject(obj FullyQualifiedObject) string {
+	ident := psql.Identifier{}
+
+	if obj.Database != "" && obj.Schema != "" {
+		ident = append(ident, obj.Database)
+	}
+
+	if obj.Schema != "" {
+		ident = append(ident, obj.Schema)
+	}
+
+	ident = append(ident, obj.Table)
+
+	return ident.Sanitize()
 }
 
 type SQLLocation struct {
@@ -198,6 +216,10 @@ func (l *SQLLocation) Proto() *pb.Location {
 			},
 		},
 	}
+}
+
+func SanitizeSqlLocation(loc SQLLocation) string {
+	return SanitizeFullyQualifiedObject(loc.TableLocation())
 }
 
 func NewFileLocation(path filestore.Filepath) Location {

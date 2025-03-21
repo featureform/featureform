@@ -13,9 +13,10 @@ import (
 	"fmt"
 	"strings"
 
+	db "github.com/jackc/pgx/v4"
+
 	"github.com/featureform/fferr"
 	types "github.com/featureform/fftypes"
-	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
 	"github.com/featureform/provider/location"
 )
@@ -133,11 +134,13 @@ func (ds SqlDataset) Location() location.Location {
 
 func (ds SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
 	logger := logging.GetLoggerFromContext(ctx)
-	colNames := ds.schema.ColumnNames()
-	cols := strings.Join(colNames, ", ")
-
+	columnNames := make([]string, 0)
+	for _, col := range ds.schema.ColumnNames() {
+		columnNames = append(columnNames, sanitize(col))
+	}
+	cols := strings.Join(columnNames, ", ")
 	// TODO: Have a generic sanitization based on provider type
-	loc := postgres.SanitizeLocation(ds.location)
+	loc := location.SanitizeSqlLocation(ds.location)
 	var query string
 	if ds.limit == -1 {
 		query = fmt.Sprintf("SELECT %s FROM %s", cols, loc)
@@ -266,4 +269,8 @@ func (it *SqlIterator) Next() bool {
 
 	it.currentValues = it.rowBuffer
 	return true
+}
+
+func sanitize(ident string) string {
+	return db.Identifier{ident}.Sanitize()
 }

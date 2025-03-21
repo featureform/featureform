@@ -14,15 +14,15 @@ import (
 	"text/template"
 	"time"
 
+	_ "github.com/lib/pq"
+
 	"github.com/featureform/fferr"
-	helper "github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	tsq "github.com/featureform/provider/tsquery"
 	"github.com/featureform/provider/types"
-	_ "github.com/lib/pq"
 )
 
 type postgresColumnType string
@@ -142,7 +142,7 @@ WHERE rn = 1
 		"tsSelectStatement":  tsSelectStatement,
 		"tsOrderByStatement": tsOrderByStatement,
 		// TODO: Error checking for SQLLocation
-		"sourceLocation": helper.SanitizeLocation(*schema.SourceTable.(*pl.SQLLocation)),
+		"sourceLocation": pl.SanitizeSqlLocation(*schema.SourceTable.(*pl.SQLLocation)),
 	}
 
 	var sb strings.Builder
@@ -220,7 +220,7 @@ func (q postgresSQLQueries) adaptTsDefToBuilderParams(def TrainingSetDef) (tsq.B
 		if !isSQLLocation {
 			return "", fferr.NewInternalErrorf("label location is not an SQL location, actual %T. %v", lblLoc, lblLoc)
 		}
-		return helper.SanitizeLocation(*lblLoc), nil
+		return pl.SanitizeSqlLocation(*lblLoc), nil
 	}
 
 	// TODO: Create and pass in actual logger

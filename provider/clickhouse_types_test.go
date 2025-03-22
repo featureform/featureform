@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -45,7 +44,6 @@ func (td *ClickHouseTestData) ToSchema() fftypes.Schema {
 	return schema
 }
 
-// NewClickHouseTestData creates a test data structure with all ClickHouse types
 func NewClickHouseTestData(t *testing.T) *ClickHouseTestData {
 	t.Helper()
 	now := time.Now().UTC()
@@ -277,12 +275,6 @@ func TestClickHouseTypeConversions(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	//load .env
-	err := godotenv.Load("../.env")
-	if err != nil {
-		t.Fatalf("Error loading .env file")
-	}
-
 	// Initialize test database
 	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	t.Logf("Creating Parent Database: %s\n", dbName)
@@ -317,7 +309,7 @@ func TestClickHouseTypeConversions(t *testing.T) {
 	// Create a test table with all supported ClickHouse types
 	tableName := fmt.Sprintf("test_types_%s", strings.ToLower(uuid.NewString()[:8]))
 	location := pl.NewSQLLocationFromParts(clickhouseConfig.Database, "", tableName)
-	sanitized := fmt.Sprintf("%s.%s", SanitizeClickHouseIdentifier(clickhouseConfig.Database), SanitizeClickHouseIdentifier(tableName))
+	sanitized := sanitizeClickHouseTableName(location.TableLocation())
 
 	// Generate the create table SQL from our test data structure
 	createTableQuery := testData.GenerateCreateTableSQL(sanitized)
@@ -356,10 +348,7 @@ func TestClickHouseTypeConversions(t *testing.T) {
 
 	// Verify column count
 	require.Equal(t, len(expectedTypeMapping), len(row), "Unexpected number of columns in row")
-	// Verify column types
-	// iterate over row
-	// zip up the expected types and the actual types
-	// check that the actual type is the same as the expected type
+
 	for i, col := range row {
 		assert.Equal(t, expectedTypeMapping[it.Schema().ColumnNames()[i]], col.Type, "Column type mismatch")
 	}

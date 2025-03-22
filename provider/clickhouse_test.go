@@ -40,7 +40,7 @@ func (ch *clickHouseOfflineStoreTester) CreateDatabase(name string) error {
 }
 
 func (ch *clickHouseOfflineStoreTester) DropDatabase(name string) error {
-	_, err := ch.conn.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", SanitizeClickHouseIdentifier(name)))
+	_, err := ch.db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", SanitizeClickHouseIdentifier(name)))
 	if err != nil {
 		ch.logger.Errorw("dropping database", "error", err)
 		return err
@@ -412,7 +412,7 @@ func getClickHouseConfig(t *testing.T) (pc.ClickHouseConfig, error) {
 	username := helpers.MustGetTestingEnv(t, "CLICKHOUSE_USER")
 	password := helpers.MustGetTestingEnv(t, "CLICKHOUSE_PASSWORD")
 	host := helpers.MustGetTestingEnv(t, "CLICKHOUSE_HOST")
-	port := helpers.GetEnvInt("CLICKHOUSE_PORT", 9000)
+	port := helpers.GetEnvInt("CLICKHOUSE_PORT", 9001)
 	ssl := helpers.GetEnvBool("CLICKHOUSE_SSL", false)
 
 	var clickHouseConfig = pc.ClickHouseConfig{

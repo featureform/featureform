@@ -16,14 +16,13 @@ import (
 
 	"github.com/jackc/pgx/v4/stdlib"
 
-	"github.com/featureform/fferr"
-	"github.com/featureform/logging"
-	"github.com/featureform/logging/redacted"
-	pl "github.com/featureform/provider/location"
-
 	"github.com/avast/retry-go/v4"
 	psql "github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+
+	"github.com/featureform/fferr"
+	"github.com/featureform/logging"
+	"github.com/featureform/logging/redacted"
 )
 
 type Pool struct {
@@ -185,14 +184,4 @@ func (c Config) ConnectionString() string {
 
 func Sanitize(ident string) string {
 	return psql.Identifier{ident}.Sanitize()
-}
-
-func SanitizeLocation(obj pl.SQLLocation) string {
-	var parts []string
-	if obj.GetDatabase() != "" && obj.GetSchema() != "" {
-		parts = append(parts, obj.GetDatabase())
-		parts = append(parts, obj.GetSchema())
-	}
-	parts = append(parts, obj.GetTable())
-	return psql.Identifier(parts).Sanitize()
 }

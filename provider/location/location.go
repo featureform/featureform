@@ -108,6 +108,12 @@ func (f FullyQualifiedObject) String() string {
 func SanitizeFullyQualifiedObject(obj FullyQualifiedObject) string {
 	ident := psql.Identifier{}
 
+	if obj.Database != "" && obj.Table != "" && obj.Schema == "" {
+		ident = append(ident, obj.Database)
+		ident = append(ident, obj.Table)
+		return ident.Sanitize()
+	}
+
 	if obj.Database != "" && obj.Schema != "" {
 		ident = append(ident, obj.Database)
 	}

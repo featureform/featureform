@@ -195,7 +195,7 @@ func destroyBigQueryDataset(c pc.BigQueryConfig) error {
 	return err
 }
 
-func getConfiguredBigQueryTester(t *testing.T) offlineSqlTest {
+func getConfiguredBigQueryTester(t *testing.T) OfflineSqlTest {
 	logger := logging.NewTestLogger(t)
 
 	bigQueryConfig, err := getBigQueryConfig(t)
@@ -233,9 +233,9 @@ func getConfiguredBigQueryTester(t *testing.T) offlineSqlTest {
 		return "`" + obj.String() + "`"
 	}
 
-	return offlineSqlTest{
+	return OfflineSqlTest{
 		storeTester: offlineStoreTester,
-		testConfig: offlineSqlTestConfig{
+		testConfig: OfflineSqlTestConfig{
 			sanitizeTableName: sanitizeTableNameFunc,
 		},
 	}

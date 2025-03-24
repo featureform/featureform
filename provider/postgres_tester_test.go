@@ -167,15 +167,15 @@ func TestPostgresSchemas(t *testing.T) {
 		sqlOfflineStore: store.(*sqlOfflineStore),
 	}
 
-	tester := offlineSqlTest{
+	tester := OfflineSqlTest{
 		storeTester: offlineStoreTester,
-		testConfig: offlineSqlTestConfig{
+		testConfig: OfflineSqlTestConfig{
 			sanitizeTableName:        nil,
 			removeSchemaFromLocation: false,
 		},
 	}
 
-	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
+	testCases := map[string]func(t *testing.T, storeTester OfflineSqlTest){
 		//"RegisterTableInDifferentDatabaseTest": RegisterTableInDifferentDatabaseTest,
 		//"RegisterTableInSameDatabaseDifferentSchemaTest": RegisterTableInSameDatabaseDifferentSchemaTest,
 		//"RegisterTwoTablesInSameSchemaTest":              RegisterTwoTablesInSameSchemaTest,

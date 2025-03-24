@@ -386,7 +386,7 @@ func TestSnowflakeTypeConversions(t *testing.T) {
 	// Connect to the table using our converter
 	ds, err := dataset.NewSqlDatasetWithAutoSchema(
 		offlineStoreTester.db,
-		*location,
+		location,
 		snowflake.SfConverter,
 		1, // Limit to the one row we inserted
 	)

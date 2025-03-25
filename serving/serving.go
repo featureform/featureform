@@ -14,6 +14,8 @@ package serving
 import (
 	"context"
 	"fmt"
+	"io"
+	"sync"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
@@ -23,9 +25,6 @@ import (
 	"github.com/featureform/provider"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
-
-	"io"
-	"sync"
 )
 
 const (
@@ -559,6 +558,23 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	serv.Logger.Debugw("Getting source data iterator", "name", name, "variant", variant, "limit", limit)
 	if primary == nil {
 		return nil, fferr.NewInternalErrorf("primary table is nil for %s:%s", name, variant)
+	}
+
+	// check if primarySqlTable
+	if sql, ok := primary.(*provider.SqlPrimaryTable); ok {
+		if _, err := pt.GetConverter(pt.Type(providerEntry.Type())); err != nil {
+			// continue
+			return primary.IterateSegment(limit)
+		}
+		ds, err := sql.ToDataset()
+		if err != nil {
+			return nil, err
+		}
+		it, err := ds.Iterator(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &provider.NewIteratorToOldIteratorAdapter{Iterator: it}, nil
 	}
 	return primary.IterateSegment(limit)
 }

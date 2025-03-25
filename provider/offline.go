@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/featureform/provider/dataset"
 	tsq "github.com/featureform/provider/tsquery"
 
 	"github.com/google/uuid"
@@ -585,6 +586,27 @@ type GenericTableIterator interface {
 	Columns() []string
 	Err() error
 	Close() error
+}
+
+type NewIteratorToOldIteratorAdapter struct {
+	dataset.Iterator
+}
+
+func (it *NewIteratorToOldIteratorAdapter) Columns() []string {
+	return it.Iterator.Schema().ColumnNames()
+}
+
+func (it *NewIteratorToOldIteratorAdapter) Next() bool {
+	return it.Iterator.Next()
+}
+
+func (it *NewIteratorToOldIteratorAdapter) Values() GenericRecord {
+	row := it.Iterator.Values()
+	gr := make(GenericRecord, len(row))
+	for i, v := range row {
+		gr[i] = v.Value
+	}
+	return gr
 }
 
 type Materialization interface {

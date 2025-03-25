@@ -72,3 +72,6 @@ spec:
                   name: psql-secret-literal
                   key: password
           {{ end }}
+          startupProbe:
+            grpc:
+              port: 8080

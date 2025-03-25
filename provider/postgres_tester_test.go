@@ -56,38 +56,11 @@ func (p *postgresOfflineStoreTester) CreateDatabase(name string) error {
 		return err
 	}
 
-	//db, err = p.sqlOfflineStore.getDb(name, "public")
-	//if err != nil {
-	//	return err
-	//}
-
-	//// There are a few places where we assume the "PUBLIC" (case-sensitive) schema exists, so creating it here.
-	//query = fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", pq.QuoteIdentifier("PUBLIC"))
-	//_, err = db.Exec(query)
-	//if err != nil {
-	//	return err
-	//}
-
-	//// Close the connection to the "public" schema.
-	//err = db.Close()
-	//if err != nil {
-	//	return err
-	//}
-
-	//newStoreTester := getConfiguredPostgresTesterFromDatabase(name).storeTester.(*postgresOfflineStoreTester)
-
-	//// Set the default schema to "PUBLIC"
-	//query = fmt.Sprintf("SET search_path TO %s", pq.QuoteIdentifier("PUBLIC"))
-	//_, err = newStoreTester.db.Exec(query)
-	//if err != nil {
-	//	return err
-	//}
-
-	//newDb, err := newStoreTester.sqlOfflineStore.getDb(name, "PUBLIC")
-	//if err != nil {
-	//	return err
-	//}
-	//newStoreTester.db = newDb
+	db, err = p.sqlOfflineStore.getDb(name, "public")
+	if err != nil {
+		return err
+	}
+	p.db = db
 
 	return nil
 }
@@ -119,12 +92,26 @@ func (p *postgresOfflineStoreTester) DropDatabase(name string) error {
 }
 
 func (p *postgresOfflineStoreTester) CreateSchema(database, schema string) error {
-	db, err := p.sqlOfflineStore.getDb(database, "")
+	db, err := p.sqlOfflineStore.getDb(database, "public")
 	if err != nil {
 		return err
 	}
 	query := fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", pq.QuoteIdentifier(schema))
 	_, err = db.Exec(query)
+
+	// Set the default schema to newly created one
+	query = fmt.Sprintf("SET search_path TO %s", pq.QuoteIdentifier("PUBLIC"))
+	_, err = p.db.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	newDb, err := p.sqlOfflineStore.getDb(database, schema)
+	if err != nil {
+		return err
+	}
+	p.db = newDb
+
 	return err
 }
 

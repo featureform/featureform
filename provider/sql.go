@@ -43,6 +43,7 @@ type SQLOfflineStoreConfig struct {
 	Config                  pc.SerializedConfig
 	ConnectionURL           string
 	Driver                  string
+	DefaultDb               string
 	ProviderType            pt.Type
 	QueryImpl               OfflineTableQueries
 	ConnectionStringBuilder func(database, schema string) (string, error)
@@ -293,7 +294,10 @@ func (store *sqlOfflineStore) validateResourceColumns(id ResourceID, schema Reso
 		return err
 	}
 
-	tblLoc := schema.SourceTable.(*pl.SQLLocation).TableLocation()
+	defaultRoot := pl.NewSQLLocationFromParts(store.parent.DefaultDb, "public", "")
+	sqlLoc := schema.SourceTable.(*pl.SQLLocation)
+	tblLoc := defaultRoot.GetTableFromRoot(sqlLoc).TableLocation()
+
 	logger.Debugw("Source table location", "table_location", tblLoc)
 	query, err := store.query.resourceTableColumns(tblLoc)
 	if err != nil {
@@ -332,7 +336,7 @@ func (store *sqlOfflineStore) validateResourceColumns(id ResourceID, schema Reso
 		logger.Errorw("Source table does not have expected columns", "diff", diff.List())
 		return fferr.NewInvalidArgumentErrorf("source table does not have expected columns: %v", diff.List())
 	}
-	logger.Info("Successfully checked source table for resource columns")
+	logger.Debug("Successfully checked source table for resource columns")
 	return nil
 }
 

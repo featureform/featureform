@@ -319,6 +319,7 @@ func NewClickHouseOfflineStore(config pc.SerializedConfig) (*clickHouseOfflineSt
 	sgConfig := SQLOfflineStoreConfig{
 		Config:       config,
 		Driver:       "clickhouse",
+		DefaultDb:    cc.Database,
 		ProviderType: pt.ClickHouseOffline,
 		QueryImpl:    &queries,
 	}

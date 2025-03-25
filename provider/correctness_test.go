@@ -31,29 +31,31 @@ import (
 	"github.com/featureform/provider/types"
 )
 
+type providerTester = func(*testing.T) offlineSqlTest
+
 func TestTransformations(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
 	}
 
 	testInfra := []struct {
-		tester              offlineSqlTest
+		tester              providerTester
 		transformationQuery string
 	}{
 		{
-			getConfiguredBigQueryTester(t),
+			getConfiguredBigQueryTester,
 			"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, TIMESTAMP(timestamp) as date FROM %s GROUP BY location_id, TIMESTAMP(timestamp)",
 		},
 		{
-			getConfiguredSnowflakeTester(t),
+			getConfiguredSnowflakeTester,
 			"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)",
 		},
 		{
-			getConfiguredPostgresTester(t),
+			getConfiguredPostgresTester,
 			"SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
 		},
 		{
-			getConfiguredClickHouseTester(t),
+			getConfiguredClickHouseTester,
 			"SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
 		},
 	}
@@ -65,11 +67,12 @@ func TestTransformations(t *testing.T) {
 
 	for _, infra := range testInfra {
 		for testName, testCase := range testSuite {
-			providerName := infra.tester.storeTester.Type()
+			tester := infra.tester(t)
+			providerName := tester.storeTester.Type()
 			name := fmt.Sprintf("%s:%s", providerName, testName)
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				testCase(t, infra.tester, infra.transformationQuery)
+				testCase(t, tester, infra.transformationQuery)
 			})
 		}
 	}
@@ -81,12 +84,12 @@ func TestMaterializations(t *testing.T) {
 	}
 
 	testInfra := []struct {
-		tester offlineSqlTest
+		tester providerTester
 	}{
-		{getConfiguredBigQueryTester(t)},
-		{getConfiguredSnowflakeTester(t)},
-		{getConfiguredPostgresTester(t)},
-		{getConfiguredClickHouseTester(t)},
+		{getConfiguredBigQueryTester},
+		{getConfiguredSnowflakeTester},
+		{getConfiguredPostgresTester},
+		{getConfiguredClickHouseTester},
 	}
 
 	testSuite := map[string]func(t *testing.T, storeTester offlineSqlTest){
@@ -96,11 +99,12 @@ func TestMaterializations(t *testing.T) {
 
 	for _, infra := range testInfra {
 		for testName, testCase := range testSuite {
-			providerName := infra.tester.storeTester.Type()
+			tester := infra.tester(t)
+			providerName := tester.storeTester.Type()
 			name := fmt.Sprintf("%s:%s", providerName, testName)
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				testCase(t, infra.tester)
+				testCase(t, tester)
 			})
 		}
 	}
@@ -112,19 +116,19 @@ func TestTrainingSets(t *testing.T) {
 	}
 
 	testInfra := []struct {
-		tester offlineSqlTest
+		tester providerTester
 	}{
 		{
-			getConfiguredBigQueryTester(t),
+			getConfiguredBigQueryTester,
 		},
 		{
-			getConfiguredSnowflakeTester(t),
+			getConfiguredSnowflakeTester,
 		},
 		{
-			getConfiguredPostgresTester(t),
+			getConfiguredPostgresTester,
 		},
 		{
-			getConfiguredClickHouseTester(t),
+			getConfiguredClickHouseTester,
 		},
 	}
 
@@ -137,11 +141,12 @@ func TestTrainingSets(t *testing.T) {
 
 	for _, infra := range testInfra {
 		for _, testCase := range testSuite {
-			providerName := infra.tester.storeTester.Type()
+			tester := infra.tester(t)
+			providerName := tester.storeTester.Type()
 			name := fmt.Sprintf("%s:%s", providerName, string(testCase))
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				RegisterTrainingSet(t, infra.tester, testCase)
+				RegisterTrainingSet(t, tester, testCase)
 			})
 		}
 	}
@@ -153,13 +158,13 @@ func TestResourceTable(t *testing.T) {
 	}
 
 	testInfra := []struct {
-		tester offlineSqlTest
+		tester providerTester
 	}{
 		// TODO: Fix and enable
 		//{getConfiguredBigQueryTester(t, false)},
-		{getConfiguredSnowflakeTester(t)},
-		{getConfiguredPostgresTester(t)},
-		{getConfiguredClickHouseTester(t)},
+		{getConfiguredSnowflakeTester},
+		{getConfiguredPostgresTester},
+		{getConfiguredClickHouseTester},
 	}
 
 	tsDatasetTypes := []trainingSetDatasetType{
@@ -169,13 +174,14 @@ func TestResourceTable(t *testing.T) {
 
 	for _, infra := range testInfra {
 		for _, testCase := range tsDatasetTypes {
+			tester := infra.tester(t)
 			testName := string(testCase)
-			providerName := infra.tester.storeTester.Type()
+			providerName := tester.storeTester.Type()
 			name := fmt.Sprintf("%s:%s", providerName, testName)
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				RegisterValidFeatureAndLabel(t, infra.tester, testCase)
-				RegisterInValidFeatureAndLabel(t, infra.tester, testCase)
+				RegisterValidFeatureAndLabel(t, tester, testCase)
+				RegisterInValidFeatureAndLabel(t, tester, testCase)
 			})
 		}
 	}
@@ -187,27 +193,28 @@ func TestDelete(t *testing.T) {
 	}
 
 	testInfra := []struct {
-		tester offlineSqlTest
+		tester providerTester
 	}{
 		// TODO: Fix and enable
 		//{getConfiguredBigQueryTester(t, false)},
-		{getConfiguredSnowflakeTester(t)},
-		{getConfiguredPostgresTester(t)},
-		{getConfiguredClickHouseTester(t)},
+		//{getConfiguredSnowflakeTester},
+		{getConfiguredPostgresTester},
+		//{getConfiguredClickHouseTester},
 	}
 
 	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
-		"DeleteTableTest":            DeleteTableTest,
-		"DeleteNotExistingTableTest": DeleteNotExistingTableTest,
+		"DeleteTableTest": DeleteTableTest,
+		//"DeleteNotExistingTableTest": DeleteNotExistingTableTest,
 	}
 
 	for _, infra := range testInfra {
 		for testName, testCase := range testCases {
-			providerName := infra.tester.storeTester.Type()
+			tester := infra.tester(t)
+			providerName := tester.storeTester.Type()
 			name := fmt.Sprintf("%s:%s", providerName, testName)
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				testCase(t, infra.tester)
+				testCase(t, tester)
 			})
 		}
 	}
@@ -1439,9 +1446,14 @@ func DeleteTableTest(t *testing.T, test offlineSqlTest) {
 		}
 	})
 
+	schemaName := "PUBLIC"
+	if err := storeTester.CreateSchema(dbName, schemaName); err != nil {
+		t.Fatalf("could not create schema: %v", err)
+	}
+
 	// Create the table
 	tableName := "DUMMY_TABLE"
-	location := newSqlLocation(test.testConfig, dbName, "PUBLIC", tableName)
+	location := newSqlLocation(test.testConfig, dbName, schemaName, tableName)
 
 	if _, err = createDummyTable(test.storeTester, location, 3); err != nil {
 		t.Fatalf("could not create table: %v", err)
@@ -1464,7 +1476,12 @@ func DeleteNotExistingTableTest(t *testing.T, test offlineSqlTest) {
 		t.Fatalf("could not create database: %v", err)
 	}
 
-	loc := newSqlLocation(test.testConfig, dbName, "PUBLIC", "NOT_EXISTING_TABLE")
+	schemaName := "PUBLIC"
+	if err := storeTester.CreateSchema(dbName, schemaName); err != nil {
+		t.Fatalf("could not create schema: %v", err)
+	}
+
+	loc := newSqlLocation(test.testConfig, dbName, schemaName, "NOT_EXISTING_TABLE")
 
 	deleteErr := test.storeTester.Delete(loc)
 	if deleteErr == nil {

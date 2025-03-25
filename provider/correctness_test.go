@@ -197,14 +197,14 @@ func TestDelete(t *testing.T) {
 	}{
 		// TODO: Fix and enable
 		//{getConfiguredBigQueryTester(t, false)},
-		//{getConfiguredSnowflakeTester},
+		{getConfiguredSnowflakeTester},
 		{getConfiguredPostgresTester},
-		//{getConfiguredClickHouseTester},
+		{getConfiguredClickHouseTester},
 	}
 
 	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
 		"DeleteTableTest": DeleteTableTest,
-		//"DeleteNotExistingTableTest": DeleteNotExistingTableTest,
+		"DeleteNotExistingTableTest": DeleteNotExistingTableTest,
 	}
 
 	for _, infra := range testInfra {

@@ -77,13 +77,9 @@ spec:
             - name: http
               containerPort: {{ .Values.dashboardmetadata.port }}
               protocol: TCP
-#          livenessProbe:
-#            httpGet:
-#              path: /
-#              port: http
-#          readinessProbe:
-#            httpGet:
-#              path: /
-#              port: http
           resources:
             {{- toYaml .Values.dashboardmetadata.resources | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: /data/version
+              port: {{ .Values.dashboardmetadata.port }}

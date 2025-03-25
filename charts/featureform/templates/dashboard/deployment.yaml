@@ -41,3 +41,7 @@ spec:
                   name: featureform-env
             - name: FEATUREFORM_DEBUG_LOGGING
               value: {{ .Values.debug | quote }}
+          startupProbe:
+            httpGet:
+              path: /
+              port: 80

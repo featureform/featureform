@@ -37,59 +37,59 @@ func (p *postgresOfflineStoreTester) GetTestDatabase() string {
 	return p.defaultDbName
 }
 
-func (p *postgresOfflineStoreTester) CreateDatabase(t *testing.T, name string) (offlineSqlStoreCreateDb, error) {
+func (p *postgresOfflineStoreTester) CreateDatabase(name string) error {
 	db, err := p.sqlOfflineStore.getDb("", "")
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Postgres doesn't have a CREATE DATABASE IF EXISTS clause, so we just drop and recreate it.
 	query := fmt.Sprintf("DROP DATABASE IF EXISTS %s", pq.QuoteIdentifier(name))
 	_, err = db.Exec(query)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	query = fmt.Sprintf("CREATE DATABASE %s", pq.QuoteIdentifier(name))
 	_, err = db.Exec(query)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	db, err = p.sqlOfflineStore.getDb(name, "public")
-	if err != nil {
-		return nil, err
-	}
+	//db, err = p.sqlOfflineStore.getDb(name, "public")
+	//if err != nil {
+	//	return err
+	//}
 
-	// There are a few places where we assume the "PUBLIC" (case-sensitive) schema exists, so creating it here.
-	query = fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", pq.QuoteIdentifier("PUBLIC"))
-	_, err = db.Exec(query)
-	if err != nil {
-		return nil, err
-	}
+	//// There are a few places where we assume the "PUBLIC" (case-sensitive) schema exists, so creating it here.
+	//query = fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", pq.QuoteIdentifier("PUBLIC"))
+	//_, err = db.Exec(query)
+	//if err != nil {
+	//	return err
+	//}
 
-	// Close the connection to the "public" schema.
-	err = db.Close()
-	if err != nil {
-		return nil, err
-	}
+	//// Close the connection to the "public" schema.
+	//err = db.Close()
+	//if err != nil {
+	//	return err
+	//}
 
-	newStoreTester := getConfiguredPostgresTesterFromDatabase(t, name).storeTester.(*postgresOfflineStoreTester)
+	//newStoreTester := getConfiguredPostgresTesterFromDatabase(name).storeTester.(*postgresOfflineStoreTester)
 
-	// Set the default schema to "PUBLIC"
-	query = fmt.Sprintf("SET search_path TO %s", pq.QuoteIdentifier("PUBLIC"))
-	_, err = newStoreTester.db.Exec(query)
-	if err != nil {
-		return nil, err
-	}
+	//// Set the default schema to "PUBLIC"
+	//query = fmt.Sprintf("SET search_path TO %s", pq.QuoteIdentifier("PUBLIC"))
+	//_, err = newStoreTester.db.Exec(query)
+	//if err != nil {
+	//	return err
+	//}
 
-	newDb, err := newStoreTester.sqlOfflineStore.getDb(name, "PUBLIC")
-	if err != nil {
-		return nil, err
-	}
-	newStoreTester.db = newDb
+	//newDb, err := newStoreTester.sqlOfflineStore.getDb(name, "PUBLIC")
+	//if err != nil {
+	//	return err
+	//}
+	//newStoreTester.db = newDb
 
-	return newStoreTester, nil
+	return nil
 }
 
 func (p *postgresOfflineStoreTester) DropDatabase(name string) error {

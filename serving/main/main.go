@@ -17,6 +17,8 @@ import (
 	_ "net/http/pprof"
 
 	"google.golang.org/grpc"
+	grpc_health "google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/featureform/health"
 	help "github.com/featureform/helpers"
@@ -67,6 +69,10 @@ func main() {
 		logger.Panicw("Failed to create training server", "Err", err)
 	}
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(interceptors.UnaryServerErrorInterceptor), grpc.StreamInterceptor(interceptors.StreamServerErrorInterceptor))
+
+	healthServer := grpc_health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
 
 	pb.RegisterFeatureServer(grpcServer, serv)
 	logger.Infow("Serving metrics", "Port", metricsPort)

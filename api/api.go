@@ -23,6 +23,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	grpc_health "google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 	grpc_status "google.golang.org/grpc/status"
@@ -1510,6 +1512,11 @@ func (serv *ApiServer) ServeOnListener(lis net.Listener) error {
 		grpc.KeepaliveParams(kasp),
 	}
 	grpcServer := grpc.NewServer(opt...)
+
+	healthServer := grpc_health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+
 	reflection.Register(grpcServer)
 	pb.RegisterApiServer(grpcServer, &serv.metadata)
 	srv.RegisterFeatureServer(grpcServer, &serv.online)

@@ -14,6 +14,9 @@ import (
 	"net"
 	"strings"
 
+	grpc_health "google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
+
 	"github.com/featureform/fferr"
 	fs "github.com/featureform/filestore"
 	"github.com/featureform/health"
@@ -267,6 +270,10 @@ func main() {
 	if err != nil {
 		proxyFlightServer.logger.Fatalf("Failed to bind address to %s: %v", serverAddress, err)
 	}
+
+	healthServer := grpc_health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
 
 	// start the proxy flight server
 	proxyFlightServer.logger.Infof("Starting Go Proxy Flight server on %s...", serverAddress)

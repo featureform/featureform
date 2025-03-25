@@ -39,6 +39,7 @@ COPY ./metadata/ ./metadata/
 COPY ./runner/ ./runner/
 COPY ./kubernetes ./kubernetes
 COPY ./types ./types
+COPY ./health/ ./health/
 COPY ./coordinator/main/main.go ./coordinator/main/main.go
 
 # Building Go app

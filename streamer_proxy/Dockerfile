@@ -38,6 +38,8 @@ COPY ./metadata/proto/ ./metadata/proto/
 COPY ./streamer_proxy/ ./streamer_proxy/
 COPY ./metadata/ ./metadata/
 COPY ./coordinator/types ./coordinator/types
+COPY ./kubernetes/ ./kubernetes/
+COPY ./health/ ./health/
 
 RUN go build -o /app/main ./streamer_proxy/
 

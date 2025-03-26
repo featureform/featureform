@@ -134,7 +134,6 @@ type ModelResource struct {
 	Type         string                                           `json:"type"`
 	Description  string                                           `json:"description"`
 	Features     map[string][]metadata.FeatureVariantResource     `json:"features"`
-	Labels       map[string][]metadata.LabelVariantResource       `json:"labels"`
 	TrainingSets map[string][]metadata.TrainingSetVariantResource `json:"training-sets"`
 	Status       string                                           `json:"status"`
 	Tags         metadata.Tags                                    `json:"tags"`
@@ -558,15 +557,6 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "feature"}
 			}
 			modelResource.Features = f
-			return nil
-		})
-		fetchGroup.Go(func() error {
-			l, err := m.getLabels(model.Labels())
-			if err != nil {
-				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "label"}
-			}
-			modelResource.Labels = l
 			return nil
 		})
 		fetchGroup.Go(func() error {
@@ -1091,7 +1081,6 @@ func (m *MetadataServer) GetTrainingSetVariantResources(c *gin.Context) {
 type ModelFilters struct {
 	SearchTxt    string   `json:"SearchTxt"`
 	Tags         []string `json:"Tags"`
-	Labels       []string `json:"Labels"`
 	Features     []string `json:"Features"`
 	TrainingSets []string `json:"TrainingSets"`
 	PageSize     int      `json:"pageSize"`

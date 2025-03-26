@@ -935,7 +935,7 @@ func TestGetDependenciesByType(t *testing.T) {
 			Type:        types.Float32,
 			Description: "Feature variant",
 			Source:      NameVariant{"mockTransformation2", "var"},
-			Owner:       "Featureform",
+			Owner:       "Other",
 			Location: ResourceVariantColumns{
 				Entity: "col1",
 				Value:  "col2",
@@ -1016,6 +1016,19 @@ func TestGetDependenciesByType(t *testing.T) {
 			Tags:       Tags{},
 			Properties: Properties{},
 		},
+		ModelDef{
+			Name:        "training-model",
+			Description: "model",
+			Features: NameVariants{
+				{"featureFromTf", "variant"},
+				{"featureFromPrimary1", "default"},
+			},
+			Trainingsets: NameVariants{
+				{"training-set", "variant"},
+			},
+			Tags:       Tags{},
+			Properties: Properties{},
+		},
 	}
 
 	testServer := newTestMetadataServer(t)
@@ -1031,7 +1044,7 @@ func TestGetDependenciesByType(t *testing.T) {
 		expectError    bool
 	}{
 		{
-			name: "Feature dependencies for Source",
+			name: "feature dependencies for source",
 			resourceID: common.ResourceID{
 				Name:    "primarydata1",
 				Variant: "var",
@@ -1039,12 +1052,12 @@ func TestGetDependenciesByType(t *testing.T) {
 			},
 			dependencyType: common.FEATURE_VARIANT,
 			expectedDeps: map[string]bool{
-				fmt.Sprintf("%s__%s__%s", "FEATURE_VARIANT", "featureFromTf", "variant"):       false,
-				fmt.Sprintf("%s__%s__%s", "FEATURE_VARIANT", "featureFromPrimary1", "default"): false,
+				createKey(ResourceID{Name: "featureFromTf", Variant: "variant", Type: FEATURE_VARIANT}):       false,
+				createKey(ResourceID{Name: "featureFromPrimary1", Variant: "default", Type: FEATURE_VARIANT}): false,
 			},
 		},
 		{
-			name: "Training set dependencies for Source",
+			name: "training set dependencies for source",
 			resourceID: common.ResourceID{
 				Name:    "primarydata2",
 				Variant: "default",
@@ -1052,11 +1065,11 @@ func TestGetDependenciesByType(t *testing.T) {
 			},
 			dependencyType: common.TRAINING_SET_VARIANT,
 			expectedDeps: map[string]bool{
-				fmt.Sprintf("%s__%s__%s", "TRAINING_SET_VARIANT", "training-set", "variant"): false,
+				createKey(ResourceID{Name: "training-set", Variant: "variant", Type: TRAINING_SET_VARIANT}): false,
 			},
 		},
 		{
-			name: "Feature dependencies for Provider",
+			name: "feature dependencies for provider",
 			resourceID: common.ResourceID{
 				Name:    "mockOffline",
 				Variant: "",
@@ -1064,9 +1077,35 @@ func TestGetDependenciesByType(t *testing.T) {
 			},
 			dependencyType: common.FEATURE_VARIANT,
 			expectedDeps: map[string]bool{
-				fmt.Sprintf("%s__%s__%s", "FEATURE_VARIANT", "featureFromPrimary1", "default"): false,
-				fmt.Sprintf("%s__%s__%s", "FEATURE_VARIANT", "featureFromPrimary2", "default"): false,
-				fmt.Sprintf("%s__%s__%s", "FEATURE_VARIANT", "featureFromTf", "variant"):       false,
+				createKey(ResourceID{Name: "featureFromPrimary1", Variant: "default", Type: FEATURE_VARIANT}): false,
+				createKey(ResourceID{Name: "featureFromPrimary2", Variant: "default", Type: FEATURE_VARIANT}): false,
+				createKey(ResourceID{Name: "featureFromTf", Variant: "variant", Type: FEATURE_VARIANT}):       false,
+			},
+		},
+		{
+			name: "feature dependencies for entity",
+			resourceID: common.ResourceID{
+				Name:    "user",
+				Variant: "",
+				Type:    common.ENTITY,
+			},
+			dependencyType: common.FEATURE_VARIANT,
+			expectedDeps: map[string]bool{
+				createKey(ResourceID{Name: "featureFromPrimary1", Variant: "default", Type: FEATURE_VARIANT}): false,
+				createKey(ResourceID{Name: "featureFromPrimary2", Variant: "default", Type: FEATURE_VARIANT}): false,
+				createKey(ResourceID{Name: "featureFromTf", Variant: "variant", Type: FEATURE_VARIANT}):       false,
+			},
+		},
+		{
+			name: "training set dependencies for entity",
+			resourceID: common.ResourceID{
+				Name:    "user",
+				Variant: "",
+				Type:    common.ENTITY,
+			},
+			dependencyType: common.TRAINING_SET_VARIANT,
+			expectedDeps: map[string]bool{
+				createKey(ResourceID{Name: "training-set", Variant: "variant", Type: TRAINING_SET_VARIANT}): false,
 			},
 		},
 		{
@@ -1079,7 +1118,6 @@ func TestGetDependenciesByType(t *testing.T) {
 			dependencyType: common.SOURCE_VARIANT,
 			expectedDeps:   map[string]bool{},
 		},
-		// Add more test cases here easily
 	}
 
 	for _, tc := range testCases {

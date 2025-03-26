@@ -1659,9 +1659,7 @@ type ModelTest struct {
 	Name         string
 	Description  string
 	Features     []NameVariant
-	Labels       []NameVariant
 	TrainingSets []NameVariant
-	Sources      []NameVariant
 	Tags         Tags
 	Properties   Properties
 }
@@ -1678,7 +1676,6 @@ func (test ModelTest) Test(t *testing.T, client *Client, resource interface{}, s
 	assertEqual(t, model.Tags(), test.Tags)
 	assertEqual(t, model.Properties(), test.Properties)
 	assertEquivalentNameVariants(t, model.Features(), test.Features)
-	assertEquivalentNameVariants(t, model.Labels(), test.Labels)
 	assertEquivalentNameVariants(t, model.TrainingSets(), test.TrainingSets)
 	if shouldFetch {
 		testFetchTrainingSets(t, client, model)
@@ -1695,7 +1692,6 @@ func expectedModels() ResourceTests {
 		ModelTest{
 			Name:         "fraud",
 			Description:  "fraud model",
-			Labels:       []NameVariant{},
 			Features:     []NameVariant{},
 			TrainingSets: []NameVariant{},
 			Tags:         []string{},
@@ -1754,7 +1750,6 @@ func expectedUpdatedModels() ResourceTests {
 		ModelTest{
 			Name:        "fraud",
 			Description: "fraud model",
-			Labels:      []NameVariant{},
 			Features:    []NameVariant{},
 			TrainingSets: []NameVariant{
 				{Name: "training-set", Variant: "variant"},
@@ -1765,7 +1760,6 @@ func expectedUpdatedModels() ResourceTests {
 		ModelTest{
 			Name:        "fraud",
 			Description: "fraud model",
-			Labels:      []NameVariant{},
 			Features:    []NameVariant{},
 			TrainingSets: []NameVariant{
 				{Name: "training-set", Variant: "variant"},
@@ -1777,7 +1771,6 @@ func expectedUpdatedModels() ResourceTests {
 		ModelTest{
 			Name:        "fraud",
 			Description: "fraud model",
-			Labels:      []NameVariant{},
 			Features:    []NameVariant{},
 			TrainingSets: []NameVariant{
 				{Name: "training-set", Variant: "variant"},

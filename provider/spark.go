@@ -17,6 +17,10 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/glue"
+	"github.com/google/uuid"
+	"github.com/pkg/errors"
+	"golang.org/x/exp/slices"
+
 	"github.com/featureform/config"
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
@@ -28,9 +32,6 @@ import (
 	pt "github.com/featureform/provider/provider_type"
 	sparklib "github.com/featureform/provider/spark"
 	"github.com/featureform/provider/types"
-	"github.com/google/uuid"
-	"github.com/pkg/errors"
-	"golang.org/x/exp/slices"
 )
 
 const MATERIALIZATION_ID_SEGMENTS = 3
@@ -1383,10 +1384,14 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID, opts Materi
 	Materialization,
 	error,
 ) {
+	logger := spark.Logger.With("resource_id", id)
+	logger.Info("Creating materialization")
 	if opts.DirectCopyTo != nil {
+		logger.Debug("Using direct copy materialization")
 		// This returns nil for Materialization.
 		return nil, spark.directCopyMaterialize(id, opts)
 	}
+	logger.Debug("Using blob spark materialization")
 	return blobSparkMaterialization(id, spark, false, opts)
 }
 

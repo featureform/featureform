@@ -289,6 +289,8 @@ func (store *sqlOfflineStore) Delete(location pl.Location) error {
 }
 
 func (store *sqlOfflineStore) validateResourceColumns(id ResourceID, schema ResourceSchema) error {
+	logger := store.logger.With("resource", id, "schema", schema)
+
 	if err := id.check(Label, Feature); err != nil {
 		logger.Errorw("Failed to validate resource ID", "error", err)
 		return err

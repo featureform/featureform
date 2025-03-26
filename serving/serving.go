@@ -298,10 +298,13 @@ func (serv *FeatureServer) TrainingDataColumns(ctx context.Context, req *pb.Trai
 	if err != nil {
 		return nil, err
 	}
-	fv := ts.Features()
+	fv, err := ts.FetchFeatures(ctx, serv.Metadata)
+	if err != nil {
+		return nil, err
+	}
 	features := make([]string, len(fv))
 	for i, f := range fv {
-		features[i] = fmt.Sprintf("feature__%s__%s", f.Name, f.Variant)
+		features[i] = fmt.Sprintf("feature__%s__%s", f.Name(), f.Variant())
 	}
 	lv := ts.Label()
 	label := fmt.Sprintf("label__%s__%s", lv.Name, lv.Variant)

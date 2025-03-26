@@ -209,9 +209,9 @@ func (m *MetadataServer) getSources(nameVariants []metadata.NameVariant) (map[st
 	return sourceMap, nil
 }
 
-func (m *MetadataServer) readFromFeature(feature *metadata.Feature, deepCopy bool) (map[string]metadata.FeatureVariantResource, *FetchError) {
+func (m *MetadataServer) readFromFeature(ctx context.Context, feature *metadata.Feature, deepCopy bool) (map[string]metadata.FeatureVariantResource, *FetchError) {
 	variantMap := make(map[string]metadata.FeatureVariantResource)
-	variants, err := feature.FetchVariants(m.client, context.Background())
+	variants, err := feature.FetchVariants(ctx, m.client)
 	if err != nil {
 		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "feature variants"}
 		m.logger.Errorw(fetchError.Error(), "Internal Error", err)
@@ -221,12 +221,16 @@ func (m *MetadataServer) readFromFeature(feature *metadata.Feature, deepCopy boo
 
 		featResource := variant.ToShallowMap()
 		if deepCopy {
-			ts, err := m.getTrainingSets(variant.TrainingSets())
+			trainingSetResults, err := variant.FetchTrainingSets(ctx, m.client)
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal Error", err)
-				return nil, &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information from training sets"}
+				return nil, &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream training set dependencies"}
 			}
-			featResource.TrainingSets = ts
+			featResource.TrainingSets, err = m.toTrainingSetVariantResource(trainingSetResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return nil, &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert TrainingSetVariant to TrainingSetVariantResource"}
+			}
 		}
 		variantMap[variant.Variant()] = featResource
 
@@ -234,9 +238,9 @@ func (m *MetadataServer) readFromFeature(feature *metadata.Feature, deepCopy boo
 	return variantMap, nil
 }
 
-func (m *MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet, deepCopy bool) (map[string]metadata.TrainingSetVariantResource, *FetchError) {
+func (m *MetadataServer) readFromTrainingSet(ctx context.Context, trainingSet *metadata.TrainingSet, deepCopy bool) (map[string]metadata.TrainingSetVariantResource, *FetchError) {
 	variantMap := make(map[string]metadata.TrainingSetVariantResource)
-	variants, err := trainingSet.FetchVariants(m.client, context.Background())
+	variants, err := trainingSet.FetchVariants(ctx, m.client)
 	if err != nil {
 		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "training set variants"}
 		m.logger.Errorw(fetchError.Error(), "Internal Error", err)
@@ -246,12 +250,16 @@ func (m *MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet, 
 
 		trainingResource := variant.ToShallowMap()
 		if deepCopy {
-			f, err := m.getFeatures(variant.Features())
+			featureResults, err := variant.FetchFeatures(ctx, m.client)
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal Error", err)
-				return nil, &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information from features"}
+				return nil, &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream features dependencies"}
 			}
-			trainingResource.Features = f
+			trainingResource.Features, err = m.toFeatureVariantResource(featureResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return nil, &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream features dependencies"}
+			}
 		}
 		variantMap[variant.Variant()] = trainingResource
 
@@ -261,7 +269,7 @@ func (m *MetadataServer) readFromTrainingSet(trainingSet *metadata.TrainingSet, 
 
 func (m *MetadataServer) readFromSource(ctx context.Context, source *metadata.Source, deepCopy bool) (map[string]metadata.SourceVariantResource, *FetchError) {
 	variantMap := make(map[string]metadata.SourceVariantResource)
-	variants, err := source.FetchVariants(m.client, ctx)
+	variants, err := source.FetchVariants(ctx, m.client)
 	if err != nil {
 		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "source variants"}
 		m.logger.Errorw(fetchError.Error(), "Internal Error", err)
@@ -273,12 +281,12 @@ func (m *MetadataServer) readFromSource(ctx context.Context, source *metadata.So
 		if deepCopy {
 			fetchGroup := new(errgroup.Group)
 			fetchGroup.Go(func() error {
-				f, err := variant.FetchFeatures(ctx, m.client)
+				featureResults, err := variant.FetchFeatures(ctx, m.client)
 				if err != nil {
 					m.logger.Errorw(err.Error(), "Internal Error", err)
-					return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information from features"}
+					return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream features dependencies"}
 				}
-				sourceResource.Features, err = m.toFeatureVariantResource(f)
+				sourceResource.Features, err = m.toFeatureVariantResource(featureResults)
 				if err != nil {
 					m.logger.Errorw(err.Error(), "Internal Error", err)
 					return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert FeatureVariant to FeatureVariantResource"}
@@ -286,21 +294,29 @@ func (m *MetadataServer) readFromSource(ctx context.Context, source *metadata.So
 				return nil
 			})
 			fetchGroup.Go(func() error {
-				l, err := m.getLabels(variant.Labels())
+				labelResults, err := variant.FetchLabels(ctx, m.client)
 				if err != nil {
 					m.logger.Errorw(err.Error(), "Internal Error", err)
-					return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information from labels"}
+					return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream label dependencies"}
 				}
-				sourceResource.Labels = l
+				sourceResource.Labels, err = m.toLabelVariantResource(labelResults)
+				if err != nil {
+					m.logger.Errorw(err.Error(), "Internal Error", err)
+					return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert LabelVariant to LabelVariantResource"}
+				}
 				return nil
 			})
 			fetchGroup.Go(func() error {
-				ts, err := m.getTrainingSets(variant.TrainingSets())
+				trainingSetResults, err := variant.FetchTrainingSets(ctx, m.client)
 				if err != nil {
 					m.logger.Errorw(err.Error(), "Internal Error", err)
-					return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information from training sets"}
+					return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream training set dependencies"}
 				}
-				sourceResource.TrainingSets = ts
+				sourceResource.TrainingSets, err = m.toTrainingSetVariantResource(trainingSetResults)
+				if err != nil {
+					m.logger.Errorw(err.Error(), "Internal Error", err)
+					return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert TrainingSetVariant to TrainingSetVariantResource"}
+				}
 				return nil
 			})
 			if err := fetchGroup.Wait(); err != nil {
@@ -313,20 +329,9 @@ func (m *MetadataServer) readFromSource(ctx context.Context, source *metadata.So
 	return variantMap, nil
 }
 
-func (m *MetadataServer) toFeatureVariantResource(featureVariants []*metadata.FeatureVariant) (map[string][]metadata.FeatureVariantResource, error) {
-	featureMap := make(map[string][]metadata.FeatureVariantResource)
-	for _, variant := range featureVariants {
-		if _, has := featureMap[variant.Name()]; !has {
-			featureMap[variant.Name()] = []metadata.FeatureVariantResource{}
-		}
-		featureMap[variant.Name()] = append(featureMap[variant.Name()], variant.ToShallowMap())
-	}
-	return featureMap, nil
-}
-
-func (m *MetadataServer) readFromLabel(label *metadata.Label, deepCopy bool) (map[string]metadata.LabelVariantResource, *FetchError) {
+func (m *MetadataServer) readFromLabel(ctx context.Context, label *metadata.Label, deepCopy bool) (map[string]metadata.LabelVariantResource, *FetchError) {
 	variantMap := make(map[string]metadata.LabelVariantResource)
-	variants, err := label.FetchVariants(m.client, context.Background())
+	variants, err := label.FetchVariants(ctx, m.client)
 	if err != nil {
 		fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "label variants"}
 		m.logger.Errorw(fetchError.Error(), "Internal Error", err)
@@ -335,29 +340,65 @@ func (m *MetadataServer) readFromLabel(label *metadata.Label, deepCopy bool) (ma
 	for _, variant := range variants {
 		labelResource := variant.ToShallowMap()
 		if deepCopy {
-			ts, err := m.getTrainingSets(variant.TrainingSets())
+			trainingSetResults, err := variant.FetchTrainingSets(ctx, m.client)
 			if err != nil {
 				m.logger.Errorw(err.Error(), "Internal Error", err)
-				return nil, &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information from training sets"}
+				return nil, &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream training set dependencies"}
 			}
-			labelResource.TrainingSets = ts
+			labelResource.TrainingSets, err = m.toTrainingSetVariantResource(trainingSetResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return nil, &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert TrainingSetVariant to TrainingSetVariantResource"}
+			}
 		}
 		variantMap[variant.Variant()] = labelResource
 	}
 	return variantMap, nil
 }
 
+func (m *MetadataServer) toFeatureVariantResource(featureVariants []*metadata.FeatureVariant) (map[string][]metadata.FeatureVariantResource, error) {
+	featureMap := make(map[string][]metadata.FeatureVariantResource)
+	for _, variant := range featureVariants {
+		featureMap[variant.Name()] = append(featureMap[variant.Name()], variant.ToShallowMap())
+	}
+	return featureMap, nil
+}
+
+func (m *MetadataServer) toLabelVariantResource(labelVariants []*metadata.LabelVariant) (map[string][]metadata.LabelVariantResource, error) {
+	labelMap := make(map[string][]metadata.LabelVariantResource)
+	for _, variant := range labelVariants {
+		labelMap[variant.Name()] = append(labelMap[variant.Name()], variant.ToShallowMap())
+	}
+	return labelMap, nil
+}
+
+func (m *MetadataServer) toTrainingSetVariantResource(trainingSetVariants []*metadata.TrainingSetVariant) (map[string][]metadata.TrainingSetVariantResource, error) {
+	trainingSetMap := make(map[string][]metadata.TrainingSetVariantResource)
+	for _, variant := range trainingSetVariants {
+		trainingSetMap[variant.Name()] = append(trainingSetMap[variant.Name()], variant.ToShallowMap())
+	}
+	return trainingSetMap, nil
+}
+
+func (m *MetadataServer) toSourceVariantResource(sourceVariants []*metadata.SourceVariant) (map[string][]metadata.SourceVariantResource, error) {
+	sourceMap := make(map[string][]metadata.SourceVariantResource)
+	for _, variant := range sourceVariants {
+		sourceMap[variant.Name()] = append(sourceMap[variant.Name()], variant.ToShallowMap())
+	}
+	return sourceMap, nil
+}
+
 func (m *MetadataServer) GetMetadata(c *gin.Context) {
 	switch c.Param("type") {
 	case "features":
-		feature, err := m.client.GetFeature(context.Background(), c.Param("resource"))
+		feature, err := m.client.GetFeature(c.Request.Context(), c.Param("resource"))
 		if err != nil {
 			fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "feature"}
 			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
-		variantList, fetchError := m.readFromFeature(feature, true)
+		variantList, fetchError := m.readFromFeature(c.Request.Context(), feature, true)
 		if fetchError != nil {
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
@@ -370,14 +411,14 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			Variants:       variantList,
 		})
 	case "labels":
-		label, err := m.client.GetLabel(context.Background(), c.Param("resource"))
+		label, err := m.client.GetLabel(c.Request.Context(), c.Param("resource"))
 		if err != nil {
 			fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "label"}
 			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
-		variantList, fetchError := m.readFromLabel(label, true)
+		variantList, fetchError := m.readFromLabel(c.Request.Context(), label, true)
 		if fetchError != nil {
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
@@ -390,14 +431,14 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 			Variants:       variantList,
 		})
 	case "training-sets":
-		trainingSet, err := m.client.GetTrainingSet(context.Background(), c.Param("resource"))
+		trainingSet, err := m.client.GetTrainingSet(c.Request.Context(), c.Param("resource"))
 		if err != nil {
 			fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "training set"}
 			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
 		}
-		variantList, fetchError := m.readFromTrainingSet(trainingSet, true)
+		variantList, fetchError := m.readFromTrainingSet(c.Request.Context(), trainingSet, true)
 		if fetchError != nil {
 			c.JSON(fetchError.StatusCode, fetchError.Error())
 			return
@@ -447,30 +488,42 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
-			f, err := m.getFeatures(entity.Features())
+			featureResults, err := entity.FetchFeatures(c.Request.Context(), m.client)
 			if err != nil {
-				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "feature"}
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream features dependencies"}
 			}
-			entityResource.Features = f
+			entityResource.Features, err = m.toFeatureVariantResource(featureResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert FeatureVariant to FeatureVariantResource"}
+			}
 			return nil
 		})
 		fetchGroup.Go(func() error {
-			l, err := m.getLabels(entity.Labels())
+			labelResults, err := entity.FetchLabels(c.Request.Context(), m.client)
 			if err != nil {
-				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "label"}
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream label dependencies"}
 			}
-			entityResource.Labels = l
+			entityResource.Labels, err = m.toLabelVariantResource(labelResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert LabelVariant to LabelVariantResource"}
+			}
 			return nil
 		})
 		fetchGroup.Go(func() error {
-			ts, err := m.getTrainingSets(entity.TrainingSets())
+			trainingSetResults, err := entity.FetchTrainingSets(c.Request.Context(), m.client)
 			if err != nil {
-				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "training set"}
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream training set dependencies"}
 			}
-			entityResource.TrainingSets = ts
+			entityResource.TrainingSets, err = m.toTrainingSetVariantResource(trainingSetResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert TrainingSetVariant to TrainingSetVariantResource"}
+			}
 			return nil
 		})
 		if err := fetchGroup.Wait(); err != nil {
@@ -494,39 +547,55 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
-			f, err := m.getFeatures(user.Features())
+			featureResults, err := user.FetchFeatures(c.Request.Context(), m.client)
 			if err != nil {
-				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "feature"}
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream feature dependencies"}
 			}
-			userResource.Features = f
+			userResource.Features, err = m.toFeatureVariantResource(featureResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert FeatureVariant to FeatureVariantResource"}
+			}
 			return nil
 		})
 		fetchGroup.Go(func() error {
-			l, err := m.getLabels(user.Labels())
+			labelResults, err := user.FetchLabels(c.Request.Context(), m.client)
 			if err != nil {
-				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "label"}
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream label dependencies"}
 			}
-			userResource.Labels = l
+			userResource.Labels, err = m.toLabelVariantResource(labelResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert LabelVariant to LabelVariantResource"}
+			}
 			return nil
 		})
 		fetchGroup.Go(func() error {
-			ts, err := m.getTrainingSets(user.TrainingSets())
+			trainingSetResults, err := user.FetchTrainingSets(c.Request.Context(), m.client)
 			if err != nil {
-				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "training set"}
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream training set dependencies"}
 			}
-			userResource.TrainingSets = ts
+			userResource.TrainingSets, err = m.toTrainingSetVariantResource(trainingSetResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert TrainingSetVariant to TrainingSetVariantResource"}
+			}
 			return nil
 		})
 		fetchGroup.Go(func() error {
-			s, err := m.getSources(user.Sources())
+			sourceResults, err := user.FetchSources(c.Request.Context(), m.client)
 			if err != nil {
-				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "source"}
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "CCannot get information on downstream source dependencies"}
 			}
-			userResource.Sources = s
+			userResource.Sources, err = m.toSourceVariantResource(sourceResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert SourceVariant to SourceVariantResource"}
+			}
 			return nil
 		})
 		if err := fetchGroup.Wait(); err != nil {
@@ -551,21 +620,29 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
-			f, err := m.getFeatures(model.Features())
+			featureResults, err := model.FetchFeatures(c.Request.Context(), m.client)
 			if err != nil {
-				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "feature"}
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream feature dependencies"}
 			}
-			modelResource.Features = f
+			modelResource.Features, err = m.toFeatureVariantResource(featureResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert FeatureVariant to FeatureVariantResource"}
+			}
 			return nil
 		})
 		fetchGroup.Go(func() error {
-			ts, err := m.getTrainingSets(model.TrainingSets())
+			trainingSetResults, err := model.FetchTrainingSets(c.Request.Context(), m.client)
 			if err != nil {
-				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "training set"}
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream training set dependencies"}
 			}
-			modelResource.TrainingSets = ts
+			modelResource.TrainingSets, err = m.toTrainingSetVariantResource(trainingSetResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert TrainingSetVariant to TrainingSetVariantResource"}
+			}
 			return nil
 		})
 		if err := fetchGroup.Wait(); err != nil {
@@ -594,39 +671,55 @@ func (m *MetadataServer) GetMetadata(c *gin.Context) {
 		}
 		fetchGroup := new(errgroup.Group)
 		fetchGroup.Go(func() error {
-			f, err := m.getFeatures(provider.Features())
+			featureResults, err := provider.FetchFeatures(c.Request.Context(), m.client)
 			if err != nil {
-				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "feature"}
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream feature dependencies"}
 			}
-			providerResource.Features = f
+			providerResource.Features, err = m.toFeatureVariantResource(featureResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert FeatureVariant to FeatureVariantResource"}
+			}
 			return nil
 		})
 		fetchGroup.Go(func() error {
-			l, err := m.getLabels(provider.Labels())
+			labelResults, err := provider.FetchLabels(c.Request.Context(), m.client)
 			if err != nil {
-				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "label"}
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream label dependencies"}
 			}
-			providerResource.Labels = l
+			providerResource.Labels, err = m.toLabelVariantResource(labelResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert LabelVariant to LabelVariantResource"}
+			}
 			return nil
 		})
 		fetchGroup.Go(func() error {
-			ts, err := m.getTrainingSets(provider.TrainingSets())
+			trainingSetResults, err := provider.FetchTrainingSets(c.Request.Context(), m.client)
 			if err != nil {
-				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "training set"}
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream training set dependencies"}
 			}
-			providerResource.TrainingSets = ts
+			providerResource.TrainingSets, err = m.toTrainingSetVariantResource(trainingSetResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert TrainingSetVariant to TrainingSetVariantResource"}
+			}
 			return nil
 		})
 		fetchGroup.Go(func() error {
-			s, err := m.getSources(provider.Sources())
+			sourceResults, err := provider.FetchSources(c.Request.Context(), m.client)
 			if err != nil {
-				m.logger.Errorw(err.Error(), "Internal error", err)
-				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "source"}
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream source dependencies"}
 			}
-			providerResource.Sources = s
+			providerResource.Sources, err = m.toSourceVariantResource(sourceResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert SourceVariant to SourceVariantResource"}
+			}
 			return nil
 		})
 		if err := fetchGroup.Wait(); err != nil {
@@ -1249,7 +1342,7 @@ func (m *MetadataServer) getFeatureMetadataList(c *gin.Context, pageSize, offset
 			continue
 		}
 		wrappedResource := metadata.WrapProtoFeature(feature)
-		variantList, fetchError := m.readFromFeature(wrappedResource, false)
+		variantList, fetchError := m.readFromFeature(c.Request.Context(), wrappedResource, false)
 		if fetchError != nil {
 			m.logger.Errorw(fetchError.Error())
 			c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -1707,7 +1800,7 @@ func (m *MetadataServer) getTrainingSetMetadataList(c *gin.Context, pageSize, of
 			continue
 		}
 		wrappedResource := metadata.WrapProtoTrainingSet(trainingSet)
-		variantList, fetchError := m.readFromTrainingSet(wrappedResource, false)
+		variantList, fetchError := m.readFromTrainingSet(c, wrappedResource, false)
 		if fetchError != nil {
 			m.logger.Errorw(fetchError.Error())
 			c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -1784,7 +1877,7 @@ func (m *MetadataServer) getLabelMetadataList(c *gin.Context, pageSize, offset i
 			continue
 		}
 		wrappedResource := metadata.WrapProtoLabel(label)
-		variantList, fetchError := m.readFromLabel(wrappedResource, false)
+		variantList, fetchError := m.readFromLabel(c.Request.Context(), wrappedResource, false)
 		if fetchError != nil {
 			m.logger.Errorw(fetchError.Error())
 			c.JSON(fetchError.StatusCode, fetchError.Error())
@@ -1935,17 +2028,31 @@ func (m *MetadataServer) getProviderMetadataList(c *gin.Context, pageSize, offse
 		if sourcesErr != nil {
 			m.logger.Errorw("getSources() returned an error for:", "Provider", provider.Name, sourcesErr)
 		}
-		features, featuresErr := m.getFeatures(wrappedResource.Features())
+		featureVariants, featuresErr := wrappedResource.FetchFeatures(c, m.client)
 		if featuresErr != nil {
-			m.logger.Errorw("getFeatures() returned an error for:", "Provider", provider.Name, featuresErr)
+			m.logger.Errorw("fetchFeatures() returned an error for:", "Provider", provider.Name, featuresErr)
 		}
-		labels, labelsErr := m.getLabels(wrappedResource.Labels())
+		features, err := m.toFeatureVariantResource(featureVariants)
+		if err != nil {
+			m.logger.Errorw("Could not convert FeatureVariant to FeatureVariantResource", "error", err)
+		}
+
+		labelVariants, labelsErr := wrappedResource.FetchLabels(c, m.client)
 		if labelsErr != nil {
-			m.logger.Errorw("getLabels() returned an error for:", "Provider", provider.Name, labelsErr)
+			m.logger.Errorw("fetchLabels() returned an error for:", "Provider", provider.Name, labelsErr)
 		}
-		trainingSets, tsErr := m.getTrainingSets(wrappedResource.TrainingSets())
-		if tsErr != nil {
-			m.logger.Errorw("getTrainingSets() returned an error for:", "Provider", provider.Name, tsErr)
+		labels, err := m.toLabelVariantResource(labelVariants)
+		if err != nil {
+			m.logger.Errorw("Could not convert LabelVariant to LabelVariantResource", "error", err)
+		}
+
+		trainingSetVariants, trainingSetsErr := wrappedResource.FetchTrainingSets(c, m.client)
+		if trainingSetsErr != nil {
+			m.logger.Errorw("fetchTrainingSets() returned an error for:", "Provider", provider.Name, trainingSetsErr)
+		}
+		trainingSets, err := m.toTrainingSetVariantResource(trainingSetVariants)
+		if err != nil {
+			m.logger.Errorw("Could not convert TrainingSetVariant to TrainingSetVariantResource", "error", err)
 		}
 
 		resourceList[i] = metadata.ProviderResource{

@@ -1109,6 +1109,18 @@ func TestGetDependenciesByType(t *testing.T) {
 			},
 		},
 		{
+			name: "Label dependencies for Entity",
+			resourceID: common.ResourceID{
+				Name:    "user",
+				Variant: "",
+				Type:    common.ENTITY,
+			},
+			dependencyType: common.LABEL_VARIANT,
+			expectedDeps: map[string]bool{
+				fmt.Sprintf("%s__%s__%s", "LABEL_VARIANT", "label", "variant"): false,
+			},
+		},
+		{
 			name: "resource without dependencies",
 			resourceID: common.ResourceID{
 				Name:    "mockOnline",

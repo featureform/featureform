@@ -4172,3 +4172,15 @@ func SourceShallowMap(variant *SourceVariant) SourceVariantResource {
 		Specifications: getSourceArgs(variant),
 	}
 }
+
+type UserResource struct {
+	Name         string                                  `json:"name"`
+	Type         string                                  `json:"type"`
+	Features     map[string][]FeatureVariantResource     `json:"features"`
+	Labels       map[string][]LabelVariantResource       `json:"labels"`
+	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
+	Sources      map[string][]SourceVariantResource      `json:"sources"`
+	Status       string                                  `json:"status"`
+	Tags         Tags                                    `json:"tags"`
+	Properties   Properties                              `json:"properties"`
+}

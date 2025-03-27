@@ -116,7 +116,7 @@ func (p *postgresOfflineStoreTester) CreateTable(loc location.Location, schema T
 	}
 
 	var queryBuilder strings.Builder
-	queryBuilder.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", location.SanitizeFullyQualifiedObject(sqlLocation.TableLocation())))
+	queryBuilder.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", sqlLocation.Sanitized()))
 	for i, column := range schema.Columns {
 		if i > 0 {
 			queryBuilder.WriteString(", ")

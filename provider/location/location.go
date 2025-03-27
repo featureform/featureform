@@ -105,6 +105,7 @@ func (f FullyQualifiedObject) String() string {
 	return strings.Join(parts, ".")
 }
 
+// This is a helper function to sanitize a fully qualified object for use in most SQL queries (postgres, snowflake, etc.)
 func SanitizeFullyQualifiedObject(obj FullyQualifiedObject) string {
 	ident := psql.Identifier{}
 

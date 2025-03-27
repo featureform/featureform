@@ -733,8 +733,7 @@ jobs:
   pytest-e2e:
     name: Run End-to-End Tests (pytests)
     timeout-minutes: 120
-    if: false # todo: temporary 
-    # if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event.inputs.run_job == 'pytest-e2e') }}
+    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event.inputs.run_job == 'pytest-e2e') }}
     env:
       FEATUREFORM_DEBUG_LOGGING: "true"
     services:
@@ -882,7 +881,7 @@ jobs:
 
   pytest-metadata-integration:
     name: Run Metadata Client Integration Tests
-    timeout-minutes: 15
+    timeout-minutes: 10
     if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event.inputs.run_job == 'pytest-metadata-integration') }}
     defaults:
       run:

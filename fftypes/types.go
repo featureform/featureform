@@ -311,8 +311,6 @@ type ColumnSchema struct {
 	Name       ColumnName
 	NativeType NativeType
 	Type       ValueType
-	
-	sanitizer func(string) string // function to sanitize column names that differs between databases
 }
 
 type Value struct {
@@ -333,6 +331,8 @@ type TypeConverterMapping map[string]TypeConverter
 type Schema struct {
 	Fields []ColumnSchema
 	// todo: can include more state or behavior, etc.
+
+	columnSanitizer func(string) string
 }
 
 // ColumnNames returns a slice of all column names in the schema
@@ -347,10 +347,10 @@ func (s Schema) ColumnNames() []string {
 func (s Schema) SanitizedColumnNames() []string {
 	names := make([]string, len(s.Fields))
 	for i, field := range s.Fields {
-		if field.sanitizer == nil {
+		if s.columnSanitizer == nil {
 			names[i] = sanitizeColumnName(string(field.Name))
 		} else {
-			names[i] = field.sanitizer(string(field.Name))
+			names[i] = s.columnSanitizer(string(field.Name))
 
 		}
 	}

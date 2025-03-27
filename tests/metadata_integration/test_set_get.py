@@ -8,7 +8,7 @@ def client():
     ff.clear_state()
 
 
-def test_basic_psql_redis_register(client):
+def test_e2e_register_and_apply(client):
 
     default_variant = "quickstart"
 

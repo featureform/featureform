@@ -367,11 +367,13 @@ test_metadata_integration: gen_grpc
 	    python3 -m venv .metadata-integration-venv; \
 	fi; \
 	source .metadata-integration-venv/bin/activate && \
-	pip install --upgrade pip setuptools wheel pytest build pytest-cov && \
+	pip install --upgrade pip setuptools wheel && \
+	pip install -r tests/metadata_integration/requirements.txt && \
 	python3 -m build ./client/ && \
 	pip3 install --force-reinstall --no-deps client/dist/*.whl && \
 	pytest -vv -s tests/metadata_integration;
 	docker compose -f tests/metadata_integration/docker-compose.yml down
+	rm -rf .metadata-integration-venv
 
 ##############################################  GO TESTS ###############################################################
 test_offline: gen_grpc 					## Run offline tests. Run with `make test_offline provider=(memory | postgres | snowflake | redshift | spark | clickhouse)`

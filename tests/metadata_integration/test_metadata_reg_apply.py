@@ -86,8 +86,6 @@ def test_e2e_register_and_apply(client):
     assert training_sets[0].variants == [default_variant]
 
 
-    # both postgres and redis should be avaible via get* methods
-    assert postgres == client.get_postgres("postgres-quickstart")
-    assert redis == client.get_redis("redis-quickstart")
-
- 
+    # both postgres and redis should be available via get* methods
+    assert postgres == client.get_postgres("postgres-quickstart"), "Failed to retrieve the Postgres instance"
+    assert redis == client.get_redis("redis-quickstart"), "Failed to retrieve the Redis instance"

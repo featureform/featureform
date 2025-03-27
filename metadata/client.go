@@ -293,6 +293,24 @@ func (c ResourceVariantColumns) SerializeLabelColumns() *pb.LabelVariant_Columns
 	}
 }
 
+func (m EntityMappings) SerializeEntityMappings() *pb.LabelVariant_EntityMappings {
+	mappings := make([]*pb.EntityMapping, len(m.Mappings))
+	for i, mapping := range m.Mappings {
+		mappings[i] = &pb.EntityMapping{
+			Name:         mapping.Name,
+			EntityColumn: mapping.EntityColumn,
+		}
+	}
+
+	return &pb.LabelVariant_EntityMappings{
+		EntityMappings: &pb.EntityMappings{
+			Mappings:        mappings,
+			ValueColumn:     m.ValueColumn,
+			TimestampColumn: m.TimestampColumn,
+		},
+	}
+}
+
 type PythonFunction struct {
 	Query []byte
 }
@@ -511,6 +529,8 @@ func (def LabelDef) Serialize(requestID logging.RequestID) (*pb.LabelVariantRequ
 		serialized.LabelVariant.Location = &pb.LabelVariant_Stream{Stream: serializedStream}
 	case nil:
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("LabelDef Source not set"))
+	case EntityMappings:
+		serialized.LabelVariant.Location = def.Location.(EntityMappings).SerializeEntityMappings()
 	default:
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("LabelDef Source has unexpected type %T", x))
 	}

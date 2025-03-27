@@ -52,6 +52,18 @@ BEGIN
             parse_resource_key(label_variant_key, 'name'),
             parse_resource_key(label_variant_key, 'variant')
         );
+    ELSIF message -> 'entityMappings' -> 'mappings' IS NOT NULL THEN
+        FOR item IN SELECT jsonb_array_elements(message -> 'entityMappings' -> 'mappings')
+        LOOP
+            PERFORM add_edge(
+                entity_type,
+                item ->> 'name',
+                '',
+                label_type,
+                parse_resource_key(label_variant_key, 'name'),
+                parse_resource_key(label_variant_key, 'variant')
+            );
+        END LOOP;
     END IF;
 
     -- Add edge from user to label

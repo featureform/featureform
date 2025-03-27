@@ -839,6 +839,12 @@ func TestGetDependenciesByType(t *testing.T) {
 			Tags:        Tags{},
 			Properties:  Properties{},
 		},
+		EntityDef{
+			Name:        "customer",
+			Description: "A customer entity",
+			Tags:        Tags{},
+			Properties:  Properties{},
+		},
 		ProviderDef{
 			Name:             "mockOnline",
 			Description:      "A mock online provider",
@@ -1001,6 +1007,23 @@ func TestGetDependenciesByType(t *testing.T) {
 			Tags:       Tags{},
 			Properties: Properties{},
 		},
+		LabelDef{
+			Name:        "multiEntityLabel",
+			Variant:     "variant",
+			Type:        types.Bool,
+			Description: "tests multi entity label",
+			Provider:    "mockOffline",
+			Source:      NameVariant{"mockTransformation1", "var"},
+			Owner:       "Other",
+			Location: EntityMappings{
+				Mappings: []EntityMapping{
+					{Name: "user", EntityColumn: "col1"},
+					{Name: "customer", EntityColumn: "col2"},
+				},
+				ValueColumn:     "col3",
+				TimestampColumn: "col4",
+			},
+		},
 		TrainingSetDef{
 			Name:        "training-set",
 			Variant:     "variant",
@@ -1117,7 +1140,8 @@ func TestGetDependenciesByType(t *testing.T) {
 			},
 			dependencyType: common.LABEL_VARIANT,
 			expectedDeps: map[string]bool{
-				fmt.Sprintf("%s__%s__%s", "LABEL_VARIANT", "label", "variant"): false,
+				createKey(ResourceID{Name: "label", Variant: "variant", Type: LABEL_VARIANT}):            false,
+				createKey(ResourceID{Name: "multiEntityLabel", Variant: "variant", Type: LABEL_VARIANT}): false,
 			},
 		},
 		{

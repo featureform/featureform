@@ -23,7 +23,7 @@ import (
 
 type SqlDataset struct {
 	db        *sql.DB
-	location  location.SQLLocation
+	location  *location.SQLLocation
 	schema    types.Schema
 	converter types.ValueConverter[any]
 	limit     int
@@ -31,7 +31,7 @@ type SqlDataset struct {
 
 func NewSqlDataset(
 	db *sql.DB,
-	location location.SQLLocation,
+	location *location.SQLLocation,
 	schema types.Schema,
 	converter types.ValueConverter[any],
 	limit int,
@@ -53,7 +53,7 @@ func NewSqlDataset(
 // NewSqlDatasetWithAutoSchema creates a new SQL dataset with auto-detected schema
 func NewSqlDatasetWithAutoSchema(
 	db *sql.DB,
-	location location.SQLLocation,
+	location *location.SQLLocation,
 	converter types.ValueConverter[any],
 	limit int,
 ) (SqlDataset, error) {
@@ -66,7 +66,7 @@ func NewSqlDatasetWithAutoSchema(
 }
 
 // getSchema extracts schema information from the database
-func getSchema(db *sql.DB, converter types.ValueConverter[any], tableName location.SQLLocation) (types.Schema, error) {
+func getSchema(db *sql.DB, converter types.ValueConverter[any], tableName *location.SQLLocation) (types.Schema, error) {
 	// Extract schema and table name
 	tblName := tableName.GetTable()
 	schema := tableName.GetSchema()
@@ -129,18 +129,17 @@ func getSchema(db *sql.DB, converter types.ValueConverter[any], tableName locati
 }
 
 func (ds SqlDataset) Location() location.Location {
-	return &ds.location
+	return ds.location
 }
 
 func (ds SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 	columnNames := make([]string, 0)
 	for _, col := range ds.schema.ColumnNames() {
-		columnNames = append(columnNames, sanitize(col))
+		columnNames = append(columnNames, sanitizeCol(col))
 	}
 	cols := strings.Join(columnNames, ", ")
-	// TODO: Have a generic sanitization based on provider type
-	loc := location.SanitizeSqlLocation(ds.location)
+	loc := ds.location.Sanitized()
 	var query string
 	if ds.limit == -1 {
 		query = fmt.Sprintf("SELECT %s FROM %s", cols, loc)
@@ -157,8 +156,8 @@ func (ds SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
 	return NewSqlIterator(ctx, rows, ds.converter, ds.schema), nil
 }
 
-func (ds SqlDataset) Schema() (types.Schema, error) {
-	return ds.schema, nil
+func (ds SqlDataset) Schema() types.Schema {
+	return ds.schema
 }
 
 type SqlIterator struct {
@@ -271,6 +270,6 @@ func (it *SqlIterator) Next() bool {
 	return true
 }
 
-func sanitize(ident string) string {
+func sanitizeCol(ident string) string {
 	return db.Identifier{ident}.Sanitize()
 }

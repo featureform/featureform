@@ -1288,7 +1288,7 @@ func (table *SqlPrimaryTable) ToDataset() (dataset.SqlDataset, error) {
 	}
 	return dataset.NewSqlDatasetWithAutoSchema(
 		table.db,
-		*table.sqlLocation,
+		table.sqlLocation,
 		conv,
 		-1,
 	)

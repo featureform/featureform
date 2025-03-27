@@ -919,6 +919,8 @@ jobs:
 
       - name: Build and Install Client Package
         run: |
+          pip install --upgrade pip setuptools wheel 
+          pip install -r tests/metadata_integration/requirements.txt
           python3 -m build ./client/
           pip install --force-reinstall --no-deps client/dist/*.whl
 

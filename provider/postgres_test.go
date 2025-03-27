@@ -13,7 +13,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	helper "github.com/featureform/helpers/postgres"
 	pl "github.com/featureform/provider/location"
 	pt "github.com/featureform/provider/provider_type"
 )
@@ -67,7 +66,7 @@ func getConfiguredPostgresTester(t *testing.T) offlineSqlTest {
 
 	sanitizeTableName := func(obj pl.FullyQualifiedObject) string {
 		loc := pl.NewSQLLocationFromParts(obj.Database, obj.Schema, obj.Table)
-		return helper.SanitizeLocation(*loc)
+		return loc.Sanitized()
 	}
 
 	return offlineSqlTest{

@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"strings"
 
+	psql "github.com/jackc/pgx/v4"
+
 	pb "github.com/featureform/metadata/proto"
 
 	"github.com/featureform/fferr"
@@ -103,10 +105,29 @@ func (f FullyQualifiedObject) String() string {
 	return strings.Join(parts, ".")
 }
 
+// This is a helper function to sanitize a fully qualified object for use in most SQL queries (postgres, snowflake, etc.)
+func SanitizeFullyQualifiedObject(obj FullyQualifiedObject) string {
+	ident := psql.Identifier{}
+
+	if obj.Database != "" && obj.Schema != "" {
+		ident = append(ident, obj.Database)
+	}
+
+	if obj.Schema != "" {
+		ident = append(ident, obj.Schema)
+	}
+
+	ident = append(ident, obj.Table)
+
+	return ident.Sanitize()
+}
+
 type SQLLocation struct {
 	database string
 	schema   string
 	table    string
+
+	sanitizer func(obj FullyQualifiedObject) string
 }
 
 func (l *SQLLocation) GetDatabase() string {
@@ -131,6 +152,10 @@ func (l *SQLLocation) IsAbsolute() bool {
 
 func (l *SQLLocation) IsRelative() bool {
 	return !l.IsAbsolute()
+}
+
+func (l *SQLLocation) SetSanitizer(sanitizer func(obj FullyQualifiedObject) string) {
+	l.sanitizer = sanitizer
 }
 
 // GetTableFromRoot return table if it's an absolute position.
@@ -197,6 +222,14 @@ func (l *SQLLocation) Proto() *pb.Location {
 				Name:     l.table,
 			},
 		},
+	}
+}
+
+func (l *SQLLocation) Sanitized() string {
+	if l.sanitizer == nil {
+		return SanitizeFullyQualifiedObject(l.TableLocation())
+	} else {
+		return l.sanitizer(l.TableLocation())
 	}
 }
 

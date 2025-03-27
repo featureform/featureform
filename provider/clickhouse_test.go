@@ -57,6 +57,7 @@ func (ch *clickHouseOfflineStoreTester) CreateTable(loc pl.Location, schema Tabl
 	logger := ch.logger.With("location", loc, "schema", schema)
 
 	sqlLocation, ok := loc.(*pl.SQLLocation)
+	sqlLocation.SetSanitizer(sanitizeClickHouseTableName)
 	if !ok {
 		errMsg := fmt.Sprintf("invalid location type, expected SQLLocation, got %T", loc)
 		logger.Errorw(errMsg)

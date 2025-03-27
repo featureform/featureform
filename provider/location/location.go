@@ -224,11 +224,11 @@ func (l *SQLLocation) Proto() *pb.Location {
 	}
 }
 
-func SanitizeSqlLocation(loc SQLLocation) string {
-	if loc.sanitizer == nil {
-		return SanitizeFullyQualifiedObject(loc.TableLocation())
+func (l *SQLLocation) Sanitized() string {
+	if l.sanitizer == nil {
+		return SanitizeFullyQualifiedObject(l.TableLocation())
 	} else {
-		return loc.sanitizer(loc.TableLocation())
+		return l.sanitizer(l.TableLocation())
 	}
 }
 

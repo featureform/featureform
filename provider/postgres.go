@@ -135,6 +135,8 @@ WHERE rn = 1
 		tsOrderByStatement = ""
 	}
 
+	sqlLoc := schema.SourceTable.(*pl.SQLLocation)
+
 	values := map[string]any{
 		"tableName":          sanitize(tableName),
 		"entity":             schema.Entity,
@@ -142,7 +144,7 @@ WHERE rn = 1
 		"tsSelectStatement":  tsSelectStatement,
 		"tsOrderByStatement": tsOrderByStatement,
 		// TODO: Error checking for SQLLocation
-		"sourceLocation": pl.SanitizeSqlLocation(*schema.SourceTable.(*pl.SQLLocation)),
+		"sourceLocation": sqlLoc.Sanitized(),
 	}
 
 	var sb strings.Builder
@@ -220,7 +222,7 @@ func (q postgresSQLQueries) adaptTsDefToBuilderParams(def TrainingSetDef) (tsq.B
 		if !isSQLLocation {
 			return "", fferr.NewInternalErrorf("label location is not an SQL location, actual %T. %v", lblLoc, lblLoc)
 		}
-		return pl.SanitizeSqlLocation(*lblLoc), nil
+		return lblLoc.Sanitized(), nil
 	}
 
 	// TODO: Create and pass in actual logger

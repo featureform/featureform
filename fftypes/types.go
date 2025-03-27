@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	db "github.com/jackc/pgx/v4"
 
 	"github.com/featureform/fferr"
 	pb "github.com/featureform/metadata/proto"
@@ -310,6 +311,8 @@ type ColumnSchema struct {
 	Name       ColumnName
 	NativeType NativeType
 	Type       ValueType
+	
+	sanitizer func(string) string // function to sanitize column names that differs between databases
 }
 
 type Value struct {
@@ -327,8 +330,6 @@ type TypeConverter func(interface{}) (interface{}, error)
 
 type TypeConverterMapping map[string]TypeConverter
 
-//type ValueConverter func(NativeType, any) (Value, error)
-
 type Schema struct {
 	Fields []ColumnSchema
 	// todo: can include more state or behavior, etc.
@@ -341,4 +342,21 @@ func (s Schema) ColumnNames() []string {
 		names[i] = string(field.Name)
 	}
 	return names
+}
+
+func (s Schema) SanitizedColumnNames() []string {
+	names := make([]string, len(s.Fields))
+	for i, field := range s.Fields {
+		if field.sanitizer == nil {
+			names[i] = sanitizeColumnName(string(field.Name))
+		} else {
+			names[i] = field.sanitizer(string(field.Name))
+
+		}
+	}
+	return names
+}
+
+func sanitizeColumnName(name string) string {
+	return db.Identifier{name}.Sanitize()
 }

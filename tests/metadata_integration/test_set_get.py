@@ -7,9 +7,7 @@ def client():
     yield client
     ff.clear_state()
 
-
 def test_e2e_register_and_apply(client):
-
     default_variant = "quickstart"
 
     postgres = ff.register_postgres(
@@ -71,7 +69,7 @@ def test_e2e_register_and_apply(client):
     labels = client.list_labels()
     training_sets = client.list_training_sets()
 
-       # all the resources are present: features, labels, and training_sets
+    # all the resources are present: features, labels, and training_sets
     assert len(features) == 1
     assert features[0].name == "avg_transactions"
     assert features[0].default_variant == default_variant

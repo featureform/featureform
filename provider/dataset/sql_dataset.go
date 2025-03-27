@@ -13,8 +13,6 @@ import (
 	"fmt"
 	"strings"
 
-	db "github.com/jackc/pgx/v4"
-
 	"github.com/featureform/fferr"
 	types "github.com/featureform/fftypes"
 	"github.com/featureform/logging"
@@ -27,8 +25,6 @@ type SqlDataset struct {
 	schema    types.Schema
 	converter types.ValueConverter[any]
 	limit     int
-
-	locationSanitizer func(object location.FullyQualifiedObject) string
 }
 
 func NewSqlDataset(
@@ -136,10 +132,7 @@ func (ds SqlDataset) Location() location.Location {
 
 func (ds SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
 	logger := logging.GetLoggerFromContext(ctx)
-	columnNames := make([]string, 0)
-	for _, col := range ds.schema.ColumnNames() {
-		columnNames = append(columnNames, sanitize(col))
-	}
+	columnNames := ds.Schema().SanitizedColumnNames()
 	cols := strings.Join(columnNames, ", ")
 	loc := ds.location.Sanitized()
 	var query string
@@ -270,8 +263,4 @@ func (it *SqlIterator) Next() bool {
 
 	it.currentValues = it.rowBuffer
 	return true
-}
-
-func sanitize(ident string) string {
-	return db.Identifier{ident}.Sanitize()
 }

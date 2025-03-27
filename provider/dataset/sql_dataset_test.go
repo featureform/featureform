@@ -71,7 +71,7 @@ func TestSqlDatasetQueryConstruction(t *testing.T) {
 			tc.setupMockFn(mock)
 
 			// Create dataset
-			ds, err := NewSqlDataset(db, *loc, testSchema, mockConverter, tc.limit)
+			ds, err := NewSqlDataset(db, loc, testSchema, mockConverter, tc.limit)
 			require.NoError(t, err)
 
 			// Call the method that builds and executes the query

@@ -96,7 +96,7 @@ func TestSnowflakeTypeConversions(t *testing.T) {
 		location := pl.NewSQLLocation("test_table")
 
 		// Create the dataset with schema and SfConverter (not TypeMap)
-		return dataset.NewSqlDataset(db, *location, schema, SfConverter, 1)
+		return dataset.NewSqlDataset(db, location, schema, SfConverter, 1)
 	}
 
 	// Create a type map for the test harness
@@ -170,7 +170,7 @@ func TestTimestampTypeHandling(t *testing.T) {
 			// Create dataset
 			ds, err := dataset.NewSqlDataset(
 				db,
-				*location,
+				location,
 				schema,
 				SfConverter,
 				1,

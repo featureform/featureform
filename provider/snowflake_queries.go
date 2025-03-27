@@ -118,13 +118,11 @@ func (q snowflakeSQLQueries) materializationCreateAsQuery(entity, value, ts, tab
 }
 
 func (q snowflakeSQLQueries) dropTableQuery(loc pl.SQLLocation) string {
-	obj := loc.TableLocation()
-	return fmt.Sprintf("DROP TABLE %s", pl.SanitizeFullyQualifiedObject(obj))
+	return fmt.Sprintf("DROP TABLE %s", loc.Sanitized())
 }
 
 func (q snowflakeSQLQueries) dropViewQuery(loc pl.SQLLocation) string {
-	obj := loc.TableLocation()
-	return fmt.Sprintf("DROP VIEW %s", pl.SanitizeFullyQualifiedObject(obj))
+	return fmt.Sprintf("DROP VIEW %s", loc.Sanitized())
 }
 
 func SanitizeSnowflakeIdentifier(obj pl.FullyQualifiedObject) string {

@@ -339,7 +339,7 @@ jobs:
         run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
 
       - name: Run Tests
-        run: pytest -vvl -s --ignore ./tests/end_to_end/pytest --ignore provider/scripts/spark/integration_test_scripts
+        run: pytest -vvl -s --ignore ./tests/end_to_end/pytest --ignore ./tests/metadata_integration --ignore provider/scripts/spark/integration_test_scripts
 
       - name: Upload Coverage Report
         uses: codecov/codecov-action@v2
@@ -402,7 +402,7 @@ jobs:
         run: pip install client/dist/featureform-0.0.0-py3-none-any.whl
 
       - name: Run Tests
-        run: pytest -vvl -s --ignore ./tests/end_to_end/pytest --ignore provider/scripts/spark/integration_test_scripts
+        run: pytest -vvl -s --ignore ./tests/end_to_end/pytest --ignore ./tests/metadata_integration --ignore provider/scripts/spark/integration_test_scripts
 
   behave:
     name: Run Non Auto Variant Behave Tests
@@ -878,3 +878,54 @@ jobs:
         with:
           name: featureform-e2e-pytest.log
           path: ./featureform-e2e-pytest.log
+
+  pytest-metadata-integration:
+    name: Run Metadata Client Integration Tests
+    timeout-minutes: 10
+    if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event.inputs.run_job == 'pytest-metadata-integration') }}
+    defaults:
+      run:
+        working-directory: ./
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          check-latest: true
+          cache-dependency-path: |
+            go.sum
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install grpc_tools and build tools
+        run: |
+          pip install --upgrade pip
+          pip install grpcio-tools==1.62.2 build pytest pytest-cov mypy-protobuf
+
+      - name: Install Protobuf
+        run: sudo snap install protobuf --classic
+
+      - name: Generate gRPC Code
+        run: ./gen_grpc.sh
+
+      - name: Start Docker Compose Services
+        run: docker compose -f tests/metadata_integration/docker-compose.yml up -d
+
+      - name: Build and Install Client Package
+        run: |
+          pip install --upgrade pip setuptools wheel
+          pip install -r tests/metadata_integration/requirements.txt
+          python3 -m build ./client/
+          pip install --force-reinstall --no-deps client/dist/*.whl
+
+      - name: Run Metadata Integration Tests
+        run: pytest -vv -s tests/metadata_integration
+
+      - name: Shutdown Docker Compose
+        if: always()
+        run: docker compose -f tests/metadata_integration/docker-compose.yml down

@@ -18,11 +18,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/featureform/fferr"
-
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 
+	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider/location"
 	pl "github.com/featureform/provider/location"
@@ -117,7 +116,7 @@ func (s *snowflakeOfflineStoreTester) CreateTable(loc location.Location, schema 
 	}
 
 	return &snowflakePrimaryTable{
-		sqlPrimaryTable{
+		SqlPrimaryTable{
 			db:           db,
 			name:         sqlLocation.Location(),
 			sqlLocation:  sqlLocation,

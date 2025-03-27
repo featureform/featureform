@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2025 FeatureForm Inc.
+//
+
 package dataset
 
 import (
@@ -110,7 +117,7 @@ func testIterator(t *testing.T, tc DatasetTestCase) {
 	}
 
 	i := 0
-	for iter.Next(ctx) {
+	for iter.Next() {
 		require.Less(t, i, len(tc.ExpectedData), "Iterator returned more rows than expected")
 		assert.Equal(t, tc.ExpectedData[i], iter.Values())
 		i++
@@ -151,10 +158,10 @@ func testSegmentIterator(t *testing.T, tc DatasetTestCase) {
 
 	// Verify iterator returns expected segment
 	for i := start; i < end; i++ {
-		require.True(t, iter.Next(ctx), "Iterator ended prematurely")
+		require.True(t, iter.Next(), "Iterator ended prematurely")
 		assert.Equal(t, tc.ExpectedData[i], iter.Values())
 	}
-	assert.False(t, iter.Next(ctx), "Iterator did not end as expected")
+	assert.False(t, iter.Next(), "Iterator did not end as expected")
 }
 
 func testWriteableDataset(t *testing.T, ds WriteableDataset, tc DatasetTestCase) {
@@ -196,7 +203,7 @@ func testWriteableDataset(t *testing.T, ds WriteableDataset, tc DatasetTestCase)
 		require.NoError(t, err)
 
 		rowIdx := 0
-		for iter.Next(ctx) {
+		for iter.Next() {
 			if rowIdx < len(expectedDataAfterWrite) {
 				assert.Equal(t, expectedDataAfterWrite[rowIdx], iter.Values())
 			} else {
@@ -269,7 +276,7 @@ func testChunkedDatasetAdapter(t *testing.T, ds SizedSegmentableDataset, tc Data
 
 			// Verify chunk contents
 			i := 0
-			for iter.Next(ctx) {
+			for iter.Next() {
 				val := iter.Values()
 				assert.Equal(t, tc.ExpectedData[i], val)
 				i++
@@ -300,7 +307,7 @@ func testChunkedDatasetAdapter(t *testing.T, ds SizedSegmentableDataset, tc Data
 			// Verify chunk contents
 			startIdx := lastChunkIndex * int(adapter.ChunkSize)
 			i := 0
-			for iter.Next(ctx) {
+			for iter.Next() {
 				val := iter.Values()
 				assert.Equal(t, tc.ExpectedData[startIdx+i], val)
 				i++

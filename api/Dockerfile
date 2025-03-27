@@ -16,6 +16,7 @@ RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_o
 
 COPY ./fferr ./fferr
 COPY ./ffsync ./ffsync
+COPY ./fftypes/ ./fftypes/
 COPY ./storage ./storage
 COPY ./schema ./schema
 COPY ./lib/ ./lib/

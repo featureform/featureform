@@ -50,7 +50,7 @@ def test_e2e_register_and_apply(client):
         )
 
         fraudulent = ff.Label(
-            transactions[["customerid", "isfraud"]], 
+            transactions[["customerID", "isfraud"]], 
             variant=default_variant, 
             type=ff.Bool,
         )

@@ -888,7 +888,7 @@ jobs:
         working-directory: ./
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -918,7 +918,7 @@ jobs:
 
       - name: Build and Install Client Package
         run: |
-          pip install --upgrade pip setuptools wheel 
+          pip install --upgrade pip setuptools wheel
           pip install -r tests/metadata_integration/requirements.txt
           python3 -m build ./client/
           pip install --force-reinstall --no-deps client/dist/*.whl

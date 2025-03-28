@@ -64,15 +64,6 @@ func (c Converter) GetType(nativeType types.NativeType) (types.ValueType, error)
 
 // ConvertValue converts a value from its ClickHouse representation to a types.Value
 func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.Value, error) {
-	if value == nil {
-		valueType, _ := c.GetType(nativeType)
-		return types.Value{
-			NativeType: nativeType,
-			Type:       valueType,
-			Value:      nil,
-		}, nil
-	}
-
 	// Dereference any pointers
 	value = deferencePointer(value)
 

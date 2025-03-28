@@ -14,6 +14,8 @@ import (
 	"text/template"
 	"time"
 
+	_ "github.com/lib/pq"
+
 	"github.com/featureform/fferr"
 	helper "github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
@@ -22,7 +24,6 @@ import (
 	pt "github.com/featureform/provider/provider_type"
 	tsq "github.com/featureform/provider/tsquery"
 	"github.com/featureform/provider/types"
-	_ "github.com/lib/pq"
 )
 
 type postgresColumnType string
@@ -59,6 +60,7 @@ func postgresOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		ConnectionURL:           connUrl,
 		Driver:                  "postgres",
 		ProviderType:            pt.PostgresOffline,
+		DefaultDb:               sc.Database,
 		QueryImpl:               &queries,
 		ConnectionStringBuilder: connectionUrlBuilder,
 		useDbConnectionCache:    true,

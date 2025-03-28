@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -81,9 +80,6 @@ func TestBigQueryNativeTypeConversions(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
-
-	// load dot env
-	_ = godotenv.Load("../.env")
 
 	// Configure test environment
 	test := getConfiguredBigQueryTester(t)

@@ -59,7 +59,8 @@ func TestDatabaseTypeConversions(t *testing.T, tester OfflineSqlStoreWriteableDa
 	dbName := tester.GetTestDatabase()
 
 	// Create schema if needed
-	schemaName := "test_types"
+
+	schemaName := fmt.Sprintf("test_types_schema_%s", strings.ToLower(uuid.NewString()[:8]))
 	err := tester.CreateSchema(dbName, schemaName)
 	require.NoError(t, err, "Failed to create schema")
 
@@ -100,7 +101,7 @@ func TestDatabaseTypeConversions(t *testing.T, tester OfflineSqlStoreWriteableDa
 	defer it.Close()
 
 	// Verify we have a row
-	require.True(t, it.Next(), "Failed to get row from iterator")
+	require.True(t, it.Next(), "Failed to get row from iterator with error: %v", it.Err())
 	if it.Err() != nil {
 		t.Fatalf("Iterator error: %v", it.Err())
 	}
@@ -111,7 +112,8 @@ func TestDatabaseTypeConversions(t *testing.T, tester OfflineSqlStoreWriteableDa
 
 	// Create map of column values
 	columnValues := make(map[string]interface{})
-	for i, col := range it.Schema().ColumnNames() {
+	sch := it.Schema()
+	for i, col := range sch.ColumnNames() {
 		columnValues[col] = row[i].Value
 	}
 

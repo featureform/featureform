@@ -148,7 +148,7 @@ func TestBigQueryTypeConversions(t *testing.T) {
 			db,
 			location,
 			schema,
-			bqConverter,
+			BqConverter,
 			1, // Limit to 1 row
 		)
 

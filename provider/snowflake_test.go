@@ -93,7 +93,8 @@ func (w WritableSnowflakeDataset) WriteBatch(ctx context.Context, rows []types.R
 	if len(rows) == 0 {
 		return nil
 	}
-	columns := w.Schema().ColumnNames()
+	schema := w.Schema()
+	columns := schema.ColumnNames()
 	columnNames := make([]string, len(columns))
 	for i, col := range columns {
 		columnNames[i] = col

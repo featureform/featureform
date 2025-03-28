@@ -8,13 +8,15 @@
 package bigquery
 
 import (
+	"cloud.google.com/go/bigquery"
+
 	"github.com/featureform/fferr"
 	types "github.com/featureform/fftypes"
 	"github.com/featureform/logging"
 	"github.com/featureform/provider/provider_type"
 )
 
-var bqConverter = Converter{}
+var BqConverter = Converter{}
 
 func init() {
 	Register()
@@ -22,7 +24,7 @@ func init() {
 
 func Register() {
 	logging.GlobalLogger.Info("Registering BigQuery converter")
-	provider_type.RegisterConverter(provider_type.BigQueryOffline, bqConverter)
+	provider_type.RegisterConverter(provider_type.BigQueryOffline, BqConverter)
 }
 
 type Converter struct{}
@@ -40,7 +42,7 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 	// Convert the value based on the native type
 	switch nativeType {
 	// Integer types
-	case "INT64":
+	case "INT64", "INTEGER", "BIGINT":
 		if value == nil {
 			return types.Value{
 				NativeType: nativeType,
@@ -59,7 +61,7 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 		}, nil
 
 	// Floating point types
-	case "FLOAT64", "NUMERIC", "BIGNUMERIC":
+	case "FLOAT64", "DECIMAL":
 		if value == nil {
 			return types.Value{
 				NativeType: nativeType,
@@ -153,5 +155,23 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 		}, nil
 	default:
 		return types.Value{}, fferr.NewUnsupportedTypeError(string(nativeType))
+	}
+}
+
+func GetBigQueryType(valueType types.ValueType) (bigquery.FieldType, error) {
+	switch valueType {
+	case types.Int, types.Int32, types.Int64:
+		return bigquery.IntegerFieldType, nil
+	case types.Float32, types.Float64:
+		// The BigQuery client names the Float type differently internally than what BigQuery is itself expecting.
+		return "FLOAT64", nil
+	case types.String:
+		return bigquery.StringFieldType, nil
+	case types.Bool:
+		return bigquery.BooleanFieldType, nil
+	case types.Timestamp:
+		return bigquery.TimestampFieldType, nil
+	default:
+		return "", fferr.NewDataTypeNotFoundErrorf(valueType, "cannot find column type for value type")
 	}
 }

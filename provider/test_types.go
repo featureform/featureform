@@ -58,15 +58,13 @@ func TestDatabaseTypeConversions(t *testing.T, tester OfflineSqlStoreWriteableDa
 	// Get test database name
 	dbName := tester.GetTestDatabase()
 
-	// Create schema if needed
-
 	schemaName := fmt.Sprintf("test_types_schema_%s", strings.ToLower(uuid.NewString()[:8]))
 	err := tester.CreateSchema(dbName, schemaName)
 	require.NoError(t, err, "Failed to create schema")
 
 	// Create table name with random suffix
 	tableName := fmt.Sprintf("test_types_%s", strings.ToLower(uuid.NewString()[:8]))
-	location := pl.NewSQLLocationFromParts(dbName, "test_types", tableName)
+	location := pl.NewSQLLocationFromParts(dbName, schemaName, tableName)
 
 	// Create a dataset with test schema
 	schema := testData.ToSchema()

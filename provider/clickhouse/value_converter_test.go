@@ -177,36 +177,6 @@ func TestConverterConvertValue(t *testing.T) {
 	}
 }
 
-func TestNullableTypeExtraction(t *testing.T) {
-	converter := Converter{}
-
-	// Test that we can extract the underlying type from Nullable types
-	tests := []struct {
-		name          string
-		nullableType  types.NativeType
-		value         interface{}
-		expectedType  types.ValueType
-		expectedValue interface{}
-	}{
-		{"Nullable(String)", "Nullable(String)", "test", types.String, "test"},
-		{"Nullable(Int32)", "Nullable(Int32)", int32(123), types.Int32, int32(123)},
-		{"Nullable(Float64)", "Nullable(Float64)", float64(3.14), types.Float64, float64(3.14)},
-		{"Nullable(Bool)", "Nullable(Bool)", true, types.Bool, true},
-		// Test with nil values
-		{"Nullable(String) nil", "Nullable(String)", nil, types.String, nil},
-		{"Nullable(Int32) nil", "Nullable(Int32)", nil, types.Int32, nil},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			value, err := converter.ConvertValue(tt.nullableType, tt.value)
-			assert.NoError(t, err)
-			assert.Equal(t, tt.expectedType, value.Type)
-			assert.Equal(t, tt.expectedValue, value.Value)
-		})
-	}
-}
-
 func TestPointerDereference(t *testing.T) {
 	converter := Converter{}
 

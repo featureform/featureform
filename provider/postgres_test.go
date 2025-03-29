@@ -13,7 +13,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	helper "github.com/featureform/helpers/postgres"
 	pl "github.com/featureform/provider/location"
 	pt "github.com/featureform/provider/provider_type"
 )
@@ -38,7 +37,7 @@ func TestOfflineStorePostgres(t *testing.T) {
 	//test.RunSQL()
 }
 
-func getConfiguredPostgresTester(t *testing.T) offlineSqlTest {
+func getConfiguredPostgresTester(t *testing.T) OfflineSqlTest {
 	postgresConfig, err := getPostgresConfig(t, "")
 	if err != nil {
 		t.Fatalf("could not get postgres config: %s\n", err)
@@ -67,12 +66,12 @@ func getConfiguredPostgresTester(t *testing.T) offlineSqlTest {
 
 	sanitizeTableName := func(obj pl.FullyQualifiedObject) string {
 		loc := pl.NewSQLLocationFromParts(obj.Database, obj.Schema, obj.Table)
-		return helper.SanitizeLocation(*loc)
+		return loc.Sanitized()
 	}
 
-	return offlineSqlTest{
+	return OfflineSqlTest{
 		storeTester: &storeTester,
-		testConfig: offlineSqlTestConfig{
+		testConfig: OfflineSqlTestConfig{
 			sanitizeTableName: sanitizeTableName,
 		},
 	}

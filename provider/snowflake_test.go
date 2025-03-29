@@ -22,12 +22,15 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/featureform/fferr"
+	types "github.com/featureform/fftypes"
 	"github.com/featureform/metadata"
+	"github.com/featureform/provider/dataset"
 	"github.com/featureform/provider/location"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
+	"github.com/featureform/provider/snowflake"
 )
 
 const (
@@ -79,6 +82,63 @@ func (s *snowflakeOfflineStoreTester) CreateSchema(database, schema string) erro
 		return err
 	}
 	return nil
+}
+
+type WritableSnowflakeDataset struct {
+	*dataset.SqlDataset
+	db *sql.DB
+}
+
+func (w WritableSnowflakeDataset) WriteBatch(ctx context.Context, rows []types.Row) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	schema := w.Schema()
+	columns := schema.ColumnNames()
+	columnNames := make([]string, len(columns))
+	for i, col := range columns {
+		columnNames[i] = col
+	}
+	sqlLocation, ok := w.Location().(*location.SQLLocation)
+	if !ok {
+		return fmt.Errorf("invalid location type")
+	}
+	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES ", sqlLocation.Sanitized(), strings.Join(columnNames, ","))
+	var args []any
+	for i, row := range rows {
+		if i > 0 {
+			query += ","
+		}
+		query += "("
+		for j := range columns {
+			if j > 0 {
+				query += ","
+			}
+			query += "?"
+			args = append(args, row[j])
+		}
+		query += ")"
+	}
+	_, err := w.db.ExecContext(ctx, query, args...)
+	return err
+}
+
+func (s *snowflakeOfflineStoreTester) CreateWritableDataset(loc location.Location, schema types.Schema) (dataset.WriteableDataset, error) {
+	sqlLocation, ok := loc.(*location.SQLLocation)
+	if !ok {
+		return nil, fmt.Errorf("invalid location type")
+	}
+
+	db, err := s.sqlOfflineStore.getDb(sqlLocation.GetDatabase(), sqlLocation.GetSchema())
+	if err != nil {
+		return nil, err
+	}
+
+	sqlDataset, err := dataset.NewSqlDataset(db, sqlLocation, schema, snowflake.Converter{}, -1)
+	return WritableSnowflakeDataset{
+		SqlDataset: &sqlDataset,
+		db:         db,
+	}, nil
 }
 
 func (s *snowflakeOfflineStoreTester) CreateTable(loc location.Location, schema TableSchema) (PrimaryTable, error) {
@@ -512,7 +572,7 @@ func TestSnowflakeDeserializeLegacyCredentials(t *testing.T) {
 
 // TEST FUNCTION
 
-func RegisterMaterializationWithDefaultTargetLagTest(t *testing.T, test offlineSqlTest) {
+func RegisterMaterializationWithDefaultTargetLagTest(t *testing.T, test OfflineSqlTest) {
 	useTimestamps := true
 	isIncremental := true
 	matTest := newSQLMaterializationTest(test, useTimestamps)
@@ -548,7 +608,7 @@ func RegisterMaterializationWithDefaultTargetLagTest(t *testing.T, test offlineS
 	matTest.data.Assert(t, matIncr, isIncremental)
 }
 
-func RegisterMaterializationWithDifferentWarehouseTest(t *testing.T, test offlineSqlTest) {
+func RegisterMaterializationWithDifferentWarehouseTest(t *testing.T, test OfflineSqlTest) {
 	useTimestamps := true
 	isIncremental := true
 	matTest := newSQLMaterializationTest(test, useTimestamps)
@@ -594,7 +654,7 @@ func RegisterMaterializationWithDifferentWarehouseTest(t *testing.T, test offlin
 	matTest.data.Assert(t, matIncr, isIncremental)
 }
 
-func RegisterTrainingSetWithType(t *testing.T, test offlineSqlTest, tsDatasetType trainingSetDatasetType, tsType metadata.TrainingSetType) {
+func RegisterTrainingSetWithType(t *testing.T, test OfflineSqlTest, tsDatasetType trainingSetDatasetType, tsType metadata.TrainingSetType) {
 	tsTest := newSQLTrainingSetTest(test, tsDatasetType)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.location, tsTest.data.schema, tsTest.data.records)
 	_ = initSqlPrimaryDataset(t, tsTest.tester, tsTest.data.labelLocation, tsTest.data.labelSchema, tsTest.data.labelRecords)
@@ -702,7 +762,7 @@ func destroySnowflakeDatabase(c pc.SnowflakeConfig) error {
 	return nil
 }
 
-func getConfiguredSnowflakeTester(t *testing.T) offlineSqlTest {
+func getConfiguredSnowflakeTester(t *testing.T) OfflineSqlTest {
 	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 	t.Logf("Creating Parent Database: %s\n", dbName)
 	snowflakeConfig, err := getSnowflakeConfig(t, dbName)
@@ -731,9 +791,9 @@ func getConfiguredSnowflakeTester(t *testing.T) offlineSqlTest {
 		snowflakeOfflineStore: store.(*snowflakeOfflineStore),
 	}
 
-	return offlineSqlTest{
+	return OfflineSqlTest{
 		storeTester: offlineStoreTester,
-		testConfig: offlineSqlTestConfig{
+		testConfig: OfflineSqlTestConfig{
 			sanitizeTableName: func(obj pl.FullyQualifiedObject) string { return SanitizeSnowflakeIdentifier(obj) },
 		},
 	}

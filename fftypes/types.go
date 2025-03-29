@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	db "github.com/jackc/pgx/v4"
 
 	"github.com/featureform/fferr"
 	pb "github.com/featureform/metadata/proto"
@@ -327,18 +328,39 @@ type TypeConverter func(interface{}) (interface{}, error)
 
 type TypeConverterMapping map[string]TypeConverter
 
-//type ValueConverter func(NativeType, any) (Value, error)
-
 type Schema struct {
 	Fields []ColumnSchema
 	// todo: can include more state or behavior, etc.
+
+	columnSanitizer func(string) string
+}
+
+func (s *Schema) SetColumnSanitizer(sanitizer func(string) string) {
+	s.columnSanitizer = sanitizer
 }
 
 // ColumnNames returns a slice of all column names in the schema
-func (s Schema) ColumnNames() []string {
+func (s *Schema) ColumnNames() []string {
 	names := make([]string, len(s.Fields))
 	for i, field := range s.Fields {
 		names[i] = string(field.Name)
 	}
 	return names
+}
+
+func (s *Schema) SanitizedColumnNames() []string {
+	names := make([]string, len(s.Fields))
+	for i, field := range s.Fields {
+		if s.columnSanitizer == nil {
+			names[i] = sanitizeColumnName(string(field.Name))
+		} else {
+			names[i] = s.columnSanitizer(string(field.Name))
+
+		}
+	}
+	return names
+}
+
+func sanitizeColumnName(name string) string {
+	return db.Identifier{name}.Sanitize()
 }

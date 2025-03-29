@@ -33,8 +33,8 @@ func (ds *InMemoryDataset) Iterator(ctx context.Context) (Iterator, error) {
 	return &InMemoryIterator{data: ds.data, schema: ds.schema, index: -1}, nil
 }
 
-func (ds *InMemoryDataset) Schema() (types.Schema, error) {
-	return ds.schema, nil
+func (ds *InMemoryDataset) Schema() types.Schema {
+	return ds.schema
 }
 
 func (ds *InMemoryDataset) WriteBatch(ctx context.Context, rows []types.Row) error {

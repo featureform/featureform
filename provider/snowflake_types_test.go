@@ -371,7 +371,7 @@ func TestSnowflakeTypeConversions(t *testing.T) {
 	// Create a test table with all supported Snowflake types
 	tableName := fmt.Sprintf("test_types_%s", strings.ToLower(uuid.NewString()[:8]))
 	location := pl.NewSQLLocationFromParts(snowflakeConfig.Database, "test_types", tableName)
-	sqlLocation := SanitizeSqlLocation(location.TableLocation())
+	sqlLocation := location.Sanitized()
 
 	// Generate the create table SQL from our test data structure
 	createTableQuery := testData.GenerateCreateTableSQL(sqlLocation)
@@ -386,7 +386,7 @@ func TestSnowflakeTypeConversions(t *testing.T) {
 	// Connect to the table using our converter
 	ds, err := dataset.NewSqlDatasetWithAutoSchema(
 		offlineStoreTester.db,
-		*location,
+		location,
 		snowflake.SfConverter,
 		1, // Limit to the one row we inserted
 	)

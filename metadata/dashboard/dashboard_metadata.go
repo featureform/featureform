@@ -1024,6 +1024,7 @@ type EntityFilters struct {
 
 func (m *MetadataServer) GetEntityResources(c *gin.Context) {
 	var filterBody EntityFilters
+	m.logger.Infow("Getting entity resources", "filterBody", filterBody)
 	if bindErr := c.BindJSON(&filterBody); bindErr != nil {
 		fetchError := m.GetRequestError(http.StatusInternalServerError, bindErr, c, "Error binding the request body")
 		m.logger.Errorw(fetchError.Error())
@@ -1050,9 +1051,40 @@ func (m *MetadataServer) GetEntityResources(c *gin.Context) {
 		wrappedEntity := metadata.WrapProtoEntity(entity)
 		shallowEntity := wrappedEntity.ToShallowMap()
 
+		fetchGroup := new(errgroup.Group)
+		fetchGroup.Go(func() error {
+			featureResults, err := wrappedEntity.FetchFeatures(c.Request.Context(), m.client)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream features dependencies"}
+			}
+			shallowEntity.Features, err = m.toFeatureVariantResource(featureResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert FeatureVariant to FeatureVariantResource"}
+			}
+			return nil
+		})
+		fetchGroup.Go(func() error {
+			labelResults, err := wrappedEntity.FetchLabels(c.Request.Context(), m.client)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Cannot get information on downstream label dependencies"}
+			}
+			shallowEntity.Labels, err = m.toLabelVariantResource(labelResults)
+			if err != nil {
+				m.logger.Errorw(err.Error(), "Internal Error", err)
+				return &FetchError{StatusCode: http.StatusInternalServerError, Type: "Could not convert LabelVariant to LabelVariantResource"}
+			}
+			return nil
+		})
+		if err := fetchGroup.Wait(); err != nil {
+			c.JSON(err.(*FetchError).StatusCode, err.Error())
+			return
+		}
+		m.logger.Debugw("Added entity resource to dashboard resource list", "entity", shallowEntity)
 		resourceList[i] = shallowEntity
 	}
-
 	resp := GetEntityListResp{
 		Count: count,
 		Data:  resourceList,

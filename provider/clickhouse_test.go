@@ -8,6 +8,7 @@
 package provider
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -19,7 +20,10 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 
+	types "github.com/featureform/fftypes"
 	"github.com/featureform/helpers"
+	"github.com/featureform/provider/clickhouse"
+	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
@@ -40,7 +44,7 @@ func (ch *clickHouseOfflineStoreTester) CreateDatabase(name string) error {
 }
 
 func (ch *clickHouseOfflineStoreTester) DropDatabase(name string) error {
-	_, err := ch.conn.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", SanitizeClickHouseIdentifier(name)))
+	_, err := ch.db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", SanitizeClickHouseIdentifier(name)))
 	if err != nil {
 		ch.logger.Errorw("dropping database", "error", err)
 		return err
@@ -51,6 +55,147 @@ func (ch *clickHouseOfflineStoreTester) DropDatabase(name string) error {
 func (ch *clickHouseOfflineStoreTester) CreateSchema(database, schema string) error {
 	// ClickHouse doesn't have a concept like schemas.
 	return nil
+}
+
+type WritableClickHouseDataset struct {
+	*dataset.SqlDataset
+	db *sql.DB
+}
+
+func (w WritableClickHouseDataset) WriteBatch(ctx context.Context, rows []types.Row) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	schema := w.Schema()
+	if err != nil {
+		return err
+	}
+
+	columns := schema.ColumnNames()
+	columnNames := make([]string, len(columns))
+	for i, col := range columns {
+		columnNames[i] = col
+	}
+
+	sqlLocation, ok := w.Location().(*pl.SQLLocation)
+	if !ok {
+		return fmt.Errorf("invalid location type")
+	}
+
+	// Build base query
+	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES ",
+		sanitizeClickHouseTableName(sqlLocation.TableLocation()),
+		strings.Join(columnNames, ", "))
+
+	valueRows := make([]string, len(rows))
+	var args []any
+
+	for i, row := range rows {
+		valueItems := make([]string, len(columns))
+
+		for j, value := range row {
+			// Handle specific ClickHouse value formatting
+			switch v := value.Value.(type) {
+			case string:
+				// Special function handling for ClickHouse
+				if strings.HasPrefix(v, "to") || strings.HasPrefix(v, "[") {
+					valueItems[j] = v // Direct value insertion for functions
+				} else {
+					valueItems[j] = "?" // Use parameter for regular strings
+					args = append(args, v)
+				}
+			case bool:
+				valueItems[j] = "?"
+				args = append(args, v)
+			case nil:
+				valueItems[j] = "NULL" // Direct NULL insertion
+			default:
+				valueItems[j] = "?"
+				args = append(args, v)
+			}
+		}
+
+		valueRows[i] = "(" + strings.Join(valueItems, ", ") + ")"
+	}
+
+	query += strings.Join(valueRows, ", ")
+
+	// Execute the query
+	_, err = w.db.ExecContext(ctx, query, args...)
+	return err
+}
+
+func (ch *clickHouseOfflineStoreTester) CreateWritableDataset(loc pl.Location, schema types.Schema) (dataset.WriteableDataset, error) {
+	sqlLocation, ok := loc.(*pl.SQLLocation)
+	if !ok {
+		return nil, fmt.Errorf("invalid location type")
+	}
+
+	db, err := ch.sqlOfflineStore.getDb(sqlLocation.GetDatabase(), "")
+	if err != nil {
+		return nil, err
+	}
+
+	ds, err := ch.CreateTableFromSchema(loc, schema)
+	if err != nil {
+		return nil, err
+	}
+
+	return WritableClickHouseDataset{
+		SqlDataset: ds,
+		db:         db,
+	}, nil
+}
+
+func (ch *clickHouseOfflineStoreTester) CreateTableFromSchema(loc pl.Location, schema types.Schema) (*dataset.SqlDataset, error) {
+	logger := ch.logger.With("location", loc, "schema", schema)
+
+	sqlLocation, ok := loc.(*pl.SQLLocation)
+	sqlLocation.SetSanitizer(sanitizeClickHouseTableName)
+
+	if !ok {
+		errMsg := fmt.Sprintf("invalid location type, expected SQLLocation, got %T", loc)
+		logger.Errorw(errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+
+	db, err := ch.sqlOfflineStore.getDb(sqlLocation.GetDatabase(), "")
+	if err != nil {
+		logger.Errorw("could not get db", "error", err)
+		return nil, err
+	}
+
+	var queryBuilder strings.Builder
+	queryBuilder.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", sanitizeClickHouseTableName(sqlLocation.TableLocation())))
+
+	for i, column := range schema.Fields {
+		if i > 0 {
+			queryBuilder.WriteString(", ")
+		}
+		queryBuilder.WriteString(fmt.Sprintf("%s %s", column.Name, column.NativeType))
+	}
+	queryBuilder.WriteString(") ENGINE=MergeTree ORDER BY ()")
+
+	query := queryBuilder.String()
+	_, err = db.Exec(query)
+	if err != nil {
+		logger.Errorw("error executing query", "query", query, "error", err)
+		return nil, err
+	}
+	// create the table
+	_, err = db.Exec(query)
+	if err != nil {
+		logger.Errorw("error creating table", "error", err)
+		return nil, err
+	}
+
+	sqlDataset, err := dataset.NewSqlDataset(db, sqlLocation, schema, clickhouse.ChConverter, -1)
+	if err != nil {
+		return nil, err
+	}
+
+	return &sqlDataset, nil
 }
 
 func (ch *clickHouseOfflineStoreTester) CreateTable(loc pl.Location, schema TableSchema) (PrimaryTable, error) {
@@ -413,7 +558,7 @@ func getClickHouseConfig(t *testing.T) (pc.ClickHouseConfig, error) {
 	username := helpers.MustGetTestingEnv(t, "CLICKHOUSE_USER")
 	password := helpers.MustGetTestingEnv(t, "CLICKHOUSE_PASSWORD")
 	host := helpers.MustGetTestingEnv(t, "CLICKHOUSE_HOST")
-	port := helpers.GetEnvInt("CLICKHOUSE_PORT", 9000)
+	port := helpers.GetEnvInt("CLICKHOUSE_PORT", 9001)
 	ssl := helpers.GetEnvBool("CLICKHOUSE_SSL", false)
 
 	var clickHouseConfig = pc.ClickHouseConfig{
@@ -437,10 +582,16 @@ func sanitizeClickHouseTableName(obj pl.FullyQualifiedObject) string {
 	return name
 }
 
-func getConfiguredClickHouseTester(t *testing.T) offlineSqlTest {
+func getConfiguredClickHouseTester(t *testing.T) OfflineSqlTest {
 	clickHouseConfig, err := getClickHouseConfig(t)
 	if err != nil {
 		t.Fatalf("could not get clickhouse config: %s\n", err)
+	}
+
+	clickHouseConfig.Port = 9000
+	clickHouseConfig.Password = ""
+	if err := createClickHouseDatabaseFromConfig(t, clickHouseConfig); err != nil {
+		t.Fatalf("%v", err)
 	}
 
 	if err := createClickHouseDatabaseFromConfig(t, clickHouseConfig); err != nil {
@@ -469,9 +620,9 @@ func getConfiguredClickHouseTester(t *testing.T) offlineSqlTest {
 		clickHouseOfflineStore: store.(*clickHouseOfflineStore),
 	}
 
-	return offlineSqlTest{
+	return OfflineSqlTest{
 		storeTester: &storeTester,
-		testConfig: offlineSqlTestConfig{
+		testConfig: OfflineSqlTestConfig{
 			sanitizeTableName:        sanitizeClickHouseTableName,
 			removeSchemaFromLocation: true,
 		},

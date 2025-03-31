@@ -9,6 +9,8 @@ package location
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSQLLocation_TableLocation(t *testing.T) {
@@ -230,10 +232,7 @@ func TestSQLLocation_GetTableFromRoot(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.root.GetTableFromRoot(&tt.table)
-
-			if *result != tt.expected {
-				t.Errorf("Root %v, Table %v, GetTableFromRoot() = %v, want %v", tt.root, tt.table, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, *result)
 		})
 	}
 }

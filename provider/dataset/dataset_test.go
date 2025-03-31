@@ -97,8 +97,7 @@ func testIteratorSize(t *testing.T, iter Iterator, expectedSize int64) (isSized 
 
 func testBasicProperties(t *testing.T, tc DatasetTestCase) {
 	assert.Equal(t, tc.Location, tc.Dataset.Location())
-	schema, err := tc.Dataset.Schema()
-	require.NoError(t, err)
+	schema := tc.Dataset.Schema()
 	assert.Equal(t, tc.ExpectedSchema, schema)
 }
 

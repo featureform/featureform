@@ -8,12 +8,16 @@
 package provider
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
 	"strings"
 	"testing"
 
+	types "github.com/featureform/fftypes"
+	"github.com/featureform/provider/dataset"
+	"github.com/featureform/provider/postgres"
 	"github.com/featureform/provider/retriever"
 
 	"github.com/joho/godotenv"
@@ -145,6 +149,144 @@ func (p *postgresOfflineStoreTester) CreateTable(loc location.Location, schema T
 	}, nil
 }
 
+// WritablePostgresDataset implements WriteableDataset for PostgreSQL
+type WritablePostgresDataset struct {
+	*dataset.SqlDataset
+	db          *sql.DB
+	sqlLocation *location.SQLLocation
+}
+
+// WriteBatch implements WriteableDataset.WriteBatch for PostgreSQL
+func (w WritablePostgresDataset) WriteBatch(ctx context.Context, rows []types.Row) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	schema := w.Schema()
+	columnNames := schema.ColumnNames()
+	columnNameStr := make([]string, len(columnNames))
+	for i, col := range columnNames {
+		columnNameStr[i] = pq.QuoteIdentifier(col)
+	}
+
+	// Start transaction
+	tx, err := w.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Prepare the INSERT statement
+	placeholders := make([]string, len(columnNames))
+	for i := range columnNames {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+	}
+
+	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
+		w.sqlLocation.Sanitized(),
+		strings.Join(columnNameStr, ", "),
+		strings.Join(placeholders, ", "))
+
+	stmt, err := tx.PrepareContext(ctx, query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	// Execute for each row
+	for _, row := range rows {
+		values := make([]interface{}, len(columnNames))
+		for i := range columnNames {
+			if i < len(row) {
+				values[i] = row[i].Value
+			} else {
+				values[i] = nil
+			}
+		}
+
+		_, err = stmt.ExecContext(ctx, values...)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Commit the transaction
+	return tx.Commit()
+}
+
+// CreateWritableDataset creates a writable dataset for PostgreSQL
+func (p *postgresOfflineStoreTester) CreateWritableDataset(loc location.Location, schema types.Schema) (dataset.WriteableDataset, error) {
+	sqlLocation, ok := loc.(*location.SQLLocation)
+
+	if !ok {
+		return nil, fmt.Errorf("invalid location type")
+	}
+
+	// Create the table if it doesn't exist
+	ds, err := p.CreateTableFromSchema(loc, schema)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get a database connection
+	db, err := p.sqlOfflineStore.getDb(sqlLocation.GetDatabase(), sqlLocation.GetSchema())
+	if err != nil {
+		return nil, err
+	}
+
+	return WritablePostgresDataset{
+		SqlDataset:  ds,
+		db:          db,
+		sqlLocation: sqlLocation,
+	}, nil
+}
+
+// CreateTableFromSchema creates a table from a schema
+func (p *postgresOfflineStoreTester) CreateTableFromSchema(loc location.Location, schema types.Schema) (*dataset.SqlDataset, error) {
+	logger := p.logger.With("location", loc, "schema", schema)
+
+	sqlLocation, ok := loc.(*location.SQLLocation)
+	if !ok {
+		errMsg := fmt.Sprintf("invalid location type, expected SQLLocation, got %T", loc)
+		logger.Errorw(errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+
+	db, err := p.sqlOfflineStore.getDb(sqlLocation.GetDatabase(), sqlLocation.GetSchema())
+	if err != nil {
+		logger.Errorw("could not get db", "error", err)
+		return nil, err
+	}
+
+	// Build the CREATE TABLE query
+	var queryBuilder strings.Builder
+	queryBuilder.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", sqlLocation.Sanitized()))
+
+	for i, column := range schema.Fields {
+		if i > 0 {
+			queryBuilder.WriteString(", ")
+		}
+
+		queryBuilder.WriteString(fmt.Sprintf("%s %s", pq.QuoteIdentifier(string(column.Name)), column.NativeType))
+	}
+	queryBuilder.WriteString(")")
+
+	query := queryBuilder.String()
+	_, err = db.Exec(query)
+	if err != nil {
+		logger.Errorw("error creating table", "error", err)
+		return nil, err
+	}
+
+	// Create the SqlDataset
+	sqlDataset, err := dataset.NewSqlDataset(db, sqlLocation, schema, postgres.PgConverter, -1)
+	if err != nil {
+		return nil, err
+	}
+
+	return &sqlDataset, nil
+}
+
 func TestPostgresSchemas(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration tests")
@@ -167,15 +309,15 @@ func TestPostgresSchemas(t *testing.T) {
 		sqlOfflineStore: store.(*sqlOfflineStore),
 	}
 
-	tester := offlineSqlTest{
+	tester := OfflineSqlTest{
 		storeTester: offlineStoreTester,
-		testConfig: offlineSqlTestConfig{
+		testConfig: OfflineSqlTestConfig{
 			sanitizeTableName:        nil,
 			removeSchemaFromLocation: false,
 		},
 	}
 
-	testCases := map[string]func(t *testing.T, storeTester offlineSqlTest){
+	testCases := map[string]func(t *testing.T, storeTester OfflineSqlTest){
 		//"RegisterTableInDifferentDatabaseTest": RegisterTableInDifferentDatabaseTest,
 		//"RegisterTableInSameDatabaseDifferentSchemaTest": RegisterTableInSameDatabaseDifferentSchemaTest,
 		//"RegisterTwoTablesInSameSchemaTest":              RegisterTwoTablesInSameSchemaTest,
@@ -217,7 +359,6 @@ func destroyPostgresDatabase(config pc.PostgresConfig) error {
 	return err
 }
 
-// Assuming you have a function to load Postgres config
 func getPostgresConfig(t *testing.T, dbName string) (pc.PostgresConfig, error) {
 	err := godotenv.Load("../.env")
 	if err != nil {

@@ -132,7 +132,8 @@ func (ds SqlDataset) Location() location.Location {
 
 func (ds SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
 	logger := logging.GetLoggerFromContext(ctx)
-	columnNames := ds.Schema().SanitizedColumnNames()
+	schema := ds.Schema()
+	columnNames := schema.SanitizedColumnNames()
 	cols := strings.Join(columnNames, ", ")
 	loc := ds.location.Sanitized()
 	var query string

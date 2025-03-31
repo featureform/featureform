@@ -335,8 +335,12 @@ type Schema struct {
 	columnSanitizer func(string) string
 }
 
+func (s *Schema) SetColumnSanitizer(sanitizer func(string) string) {
+	s.columnSanitizer = sanitizer
+}
+
 // ColumnNames returns a slice of all column names in the schema
-func (s Schema) ColumnNames() []string {
+func (s *Schema) ColumnNames() []string {
 	names := make([]string, len(s.Fields))
 	for i, field := range s.Fields {
 		names[i] = string(field.Name)
@@ -344,7 +348,7 @@ func (s Schema) ColumnNames() []string {
 	return names
 }
 
-func (s Schema) SanitizedColumnNames() []string {
+func (s *Schema) SanitizedColumnNames() []string {
 	names := make([]string, len(s.Fields))
 	for i, field := range s.Fields {
 		if s.columnSanitizer == nil {

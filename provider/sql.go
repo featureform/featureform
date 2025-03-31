@@ -1288,7 +1288,7 @@ func (table *SqlPrimaryTable) ToDataset() (dataset.SqlDataset, error) {
 	}
 	return dataset.NewSqlDatasetWithAutoSchema(
 		table.db,
-		*table.sqlLocation,
+		table.sqlLocation,
 		conv,
 		-1,
 	)
@@ -2070,20 +2070,4 @@ func GetTransformationTableName(id ResourceID) (string, error) {
 		return "", fferr.NewInternalErrorf("resource type must be %s: received %s", Transformation.String(), id.Type.String())
 	}
 	return ps.ResourceToTableName("Transformation", id.Name, id.Variant)
-}
-
-func SanitizeSqlLocation(obj pl.FullyQualifiedObject) string {
-	ident := db.Identifier{}
-
-	if obj.Database != "" && obj.Schema != "" {
-		ident = append(ident, obj.Database)
-	}
-
-	if obj.Schema != "" {
-		ident = append(ident, obj.Schema)
-	}
-
-	ident = append(ident, obj.Table)
-
-	return ident.Sanitize()
 }

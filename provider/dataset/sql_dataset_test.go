@@ -76,7 +76,7 @@ func TestSqlDatasetQueryConstruction(t *testing.T) {
 
 			// Call the method that builds and executes the query
 			ctx := context.Background()
-			iterator, err := ds.Iterator(ctx)
+			iterator, err := ds.Iterator(ctx, 0)
 
 			// Verify results
 			assert.NoError(t, err)

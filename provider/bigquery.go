@@ -23,6 +23,7 @@ import (
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
+	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
@@ -71,6 +72,10 @@ type bqPrimaryTable struct {
 
 func (pt *bqPrimaryTable) GetName() string {
 	return pt.name
+}
+
+func (pt *bqPrimaryTable) GetLocation() pl.Location {
+	return pl.NewSQLLocationFromParts(pt.table.ProjectID, pt.table.DatasetID, pt.table.TableID)
 }
 
 func (pt *bqPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
@@ -1008,7 +1013,7 @@ func (store *bqOfflineStore) getTableName(id ResourceID) (string, error) {
 	return ps.ResourceToTableName(id.Type.String(), id.Name, id.Variant)
 }
 
-func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (dataset.Dataset, error) {
 	logger := store.logger.With("resourceId", id)
 
 	logger.Debug("Getting transformation table")
@@ -1036,7 +1041,13 @@ func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (Transformati
 		return nil, fferr.NewTransformationNotFoundError(id.Name, id.Variant, nil)
 	}
 
-	return store.newBigQueryPrimaryTable(name)
+	bqPt, err := store.newBigQueryPrimaryTable(name)
+	if err != nil {
+		logger.Errorw("Error creating primary table", "error", err)
+		return nil, err
+	}
+
+	return &PrimaryTableToDatasetAdapter{pt: bqPt}, nil
 }
 
 func (store *bqOfflineStore) UpdateTransformation(config TransformationConfig, opts ...TransformationOption) error {
@@ -1099,7 +1110,7 @@ func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchem
 	return table, nil
 }
 
-func (store *bqOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
+func (store *bqOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error) {
 	logger := store.logger.With("resourceId", id)
 
 	logger.Debug("Getting primary table")
@@ -1126,7 +1137,14 @@ func (store *bqOfflineStore) GetPrimaryTable(id ResourceID, source metadata.Sour
 
 	name := sqlLocation.Location()
 
-	return store.newBigQueryPrimaryTable(name)
+	bqTB, err := store.newBigQueryPrimaryTable(name)
+	if err != nil {
+		logger.Errorw("Error creating primary table", "error", err)
+		return nil, err
+	}
+
+	ds := PrimaryTableToDatasetAdapter{pt: bqTB}
+	return &ds, nil
 }
 
 func (store *bqOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {

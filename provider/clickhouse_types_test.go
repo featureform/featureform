@@ -1,13 +1,9 @@
 package provider
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -164,18 +160,6 @@ func TestNativeTypeConversions(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test")
 	}
-
-	// load dot env
-	_ = godotenv.Load("../.env")
-
-	// Initialize test database
-	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
-	t.Logf("Creating Parent Database: %s\n", dbName)
-	clickhouseConfig, err := getClickHouseConfig(t)
-	if err != nil {
-		t.Fatalf("could not get clickhouse config: %s", err)
-	}
-	clickhouseConfig.Database = dbName
 
 	// Configure test environment
 	test := getConfiguredClickHouseTester(t)

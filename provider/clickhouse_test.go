@@ -588,12 +588,6 @@ func getConfiguredClickHouseTester(t *testing.T) OfflineSqlTest {
 		t.Fatalf("could not get clickhouse config: %s\n", err)
 	}
 
-	clickHouseConfig.Port = 9000
-	clickHouseConfig.Password = ""
-	if err := createClickHouseDatabaseFromConfig(t, clickHouseConfig); err != nil {
-		t.Fatalf("%v", err)
-	}
-
 	if err := createClickHouseDatabaseFromConfig(t, clickHouseConfig); err != nil {
 		t.Fatalf("%v", err)
 	}

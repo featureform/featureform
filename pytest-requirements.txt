@@ -8,7 +8,8 @@ google-auth
 google-cloud-core
 google-cloud-storage
 pyspark
-pyiceberg
+pydantic<=2.10.6
+pyiceberg[glue]>=0.9.0
 pytest
 pytest-cov
 pytest-mock

@@ -14,7 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 RUN pip install --upgrade pip
-RUN pip install boto3 pyarrow 'pyiceberg[glue]'
+COPY ./streamer/requirements.txt /app/requirements.txt
+RUN pip install -r requirements.txt
 
 ENV PYTHONUNBUFFERED=1
 

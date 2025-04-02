@@ -54,6 +54,7 @@ func snowflakeOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) 
 		ConnectionURL:           connectionString,
 		Driver:                  "snowflake",
 		ProviderType:            pt.SnowflakeOffline,
+		DefaultDb:               sc.Database,
 		QueryImpl:               &queries,
 		ConnectionStringBuilder: sc.ConnectionString,
 	}

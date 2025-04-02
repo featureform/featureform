@@ -13,11 +13,12 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
+
 	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
-	_ "github.com/go-sql-driver/mysql"
 )
 
 type mySqlColumnType string
@@ -55,6 +56,7 @@ func mySqlOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		ConnectionURL:           connectionUrl,
 		Driver:                  pt.MySqlOffline.String(),
 		ProviderType:            pt.MySqlOffline,
+		DefaultDb:               sc.Database,
 		QueryImpl:               &queries,
 		ConnectionStringBuilder: connectionBuilder,
 	}

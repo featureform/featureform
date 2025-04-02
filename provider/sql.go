@@ -24,6 +24,7 @@ import (
 	db "github.com/jackc/pgx/v4"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/helpers/stringset"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider/dataset"
@@ -42,6 +43,7 @@ type SQLOfflineStoreConfig struct {
 	Config                  pc.SerializedConfig
 	ConnectionURL           string
 	Driver                  string
+	DefaultDb               string
 	ProviderType            pt.Type
 	QueryImpl               OfflineTableQueries
 	ConnectionStringBuilder func(database, schema string) (string, error)
@@ -286,6 +288,60 @@ func (store *sqlOfflineStore) Delete(location pl.Location) error {
 	return nil
 }
 
+func (store *sqlOfflineStore) validateResourceColumns(id ResourceID, schema ResourceSchema) error {
+	logger := store.logger.With("resource", id, "schema", schema)
+
+	if err := id.check(Label, Feature); err != nil {
+		logger.Errorw("Failed to validate resource ID", "error", err)
+		return err
+	}
+
+	defaultRoot := pl.NewSQLLocationFromParts(store.parent.DefaultDb, "public", "")
+	sqlLoc := schema.SourceTable.(*pl.SQLLocation)
+	tblLoc := defaultRoot.GetTableFromRoot(sqlLoc).TableLocation()
+
+	logger.Debugw("Source table location", "table_location", tblLoc)
+	query, err := store.query.resourceTableColumns(tblLoc)
+	if err != nil {
+		logger.Errorw("Failed to create resourceTableColumns query", "error", err)
+		return err
+	}
+	logger.Debugw("Query to check resource columns in source table", "query", query)
+	expectedColumns, err := schema.ToColumnStringSet(id.Type)
+	if err != nil {
+		logger.Errorw("Failed to get expected columns", "error", err)
+		return err
+	}
+	logger.Debugw("Expected columns in source table", "columns", expectedColumns)
+	logger.Info("Checking source table for resource columns ...")
+	rows, err := store.db.Query(query)
+	if err != nil {
+		logger.Errorw("Failed to query resource table columns", "error", err)
+		return err
+	}
+	defer rows.Close()
+	actual := make(stringset.StringSet)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			logger.Errorw("Failed to scan resource table columns", "error", err)
+			return err
+		}
+		actual.Add(strings.ToUpper(column))
+	}
+	if err := rows.Err(); err != nil {
+		logger.Errorw("Error iterating over resource table columns", "error", err)
+		return err
+	}
+	if !actual.Contains(expectedColumns) {
+		diff := expectedColumns.Difference(actual)
+		logger.Errorw("Source table does not have expected columns", "diff", diff.List())
+		return fferr.NewInvalidArgumentErrorf("source table does not have expected columns: %v", diff.List())
+	}
+	logger.Debug("Successfully checked source table for resource columns")
+	return nil
+}
+
 func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
 	logger := logging.NewLogger("sql").WithProvider(store.Type().String(), "SQL").With("id", id, "schema", schema, "opts", opts)
 	logger.Debugw("Registering resource from source table")
@@ -295,6 +351,11 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 	}
 	if err := id.check(Feature, Label); err != nil {
 		logger.Errorw("id check failed", "error", err)
+		return nil, err
+	}
+
+	if err := store.validateResourceColumns(id, schema); err != nil {
+		logger.Errorw("error validating resource columns", "error", err)
 		return nil, err
 	}
 

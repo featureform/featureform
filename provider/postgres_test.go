@@ -37,7 +37,7 @@ func TestOfflineStorePostgres(t *testing.T) {
 	//test.RunSQL()
 }
 
-func getConfiguredPostgresTester(t *testing.T) offlineSqlTest {
+func getConfiguredPostgresTester(t *testing.T) OfflineSqlTest {
 	postgresConfig, err := getPostgresConfig(t, "")
 	if err != nil {
 		t.Fatalf("could not get postgres config: %s\n", err)
@@ -69,9 +69,9 @@ func getConfiguredPostgresTester(t *testing.T) offlineSqlTest {
 		return loc.Sanitized()
 	}
 
-	return offlineSqlTest{
+	return OfflineSqlTest{
 		storeTester: &storeTester,
-		testConfig: offlineSqlTestConfig{
+		testConfig: OfflineSqlTestConfig{
 			sanitizeTableName: sanitizeTableName,
 		},
 	}

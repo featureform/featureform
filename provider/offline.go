@@ -593,7 +593,8 @@ type NewIteratorToOldIteratorAdapter struct {
 }
 
 func (it *NewIteratorToOldIteratorAdapter) Columns() []string {
-	return it.Iterator.Schema().ColumnNames()
+	schema := it.Iterator.Schema()
+	return schema.ColumnNames()
 }
 
 func (it *NewIteratorToOldIteratorAdapter) Next() bool {

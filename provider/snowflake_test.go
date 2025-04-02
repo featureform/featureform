@@ -76,8 +76,6 @@ func (s *snowflakeOfflineStoreTester) CreateSchema(database, schema string) erro
 	if err != nil {
 		return err
 	}
-
-	// Create schema
 	query := "CREATE SCHEMA IF NOT EXISTS " + sanitize(schema)
 	_, err = db.Exec(query)
 	if err != nil {
@@ -96,12 +94,16 @@ func (w WritableSnowflakeDataset) WriteBatch(ctx context.Context, rows []types.R
 		return nil
 	}
 	schema := w.Schema()
-	columns := schema.SanitizedColumnNames()
+	columns := schema.ColumnNames()
+	columnNames := make([]string, len(columns))
+	for i, col := range columns {
+		columnNames[i] = col
+	}
 	sqlLocation, ok := w.Location().(*location.SQLLocation)
 	if !ok {
 		return fmt.Errorf("invalid location type")
 	}
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES ", sqlLocation.Sanitized(), strings.Join(columns, ","))
+	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES ", sqlLocation.Sanitized(), strings.Join(columnNames, ","))
 	var args []any
 	for i, row := range rows {
 		if i > 0 {
@@ -122,10 +124,6 @@ func (w WritableSnowflakeDataset) WriteBatch(ctx context.Context, rows []types.R
 }
 
 func (s *snowflakeOfflineStoreTester) CreateWritableDataset(loc location.Location, schema types.Schema) (dataset.WriteableDataset, error) {
-	return s.CreateTableFromSchema(loc, schema)
-}
-
-func (s *snowflakeOfflineStoreTester) CreateTableFromSchema(loc location.Location, schema types.Schema) (dataset.WriteableDataset, error) {
 	sqlLocation, ok := loc.(*location.SQLLocation)
 	if !ok {
 		return nil, fmt.Errorf("invalid location type")
@@ -136,30 +134,7 @@ func (s *snowflakeOfflineStoreTester) CreateTableFromSchema(loc location.Locatio
 		return nil, err
 	}
 
-	// Build CREATE TABLE statement
-	var queryBuilder strings.Builder
-	queryBuilder.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", sqlLocation.Sanitized()))
-
-	columnDefinitions := make([]string, 0, len(schema.Fields))
-	for _, field := range schema.Fields {
-		columnDefinitions = append(columnDefinitions, fmt.Sprintf("%s %s", field.Name, field.NativeType))
-	}
-
-	queryBuilder.WriteString(strings.Join(columnDefinitions, ", "))
-	queryBuilder.WriteString(")")
-
-	query := queryBuilder.String()
-	_, err = db.Exec(query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create table: %w", err)
-	}
-
-	// Create and return dataset
 	sqlDataset, err := dataset.NewSqlDataset(db, sqlLocation, schema, snowflake.Converter{}, -1)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create dataset: %w", err)
-	}
-
 	return WritableSnowflakeDataset{
 		SqlDataset: &sqlDataset,
 		db:         db,

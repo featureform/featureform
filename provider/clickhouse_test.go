@@ -195,7 +195,7 @@ func (ch *clickHouseOfflineStoreTester) CreateTableFromSchema(loc pl.Location, s
 		return nil, err
 	}
 
-	return &sqlDataset, nil
+	return sqlDataset, nil
 }
 
 func (ch *clickHouseOfflineStoreTester) CreateTable(loc pl.Location, schema TableSchema) (PrimaryTable, error) {

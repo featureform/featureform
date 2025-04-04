@@ -444,7 +444,7 @@ func (store *sqlOfflineStore) createsqlPrimaryTableQuery(name string, schema Tab
 	return store.query.primaryTableCreate(name, columnString), nil
 }
 
-func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
+func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error) {
 	location, err := source.GetPrimaryLocation()
 	if err != nil {
 		return nil, fferr.NewInvalidArgumentErrorf("Source Primary Location is empty: %v", err)
@@ -472,17 +472,18 @@ func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID, source metadata.Sou
 		return nil, err
 	}
 
-	return &SqlPrimaryTable{
+	sqlPT := &SqlPrimaryTable{
 		db:           dbConn,
 		name:         sqlLocation.GetTable(),
 		sqlLocation:  sqlLocation,
 		schema:       TableSchema{Columns: columnNames},
 		query:        store.query,
 		providerType: store.Type(),
-	}, nil
+	}
+	return &PrimaryTableToDatasetAdapter{sqlPT}, nil
 }
 
-func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (dataset.Dataset, error) {
 	if err := id.check(Transformation); err != nil {
 		return nil, err
 	}
@@ -512,14 +513,15 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 	}
 	sqlLocation := pl.NewSQLLocationFromParts(dbName, schemaName, name)
 
-	return &SqlPrimaryTable{
+	sqlPt := &SqlPrimaryTable{
 		db:           store.db,
 		name:         name,
 		sqlLocation:  sqlLocation,
 		schema:       TableSchema{Columns: columnNames},
 		query:        store.query,
 		providerType: store.Type(),
-	}, nil
+	}
+	return &PrimaryTableToDatasetAdapter{pt: sqlPt}, nil
 }
 
 // CreateResourceTable creates a new Resource table.
@@ -1281,10 +1283,10 @@ type SqlPrimaryTable struct {
 	providerType pt.Type
 }
 
-func (table *SqlPrimaryTable) ToDataset() (dataset.SqlDataset, error) {
+func (table *SqlPrimaryTable) ToDataset() (*dataset.SqlDataset, error) {
 	conv, err := pt.GetConverter(table.providerType)
 	if err != nil {
-		return dataset.SqlDataset{}, err
+		return &dataset.SqlDataset{}, err
 	}
 	return dataset.NewSqlDatasetWithAutoSchema(
 		table.db,
@@ -1296,6 +1298,10 @@ func (table *SqlPrimaryTable) ToDataset() (dataset.SqlDataset, error) {
 
 func (table *SqlPrimaryTable) GetName() string {
 	return table.name
+}
+
+func (table *SqlPrimaryTable) GetLocation() pl.Location {
+	return table.sqlLocation
 }
 
 func (table *SqlPrimaryTable) Write(rec GenericRecord) error {

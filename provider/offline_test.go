@@ -20,19 +20,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/parquet-go/parquet-go"
+	"gotest.tools/v3/assert"
+
 	"github.com/featureform/fferr"
+	fftypes "github.com/featureform/fftypes"
 	"github.com/featureform/filestore"
 	fs "github.com/featureform/filestore"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
+	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
-	"github.com/google/uuid"
-	"github.com/parquet-go/parquet-go"
-	"gotest.tools/v3/assert"
 )
 
 const outputDir = "test_files/output"
@@ -2079,12 +2083,12 @@ func testTransform(t *testing.T, store OfflineStore) {
 			t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(test.Records), rows)
 		}
 
-		table, err = store.GetTransformationTable(test.Config.TargetTableID)
+		tfDs, err := store.GetTransformationTable(test.Config.TargetTableID)
 		if err != nil {
 			t.Errorf("Could not get transformation table: %v", err)
 		}
 
-		iterator, err := table.IterateSegment(100)
+		iterator, err := tfDs.Iterator(ctx, 0)
 		if err != nil {
 			t.Fatalf("Could not get generic iterator: %v", err)
 		}
@@ -2103,7 +2107,8 @@ func testTransform(t *testing.T, store OfflineStore) {
 				}
 			}
 
-			tableColumns := iterator.Columns()
+			schema := iterator.Schema()
+			tableColumns := schema.ColumnNames()
 			if len(tableColumns) == 0 {
 				t.Fatalf("The table doesn't have any columns.")
 			}
@@ -2213,6 +2218,8 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 	}
 
 	testTransform := func(t *testing.T, test TransformTest) {
+		ctx := logging.NewTestContext(t)
+
 		primaryTable, err := store.CreatePrimaryTable(test.PrimaryTable, test.Schema)
 		if err != nil {
 			t.Fatalf("Could not initialize table: %v", err)
@@ -2232,7 +2239,7 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 		if int(rows) != len(test.Records) {
 			t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(test.Records), rows)
 		}
-		table, err := store.GetTransformationTable(test.Config.TargetTableID)
+		tfDs, err := store.GetTransformationTable(test.Config.TargetTableID)
 		if err != nil {
 			t.Errorf("Could not get transformation table: %v", err)
 		}
@@ -2240,13 +2247,13 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 		var location pl.Location
 		if store.Type() == pt.SparkOffline {
 			sparkStore := store.(*SparkOfflineStore)
-			fp, err := sparkStore.Store.CreateFilePath(table.GetName(), false)
+			fp, err := sparkStore.Store.CreateFilePath(tfDs.Location().Location(), false)
 			if err != nil {
 				t.Fatalf("Could not create file path: %v", err)
 			}
 			location = pl.NewFileLocation(fp)
 		} else {
-			location = pl.NewSQLLocation(table.GetName())
+			location = pl.NewSQLLocation(tfDs.Location().Location())
 		}
 
 		// create feature on transformation
@@ -2283,23 +2290,28 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 		}
 		sv := metadata.WrapProtoSourceVariant(&svProto)
 
-		table, err = store.GetPrimaryTable(test.PrimaryTable, *sv)
+		ds, err := store.GetPrimaryTable(test.PrimaryTable, *sv)
 		if err != nil {
 			t.Fatalf("Could not get primary table: %v", err)
 		}
-		if err := table.WriteBatch(test.UpdatedRecords); err != nil {
+		writableDataset, ok := ds.(dataset.WriteableDataset)
+		if !ok {
+			t.Fatalf("Dataset is not writeable: %v", err)
+		}
+
+		if err := writableDataset.WriteBatch(ctx, GenericRecordsToRows(test.UpdatedRecords)); err != nil {
 			t.Fatalf("Could not write value: %v", err)
 		}
 
 		if err := store.UpdateTransformation(test.Config); err != nil {
 			t.Errorf("could not update transformation: %v", err)
 		}
-		table, err = store.GetTransformationTable(test.Config.TargetTableID)
+		tfDs, err = store.GetTransformationTable(test.Config.TargetTableID)
 		if err != nil {
 			t.Errorf("Could not get updated transformation table: %v", err)
 		}
 
-		iterator, err := table.IterateSegment(100)
+		iterator, err := tfDs.Iterator(ctx, 0)
 		if err != nil {
 			t.Fatalf("Could not get generic iterator: %v", err)
 		}
@@ -2485,7 +2497,7 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Errorf("Could not get transformation table: %v", err)
 		}
-		iterator, err := table.IterateSegment(100)
+		iterator, err := table.Iterator(ctx, 0)
 		if err != nil {
 			t.Fatalf("Could not get generic iterator: %v", err)
 		}
@@ -2530,19 +2542,24 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not get primary table: %v", err)
 		}
-		if err := table.WriteBatch(test.UpdatedRecords); err != nil {
+		ds, ok := table.(dataset.WriteableDataset)
+		if !ok {
+			t.Fatalf("Dataset is not writeable: %v", err)
+		}
+
+		if err := ds.WriteBatch(ctx, GenericRecordsToRows(test.UpdatedRecords)); err != nil {
 			t.Fatalf("Could not write updated records: %v", err)
 		}
 
 		if err := store.UpdateTransformation(test.Config); err != nil {
 			t.Errorf("could not update transformation: %v", err)
 		}
-		table, err = store.GetTransformationTable(test.Config.TargetTableID)
+		tfDs, err := store.GetTransformationTable(test.Config.TargetTableID)
 		if err != nil {
 			t.Errorf("Could not get updated transformation table: %v", err)
 		}
 
-		iterator, err = table.IterateSegment(100)
+		iterator, err = tfDs.Iterator(ctx, 0)
 		if err != nil {
 			t.Fatalf("Could not get generic iterator: %v", err)
 		}
@@ -2825,11 +2842,11 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 	if int(rows) != len(tests["First"].Records) {
 		t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(tests["First"].Records), rows)
 	}
-	table, err = store.GetTransformationTable(tests["First"].Config.TargetTableID)
+	ds, err := store.GetTransformationTable(tests["First"].Config.TargetTableID)
 	if err != nil {
 		t.Errorf("Could not get transformation table: %v", err)
 	}
-	iterator, err := table.IterateSegment(100)
+	iterator, err := ds.Iterator(ctx, 0)
 	if err != nil {
 		t.Fatalf("Could not get generic iterator: %v", err)
 	}
@@ -2879,11 +2896,11 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not create transformation: %v", err)
 	}
 
-	table, err = store.GetTransformationTable(config.TargetTableID)
+	tfDs, err := store.GetTransformationTable(config.TargetTableID)
 	if err != nil {
 		t.Errorf("Could not get transformation table: %v", err)
 	}
-	iterator, err = table.IterateSegment(100)
+	iterator, err = tfDs.Iterator(ctx, 0)
 	if err != nil {
 		t.Fatalf("Could not get generic iterator: %v", err)
 	}
@@ -5052,4 +5069,22 @@ func TestResourceSchemaValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func GenericRecordToRow(record GenericRecord) fftypes.Row {
+	row := make([]fftypes.Value, len(record))
+	for i, value := range record {
+		row[i] = fftypes.Value{
+			Value: value,
+		}
+	}
+	return row
+}
+
+func GenericRecordsToRows(records []GenericRecord) []fftypes.Row {
+	rows := make([]fftypes.Row, len(records))
+	for i, record := range records {
+		rows[i] = GenericRecordToRow(record)
+	}
+	return rows
 }

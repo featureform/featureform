@@ -12,11 +12,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/parquet-go/parquet-go"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	pl "github.com/featureform/provider/location"
 	"github.com/featureform/provider/types"
-	"github.com/parquet-go/parquet-go"
 )
 
 type FileStorePrimaryTable struct {
@@ -103,6 +104,10 @@ func (tbl *FileStorePrimaryTable) append(iter Iterator, newRecords []GenericReco
 
 func (tbl *FileStorePrimaryTable) GetName() string {
 	return tbl.source.ToURI()
+}
+
+func (tbl *FileStorePrimaryTable) GetLocation() pl.Location {
+	return pl.NewFileLocation(tbl.source)
 }
 
 func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {

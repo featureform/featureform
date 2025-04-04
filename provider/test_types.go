@@ -94,7 +94,7 @@ func TestDatabaseTypeConversions(t *testing.T, tester OfflineSqlStoreWriteableDa
 	expectedTypeMapping := testData.BuildExpectedTypeMapping()
 
 	// Test with iterator
-	it, err := writeableDS.Iterator(ctx)
+	it, err := writeableDS.Iterator(ctx, 0)
 	require.NoError(t, err, "Failed to create iterator")
 	defer it.Close()
 

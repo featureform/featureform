@@ -9,7 +9,9 @@ package provider
 
 import (
 	"fmt"
+
 	"github.com/featureform/fferr"
+	"github.com/featureform/provider/dataset"
 
 	"github.com/featureform/filestore"
 	"github.com/featureform/metadata"
@@ -132,6 +134,10 @@ func (MockPrimaryTable) GetName() string {
 	return ""
 }
 
+func (MockPrimaryTable) GetLocation() pl.Location {
+	return nil
+}
+
 type UnitTestIterator struct {
 	currentValue GenericRecord
 	nextCount    int
@@ -189,8 +195,8 @@ func (MockPrimaryTable) WriteBatch([]GenericRecord) error {
 	return nil
 }
 
-func (M MockUnitTestOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
-	return MockPrimaryTable{}, nil
+func (M MockUnitTestOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error) {
+	return &PrimaryTableToDatasetAdapter{MockPrimaryTable{}}, nil
 }
 
 func (M MockUnitTestOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
@@ -213,8 +219,8 @@ func (M MockUnitTestOfflineStore) UpdateTransformation(config TransformationConf
 	return nil
 }
 
-func (M MockUnitTestOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
-	return nil, nil
+func (M MockUnitTestOfflineStore) GetTransformationTable(id ResourceID) (dataset.Dataset, error) {
+	return &PrimaryTableToDatasetAdapter{MockPrimaryTable{}}, nil
 }
 
 func (M MockUnitTestOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {

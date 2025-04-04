@@ -33,13 +33,13 @@ func NewSqlDataset(
 	schema types.Schema,
 	converter types.ValueConverter[any],
 	limit int,
-) (SqlDataset, error) {
+) (*SqlDataset, error) {
 	lmt := limit
 	if limit <= 0 {
 		lmt = -1
 	}
 
-	return SqlDataset{
+	return &SqlDataset{
 		db:        db,
 		location:  location,
 		schema:    schema,
@@ -48,19 +48,53 @@ func NewSqlDataset(
 	}, nil
 }
 
-// NewSqlDatasetWithAutoSchema creates a new SQL dataset with auto-detected schema
 func NewSqlDatasetWithAutoSchema(
 	db *sql.DB,
 	location *location.SQLLocation,
 	converter types.ValueConverter[any],
 	limit int,
-) (SqlDataset, error) {
+) (*SqlDataset, error) {
 	schema, err := getSchema(db, converter, location)
 	if err != nil {
-		return SqlDataset{}, err
+		return nil, err
+	}
+	return NewSqlDataset(db, location, schema, converter, limit)
+}
+
+func (ds *SqlDataset) WithLimit(limit int) *SqlDataset {
+	ds.limit = limit
+	return ds
+}
+
+func (ds *SqlDataset) Location() location.Location {
+	return ds.location
+}
+
+func (ds *SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	schema := ds.Schema()
+	columnNames := schema.SanitizedColumnNames()
+	cols := strings.Join(columnNames, ", ")
+	loc := ds.location.Sanitized()
+
+	var query string
+	if ds.limit == -1 {
+		query = fmt.Sprintf("SELECT %s FROM %s", cols, loc)
+	} else {
+		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", cols, loc, ds.limit)
 	}
 
-	return NewSqlDataset(db, location, schema, converter, limit)
+	rows, err := ds.db.QueryContext(ctx, query)
+	if err != nil {
+		logger.Errorw("Failed to execute query", "query", query, "error", err)
+		return nil, fferr.NewInternalErrorf("Failed to execute query: %v", err)
+	}
+
+	return NewSqlIterator(ctx, rows, ds.converter, ds.schema), nil
+}
+
+func (ds *SqlDataset) Schema() types.Schema {
+	return ds.schema
 }
 
 // getSchema extracts schema information from the database
@@ -124,36 +158,6 @@ func getSchema(db *sql.DB, converter types.ValueConverter[any], tableName *locat
 	}
 
 	return types.Schema{Fields: fields}, nil
-}
-
-func (ds SqlDataset) Location() location.Location {
-	return ds.location
-}
-
-func (ds SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
-	logger := logging.GetLoggerFromContext(ctx)
-	schema := ds.Schema()
-	columnNames := schema.SanitizedColumnNames()
-	cols := strings.Join(columnNames, ", ")
-	loc := ds.location.Sanitized()
-	var query string
-	if ds.limit == -1 {
-		query = fmt.Sprintf("SELECT %s FROM %s", cols, loc)
-	} else {
-		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", cols, loc, ds.limit)
-	}
-
-	rows, err := ds.db.QueryContext(ctx, query)
-	if err != nil {
-		logger.Errorw("Failed to execute query", "query", query, "error", err)
-		return nil, fferr.NewInternalErrorf("Failed to execute query: %v", err)
-	}
-
-	return NewSqlIterator(ctx, rows, ds.converter, ds.schema), nil
-}
-
-func (ds SqlDataset) Schema() types.Schema {
-	return ds.schema
 }
 
 type SqlIterator struct {

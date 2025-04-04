@@ -26,6 +26,7 @@ import (
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/proto"
 	"github.com/featureform/provider"
+	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pt "github.com/featureform/provider/provider_type"
 	sc "github.com/featureform/scheduling"
@@ -2236,15 +2237,14 @@ func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64
 	if err != nil {
 		return nil, err
 	}
-	var primary provider.PrimaryTable
+	var ds dataset.Dataset
 	var providerErr error
 	if sv.IsTransformation() {
-		t, err := store.GetTransformationTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Transformation})
+		ds, err = store.GetTransformationTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Transformation})
 		if err != nil {
 			providerErr = err
 		} else {
 			providerErr = nil
-			primary = t.(provider.PrimaryTable)
 		}
 	} else {
 		primaryNameVariant := metadata.NameVariant{
@@ -2255,12 +2255,16 @@ func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64
 		if err != nil {
 			return nil, err
 		}
-		primary, providerErr = store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary}, *source)
+		ds, providerErr = store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary}, *source)
 	}
 	if providerErr != nil {
 		return nil, providerErr
 	}
-	return primary.IterateSegment(limit)
+	newIter, err := dataset.NewLimitedDataset(ds, limit).Iterator(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &provider.NewIteratorToOldIteratorAdapter{Iterator: newIter}, nil
 }
 
 type VariantResult interface {

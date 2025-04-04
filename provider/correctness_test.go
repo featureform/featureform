@@ -9,6 +9,7 @@ package provider
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/gob"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/provider/dataset"
 	ps "github.com/featureform/provider/provider_schema"
 
 	"github.com/google/uuid"
@@ -565,6 +567,51 @@ func (d testSQLTransformationData) Assert(t *testing.T, actual PrimaryTable) {
 		assert.Equal(t, expected[avgWindDurationIdx].(float64), actual[avgWindDurationIdx].(float64), "expected same value for col 3")
 		assert.Equal(t, expected[avgFetchIdx].(float64), actual[avgFetchIdx].(float64), "expected same value for col 4")
 		assert.Equal(t, expected[tsIdx].(time.Time).Truncate(time.Microsecond), actual[tsIdx].(time.Time).Truncate(time.Microsecond), "expected same ts")
+		i++
+	}
+	if itr.Err() != nil {
+		t.Fatalf("could not iterate over transformation: %v", itr.Err())
+	}
+}
+
+func (d testSQLTransformationData) AssertDataset(t *testing.T, actual dataset.Dataset) {
+	entityIdx := 0
+	avgWindSpeedIdx := 1
+	avgWindDurationIdx := 2
+	avgFetchIdx := 3
+	tsIdx := 4
+
+	ds, ok := actual.(dataset.SizedDataset)
+	if !ok {
+		t.Fatalf("expected dataset to be of type SizedDataset")
+	}
+
+	numRows, err := ds.Len()
+	if err != nil {
+		t.Fatalf("could not get number of rows: %v", err)
+	}
+
+	assert.Equal(t, len(d.expected), int(numRows), "expected same number of rows")
+
+	itr, err := dataset.NewLimitedDataset(ds, numRows).Iterator(context.Background())
+	if err != nil {
+		t.Fatalf("could not get iterator: %v", err)
+	}
+
+	var expectedMap = map[string]GenericRecord{}
+	for i := 0; i < len(d.expected); i++ {
+		expectedMap[d.expected[i][entityIdx].(string)] = d.expected[i]
+	}
+
+	i := 0
+	for itr.Next() {
+		values := itr.Values()
+		expected := expectedMap[values[entityIdx].Value.(string)]
+		assert.Equal(t, expected[entityIdx].(string), values[entityIdx].Value.(string), "expected same entity")
+		assert.Equal(t, expected[avgWindSpeedIdx].(float64), values[avgWindSpeedIdx].Value.(float64), "expected same value for col 2")
+		assert.Equal(t, expected[avgWindDurationIdx].(float64), values[avgWindDurationIdx].Value.(float64), "expected same value for col 3")
+		assert.Equal(t, expected[avgFetchIdx].(float64), values[avgFetchIdx].Value.(float64), "expected same value for col 4")
+		assert.Equal(t, expected[tsIdx].(time.Time).Truncate(time.Microsecond), values[tsIdx].Value.(time.Time).Truncate(time.Microsecond), "expected same ts")
 		i++
 	}
 	if itr.Err() != nil {
@@ -1288,11 +1335,11 @@ func RegisterTransformationOnPrimaryDatasetTest(t *testing.T, tester OfflineSqlT
 	if err := test.tester.CreateTransformation(test.data.config); err != nil {
 		t.Fatalf("could not create transformation: %v", err)
 	}
-	actual, err := test.tester.GetTransformationTable(test.data.config.TargetTableID)
+	ds, err := test.tester.GetTransformationTable(test.data.config.TargetTableID)
 	if err != nil {
 		t.Fatalf("could not get transformation table: %v", err)
 	}
-	test.data.Assert(t, actual)
+	test.data.AssertDataset(t, ds)
 }
 
 func RegisterChainedTransformationsTest(t *testing.T, test OfflineSqlTest, transformationQuery string) {
@@ -1327,7 +1374,7 @@ func RegisterChainedTransformationsTest(t *testing.T, test OfflineSqlTest, trans
 	if err != nil {
 		t.Fatalf("could not get transformation table: %v", err)
 	}
-	transformationTest.data.Assert(t, actual)
+	transformationTest.data.AssertDataset(t, actual)
 }
 
 func RegisterTrainingSet(t *testing.T, test OfflineSqlTest, tsDatasetType trainingSetDatasetType) {
@@ -1744,7 +1791,13 @@ func CrossDatabaseJoinTest(t *testing.T, test OfflineSqlTest) {
 		t.Fatalf("could not get transformation table: %v", err)
 	}
 
-	numRows, err := tfTable.NumRows()
+	sizedDs, ok := tfTable.(dataset.SizedDataset)
+	if !ok {
+		t.Fatalf("expected sized dataset")
+
+	}
+
+	numRows, err := sizedDs.Len()
 	if err != nil {
 		t.Fatalf("could not get number of rows: %v", err)
 	}

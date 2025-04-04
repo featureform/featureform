@@ -23,6 +23,7 @@ import (
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/provider"
+	"github.com/featureform/provider/dataset"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/scheduling"
 )
@@ -528,55 +529,38 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	if err != nil {
 		return nil, err
 	}
-	var primary provider.PrimaryTable
 	var providerErr error
+	var ds dataset.Dataset
 	if sv.IsTransformation() {
 		serv.Logger.Debugw("Getting transformation table", "name", name, "variant", variant)
-		t, err := store.GetTransformationTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Transformation})
+		ds, err = store.GetTransformationTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Transformation})
 		if err != nil {
 			serv.Logger.Errorw("Could not get transformation table", "name", name, "variant", variant, "Error", err)
 			providerErr = err
-		} else {
-			// TransformationTable inherits from PrimaryTable, which is where
-			// IterateSegment is defined; we assert this type to get access to
-			// the method. This assertion should never fail.
-			if tbl, isPrimaryTable := t.(provider.PrimaryTable); !isPrimaryTable {
-				serv.Logger.Errorw("transformation table is not a primary table", "name", name, "variant", variant)
-				providerErr = fferr.NewInvalidResourceTypeError(name, variant, fferr.SOURCE_VARIANT, fmt.Errorf("transformation table is not a primary table"))
-			} else {
-				primary = tbl
-			}
 		}
 	} else {
 		serv.Logger.Debugw("Getting primary table", "name", name, "variant", variant)
-		primary, providerErr = store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary}, *sv)
+		ds, providerErr = store.GetPrimaryTable(provider.ResourceID{Name: name, Variant: variant, Type: provider.Primary}, *sv)
 	}
 	if providerErr != nil {
 		serv.Logger.Errorw("Could not get primary table", "name", name, "variant", variant, "Error", providerErr)
 		return nil, err
 	}
 	serv.Logger.Debugw("Getting source data iterator", "name", name, "variant", variant, "limit", limit)
-	if primary == nil {
+	if ds == nil {
 		return nil, fferr.NewInternalErrorf("primary table is nil for %s:%s", name, variant)
 	}
 
-	// check if primarySqlTable
-	if sql, ok := primary.(*provider.SqlPrimaryTable); ok {
-		if _, err := pt.GetConverter(pt.Type(providerEntry.Type())); err != nil {
-			// continue
-			return primary.IterateSegment(limit)
-		}
-		ds, err := sql.ToDataset()
-		if err != nil {
-			return nil, err
-		}
-		it, err := ds.Iterator(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return &provider.NewIteratorToOldIteratorAdapter{Iterator: it}, nil
+	iter := dataset.LimitedDataset{
+		Dataset: ds,
+		Limit:   limit,
 	}
-	return primary.IterateSegment(limit)
+
+	iterator, err := iter.Iterator(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &provider.NewIteratorToOldIteratorAdapter{Iterator: iterator}, nil
 }
 
 func (serv *FeatureServer) addModel(ctx context.Context, model *pb.Model, features []*pb.FeatureID) error {

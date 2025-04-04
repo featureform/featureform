@@ -76,6 +76,8 @@ func (s *snowflakeOfflineStoreTester) CreateSchema(database, schema string) erro
 	if err != nil {
 		return err
 	}
+
+	// Create schema
 	query := "CREATE SCHEMA IF NOT EXISTS " + sanitize(schema)
 	_, err = db.Exec(query)
 	if err != nil {
@@ -94,16 +96,12 @@ func (w WritableSnowflakeDataset) WriteBatch(ctx context.Context, rows []types.R
 		return nil
 	}
 	schema := w.Schema()
-	columns := schema.ColumnNames()
-	columnNames := make([]string, len(columns))
-	for i, col := range columns {
-		columnNames[i] = col
-	}
+	columns := schema.SanitizedColumnNames()
 	sqlLocation, ok := w.Location().(*location.SQLLocation)
 	if !ok {
 		return fmt.Errorf("invalid location type")
 	}
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES ", sqlLocation.Sanitized(), strings.Join(columnNames, ","))
+	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES ", sqlLocation.Sanitized(), strings.Join(columns, ", "))
 	var args []any
 	for i, row := range rows {
 		if i > 0 {
@@ -115,7 +113,7 @@ func (w WritableSnowflakeDataset) WriteBatch(ctx context.Context, rows []types.R
 				query += ","
 			}
 			query += "?"
-			args = append(args, row[j])
+			args = append(args, row[j].Value)
 		}
 		query += ")"
 	}
@@ -124,19 +122,52 @@ func (w WritableSnowflakeDataset) WriteBatch(ctx context.Context, rows []types.R
 }
 
 func (s *snowflakeOfflineStoreTester) CreateWritableDataset(loc location.Location, schema types.Schema) (dataset.WriteableDataset, error) {
+	return s.CreateTableFromSchema(loc, schema)
+}
+
+func (s *snowflakeOfflineStoreTester) CreateTableFromSchema(loc location.Location, schema types.Schema) (dataset.WriteableDataset, error) {
 	sqlLocation, ok := loc.(*location.SQLLocation)
 	if !ok {
 		return nil, fmt.Errorf("invalid location type")
 	}
 
-	db, err := s.sqlOfflineStore.getDb(sqlLocation.GetDatabase(), sqlLocation.GetSchema())
+	db, err := s.sqlOfflineStore.getDb("", "")
 	if err != nil {
 		return nil, err
 	}
 
+	//row := db.QueryRow("SELECT CURRENT_ROLE()")
+	//var role string
+	//_ = row.Scan(&role)
+	//fmt.Println("Current Role:", role)
+
+	// Build CREATE TABLE statement
+	var queryBuilder strings.Builder
+	queryBuilder.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", sqlLocation.Sanitized()))
+
+	colNames := schema.SanitizedColumnNames()
+	columnDefinitions := make([]string, 0, len(schema.Fields))
+	for i, field := range schema.Fields {
+		columnDefinitions = append(columnDefinitions, fmt.Sprintf("%s %s", colNames[i], field.NativeType))
+	}
+
+	queryBuilder.WriteString(strings.Join(columnDefinitions, ", "))
+	queryBuilder.WriteString(")")
+
+	query := queryBuilder.String()
+	_, err = db.Exec(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create table: %w", err)
+	}
+
+	// Create and return dataset
 	sqlDataset, err := dataset.NewSqlDataset(db, sqlLocation, schema, snowflake.Converter{}, -1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create dataset: %w", err)
+	}
+
 	return WritableSnowflakeDataset{
-		SqlDataset: &sqlDataset,
+		SqlDataset: sqlDataset,
 		db:         db,
 	}, nil
 }
@@ -151,6 +182,11 @@ func (s *snowflakeOfflineStoreTester) CreateTable(loc location.Location, schema 
 	if err != nil {
 		return nil, err
 	}
+
+	row := db.QueryRow("SELECT CURRENT_ROLE()")
+	var role string
+	_ = row.Scan(&role)
+	fmt.Println("Current Role:", role)
 
 	// don't need string builder here
 	var queryBuilder strings.Builder

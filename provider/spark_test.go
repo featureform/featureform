@@ -9,6 +9,7 @@ package provider
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/csv"
@@ -29,6 +30,7 @@ import (
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
+	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
@@ -425,27 +427,34 @@ func testRegisterPrimary(store *SparkOfflineStore) error {
 	if err != nil {
 		return err
 	}
-	fetchedTable, err := store.GetPrimaryTable(testResource, metadata.SourceVariant{})
+	fetchedTableDs, err := store.GetPrimaryTable(testResource, metadata.SourceVariant{})
 	if err != nil {
 		return err
 	}
-	if !reflect.DeepEqual(table, fetchedTable) {
+	if !reflect.DeepEqual(PrimaryTableToDatasetAdapter{table}, fetchedTableDs) {
 		return fmt.Errorf("Tables not equal")
 	}
-	numRows, err := fetchedTable.NumRows()
+
+	sizedFetchTable, ok := fetchedTableDs.(dataset.SizedDataset)
+	if !ok {
+		return fmt.Errorf("Failed to cast to SizedDataset")
+	}
+
+	numRows, err := sizedFetchTable.Len()
 	if err != nil {
 		return err
 	}
 	if numRows != 5 {
 		return fmt.Errorf("Did not fetch the correct number of rows")
 	}
-	iterator, err := fetchedTable.IterateSegment(5)
+	iterator, err := dataset.NewLimitedDataset(sizedFetchTable, 5).Iterator(context.Background())
 	if err != nil {
 		return err
 	}
 	expectedColumns := []string{"Name", "Age", "Score", "Winner", "Registered"}
 
-	if !unorderedEqualString(iterator.Columns(), expectedColumns) {
+	schema := iterator.Schema()
+	if !unorderedEqualString(schema.ColumnNames(), expectedColumns) {
 		return fmt.Errorf("Not the correct columns returned")
 	}
 	idx := 0
@@ -1164,12 +1173,16 @@ func testSparkSQLTransformation(t *testing.T, store *SparkOfflineStore) {
 					t.Fatalf("could not create transformation '%v' because %s", ttConst.config, err)
 				}
 
-				sourceTable, err := store.GetPrimaryTable(ttConst.sourceID, metadata.SourceVariant{})
+				sourceTableDs, err := store.GetPrimaryTable(ttConst.sourceID, metadata.SourceVariant{})
 				if !ttConst.expectedFailure && err != nil {
 					t.Fatalf("failed to get source table, %v,: %s", ttConst.sourceID, err)
 				}
+				sizedSourceDs, ok := sourceTableDs.(dataset.SizedDataset)
+				if !ok {
+					t.Fatalf("failed to cast to SizedDataset")
+				}
 
-				transformationTable, err := store.GetTransformationTable(ttConst.config.TargetTableID)
+				tfDs, err := store.GetTransformationTable(ttConst.config.TargetTableID)
 				if err != nil {
 					if ttConst.expectedFailure {
 						return
@@ -1177,8 +1190,13 @@ func testSparkSQLTransformation(t *testing.T, store *SparkOfflineStore) {
 					t.Fatalf("failed to get the transformation, %s", err)
 				}
 
-				sourceCount, err := sourceTable.NumRows()
-				transformationCount, err := transformationTable.NumRows()
+				sizedTfDs, ok := tfDs.(dataset.SizedDataset)
+				if !ok {
+					t.Fatalf("failed to cast to SizedDataset")
+				}
+
+				sourceCount, err := sizedSourceDs.Len()
+				transformationCount, err := sizedTfDs.Len()
 				if !ttConst.expectedFailure && sourceCount != transformationCount {
 					t.Fatalf("the source table and expected did not match: %v:%v", sourceCount, transformationCount)
 				}
@@ -1211,7 +1229,7 @@ func testSparkSQLTransformation(t *testing.T, store *SparkOfflineStore) {
 					t.Fatalf("could not update transformation '%v' because %s", updateConfig, err)
 				}
 
-				updateTable, err := store.GetTransformationTable(updateConfig.TargetTableID)
+				updateTableDs, err := store.GetTransformationTable(updateConfig.TargetTableID)
 				if err != nil {
 					if ttConst.expectedFailure {
 						return
@@ -1219,7 +1237,11 @@ func testSparkSQLTransformation(t *testing.T, store *SparkOfflineStore) {
 					t.Fatalf("failed to get the updated transformation, %s", err)
 				}
 
-				updateCount, err := updateTable.NumRows()
+				updateTable, ok := updateTableDs.(dataset.SizedDataset)
+				if !ok {
+					t.Fatalf("failed to cast to SizedDataset")
+				}
+				updateCount, err := updateTable.Len()
 				if !ttConst.expectedFailure && updateCount != transformationCount {
 					t.Fatalf("the source table and expected did not match: %v:%v", updateCount, transformationCount)
 				}
@@ -1341,12 +1363,16 @@ func testGetTransformation(t *testing.T, store *SparkOfflineStore) {
 			ttConst.name, func(t *testing.T) {
 				t.Parallel()
 				time.Sleep(time.Second * 15)
-				table, err := store.GetTransformationTable(ttConst.id)
+				tfDs, err := store.GetTransformationTable(ttConst.id)
 				if err != nil {
 					t.Fatalf("Failed to get Transformation Table: %v", err)
 				}
 
-				caseNumRow, err := table.NumRows()
+				sizedTfDs, ok := tfDs.(dataset.SizedDataset)
+				if !ok {
+					t.Fatalf("Failed to cast to SizedDataset")
+				}
+				caseNumRow, err := sizedTfDs.Len()
 				if err != nil {
 					t.Fatalf("Failed to get Transformation Table Num Rows: %v", err)
 				}
@@ -1587,21 +1613,30 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 					t.Fatalf("could not run transformation %s", err)
 				}
 
-				sourceTable, err := store.GetPrimaryTable(ttConst.sourceID, metadata.SourceVariant{})
+				sDs, err := store.GetPrimaryTable(ttConst.sourceID, metadata.SourceVariant{})
 				if !ttConst.expectedFailure && err != nil {
 					t.Fatalf("failed to get source table, %v,: %s", ttConst.sourceID, err)
 				}
 
-				transformationTable, err := store.GetTransformationTable(ttConst.config.TargetTableID)
+				sizedSourceDs, ok := sDs.(dataset.SizedDataset)
+				if !ok {
+					t.Fatalf("failed to cast source table to sized dataset")
+				}
+
+				tfDs, err := store.GetTransformationTable(ttConst.config.TargetTableID)
 				if err != nil {
 					if ttConst.expectedFailure {
 						return
 					}
 					t.Fatalf("failed to get the transformation, %s", err)
 				}
+				sizedTransformationDs, ok := tfDs.(dataset.SizedDataset)
+				if !ok {
+					t.Fatalf("failed to cast transformation table to sized dataset")
+				}
 
-				sourceCount, err := sourceTable.NumRows()
-				transformationCount, err := transformationTable.NumRows()
+				sourceCount, err := sizedSourceDs.Len()
+				transformationCount, err := sizedTransformationDs.Len()
 				if !ttConst.expectedFailure && sourceCount != transformationCount {
 					t.Fatalf("the source table and expected did not match: %v:%v", sourceCount, transformationCount)
 				}

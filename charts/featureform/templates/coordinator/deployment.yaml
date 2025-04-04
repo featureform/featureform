@@ -97,19 +97,13 @@ spec:
               value: {{ .Values.coordinator.serviceAccount | quote }}
             - name: MAX_JOB_DURATION
               value: {{ .Values.coordinator.execution.maxJobDuration | quote }}
-
-
           ports:
             - name: http
               containerPort: 80
               protocol: TCP
-#          livenessProbe:
-#            httpGet:
-#              path: /
-#              port: http
-#          readinessProbe:
-#            httpGet:
-#              path: /
-#              port: http
           resources:
             {{- toYaml .Values.coordinator.resources | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: /
+              port: 8443

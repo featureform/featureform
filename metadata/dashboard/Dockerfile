@@ -46,6 +46,7 @@ COPY ./provider/provider_type/ ./provider/provider_type/
 COPY ./config/ ./config/
 COPY ./streamer_proxy ./streamer_proxy
 COPY ./coordinator/types ./coordinator/types
+COPY ./health/ ./health/
 
 RUN go build ./metadata/dashboard/main/main.go
 

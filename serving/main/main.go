@@ -16,6 +16,11 @@ import (
 	"net"
 	_ "net/http/pprof"
 
+	"google.golang.org/grpc"
+	grpc_health "google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
+
+	"github.com/featureform/health"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/helpers/interceptors"
 	"github.com/featureform/logging"
@@ -23,7 +28,6 @@ import (
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/serving"
-	"google.golang.org/grpc"
 )
 
 func main() {
@@ -48,6 +52,13 @@ func main() {
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	logger.Infow("Using metadata conn", "conn_string", metadataConn)
 
+	apiStatusPort := help.GetEnv("API_STATUS_PORT", "8443")
+	logger.Infow("Retrieved API status port from ENV", "port", apiStatusPort)
+	if err = health.StartHttpServer(logger, apiStatusPort); err != nil {
+		logger.Errorw("Failed to start health check", "err", err)
+		panic(err)
+	}
+
 	meta, err := metadata.NewClient(metadataConn, logger)
 	if err != nil {
 		logger.Panicw("Failed to connect to metadata", "Err", err)
@@ -58,6 +69,10 @@ func main() {
 		logger.Panicw("Failed to create training server", "Err", err)
 	}
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(interceptors.UnaryServerErrorInterceptor), grpc.StreamInterceptor(interceptors.StreamServerErrorInterceptor))
+
+	healthServer := grpc_health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
 
 	pb.RegisterFeatureServer(grpcServer, serv)
 	logger.Infow("Serving metrics", "Port", metricsPort)

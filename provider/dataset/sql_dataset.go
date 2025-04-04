@@ -70,18 +70,34 @@ func (ds *SqlDataset) Location() location.Location {
 	return ds.location
 }
 
-func (ds *SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
+func (ds *SqlDataset) Iterator(ctx context.Context, limit int64) (Iterator, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 	schema := ds.Schema()
 	columnNames := schema.SanitizedColumnNames()
 	cols := strings.Join(columnNames, ", ")
 	loc := ds.location.Sanitized()
 
+	// Determine the effective limit to apply in the query.
+	// If both the dataset and the caller specify limits, use the smaller of the two.
+	// If only one is specified, use that. If neither is set, no limit is applied.
+	effectiveLimit := -1
+	if ds.limit > 0 && limit > 0 {
+		if ds.limit < int(limit) {
+			effectiveLimit = ds.limit
+		} else {
+			effectiveLimit = int(limit)
+		}
+	} else if ds.limit > 0 {
+		effectiveLimit = ds.limit
+	} else if limit > 0 {
+		effectiveLimit = int(limit)
+	}
+
 	var query string
 	if ds.limit == -1 {
 		query = fmt.Sprintf("SELECT %s FROM %s", cols, loc)
 	} else {
-		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", cols, loc, ds.limit)
+		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", cols, loc, effectiveLimit)
 	}
 
 	rows, err := ds.db.QueryContext(ctx, query)

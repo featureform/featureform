@@ -61,7 +61,7 @@ func (ds *Dataset) Location() location.Location {
 }
 
 // Iterator returns an iterator over the dataset
-func (ds *Dataset) Iterator(ctx context.Context) (dataset.Iterator, error) {
+func (ds *Dataset) Iterator(ctx context.Context, limit int64) (dataset.Iterator, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 
 	schema := ds.Schema()

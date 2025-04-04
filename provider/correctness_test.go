@@ -593,7 +593,7 @@ func (d testSQLTransformationData) AssertDataset(t *testing.T, actual dataset.Da
 
 	assert.Equal(t, len(d.expected), int(numRows), "expected same number of rows")
 
-	itr, err := dataset.NewLimitedDataset(ds, numRows).Iterator(context.Background())
+	itr, err := ds.Iterator(context.Background(), 0)
 	if err != nil {
 		t.Fatalf("could not get iterator: %v", err)
 	}

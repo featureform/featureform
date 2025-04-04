@@ -2260,7 +2260,7 @@ func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64
 	if providerErr != nil {
 		return nil, providerErr
 	}
-	newIter, err := dataset.NewLimitedDataset(ds, limit).Iterator(ctx)
+	newIter, err := ds.Iterator(ctx, limit)
 	if err != nil {
 		return nil, err
 	}

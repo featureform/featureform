@@ -447,7 +447,7 @@ func testRegisterPrimary(store *SparkOfflineStore) error {
 	if numRows != 5 {
 		return fmt.Errorf("Did not fetch the correct number of rows")
 	}
-	iterator, err := dataset.NewLimitedDataset(sizedFetchTable, 5).Iterator(context.Background())
+	iterator, err := sizedFetchTable.Iterator(context.Background(), 0)
 	if err != nil {
 		return err
 	}

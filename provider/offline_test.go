@@ -2088,7 +2088,7 @@ func testTransform(t *testing.T, store OfflineStore) {
 			t.Errorf("Could not get transformation table: %v", err)
 		}
 
-		iterator, err := dataset.NewLimitedDataset(tfDs, 100).Iterator(ctx)
+		iterator, err := tfDs.Iterator(ctx, 0)
 		if err != nil {
 			t.Fatalf("Could not get generic iterator: %v", err)
 		}
@@ -2311,7 +2311,7 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 			t.Errorf("Could not get updated transformation table: %v", err)
 		}
 
-		iterator, err := dataset.NewLimitedDataset(tfDs, 100).Iterator(ctx)
+		iterator, err := tfDs.Iterator(ctx, 0)
 		if err != nil {
 			t.Fatalf("Could not get generic iterator: %v", err)
 		}
@@ -2497,7 +2497,7 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Errorf("Could not get transformation table: %v", err)
 		}
-		iterator, err := dataset.NewLimitedDataset(table, 100).Iterator(ctx)
+		iterator, err := table.Iterator(ctx, 0)
 		if err != nil {
 			t.Fatalf("Could not get generic iterator: %v", err)
 		}
@@ -2559,7 +2559,7 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 			t.Errorf("Could not get updated transformation table: %v", err)
 		}
 
-		iterator, err = dataset.NewLimitedDataset(tfDs, 100).Iterator(ctx)
+		iterator, err = tfDs.Iterator(ctx, 0)
 		if err != nil {
 			t.Fatalf("Could not get generic iterator: %v", err)
 		}
@@ -2846,7 +2846,7 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Errorf("Could not get transformation table: %v", err)
 	}
-	iterator, err := dataset.NewLimitedDataset(ds, 100).Iterator(ctx)
+	iterator, err := ds.Iterator(ctx, 0)
 	if err != nil {
 		t.Fatalf("Could not get generic iterator: %v", err)
 	}
@@ -2900,7 +2900,7 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Errorf("Could not get transformation table: %v", err)
 	}
-	iterator, err = dataset.NewLimitedDataset(tfDs, 100).Iterator(ctx)
+	iterator, err = tfDs.Iterator(ctx, 0)
 	if err != nil {
 		t.Fatalf("Could not get generic iterator: %v", err)
 	}

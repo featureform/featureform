@@ -551,12 +551,7 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 		return nil, fferr.NewInternalErrorf("primary table is nil for %s:%s", name, variant)
 	}
 
-	iter := dataset.LimitedDataset{
-		Dataset: ds,
-		Limit:   limit,
-	}
-
-	iterator, err := iter.Iterator(ctx)
+	iterator, err := ds.Iterator(ctx, 0)
 	if err != nil {
 		return nil, err
 	}

@@ -11,8 +11,6 @@ import (
 	. "context"
 	"sync"
 
-	"golang.org/x/net/context"
-
 	"github.com/featureform/fferr"
 	types "github.com/featureform/fftypes"
 	pl "github.com/featureform/provider/location"
@@ -23,7 +21,7 @@ import (
 // and schema
 type Dataset interface {
 	Location() pl.Location
-	Iterator(ctx Context) (Iterator, error)
+	Iterator(ctx Context, limit int64) (Iterator, error)
 	Schema() types.Schema
 }
 
@@ -155,27 +153,4 @@ type GenericSizedIterator struct {
 
 func (it *GenericSizedIterator) Len() (int64, error) {
 	return it.length, nil
-}
-
-type LimitedDataset struct {
-	Dataset
-	Limit int64
-}
-
-func NewLimitedDataset(dataset Dataset, limit int64) *LimitedDataset {
-	return &LimitedDataset{
-		Dataset: dataset,
-		Limit:   limit,
-	}
-}
-
-type limitAware interface {
-	WithLimit(int64) Dataset
-}
-
-func (d *LimitedDataset) Iterator(ctx context.Context) (Iterator, error) {
-	if lds, ok := d.Dataset.(limitAware); ok {
-		return lds.WithLimit(d.Limit).Iterator(ctx)
-	}
-	return d.Dataset.Iterator(ctx)
 }

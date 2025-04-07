@@ -1548,6 +1548,78 @@ func (client *Client) parseModelStream(stream modelStream) ([]*Model, error) {
 	return models, nil
 }
 
+// GetAllDownstreamDependencies retrieves all downstream dependencies for a given resource.
+func (client *Client) GetAllDownstreamDependencies(ctx context.Context, id ResourceID) ([]ResourceID, error) {
+	logger := logging.GetLoggerFromContext(ctx).With("resource", id)
+	logger.Infow("Getting all downstream dependencies")
+
+	stream, err := client.GrpcConn.GetAllDownstreamDependencies(ctx)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies",
+			"error", err,
+		)
+		return nil, err
+	}
+	logger.Debugw("Sending downstream dependencies request")
+	go func() {
+		if stream == nil {
+			logger.Infow("Stream is nil")
+			return
+		}
+		nameVariant := pb.NameVariant{Name: id.Name, Variant: id.Variant}
+		resourceID := &pb.ResourceID{
+			Resource:     &nameVariant,
+			ResourceType: id.Type.Serialized(),
+		}
+
+		req := &pb.GetAllDownstreamDependenciesRequest{
+			ResourceId: resourceID,
+			RequestId:  logging.GetRequestIDFromContext(ctx).String(),
+		}
+
+		err := stream.Send(req)
+		if err != nil {
+			logger.Errorw("Failed to send downstream dependencies request",
+				"error", err,
+			)
+		}
+
+		err = stream.CloseSend()
+		if err != nil {
+			logger.Errorw("Failed to close send", "error", err)
+		}
+	}()
+	logger.Infow("Sent request for downstream dependencies")
+	// Process the response stream
+	dependencies := make([]ResourceID, 0)
+	for {
+		if stream == nil {
+			logger.Infow("Stream is nil")
+			return nil, nil
+		}
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			logger.Infow("End of file. Received all downstream dependencies")
+			break
+		}
+		if err != nil {
+			logger.Errorw("Error receiving downstream dependencies response", "error", err)
+			return nil, err
+		}
+
+		// Convert the protobuf ResourceID to our internal ResourceID type
+		dependency := ResourceID{
+			Name:    resp.Resource.Name,
+			Variant: resp.Resource.Variant,
+			Type:    ResourceType(resp.ResourceType),
+		}
+		dependencies = append(dependencies, dependency)
+		logger.Infow("Received downstream dependency", "dependency", dependency)
+	}
+
+	return dependencies, nil
+}
+
 // GetDownstreamDependencies retrieves all downstream dependencies of a resource type for a given resource.
 // For example, this can be used to find all training sets that depend on a feature,
 // or all features that depend on a source.
@@ -1557,8 +1629,6 @@ func (client *Client) GetDownstreamDependencies(ctx context.Context, id Resource
 	stream, err := client.GrpcConn.GetDownstreamDependencies(ctx)
 	if err != nil {
 		logger.Errorw("Failed to get downstream dependencies",
-			"resource", id,
-			"dependency_type", dependencyType,
 			"error", err,
 		)
 		return nil, err
@@ -1580,8 +1650,6 @@ func (client *Client) GetDownstreamDependencies(ctx context.Context, id Resource
 		err := stream.Send(req)
 		if err != nil {
 			logger.Errorw("Failed to send downstream dependencies request",
-				"resource", id,
-				"dependency_type", dependencyType,
 				"error", err,
 			)
 		}

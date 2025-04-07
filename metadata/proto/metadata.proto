@@ -40,6 +40,7 @@ service Metadata {
   rpc GetEntities(stream NameRequest) returns (stream Entity);
   rpc GetModels(stream NameRequest) returns (stream Model);
   rpc GetDownstreamDependencies(stream GetDownstreamDependenciesRequest) returns (stream GetDownstreamDependenciesResponse);
+  rpc GetAllDownstreamDependencies(stream GetAllDownstreamDependenciesRequest) returns (stream ResourceID);
 
 
   // Deletion API
@@ -94,6 +95,7 @@ service Api {
   rpc GetEntities(stream NameRequest) returns (stream Entity);
   rpc GetModels(stream NameRequest) returns (stream Model);
   rpc GetDownstreamDependencies(stream GetDownstreamDependenciesRequest) returns (stream GetDownstreamDependenciesResponse);
+  rpc GetAllDownstreamDependencies(stream GetAllDownstreamDependenciesRequest) returns (stream ResourceID);
 
   // Deletion API
   // Initiates the deletion process by flagging the resource for removal.
@@ -785,4 +787,9 @@ message GetDownstreamDependenciesResponse {
         Provider provider = 7;
         Entity entity = 8;
     }
+}
+
+message GetAllDownstreamDependenciesRequest {
+  ResourceID resource_id = 1;
+  string request_id = 2;
 }

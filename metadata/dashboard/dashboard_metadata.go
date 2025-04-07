@@ -1118,7 +1118,7 @@ func (m *MetadataServer) GetProviderResources(c *gin.Context) {
 	}
 
 	variantList := make([]metadata.ProviderResource, len(resources))
-	for i, parsedProvider := range resources {
+	for _, parsedProvider := range resources {
 		deserialized := parsedProvider.Proto()
 		provider, ok := deserialized.(*pb.Provider)
 		if !ok {
@@ -1127,8 +1127,17 @@ func (m *MetadataServer) GetProviderResources(c *gin.Context) {
 		}
 		wrappedProvider := metadata.WrapProtoProvider(provider)
 		shallowProvider := wrappedProvider.ToShallowMap()
-
-		variantList[i] = shallowProvider
+		dependencyCount, err := m.client.GetAllDownstreamDependencies(c.Request.Context(), metadata.ResourceID{
+			Name:    provider.Name,
+			Variant: "",
+			Type:    metadata.PROVIDER,
+		})
+		if err != nil {
+			m.logger.Errorw("Could not get all downstream dependencies", "provider", provider.Name, "error", err)
+			continue
+		}
+		shallowProvider.DependencyCount = len(dependencyCount)
+		variantList = append(variantList, shallowProvider)
 	}
 
 	resp := GetProviderListResp{

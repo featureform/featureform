@@ -2878,6 +2878,53 @@ func (serv *MetadataServer) GetDownstreamDependencies(stream pb.Metadata_GetDown
 	}
 }
 
+func (serv *MetadataServer) GetAllDownstreamDependencies(stream pb.Metadata_GetAllDownstreamDependenciesServer) error {
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened Get Downstream Dependencies stream")
+
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			logger.Errorw("End of GetAllDownstreamDependencies stream")
+			return nil
+		}
+		if err != nil {
+			logger.Errorw("Error receiving downstream dependencies request", "error", err)
+			return err
+		}
+
+		deps, err := serv.resourcesRepository.GetDependencies(ctx, common.ResourceID{
+			Name:    req.ResourceId.Resource.Name,
+			Variant: req.ResourceId.Resource.Variant,
+			Type:    common.ResourceType(req.ResourceId.ResourceType),
+		})
+
+		if err != nil {
+			logger.Errorw("failed to get dependencies", "error", err)
+			return err
+		}
+		var allErrors []string
+		// For each dependency, fetch the full resource
+		for _, dep := range deps {
+			dependent_resource := &pb.ResourceID{
+				Resource: &pb.NameVariant{
+					Name:    dep.Name,
+					Variant: dep.Variant,
+				},
+				ResourceType: pb.ResourceType(dep.Type),
+			}
+			logger.Debugw("Sending downstream dependencies response", "name", dep.Name, "variant", dep.Variant, "type", dep.Type)
+			if err := stream.Send(dependent_resource); err != nil {
+				logger.Errorw("Error sending downstream dependencies response", "error", err)
+				allErrors = append(allErrors, err.Error())
+			}
+		}
+		if len(allErrors) > 0 {
+			return fferr.NewInternalErrorf("errors: %v", allErrors)
+		}
+	}
+}
+
 func (serv *MetadataServer) ListLabels(request *pb.ListRequest, stream pb.Metadata_ListLabelsServer) error {
 	ctx := logging.AttachRequestID(logging.RequestID(request.RequestId), stream.Context(), serv.Logger)
 	logging.GetLoggerFromContext(ctx).Info("Opened List Labels stream")
@@ -4112,6 +4159,7 @@ type ProviderResource struct {
 	Error            string                                  `json:"error"`
 	Tags             Tags                                    `json:"tags"`
 	Properties       Properties                              `json:"properties"`
+	DependencyCount  int                                     `json:"dependency-count"`
 }
 
 type ModelResource struct {

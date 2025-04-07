@@ -681,6 +681,58 @@ func (serv *MetadataServer) GetDownstreamDependencies(stream pb.Api_GetDownstrea
 	}
 }
 
+func (serv *MetadataServer) GetAllDownstreamDependencies(stream pb.Api_GetAllDownstreamDependenciesServer) error {
+	requestID, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Infow("Getting All Downstream Dependencies")
+
+	proxyStream, err := serv.meta.GetAllDownstreamDependencies(ctx)
+	if err != nil {
+		logger.Errorw("Failed to create proxy stream", "error", err)
+		return err
+	}
+
+	for {
+		downstreamDependenciesRequest, err := stream.Recv()
+		if err == io.EOF {
+			// Client is done sending, close proxy stream properly
+			if closeErr := proxyStream.CloseSend(); closeErr != nil {
+				logger.Errorw("Error closing proxy stream", "error", closeErr)
+				return closeErr
+			}
+			logger.Debugw("End of stream reached. Stream request completed")
+			return nil
+		}
+		if err != nil {
+			logger.Errorw("Failed to read client request", "error", err)
+			return err
+		}
+		loggerWithResource := logger.WithResource(logging.Unknown, downstreamDependenciesRequest.ResourceId.Resource.Name, downstreamDependenciesRequest.ResourceId.Resource.Variant)
+		downstreamDependenciesRequest.RequestId = requestID.String()
+		loggerWithResource.Infow("Getting stream of dependent resources")
+
+		sErr := proxyStream.Send(downstreamDependenciesRequest)
+		if sErr != nil {
+			loggerWithResource.Errorw("Failed to send downstream dependencies to the server", "error", sErr)
+			return sErr
+		}
+		res, err := proxyStream.Recv()
+		if err == io.EOF {
+			// Backend is done sending
+			loggerWithResource.Debugw("Backend completed sending")
+			return nil
+		}
+		if err != nil {
+			loggerWithResource.Errorw("Failed to receive downstream dependencies from server", "error", err)
+			return err
+		}
+		sendErr := stream.Send(res)
+		if sendErr != nil {
+			loggerWithResource.Errorw("Failed to send downstream dependencies to client", "error", sendErr)
+			return sendErr
+		}
+	}
+}
+
 func (serv *MetadataServer) GetEquivalent(ctx context.Context, req *pb.GetEquivalentRequest) (*pb.ResourceVariant, error) {
 	requestID, ctx, logger := serv.Logger.InitializeRequestID(ctx)
 	req.RequestId = requestID.String()

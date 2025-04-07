@@ -336,6 +336,9 @@ func (MetadataServerMock) GetModels(ctx context.Context, opts ...grpc.CallOption
 func (MetadataServerMock) GetDownstreamDependencies(ctx context.Context, opts ...grpc.CallOption) (pb.Metadata_GetDownstreamDependenciesClient, error) {
 	return nil, nil
 }
+func (MetadataServerMock) GetAllDownstreamDependencies(ctx context.Context, opts ...grpc.CallOption) (pb.Metadata_GetAllDownstreamDependenciesClient, error) {
+	return nil, nil
+}
 func (MetadataServerMock) SetResourceStatus(ctx context.Context, in *pb.SetStatusRequest, opts ...grpc.CallOption) (*pb.Empty, error) {
 	return nil, nil
 }

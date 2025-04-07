@@ -296,7 +296,7 @@ func (vt *ValueTypeJSONWrapper) UnmarshalJSON(data []byte) error {
 	return fferr.NewInternalError(fmt.Errorf("could not unmarshal value type: %v", data))
 }
 
-func (vt ValueTypeJSONWrapper) MarshalJSON() ([]byte, error) {
+func (vt *ValueTypeJSONWrapper) MarshalJSON() ([]byte, error) {
 	switch vt.ValueType.(type) {
 	case VectorType:
 		return json.Marshal(map[string]VectorType{"ValueType": vt.ValueType.(VectorType)})

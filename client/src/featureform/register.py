@@ -659,6 +659,7 @@ class OfflineSparkProvider(OfflineProvider):
         schedule: str = "",
         tags: List[str] = [],
         properties: dict = {},
+        type: TrainingSetType = TrainingSetType.DYNAMIC,
     ):
         """Register a training set on the Spark provider.
 
@@ -698,6 +699,7 @@ class OfflineSparkProvider(OfflineProvider):
             tags=tags,
             properties=properties,
             provider=self.name(),
+            type=type,
         )
 
     def __eq__(self, __value: object) -> bool:
@@ -4828,6 +4830,8 @@ class Registrar:
             if isinstance(feature, tuple) and feature[1] == "":
                 feature = (feature[0], self.__run)
             processed_features.append(feature)
+        if not isinstance(type, TrainingSetType):
+            raise TypeError("Expected Training Set \"type\" to be TrainingSetType.DYNAMIC|STATIC|VIEW")
         resource = TrainingSetVariant(
             created=None,
             name=name,

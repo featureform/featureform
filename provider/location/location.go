@@ -122,6 +122,8 @@ func SanitizeFullyQualifiedObject(obj FullyQualifiedObject) string {
 	return ident.Sanitize()
 }
 
+type Sanitizer func(obj FullyQualifiedObject) string
+
 type SQLLocation struct {
 	database string
 	schema   string
@@ -154,7 +156,7 @@ func (l *SQLLocation) IsRelative() bool {
 	return !l.IsAbsolute()
 }
 
-func (l *SQLLocation) SetSanitizer(sanitizer func(obj FullyQualifiedObject) string) {
+func (l *SQLLocation) SetSanitizer(sanitizer Sanitizer) {
 	l.sanitizer = sanitizer
 }
 

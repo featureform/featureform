@@ -42,6 +42,8 @@ func TestConverterGetType(t *testing.T) {
 		{"DATETIME", "DATETIME", types.Datetime, false},
 		{"TIME", "TIME", types.Datetime, false},
 		{"TIMESTAMP", "TIMESTAMP", types.Timestamp, false},
+
+		{"INVALID", "INVALID", nil, true},
 	}
 
 	for _, tt := range tests {

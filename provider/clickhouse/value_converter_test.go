@@ -137,7 +137,7 @@ func TestConverterConvertValue(t *testing.T) {
 
 		// UInt32 tests
 		{"UInt32 nil", "UInt32", nil, types.Value{NativeType: "UInt32", Type: types.UInt32, Value: nil}, false},
-		{"UInt32 value small", "UInt32", uint32(2147483647), types.Value{NativeType: "UInt32", Type: types.Int32, Value: int(2147483647)}, false},
+		{"UInt32 value small", "UInt32", uint32(2147483647), types.Value{NativeType: "UInt32", Type: types.UInt32, Value: uint32(2147483647)}, false},
 		{"UInt32 value large", "UInt32", uint32(4294967295), types.Value{NativeType: "UInt32", Type: types.UInt32, Value: uint32(4294967295)}, false},
 
 		// UInt64 tests

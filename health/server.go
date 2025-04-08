@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	help "github.com/featureform/helpers"
@@ -63,7 +64,25 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonResponse)
 }
 
+func validatePort(port string) error {
+	portNum, err := strconv.Atoi(port)
+	if err != nil {
+		return errors.New("port must be a valid number")
+	}
+
+	if portNum < 1 || portNum > 65535 {
+		return fmt.Errorf("port must be between 1 and 65535, got %d", portNum)
+	}
+
+	return nil
+}
+
 func StartHttpServer(logger logging.Logger, port string) error {
+	err := validatePort(port)
+	if err != nil {
+		return err
+	}
+
 	mux := &http.ServeMux{}
 
 	mux.HandleFunc("/status", handleStatus)

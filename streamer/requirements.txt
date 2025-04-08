@@ -1,0 +1,4 @@
+boto3
+pyarrow
+pydantic<=2.10.6
+pyiceberg[glue]>=0.9.0

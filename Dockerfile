@@ -88,10 +88,11 @@ FROM python:3.10 AS streamer-builder
 
 WORKDIR /app/streamer
 
+COPY ./streamer/requirements.txt ./streamer/requirements.txt
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 RUN pip install --break-system-packages --upgrade pip
-RUN pip install --break-system-packages boto3 pyarrow 'pyiceberg[glue]'
+RUN pip install --break-system-packages -r ./streamer/requirements.txt
 
 COPY ./streamer/ /app/streamer/
 
@@ -101,11 +102,12 @@ FROM golang:1.22
 WORKDIR /app
 
 # Install Python for the streamer to work
+COPY ./streamer/requirements.txt ./streamer/requirements.txt
 RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --break-system-packages --upgrade pip
-RUN pip install --break-system-packages boto3 pyarrow 'pyiceberg[glue]'
+RUN pip install --break-system-packages -r ./streamer/requirements.txt
 
 # Copy the Python virtual environment
 COPY --from=streamer-builder /app/streamer /app/streamer

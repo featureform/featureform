@@ -518,7 +518,7 @@ func newTestSQLTransformationData(test offlineSqlTest, transformationQuery strin
 			Query:         fmt.Sprintf(queryFmt, test.testConfig.sanitizeTableName(tableLoc)),
 			SourceMapping: []SourceMapping{
 				{
-					Template:       SanitizeSqlLocation(tableLoc),
+					Template:       sqlLoc.Sanitized(),
 					Source:         tableLoc.String(),
 					ProviderType:   test.storeTester.Type(),
 					ProviderConfig: test.storeTester.Config(),

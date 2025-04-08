@@ -13,11 +13,12 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/lib/pq"
+
 	"github.com/featureform/fferr"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
-	_ "github.com/lib/pq"
 )
 
 type redshiftColumnType string
@@ -52,6 +53,7 @@ func redshiftOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		ConnectionURL: fmt.Sprintf("sslmode=%s user=%v password=%s host=%v port=%v dbname=%v", sslMode, sc.Username, sc.Password, sc.Host, sc.Port, sc.Database),
 		Driver:        "postgres",
 		ProviderType:  pt.RedshiftOffline,
+		DefaultDb:     sc.Database,
 		QueryImpl:     &queries,
 		ConnectionStringBuilder: func(database, schema string) (string, error) {
 			redshiftDb := database

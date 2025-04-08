@@ -59,6 +59,7 @@ func postgresOfflineStoreFactory(config pc.SerializedConfig) (Provider, error) {
 		ConnectionURL:           connUrl,
 		Driver:                  "postgres",
 		ProviderType:            pt.PostgresOffline,
+		DefaultDb:               sc.Database,
 		QueryImpl:               &queries,
 		ConnectionStringBuilder: connectionUrlBuilder,
 		useDbConnectionCache:    true,

@@ -122,9 +122,11 @@ func NewClickHouseTestData(t *testing.T) TestColumnData {
 				ExpectedGoType: fftypes.Timestamp,
 				TestValue:      formattedTime,
 				VerifyFunc: func(t *testing.T, actual any) {
+					datetimeFmt := "2006-01-02 15:04:05.999999999"
+
 					actualTime, ok := actual.(time.Time)
 					assert.True(t, ok, "DateTime64 not converted to time.Time")
-					expectedTime, err := time.Parse(datetimeFormat, formattedTime)
+					expectedTime, err := time.Parse(datetimeFmt, formattedTime)
 					assert.NoError(t, err)
 					assert.Equal(t, expectedTime.Unix(), actualTime.Unix(), "DateTime64 value mismatch")
 				},

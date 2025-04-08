@@ -68,10 +68,6 @@ func (w WritableClickHouseDataset) WriteBatch(ctx context.Context, rows []types.
 	}
 
 	schema := w.Schema()
-	if err != nil {
-		return err
-	}
-
 	columns := schema.ColumnNames()
 	columnNames := make([]string, len(columns))
 	for i, col := range columns {

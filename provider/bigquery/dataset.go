@@ -106,7 +106,6 @@ type Iterator struct {
 	ctx           context.Context
 }
 
-// NewIterator creates a new BigQuery iterator
 func NewIterator(ctx context.Context, iter *bigquery.RowIterator, converter types.ValueConverter[any], schema types.Schema) *Iterator {
 	return &Iterator{
 		iter:      iter,
@@ -116,28 +115,24 @@ func NewIterator(ctx context.Context, iter *bigquery.RowIterator, converter type
 	}
 }
 
-// Values returns the current row values
 func (it *Iterator) Values() types.Row {
 	return it.currentValues
 }
 
-// Schema returns the iterator schema
 func (it *Iterator) Schema() types.Schema {
 	return it.schema
 }
 
-// Columns returns the column names
 func (it *Iterator) Columns() []string {
 	return it.schema.ColumnNames()
 }
 
-// Err returns any error that occurred during iteration
 func (it *Iterator) Err() error {
 	return it.err
 }
 
-// Close closes the iterator
 func (it *Iterator) Close() error {
+	// Big Query doesn't have a close method for iterators, but we can set the closed flag
 	it.closed = true
 	return nil
 }
@@ -145,6 +140,7 @@ func (it *Iterator) Close() error {
 // Next advances the iterator to the next row
 func (it *Iterator) Next() bool {
 	if it.closed {
+		it.err = fferr.NewInternalErrorf("iterator is closed")
 		return false
 	}
 

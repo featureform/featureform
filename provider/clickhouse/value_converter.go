@@ -214,13 +214,6 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 				Value:      nil,
 			}, nil
 		}
-		if intValue := value.(uint32); intValue <= math.MaxInt32 {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Int32,
-				Value:      int(intValue),
-			}, nil
-		}
 		return types.Value{
 			NativeType: nativeType,
 			Type:       types.UInt32,
@@ -232,13 +225,6 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 				NativeType: nativeType,
 				Type:       types.UInt64,
 				Value:      nil,
-			}, nil
-		}
-		if intValue := value.(uint64); intValue <= uint64(math.MaxInt) {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.UInt64,
-				Value:      int(intValue),
 			}, nil
 		}
 		return types.Value{

@@ -328,16 +328,14 @@ type TypeConverter func(interface{}) (interface{}, error)
 
 type TypeConverterMapping map[string]TypeConverter
 
-type ColumnSanitizer func(string) string
-
 type Schema struct {
 	Fields []ColumnSchema
 	// todo: can include more state or behavior, etc.
 
-	columnSanitizer ColumnSanitizer
+	columnSanitizer func(string) string
 }
 
-func (s *Schema) SetColumnSanitizer(sanitizer ColumnSanitizer) {
+func (s *Schema) SetColumnSanitizer(sanitizer func(string) string) {
 	s.columnSanitizer = sanitizer
 }
 

@@ -17,14 +17,14 @@ import (
 	"testing"
 	"time"
 
-	"cloud.google.com/go/bigquery"
+	bqlib "cloud.google.com/go/bigquery"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"google.golang.org/api/option"
 
 	types "github.com/featureform/fftypes"
 	"github.com/featureform/logging"
-	bigquery2 "github.com/featureform/provider/bigquery"
+	ffbq "github.com/featureform/provider/bigquery"
 	"github.com/featureform/provider/dataset"
 	"github.com/featureform/provider/location"
 	pl "github.com/featureform/provider/location"
@@ -57,7 +57,7 @@ func (bq *bigQueryOfflineStoreTester) DropDatabase(_ string) error {
 }
 
 func (bq *bigQueryOfflineStoreTester) CreateSchema(_, schema string) error {
-	metadata := &bigquery.DatasetMetadata{
+	metadata := &bqlib.DatasetMetadata{
 		Name: schema,
 	}
 	return bq.client.Dataset(schema).Create(context.TODO(), metadata)
@@ -69,14 +69,14 @@ func (bq *bigQueryOfflineStoreTester) CreateTable(loc pl.Location, schema TableS
 		return nil, fmt.Errorf("invalid location type")
 	}
 
-	var tableSchema bigquery.Schema
+	var tableSchema bqlib.Schema
 
 	for _, col := range schema.Columns {
 		columnType, err := bq.query.determineColumnType(col.ValueType)
 		if err != nil {
 			return nil, err
 		}
-		tableSchema = append(tableSchema, &bigquery.FieldSchema{
+		tableSchema = append(tableSchema, &bqlib.FieldSchema{
 			Name:     col.Name,
 			Type:     columnType,
 			Required: false,
@@ -94,7 +94,7 @@ func (bq *bigQueryOfflineStoreTester) CreateTable(loc pl.Location, schema TableS
 
 	dataset := bq.client.Dataset(datasetName)
 
-	tableMetadata := &bigquery.TableMetadata{
+	tableMetadata := &bqlib.TableMetadata{
 		Name:   tableName,
 		Schema: tableSchema,
 	}
@@ -121,8 +121,8 @@ func (bq *bigQueryOfflineStoreTester) CreateTable(loc pl.Location, schema TableS
 
 type WritableBigQueryDataset struct {
 	dataset.Dataset
-	client *bigquery.Client
-	table  *bigquery.Table
+	client *bqlib.Client
+	table  *bqlib.Table
 }
 
 func (w WritableBigQueryDataset) WriteBatch(ctx context.Context, rows []types.Row) error {
@@ -196,15 +196,15 @@ func (bq *bigQueryOfflineStoreTester) CreateTableFromSchema(loc pl.Location, sch
 	}
 
 	// Build BigQuery schema
-	var bqSchema bigquery.Schema
+	var bqSchema bqlib.Schema
 	for _, field := range schema.Fields {
-		fieldType, err := bigquery2.GetBigQueryType(field.Type)
+		fieldType, err := ffbq.GetBigQueryType(field.Type)
 		if err != nil {
 			logger.Errorw("determining column type", "valueType", field.Type, "error", err)
 			return nil, err
 		}
 
-		bqSchema = append(bqSchema, &bigquery.FieldSchema{
+		bqSchema = append(bqSchema, &bqlib.FieldSchema{
 			Name:     string(field.Name),
 			Type:     fieldType,
 			Required: false, // All fields are nullable by default
@@ -215,7 +215,7 @@ func (bq *bigQueryOfflineStoreTester) CreateTableFromSchema(loc pl.Location, sch
 	datasetRef := bq.client.Dataset(sqlLocation.GetSchema())
 	tableRef := datasetRef.Table(sqlLocation.GetTable())
 
-	tableMetadata := &bigquery.TableMetadata{
+	tableMetadata := &bqlib.TableMetadata{
 		Schema: bqSchema,
 	}
 
@@ -228,7 +228,7 @@ func (bq *bigQueryOfflineStoreTester) CreateTableFromSchema(loc pl.Location, sch
 	}
 
 	// Create the SQL dataset
-	bqDataset, err := bigquery2.NewDataset(bq.client, sqlLocation, schema, bigquery2.BqConverter, -1)
+	bqDataset, err := ffbq.NewDataset(bq.client, sqlLocation, schema, ffbq.BqConverter, -1)
 	if err != nil {
 		return nil, err
 	}
@@ -281,13 +281,13 @@ func createBigQueryDataset(c pc.BigQueryConfig) error {
 		return err
 	}
 
-	client, err := bigquery.NewClient(context.TODO(), c.ProjectId, option.WithCredentialsJSON(sCreds))
+	client, err := bqlib.NewClient(context.TODO(), c.ProjectId, option.WithCredentialsJSON(sCreds))
 	if err != nil {
 		return err
 	}
 	defer client.Close()
 
-	meta := &bigquery.DatasetMetadata{
+	meta := &bqlib.DatasetMetadata{
 		Location:               "US",
 		DefaultTableExpiration: 24 * time.Hour,
 	}
@@ -304,7 +304,7 @@ func destroyBigQueryDataset(c pc.BigQueryConfig) error {
 
 	time.Sleep(10 * time.Second)
 
-	client, err := bigquery.NewClient(context.TODO(), c.ProjectId, option.WithCredentialsJSON(sCreds))
+	client, err := bqlib.NewClient(context.TODO(), c.ProjectId, option.WithCredentialsJSON(sCreds))
 	if err != nil {
 		return err
 	}

@@ -15,6 +15,7 @@ import (
 
 	"github.com/featureform/fferr"
 	types "github.com/featureform/fftypes"
+	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
 	"github.com/featureform/provider/location"
 )
@@ -133,7 +134,12 @@ func (ds SqlDataset) Location() location.Location {
 func (ds SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 	schema := ds.Schema()
-	columnNames := schema.SanitizedColumnNames()
+
+	columnNames := make([]string, len(schema.Fields))
+	for i, field := range schema.Fields {
+		columnNames[i] = postgres.Sanitize(string(field.Name))
+	}
+
 	cols := strings.Join(columnNames, ", ")
 	loc := ds.location.Sanitized()
 	var query string
@@ -158,38 +164,20 @@ func (ds SqlDataset) Schema() types.Schema {
 
 type SqlIterator struct {
 	rows          *sql.Rows
-	currentValues types.Row
 	converter     types.ValueConverter[any]
 	schema        types.Schema
+	currentValues types.Row
 	err           error
 	closed        bool
-	scanBuffers   []any     // Reusable buffer for SQL Scan
-	valueBuffers  []any     // Holds scanned values before conversion
-	rowBuffer     types.Row // Reusable row buffer to avoid allocations on each Next call
-
-	ctx context.Context
+	ctx           context.Context
 }
 
 func NewSqlIterator(ctx context.Context, rows *sql.Rows, converter types.ValueConverter[any], schema types.Schema) *SqlIterator {
-	// Pre-allocate buffers for scanning
-	columnCount := len(schema.Fields)
-	valueBuffers := make([]interface{}, columnCount)
-	scanBuffers := make([]interface{}, columnCount)
-	for i := range valueBuffers {
-		scanBuffers[i] = &valueBuffers[i]
-	}
-
-	// Pre-allocate the row buffer to avoid allocation on each Next() call
-	rowBuffer := make(types.Row, columnCount)
-
 	return &SqlIterator{
-		rows:         rows,
-		converter:    converter,
-		schema:       schema,
-		scanBuffers:  scanBuffers,
-		valueBuffers: valueBuffers,
-		rowBuffer:    rowBuffer,
-		ctx:          ctx,
+		rows:      rows,
+		converter: converter,
+		schema:    schema,
+		ctx:       ctx,
 	}
 }
 
@@ -213,6 +201,7 @@ func (it *SqlIterator) Close() error {
 	if err := it.rows.Close(); err != nil {
 		return fferr.NewInternalErrorf("Failed to close SQL rows: %v", err)
 	}
+	it.closed = true
 	return nil
 }
 
@@ -226,7 +215,6 @@ func (it *SqlIterator) Next() bool {
 		return false
 	}
 
-	// Verify the column count
 	columns, err := it.rows.Columns()
 	if err != nil {
 		it.err = fferr.NewExecutionError("SQL", err)
@@ -241,17 +229,22 @@ func (it *SqlIterator) Next() bool {
 		return false
 	}
 
-	// Scan row data into pre-allocated buffers
-	if err := it.rows.Scan(it.scanBuffers...); err != nil {
+	// Scan directly into new interfaces
+	rawValues := make([]any, len(columns))
+	for i := range rawValues {
+		var v interface{}
+		rawValues[i] = &v
+	}
+
+	if err := it.rows.Scan(rawValues...); err != nil {
 		it.err = fferr.NewExecutionError("SQL", err)
 		it.Close()
 		return false
 	}
 
-	// Convert values according to schema, reusing the pre-allocated row buffer
-	// This avoids allocating a new slice on each Next() call, reducing GC pressure
-	// especially important for large datasets with many rows
-	for i, val := range it.valueBuffers {
+	row := make(types.Row, len(rawValues))
+	for i, rawPtr := range rawValues {
+		val := *(rawPtr.(*interface{}))
 		nativeType := it.schema.Fields[i].NativeType
 		convertedVal, err := it.converter.ConvertValue(nativeType, val)
 		if err != nil {
@@ -259,9 +252,9 @@ func (it *SqlIterator) Next() bool {
 			it.Close()
 			return false
 		}
-		it.rowBuffer[i] = convertedVal
+		row[i] = convertedVal
 	}
 
-	it.currentValues = it.rowBuffer
+	it.currentValues = row
 	return true
 }

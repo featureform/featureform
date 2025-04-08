@@ -65,11 +65,11 @@ func (ds *Dataset) Iterator(ctx context.Context) (dataset.Iterator, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 
 	schema := ds.Schema()
-	schema.SetColumnSanitizer(func(col string) string {
-		return fmt.Sprintf("`%s`", col)
-	})
+	columnNames := make([]string, len(schema.Fields))
+	for i, field := range schema.Fields {
+		columnNames[i] = fmt.Sprintf("`%s`", field.Name)
+	}
 
-	columnNames := schema.SanitizedColumnNames()
 	cols := strings.Join(columnNames, ", ")
 	loc := ds.location.Sanitized()
 

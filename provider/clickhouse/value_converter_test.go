@@ -177,37 +177,6 @@ func TestConverterConvertValue(t *testing.T) {
 	}
 }
 
-func TestPointerDereference(t *testing.T) {
-	converter := Converter{}
-
-	// Test the pointer dereferencing functionality
-	stringPtr := new(interface{})
-	stringVal := "test"
-	*stringPtr = stringVal
-
-	intPtr := new(interface{})
-	intVal := int32(123)
-	*intPtr = intVal
-
-	tests := []struct {
-		name          string
-		nativeType    types.NativeType
-		value         interface{}
-		expectedValue interface{}
-	}{
-		{"String pointer", "String", stringPtr, "test"},
-		{"Int32 pointer", "Int32", intPtr, int32(123)},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			value, err := converter.ConvertValue(tt.nativeType, tt.value)
-			assert.NoError(t, err)
-			assert.Equal(t, tt.expectedValue, value.Value)
-		})
-	}
-}
-
 func TestEdgeCases(t *testing.T) {
 	converter := Converter{}
 

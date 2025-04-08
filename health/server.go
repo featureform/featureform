@@ -110,8 +110,12 @@ func StartHttpServer(logger logging.Logger, port string) error {
 
 	go func() {
 		err := httpsSrv.ListenAndServe()
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Errorw("error with health check HTTP server", "error", err)
+		if err != nil {
+			if errors.Is(err, http.ErrServerClosed) {
+				logger.Infow("health check server shutting down")
+			} else {
+				logger.Errorw("error with health check HTTP server", "error", err)
+			}
 		}
 	}()
 

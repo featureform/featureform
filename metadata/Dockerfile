@@ -48,6 +48,7 @@ RUN go build ./metadata/server/server.go
 FROM alpine
 
 COPY --from=0 ./app/server /server
+COPY ./db/migrations /db/migrations
 
 EXPOSE 8080
 ENTRYPOINT ["./server"]

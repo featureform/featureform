@@ -22,7 +22,7 @@ import (
 type Dataset interface {
 	Location() pl.Location
 	Iterator(ctx Context) (Iterator, error)
-	Schema() (types.Schema, error)
+	Schema() types.Schema
 }
 
 // WriteableDataset is a Dataset that you can write to. For some datasets,

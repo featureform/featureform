@@ -37,9 +37,14 @@ func main() {
 	logger.Infow("Retrieved serving host from ENV", "host", servingHost)
 	servingPort := help.GetEnv("SERVING_PORT", "8080")
 	logger.Infow("Retrieved serving port from ENV", "port", servingPort)
+	skipFeatureServing := help.GetEnvBool("SKIP_FEATURE_SERVING", false)
+	logger.Infow("Should skip feature serving?", "bool", skipFeatureServing)
 	apiConn := fmt.Sprintf("0.0.0.0:%s", apiPort)
 	metadataConn := fmt.Sprintf("%s:%s", metadataHost, metadataPort)
 	servingConn := fmt.Sprintf("%s:%s", servingHost, servingPort)
+	if skipFeatureServing {
+		servingConn = ""
+	}
 
 	if err := health.StartHttpServer(logger, apiStatusPort); err != nil {
 		logger.Errorw("Error starting health check HTTP server", "error", err)

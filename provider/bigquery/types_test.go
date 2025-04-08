@@ -146,7 +146,7 @@ func TestBigQueryTypeConversions(t *testing.T) {
 		// Create dataset with the schema and converter
 		ds, err := dataset.NewSqlDataset(
 			db,
-			*location,
+			location,
 			schema,
 			bqConverter,
 			1, // Limit to 1 row

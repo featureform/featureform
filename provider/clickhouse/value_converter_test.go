@@ -142,7 +142,7 @@ func TestConverterConvertValue(t *testing.T) {
 
 		// UInt64 tests
 		{"UInt64 nil", "UInt64", nil, types.Value{NativeType: "UInt64", Type: types.UInt64, Value: nil}, false},
-		{"UInt64 value small", "UInt64", uint64(9223372036854775807), types.Value{NativeType: "UInt64", Type: types.UInt64, Value: int(9223372036854775807)}, false},
+		{"UInt64 value small", "UInt64", uint64(9223372036854775807), types.Value{NativeType: "UInt64", Type: types.UInt64, Value: uint64(9223372036854775807)}, false},
 		{"UInt64 value large", "UInt64", uint64(18446744073709551615), types.Value{NativeType: "UInt64", Type: types.UInt64, Value: uint64(18446744073709551615)}, false},
 
 		// Float32 tests

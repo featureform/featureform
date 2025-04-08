@@ -38,20 +38,6 @@ func checkZeroTime(t time.Time) time.Time {
 	return t.UTC()
 }
 
-// deferencePointer handles potential pointer-to-pointer scenarios
-func deferencePointer(v interface{}) interface{} {
-	if v == nil {
-		return nil
-	}
-
-	// If v is a pointer, dereference it
-	if ptr, ok := v.(*interface{}); ok && ptr != nil {
-		return deferencePointer(*ptr)
-	}
-
-	return v
-}
-
 type Converter struct{}
 
 func (c Converter) GetType(nativeType types.NativeType) (types.ValueType, error) {
@@ -64,9 +50,6 @@ func (c Converter) GetType(nativeType types.NativeType) (types.ValueType, error)
 
 // ConvertValue converts a value from its ClickHouse representation to a types.Value
 func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.Value, error) {
-	// Dereference any pointers
-	value = deferencePointer(value)
-
 	// Extract the underlying type if it's Nullable
 	typeStr := string(nativeType)
 	match := nullableRe.FindStringSubmatch(typeStr)

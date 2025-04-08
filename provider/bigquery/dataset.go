@@ -139,6 +139,11 @@ func (it *Iterator) Close() error {
 
 // Next advances the iterator to the next row
 func (it *Iterator) Next() bool {
+	select {
+	case <-it.ctx.Done():
+		it.err = fferr.NewInternalErrorf("context is done")
+	}
+
 	if it.closed {
 		it.err = fferr.NewInternalErrorf("iterator is closed")
 		return false

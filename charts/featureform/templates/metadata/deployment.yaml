@@ -39,7 +39,7 @@ spec:
           name: featureform-metadata-server
           imagePullPolicy: {{ .Values.pullPolicy }}
           ports:
-            - containerPort: 8080
+            - containerPort: {{ .Values.metadata.port }}
           resources: {}
           env:
             - name: FF_STATE_PROVIDER
@@ -74,4 +74,4 @@ spec:
           {{ end }}
           startupProbe:
             grpc:
-              port: 8080
+              port: {{ .Values.metadata.port }}

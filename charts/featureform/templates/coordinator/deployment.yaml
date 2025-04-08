@@ -81,6 +81,8 @@ spec:
               value: {{ .Values.coordinator.execution.taskDependencyPollInterval | quote }}
             - name: TASK_DISTRIBUTION_INTERVAL
               value: {{ .Values.coordinator.taskDistributionInterval | quote }}
+            - name: API_STATUS_PORT
+              value: {{ .Values.coordinator.statusPort | quote }}
           {{ if eq .Values.stateProvider "psql" }}
             - name: PSQL_USER
               valueFrom:
@@ -106,4 +108,4 @@ spec:
           startupProbe:
             httpGet:
               path: /
-              port: 8443
+              port: {{ .Values.coordinator.statusPort }}

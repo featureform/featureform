@@ -134,6 +134,8 @@ func (ch *clickHouseOfflineStoreTester) CreateWritableDataset(loc pl.Location, s
 	}
 
 	ds, err := ch.CreateTableFromSchema(loc, schema)
+	ds.SetSanitizer(sanitizeClickHouseTableName)
+
 	if err != nil {
 		return nil, err
 	}

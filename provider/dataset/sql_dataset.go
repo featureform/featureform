@@ -26,6 +26,8 @@ type SqlDataset struct {
 	schema    types.Schema
 	converter types.ValueConverter[any]
 	limit     int
+
+	sanitizer func(obj location.FullyQualifiedObject) string // remove this and create specific datasets
 }
 
 func NewSqlDataset(
@@ -127,11 +129,15 @@ func getSchema(db *sql.DB, converter types.ValueConverter[any], tableName *locat
 	return types.Schema{Fields: fields}, nil
 }
 
-func (ds SqlDataset) Location() location.Location {
+func (ds *SqlDataset) SetSanitizer(sanitizer func(obj location.FullyQualifiedObject) string) {
+	ds.sanitizer = sanitizer
+}
+
+func (ds *SqlDataset) Location() location.Location {
 	return ds.location
 }
 
-func (ds SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
+func (ds *SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 	schema := ds.Schema()
 
@@ -141,7 +147,12 @@ func (ds SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
 	}
 
 	cols := strings.Join(columnNames, ", ")
-	loc := location.SanitizeFullyQualifiedObject(ds.location.TableLocation())
+	var loc string
+	if ds.sanitizer != nil {
+		loc = ds.sanitizer(ds.location.TableLocation())
+	} else {
+		loc = location.SanitizeFullyQualifiedObject(ds.location.TableLocation())
+	}
 	var query string
 	if ds.limit == -1 {
 		query = fmt.Sprintf("SELECT %s FROM %s", cols, loc)
@@ -158,7 +169,7 @@ func (ds SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
 	return NewSqlIterator(ctx, rows, ds.converter, ds.schema), nil
 }
 
-func (ds SqlDataset) Schema() types.Schema {
+func (ds *SqlDataset) Schema() types.Schema {
 	return ds.schema
 }
 
@@ -173,11 +184,9 @@ type SqlIterator struct {
 }
 
 func NewSqlIterator(ctx context.Context, rows *sql.Rows, converter types.ValueConverter[any], schema types.Schema) *SqlIterator {
-	// Pre-allocate scan targets array
 	columnCount := len(schema.Fields)
 	scanTargets := make([]any, columnCount)
 
-	// Initialize with pointers to any (interface{})
 	for i := range scanTargets {
 		var v any
 		scanTargets[i] = &v

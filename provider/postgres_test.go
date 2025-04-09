@@ -66,7 +66,7 @@ func getConfiguredPostgresTester(t *testing.T) OfflineSqlTest {
 
 	sanitizeTableName := func(obj pl.FullyQualifiedObject) string {
 		loc := pl.NewSQLLocationFromParts(obj.Database, obj.Schema, obj.Table)
-		return loc.Sanitized()
+		return SanitizeFullyQualifiedObject(loc.TableLocation())
 	}
 
 	return OfflineSqlTest{

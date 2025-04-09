@@ -144,7 +144,7 @@ WHERE rn = 1
 		"tsSelectStatement":  tsSelectStatement,
 		"tsOrderByStatement": tsOrderByStatement,
 		// TODO: Error checking for SQLLocation
-		"sourceLocation": sqlLoc.Sanitized(),
+		"sourceLocation": SanitizeFullyQualifiedObject(sqlLoc.TableLocation()),
 	}
 
 	var sb strings.Builder
@@ -222,7 +222,7 @@ func (q postgresSQLQueries) adaptTsDefToBuilderParams(def TrainingSetDef) (tsq.B
 		if !isSQLLocation {
 			return "", fferr.NewInternalErrorf("label location is not an SQL location, actual %T. %v", lblLoc, lblLoc)
 		}
-		return lblLoc.Sanitized(), nil
+		return SanitizeFullyQualifiedObject(lblLoc.TableLocation()), nil
 	}
 
 	// TODO: Create and pass in actual logger

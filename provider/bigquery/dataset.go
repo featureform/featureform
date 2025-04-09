@@ -71,7 +71,7 @@ func (ds *Dataset) Iterator(ctx context.Context) (dataset.Iterator, error) {
 	}
 
 	cols := strings.Join(columnNames, ", ")
-	loc := ds.location.Sanitized()
+	loc := SanitizeBigQueryIdentifier(ds.location.TableLocation())
 
 	var query string
 	if ds.limit == -1 {
@@ -189,4 +189,8 @@ func (it *Iterator) Next() bool {
 
 	it.currentValues = row
 	return true
+}
+
+func SanitizeBigQueryIdentifier(obj location.FullyQualifiedObject) string {
+	return "`" + obj.String() + "`"
 }

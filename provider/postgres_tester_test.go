@@ -120,7 +120,7 @@ func (p *postgresOfflineStoreTester) CreateTable(loc location.Location, schema T
 	}
 
 	var queryBuilder strings.Builder
-	queryBuilder.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", sqlLocation.Sanitized()))
+	queryBuilder.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", SanitizeFullyQualifiedObject(sqlLocation.TableLocation())))
 	for i, column := range schema.Columns {
 		if i > 0 {
 			queryBuilder.WriteString(", ")
@@ -183,7 +183,7 @@ func (w WritablePostgresDataset) WriteBatch(ctx context.Context, rows []types.Ro
 	}
 
 	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
-		w.sqlLocation.Sanitized(),
+		SanitizeFullyQualifiedObject(w.sqlLocation.TableLocation()),
 		strings.Join(columnNameStr, ", "),
 		strings.Join(placeholders, ", "))
 
@@ -260,7 +260,7 @@ func (p *postgresOfflineStoreTester) CreateTableFromSchema(loc location.Location
 
 	// Build the CREATE TABLE query
 	var queryBuilder strings.Builder
-	queryBuilder.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", sqlLocation.Sanitized()))
+	queryBuilder.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", SanitizeFullyQualifiedObject(sqlLocation.TableLocation())))
 
 	for i, column := range schema.Fields {
 		if i > 0 {

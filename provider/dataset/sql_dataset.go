@@ -141,7 +141,7 @@ func (ds SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
 	}
 
 	cols := strings.Join(columnNames, ", ")
-	loc := ds.location.Sanitized()
+	loc := location.SanitizeFullyQualifiedObject(ds.location.TableLocation())
 	var query string
 	if ds.limit == -1 {
 		query = fmt.Sprintf("SELECT %s FROM %s", cols, loc)

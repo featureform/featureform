@@ -103,7 +103,7 @@ func (w WritableSnowflakeDataset) WriteBatch(ctx context.Context, rows []types.R
 	if !ok {
 		return fmt.Errorf("invalid location type")
 	}
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES ", sqlLocation.Sanitized(), strings.Join(columnNames, ","))
+	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES ", SanitizeSnowflakeIdentifier(sqlLocation.TableLocation()), strings.Join(columnNames, ","))
 	var args []any
 	for i, row := range rows {
 		if i > 0 {

@@ -158,7 +158,6 @@ func (w WritableBigQueryDataset) WriteBatch(ctx context.Context, rows []types.Ro
 
 func (bq *bigQueryOfflineStoreTester) CreateWritableDataset(loc pl.Location, schema types.Schema) (dataset.WriteableDataset, error) {
 	sqlLocation, ok := loc.(*pl.SQLLocation)
-	sqlLocation.SetSanitizer(SanitizeBigQueryTableName)
 	if !ok {
 		return nil, fmt.Errorf("invalid location type")
 	}

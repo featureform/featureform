@@ -142,6 +142,9 @@ func (it *Iterator) Next() bool {
 	select {
 	case <-it.ctx.Done():
 		it.err = fferr.NewInternalErrorf("context is done")
+		return false
+	default:
+		// Continue with the rest of the function
 	}
 
 	if it.closed {

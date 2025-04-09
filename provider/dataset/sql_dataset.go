@@ -167,17 +167,28 @@ type SqlIterator struct {
 	converter     types.ValueConverter[any]
 	schema        types.Schema
 	currentValues types.Row
+	scanTargets   []any
 	err           error
-	closed        bool
 	ctx           context.Context
 }
 
 func NewSqlIterator(ctx context.Context, rows *sql.Rows, converter types.ValueConverter[any], schema types.Schema) *SqlIterator {
+	// Pre-allocate scan targets array
+	columnCount := len(schema.Fields)
+	scanTargets := make([]any, columnCount)
+
+	// Initialize with pointers to any (interface{})
+	for i := range scanTargets {
+		var v any
+		scanTargets[i] = &v
+	}
+
 	return &SqlIterator{
-		rows:      rows,
-		converter: converter,
-		schema:    schema,
-		ctx:       ctx,
+		rows:        rows,
+		converter:   converter,
+		schema:      schema,
+		scanTargets: scanTargets,
+		ctx:         ctx,
 	}
 }
 
@@ -201,13 +212,18 @@ func (it *SqlIterator) Close() error {
 	if err := it.rows.Close(); err != nil {
 		return fferr.NewInternalErrorf("Failed to close SQL rows: %v", err)
 	}
-	it.closed = true
 	return nil
 }
 
 func (it *SqlIterator) Next() bool {
-	if it.closed {
+	// Check for context cancellation (optional - depends on whether you need this behavior)
+	select {
+	case <-it.ctx.Done():
+		it.err = it.ctx.Err()
+		it.Close()
 		return false
+	default:
+		// Continue processing
 	}
 
 	if !it.rows.Next() {
@@ -215,36 +231,21 @@ func (it *SqlIterator) Next() bool {
 		return false
 	}
 
-	columns, err := it.rows.Columns()
-	if err != nil {
+	// Scan row data into scan targets
+	if err := it.rows.Scan(it.scanTargets...); err != nil {
 		it.err = fferr.NewExecutionError("SQL", err)
 		it.Close()
 		return false
 	}
 
-	if len(columns) != len(it.schema.Fields) {
-		it.err = fferr.NewInternalErrorf("column count mismatch: schema has %d, query returned %d",
-			len(it.schema.Fields), len(columns))
-		it.Close()
-		return false
-	}
+	// Allocate a new row for the result
+	row := make(types.Row, len(it.scanTargets))
 
-	// Scan directly into new interfaces
-	rawValues := make([]any, len(columns))
-	for i := range rawValues {
-		var v interface{}
-		rawValues[i] = &v
-	}
+	// Convert values according to schema
+	for i, rawPtr := range it.scanTargets {
+		// Extract the value from the pointer
+		val := *(rawPtr.(*any))
 
-	if err := it.rows.Scan(rawValues...); err != nil {
-		it.err = fferr.NewExecutionError("SQL", err)
-		it.Close()
-		return false
-	}
-
-	row := make(types.Row, len(rawValues))
-	for i, rawPtr := range rawValues {
-		val := *(rawPtr.(*interface{}))
 		nativeType := it.schema.Fields[i].NativeType
 		convertedVal, err := it.converter.ConvertValue(nativeType, val)
 		if err != nil {

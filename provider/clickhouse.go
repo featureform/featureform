@@ -1667,6 +1667,18 @@ const pattern = `Nullable\((.*)\)`
 
 var nullableRe = regexp.MustCompile(pattern)
 
+func deferencePointer(v interface{}) interface{} {
+	rv := reflect.ValueOf(v)
+	for rv.Kind() == reflect.Ptr {
+		if rv.IsNil() {
+			//return null as nil
+			return nil
+		}
+		rv = rv.Elem()
+	}
+	return rv.Interface()
+}
+
 func checkZeroTime(t time.Time) time.Time {
 	//1970-01-01 in datetime64 in ClickHouse is 0 but client returns this as time.Time{} which is 0 year
 	if t.IsZero() {
@@ -1679,6 +1691,11 @@ func (q clickhouseSQLQueries) castTableItemType(v interface{}, t interface{}) in
 	if v == nil {
 		return v
 	}
+
+	// v might be a pointer to a pointer (so we can handle nulls)
+	v = deferencePointer(v)
+	//type might be nullable - identify underlying type e.g. Nullable(String) -> String
+
 	match := nullableRe.FindStringSubmatch(t.(string))
 	if len(match) == 2 {
 		t = match[1]

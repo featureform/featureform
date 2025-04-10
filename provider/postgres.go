@@ -32,6 +32,7 @@ const (
 	pgInt       postgresColumnType = "integer"
 	pgBigInt    postgresColumnType = "bigint"
 	pgFloat     postgresColumnType = "float8"
+	pgNumeric   postgresColumnType = "numeric"
 	pgString    postgresColumnType = "varchar"
 	pgBool      postgresColumnType = "boolean"
 	pgTimestamp postgresColumnType = "timestamp with time zone"
@@ -269,19 +270,17 @@ func (q postgresSQLQueries) castTableItemType(v interface{}, t interface{}) inte
 	case pgBigInt:
 		return int(v.(int64))
 	case pgFloat:
+		return v.(float64)
+	case pgNumeric:
 		// If the column type is NUMERIC, the SQL interface will return the value as
 		// a []uint8 type. This is the ASCII-formatted value of the float, and is
 		// done because the NUMERIC type has arbitrary precision.
-		if byteArray, ok := v.([]uint8); ok {
-			floatVal, err := strconv.ParseFloat(string(byteArray), 64)
-			if err != nil {
-				return nil
-			}
-			return floatVal
+		byteArray := v.([]uint8)
+		floatVal, err := strconv.ParseFloat(string(byteArray), 64)
+		if err != nil {
+			return nil
 		}
-
-		// Fall back to the original case for actual float64 values
-		return v.(float64)
+		return floatVal
 	case pgString:
 		return v.(string)
 	case pgBool:
@@ -301,8 +300,10 @@ func (q postgresSQLQueries) getValueColumnType(t *sql.ColumnType) interface{} {
 		return pgBigInt
 	case "int64":
 		return pgBigInt
-	case "float32", "float64", "interface {}":
+	case "float32", "float64":
 		return pgFloat
+	case "interface {}":
+		return pgNumeric
 	case "bool":
 		return pgBool
 	case "time.Time":

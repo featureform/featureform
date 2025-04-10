@@ -113,6 +113,12 @@ func TestPostgresCastTableItemType(t *testing.T) {
 			expected: 3.14,
 		},
 		{
+			name:     "Numeric column type",
+			input:    []uint8{49, 57, 49, 46, 56, 51},
+			typeSpec: pgFloat,
+			expected: 191.83,
+		},
+		{
 			name:     "pgString conversion",
 			input:    "hello",
 			typeSpec: pgString,

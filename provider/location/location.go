@@ -122,12 +122,12 @@ func SanitizeFullyQualifiedObject(obj FullyQualifiedObject) string {
 	return ident.Sanitize()
 }
 
+type Sanitizer func(obj FullyQualifiedObject) string
+
 type SQLLocation struct {
 	database string
 	schema   string
 	table    string
-
-	sanitizer func(obj FullyQualifiedObject) string
 }
 
 func (l *SQLLocation) GetDatabase() string {
@@ -152,10 +152,6 @@ func (l *SQLLocation) IsAbsolute() bool {
 
 func (l *SQLLocation) IsRelative() bool {
 	return !l.IsAbsolute()
-}
-
-func (l *SQLLocation) SetSanitizer(sanitizer func(obj FullyQualifiedObject) string) {
-	l.sanitizer = sanitizer
 }
 
 // GetTableFromRoot return table if it's an absolute position.
@@ -222,14 +218,6 @@ func (l *SQLLocation) Proto() *pb.Location {
 				Name:     l.table,
 			},
 		},
-	}
-}
-
-func (l *SQLLocation) Sanitized() string {
-	if l.sanitizer == nil {
-		return SanitizeFullyQualifiedObject(l.TableLocation())
-	} else {
-		return l.sanitizer(l.TableLocation())
 	}
 }
 

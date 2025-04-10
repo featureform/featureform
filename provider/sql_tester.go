@@ -8,15 +8,17 @@
 package provider
 
 import (
+	fftypes "github.com/featureform/fftypes"
+	"github.com/featureform/provider/dataset"
 	"github.com/featureform/provider/location"
 )
 
-type offlineSqlTest struct {
-	testConfig  offlineSqlTestConfig
+type OfflineSqlTest struct {
+	testConfig  OfflineSqlTestConfig
 	storeTester offlineSqlStoreTester
 }
 
-type offlineSqlTestConfig struct {
+type OfflineSqlTestConfig struct {
 	// sanitizeTableName is used to manually sanitize the tables, as most of the correctness
 	// tests assume a Snowflake-like identifier quoting interface. This is used as a stop-gap
 	// until locations are refactored, and the tests are truly generic over the location interface.
@@ -26,11 +28,16 @@ type offlineSqlTestConfig struct {
 	removeSchemaFromLocation bool
 }
 
-type offlineSqlStoreCoreTester interface {
+type OfflineSqlStoreCoreTester interface {
 	AsOfflineStore() (OfflineStore, error)
 	GetTestDatabase() string
 	CreateSchema(database, schema string) error
 	CreateTable(loc location.Location, schema TableSchema) (PrimaryTable, error)
+}
+
+type OfflineSqlStoreWriteableDatasetTester interface {
+	OfflineSqlStoreCoreTester
+	CreateWritableDataset(loc location.Location, schema fftypes.Schema) (dataset.WriteableDataset, error)
 }
 
 type offlineSqlStoreCreateDb interface {
@@ -40,23 +47,23 @@ type offlineSqlStoreCreateDb interface {
 }
 
 type offlineSqlStoreTester interface {
-	offlineSqlStoreCoreTester
+	OfflineSqlStoreCoreTester
 	OfflineStore
 }
 
 type offlineSqlStoreDatasetTester interface {
-	offlineSqlStoreCoreTester
+	OfflineSqlStoreCoreTester
 	OfflineStoreDataset
 }
 
 type offlineMaterializationSqlStoreTester interface {
-	offlineSqlStoreCoreTester
+	OfflineSqlStoreCoreTester
 	OfflineStoreDataset
 	OfflineStoreMaterialization
 }
 
 type offlineTrainingSetSqlStoreTester interface {
-	offlineSqlStoreCoreTester
+	OfflineSqlStoreCoreTester
 	OfflineStoreDataset
 	OfflineStoreMaterialization
 	OfflineStoreTrainingSet

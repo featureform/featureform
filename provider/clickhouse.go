@@ -1691,9 +1691,11 @@ func (q clickhouseSQLQueries) castTableItemType(v interface{}, t interface{}) in
 	if v == nil {
 		return v
 	}
+
 	// v might be a pointer to a pointer (so we can handle nulls)
 	v = deferencePointer(v)
 	//type might be nullable - identify underlying type e.g. Nullable(String) -> String
+
 	match := nullableRe.FindStringSubmatch(t.(string))
 	if len(match) == 2 {
 		t = match[1]

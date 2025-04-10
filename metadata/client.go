@@ -2773,10 +2773,10 @@ func TrainingSetTypeFromProto(proto pb.TrainingSetType) (TrainingSetType, error)
 	case pb.TrainingSetType_TRAINING_SET_TYPE_VIEW:
 		trainingSetType = ViewTrainingSet
 	case pb.TrainingSetType_TRAINING_SET_TYPE_UNSPECIFIED:
-		logger.DPanic("Training set type unspecified")
+		logger.Error("Training set type unspecified")
 		return trainingSetType, fferr.NewInvalidArgumentErrorf("Training set type unspecified")
 	default:
-		logger.DPanic("Unknown training set type", "proto", proto)
+		logger.Errorw("Unknown training set type", "proto", proto)
 		return trainingSetType, fferr.NewInternalErrorf("Unknown training set type %v", proto)
 	}
 	return trainingSetType, nil
@@ -2792,7 +2792,7 @@ func TrainingSetTypeFromString(trainingSetType string) (TrainingSetType, error) 
 	case "VIEW":
 		return ViewTrainingSet, nil
 	default:
-		logger.DPanic("Invalid training set type", "trainingSetType", trainingSetType)
+		logger.Errorw("Invalid training set type", "trainingSetType", trainingSetType)
 		return "", fferr.NewInvalidArgumentErrorf("Invalid training set type %s", trainingSetType)
 	}
 }

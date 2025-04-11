@@ -814,6 +814,11 @@ func (adapter *PrimaryTableToDatasetAdapter) WriteBatch(ctx context.Context, rec
 	return adapter.pt.WriteBatch(genericRecords)
 }
 
+func (adapter *PrimaryTableToDatasetAdapter) Len() (int64, error) {
+	rows, err := adapter.pt.NumRows()
+	return rows, err
+}
+
 type TransformationTable interface {
 	PrimaryTable
 }

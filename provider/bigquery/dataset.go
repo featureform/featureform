@@ -58,7 +58,7 @@ func (ds *Dataset) Location() location.Location {
 }
 
 // Iterator returns an iterator over the dataset
-func (ds *Dataset) Iterator(ctx context.Context) (dataset.Iterator, error) {
+func (ds *Dataset) Iterator(ctx context.Context, limit int64) (dataset.Iterator, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 
 	schema := ds.Schema()
@@ -73,11 +73,7 @@ func (ds *Dataset) Iterator(ctx context.Context) (dataset.Iterator, error) {
 	// Determine the effective limit to apply in the query
 	effectiveLimit := -1
 	if ds.limit > 0 && limit > 0 {
-		if ds.limit < int(limit) {
-			effectiveLimit = ds.limit
-		} else {
-			effectiveLimit = int(limit)
-		}
+		effectiveLimit = min(ds.limit, int(limit))
 	} else if ds.limit > 0 {
 		effectiveLimit = ds.limit
 	} else if limit > 0 {

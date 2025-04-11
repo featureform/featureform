@@ -1283,10 +1283,10 @@ type SqlPrimaryTable struct {
 	providerType pt.Type
 }
 
-func (table *SqlPrimaryTable) ToDataset() (*dataset.SqlDataset, error) {
+func (table *SqlPrimaryTable) ToDataset() (dataset.SqlDataset, error) {
 	conv, err := pt.GetConverter(table.providerType)
 	if err != nil {
-		return &dataset.SqlDataset{}, err
+		return dataset.SqlDataset{}, err
 	}
 	return dataset.NewSqlDatasetWithAutoSchema(
 		table.db,

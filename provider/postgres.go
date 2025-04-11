@@ -10,6 +10,7 @@ package provider
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -268,6 +269,18 @@ func (q postgresSQLQueries) castTableItemType(v interface{}, t interface{}) inte
 	case pgBigInt:
 		return int(v.(int64))
 	case pgFloat:
+		// If the column type is NUMERIC, the SQL interface will return the value as
+		// a []uint8 type. This is the ASCII-formatted value of the float, and is
+		// done because the NUMERIC type has arbitrary precision.
+		if byteArray, ok := v.([]uint8); ok {
+			floatVal, err := strconv.ParseFloat(string(byteArray), 64)
+			if err != nil {
+				return nil
+			}
+			return floatVal
+		}
+
+		// Fall back to the original case for actual float64 values
 		return v.(float64)
 	case pgString:
 		return v.(string)

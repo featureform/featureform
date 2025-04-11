@@ -26,6 +26,7 @@ import (
 	"github.com/featureform/filestore"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
+	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
@@ -1151,13 +1152,15 @@ func (spark *SparkOfflineStore) ResourceLocation(id ResourceID, resource any) (p
 // TODO: Currently, GetTransformationTable is only used in the context of serving source data as an iterator,
 // and given we currently cannot serve catalog tables in this way, there's no need to implement support for
 // catalog locations here. However, eventually, we'll need to address this gap in implementation.
-func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (dataset.Dataset, error) {
 	transformationPath, err := spark.Store.CreateFilePath(id.ToFilestorePath(), true)
 	if err != nil {
 		return nil, err
 	}
 	spark.Logger.Debugw("Retrieved transformation source", "id", id, "filePath", transformationPath.ToURI())
-	return &FileStorePrimaryTable{spark.Store, transformationPath, TableSchema{}, true, id}, nil
+	fsPT := &FileStorePrimaryTable{spark.Store, transformationPath, TableSchema{}, true, id}
+
+	return &PrimaryTableToDatasetAdapter{fsPT}, nil
 }
 
 func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig, opts ...TransformationOption) error {
@@ -1198,7 +1201,7 @@ func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSc
 	return &FileStorePrimaryTable{spark.Store, primaryTableFilepath, schema, false, id}, nil
 }
 
-func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
+func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error) {
 	return fileStoreGetPrimary(id, spark.Store, spark.Logger.SugaredLogger)
 }
 

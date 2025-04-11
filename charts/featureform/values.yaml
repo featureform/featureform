@@ -123,6 +123,7 @@ coordinator:
 
   host: "featureform-coordinator"
   port: 80
+  statusPort: 8443
 
   # taskDistributionInterval represents the range over which random numbers are generated to
   # determine whether a specific coordinator pod will select tasks to run;

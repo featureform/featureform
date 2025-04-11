@@ -5,7 +5,7 @@
 // Copyright 2024 FeatureForm Inc.
 //
 
-package api
+package health
 
 import (
 	"encoding/json"

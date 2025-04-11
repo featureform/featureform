@@ -24,6 +24,8 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slices"
 	"google.golang.org/grpc"
+	grpc_health "google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/protobuf/proto"
 	tspb "google.golang.org/protobuf/types/known/timestamppb"
 
@@ -2364,6 +2366,11 @@ func (serv *MetadataServer) serveOnListener(lis net.Listener) error {
 	}
 	serv.listener = lis
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(interceptors.UnaryServerErrorInterceptor), grpc.StreamInterceptor(interceptors.StreamServerErrorInterceptor))
+
+	healthServer := grpc_health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+
 	pb.RegisterMetadataServer(grpcServer, serv)
 	schproto.RegisterTasksServer(grpcServer, serv)
 	serv.grpcServer = grpcServer

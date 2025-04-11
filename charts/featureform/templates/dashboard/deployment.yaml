@@ -32,7 +32,7 @@ spec:
           image: "{{ .Values.repository }}/{{ .Values.dashboard.image.name }}:{{ .Values.versionOverride | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.pullPolicy }}
           ports:
-            - containerPort: 80
+            - containerPort: {{ .Values.dashboard.port }}
           env:
             - name: REACT_APP_API_URL
               valueFrom:
@@ -41,3 +41,7 @@ spec:
                   name: featureform-env
             - name: FEATUREFORM_DEBUG_LOGGING
               value: {{ .Values.debug | quote }}
+          startupProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.dashboard.port }}

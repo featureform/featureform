@@ -14,8 +14,12 @@ import (
 	"net"
 	"strings"
 
+	grpc_health "google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
+
 	"github.com/featureform/fferr"
 	fs "github.com/featureform/filestore"
+	"github.com/featureform/health"
 	"github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -254,11 +258,22 @@ func main() {
 	proxyFlightServer.logger.Infof("Connected to Metadata at %s", metadataUrl)
 	proxyFlightServer.metadata = client
 
+	apiStatusPort := helpers.GetEnv("API_STATUS_PORT", "8443")
+	baseLogger.Infow("Retrieved API status port from ENV", "port", apiStatusPort)
+	if err = health.StartHttpServer(baseLogger, apiStatusPort); err != nil {
+		baseLogger.Errorw("Failed to start health check", "err", err)
+		panic(err)
+	}
+
 	grpcServer := grpc.NewServer()
 	listener, err := net.Listen("tcp", serverAddress)
 	if err != nil {
 		proxyFlightServer.logger.Fatalf("Failed to bind address to %s: %v", serverAddress, err)
 	}
+
+	healthServer := grpc_health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
 
 	// start the proxy flight server
 	proxyFlightServer.logger.Infof("Starting Go Proxy Flight server on %s...", serverAddress)

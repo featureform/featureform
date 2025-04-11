@@ -39,6 +39,9 @@ COPY ./integrations/ ./integrations/
 COPY ./provider/ ./provider
 COPY ./config/ ./config/
 COPY ./coordinator/types ./coordinator/types
+COPY ./types/ ./types/
+COPY ./kubernetes/ ./kubernetes/
+COPY ./health/ ./health/
 
 RUN go build ./metadata/server/server.go
 

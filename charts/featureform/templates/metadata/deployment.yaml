@@ -39,7 +39,7 @@ spec:
           name: featureform-metadata-server
           imagePullPolicy: {{ .Values.pullPolicy }}
           ports:
-            - containerPort: 8080
+            - containerPort: {{ .Values.metadata.port }}
           resources: {}
           env:
             - name: FF_STATE_PROVIDER
@@ -72,3 +72,6 @@ spec:
                   name: psql-secret-literal
                   key: password
           {{ end }}
+          startupProbe:
+            grpc:
+              port: {{ .Values.metadata.port }}

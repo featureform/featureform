@@ -42,3 +42,6 @@ spec:
             value: {{ .Values.metadata.host }}
           - name: METADATA_PORT
             value: {{ .Values.metadata.port | quote }}
+        startupProbe:
+          grpc:
+            port: 8086

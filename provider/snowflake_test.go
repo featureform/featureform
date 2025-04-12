@@ -97,7 +97,7 @@ func (w WritableSnowflakeDataset) WriteBatch(ctx context.Context, rows []types.R
 	columns := schema.ColumnNames()
 	columnNames := make([]string, len(columns))
 	for i, col := range columns {
-		columnNames[i] = col
+		columnNames[i] = sanitize(col)
 	}
 	sqlLocation, ok := w.Location().(*location.SQLLocation)
 	if !ok {
@@ -115,7 +115,7 @@ func (w WritableSnowflakeDataset) WriteBatch(ctx context.Context, rows []types.R
 				query += ","
 			}
 			query += "?"
-			args = append(args, row[j])
+			args = append(args, row[j].Value)
 		}
 		query += ")"
 	}
@@ -124,21 +124,81 @@ func (w WritableSnowflakeDataset) WriteBatch(ctx context.Context, rows []types.R
 }
 
 func (s *snowflakeOfflineStoreTester) CreateWritableDataset(loc location.Location, schema types.Schema) (dataset.WriteableDataset, error) {
-	sqlLocation, ok := loc.(*location.SQLLocation)
-	if !ok {
-		return nil, fmt.Errorf("invalid location type")
-	}
+	//sqlLocation, ok := loc.(*location.SQLLocation)
+	//if !ok {
+	//	return nil, fmt.Errorf("invalid location type")
+	//}
 
-	db, err := s.sqlOfflineStore.getDb(sqlLocation.GetDatabase(), sqlLocation.GetSchema())
+	db, err := s.sqlOfflineStore.getDb("", "")
 	if err != nil {
 		return nil, err
 	}
 
-	sqlDataset, err := dataset.NewSqlDataset(db, sqlLocation, schema, snowflake.Converter{}, -1)
+	// Create table from schema
+	ds, err := s.CreateTableFromSchema(loc, schema)
+	if err != nil {
+		return nil, err
+	}
+
 	return WritableSnowflakeDataset{
-		SqlDataset: &sqlDataset,
+		SqlDataset: ds,
 		db:         db,
 	}, nil
+}
+
+func (s *snowflakeOfflineStoreTester) CreateTableFromSchema(loc location.Location, schema types.Schema) (*dataset.SqlDataset, error) {
+	logger := s.logger.With("location", loc, "schema", schema)
+
+	sqlLocation, ok := loc.(*location.SQLLocation)
+	if !ok {
+		errMsg := fmt.Sprintf("invalid location type, expected SQLLocation, got %T", loc)
+		logger.Errorw(errMsg)
+		return nil, fmt.Errorf(errMsg)
+	}
+
+	db, err := s.sqlOfflineStore.getDb("", "")
+	if err != nil {
+		logger.Errorw("could not get db", "error", err)
+		return nil, err
+	}
+
+	var queryBuilder strings.Builder
+
+	// Fully qualify and quote schema and table names
+	queryBuilder.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", SanitizeSnowflakeIdentifier(sqlLocation.TableLocation())))
+
+	for i, column := range schema.Fields {
+		if i > 0 {
+			queryBuilder.WriteString(", ")
+		}
+		quotedCol := fmt.Sprintf("\"%s\"", column.Name)
+		queryBuilder.WriteString(fmt.Sprintf("%s %s", quotedCol, column.NativeType))
+	}
+
+	queryBuilder.WriteString(")")
+
+	query := queryBuilder.String()
+	_, err = db.Exec(query)
+	if err != nil {
+		logger.Errorw("error creating table", "error", err, "query", query)
+		return nil, err
+	}
+
+	sqlDataset, err := dataset.NewSqlDataset(db, sqlLocation, schema, snowflake.Converter{}, -1)
+	if err != nil {
+		return nil, err
+	}
+
+	return &sqlDataset, nil
+}
+
+// quoteSnowflakeIdentifier safely quotes dot-separated identifiers like db.schema.table
+func quoteSnowflakeIdentifier(identifier string) string {
+	parts := strings.Split(identifier, ".")
+	for i, part := range parts {
+		parts[i] = fmt.Sprintf("\"%s\"", part)
+	}
+	return strings.Join(parts, ".")
 }
 
 func (s *snowflakeOfflineStoreTester) CreateTable(loc location.Location, schema TableSchema) (PrimaryTable, error) {

@@ -8,6 +8,8 @@
 package postgres
 
 import (
+	"strconv"
+
 	"github.com/featureform/fferr"
 	types "github.com/featureform/fftypes"
 	"github.com/featureform/logging"
@@ -39,7 +41,7 @@ func (c Converter) GetType(nativeType types.NativeType) (types.ValueType, error)
 func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.Value, error) {
 	// Convert the value based on the native type
 	switch nativeType {
-	case "integer":
+	case "integer", "INT":
 		if value == nil {
 			return types.Value{
 				NativeType: nativeType,
@@ -93,6 +95,35 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 			Value:      convertedValue,
 		}, nil
 
+	case "numeric":
+		if value == nil {
+			return types.Value{
+				NativeType: nativeType,
+				Type:       types.Float64,
+				Value:      nil,
+			}, nil
+		}
+		if byteArray, ok := value.([]uint8); ok {
+			floatVal, err := strconv.ParseFloat(string(byteArray), 64)
+			if err != nil {
+				return types.Value{}, err
+			}
+			return types.Value{
+				NativeType: nativeType,
+				Type:       types.Float64,
+				Value:      floatVal,
+			}, nil
+		}
+		convertedValue, err := types.ConvertNumberToFloat64(value)
+		if err != nil {
+			return types.Value{}, err
+		}
+		return types.Value{
+			NativeType: nativeType,
+			Type:       types.Float64,
+			Value:      convertedValue,
+		}, nil
+
 	case "varchar":
 		if value == nil {
 			return types.Value{
@@ -129,7 +160,7 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 			Value:      convertedValue,
 		}, nil
 
-	case "timestamp with time zone":
+	case "timestamp with time zone", "TIMESTAMPTZ":
 		if value == nil {
 			return types.Value{
 				NativeType: nativeType,

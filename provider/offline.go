@@ -776,7 +776,7 @@ func (adapter *PrimaryTableToDatasetAdapter) Location() pl.Location {
 }
 
 func (adapter *PrimaryTableToDatasetAdapter) Iterator(ctx context.Context, limit int64) (dataset.Iterator, error) {
-	iterator, err := adapter.pt.IterateSegment(-1)
+	iterator, err := adapter.pt.IterateSegment(limit)
 	if err != nil {
 		return nil, err
 	}

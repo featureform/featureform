@@ -177,12 +177,6 @@ func (ch *clickHouseOfflineStoreTester) CreateTableFromSchema(loc pl.Location, s
 	query := queryBuilder.String()
 	_, err = db.Exec(query)
 	if err != nil {
-		logger.Errorw("error executing query", "query", query, "error", err)
-		return nil, err
-	}
-	// create the table
-	_, err = db.Exec(query)
-	if err != nil {
 		logger.Errorw("error creating table", "error", err)
 		return nil, err
 	}

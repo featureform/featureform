@@ -225,19 +225,26 @@ func (it *SqlIterator) Close() error {
 }
 
 func (it *SqlIterator) Next() bool {
-	// Check for context cancellation (optional - depends on whether you need this behavior)
+	// Check for context cancellation
 	select {
 	case <-it.ctx.Done():
 		it.err = it.ctx.Err()
 		it.Close()
 		return false
 	default:
-		// Continue processing
 	}
 
 	if !it.rows.Next() {
 		it.Close()
 		return false
+	}
+
+	if it.scanTargets == nil {
+		it.scanTargets = make([]any, len(it.schema.Fields))
+		for i := range it.scanTargets {
+			var v any
+			it.scanTargets[i] = &v
+		}
 	}
 
 	// Scan row data into scan targets
@@ -252,8 +259,13 @@ func (it *SqlIterator) Next() bool {
 
 	// Convert values according to schema
 	for i, rawPtr := range it.scanTargets {
-		// Extract the value from the pointer
-		val := *(rawPtr.(*any))
+		valPtr, ok := rawPtr.(*any)
+		if !ok {
+			it.err = fmt.Errorf("unexpected scan target type at index %d: %T", i, rawPtr)
+			it.Close()
+			return false
+		}
+		val := *valPtr
 
 		nativeType := it.schema.Fields[i].NativeType
 		convertedVal, err := it.converter.ConvertValue(nativeType, val)

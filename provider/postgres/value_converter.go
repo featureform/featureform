@@ -41,7 +41,7 @@ func (c Converter) GetType(nativeType types.NativeType) (types.ValueType, error)
 func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.Value, error) {
 	// Convert the value based on the native type
 	switch nativeType {
-	case "integer", "INT":
+	case "integer", "int":
 		if value == nil {
 			return types.Value{
 				NativeType: nativeType,
@@ -160,7 +160,7 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 			Value:      convertedValue,
 		}, nil
 
-	case "timestamp with time zone", "TIMESTAMPTZ":
+	case "timestamp with time zone", "timestamptz":
 		if value == nil {
 			return types.Value{
 				NativeType: nativeType,

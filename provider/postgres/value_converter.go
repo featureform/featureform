@@ -9,6 +9,7 @@ package postgres
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/featureform/fferr"
 	types "github.com/featureform/fftypes"
@@ -39,9 +40,12 @@ func (c Converter) GetType(nativeType types.NativeType) (types.ValueType, error)
 
 // ConvertValue converts a value from its PostgreSQL representation to a types.Value
 func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.Value, error) {
+	// Normalize type name to lowercase
+	normalizedType := strings.ToLower(string(nativeType))
+
 	// Convert the value based on the native type
-	switch nativeType {
-	case "integer", "int":
+	switch normalizedType {
+	case "integer", "int", "INT":
 		if value == nil {
 			return types.Value{
 				NativeType: nativeType,
@@ -160,7 +164,7 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 			Value:      convertedValue,
 		}, nil
 
-	case "timestamp with time zone", "timestamptz":
+	case "timestamp with time zone", "timestamptz", "TIMESTAMPTZ":
 		if value == nil {
 			return types.Value{
 				NativeType: nativeType,

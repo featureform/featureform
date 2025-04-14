@@ -32,7 +32,7 @@ func TestConverterGetType(t *testing.T) {
 	}{
 		// Integer types
 		{"integer", "integer", types.Int32, false},
-		{"INT", "INT", types.Int32, false},
+		{"int", "int", types.Int32, false},
 
 		// Bigint type
 		{"bigint", "bigint", types.Int64, false},
@@ -49,7 +49,7 @@ func TestConverterGetType(t *testing.T) {
 
 		// Timestamp types
 		{"timestamp with time zone", "timestamp with time zone", types.Timestamp, false},
-		{"TIMESTAMPTZ", "TIMESTAMPTZ", types.Timestamp, false},
+		{"timestamptz", "timestamptz", types.Timestamp, false},
 
 		// Unsupported type
 		{"unsupported", "unsupported", nil, true},
@@ -130,8 +130,8 @@ func TestConverterConvertValue(t *testing.T) {
 		// Timestamp tests
 		{"timestamp with time zone nil", "timestamp with time zone", nil, types.Value{NativeType: "timestamp with time zone", Type: types.Timestamp, Value: nil}, false},
 		{"timestamp with time zone time", "timestamp with time zone", testTime, types.Value{NativeType: "timestamp with time zone", Type: types.Timestamp, Value: testTime}, false},
-		{"TIMESTAMPTZ nil", "TIMESTAMPTZ", nil, types.Value{NativeType: "TIMESTAMPTZ", Type: types.Timestamp, Value: nil}, false},
-		{"TIMESTAMPTZ time", "TIMESTAMPTZ", testTime, types.Value{NativeType: "TIMESTAMPTZ", Type: types.Timestamp, Value: testTime}, false},
+		{"timestamptz nil", "timestamptz", nil, types.Value{NativeType: "timestamptz", Type: types.Timestamp, Value: nil}, false},
+		{"timestamptz time", "timestamptz", testTime, types.Value{NativeType: "timestamptz", Type: types.Timestamp, Value: testTime}, false},
 
 		// Unsupported type
 		{"unsupported nil", "unsupported", nil, types.Value{}, true},

@@ -261,7 +261,7 @@ func (it *SqlIterator) Next() bool {
 	for i, rawPtr := range it.scanTargets {
 		valPtr, ok := rawPtr.(*any)
 		if !ok {
-			it.err = fmt.Errorf("unexpected scan target type at index %d: %T", i, rawPtr)
+			it.err = fferr.NewInternalErrorf("unexpected scan target type at index %d: %T", i, rawPtr)
 			it.Close()
 			return false
 		}

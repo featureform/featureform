@@ -45,7 +45,7 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 
 	// Convert the value based on the native type
 	switch normalizedType {
-	case "integer", "int", "INT":
+	case "integer", "int":
 		if value == nil {
 			return types.Value{
 				NativeType: nativeType,

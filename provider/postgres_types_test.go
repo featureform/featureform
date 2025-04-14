@@ -80,6 +80,34 @@ func NewPostgresTestData(t *testing.T) TestColumnData {
 					assert.True(t, ok, "timestamp with time zone not converted to time.Time")
 				},
 			},
+			{
+				Name:           "timestamptz_col",
+				NativeType:     "timestamptz",
+				ExpectedGoType: fftypes.Timestamp,
+				TestValue:      formattedTime,
+				VerifyFunc: func(t *testing.T, actual any) {
+					_, ok := actual.(time.Time)
+					assert.True(t, ok, "timestamptz not converted to time.Time")
+				},
+			},
+			{
+				Name:           "numeric_col",
+				NativeType:     "numeric",
+				ExpectedGoType: fftypes.Float64,
+				TestValue:      "123.456",
+				VerifyFunc: func(t *testing.T, actual any) {
+					assert.Equal(t, float64(123.456), actual.(float64), "numeric value mismatch")
+				},
+			},
+			{
+				Name:           "integer_col",
+				NativeType:     "int",
+				ExpectedGoType: fftypes.Int32,
+				TestValue:      int32(42),
+				VerifyFunc: func(t *testing.T, actual any) {
+					assert.Equal(t, int32(42), actual.(int32), "int value mismatch")
+				},
+			},
 		},
 	}
 }

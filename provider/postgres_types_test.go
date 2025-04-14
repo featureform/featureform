@@ -96,7 +96,7 @@ func NewPostgresTestData(t *testing.T) TestColumnData {
 				ExpectedGoType: fftypes.Float64,
 				TestValue:      "123.456",
 				VerifyFunc: func(t *testing.T, actual any) {
-					assert.Equal(t, "123.456", actual.(float64), "numeric value mismatch")
+					assert.Equal(t, float64(123.456), actual.(float64), "numeric value mismatch")
 				},
 			},
 			{

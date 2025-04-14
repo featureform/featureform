@@ -32,12 +32,14 @@ func TestConverterGetType(t *testing.T) {
 	}{
 		// Integer types
 		{"integer", "integer", types.Int32, false},
+		{"int", "int", types.Int32, false},
 
 		// Bigint type
 		{"bigint", "bigint", types.Int64, false},
 
 		// Float types
 		{"float8", "float8", types.Float64, false},
+		{"numeric", "numeric", types.Float64, false},
 
 		// String types
 		{"varchar", "varchar", types.String, false},
@@ -47,6 +49,7 @@ func TestConverterGetType(t *testing.T) {
 
 		// Timestamp types
 		{"timestamp with time zone", "timestamp with time zone", types.Timestamp, false},
+		{"timestamptz", "timestamptz", types.Timestamp, false},
 
 		// Unsupported type
 		{"unsupported", "unsupported", nil, true},
@@ -84,6 +87,11 @@ func TestConverterConvertValue(t *testing.T) {
 		{"integer float", "integer", 123.45, types.Value{NativeType: "integer", Type: types.Int32, Value: int32(123)}, false},
 		{"integer string", "integer", "123", types.Value{NativeType: "integer", Type: types.Int32, Value: int32(123)}, false},
 		{"integer invalid", "integer", "abc", types.Value{}, true},
+		{"INT nil", "INT", nil, types.Value{NativeType: "INT", Type: types.Int32, Value: nil}, false},
+		{"INT int", "INT", 123, types.Value{NativeType: "INT", Type: types.Int32, Value: int32(123)}, false},
+		{"INT float", "INT", 123.45, types.Value{NativeType: "INT", Type: types.Int32, Value: int32(123)}, false},
+		{"INT string", "INT", "123", types.Value{NativeType: "INT", Type: types.Int32, Value: int32(123)}, false},
+		{"INT invalid", "INT", "abc", types.Value{}, true},
 
 		// Bigint tests
 		{"bigint nil", "bigint", nil, types.Value{NativeType: "bigint", Type: types.Int64, Value: nil}, false},
@@ -96,6 +104,12 @@ func TestConverterConvertValue(t *testing.T) {
 		{"float8 int", "float8", 123, types.Value{NativeType: "float8", Type: types.Float64, Value: float64(123)}, false},
 		{"float8 string", "float8", "123.45", types.Value{NativeType: "float8", Type: types.Float64, Value: float64(123.45)}, false},
 		{"float8 invalid", "float8", "abc", types.Value{}, true},
+		{"numeric nil", "numeric", nil, types.Value{NativeType: "numeric", Type: types.Float64, Value: nil}, false},
+		{"numeric float", "numeric", 123.45, types.Value{NativeType: "numeric", Type: types.Float64, Value: float64(123.45)}, false},
+		{"numeric int", "numeric", 123, types.Value{NativeType: "numeric", Type: types.Float64, Value: float64(123)}, false},
+		{"numeric string", "numeric", "123.45", types.Value{NativeType: "numeric", Type: types.Float64, Value: float64(123.45)}, false},
+		{"numeric byte array", "numeric", []uint8{49, 50, 51, 46, 52, 53}, types.Value{NativeType: "numeric", Type: types.Float64, Value: float64(123.45)}, false},
+		{"numeric invalid", "numeric", "abc", types.Value{}, true},
 
 		// String tests
 		{"varchar nil", "varchar", nil, types.Value{NativeType: "varchar", Type: types.String, Value: nil}, false},
@@ -116,6 +130,8 @@ func TestConverterConvertValue(t *testing.T) {
 		// Timestamp tests
 		{"timestamp with time zone nil", "timestamp with time zone", nil, types.Value{NativeType: "timestamp with time zone", Type: types.Timestamp, Value: nil}, false},
 		{"timestamp with time zone time", "timestamp with time zone", testTime, types.Value{NativeType: "timestamp with time zone", Type: types.Timestamp, Value: testTime}, false},
+		{"timestamptz nil", "timestamptz", nil, types.Value{NativeType: "timestamptz", Type: types.Timestamp, Value: nil}, false},
+		{"timestamptz time", "timestamptz", testTime, types.Value{NativeType: "timestamptz", Type: types.Timestamp, Value: testTime}, false},
 
 		// Unsupported type
 		{"unsupported nil", "unsupported", nil, types.Value{}, true},

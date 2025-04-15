@@ -384,7 +384,7 @@ func (store *BrokenNumChunksOfflineStore) AsOfflineStore() (provider.OfflineStor
 	return store, nil
 }
 
-func (store *BrokenNumChunksOfflineStore) CreatePrimaryTable(id provider.ResourceID, schema provider.TableSchema) (provider.PrimaryTable, error) {
+func (store *BrokenNumChunksOfflineStore) CreatePrimaryTable(id provider.ResourceID, schema provider.TableSchema) (dataset.Dataset, error) {
 	return nil, nil
 }
 
@@ -395,7 +395,7 @@ func (store *BrokenNumChunksOfflineStore) GetPrimaryTable(id provider.ResourceID
 func (store *BrokenNumChunksOfflineStore) RegisterResourceFromSourceTable(id provider.ResourceID, schema provider.ResourceSchema, opts ...provider.ResourceOption) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (store *BrokenNumChunksOfflineStore) RegisterPrimaryFromSourceTable(id provider.ResourceID, tableLocation pl.Location) (provider.PrimaryTable, error) {
+func (store *BrokenNumChunksOfflineStore) RegisterPrimaryFromSourceTable(id provider.ResourceID, tableLocation pl.Location) (dataset.Dataset, error) {
 	return nil, nil
 }
 
@@ -708,7 +708,7 @@ func (m MockOfflineStore) AsOfflineStore() (provider.OfflineStore, error) {
 	return m, nil
 }
 
-func (m MockOfflineStore) CreatePrimaryTable(id provider.ResourceID, schema provider.TableSchema) (provider.PrimaryTable, error) {
+func (m MockOfflineStore) CreatePrimaryTable(id provider.ResourceID, schema provider.TableSchema) (dataset.Dataset, error) {
 	return nil, nil
 }
 
@@ -719,7 +719,7 @@ func (m MockOfflineStore) GetPrimaryTable(id provider.ResourceID, source metadat
 func (m MockOfflineStore) RegisterResourceFromSourceTable(id provider.ResourceID, schema provider.ResourceSchema, opts ...provider.ResourceOption) (provider.OfflineTable, error) {
 	return nil, nil
 }
-func (m MockOfflineStore) RegisterPrimaryFromSourceTable(id provider.ResourceID, tableLocation pl.Location) (provider.PrimaryTable, error) {
+func (m MockOfflineStore) RegisterPrimaryFromSourceTable(id provider.ResourceID, tableLocation pl.Location) (dataset.Dataset, error) {
 	return nil, nil
 }
 func (m MockOfflineStore) SupportsTransformationOption(opt provider.TransformationOptionType) (bool, error) {

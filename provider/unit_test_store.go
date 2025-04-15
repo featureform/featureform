@@ -123,7 +123,7 @@ func (m MockUnitTestTable) Set(entity string, value interface{}) error {
 OFFLINE UNIT STORE
 */
 
-func (M MockUnitTestOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+func (M MockUnitTestOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) {
 	return nil, nil
 }
 
@@ -203,7 +203,7 @@ func (M MockUnitTestOfflineStore) RegisterResourceFromSourceTable(id ResourceID,
 	return nil, nil
 }
 
-func (M MockUnitTestOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, stableLocation pl.Location) (PrimaryTable, error) {
+func (M MockUnitTestOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, stableLocation pl.Location) (dataset.Dataset, error) {
 	return nil, nil
 }
 

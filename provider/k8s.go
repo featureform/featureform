@@ -537,12 +537,17 @@ func blobRegisterResourceFromSourceTable(id ResourceID, sourceSchema ResourceSch
 	return &BlobOfflineTable{schema: sourceSchema, store: store}, nil
 }
 
-func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
+func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (dataset.Dataset, error) {
 	fileStoreLocation, isFileStoreLocation := tableLocation.(*pl.FileStoreLocation)
 	if !isFileStoreLocation {
 		return nil, fferr.NewInternalError(fmt.Errorf("location is not a FileStoreLocation"))
 	}
-	return blobRegisterPrimary(id, *fileStoreLocation, k8s.logger, k8s.store)
+	primary, err := blobRegisterPrimary(id, *fileStoreLocation, k8s.logger, k8s.store)
+	if err != nil {
+		k8s.logger.Errorw("Error registering primary table", "error", err)
+		return nil, err
+	}
+	return &PrimaryTableToDatasetAdapter{pt: primary}, nil
 }
 
 func blobRegisterPrimary(id ResourceID, location pl.FileStoreLocation, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
@@ -873,7 +878,7 @@ func (k8s *K8sOfflineStore) UpdateTransformation(config TransformationConfig, op
 	}
 	return k8s.transformation(config, true)
 }
-func (k8s *K8sOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+func (k8s *K8sOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) {
 	return nil, fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 

@@ -656,12 +656,13 @@ func NewSparkExecutor(
 	}
 }
 
-func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
+func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (dataset.Dataset, error) {
 	switch lt := tableLocation.(type) {
 	case *pl.SQLLocation:
 		return nil, fferr.NewInternalErrorf("SQLLocation not supported for primary table registration")
 	case *pl.FileStoreLocation:
-		return blobRegisterPrimary(id, *lt, spark.Logger.SugaredLogger, spark.Store)
+		primary, err := blobRegisterPrimary(id, *lt, spark.Logger.SugaredLogger, spark.Store)
+		return &PrimaryTableToDatasetAdapter{primary}, err
 	case *pl.CatalogLocation:
 		// TODO consider registering things in the catalog anyway?
 		return nil, nil
@@ -1171,7 +1172,7 @@ func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig
 // **NOTE:** Unlike the pathway for registering a primary table from a data source that previously existed in the filestore, this
 // method controls the location of the data source that will be written to once the primary table (i.e. a file that simply holds the
 // fully qualified URL pointing to the source file), so it's important to consider what pattern we adopt here.
-func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) {
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
@@ -1198,7 +1199,7 @@ func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSc
 	if err != nil {
 		return nil, err
 	}
-	return &FileStorePrimaryTable{spark.Store, primaryTableFilepath, schema, false, id}, nil
+	return &PrimaryTableToDatasetAdapter{pt: &FileStorePrimaryTable{spark.Store, primaryTableFilepath, schema, false, id}}, nil
 }
 
 func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error) {

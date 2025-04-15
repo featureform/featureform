@@ -743,7 +743,7 @@ func (store *clickHouseOfflineStore) CheckHealth() (bool, error) {
 	return true, nil
 }
 
-func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
+func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (dataset.Dataset, error) {
 	logger := store.logger.With("resourceId", id)
 
 	logger.Debug("Registering primary from source table")
@@ -782,11 +782,13 @@ func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceI
 		return nil, err
 	}
 
-	return &clickhousePrimaryTable{
-		db:     store.db,
-		name:   tableName,
-		schema: TableSchema{Columns: columnNames},
-		query:  store.query,
+	return &PrimaryTableToDatasetAdapter{
+		&clickhousePrimaryTable{
+			db:     store.db,
+			name:   tableName,
+			schema: TableSchema{Columns: columnNames},
+			query:  store.query,
+		},
 	}, nil
 }
 
@@ -855,7 +857,7 @@ func (store *clickHouseOfflineStore) UpdateTransformation(config TransformationC
 	return nil
 }
 
-func (store *clickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+func (store *clickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) {
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
@@ -875,7 +877,7 @@ func (store *clickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema Ta
 	if err != nil {
 		return nil, err
 	}
-	return table, nil
+	return &PrimaryTableToDatasetAdapter{pt: table}, nil
 }
 
 func (store *clickHouseOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error) {

@@ -530,8 +530,8 @@ type OfflineStoreCore interface {
 
 type OfflineStoreDataset interface {
 	// CreatePrimaryTable is not used outside of the context of tests
-	CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error)
-	RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error)
+	CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error)
+	RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (dataset.Dataset, error)
 	GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error)
 	SupportsTransformationOption(opt TransformationOptionType) (bool, error)
 	CreateTransformation(config TransformationConfig, opts ...TransformationOption) error
@@ -1160,17 +1160,17 @@ func (store *memoryOfflineStore) RegisterResourceFromSourceTable(id ResourceID, 
 func (store *memoryOfflineStore) RegisterPrimaryFromSourceTable(
 	id ResourceID,
 	tableLocation pl.Location,
-) (PrimaryTable, error) {
+) (dataset.Dataset, error) {
 	if id.Name == "make" && id.Variant == "panic" {
 		panic("This is a panic")
 	}
 	store.tables.Store(id, &memoryPrimaryTable{})
-	return &memoryPrimaryTable{}, nil
+	return &PrimaryTableToDatasetAdapter{pt: &memoryPrimaryTable{}}, nil
 }
 
-func (store *memoryOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+func (store *memoryOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) {
 	store.tables.Store(id, &memoryPrimaryTable{})
-	return &memoryPrimaryTable{}, nil
+	return &PrimaryTableToDatasetAdapter{pt: &memoryPrimaryTable{}}, nil
 }
 
 type memoryPrimaryTable struct {

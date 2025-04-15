@@ -104,14 +104,14 @@ func testBasicProperties(t *testing.T, tc DatasetTestCase) {
 func testIterator(t *testing.T, tc DatasetTestCase) {
 	ctx := logging.NewTestContext(t)
 
-	iter, err := tc.Dataset.Iterator(ctx, 0)
+	iter, err := tc.Dataset.Iterator(ctx, -1)
 	require.NoError(t, err)
 	require.NotNil(t, iter)
 
 	// Check if the iterator implements SizedIterator
 	if isSized := testIteratorSize(t, iter, int64(len(tc.ExpectedData))); isSized {
 		// Get a fresh iterator since we might have consumed it
-		iter, err = tc.Dataset.Iterator(ctx, 0)
+		iter, err = tc.Dataset.Iterator(ctx, -1)
 		require.NoError(t, err)
 	}
 
@@ -198,7 +198,7 @@ func testWriteableDataset(t *testing.T, ds WriteableDataset, tc DatasetTestCase)
 		}
 
 		// Verify all rows (original + new) are available through iteration
-		iter, err := ds.Iterator(ctx, 0)
+		iter, err := ds.Iterator(ctx, -1)
 		require.NoError(t, err)
 
 		rowIdx := 0

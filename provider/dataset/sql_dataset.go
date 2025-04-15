@@ -137,7 +137,7 @@ func (ds *SqlDataset) Location() location.Location {
 	return ds.location
 }
 
-func (ds *SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
+func (ds *SqlDataset) Iterator(ctx context.Context, limit int64) (Iterator, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 	schema := ds.Schema()
 
@@ -154,10 +154,20 @@ func (ds *SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
 		loc = location.SanitizeFullyQualifiedObject(ds.location.TableLocation())
 	}
 	var query string
-	if ds.limit == -1 {
+
+	effectiveLimit := -1
+	if ds.limit > 0 && limit > 0 {
+		effectiveLimit = min(ds.limit, int(limit))
+	} else if ds.limit > 0 {
+		effectiveLimit = ds.limit
+	} else if limit > 0 {
+		effectiveLimit = int(limit)
+	}
+	
+	if effectiveLimit == -1 {
 		query = fmt.Sprintf("SELECT %s FROM %s", cols, loc)
 	} else {
-		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", cols, loc, ds.limit)
+		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", cols, loc, effectiveLimit)
 	}
 
 	rows, err := ds.db.QueryContext(ctx, query)

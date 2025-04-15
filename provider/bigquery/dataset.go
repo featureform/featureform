@@ -24,7 +24,6 @@ import (
 	ptype "github.com/featureform/provider/provider_type"
 )
 
-// Dataset implements the Dataset interface for BigQuery
 type Dataset struct {
 	client    *bigquery.Client
 	location  *location.SQLLocation
@@ -33,7 +32,6 @@ type Dataset struct {
 	limit     int
 }
 
-// NewDataset creates a new BigQuery dataset
 func NewDataset(
 	client *bigquery.Client,
 	location *location.SQLLocation,
@@ -55,13 +53,12 @@ func NewDataset(
 	}, nil
 }
 
-// Location returns the dataset location
 func (ds *Dataset) Location() location.Location {
 	return ds.location
 }
 
 // Iterator returns an iterator over the dataset
-func (ds *Dataset) Iterator(ctx context.Context) (dataset.Iterator, error) {
+func (ds *Dataset) Iterator(ctx context.Context, limit int64) (dataset.Iterator, error) {
 	logger := logging.GetLoggerFromContext(ctx)
 
 	schema := ds.Schema()
@@ -73,11 +70,22 @@ func (ds *Dataset) Iterator(ctx context.Context) (dataset.Iterator, error) {
 	cols := strings.Join(columnNames, ", ")
 	loc := SanitizeBigQueryIdentifier(ds.location.TableLocation())
 
+	// Determine the effective limit to apply in the query
+	effectiveLimit := -1
+	if ds.limit > 0 && limit > 0 {
+		effectiveLimit = min(ds.limit, int(limit))
+	} else if ds.limit > 0 {
+		effectiveLimit = ds.limit
+	} else if limit > 0 {
+		effectiveLimit = int(limit)
+	}
+
+	// Construct query
 	var query string
-	if ds.limit == -1 {
+	if effectiveLimit == -1 {
 		query = fmt.Sprintf("SELECT %s FROM %s", cols, loc)
 	} else {
-		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", cols, loc, ds.limit)
+		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", cols, loc, effectiveLimit)
 	}
 
 	bqQ := ds.client.Query(query)

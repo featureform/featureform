@@ -15,14 +15,16 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/google/uuid"
+
 	fs "github.com/featureform/filestore"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
-	"github.com/google/uuid"
 )
 
 const mockChunkSize = 2
@@ -386,7 +388,7 @@ func (store *BrokenNumChunksOfflineStore) CreatePrimaryTable(id provider.Resourc
 	return nil, nil
 }
 
-func (store *BrokenNumChunksOfflineStore) GetPrimaryTable(id provider.ResourceID, source metadata.SourceVariant) (provider.PrimaryTable, error) {
+func (store *BrokenNumChunksOfflineStore) GetPrimaryTable(id provider.ResourceID, source metadata.SourceVariant) (dataset.Dataset, error) {
 	return nil, nil
 }
 
@@ -408,7 +410,7 @@ func (b BrokenNumChunksOfflineStore) UpdateTransformation(config provider.Transf
 	return nil
 }
 
-func (store *BrokenNumChunksOfflineStore) GetTransformationTable(id provider.ResourceID) (provider.TransformationTable, error) {
+func (store *BrokenNumChunksOfflineStore) GetTransformationTable(id provider.ResourceID) (dataset.Dataset, error) {
 	return nil, nil
 }
 
@@ -710,7 +712,7 @@ func (m MockOfflineStore) CreatePrimaryTable(id provider.ResourceID, schema prov
 	return nil, nil
 }
 
-func (m MockOfflineStore) GetPrimaryTable(id provider.ResourceID, source metadata.SourceVariant) (provider.PrimaryTable, error) {
+func (m MockOfflineStore) GetPrimaryTable(id provider.ResourceID, source metadata.SourceVariant) (dataset.Dataset, error) {
 	return nil, nil
 }
 
@@ -731,7 +733,7 @@ func (m MockOfflineStore) UpdateTransformation(config provider.TransformationCon
 	return nil
 }
 
-func (m MockOfflineStore) GetTransformationTable(id provider.ResourceID) (provider.TransformationTable, error) {
+func (m MockOfflineStore) GetTransformationTable(id provider.ResourceID) (dataset.Dataset, error) {
 	return nil, nil
 }
 

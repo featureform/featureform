@@ -1629,7 +1629,7 @@ func verifyDataset(t *testing.T, primary dataset.Dataset, records []GenericRecor
 			case time.Time:
 				assert.Equal(t, records[i][j].(time.Time).Truncate(time.Microsecond), v.Value.(time.Time).Truncate(time.Microsecond), "expected same values")
 			default:
-				assert.Equal(t, v, records[i][j], "expected same values")
+				assert.Equal(t, v.Value, records[i][j], "expected same values")
 			}
 		}
 		i++

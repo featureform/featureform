@@ -150,7 +150,6 @@ func (ch *clickHouseOfflineStoreTester) CreateTableFromSchema(loc pl.Location, s
 	logger := ch.logger.With("location", loc, "schema", schema)
 
 	sqlLocation, ok := loc.(*pl.SQLLocation)
-
 	if !ok {
 		errMsg := fmt.Sprintf("invalid location type, expected SQLLocation, got %T", loc)
 		logger.Errorw(errMsg)
@@ -177,7 +176,7 @@ func (ch *clickHouseOfflineStoreTester) CreateTableFromSchema(loc pl.Location, s
 	query := queryBuilder.String()
 	_, err = db.Exec(query)
 	if err != nil {
-		logger.Errorw("error creating table", "error", err)
+		logger.Errorw("error executing query", "query", query, "error", err)
 		return nil, err
 	}
 

@@ -29,8 +29,8 @@ func (ds *InMemoryDataset) Location() pl.Location {
 	return ds.location
 }
 
-func (ds *InMemoryDataset) Iterator(ctx context.Context) (Iterator, error) {
-	return &InMemoryIterator{data: ds.data, schema: ds.schema, index: -1}, nil
+func (ds *InMemoryDataset) Iterator(ctx context.Context, limit int64) (Iterator, error) {
+	return &InMemoryIterator{data: ds.data, schema: ds.schema, index: int(limit)}, nil
 }
 
 func (ds *InMemoryDataset) Schema() types.Schema {

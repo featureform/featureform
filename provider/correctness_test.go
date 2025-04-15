@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/logging"
 	"github.com/featureform/provider/dataset"
 	ps "github.com/featureform/provider/provider_schema"
 
@@ -1592,6 +1593,49 @@ func verifyPrimaryTable(t *testing.T, primary PrimaryTable, records []GenericRec
 	}
 }
 
+func verifyDataset(t *testing.T, primary dataset.Dataset, records []GenericRecord) {
+	t.Helper()
+
+	// cast to sized
+	sDs, ok := primary.(dataset.SizedDataset)
+	if !ok {
+		t.Fatalf("expected dataset to be sized")
+	}
+
+	numRows, err := sDs.Len()
+	if err != nil {
+		t.Fatalf("could not get number of rows: %v", err)
+	}
+
+	if numRows == 0 {
+		t.Fatalf("expected more than 0 rows")
+	}
+
+	ctx := logging.NewTestContext(t)
+	iterator, err := sDs.Iterator(ctx, 100)
+	if err != nil {
+		t.Fatalf("Could not get generic iterator: %v", err)
+	}
+
+	i := 0
+	for iterator.Next() {
+		for j, v := range iterator.Values() {
+			// NOTE: we're handling float64 differently here given the values returned by Snowflake have less precision
+			// and therefore are not equal unless we round them; if tests require handling of other types, we can add
+			// additional cases here, otherwise the default case will cover all other types
+			switch v.Value.(type) {
+			case float64:
+				assert.True(t, floatsAreClose(v.Value.(float64), records[i][j].(float64), floatTolerance), "expected same values")
+			case time.Time:
+				assert.Equal(t, records[i][j].(time.Time).Truncate(time.Microsecond), v.Value.(time.Time).Truncate(time.Microsecond), "expected same values")
+			default:
+				assert.Equal(t, v, records[i][j], "expected same values")
+			}
+		}
+		i++
+	}
+}
+
 func RegisterTableInDifferentDatabaseTest(t *testing.T, tester OfflineSqlTest) {
 	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 
@@ -1634,7 +1678,7 @@ func RegisterTableInDifferentDatabaseTest(t *testing.T, tester OfflineSqlTest) {
 	}
 
 	// Verify the table contents
-	verifyPrimaryTable(t, primary, records)
+	verifyDataset(t, primary, records)
 }
 
 func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester OfflineSqlTest) {
@@ -1660,7 +1704,7 @@ func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester Of
 	}
 
 	// Verify the table contents
-	verifyPrimaryTable(t, primary, records)
+	verifyDataset(t, primary, records)
 }
 
 func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester OfflineSqlTest) {
@@ -1706,8 +1750,8 @@ func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester OfflineSqlTest) {
 	}
 
 	// Verify the table contents
-	verifyPrimaryTable(t, primary1, records)
-	verifyPrimaryTable(t, primary2, records2)
+	verifyDataset(t, primary1, records)
+	verifyDataset(t, primary2, records2)
 }
 
 func CrossDatabaseJoinTest(t *testing.T, test OfflineSqlTest) {
@@ -1769,8 +1813,8 @@ func CrossDatabaseJoinTest(t *testing.T, test OfflineSqlTest) {
 	}
 
 	// Verify the table contents
-	verifyPrimaryTable(t, primary1, records)
-	verifyPrimaryTable(t, primary2, records2)
+	verifyDataset(t, primary1, records)
+	verifyDataset(t, primary2, records2)
 
 	targetTableId := ResourceID{Name: "DUMMY_TABLE_TF", Variant: "test", Type: Transformation}
 	// union the tables using a transformation

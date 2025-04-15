@@ -542,7 +542,12 @@ func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableL
 	if !isFileStoreLocation {
 		return nil, fferr.NewInternalError(fmt.Errorf("location is not a FileStoreLocation"))
 	}
-	return &PrimaryTableToDatasetAdapter{pt: blobRegisterPrimary(id, *fileStoreLocation, k8s.logger, k8s.store)}, nil
+	primary, err := blobRegisterPrimary(id, *fileStoreLocation, k8s.logger, k8s.store)
+	if err != nil {
+		k8s.logger.Errorw("Error registering primary table", "error", err)
+		return nil, err
+	}
+	return &PrimaryTableToDatasetAdapter{pt: primary}, nil
 }
 
 func blobRegisterPrimary(id ResourceID, location pl.FileStoreLocation, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {

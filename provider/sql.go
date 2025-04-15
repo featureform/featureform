@@ -399,7 +399,7 @@ func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSche
 	if err != nil {
 		return nil, err
 	}
-	return &PrimaryTableToDatasetAdapter{pt: table}, nil
+	return &PrimaryTableToDatasetAdapter{table}, nil
 }
 
 func (store *sqlOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema TableSchema) (*SqlPrimaryTable, error) {

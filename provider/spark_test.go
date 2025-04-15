@@ -431,7 +431,7 @@ func testRegisterPrimary(store *SparkOfflineStore) error {
 	if err != nil {
 		return err
 	}
-	if !reflect.DeepEqual(PrimaryTableToDatasetAdapter{table}, fetchedTableDs) {
+	if !reflect.DeepEqual(table, fetchedTableDs) {
 		return fmt.Errorf("Tables not equal")
 	}
 

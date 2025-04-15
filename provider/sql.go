@@ -334,7 +334,7 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 	}, nil
 }
 
-func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
+func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (dataset.Dataset, error) {
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
@@ -364,16 +364,18 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tabl
 		return nil, err
 	}
 
-	return &SqlPrimaryTable{
-		db:          dbConn,
-		name:        sqlLocation.Location(),
-		sqlLocation: sqlLocation,
-		schema:      TableSchema{Columns: columnNames},
-		query:       store.query,
+	return &PrimaryTableToDatasetAdapter{
+		&SqlPrimaryTable{
+			db:          dbConn,
+			name:        sqlLocation.Location(),
+			sqlLocation: sqlLocation,
+			schema:      TableSchema{Columns: columnNames},
+			query:       store.query,
+		},
 	}, nil
 }
 
-func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) {
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
@@ -397,7 +399,7 @@ func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSche
 	if err != nil {
 		return nil, err
 	}
-	return table, nil
+	return &PrimaryTableToDatasetAdapter{pt: table}, nil
 }
 
 func (store *sqlOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema TableSchema) (*SqlPrimaryTable, error) {

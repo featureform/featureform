@@ -959,7 +959,7 @@ func (store *bqOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sche
 	return store.newBqOfflineTable(tableName)
 }
 
-func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
+func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (dataset.Dataset, error) {
 	logger := store.logger.With("resourceId", id)
 
 	logger.Debug("Registering primary from source table")
@@ -976,7 +976,12 @@ func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, table
 		return nil, err
 	}
 
-	return store.newBigQueryPrimaryTable(sqlLocation.Location())
+	table, err := store.newBigQueryPrimaryTable(sqlLocation.Location())
+	if err != nil {
+		logger.Errorw("Error creating primary table", "error", err)
+		return nil, err
+	}
+	return &PrimaryTableToDatasetAdapter{pt: table}, nil
 }
 
 func (store *bqOfflineStore) SupportsTransformationOption(opt TransformationOptionType) (bool, error) {
@@ -1075,7 +1080,7 @@ func (store *bqOfflineStore) UpdateTransformation(config TransformationConfig, o
 	return nil
 }
 
-func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) {
 	logger := store.logger.With("resourceId", id)
 
 	logger.Debug("Creating primary table")
@@ -1107,7 +1112,7 @@ func (store *bqOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchem
 	}
 
 	logger.Info("Successfully created primary table")
-	return table, nil
+	return &PrimaryTableToDatasetAdapter{pt: table}, nil
 }
 
 func (store *bqOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error) {

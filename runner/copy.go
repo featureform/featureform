@@ -69,6 +69,20 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		ResultSync:  &ResultSync{},
 		DoneChannel: done,
 	}
+
+	numChunks, err := m.Materialized.NumChunks()
+	if err != nil {
+		logger.Errorw("error getting number of chunks", "error", err)
+		jobWatcher.EndWatch(err)
+		return jobWatcher, nil
+	}
+
+	if numChunks == 0 {
+		logger.Debugw("no chunks to process, job complete")
+		jobWatcher.EndWatch(nil)
+		return jobWatcher, nil
+	}
+
 	// We create a pool of goroutines per materialization chunk runner to make Set requests to
 	// the inference store asynchronously; after some initial testing, 500 workers appears to
 	// offer the best results

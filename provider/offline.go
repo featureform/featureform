@@ -1627,6 +1627,11 @@ func (mat *MemoryMaterialization) IterateChunk(idx int) (FeatureIterator, error)
 		return nil, err
 	}
 
+	// Special case for empty data - if there's no data, return an empty iterator for any index
+	if len(mat.Data) == 0 {
+		return newMemoryFeatureIterator(nil), nil
+	}
+
 	if idx < 0 || idx >= numChunks {
 		return nil, fmt.Errorf("chunk index out of range: %d (num chunks: %d)", idx, numChunks)
 	}

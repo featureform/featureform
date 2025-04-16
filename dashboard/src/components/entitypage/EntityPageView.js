@@ -614,7 +614,7 @@ const EntityPageView = ({
                   <ResourceItem>
                     <ItemBox>
                       <ItemTypography variant='body1'>
-                        <strong>Datasets:</strong>
+                        <strong>Input Datasets:</strong>
                       </ItemTypography>
                       {metadataInputSet.map((nv, index) => (
                         <Chip

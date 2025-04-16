@@ -1306,7 +1306,7 @@ func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, opts Mater
 	mat := &MemoryMaterialization{
 		Id:           matId,
 		Data:         matData,
-		RowsPerChunk: defaultRowsPerChunk,
+		rowsPerChunk: defaultRowsPerChunk,
 	}
 	store.materializations.Store(matId, mat)
 	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
@@ -1565,8 +1565,8 @@ func (table *memoryOfflineTable) Location() pl.Location {
 type MemoryMaterialization struct {
 	Id           MaterializationID
 	Data         []ResourceRecord
-	Location_    pl.Location
-	RowsPerChunk int64
+	location     pl.Location
+	rowsPerChunk int64
 }
 
 func NewMemoryMaterialization(
@@ -1582,8 +1582,8 @@ func NewMemoryMaterialization(
 	return &MemoryMaterialization{
 		Id:           id,
 		Data:         records,
-		Location_:    location,
-		RowsPerChunk: rowsPerChunk,
+		location:     location,
+		rowsPerChunk: rowsPerChunk,
 	}
 }
 
@@ -1614,8 +1614,8 @@ func (mat *MemoryMaterialization) IterateSegment(start, end int64) (FeatureItera
 
 func (mat *MemoryMaterialization) NumChunks() (int, error) {
 	numRows := int64(len(mat.Data))
-	numChunks := numRows / mat.RowsPerChunk
-	if numRows%mat.RowsPerChunk > 0 {
+	numChunks := numRows / mat.rowsPerChunk
+	if numRows%mat.rowsPerChunk > 0 {
 		numChunks++
 	}
 	return int(numChunks), nil
@@ -1636,8 +1636,8 @@ func (mat *MemoryMaterialization) IterateChunk(idx int) (FeatureIterator, error)
 		return nil, fmt.Errorf("chunk index out of range: %d (num chunks: %d)", idx, numChunks)
 	}
 
-	start := int64(idx) * mat.RowsPerChunk
-	end := start + mat.RowsPerChunk
+	start := int64(idx) * mat.rowsPerChunk
+	end := start + mat.rowsPerChunk
 	if end > int64(len(mat.Data)) {
 		end = int64(len(mat.Data))
 	}
@@ -1646,7 +1646,7 @@ func (mat *MemoryMaterialization) IterateChunk(idx int) (FeatureIterator, error)
 }
 
 func (mat *MemoryMaterialization) Location() pl.Location {
-	return mat.Location_
+	return mat.location
 }
 
 // memoryFeatureIterator implements FeatureIterator

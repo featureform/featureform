@@ -16,13 +16,15 @@ import (
 	"github.com/featureform/config"
 	"github.com/featureform/logging"
 
+	"go.uber.org/zap"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	"github.com/featureform/provider/dataset"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/types"
-	"go.uber.org/zap"
 )
 
 // We buffer the channel responsible for passing records to the goroutines that will write
@@ -39,7 +41,7 @@ type IndexRunner interface {
 }
 
 type MaterializedChunkRunner struct {
-	Materialized provider.Materialization
+	Materialized dataset.MaterializationDataset
 	Table        provider.OnlineStoreTable
 	Store        provider.OnlineStore
 	ChunkIdx     int
@@ -74,7 +76,7 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 	logger.Debugw("worker pool size", "worker_pool_size", workerPoolSize)
 	go func() {
 		logger.Debugw("starting materialized chunk runner", "chunk_idx", m.ChunkIdx)
-		it, err := m.Materialized.IterateChunk(m.ChunkIdx)
+		it, err := m.Materialized.ChunkIterator(ctx, m.ChunkIdx)
 		if err != nil {
 			logger.Errorw("error getting iterator", "error", err)
 			jobWatcher.EndWatch(err)
@@ -170,10 +172,12 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		}
 		var chanErr error
 		for it.Next() {
+			values := it.Values()
+			entity := values[0].Value.(string)
 			select {
 			case chanErr = <-errCh:
 				logger.Errorf("error setting value: %v", chanErr)
-			case ch <- it.Value():
+			case ch <- provider.ResourceRecord{Entity: entity, Value: values[1].Value}:
 			default:
 			}
 			if chanErr != nil {

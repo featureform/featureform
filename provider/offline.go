@@ -543,9 +543,9 @@ type OfflineStoreMaterialization interface {
 	CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error)
 	GetResourceTable(id ResourceID) (OfflineTable, error)
 	RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error)
-	CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error)
-	GetMaterialization(id MaterializationID) (Materialization, error)
-	UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error)
+	CreateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.MaterializationDataset, error)
+	GetMaterialization(id MaterializationID) (dataset.MaterializationDataset, error)
+	UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.MaterializationDataset, error)
 	DeleteMaterialization(id MaterializationID) error
 	SupportsMaterializationOption(opt MaterializationOptionType) (bool, error)
 }
@@ -1281,7 +1281,7 @@ func (store *memoryOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFea
 }
 
 func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (
-	Materialization,
+	dataset.MaterializationDataset,
 	error,
 ) {
 	if id.Type != Feature {
@@ -1309,25 +1309,22 @@ func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, opts Mater
 		RowsPerChunk: defaultRowsPerChunk,
 	}
 	store.materializations.Store(matId, mat)
-	return mat, nil
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (store *memoryOfflineStore) SupportsMaterializationOption(opt MaterializationOptionType) (bool, error) {
 	return false, nil
 }
 
-func (store *memoryOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+func (store *memoryOfflineStore) GetMaterialization(id MaterializationID) (dataset.MaterializationDataset, error) {
 	mat, has := store.materializations.Load(id)
 	if !has {
 		return nil, fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
-	return mat.(Materialization), nil
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat.(Materialization)), nil
 }
 
-func (store *memoryOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (
-	Materialization,
-	error,
-) {
+func (store *memoryOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.MaterializationDataset, error) {
 	return store.CreateMaterialization(id, MaterializationOptions{Output: fs.Parquet})
 }
 

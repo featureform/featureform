@@ -896,7 +896,7 @@ func (store *sqlOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIt
 
 	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query, store.Type()), nil
 }
-func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.MaterializationDataset, error) {
 	if id.Type != Feature {
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("received %s; only features can be materialized", id.Type))
 	}
@@ -915,26 +915,28 @@ func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, opts Material
 			return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 		}
 	}
-	return &sqlMaterialization{
+	mat := &sqlMaterialization{
 		id:           matID,
 		db:           store.db,
 		tableName:    matTableName,
 		query:        store.query,
 		providerType: store.Type(),
-	}, nil
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (store *sqlOfflineStore) SupportsMaterializationOption(opt MaterializationOptionType) (bool, error) {
 	return false, nil
 }
 
-func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (dataset.MaterializationDataset, error) {
 	name, variant, err := ps.MaterializationIDToResource(string(id))
 	if err != nil {
 		return nil, err
 	}
 
-	tableName, err := store.getMaterializationTableName(ResourceID{name, variant, Feature})
+	resourceID := ResourceID{name, variant, Feature}
+	tableName, err := store.getMaterializationTableName(resourceID)
 	if err != nil {
 		return nil, err
 	}
@@ -956,17 +958,22 @@ func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Material
 	if rowCount == 0 {
 		return nil, fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
-	return &sqlMaterialization{
+
+	// Create the legacy materialization object
+	legacyMat := &sqlMaterialization{
 		id:           id,
 		db:           store.db,
 		tableName:    tableName,
 		query:        store.query,
 		providerType: store.Type(),
 		location:     pl.NewSQLLocation(tableName),
-	}, err
+	}
+
+	// Create a LegacyMaterializationAdapter wrapping the old materialization
+	return NewLegacyMaterializationAdapterWithEmptySchema(legacyMat), nil
 }
 
-func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.MaterializationDataset, error) {
 	tableName, err := store.getMaterializationTableName(id)
 	if err != nil {
 		return nil, err
@@ -993,13 +1000,15 @@ func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID, opts Material
 	if err != nil {
 		return nil, err
 	}
-	return &sqlMaterialization{
-		id:           MaterializationID(matID),
-		db:           store.db,
-		tableName:    tableName,
-		query:        store.query,
-		providerType: store.Type(),
-	}, err
+	return NewLegacyMaterializationAdapterWithEmptySchema(
+		&sqlMaterialization{
+			id:           MaterializationID(matID),
+			db:           store.db,
+			tableName:    tableName,
+			query:        store.query,
+			providerType: store.Type(),
+		},
+	), nil
 }
 
 func (store *sqlOfflineStore) DeleteMaterialization(id MaterializationID) error {

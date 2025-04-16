@@ -2,6 +2,8 @@ package provider
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	types "github.com/featureform/fftypes"
 	"github.com/featureform/provider/dataset"
@@ -12,6 +14,15 @@ import (
 type LegacyMaterializationAdapter struct {
 	legacy        Materialization // This is the old sqlMaterialization
 	featureSchema types.FeaturesSchema
+}
+
+// NewLegacyMaterializationAdapter creates a new adapter for a legacy Materialization
+func NewLegacyMaterializationAdapterWithEmptySchema(legacy Materialization) dataset.MaterializationDataset {
+
+	return &LegacyMaterializationAdapter{
+		legacy:        legacy,
+		featureSchema: types.FeaturesSchema{},
+	}
 }
 
 // NewLegacyMaterializationAdapter creates a new adapter for a legacy Materialization
@@ -162,7 +173,7 @@ func (adapter *LegacyIteratorAdapter) Next() bool {
 
 	// Convert the legacy ResourceRecord to a Row
 	record := adapter.legacy.Value()
-	adapter.currentRow = convertResourceRecordToRow(record, adapter.schema)
+	adapter.currentRow = convertResourceRecordToRow(record)
 	return true
 }
 
@@ -247,43 +258,68 @@ func extractFieldsFromFeatureSchema(featureSchema types.FeaturesSchema) []types.
 }
 
 // convertResourceRecordToRow converts a ResourceRecord to a Row
-func convertResourceRecordToRow(record ResourceRecord, schema types.Schema) types.Row {
-	// Create a row with values for each field in the schema
-	values := make(types.Row, len(schema.Fields))
+func convertResourceRecordToRow(record ResourceRecord) types.Row {
+	// Create a row with three values: entity, value, and timestamp
+	values := make(types.Row, 3)
 
-	// Populate values based on the schema
-	for i, field := range schema.Fields {
-		fieldName := string(field.Name)
+	// First value is always the entity
+	values[0] = types.Value{
+		Value: record.Entity,
+	}
 
-		// Match field name to determine which value to use
-		switch {
-		case fieldName == string(schema.Fields[0].Name): // Assuming first field is entity
-			values[i] = types.Value{
-				NativeType: field.NativeType,
-				Type:       field.Type,
-				Value:      record.Entity,
-			}
-		case i == 1: // Assuming second field is the feature value
-			values[i] = types.Value{
-				NativeType: field.NativeType,
-				Type:       field.Type,
-				Value:      record.Value,
-			}
-		case i == 2 && !record.TS.IsZero(): // Assuming third field is timestamp if present
-			values[i] = types.Value{
-				NativeType: field.NativeType,
-				Type:       field.Type,
-				Value:      record.TS,
-			}
-		default:
-			// Handle any other fields or set to nil
-			values[i] = types.Value{
-				NativeType: field.NativeType,
-				Type:       field.Type,
-				Value:      nil,
-			}
+	// Second value is always the feature value
+	values[1] = types.Value{
+		Value: record.Value,
+	}
+
+	// Third value is the timestamp (or nil if timestamp is zero)
+	if !record.TS.IsZero() {
+		values[2] = types.Value{
+			Value: record.TS,
+		}
+	} else {
+		values[2] = types.Value{
+			Value: nil,
 		}
 	}
 
 	return values
+}
+
+func RowToResourceRecord(row types.Row) (ResourceRecord, error) {
+	rec := ResourceRecord{}
+
+	// Check if we have at least entity and value fields
+	if len(row) < 2 {
+		return rec, fmt.Errorf("row has insufficient columns: expected at least 2, got %d", len(row))
+	}
+
+	// Extract entity - should be first column and a string
+	if row[0].Value == nil {
+		return rec, fmt.Errorf("entity column has nil value")
+	}
+
+	entityVal, ok := row[0].Value.(string)
+	if !ok {
+		return rec, fmt.Errorf("entity column is not a string: %T", row[0].Value)
+	}
+	rec.Entity = entityVal
+
+	// Extract value - second column
+	rec.Value = row[1].Value
+
+	// Extract timestamp if present - third column
+	if len(row) > 2 && row[2].Value != nil {
+		tsVal, ok := row[2].Value.(time.Time)
+		if ok {
+			rec.TS = tsVal
+		} else {
+			// If the third column doesn't look like a timestamp, we log a warning but continue
+			// This could be a legitimate case where the third column is something else
+			// or where the timestamp is in a different format
+			return rec, fmt.Errorf("timestamp column is not a time.Time: %T", row[2].Value)
+		}
+	}
+
+	return rec, nil
 }

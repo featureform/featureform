@@ -1239,7 +1239,7 @@ func (store *bqOfflineStore) newMaterialization(id MaterializationID, tableName 
 	}, nil
 }
 
-func (store *bqOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (store *bqOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.MaterializationDataset, error) {
 	logger := store.logger.With("resourceId", id, "opts", opts)
 
 	logger.Debug("Creating materialization")
@@ -1273,7 +1273,11 @@ func (store *bqOfflineStore) CreateMaterialization(id ResourceID, opts Materiali
 		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 
-	return store.newMaterialization(matID, matTableName)
+	mat, err := store.newMaterialization(matID, matTableName)
+	if err != nil {
+		return nil, err
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (store *bqOfflineStore) SupportsMaterializationOption(opt MaterializationOptionType) (bool, error) {
@@ -1325,7 +1329,7 @@ func (store *bqOfflineStore) getMaterializationTableName(id ResourceID) (string,
 	return ps.ResourceToTableName(FeatureMaterialization.String(), id.Name, id.Variant)
 }
 
-func (store *bqOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+func (store *bqOfflineStore) GetMaterialization(id MaterializationID) (dataset.MaterializationDataset, error) {
 	logger := store.logger.With("resourceId", id)
 
 	logger.Debug("Getting materialization")
@@ -1366,10 +1370,14 @@ func (store *bqOfflineStore) GetMaterialization(id MaterializationID) (Materiali
 		return nil, fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
 
-	return store.newMaterialization(id, tableName)
+	mat, err := store.newMaterialization(id, tableName)
+	if err != nil {
+		return nil, err
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
-func (store *bqOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (store *bqOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.MaterializationDataset, error) {
 	logger := store.logger.With("resourceId", id)
 
 	logger.Debug("Updating materialization")
@@ -1414,7 +1422,11 @@ func (store *bqOfflineStore) UpdateMaterialization(id ResourceID, opts Materiali
 		return nil, err
 	}
 
-	return store.newMaterialization(matID, tableName)
+	mat, err := store.newMaterialization(matID, tableName)
+	if err != nil {
+		return nil, err
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (store *bqOfflineStore) DeleteMaterialization(id MaterializationID) error {

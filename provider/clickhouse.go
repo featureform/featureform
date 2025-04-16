@@ -1017,7 +1017,7 @@ func (store *clickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFe
 	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query, store.Type()), nil
 }
 
-func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.MaterializationDataset, error) {
 	logger := store.logger.WithResource(logging.FeatureVariant, id.Name, id.Variant)
 	if err := id.check(Feature); err != nil {
 		logger.Errorw("Failed to validate resource ID", "error", err)
@@ -1044,19 +1044,20 @@ func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, opts M
 			return nil, wrapped
 		}
 	}
-	return &clickHouseMaterialization{
+	mat := &clickHouseMaterialization{
 		id:        matID,
 		db:        store.db,
 		tableName: matTableName,
 		query:     store.query,
-	}, nil
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (store *clickHouseOfflineStore) SupportsMaterializationOption(opt MaterializationOptionType) (bool, error) {
 	return false, nil
 }
 
-func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (dataset.MaterializationDataset, error) {
 	name, variant, err := ps.MaterializationIDToResource(string(id))
 	if err != nil {
 		return nil, err
@@ -1077,15 +1078,15 @@ func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (M
 	if n == 0 {
 		return nil, fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
-	return &clickHouseMaterialization{
+	return NewLegacyMaterializationAdapterWithEmptySchema(&clickHouseMaterialization{
 		id:        id,
 		db:        store.db,
 		tableName: tableName,
 		query:     store.query,
-	}, err
+	}), nil
 }
 
-func (store *clickHouseOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (store *clickHouseOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.MaterializationDataset, error) {
 	matID, err := NewMaterializationID(id)
 	if err != nil {
 		return nil, err
@@ -1112,12 +1113,14 @@ func (store *clickHouseOfflineStore) UpdateMaterialization(id ResourceID, opts M
 	if err != nil {
 		return nil, err
 	}
-	return &clickHouseMaterialization{
-		id:        matID,
-		db:        store.db,
-		tableName: tableName,
-		query:     store.query,
-	}, err
+	return NewLegacyMaterializationAdapterWithEmptySchema(
+		&clickHouseMaterialization{
+			id:        matID,
+			db:        store.db,
+			tableName: tableName,
+			query:     store.query,
+		},
+	), nil
 }
 
 func (store *clickHouseOfflineStore) DeleteMaterialization(id MaterializationID) error {

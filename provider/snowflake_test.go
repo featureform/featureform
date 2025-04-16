@@ -660,12 +660,12 @@ func RegisterMaterializationWithDefaultTargetLagTest(t *testing.T, test OfflineS
 		t.Fatalf("expected table to refresh: %v", err)
 	}
 
-	matIncr, err := matTest.tester.GetMaterialization(mat.ID())
+	matIncr, err := matTest.tester.GetMaterialization(MaterializationID(mat.ID()))
 	if err != nil {
 		t.Fatalf("could not get materialization: %v", err)
 	}
 
-	matTest.data.Assert(t, matIncr, isIncremental)
+	matTest.data.AssertMatDs(t, matIncr, isIncremental)
 }
 
 func RegisterMaterializationWithDifferentWarehouseTest(t *testing.T, test OfflineSqlTest) {
@@ -706,12 +706,12 @@ func RegisterMaterializationWithDifferentWarehouseTest(t *testing.T, test Offlin
 		t.Fatalf("expected materialization to use warehouse %s", warehouse)
 	}
 
-	matIncr, err := matTest.tester.GetMaterialization(mat.ID())
+	matIncr, err := matTest.tester.GetMaterialization(MaterializationID(mat.ID()))
 	if err != nil {
 		t.Fatalf("could not get materialization: %v", err)
 	}
 
-	matTest.data.Assert(t, matIncr, isIncremental)
+	matTest.data.AssertMatDs(t, matIncr, isIncremental)
 }
 
 func RegisterTrainingSetWithType(t *testing.T, test OfflineSqlTest, tsDatasetType trainingSetDatasetType, tsType metadata.TrainingSetType) {

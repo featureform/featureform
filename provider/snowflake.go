@@ -16,6 +16,7 @@ import (
 	"github.com/featureform/helpers/stringset"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
+	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
@@ -235,7 +236,7 @@ func (sf *snowflakeOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, 
 	return nil, fferr.NewInternalErrorf("Snowflake Offline Store does not currently support getting resource tables")
 }
 
-func (sf *snowflakeOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (sf *snowflakeOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.MaterializationDataset, error) {
 	logger := sf.logger.WithResource(logging.FeatureVariant, id.Name, id.Variant)
 	if err := id.check(Feature); err != nil {
 		logger.Errorw("Failed to validate resource ID", "error", err)
@@ -285,17 +286,18 @@ func (sf *snowflakeOfflineStore) CreateMaterialization(id ResourceID, opts Mater
 		return nil, sf.handleErr(wrapped, err)
 	}
 	logger.Info("Successfully created materialization")
-	return &sqlMaterialization{
+	mat := &sqlMaterialization{
 		id:           MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant)),
 		db:           sf.sqlOfflineStore.db,
 		tableName:    tableName,
 		location:     pl.NewSQLLocation(tableName),
 		query:        sf.sfQueries,
 		providerType: pt.SnowflakeOffline,
-	}, nil
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
-func (sf *snowflakeOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (sf *snowflakeOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.MaterializationDataset, error) {
 	sf.logger.Errorw("Snowflake Offline Store does not currently support updating materializations", "id", id, "opts", opts)
 	return nil, fferr.NewInternalErrorf("Snowflake Offline Store does not currently support updating materializations")
 }

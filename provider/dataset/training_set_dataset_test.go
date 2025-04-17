@@ -54,19 +54,19 @@ func TestTrainingSet(t *testing.T) {
 	tsSchema := fftypes.TrainingSetSchema{
 		FeatureColumns: []fftypes.FeatureColumn{
 			{
-				FeatureCol: fftypes.ColumnSchema{
+				FeatureColumn: fftypes.ColumnSchema{
 					Name: "age",
 					Type: fftypes.Int,
 				},
 			},
 			{
-				FeatureCol: fftypes.ColumnSchema{
+				FeatureColumn: fftypes.ColumnSchema{
 					Name: "income",
 					Type: fftypes.Float64,
 				},
 			},
 			{
-				FeatureCol: fftypes.ColumnSchema{
+				FeatureColumn: fftypes.ColumnSchema{
 					Name: "is_employed",
 					Type: fftypes.Bool,
 				},
@@ -174,13 +174,13 @@ func TestTrainingSet(t *testing.T) {
 		badSchema := fftypes.TrainingSetSchema{
 			FeatureColumns: []fftypes.FeatureColumn{
 				{
-					FeatureCol: fftypes.ColumnSchema{
+					FeatureColumn: fftypes.ColumnSchema{
 						Name: "nonexistent_column",
 						Type: fftypes.String,
 					},
 				},
 				{
-					FeatureCol: fftypes.ColumnSchema{
+					FeatureColumn: fftypes.ColumnSchema{
 						Name: "income",
 						Type: fftypes.Float64,
 					},

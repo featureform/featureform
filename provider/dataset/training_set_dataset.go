@@ -66,7 +66,7 @@ func (it *TrainingSetIterator) Next() bool {
 	// Extract features
 	features := make([]interface{}, len(it.tsSchema.FeatureColumns))
 	for i, featureCol := range it.tsSchema.FeatureColumns {
-		colIndex := findColumnIndex(schema.Fields, featureCol.FeatureCol.Name)
+		colIndex := findColumnIndex(schema.Fields, featureCol.FeatureColumn.Name)
 		if colIndex >= 0 && colIndex < len(row) {
 			features[i] = row[colIndex].Value
 		}

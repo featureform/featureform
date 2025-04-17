@@ -148,7 +148,7 @@ func createFeatureSchemaFromResourceSchema(schema ResourceSchema) types.Features
 
 	featureCols := make([]types.FeatureColumn, 1)
 	featureCols[0] = types.FeatureColumn{
-		FeatureCol: types.ColumnSchema{
+		FeatureColumn: types.ColumnSchema{
 			Name:       types.ColumnName(schema.Value),
 			NativeType: types.NativeType("string"),
 			Type:       types.String,
@@ -156,7 +156,7 @@ func createFeatureSchemaFromResourceSchema(schema ResourceSchema) types.Features
 	}
 
 	if schema.TS != "" {
-		featureCols[0].TimestampCol = types.ColumnSchema{
+		featureCols[0].TimestampColumn = types.ColumnSchema{
 			Name:       types.ColumnName(schema.TS),
 			NativeType: types.NativeType("timestamp"),
 			Type:       types.Timestamp,
@@ -169,19 +169,19 @@ func createFeatureSchemaFromResourceSchema(schema ResourceSchema) types.Features
 	}
 
 	return types.FeaturesSchema{
-		EntityCol:   entityCol,
-		FeatureCols: featureCols,
+		EntityColumn:   entityCol,
+		FeatureColumns: featureCols,
 	}
 }
 
 func extractFieldsFromFeatureSchema(featureSchema types.FeaturesSchema) []types.ColumnSchema {
 	fields := make([]types.ColumnSchema, 0)
-	fields = append(fields, featureSchema.EntityCol)
+	fields = append(fields, featureSchema.EntityColumn)
 
-	for _, featureCol := range featureSchema.FeatureCols {
-		fields = append(fields, featureCol.FeatureCol)
-		if featureCol.TimestampCol.Name != "" {
-			fields = append(fields, featureCol.TimestampCol)
+	for _, featureCol := range featureSchema.FeatureColumns {
+		fields = append(fields, featureCol.FeatureColumn)
+		if featureCol.TimestampColumn.Name != "" {
+			fields = append(fields, featureCol.TimestampColumn)
 		}
 	}
 

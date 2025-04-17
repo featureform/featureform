@@ -409,7 +409,7 @@ func testMaterializations(t *testing.T, store OfflineStore) {
 			},
 		},
 	}
-	testMaterialization := func(t *testing.T, matDataset dataset.MaterializationDataset, test TestCase) {
+	testMaterialization := func(t *testing.T, matDataset dataset.Materialization, test TestCase) {
 		ctx := logging.NewTestContext(t)
 
 		// Check the number of rows
@@ -717,7 +717,7 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 			},
 		},
 	}
-	testMaterialization := func(t *testing.T, matDataset dataset.MaterializationDataset, test TestCase) {
+	testMaterialization := func(t *testing.T, matDataset dataset.Materialization, test TestCase) {
 		ctx := logging.NewTestContext(t)
 
 		// Check the number of rows
@@ -796,7 +796,7 @@ func testMaterializationUpdate(t *testing.T, store OfflineStore) {
 			t.Fatalf("Segment is too small: %d. Expected: %d", i, len(test.ExpectedSegment))
 		}
 	}
-	testUpdate := func(t *testing.T, matDataset dataset.MaterializationDataset, test TestCase) {
+	testUpdate := func(t *testing.T, matDataset dataset.Materialization, test TestCase) {
 		ctx := logging.NewTestContext(t)
 
 		// Check the number of rows

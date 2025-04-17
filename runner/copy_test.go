@@ -421,19 +421,19 @@ func (b BrokenNumChunksOfflineStore) GetResourceTable(id provider.ResourceID) (p
 	return nil, nil
 }
 
-func (b BrokenNumChunksOfflineStore) CreateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (dataset.MaterializationDataset, error) {
-	return nil, nil
+func (b BrokenNumChunksOfflineStore) CreateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (dataset.Materialization, error) {
+	return dataset.Materialization{}, nil
 }
 
 func (store BrokenNumChunksOfflineStore) SupportsMaterializationOption(opt provider.MaterializationOptionType) (bool, error) {
 	return false, nil
 }
 
-func (b BrokenNumChunksOfflineStore) UpdateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (dataset.MaterializationDataset, error) {
-	return nil, nil
+func (b BrokenNumChunksOfflineStore) UpdateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (dataset.Materialization, error) {
+	return dataset.Materialization{}, nil
 }
 
-func (b BrokenNumChunksOfflineStore) GetMaterialization(id provider.MaterializationID) (dataset.MaterializationDataset, error) {
+func (b BrokenNumChunksOfflineStore) GetMaterialization(id provider.MaterializationID) (dataset.Materialization, error) {
 	return provider.NewLegacyMaterializationAdapterWithEmptySchema(&MaterializedFeaturesNumChunksBroken{""}), nil
 }
 func (b BrokenNumChunksOfflineStore) DeleteMaterialization(id provider.MaterializationID) error {
@@ -737,8 +737,8 @@ func (m MockOfflineStore) GetTransformationTable(id provider.ResourceID) (datase
 	return nil, nil
 }
 
-func (m MockOfflineStore) UpdateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (dataset.MaterializationDataset, error) {
-	return nil, nil
+func (m MockOfflineStore) UpdateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (dataset.Materialization, error) {
+	return dataset.Materialization{}, nil
 }
 
 func (m MockOfflineStore) UpdateTrainingSet(provider.TrainingSetDef) error {
@@ -818,14 +818,14 @@ func (m MockOfflineStore) GetResourceTable(id provider.ResourceID) (provider.Off
 	return MockOfflineTable{}, nil
 }
 
-func (m MockOfflineStore) CreateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (dataset.MaterializationDataset, error) {
+func (m MockOfflineStore) CreateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (dataset.Materialization, error) {
 	return provider.NewLegacyMaterializationAdapterWithEmptySchema(MockMaterialization{}), nil
 }
 
 func (store MockOfflineStore) SupportsMaterializationOption(opt provider.MaterializationOptionType) (bool, error) {
 	return false, nil
 }
-func (m MockOfflineStore) GetMaterialization(id provider.MaterializationID) (dataset.MaterializationDataset, error) {
+func (m MockOfflineStore) GetMaterialization(id provider.MaterializationID) (dataset.Materialization, error) {
 	return provider.NewLegacyMaterializationAdapterWithEmptySchema(MockMaterialization{}), nil
 }
 

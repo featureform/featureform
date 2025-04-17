@@ -977,10 +977,10 @@ func completePrimarySourceTablePathForGCS(sourceTable string, store FileStore) (
 	return nil, nil
 }
 
-func (k8s *K8sOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.MaterializationDataset, error) {
+func (k8s *K8sOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
 	mat, err := k8s.materialization(id, false)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
@@ -989,10 +989,10 @@ func (store *K8sOfflineStore) SupportsMaterializationOption(opt MaterializationO
 	return false, nil
 }
 
-func (k8s *K8sOfflineStore) GetMaterialization(id MaterializationID) (dataset.MaterializationDataset, error) {
+func (k8s *K8sOfflineStore) GetMaterialization(id MaterializationID) (dataset.Materialization, error) {
 	mat, err := fileStoreGetMaterialization(id, k8s.store, k8s.logger)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
@@ -1209,10 +1209,10 @@ func (iter *FileStoreFeatureIterator) Close() error {
 	return nil
 }
 
-func (k8s *K8sOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.MaterializationDataset, error) {
+func (k8s *K8sOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
 	mat, err := k8s.materialization(id, true)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }

@@ -104,7 +104,7 @@ func testMaterializationRunner(t *testing.T, offline provider.OfflineStore, onli
 
 func createMaterialization(
 	t *testing.T, store provider.OfflineStore, schema provider.TableSchema, records []provider.ResourceRecord,
-) (provider.ResourceID, dataset.MaterializationDataset) {
+) (provider.ResourceID, dataset.Materialization) {
 	id := provider.ResourceID{Name: uuid.NewString(), Variant: uuid.NewString(), Type: provider.Feature}
 	table, err := store.CreateResourceTable(id, schema)
 	if err != nil {

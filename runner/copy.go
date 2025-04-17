@@ -41,7 +41,7 @@ type IndexRunner interface {
 }
 
 type MaterializedChunkRunner struct {
-	Materialized dataset.MaterializationDataset
+	Materialized dataset.Materialization
 	Table        provider.OnlineStoreTable
 	Store        provider.OnlineStore
 	ChunkIdx     int

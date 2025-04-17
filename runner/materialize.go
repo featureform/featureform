@@ -100,7 +100,7 @@ func (w WatcherMultiplex) Err() error {
 
 func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	m.Logger.Infow("Starting Materialization Runner", "name", m.ID.Name, "variant", m.ID.Variant)
-	var materialization dataset.MaterializationDataset
+	var materialization dataset.Materialization
 	var err error
 	// offline
 	if m.IsUpdate {
@@ -121,7 +121,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	return m.MaterializeToOnline(materialization)
 }
 
-func (m MaterializeRunner) MaterializeToOnline(materialization dataset.MaterializationDataset) (types.CompletionWatcher, error) {
+func (m MaterializeRunner) MaterializeToOnline(materialization dataset.Materialization) (types.CompletionWatcher, error) {
 	// Create the vector similarity index prior to writing any values to the
 	// inference store. This is currently only required for RediSearch, but other
 	// vector databases allow for manual index configuration even if they support

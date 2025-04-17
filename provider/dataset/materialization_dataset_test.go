@@ -96,7 +96,7 @@ func TestMaterializationDataset(t *testing.T) {
 			baseDS := NewInMemoryDatasetWithChunkSize(data, schema, testLocation, tc.chunkSize)
 
 			// Create materialization dataset
-			matDS := NewMaterializationDataset(baseDS, testID, featureSchema)
+			matDS := NewMaterialization(baseDS, testID, featureSchema)
 
 			// Test basic properties
 			t.Run("BasicProperties", func(t *testing.T) {
@@ -239,7 +239,7 @@ func TestMaterializationDataset(t *testing.T) {
 	t.Run("EmptyDataset", func(t *testing.T) {
 		emptyData := []types.Row{}
 		emptyDS := NewInMemoryDatasetWithChunkSize(emptyData, schema, testLocation, 10)
-		emptyMatDS := NewMaterializationDataset(emptyDS, testID, featureSchema)
+		emptyMatDS := NewMaterialization(emptyDS, testID, featureSchema)
 
 		// Test size
 		size, err := emptyMatDS.Len()
@@ -273,7 +273,7 @@ func collectRows(t *testing.T, iter Iterator) []types.Row {
 }
 
 // Helper function to collect feature rows from a feature iterator
-func collectFeatureRows(t *testing.T, iter FeatureIterator) []types.FeatureRow {
+func collectFeatureRows(t *testing.T, iter *FeatureIterator) []types.FeatureRow {
 	var rows []types.FeatureRow
 	for iter.Next() {
 		rows = append(rows, iter.FeatureValues())

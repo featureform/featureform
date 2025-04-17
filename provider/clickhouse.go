@@ -1017,22 +1017,22 @@ func (store *clickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFe
 	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query, store.Type()), nil
 }
 
-func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.MaterializationDataset, error) {
+func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
 	logger := store.logger.WithResource(logging.FeatureVariant, id.Name, id.Variant)
 	if err := id.check(Feature); err != nil {
 		logger.Errorw("Failed to validate resource ID", "error", err)
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
 	if err := opts.Schema.Validate(); err != nil {
 		logger.Errorw("Failed to validate schema", "error", err)
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
 	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
 	matTableName, err := store.getMaterializationTableName(id)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
 	materializeQueries := store.query.materializationCreate(matTableName, opts.Schema)
@@ -1041,7 +1041,7 @@ func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, opts M
 		if err != nil {
 			wrapped := fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 			wrapped.AddDetail("materialization_table_name", matTableName)
-			return nil, wrapped
+			return dataset.Materialization{}, wrapped
 		}
 	}
 	mat := &clickHouseMaterialization{
@@ -1057,14 +1057,14 @@ func (store *clickHouseOfflineStore) SupportsMaterializationOption(opt Materiali
 	return false, nil
 }
 
-func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (dataset.MaterializationDataset, error) {
+func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (dataset.Materialization, error) {
 	name, variant, err := ps.MaterializationIDToResource(string(id))
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	tableName, err := store.getMaterializationTableName(ResourceID{name, variant, Feature})
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
 	getMatQry := store.query.materializationExists()
@@ -1073,10 +1073,10 @@ func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (d
 	if execErr != nil {
 		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)
-		return nil, wrapped
+		return dataset.Materialization{}, wrapped
 	}
 	if n == 0 {
-		return nil, fferr.NewDatasetNotFoundError(string(id), "", nil)
+		return dataset.Materialization{}, fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
 	return NewLegacyMaterializationAdapterWithEmptySchema(&clickHouseMaterialization{
 		id:        id,
@@ -1086,32 +1086,32 @@ func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (d
 	}), nil
 }
 
-func (store *clickHouseOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.MaterializationDataset, error) {
+func (store *clickHouseOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
 	matID, err := NewMaterializationID(id)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	tableName, err := store.getMaterializationTableName(id)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	getMatQry := store.query.materializationExists()
 	resTable, err := store.getsqlResourceTable(id)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
 	rows, err := store.db.Query(getMatQry, tableName)
 	if err != nil {
-		return nil, fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+		return dataset.Materialization{}, fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	defer rows.Close()
 	if !rows.Next() {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("table %s is empty", tableName))
+		return dataset.Materialization{}, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("table %s is empty", tableName))
 	}
 	err = store.query.materializationUpdate(store.db, tableName, resTable.name)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	return NewLegacyMaterializationAdapterWithEmptySchema(
 		&clickHouseMaterialization{

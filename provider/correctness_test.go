@@ -864,7 +864,7 @@ func (d testSQLMaterializationData) Assert(t *testing.T, mat Materialization, is
 	}
 }
 
-func (d testSQLMaterializationData) AssertMatDs(t *testing.T, matDataset dataset.MaterializationDataset, isIncremental bool) {
+func (d testSQLMaterializationData) AssertMatDs(t *testing.T, matDataset dataset.Materialization, isIncremental bool) {
 	ctx := context.Background()
 
 	// Prepare expected data map

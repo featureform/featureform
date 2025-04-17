@@ -62,7 +62,7 @@ func TestLegacyMaterializationAdapter(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create enhanced memory materialization
-			memoryMat := NewMemoryMaterialization(
+			memoryMat := newMemoryMaterialization(
 				testID,
 				testRecords,
 				testLocation,
@@ -262,7 +262,7 @@ func TestLegacyMaterializationAdapter(t *testing.T) {
 
 	// Test with empty dataset
 	t.Run("EmptyDataset", func(t *testing.T) {
-		emptyMat := NewMemoryMaterialization(
+		emptyMat := newMemoryMaterialization(
 			testID,
 			[]ResourceRecord{},
 			testLocation,
@@ -309,7 +309,7 @@ func collectRows(t *testing.T, iter dataset.Iterator) []types.Row {
 }
 
 // Helper function to collect all feature rows from a feature iterator
-func collectFeatureRows(t *testing.T, iter dataset.FeatureIterator) []types.FeatureRow {
+func collectFeatureRows(t *testing.T, iter *dataset.FeatureIterator) []types.FeatureRow {
 	var rows []types.FeatureRow
 	for iter.Next() {
 		rows = append(rows, iter.FeatureValues())

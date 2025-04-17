@@ -171,7 +171,7 @@ type FeatureRow interface {
     FeatureValues() []Value
 }
 
-type MaterializationDataset interface {
+type Materialization interface {
     // Embed common dataset interfaces
     SizedSegmentableDataset
     ChunkedDataset
@@ -187,7 +187,7 @@ type MaterializationDataset interface {
 
 //type MaterializationID string
 //
-//type MaterializationDataset interface {
+//type Materialization interface {
 //	SizedDataset
 //	ID() MaterializationID
 //	IterateSegment(ctx context.Context, begin, end int64) (FeatureIterator, error)

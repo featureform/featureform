@@ -991,7 +991,7 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 			},
 		},
 	}
-	testMaterialization := func(t *testing.T, matDataset dataset.MaterializationDataset, test TestCase) {
+	testMaterialization := func(t *testing.T, matDataset dataset.Materialization, test TestCase) {
 		ctx := context.Background()
 
 		// Check the number of rows
@@ -2282,7 +2282,7 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 			Timestamp: true,
 		},
 	}
-	testMaterialization := func(t *testing.T, matDataset dataset.MaterializationDataset, test TestCase) {
+	testMaterialization := func(t *testing.T, matDataset dataset.Materialization, test TestCase) {
 		ctx := context.Background()
 
 		// Check the number of rows
@@ -2344,7 +2344,7 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 	}
 
 	// Test function for updated materialization
-	testUpdate := func(t *testing.T, matDataset dataset.MaterializationDataset, test TestCase) {
+	testUpdate := func(t *testing.T, matDataset dataset.Materialization, test TestCase) {
 		ctx := context.Background()
 
 		// Check the number of rows

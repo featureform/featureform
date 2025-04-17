@@ -146,8 +146,8 @@ func createFeatureSchemaFromResourceSchema(schema ResourceSchema) types.Features
 		Type:       types.String,
 	}
 
-	featureCols := make([]types.FeatureCol, 1)
-	featureCols[0] = types.FeatureCol{
+	featureCols := make([]types.FeatureColumn, 1)
+	featureCols[0] = types.FeatureColumn{
 		FeatureCol: types.ColumnSchema{
 			Name:       types.ColumnName(schema.Value),
 			NativeType: types.NativeType("string"),

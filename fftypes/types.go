@@ -343,10 +343,10 @@ func (s *Schema) ColumnNames() []string {
 
 type FeaturesSchema struct {
 	EntityCol   ColumnSchema
-	FeatureCols []FeatureCol
+	FeatureCols []FeatureColumn
 }
 
-type FeatureCol struct {
+type FeatureColumn struct {
 	FeatureCol   ColumnSchema
 	TimestampCol ColumnSchema
 }
@@ -359,4 +359,14 @@ type FeatureRow struct {
 type FeatureRows struct {
 	Schema FeaturesSchema
 	Rows   []Row
+}
+
+type TrainingSetSchema struct {
+	FeatureColumns []FeatureColumn
+	LabelColumn    ColumnSchema
+}
+
+type TrainingSetRow struct {
+	Schema TrainingSetSchema
+	Row    Row
 }

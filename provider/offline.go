@@ -553,9 +553,9 @@ type OfflineStoreMaterialization interface {
 type OfflineStoreTrainingSet interface {
 	CreateTrainingSet(TrainingSetDef) error
 	UpdateTrainingSet(TrainingSetDef) error
-	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
+	GetTrainingSet(id ResourceID) (dataset.TrainingSetIterator, error)
 	CreateTrainTestSplit(TrainTestSplitDef) (func() error, error)
-	GetTrainTestSplit(TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) // this'll add the training set schema
+	GetTrainTestSplit(TrainTestSplitDef) (*dataset.TrainingSetIterator, *dataset.TrainingSetIterator, error)
 }
 
 type OfflineStoreBatchFeature interface {
@@ -582,6 +582,46 @@ type TrainingSetIterator interface {
 	Err() error
 }
 
+type LegacyToNewTrainingSetIterator struct {
+	dataset.Iterator // Embedded interface (will be minimal implementation)
+	legacyIterator   TrainingSetIterator
+	currentFeatures  []interface{}
+	currentLabel     interface{}
+}
+
+func NewLegacyTrainingSetIteratorAdapter(legacyIter TrainingSetIterator) *dataset.TrainingSetIterator {
+	// Create adapter with minimal Iterator implementation
+	adapter := &LegacyToNewTrainingSetIterator{
+		legacyIterator: legacyIter,
+	}
+
+	// Create a minimal Iterator to embed
+	adapter.Iterator = &MinimalIterator{
+		nextFunc:   func() bool { return adapter.legacyIterator.Next() },
+		errFunc:    func() error { return adapter.legacyIterator.Err() },
+		valuesFunc: func() fftype.Row { return fftype.Row{} },       // Minimal implementation
+		schemaFunc: func() fftype.Schema { return fftype.Schema{} }, // Minimal implementation
+	}
+
+	// Return as TrainingSetIteratorImpl
+	return &dataset.TrainingSetIterator{
+		Iterator: adapter,
+	}
+}
+
+type MinimalIterator struct {
+	nextFunc   func() bool
+	errFunc    func() error
+	valuesFunc func() fftype.Row
+	schemaFunc func() fftype.Schema
+}
+
+func (it *MinimalIterator) Next() bool            { return it.nextFunc() }
+func (it *MinimalIterator) Err() error            { return it.errFunc() }
+func (it *MinimalIterator) Values() fftype.Row    { return it.valuesFunc() }
+func (it *MinimalIterator) Schema() fftype.Schema { return it.schemaFunc() }
+func (it *MinimalIterator) Close() error          { return nil }
+
 type GenericTableIterator interface {
 	Next() bool
 	Values() GenericRecord
@@ -590,20 +630,20 @@ type GenericTableIterator interface {
 	Close() error
 }
 
-type NewIteratorToOldIteratorAdapter struct {
+type NewIteratorToLegacyIteratorAdapter struct {
 	dataset.Iterator
 }
 
-func (it *NewIteratorToOldIteratorAdapter) Columns() []string {
+func (it *NewIteratorToLegacyIteratorAdapter) Columns() []string {
 	schema := it.Iterator.Schema()
 	return schema.ColumnNames()
 }
 
-func (it *NewIteratorToOldIteratorAdapter) Next() bool {
+func (it *NewIteratorToLegacyIteratorAdapter) Next() bool {
 	return it.Iterator.Next()
 }
 
-func (it *NewIteratorToOldIteratorAdapter) Values() GenericRecord {
+func (it *NewIteratorToLegacyIteratorAdapter) Values() GenericRecord {
 	row := it.Iterator.Values()
 	gr := make(GenericRecord, len(row))
 	for i, v := range row {
@@ -1383,7 +1423,7 @@ func (store *memoryOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 	return store.CreateTrainingSet(def)
 }
 
-func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (dataset.TrainingSetIterator, error) {
 	if err := id.check(TrainingSet); err != nil {
 		return nil, err
 	}
@@ -1402,11 +1442,7 @@ func (store *memoryOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (fu
 	return dropFunc, nil
 }
 
-func (store *memoryOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (
-	TrainingSetIterator,
-	TrainingSetIterator,
-	error,
-) {
+func (store *memoryOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (*dataset.TrainingSetIterator, *dataset.TrainingSetIterator, error) {
 	// TODO properly implement this
 	trainingSetResourceId := ResourceID{
 		Name:    def.TrainingSetName,

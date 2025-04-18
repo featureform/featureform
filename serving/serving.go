@@ -77,7 +77,10 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 	rows := &pb.TrainingDataRows{Rows: make([]*pb.TrainingDataRow, 0, DataBatchSize)}
 	bufRows := 0
 	for iter.Next() {
-		sRow, err := serializedRow(iter.Features(), iter.Label())
+		featRows := iter.Features()
+
+		// TODO we should directly serialize using types
+		sRow, err := serializedRow(featRows.GetRawValues(), iter.Label().Value)
 		if err != nil {
 			logger.Errorw("Failed to serialize row", "Error", err)
 			featureObserver.SetError()
@@ -352,7 +355,7 @@ func (serv *FeatureServer) SourceData(req *pb.SourceDataRequest, stream pb.Featu
 	return nil
 }
 
-func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provider.TrainingSetIterator, error) {
+func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (*dataset.TrainingSetIterator, error) {
 	ctx := context.TODO()
 	serv.Logger.Infow("Getting Training Set Iterator", "name", name, "variant", variant)
 	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
@@ -374,7 +377,12 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 		return nil, err
 	}
 	serv.Logger.Debugw("Get Training Set From Store", "name", name, "variant", variant)
-	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
+	tsIter, err := store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
+	if err != nil {
+		serv.Logger.Errorw("Could not get training set", "name", name, "variant", variant, "Error", err)
+		return nil, err
+	}
+	return iter, err
 }
 
 func (serv *FeatureServer) createTrainTestSplit(def provider.TrainTestSplitDef) (func() error, error) {

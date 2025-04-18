@@ -1731,7 +1731,7 @@ func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 	return sparkTrainingSet(def, spark, true)
 }
 
-func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (dataset.TrainingSetIterator, error) {
 	return fileStoreGetTrainingSet(id, spark.Store, spark.Logger.SugaredLogger)
 }
 
@@ -1739,11 +1739,7 @@ func (spark *SparkOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (fun
 	return nil, fmt.Errorf("not Implemented")
 }
 
-func (spark *SparkOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (
-	TrainingSetIterator,
-	TrainingSetIterator,
-	error,
-) {
+func (spark *SparkOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (*dataset.TrainingSetIterator, *dataset.TrainingSetIterator, error) {
 	return nil, nil, fmt.Errorf("not Implemented")
 }
 

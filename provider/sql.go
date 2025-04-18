@@ -1103,7 +1103,7 @@ func (store *sqlOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 	return nil
 }
 
-func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (dataset.TrainingSetIterator, error) {
 	logger := store.logger.WithResource(logging.TrainingSetVariant, id.Name, id.Variant)
 	logger.Debugw("Getting training set")
 	if err := id.check(TrainingSet); err != nil {
@@ -1152,7 +1152,7 @@ func (store *sqlOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func(
 	return nil, fmt.Errorf("not Implemented")
 }
 
-func (store *sqlOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+func (store *sqlOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (*dataset.TrainingSetIterator, *dataset.TrainingSetIterator, error) {
 	return nil, nil, fmt.Errorf("not Implemented")
 }
 

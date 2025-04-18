@@ -1415,7 +1415,7 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	return nil
 }
 
-func (k8s *K8sOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+func (k8s *K8sOfflineStore) GetTrainingSet(id ResourceID) (dataset.TrainingSetIterator, error) {
 	return fileStoreGetTrainingSet(id, k8s.store, k8s.logger)
 }
 
@@ -1423,7 +1423,7 @@ func (k8s *K8sOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() 
 	return nil, fmt.Errorf("not Implemented")
 }
 
-func (k8s *K8sOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+func (k8s *K8sOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (*dataset.TrainingSetIterator, *dataset.TrainingSetIterator, error) {
 	return nil, nil, fmt.Errorf("not Implemented")
 }
 

@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
@@ -1011,7 +1012,7 @@ type testSQLTrainingSetData struct {
 	def                     TrainingSetDef
 }
 
-func (data testSQLTrainingSetData) Assert(t *testing.T, ts TrainingSetIterator) {
+func (data testSQLTrainingSetData) Assert(t *testing.T, ts dataset.TrainingSetIterator) {
 	expectedFeaturesMap := make(map[string]bool)
 	for _, exp := range data.expected {
 		hash, err := data.HashStruct(exp.Features)
@@ -1030,8 +1031,8 @@ func (data testSQLTrainingSetData) Assert(t *testing.T, ts TrainingSetIterator) 
 	}
 	i := 0
 	for ts.Next() {
-		features := ts.Features()
-		label := ts.Label()
+		features := ts.Features().GetRawValues()
+		label := ts.Label().Value
 		featuresHash, err := data.HashStruct(features)
 		if err != nil {
 			t.Fatalf("could not hash features: %v", err)
@@ -1485,11 +1486,9 @@ func RegisterTrainingSet(t *testing.T, test OfflineSqlTest, tsDatasetType traini
 	if err := tsTest.tester.CreateTrainingSet(tsTest.data.def); err != nil {
 		t.Fatalf("could not create training set: %v", err)
 	}
-	ts, err := tsTest.tester.GetTrainingSet(tsTest.data.id)
-	if err != nil {
-		t.Fatalf("could not get training set: %v", err)
-	}
-	tsTest.data.Assert(t, ts)
+	tsIter, err := tsTest.tester.GetTrainingSet(tsTest.data.id)
+	require.NoError(t, err, "could not get training set")
+	tsTest.data.Assert(t, tsIter)
 }
 
 func RegisterMaterializationNoTimestampTest(t *testing.T, tester OfflineSqlTest) {

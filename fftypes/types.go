@@ -356,6 +356,14 @@ type FeatureRow struct {
 	Row    Row
 }
 
+func (f FeatureRow) GetRawValues() []any {
+	vals := make([]any, len(f.Row))
+	for i, field := range f.Row {
+		vals[i] = field.Value
+	}
+	return vals
+}
+
 type FeatureRows struct {
 	Schema FeaturesSchema
 	Rows   []Row
@@ -364,6 +372,12 @@ type FeatureRows struct {
 type TrainingSetSchema struct {
 	FeatureColumns []FeatureColumn
 	LabelColumn    ColumnSchema
+}
+
+func (trainingSetSchema *TrainingSetSchema) GetFeatureSchema() FeaturesSchema {
+	return FeaturesSchema{
+		FeatureColumns: trainingSetSchema.FeatureColumns,
+	}
 }
 
 type TrainingSetRow struct {

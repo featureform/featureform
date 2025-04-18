@@ -1590,7 +1590,7 @@ func (store *bqOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 	return nil
 }
 
-func (store *bqOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+func (store *bqOfflineStore) GetTrainingSet(id ResourceID) (dataset.TrainingSetIterator, error) {
 	logger := store.logger.With("resourceId", id)
 
 	logger.Debug("Getting training set")
@@ -1637,7 +1637,7 @@ func (store *bqOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func()
 	return nil, fmt.Errorf("not Implemented")
 }
 
-func (store *bqOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+func (store *bqOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (*dataset.TrainingSetIterator, *dataset.TrainingSetIterator, error) {
 	return nil, nil, fmt.Errorf("not Implemented")
 }
 

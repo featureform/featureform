@@ -553,9 +553,9 @@ type OfflineStoreMaterialization interface {
 type OfflineStoreTrainingSet interface {
 	CreateTrainingSet(TrainingSetDef) error
 	UpdateTrainingSet(TrainingSetDef) error
-	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
+	GetTrainingSet(id ResourceID) (dataset.TrainingSetIterator, error)
 	CreateTrainTestSplit(TrainTestSplitDef) (func() error, error)
-	GetTrainTestSplit(TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) // this'll add the training set schema
+	GetTrainTestSplit(TrainTestSplitDef) (dataset.TrainingSetIterator, dataset.TrainingSetIterator, error)
 }
 
 type OfflineStoreBatchFeature interface {
@@ -580,6 +580,83 @@ type TrainingSetIterator interface {
 	Features() []interface{}
 	Label() interface{}
 	Err() error
+}
+
+type LegacyToNewTrainingSetIterator struct {
+	dataset.Iterator // Embedded interface (will be minimal implementation)
+	legacyIterator   TrainingSetIterator
+	currentFeatures  []interface{}
+	currentLabel     interface{}
+}
+
+type LegacyTrainingSetIteratorAdapter struct {
+	legacyIterator TrainingSetIterator
+	tsSchema       fftype.TrainingSetSchema
+}
+
+// NewLegacyTrainingSetIteratorAdapter creates a new adapter
+func NewLegacyTrainingSetIteratorAdapter(
+	legacyIterator TrainingSetIterator,
+) dataset.TrainingSetIterator {
+	return &LegacyTrainingSetIteratorAdapter{
+		legacyIterator: legacyIterator,
+	}
+}
+
+// Next advances to the next row
+func (it *LegacyTrainingSetIteratorAdapter) Next() bool {
+	return it.legacyIterator.Next()
+}
+
+// Err returns any error encountered
+func (it *LegacyTrainingSetIteratorAdapter) Err() error {
+	return it.legacyIterator.Err()
+}
+
+// Schema returns the iterator schema
+func (it *LegacyTrainingSetIteratorAdapter) Schema() fftype.Schema {
+	return fftype.Schema{}
+}
+
+// Values returns the current row (this is a minimal implementation)
+func (it *LegacyTrainingSetIteratorAdapter) Values() fftype.Row {
+	return fftype.Row{}
+}
+
+// TrainingSetSchema returns the training set schema
+func (it *LegacyTrainingSetIteratorAdapter) TrainingSetSchema() fftype.TrainingSetSchema {
+	return it.tsSchema
+}
+
+// Features returns the feature values as a FeatureRow
+func (it *LegacyTrainingSetIteratorAdapter) Features() fftype.FeatureRow {
+	legacyFeatures := it.legacyIterator.Features()
+
+	// Convert legacy features to fftype.Row
+	featureValues := make([]fftype.Value, len(legacyFeatures))
+	for i, f := range legacyFeatures {
+		featureValues[i] = fftype.Value{
+			Value: f,
+		}
+	}
+
+	return fftype.FeatureRow{
+		Schema: it.tsSchema.GetFeatureSchema(),
+		Row:    featureValues,
+	}
+}
+
+// Label returns the label value
+func (it *LegacyTrainingSetIteratorAdapter) Label() fftype.Value {
+	legacyLabel := it.legacyIterator.Label()
+
+	return fftype.Value{
+		Value: legacyLabel,
+	}
+}
+
+func (it *LegacyTrainingSetIteratorAdapter) Close() error {
+	return nil
 }
 
 type GenericTableIterator interface {
@@ -1028,7 +1105,7 @@ func (schema *TableSchema) Serialize() ([]byte, error) {
 	for i, col := range schema.Columns {
 		wrapper.Columns[i] = TableColumnJSONWrapper{
 			Name:      col.Name,
-			ValueType: types.ValueTypeJSONWrapper{col.ValueType},
+			ValueType: types.ValueTypeJSONWrapper{ValueType: col.ValueType},
 		}
 	}
 	config, err := json.Marshal(wrapper)
@@ -1383,7 +1460,7 @@ func (store *memoryOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 	return store.CreateTrainingSet(def)
 }
 
-func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (dataset.TrainingSetIterator, error) {
 	if err := id.check(TrainingSet); err != nil {
 		return nil, err
 	}
@@ -1391,7 +1468,8 @@ func (store *memoryOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetItera
 	if !has {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
-	return data.(trainingRows).Iterator(), nil
+	legacyIter := data.(trainingRows).Iterator()
+	return NewLegacyTrainingSetIteratorAdapter(legacyIter), nil
 }
 
 func (store *memoryOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
@@ -1402,11 +1480,7 @@ func (store *memoryOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (fu
 	return dropFunc, nil
 }
 
-func (store *memoryOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (
-	TrainingSetIterator,
-	TrainingSetIterator,
-	error,
-) {
+func (store *memoryOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (dataset.TrainingSetIterator, dataset.TrainingSetIterator, error) {
 	// TODO properly implement this
 	trainingSetResourceId := ResourceID{
 		Name:    def.TrainingSetName,

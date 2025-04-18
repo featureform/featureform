@@ -1498,6 +1498,7 @@ func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (datase
 
 	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
+
 func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
 	mat, err := blobSparkMaterialization(id, spark, true, opts)
 	if err != nil {
@@ -1731,19 +1732,20 @@ func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 	return sparkTrainingSet(def, spark, true)
 }
 
-func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
-	return fileStoreGetTrainingSet(id, spark.Store, spark.Logger.SugaredLogger)
+func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (dataset.TrainingSetIterator, error) {
+	legacyIter, err := fileStoreGetTrainingSet(id, spark.Store, spark.Logger.SugaredLogger)
+	if err != nil {
+		spark.Logger.Errorw("Error getting training set", "id", id, "error", err)
+		return nil, err
+	}
+	return NewLegacyTrainingSetIteratorAdapter(legacyIter), nil
 }
 
 func (spark *SparkOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
 	return nil, fmt.Errorf("not Implemented")
 }
 
-func (spark *SparkOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (
-	TrainingSetIterator,
-	TrainingSetIterator,
-	error,
-) {
+func (spark *SparkOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (dataset.TrainingSetIterator, dataset.TrainingSetIterator, error) {
 	return nil, nil, fmt.Errorf("not Implemented")
 }
 

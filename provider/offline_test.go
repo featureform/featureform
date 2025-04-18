@@ -1245,16 +1245,16 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 		if err := store.CreateTrainingSet(def); err != nil {
 			t.Fatalf("Failed to create training set: %s", err)
 		}
-		iter, err := store.GetTrainingSet(def.ID)
+		tsIter, err := store.GetTrainingSet(def.ID)
 		if err != nil {
 			t.Fatalf("Failed to get training set: %s", err)
 		}
 		i := 0
 		expectedRows := test.ExpectedRows
-		for iter.Next() {
+		for tsIter.Next() {
 			realRow := expectedTrainingRow{
-				Features: iter.Features(),
-				Label:    iter.Label(),
+				Features: tsIter.Features().GetRawValues(),
+				Label:    tsIter.Label().Value,
 			}
 
 			// Row order isn't guaranteed, we make sure one row is equivalent
@@ -1280,7 +1280,7 @@ func testTrainingSet(t *testing.T, store OfflineStore) {
 			}
 			i++
 		}
-		if err := iter.Err(); err != nil {
+		if err := tsIter.Err(); err != nil {
 			t.Fatalf("Failed to iterate training set: %s", err)
 		}
 		if len(test.ExpectedRows) != i {
@@ -1633,8 +1633,8 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 		expectedRows := test.ExpectedRows
 		for iter.Next() {
 			realRow := expectedTrainingRow{
-				Features: iter.Features(),
-				Label:    iter.Label(),
+				Features: iter.Features().GetRawValues(),
+				Label:    iter.Label().Value,
 			}
 			// Row order isn't guaranteed, we make sure one row is equivalent
 			// then we delete that row. This is ineffecient, but these test
@@ -1681,8 +1681,8 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 		expectedRows = test.UpdatedExpectedRows
 		for iter.Next() {
 			realRow := expectedTrainingRow{
-				Features: iter.Features(),
-				Label:    iter.Label(),
+				Features: iter.Features().GetRawValues(),
+				Label:    iter.Label().Value,
 			}
 			// Row order isn't guaranteed, we make sure one row is equivalent
 			// then we delete that row. This is ineffecient, but these test
@@ -3430,8 +3430,8 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 	i := 0
 	for train.Next() {
 		realRow := expectedTrainingRow{
-			Features: train.Features(),
-			Label:    train.Label(),
+			Features: train.Features().GetRawValues(),
+			Label:    train.Label().Value,
 		}
 		expectedRows := []expectedTrainingRow{
 			{
@@ -3505,10 +3505,6 @@ func testCreatePrimaryFromNonExistentSource(t *testing.T, store OfflineStore) {
 			t.Fatalf("Table location is not a FileStoreLocation")
 		}
 		sourceTablePath := location.Filepath()
-		if err != nil {
-			t.Fatalf("Could not get source table path: %v", err)
-		}
-
 		_, primaryErr = store.RegisterPrimaryFromSourceTable(primaryID, pl.NewFileLocation(sourceTablePath))
 	} else {
 		_, primaryErr = store.RegisterPrimaryFromSourceTable(primaryID, pl.NewSQLLocation(tableName))
@@ -4037,8 +4033,8 @@ func testLagFeaturesTrainingSet(t *testing.T, store OfflineStore) {
 		expectedRows := test.ExpectedRows
 		for iter.Next() {
 			realRow := expectedTrainingRow{
-				Features: iter.Features(),
-				Label:    iter.Label(),
+				Features: iter.Features().GetRawValues(),
+				Label:    iter.Label().Value,
 			}
 
 			// Row order isn't guaranteed, we make sure one row is equivalent
@@ -4884,12 +4880,12 @@ func testTrainTestSplit(t *testing.T, store OfflineStore) {
 	testShuffle := func(t *testing.T, store OfflineStore, params TestParameters) {
 
 		// helper function to extract the data from the TS iterator
-		extractData := func(iter TrainingSetIterator) ([][]interface{}, []interface{}) {
+		extractData := func(iter dataset.TrainingSetIterator) ([][]interface{}, []interface{}) {
 			featureRows := make([][]interface{}, 0)
 			labelRows := make([]interface{}, 0)
 			for iter.Next() {
-				featureRows = append(featureRows, iter.Features())
-				labelRows = append(labelRows, iter.Label())
+				featureRows = append(featureRows, iter.Features().GetRawValues())
+				labelRows = append(labelRows, iter.Label().Value)
 			}
 			return featureRows, labelRows
 		}

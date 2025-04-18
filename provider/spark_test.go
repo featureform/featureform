@@ -158,8 +158,8 @@ func testCreateTrainingSet(store *SparkOfflineStore) error {
 		if fetchedTrainingSet.Err() != nil {
 			return fmt.Errorf("failure while iterating over training set: %v", err)
 		}
-		features := fetchedTrainingSet.Features()
-		label := fetchedTrainingSet.Label()
+		features := fetchedTrainingSet.Features().GetRawValues()
+		label := fetchedTrainingSet.Label().Value
 		if len(features) != 1 {
 			return fmt.Errorf("incorrect number of feature entries")
 		}
@@ -2037,8 +2037,8 @@ func sparkTestTrainingSet(t *testing.T, store *SparkOfflineStore) {
 		expectedRows := test.ExpectedRows
 		for iter.Next() {
 			realRow := expectedTrainingRow{
-				Features: iter.Features(),
-				Label:    iter.Label(),
+				Features: iter.Features().GetRawValues(),
+				Label:    iter.Label().Value,
 			}
 
 			// Row order isn't guaranteed, we make sure one row is equivalent
@@ -2736,8 +2736,8 @@ func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 		expectedRows := test.ExpectedRows
 		for iter.Next() {
 			realRow := expectedTrainingRow{
-				Features: iter.Features(),
-				Label:    iter.Label(),
+				Features: iter.Features().GetRawValues(),
+				Label:    iter.Label().Value,
 			}
 			// Row order isn't guaranteed, we make sure one row is equivalent
 			// then we delete that row. This is ineffecient, but these test
@@ -2788,8 +2788,8 @@ func sparkTestTrainingSetUpdate(t *testing.T, store *SparkOfflineStore) {
 		expectedRows = test.UpdatedExpectedRows
 		for iter.Next() {
 			realRow := expectedTrainingRow{
-				Features: iter.Features(),
-				Label:    iter.Label(),
+				Features: iter.Features().GetRawValues(),
+				Label:    iter.Label().Value,
 			}
 			// Row order isn't guaranteed, we make sure one row is equivalent
 			// then we delete that row. This is ineffecient, but these test

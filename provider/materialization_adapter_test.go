@@ -98,10 +98,10 @@ func TestLegacyMaterializationAdapter(t *testing.T) {
 
 				// Test FeatureSchema
 				featureSchema := adapter.FeatureSchema()
-				assert.Equal(t, "entity", string(featureSchema.EntityCol.Name))
-				assert.Equal(t, 1, len(featureSchema.FeatureCols))
-				assert.Equal(t, "value", string(featureSchema.FeatureCols[0].FeatureCol.Name))
-				assert.Equal(t, "timestamp", string(featureSchema.FeatureCols[0].TimestampCol.Name))
+				assert.Equal(t, "entity", string(featureSchema.EntityColumn.Name))
+				assert.Equal(t, 1, len(featureSchema.FeatureColumns))
+				assert.Equal(t, "value", string(featureSchema.FeatureColumns[0].FeatureColumn.Name))
+				assert.Equal(t, "timestamp", string(featureSchema.FeatureColumns[0].TimestampColumn.Name))
 			})
 
 			// Test Len and NumChunks
@@ -230,8 +230,8 @@ func TestLegacyMaterializationAdapter(t *testing.T) {
 					assert.Equal(t, len(testRecords), len(featureRows))
 
 					// Check schema
-					assert.Equal(t, "entity", string(featureRows[0].Schema.EntityCol.Name))
-					assert.Equal(t, "value", string(featureRows[0].Schema.FeatureCols[0].FeatureCol.Name))
+					assert.Equal(t, "entity", string(featureRows[0].Schema.EntityColumn.Name))
+					assert.Equal(t, "value", string(featureRows[0].Schema.FeatureColumns[0].FeatureColumn.Name))
 				})
 
 				// Test FeatureIterateSegment

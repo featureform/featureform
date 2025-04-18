@@ -1261,7 +1261,7 @@ func (store *clickHouseOfflineStore) prepareTrainingSetQuery(id ResourceID) (*Tr
 	}, nil
 }
 
-func (store *clickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+func (store *clickHouseOfflineStore) GetTrainingSet(id ResourceID) (dataset.TrainingSetIterator, error) {
 	fmt.Printf("Getting Training Set: %v\n", id)
 	prep, err := store.prepareTrainingSetQuery(id)
 	if err != nil {
@@ -1277,7 +1277,8 @@ func (store *clickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetI
 	if err != nil {
 		return nil, err
 	}
-	return store.newsqlTrainingSetIterator(rows, colTypes), nil
+	tsIter := store.newsqlTrainingSetIterator(rows, colTypes)
+	return NewLegacyTrainingSetIteratorAdapter(tsIter), nil
 }
 
 func (store *clickHouseOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
@@ -1342,7 +1343,7 @@ func (store *clickHouseOfflineStore) getTrainTestSplitTableName(trainingSetTable
 	return trainTestSplitViewName
 }
 
-func (store *clickHouseOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+func (store *clickHouseOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (dataset.TrainingSetIterator, dataset.TrainingSetIterator, error) {
 	prep, err := store.prepareTrainingSetQuery(ResourceID{Name: def.TrainingSetName, Variant: def.TrainingSetVariant})
 	if err != nil {
 		return nil, nil, err
@@ -1367,9 +1368,9 @@ func (store *clickHouseOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (T
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not get column types: %v", err)
 	}
-
-	return store.newsqlTrainingSetIterator(trainRows, colTypes), store.newsqlTrainingSetIterator(testRows, colTypes), nil
-
+	trainIter := store.newsqlTrainingSetIterator(trainRows, colTypes)
+	testIter := store.newsqlTrainingSetIterator(testRows, colTypes)
+	return NewLegacyTrainingSetIteratorAdapter(trainIter), NewLegacyTrainingSetIteratorAdapter(testIter), nil
 }
 
 func (store *clickHouseOfflineStore) ResourceLocation(id ResourceID, resource any) (pl.Location, error) {

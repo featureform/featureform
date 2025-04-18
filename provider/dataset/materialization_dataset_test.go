@@ -62,11 +62,11 @@ func createTestData() ([]types.Row, types.Schema) {
 func createFeatureSchema(schema types.Schema) types.FeaturesSchema {
 	// Assume first column is entity, second is feature, third is timestamp
 	return types.FeaturesSchema{
-		EntityCol: schema.Fields[0],
-		FeatureCols: []types.FeatureCol{
+		EntityColumn: schema.Fields[0],
+		FeatureColumns: []types.FeatureColumn{
 			{
-				FeatureCol:   schema.Fields[1],
-				TimestampCol: schema.Fields[2],
+				FeatureColumn:   schema.Fields[1],
+				TimestampColumn: schema.Fields[2],
 			},
 		},
 	}

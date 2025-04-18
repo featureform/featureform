@@ -77,7 +77,10 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 	rows := &pb.TrainingDataRows{Rows: make([]*pb.TrainingDataRow, 0, DataBatchSize)}
 	bufRows := 0
 	for iter.Next() {
-		sRow, err := serializedRow(iter.Features(), iter.Label())
+		featRows := iter.Features()
+
+		// TODO we should directly serialize using types
+		sRow, err := serializedRow(featRows.GetRawValues(), iter.Label().Value)
 		if err != nil {
 			logger.Errorw("Failed to serialize row", "Error", err)
 			featureObserver.SetError()
@@ -115,8 +118,8 @@ func (serv *FeatureServer) TrainingData(req *pb.TrainingDataRequest, stream pb.F
 type splitContext struct {
 	stream          pb.Feature_TrainTestSplitServer
 	req             *pb.TrainTestSplitRequest
-	trainIterator   *provider.TrainingSetIterator
-	testIterator    *provider.TrainingSetIterator
+	trainIterator   *dataset.TrainingSetIterator
+	testIterator    *dataset.TrainingSetIterator
 	isTestFinished  *bool
 	isTrainFinished *bool
 	logger          logging.Logger
@@ -124,7 +127,7 @@ type splitContext struct {
 
 func (serv *FeatureServer) TrainTestSplit(stream pb.Feature_TrainTestSplitServer) error {
 	var (
-		trainIter, testIter provider.TrainingSetIterator
+		trainIter, testIter dataset.TrainingSetIterator
 		isTrainFinished     bool
 		isTestFinished      bool
 	)
@@ -218,7 +221,7 @@ func (serv *FeatureServer) handleSplitInitializeRequest(splitContext *splitConte
 }
 
 func (serv *FeatureServer) handleSplitDataRequest(splitContext *splitContext) error {
-	var thisIter provider.TrainingSetIterator
+	var thisIter dataset.TrainingSetIterator
 	switch splitContext.req.GetRequestType() {
 	case pb.RequestType_TRAINING:
 		thisIter = *splitContext.trainIterator
@@ -233,7 +236,7 @@ func (serv *FeatureServer) handleSplitDataRequest(splitContext *splitContext) er
 
 	for rows < int(splitContext.req.BatchSize) {
 		if thisIter.Next() {
-			sRow, err := serializedRow(thisIter.Features(), thisIter.Label())
+			sRow, err := serializedRow(thisIter.Features().GetRawValues(), thisIter.Label().Value)
 			if err != nil {
 				return err
 			}
@@ -352,7 +355,7 @@ func (serv *FeatureServer) SourceData(req *pb.SourceDataRequest, stream pb.Featu
 	return nil
 }
 
-func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provider.TrainingSetIterator, error) {
+func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (dataset.TrainingSetIterator, error) {
 	ctx := context.TODO()
 	serv.Logger.Infow("Getting Training Set Iterator", "name", name, "variant", variant)
 	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
@@ -374,7 +377,12 @@ func (serv *FeatureServer) getTrainingSetIterator(name, variant string) (provide
 		return nil, err
 	}
 	serv.Logger.Debugw("Get Training Set From Store", "name", name, "variant", variant)
-	return store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
+	tsIter, err := store.GetTrainingSet(provider.ResourceID{Name: name, Variant: variant})
+	if err != nil {
+		serv.Logger.Errorw("Could not get training set", "name", name, "variant", variant, "Error", err)
+		return nil, err
+	}
+	return tsIter, err
 }
 
 func (serv *FeatureServer) createTrainTestSplit(def provider.TrainTestSplitDef) (func() error, error) {
@@ -400,7 +408,7 @@ func (serv *FeatureServer) createTrainTestSplit(def provider.TrainTestSplitDef) 
 	return store.CreateTrainTestSplit(def)
 }
 
-func (serv *FeatureServer) getTrainTestSplitIterators(def provider.TrainTestSplitDef) (provider.TrainingSetIterator, provider.TrainingSetIterator, error) {
+func (serv *FeatureServer) getTrainTestSplitIterators(def provider.TrainTestSplitDef) (dataset.TrainingSetIterator, dataset.TrainingSetIterator, error) {
 	ctx := context.TODO()
 	serv.Logger.Infow("Getting Training Set Iterator", "name", def.TrainingSetName, "variant", def.TrainingSetVariant)
 	ts, err := serv.Metadata.GetTrainingSetVariant(ctx, metadata.NameVariant{Name: def.TrainingSetName, Variant: def.TrainingSetVariant})

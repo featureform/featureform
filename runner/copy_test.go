@@ -455,7 +455,7 @@ func (b BrokenNumChunksOfflineStore) CreateTrainTestSplit(def provider.TrainTest
 	return nil, fmt.Errorf("not Implemented")
 }
 
-func (b BrokenNumChunksOfflineStore) GetTrainTestSplit(def provider.TrainTestSplitDef) (*dataset.TrainingSetIterator, *dataset.TrainingSetIterator, error) {
+func (b BrokenNumChunksOfflineStore) GetTrainTestSplit(def provider.TrainTestSplitDef) (dataset.TrainingSetIterator, dataset.TrainingSetIterator, error) {
 	return nil, nil, fmt.Errorf("not Implemented")
 }
 
@@ -757,7 +757,7 @@ func (m MockOfflineStore) CreateTrainTestSplit(def provider.TrainTestSplitDef) (
 	return nil, fmt.Errorf("not Implemented")
 }
 
-func (m MockOfflineStore) GetTrainTestSplit(def provider.TrainTestSplitDef) (*dataset.TrainingSetIterator, *dataset.TrainingSetIterator, error) {
+func (m MockOfflineStore) GetTrainTestSplit(def provider.TrainTestSplitDef) (dataset.TrainingSetIterator, dataset.TrainingSetIterator, error) {
 	return nil, nil, fmt.Errorf("not Implemented")
 
 }

@@ -343,6 +343,6 @@ func (m MockUnitTestOfflineStore) CreateTrainTestSplit(TrainTestSplitDef) (func(
 	return nil, nil
 }
 
-func (m MockUnitTestOfflineStore) GetTrainTestSplit(TrainTestSplitDef) (*dataset.TrainingSetIterator, *dataset.TrainingSetIterator, error) {
+func (m MockUnitTestOfflineStore) GetTrainTestSplit(TrainTestSplitDef) (dataset.TrainingSetIterator, dataset.TrainingSetIterator, error) {
 	return nil, nil, nil
 }

@@ -1,232 +1,360 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2025 FeatureForm Inc.
+//
+
 package dataset
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	fftypes "github.com/featureform/fftypes"
-	pl "github.com/featureform/provider/location"
+	types "github.com/featureform/fftypes"
+	"github.com/featureform/logging"
 )
 
-func TestTrainingSet(t *testing.T) {
-	// Create a schema for the base dataset
-	schema := fftypes.Schema{
-		Fields: []fftypes.ColumnSchema{
-			{Name: "age", Type: fftypes.Int},
-			{Name: "income", Type: fftypes.Float64},
-			{Name: "is_employed", Type: fftypes.Bool},
-			{Name: "credit_score", Type: fftypes.Int},
+func TestTrainingSet_TrainingSetSchema(t *testing.T) {
+	// Create base schema with feature and label columns
+	baseSchema := types.Schema{
+		Fields: []types.ColumnSchema{
+			{Name: "feature1", Type: types.Float64, NativeType: "float"},
+			{Name: "feature2", Type: types.Int, NativeType: "int"},
+			{Name: "label", Type: types.String, NativeType: "string"},
 		},
 	}
 
-	// Create sample data for the base dataset
-	data := []fftypes.Row{
-		{
-			{Value: int64(25)},
-			{Value: float64(50000)},
-			{Value: true},
-			{Value: int64(720)},
+	// Create empty dataset with the schema
+	inMemoryDataset := NewInMemoryDataset(nil, baseSchema, nil)
+
+	// Create training set schema
+	tsSchema := types.TrainingSetSchema{
+		FeatureColumns: []types.FeatureColumn{
+			{FeatureColumn: baseSchema.Fields[0]}, // feature1
+			{FeatureColumn: baseSchema.Fields[1]}, // feature2
 		},
-		{
-			{Value: int64(35)},
-			{Value: float64(75000)},
-			{Value: true},
-			{Value: int64(680)},
-		},
-		{
-			{Value: int64(45)},
-			{Value: float64(90000)},
-			{Value: false},
-			{Value: int64(800)},
-		},
-		{
-			{Value: int64(30)},
-			{Value: float64(60000)},
-			{Value: true},
-			{Value: int64(750)},
+		LabelColumn: baseSchema.Fields[2], // label
+	}
+
+	// Create the training set
+	trainingSet := NewTrainingSet(inMemoryDataset, tsSchema)
+
+	// Verify that the training set schema matches what we provided
+	assert.Equal(t, tsSchema, trainingSet.TrainingSetSchema())
+}
+
+func TestTrainingSetIterator_Basic(t *testing.T) {
+	// Create base schema with feature and label columns
+	baseSchema := types.Schema{
+		Fields: []types.ColumnSchema{
+			{Name: "feature1", Type: types.Float64, NativeType: "float"},
+			{Name: "feature2", Type: types.Int, NativeType: "int"},
+			{Name: "label", Type: types.String, NativeType: "string"},
 		},
 	}
 
-	// Create a training set schema (3 features, 1 label)
-	tsSchema := fftypes.TrainingSetSchema{
-		FeatureColumns: []fftypes.FeatureColumn{
-			{
-				FeatureColumn: fftypes.ColumnSchema{
-					Name: "age",
-					Type: fftypes.Int,
-				},
-			},
-			{
-				FeatureColumn: fftypes.ColumnSchema{
-					Name: "income",
-					Type: fftypes.Float64,
-				},
-			},
-			{
-				FeatureColumn: fftypes.ColumnSchema{
-					Name: "is_employed",
-					Type: fftypes.Bool,
-				},
-			},
+	// Create test data
+	testData := []types.Row{
+		{
+			{Type: types.Float64, NativeType: "float", Value: 1.0},
+			{Type: types.Int, NativeType: "int", Value: 10},
+			{Type: types.String, NativeType: "string", Value: "class_a"},
 		},
-		LabelColumn: fftypes.ColumnSchema{
-			Name: "credit_score",
-			Type: fftypes.Int,
+		{
+			{Type: types.Float64, NativeType: "float", Value: 2.0},
+			{Type: types.Int, NativeType: "int", Value: 20},
+			{Type: types.String, NativeType: "string", Value: "class_b"},
 		},
 	}
 
-	// Create base dataset and training set
-	baseDataset := NewInMemoryDataset(data, schema, pl.NewSQLLocation("testtable"))
-	ts := NewTrainingSet(baseDataset, tsSchema)
+	// Create in-memory dataset with the schema and data
+	inMemoryDataset := NewInMemoryDataset(testData, baseSchema, nil)
 
-	t.Run("TestTrainingSetSchema", func(t *testing.T) {
-		assert.Equal(t, tsSchema, ts.TrainingSetSchema())
-	})
+	// Create training set schema
+	tsSchema := types.TrainingSetSchema{
+		FeatureColumns: []types.FeatureColumn{
+			{FeatureColumn: baseSchema.Fields[0]}, // feature1
+			{FeatureColumn: baseSchema.Fields[1]}, // feature2
+		},
+		LabelColumn: baseSchema.Fields[2], // label
+	}
 
-	t.Run("TestTrainingSetIterator", func(t *testing.T) {
-		ctx := context.Background()
-		iter, err := ts.TrainingSetIterator(ctx, 0)
-		require.NoError(t, err)
-		require.NotNil(t, iter)
+	// Create the training set
+	trainingSet := NewTrainingSet(inMemoryDataset, tsSchema)
 
-		// Validate the first row
-		require.True(t, iter.Next())
+	// Get the training set iterator
+	ctx := logging.NewTestContext(t)
+	tsIterator, err := trainingSet.TrainingSetIterator(ctx, -1) // No limit
+	require.NoError(t, err)
 
-		features := iter.Features()
-		require.Len(t, features, 3)
-		assert.Equal(t, int64(25), features[0])
-		assert.Equal(t, float64(50000), features[1])
-		assert.Equal(t, true, features[2])
+	// Iterate and verify data
+	rowCount := 0
+	for tsIterator.Next() {
+		// Check that we get the expected feature values
+		features := tsIterator.Features()
+		require.Len(t, features.Row, 2, "Should have 2 feature values")
 
-		label := iter.Label()
-		assert.Equal(t, int64(720), label)
+		// Verify feature values match the original data
+		assert.Equal(t, testData[rowCount][0], features.Row[0], "First feature should match")
+		assert.Equal(t, testData[rowCount][1], features.Row[1], "Second feature should match")
 
-		// Validate the second row
-		require.True(t, iter.Next())
+		// Verify label value matches the original data
+		labelValue := tsIterator.Label()
+		assert.Equal(t, testData[rowCount][2], labelValue, "Label should match")
 
-		features = iter.Features()
-		require.Len(t, features, 3)
-		assert.Equal(t, int64(35), features[0])
-		assert.Equal(t, float64(75000), features[1])
-		assert.Equal(t, true, features[2])
+		rowCount++
+	}
 
-		label = iter.Label()
-		assert.Equal(t, int64(680), label)
+	// Verify no errors and we read all rows
+	require.NoError(t, tsIterator.Err())
+	assert.Equal(t, len(testData), rowCount, "Should have read all test rows")
+}
 
-		// Validate the third row
-		require.True(t, iter.Next())
+func TestTrainingSetIterator_WithLimit(t *testing.T) {
+	// Create base schema with feature and label columns
+	baseSchema := types.Schema{
+		Fields: []types.ColumnSchema{
+			{Name: "feature1", Type: types.Float64, NativeType: "float"},
+			{Name: "feature2", Type: types.Int, NativeType: "int"},
+			{Name: "label", Type: types.String, NativeType: "string"},
+		},
+	}
 
-		features = iter.Features()
-		require.Len(t, features, 3)
-		assert.Equal(t, int64(45), features[0])
-		assert.Equal(t, float64(90000), features[1])
-		assert.Equal(t, false, features[2])
+	// Create test data with multiple rows
+	testData := []types.Row{
+		{
+			{Type: types.Float64, NativeType: "float", Value: 1.0},
+			{Type: types.Int, NativeType: "int", Value: 10},
+			{Type: types.String, NativeType: "string", Value: "class_a"},
+		},
+		{
+			{Type: types.Float64, NativeType: "float", Value: 2.0},
+			{Type: types.Int, NativeType: "int", Value: 20},
+			{Type: types.String, NativeType: "string", Value: "class_b"},
+		},
+		{
+			{Type: types.Float64, NativeType: "float", Value: 3.0},
+			{Type: types.Int, NativeType: "int", Value: 30},
+			{Type: types.String, NativeType: "string", Value: "class_c"},
+		},
+	}
 
-		label = iter.Label()
-		assert.Equal(t, int64(800), label)
+	// Create in-memory dataset with the schema and data
+	inMemoryDataset := NewInMemoryDataset(testData, baseSchema, nil)
 
-		// Validate the fourth row
-		require.True(t, iter.Next())
+	// Create training set schema
+	tsSchema := types.TrainingSetSchema{
+		FeatureColumns: []types.FeatureColumn{
+			{FeatureColumn: baseSchema.Fields[0]}, // feature1
+			{FeatureColumn: baseSchema.Fields[1]}, // feature2
+		},
+		LabelColumn: baseSchema.Fields[2], // label
+	}
 
-		features = iter.Features()
-		require.Len(t, features, 3)
-		assert.Equal(t, int64(30), features[0])
-		assert.Equal(t, float64(60000), features[1])
-		assert.Equal(t, true, features[2])
+	// Create the training set
+	trainingSet := NewTrainingSet(inMemoryDataset, tsSchema)
 
-		label = iter.Label()
-		assert.Equal(t, int64(750), label)
+	// Get the training set iterator with a limit of 2 rows
+	ctx := logging.NewTestContext(t)
+	limit := int64(2)
+	tsIterator, err := trainingSet.TrainingSetIterator(ctx, limit)
+	require.NoError(t, err)
 
-		// No more rows
-		assert.False(t, iter.Next())
-		assert.NoError(t, iter.Err())
-	})
+	// Iterate and verify we only get two rows
+	rowCount := 0
+	for tsIterator.Next() {
+		// Just count rows and verify we don't exceed limit
+		rowCount++
+	}
 
-	t.Run("TestTrainingSetWithLimit", func(t *testing.T) {
-		ctx := context.Background()
-		iter, err := ts.TrainingSetIterator(ctx, 2) // Limit to first 2 rows
-		require.NoError(t, err)
-		require.NotNil(t, iter)
+	// Verify no errors and we read the limited number of rows
+	require.NoError(t, tsIterator.Err())
+	assert.Equal(t, int(limit), rowCount, "Should have read only up to the limit")
+}
 
-		// Validate the first row
-		require.True(t, iter.Next())
+func TestTrainingSetIterator_ErrorHandling(t *testing.T) {
+	// Create base schema
+	baseSchema := types.Schema{
+		Fields: []types.ColumnSchema{
+			{Name: "feature1", Type: types.Float64, NativeType: "float"},
+			{Name: "feature2", Type: types.Int, NativeType: "int"},
+		},
+	}
 
-		features := iter.Features()
-		require.Len(t, features, 3)
-		assert.Equal(t, int64(25), features[0])
+	// Create test data
+	testData := []types.Row{
+		{
+			{Type: types.Float64, NativeType: "float", Value: 1.0},
+			{Type: types.Int, NativeType: "int", Value: 10},
+		},
+	}
 
-		// Validate the second row
-		require.True(t, iter.Next())
+	// Create in-memory dataset with the schema and data
+	inMemoryDataset := NewInMemoryDataset(testData, baseSchema, nil)
 
-		features = iter.Features()
-		require.Len(t, features, 3)
-		assert.Equal(t, int64(35), features[0])
+	// Create training set schema with a column that doesn't exist in the base schema
+	tsSchema := types.TrainingSetSchema{
+		FeatureColumns: []types.FeatureColumn{
+			{FeatureColumn: baseSchema.Fields[0]}, // feature1
+		},
+		LabelColumn: types.ColumnSchema{Name: "nonexistent", Type: types.String, NativeType: "string"},
+	}
 
-		// No more rows due to limit
-		assert.False(t, iter.Next())
-	})
+	// Create the training set
+	trainingSet := NewTrainingSet(inMemoryDataset, tsSchema)
 
-	t.Run("TestTrainingSetIteratorWithMismatchedSchema", func(t *testing.T) {
-		// Create a schema with column names that don't match the dataset
-		badSchema := fftypes.TrainingSetSchema{
-			FeatureColumns: []fftypes.FeatureColumn{
-				{
-					FeatureColumn: fftypes.ColumnSchema{
-						Name: "nonexistent_column",
-						Type: fftypes.String,
-					},
-				},
-				{
-					FeatureColumn: fftypes.ColumnSchema{
-						Name: "income",
-						Type: fftypes.Float64,
-					},
-				},
+	// Get the training set iterator - should error
+	ctx := logging.NewTestContext(t)
+	_, err := trainingSet.TrainingSetIterator(ctx, -1)
+	assert.Error(t, err, "Should error with nonexistent column")
+	assert.Contains(t, err.Error(), "not found in base schema", "Error should mention missing column")
+}
+
+func TestTrainingSetIterator_DifferentColumnOrder(t *testing.T) {
+	// Create base schema with feature and label columns in one order
+	baseSchema := types.Schema{
+		Fields: []types.ColumnSchema{
+			{Name: "feature2", Type: types.Int, NativeType: "int"},
+			{Name: "label", Type: types.String, NativeType: "string"},
+			{Name: "feature1", Type: types.Float64, NativeType: "float"},
+		},
+	}
+
+	// Create test data matching the base schema order
+	testData := []types.Row{
+		{
+			{Type: types.Int, NativeType: "int", Value: 10},
+			{Type: types.String, NativeType: "string", Value: "class_a"},
+			{Type: types.Float64, NativeType: "float", Value: 1.0},
+		},
+	}
+
+	// Create in-memory dataset with the schema and data
+	inMemoryDataset := NewInMemoryDataset(testData, baseSchema, nil)
+
+	// Create training set schema with different order
+	tsSchema := types.TrainingSetSchema{
+		FeatureColumns: []types.FeatureColumn{
+			{FeatureColumn: baseSchema.Fields[2]}, // feature1
+			{FeatureColumn: baseSchema.Fields[0]}, // feature2
+		},
+		LabelColumn: baseSchema.Fields[1], // label
+	}
+
+	// Create the training set
+	trainingSet := NewTrainingSet(inMemoryDataset, tsSchema)
+
+	// Get the training set iterator
+	ctx := logging.NewTestContext(t)
+	tsIterator, err := trainingSet.TrainingSetIterator(ctx, -1)
+	require.NoError(t, err)
+
+	// Iterate and verify data mapping works correctly regardless of order
+	require.True(t, tsIterator.Next(), "Should have at least one row")
+
+	// Check feature values - should be in the order specified by tsSchema, not baseSchema
+	features := tsIterator.Features()
+	require.Len(t, features.Row, 2)
+
+	// First feature should be feature1 (from index 2 in base schema)
+	assert.Equal(t, testData[0][2], features.Row[0])
+
+	// Second feature should be feature2 (from index 0 in base schema)
+	assert.Equal(t, testData[0][0], features.Row[1])
+
+	// Label should be from index 1 in base schema
+	assert.Equal(t, testData[0][1], tsIterator.Label())
+}
+
+func TestTrainingSetIterator_GetFeatureSchema(t *testing.T) {
+	// Create base schema
+	baseSchema := types.Schema{
+		Fields: []types.ColumnSchema{
+			{Name: "feature1", Type: types.Float64, NativeType: "float"},
+			{Name: "feature2", Type: types.Int, NativeType: "int"},
+			{Name: "label", Type: types.String, NativeType: "string"},
+		},
+	}
+
+	// Create training set schema
+	tsSchema := types.TrainingSetSchema{
+		FeatureColumns: []types.FeatureColumn{
+			{FeatureColumn: baseSchema.Fields[0]}, // feature1
+			{FeatureColumn: baseSchema.Fields[1]}, // feature2
+		},
+		LabelColumn: baseSchema.Fields[2], // label
+	}
+
+	// Test GetFeatureSchema method
+	featureSchema := tsSchema.GetFeatureSchema()
+
+	// Verify the feature schema has the correct columns
+	assert.Equal(t, tsSchema.FeatureColumns, featureSchema.FeatureColumns)
+	assert.Equal(t, types.ColumnSchema{}, featureSchema.EntityColumn, "Entity column should be empty")
+}
+
+func TestTrainingSetIterator_SchemaMismatch(t *testing.T) {
+	// Create base schema
+	baseSchema := types.Schema{
+		Fields: []types.ColumnSchema{
+			{Name: "feature1", Type: types.Float64, NativeType: "float"},
+			{Name: "feature2", Type: types.Int, NativeType: "int"},
+		},
+	}
+
+	// Create test data
+	testData := []types.Row{
+		{
+			{Type: types.Float64, NativeType: "float", Value: 1.0},
+			{Type: types.Int, NativeType: "int", Value: 10},
+		},
+	}
+
+	// Create in-memory dataset with the schema and data
+	inMemoryDataset := NewInMemoryDataset(testData, baseSchema, nil)
+
+	// Create training set schema that doesn't match base schema length
+	tsSchema := types.TrainingSetSchema{
+		FeatureColumns: []types.FeatureColumn{
+			{FeatureColumn: baseSchema.Fields[0]}, // feature1
+			{FeatureColumn: baseSchema.Fields[1]}, // feature2
+		},
+		LabelColumn: baseSchema.Fields[0], // Using feature1 as label too
+	}
+
+	// Create the training set
+	trainingSet := NewTrainingSet(inMemoryDataset, tsSchema)
+
+	// Get the training set iterator - should error due to schema length mismatch
+	ctx := logging.NewTestContext(t)
+	_, err := trainingSet.TrainingSetIterator(ctx, -1)
+	assert.Error(t, err, "Should error with schema length mismatch")
+	assert.Contains(t, err.Error(), "schema length mismatch", "Error should mention schema length")
+}
+
+func TestFeatureRow_GetRawValues(t *testing.T) {
+	// Create a feature row
+	featureValues := []types.Value{
+		{Type: types.Float64, NativeType: "float", Value: 1.0},
+		{Type: types.Int, NativeType: "int", Value: 10},
+	}
+
+	featureRow := types.FeatureRow{
+		Schema: types.FeaturesSchema{
+			FeatureColumns: []types.FeatureColumn{
+				{FeatureColumn: types.ColumnSchema{Name: "feature1", Type: types.Float64}},
+				{FeatureColumn: types.ColumnSchema{Name: "feature2", Type: types.Int}},
 			},
-			LabelColumn: fftypes.ColumnSchema{
-				Name: "credit_score",
-				Type: fftypes.Int,
-			},
-		}
+		},
+		Row: featureValues,
+	}
 
-		badTs := NewTrainingSet(baseDataset, badSchema)
+	// Get raw values
+	rawValues := featureRow.GetRawValues()
 
-		ctx := context.Background()
-		iter, err := badTs.TrainingSetIterator(ctx, 0)
-		require.NoError(t, err)
-		require.NotNil(t, iter)
-
-		// Should still iterate but with nil values for nonexistent columns
-		require.True(t, iter.Next())
-
-		features := iter.Features()
-		require.Len(t, features, 2)
-		assert.Nil(t, features[0])                   // nonexistent column
-		assert.Equal(t, float64(50000), features[1]) // income
-	})
-
-	t.Run("TestMultipleIterations", func(t *testing.T) {
-		ctx := context.Background()
-
-		// First iteration
-		iter1, err := ts.TrainingSetIterator(ctx, 0)
-		require.NoError(t, err)
-		rowCount1 := 0
-		for iter1.Next() {
-			rowCount1++
-		}
-		assert.Equal(t, 4, rowCount1)
-
-		// Second iteration should start fresh
-		iter2, err := ts.TrainingSetIterator(ctx, 0)
-		require.NoError(t, err)
-		rowCount2 := 0
-		for iter2.Next() {
-			rowCount2++
-		}
-		assert.Equal(t, 4, rowCount2)
-	})
+	// Verify the raw values match the expected values
+	assert.Equal(t, []interface{}{1.0, 10}, rawValues, "Raw values should match")
 }

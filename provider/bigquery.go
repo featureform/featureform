@@ -1629,15 +1629,15 @@ func (store *bqOfflineStore) GetTrainingSet(id ResourceID) (dataset.TrainingSetI
 		logger.Errorw("Error getting training set rows", "error", err)
 		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
-
-	return store.newbqTrainingSetIterator(iter), nil
+	bqIter := store.newbqTrainingSetIterator(iter)
+	return NewLegacyTrainingSetIteratorAdapter(bqIter), nil
 }
 
 func (store *bqOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
 	return nil, fmt.Errorf("not Implemented")
 }
 
-func (store *bqOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (*dataset.TrainingSetIterator, *dataset.TrainingSetIterator, error) {
+func (store *bqOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (dataset.TrainingSetIterator, dataset.TrainingSetIterator, error) {
 	return nil, nil, fmt.Errorf("not Implemented")
 }
 

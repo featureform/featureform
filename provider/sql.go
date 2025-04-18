@@ -1145,14 +1145,15 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (dataset.TrainingSet
 		return nil, err
 	}
 	logger.Debugw("Returning Training Set Iterator")
-	return store.newsqlTrainingSetIterator(rows, colTypes), nil
+	iter := store.newsqlTrainingSetIterator(rows, colTypes)
+	return NewLegacyTrainingSetIteratorAdapter(iter), nil
 }
 
 func (store *sqlOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
 	return nil, fmt.Errorf("not Implemented")
 }
 
-func (store *sqlOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (*dataset.TrainingSetIterator, *dataset.TrainingSetIterator, error) {
+func (store *sqlOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (dataset.TrainingSetIterator, dataset.TrainingSetIterator, error) {
 	return nil, nil, fmt.Errorf("not Implemented")
 }
 
@@ -1292,19 +1293,6 @@ type SqlPrimaryTable struct {
 	query        OfflineTableQueries
 	schema       TableSchema
 	providerType pt.Type
-}
-
-func (table *SqlPrimaryTable) ToDataset() (dataset.SqlDataset, error) {
-	conv, err := pt.GetConverter(table.providerType)
-	if err != nil {
-		return dataset.SqlDataset{}, err
-	}
-	return dataset.NewSqlDatasetWithAutoSchema(
-		table.db,
-		table.sqlLocation,
-		conv,
-		-1,
-	)
 }
 
 func (table *SqlPrimaryTable) GetName() string {

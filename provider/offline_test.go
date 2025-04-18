@@ -1682,7 +1682,7 @@ func testTrainingSetUpdate(t *testing.T, store OfflineStore) {
 		for iter.Next() {
 			realRow := expectedTrainingRow{
 				Features: iter.Features().GetRawValues(),
-				Label:    iter.Label(),
+				Label:    iter.Label().Value,
 			}
 			// Row order isn't guaranteed, we make sure one row is equivalent
 			// then we delete that row. This is ineffecient, but these test
@@ -3505,10 +3505,6 @@ func testCreatePrimaryFromNonExistentSource(t *testing.T, store OfflineStore) {
 			t.Fatalf("Table location is not a FileStoreLocation")
 		}
 		sourceTablePath := location.Filepath()
-		if err != nil {
-			t.Fatalf("Could not get source table path: %v", err)
-		}
-
 		_, primaryErr = store.RegisterPrimaryFromSourceTable(primaryID, pl.NewFileLocation(sourceTablePath))
 	} else {
 		_, primaryErr = store.RegisterPrimaryFromSourceTable(primaryID, pl.NewSQLLocation(tableName))
@@ -4884,7 +4880,7 @@ func testTrainTestSplit(t *testing.T, store OfflineStore) {
 	testShuffle := func(t *testing.T, store OfflineStore, params TestParameters) {
 
 		// helper function to extract the data from the TS iterator
-		extractData := func(iter *dataset.TrainingSetIterator) ([][]interface{}, []interface{}) {
+		extractData := func(iter dataset.TrainingSetIterator) ([][]interface{}, []interface{}) {
 			featureRows := make([][]interface{}, 0)
 			labelRows := make([]interface{}, 0)
 			for iter.Next() {

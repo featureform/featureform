@@ -223,8 +223,8 @@ func (M MockUnitTestOfflineStore) GetTransformationTable(id ResourceID) (dataset
 	return &PrimaryTableToDatasetAdapter{MockPrimaryTable{}}, nil
 }
 
-func (M MockUnitTestOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
-	return nil, nil
+func (M MockUnitTestOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
+	return dataset.Materialization{}, nil
 }
 
 func (M MockUnitTestOfflineStore) UpdateTrainingSet(TrainingSetDef) error {
@@ -281,8 +281,8 @@ func (m MockMaterialization) IterateSegment(begin, end int64) (FeatureIterator, 
 	return MockIterator{}, nil
 }
 
-func (m MockUnitTestOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
-	return MockMaterialization{}, nil
+func (m MockUnitTestOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
+	return NewLegacyMaterializationAdapterWithEmptySchema(MockMaterialization{}), nil
 }
 
 func (M MockUnitTestOfflineStore) SupportsMaterializationOption(opt MaterializationOptionType) (bool, error) {
@@ -323,8 +323,8 @@ func (m MockUnitTestOfflineStore) CreateResourceTable(id ResourceID, schema Tabl
 	return MockOfflineTable{}, nil
 }
 
-func (m MockUnitTestOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
-	return MockMaterialization{}, nil
+func (m MockUnitTestOfflineStore) GetMaterialization(id MaterializationID) (dataset.Materialization, error) {
+	return NewLegacyMaterializationAdapterWithEmptySchema(MockMaterialization{}), nil
 }
 
 func (m MockUnitTestOfflineStore) DeleteMaterialization(id MaterializationID) error {

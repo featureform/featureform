@@ -1385,7 +1385,7 @@ func blobSparkMaterialization(
 }
 
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (
-	Materialization,
+	dataset.Materialization,
 	error,
 ) {
 	logger := spark.Logger.With("resource_id", id)
@@ -1393,10 +1393,14 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID, opts Materi
 	if opts.DirectCopyTo != nil {
 		logger.Debug("Using direct copy materialization")
 		// This returns nil for Materialization.
-		return nil, spark.directCopyMaterialize(id, opts)
+		return dataset.Materialization{}, spark.directCopyMaterialize(id, opts)
 	}
 	logger.Debug("Using blob spark materialization")
-	return blobSparkMaterialization(id, spark, false, opts)
+	mat, err := blobSparkMaterialization(id, spark, false, opts)
+	if err != nil {
+		return dataset.Materialization{}, err
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (spark *SparkOfflineStore) directCopyMaterialize(id ResourceID, opts MaterializationOptions) error {
@@ -1486,15 +1490,20 @@ func (spark *SparkOfflineStore) SupportsMaterializationOption(opt Materializatio
 	}
 }
 
-func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
-	return fileStoreGetMaterialization(id, spark.Store, spark.Logger.SugaredLogger)
-}
+func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (dataset.Materialization, error) {
+	mat, err := fileStoreGetMaterialization(id, spark.Store, spark.Logger.SugaredLogger)
+	if err != nil {
+		return dataset.Materialization{}, err
+	}
 
-func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (
-	Materialization,
-	error,
-) {
-	return blobSparkMaterialization(id, spark, true, opts)
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
+}
+func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
+	mat, err := blobSparkMaterialization(id, spark, true, opts)
+	if err != nil {
+		return dataset.Materialization{}, err
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) error {

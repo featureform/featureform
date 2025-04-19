@@ -22,6 +22,7 @@ import (
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	"github.com/featureform/provider/dataset"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	vt "github.com/featureform/provider/types"
@@ -99,7 +100,7 @@ func (w WatcherMultiplex) Err() error {
 
 func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	m.Logger.Infow("Starting Materialization Runner", "name", m.ID.Name, "variant", m.ID.Variant)
-	var materialization provider.Materialization
+	var materialization dataset.Materialization
 	var err error
 	// offline
 	if m.IsUpdate {
@@ -120,7 +121,7 @@ func (m MaterializeRunner) Run() (types.CompletionWatcher, error) {
 	return m.MaterializeToOnline(materialization)
 }
 
-func (m MaterializeRunner) MaterializeToOnline(materialization provider.Materialization) (types.CompletionWatcher, error) {
+func (m MaterializeRunner) MaterializeToOnline(materialization dataset.Materialization) (types.CompletionWatcher, error) {
 	// Create the vector similarity index prior to writing any values to the
 	// inference store. This is currently only required for RediSearch, but other
 	// vector databases allow for manual index configuration even if they support
@@ -162,7 +163,7 @@ func (m MaterializeRunner) MaterializeToOnline(materialization provider.Material
 		OfflineType:    m.Offline.Type(),
 		OnlineConfig:   m.Online.Config(),
 		OfflineConfig:  m.Offline.Config(),
-		MaterializedID: materialization.ID(),
+		MaterializedID: provider.MaterializationID(materialization.ID()),
 		ResourceID:     m.ID,
 		Logger:         m.Logger,
 	}

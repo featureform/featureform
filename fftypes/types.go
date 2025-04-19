@@ -340,3 +340,23 @@ func (s *Schema) ColumnNames() []string {
 	}
 	return names
 }
+
+type FeaturesSchema struct {
+	EntityCol   ColumnSchema
+	FeatureCols []FeatureCol
+}
+
+type FeatureCol struct {
+	FeatureCol   ColumnSchema
+	TimestampCol ColumnSchema
+}
+
+type FeatureRow struct {
+	Schema FeaturesSchema
+	Row    Row
+}
+
+type FeatureRows struct {
+	Schema FeaturesSchema
+	Rows   []Row
+}

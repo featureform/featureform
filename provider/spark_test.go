@@ -249,7 +249,7 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 		"John Smith_3": ResourceRecord{"John Smith_3", 38, time.UnixMilli(int64(8))},
 		"John Smith_4": ResourceRecord{"John Smith_4", 39, time.UnixMilli(int64(9))},
 	}
-	if fetchedMaterialization.ID() != MaterializationID(
+	if fetchedMaterialization.ID() != dataset.MaterializationID(
 		fmt.Sprintf(
 			"Materialization/%s/%s",
 			testResourceName,
@@ -261,7 +261,7 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 			fetchedMaterialization.ID(),
 		)
 	}
-	numRows, err := fetchedMaterialization.NumRows()
+	numRows, err := fetchedMaterialization.Len()
 	if err != nil {
 		return err
 	}
@@ -269,17 +269,24 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 		return fmt.Errorf("Num rows not correct, expected 5, got %d", numRows)
 	}
 	numRowsFirst := int64(2)
-	iterator, err := fetchedMaterialization.IterateSegment(0, numRowsFirst)
+	iterator, err := fetchedMaterialization.IterateSegment(ctx, 0, numRowsFirst)
 	if err != nil {
 		return err
 	}
+	defer iterator.Close()
+
 	comparisonList := make([]ResourceRecord, 0, 5)
 	iterations := int64(0)
 	for iterator.Next() {
-		if iterator.Err() == nil {
-			comparisonList = append(comparisonList, iterator.Value())
+		vals, err := RowToResourceRecord(iterator.Values())
+		if err != nil {
+			return err
 		}
-		iterations += 1
+		comparisonList = append(comparisonList, vals)
+		iterations++
+	}
+	if err := iterator.Err(); err != nil {
+		return err
 	}
 	if iterations != numRowsFirst {
 		return fmt.Errorf(
@@ -289,14 +296,20 @@ func testMaterializeResource(store *SparkOfflineStore) error {
 		)
 	}
 	numRowsSecond := int64(3)
-	nextIterator, err := fetchedMaterialization.IterateSegment(numRowsFirst, numRowsFirst+numRowsSecond)
+	nextIterator, err := fetchedMaterialization.IterateSegment(ctx, numRowsFirst, numRowsFirst+numRowsSecond)
 	if err != nil {
 		return err
 	}
+	defer nextIterator.Close()
+
 	iterations = 0
 	for nextIterator.Next() {
+		vals, err := RowToResourceRecord(nextIterator.Values())
+		if err != nil {
+			return err
+		}
 		if nextIterator.Err() == nil {
-			comparisonList = append(comparisonList, nextIterator.Value())
+			comparisonList = append(comparisonList, vals)
 		}
 		iterations += 1
 	}
@@ -983,20 +996,35 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 			},
 		},
 	}
-	testMaterialization := func(t *testing.T, mat Materialization, test TestCase) {
-		if numRows, err := mat.NumRows(); err != nil {
+	testMaterialization := func(t *testing.T, matDataset dataset.Materialization, test TestCase) {
+		ctx := context.Background()
+
+		// Check the number of rows
+		if numRows, err := matDataset.Len(); err != nil {
 			t.Fatalf("Failed to get num rows: %s", err)
 		} else if numRows != test.ExpectedRows {
 			t.Fatalf("Num rows not equal %d %d", numRows, test.ExpectedRows)
 		}
-		seg, err := mat.IterateSegment(test.SegmentStart, test.SegmentEnd)
+
+		// Get iterator for the segment
+		iter, err := matDataset.IterateSegment(ctx, test.SegmentStart, test.SegmentEnd)
 		if err != nil {
 			t.Fatalf("Failed to create segment: %s", err)
 		}
+		defer iter.Close()
+
 		i := 0
 		expectedRows := test.ExpectedSegment
-		for seg.Next() {
-			actual := seg.Value()
+
+		// Iterate through the rows
+		for iter.Next() {
+			row := iter.Values()
+
+			// Convert the row to a ResourceRecord for comparison
+			actual, err := RowToResourceRecord(row)
+			if err != nil {
+				t.Fatalf("Failed to convert row to ResourceRecord: %v", err)
+			}
 
 			found := false
 			for i, expRow := range expectedRows {
@@ -1017,14 +1045,15 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 			}
 			i++
 		}
-		if err := seg.Err(); err != nil {
+
+		// Check for errors
+		if err := iter.Err(); err != nil {
 			t.Fatalf("Iteration failed: %s", err)
 		}
+
+		// Make sure we've seen enough rows
 		if i < len(test.ExpectedSegment) {
 			t.Fatalf("Segment is too small: %d. Expected: %d", i, len(test.ExpectedSegment))
-		}
-		if err := seg.Close(); err != nil {
-			t.Fatalf("Could not close iterator: %v", err)
 		}
 	}
 	runTestCase := func(t *testing.T, test TestCase) {
@@ -1037,13 +1066,13 @@ func sparkTestMaterializations(t *testing.T, store *SparkOfflineStore) {
 			t.Fatalf("Failed to create materialization: %s", err)
 		}
 		testMaterialization(t, mat, test)
-		getMat, err := store.GetMaterialization(mat.ID())
+		getMat, err := store.GetMaterialization(MaterializationID(mat.ID()))
 
 		if err != nil {
 			t.Fatalf("Failed to get materialization: %s", err)
 		}
 		testMaterialization(t, getMat, test)
-		if err := store.DeleteMaterialization(mat.ID()); err != nil {
+		if err := store.DeleteMaterialization(MaterializationID(mat.ID())); err != nil {
 			t.Fatalf("Failed to delete materialization: %s", err)
 		}
 	}
@@ -2258,91 +2287,126 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 			Timestamp: true,
 		},
 	}
-	testMaterialization := func(t *testing.T, mat Materialization, test TestCase) {
-		if numRows, err := mat.NumRows(); err != nil {
+	testMaterialization := func(t *testing.T, matDataset dataset.Materialization, test TestCase) {
+		ctx := context.Background()
+
+		// Check the number of rows
+		if numRows, err := matDataset.Len(); err != nil {
 			t.Fatalf("Failed to get num rows: %s", err)
 		} else if numRows != test.ExpectedRows {
 			t.Fatalf("Num rows not equal %d %d", numRows, test.ExpectedRows)
 		}
-		seg, err := mat.IterateSegment(test.SegmentStart, test.SegmentEnd)
+
+		// Get iterator for the segment
+		iter, err := matDataset.IterateSegment(ctx, test.SegmentStart, test.SegmentEnd)
 		if err != nil {
 			t.Fatalf("Failed to create segment: %s", err)
 		}
+		defer iter.Close()
+
 		i := 0
 		expectedRows := test.ExpectedSegment
-		for seg.Next() {
-			actual := seg.Value()
+
+		// Iterate through the rows
+		for iter.Next() {
+			row := iter.Values()
+
+			// Convert the row to a ResourceRecord for comparison
+			actual, err := RowToResourceRecord(row)
+			if err != nil {
+				t.Fatalf("Failed to convert row to ResourceRecord: %v", err)
+			}
 
 			// Row order isn't guaranteed, we make sure one row is equivalent
-			// then we delete that row. This is ineffecient, but these test
-			// cases should all be small enough not to matter.
+			// then we delete that row
 			found := false
 			for i, expRow := range expectedRows {
 				if reflect.DeepEqual(actual, expRow) {
 					found = true
 					lastIdx := len(expectedRows) - 1
-					// Swap the record that we've found to the end, then shrink the slice to not include it.
-					// This is essentially a delete operation expect that it re-orders the slice.
+					// Swap the record that we've found to the end, then shrink the slice to not include it
 					expectedRows[i], expectedRows[lastIdx] = expectedRows[lastIdx], expectedRows[i]
 					expectedRows = expectedRows[:lastIdx]
 					break
 				}
 			}
+
 			if !found {
 				t.Fatalf("Value %v not found in materialization %v", actual, expectedRows)
 			}
 			i++
 		}
-		if err := seg.Err(); err != nil {
+
+		// Check for errors
+		if err := iter.Err(); err != nil {
 			t.Fatalf("Iteration failed: %s", err)
 		}
+
+		// Make sure we've seen enough rows
 		if i < len(test.ExpectedSegment) {
 			t.Fatalf("Segment is too small: %d", i)
 		}
-		if err := seg.Close(); err != nil {
-			t.Fatalf("Could not close iterator: %v", err)
-		}
 	}
-	testUpdate := func(t *testing.T, mat Materialization, test TestCase) {
-		if numRows, err := mat.NumRows(); err != nil {
+
+	// Test function for updated materialization
+	testUpdate := func(t *testing.T, matDataset dataset.Materialization, test TestCase) {
+		ctx := context.Background()
+
+		// Check the number of rows
+		if numRows, err := matDataset.Len(); err != nil {
 			t.Fatalf("Failed to get num rows: %s", err)
 		} else if numRows != test.UpdatedRows {
 			t.Fatalf("Num rows not equal %d %d", numRows, test.UpdatedRows)
 		}
-		seg, err := mat.IterateSegment(test.UpdatedSegmentStart, test.UpdatedSegmentEnd)
+
+		// Get iterator for the updated segment
+		iter, err := matDataset.IterateSegment(ctx, test.UpdatedSegmentStart, test.UpdatedSegmentEnd)
 		if err != nil {
 			t.Fatalf("Failed to create segment: %s", err)
 		}
+		defer iter.Close()
+
 		i := 0
-		for seg.Next() {
+		expectedUpdates := test.ExpectedUpdate
+
+		// Iterate through the rows
+		for iter.Next() {
+			row := iter.Values()
+
+			// Convert the row to a ResourceRecord for comparison
+			actual, err := RowToResourceRecord(row)
+			if err != nil {
+				t.Fatalf("Failed to convert row to ResourceRecord: %v", err)
+			}
+
 			// Row order isn't guaranteed, we make sure one row is equivalent
-			// then we delete that row. This is ineffecient, but these test
-			// cases should all be small enough not to matter.
+			// then we delete that row
 			found := false
-			for i, expRow := range test.ExpectedUpdate {
-				if reflect.DeepEqual(seg.Value(), expRow) {
+			for i, expRow := range expectedUpdates {
+				if reflect.DeepEqual(actual, expRow) {
 					found = true
-					lastIdx := len(test.ExpectedUpdate) - 1
-					// Swap the record that we've found to the end, then shrink the slice to not include it.
-					// This is essentially a delete operation expect that it re-orders the slice.
-					test.ExpectedUpdate[i], test.ExpectedUpdate[lastIdx] = test.ExpectedUpdate[lastIdx], test.ExpectedUpdate[i]
-					test.ExpectedUpdate = test.ExpectedUpdate[:lastIdx]
+					lastIdx := len(expectedUpdates) - 1
+					// Swap the record that we've found to the end, then shrink the slice to not include it
+					expectedUpdates[i], expectedUpdates[lastIdx] = expectedUpdates[lastIdx], expectedUpdates[i]
+					expectedUpdates = expectedUpdates[:lastIdx]
 					break
 				}
 			}
+
 			if !found {
-				t.Fatalf("Unexpected materialization row: %v, expected %v", seg.Value(), test.ExpectedUpdate)
+				t.Fatalf("Unexpected materialization row: %v, expected %v", actual, expectedUpdates)
 			}
 			i++
 		}
-		if err := seg.Err(); err != nil {
+
+		// Check for errors
+		if err := iter.Err(); err != nil {
 			t.Fatalf("Iteration failed: %s", err)
 		}
+
+		// Make sure we've seen enough rows
 		if i < len(test.ExpectedSegment) {
 			t.Fatalf("Segment is too small: %d", i)
-		}
-		if err := seg.Close(); err != nil {
-			t.Fatalf("Could not close iterator: %v", err)
 		}
 	}
 	runTestCase := func(t *testing.T, test TestCase) {
@@ -2374,7 +2438,7 @@ func sparkTestMaterializationUpdate(t *testing.T, store *SparkOfflineStore) {
 			t.Fatalf("Failed to update materialization: %s", err)
 		}
 		testUpdate(t, mat, test)
-		if err := store.DeleteMaterialization(mat.ID()); err != nil {
+		if err := store.DeleteMaterialization(MaterializationID(mat.ID())); err != nil {
 			t.Fatalf("Failed to delete materialization: %s", err)
 		}
 	}

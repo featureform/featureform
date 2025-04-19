@@ -543,9 +543,9 @@ type OfflineStoreMaterialization interface {
 	CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error)
 	GetResourceTable(id ResourceID) (OfflineTable, error)
 	RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error)
-	CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error)
-	GetMaterialization(id MaterializationID) (Materialization, error)
-	UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error)
+	CreateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error)
+	GetMaterialization(id MaterializationID) (dataset.Materialization, error)
+	UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error)
 	DeleteMaterialization(id MaterializationID) error
 	SupportsMaterializationOption(opt MaterializationOptionType) (bool, error)
 }
@@ -555,7 +555,7 @@ type OfflineStoreTrainingSet interface {
 	UpdateTrainingSet(TrainingSetDef) error
 	GetTrainingSet(id ResourceID) (TrainingSetIterator, error)
 	CreateTrainTestSplit(TrainTestSplitDef) (func() error, error)
-	GetTrainTestSplit(TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error)
+	GetTrainTestSplit(TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) // this'll add the training set schema
 }
 
 type OfflineStoreBatchFeature interface {
@@ -1281,15 +1281,15 @@ func (store *memoryOfflineStore) GetBatchFeatures(tables []ResourceID) (BatchFea
 }
 
 func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (
-	Materialization,
+	dataset.Materialization,
 	error,
 ) {
 	if id.Type != Feature {
-		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("only features can be materialized"))
+		return dataset.Materialization{}, fferr.NewInvalidArgumentError(fmt.Errorf("only features can be materialized"))
 	}
 	table, err := store.getMemoryResourceTable(id)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	var matData materializedRecords
 	table.entityMap.Range(
@@ -1309,25 +1309,22 @@ func (store *memoryOfflineStore) CreateMaterialization(id ResourceID, opts Mater
 		RowsPerChunk: defaultRowsPerChunk,
 	}
 	store.materializations.Store(matId, mat)
-	return mat, nil
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (store *memoryOfflineStore) SupportsMaterializationOption(opt MaterializationOptionType) (bool, error) {
 	return false, nil
 }
 
-func (store *memoryOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+func (store *memoryOfflineStore) GetMaterialization(id MaterializationID) (dataset.Materialization, error) {
 	mat, has := store.materializations.Load(id)
 	if !has {
-		return nil, fferr.NewDatasetNotFoundError(string(id), "", nil)
+		return dataset.Materialization{}, fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
-	return mat.(Materialization), nil
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat.(Materialization)), nil
 }
 
-func (store *memoryOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (
-	Materialization,
-	error,
-) {
+func (store *memoryOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
 	return store.CreateMaterialization(id, MaterializationOptions{Output: fs.Parquet})
 }
 
@@ -1568,7 +1565,26 @@ func (table *memoryOfflineTable) Location() pl.Location {
 type MemoryMaterialization struct {
 	Id           MaterializationID
 	Data         []ResourceRecord
+	location     pl.Location
 	RowsPerChunk int64
+}
+
+func newMemoryMaterialization(
+	id MaterializationID,
+	records []ResourceRecord,
+	location pl.Location,
+	rowsPerChunk int64,
+) *MemoryMaterialization {
+	if rowsPerChunk <= 0 {
+		rowsPerChunk = 100 // Default chunk size
+	}
+
+	return &MemoryMaterialization{
+		Id:           id,
+		Data:         records,
+		location:     location,
+		RowsPerChunk: rowsPerChunk,
+	}
 }
 
 func (mat *MemoryMaterialization) ID() MaterializationID {
@@ -1580,60 +1596,91 @@ func (mat *MemoryMaterialization) NumRows() (int64, error) {
 }
 
 func (mat *MemoryMaterialization) IterateSegment(start, end int64) (FeatureIterator, error) {
-	if end > int64(len(mat.Data)) {
-		return nil, fmt.Errorf("Index out of bounds\nStart: %d\nEnd: %d\nLen: %d\n", start, end, len(mat.Data))
+	if start < 0 {
+		start = 0
 	}
+
+	if end > int64(len(mat.Data)) {
+		end = int64(len(mat.Data))
+	}
+
+	if start >= end {
+		return newMemoryFeatureIterator(nil), nil
+	}
+
 	segment := mat.Data[start:end]
 	return newMemoryFeatureIterator(segment), nil
 }
 
 func (mat *MemoryMaterialization) NumChunks() (int, error) {
-	if mat.RowsPerChunk == 0 {
-		mat.RowsPerChunk = defaultRowsPerChunk
+	numRows := int64(len(mat.Data))
+	numChunks := numRows / mat.RowsPerChunk
+	if numRows%mat.RowsPerChunk > 0 {
+		numChunks++
 	}
-	return genericNumChunks(mat, mat.RowsPerChunk)
+	return int(numChunks), nil
 }
 
 func (mat *MemoryMaterialization) IterateChunk(idx int) (FeatureIterator, error) {
-	if mat.RowsPerChunk == 0 {
-		mat.RowsPerChunk = defaultRowsPerChunk
+	numChunks, err := mat.NumChunks()
+	if err != nil {
+		return nil, err
 	}
-	return genericIterateChunk(mat, mat.RowsPerChunk, idx)
+
+	// Special case for empty data - if there's no data, return an empty iterator for any index
+	if len(mat.Data) == 0 {
+		return newMemoryFeatureIterator(nil), nil
+	}
+
+	if idx < 0 || idx >= numChunks {
+		return nil, fmt.Errorf("chunk index out of range: %d (num chunks: %d)", idx, numChunks)
+	}
+
+	start := int64(idx) * mat.RowsPerChunk
+	end := start + mat.RowsPerChunk
+	if end > int64(len(mat.Data)) {
+		end = int64(len(mat.Data))
+	}
+
+	return mat.IterateSegment(start, end)
 }
 
 func (mat *MemoryMaterialization) Location() pl.Location {
-	return nil
+	return mat.location
 }
 
+// memoryFeatureIterator implements FeatureIterator
 type memoryFeatureIterator struct {
-	data []ResourceRecord
-	idx  int64
+	data  []ResourceRecord
+	index int
+	err   error
 }
 
-func newMemoryFeatureIterator(recs []ResourceRecord) FeatureIterator {
+func newMemoryFeatureIterator(records []ResourceRecord) FeatureIterator {
 	return &memoryFeatureIterator{
-		data: recs,
-		idx:  -1,
+		data:  records,
+		index: -1,
+		err:   nil,
 	}
 }
 
-func (iter *memoryFeatureIterator) Next() bool {
-	if isLastIdx := iter.idx == int64(len(iter.data)-1); isLastIdx {
-		return false
+func (it *memoryFeatureIterator) Next() bool {
+	it.index++
+	return it.index < len(it.data)
+}
+
+func (it *memoryFeatureIterator) Value() ResourceRecord {
+	if it.index < 0 || it.index >= len(it.data) {
+		return ResourceRecord{}
 	}
-	iter.idx++
-	return true
+	return it.data[it.index]
 }
 
-func (iter *memoryFeatureIterator) Value() ResourceRecord {
-	return iter.data[iter.idx]
+func (it *memoryFeatureIterator) Err() error {
+	return it.err
 }
 
-func (iter *memoryFeatureIterator) Err() error {
-	return nil
-}
-
-func (iter *memoryFeatureIterator) Close() error {
+func (it *memoryFeatureIterator) Close() error {
 	return nil
 }
 

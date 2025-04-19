@@ -896,47 +896,49 @@ func (store *sqlOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIt
 
 	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query, store.Type()), nil
 }
-func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
 	if id.Type != Feature {
-		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("received %s; only features can be materialized", id.Type))
+		return dataset.Materialization{}, fferr.NewInvalidArgumentError(fmt.Errorf("received %s; only features can be materialized", id.Type))
 	}
 	matID, err := NewMaterializationID(id)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	matTableName, err := store.getMaterializationTableName(id)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	materializeQueries := store.query.materializationCreate(matTableName, opts.Schema)
 	for _, materializeQry := range materializeQueries {
 		_, err = store.db.Exec(materializeQry)
 		if err != nil {
-			return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+			return dataset.Materialization{}, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 		}
 	}
-	return &sqlMaterialization{
+	mat := &sqlMaterialization{
 		id:           matID,
 		db:           store.db,
 		tableName:    matTableName,
 		query:        store.query,
 		providerType: store.Type(),
-	}, nil
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (store *sqlOfflineStore) SupportsMaterializationOption(opt MaterializationOptionType) (bool, error) {
 	return false, nil
 }
 
-func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (dataset.Materialization, error) {
 	name, variant, err := ps.MaterializationIDToResource(string(id))
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
-	tableName, err := store.getMaterializationTableName(ResourceID{name, variant, Feature})
+	resourceID := ResourceID{name, variant, Feature}
+	tableName, err := store.getMaterializationTableName(resourceID)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
 	getMatQry := store.query.materializationExists()
@@ -945,7 +947,7 @@ func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Material
 	if err != nil {
 		wrapped := fferr.NewExecutionError(store.Type().String(), err)
 		wrapped.AddDetail("table_name", tableName)
-		return nil, wrapped
+		return dataset.Materialization{}, wrapped
 	}
 	defer rows.Close()
 
@@ -954,52 +956,59 @@ func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Material
 		rowCount++
 	}
 	if rowCount == 0 {
-		return nil, fferr.NewDatasetNotFoundError(string(id), "", nil)
+		return dataset.Materialization{}, fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
-	return &sqlMaterialization{
+
+	// Create the legacy materialization object
+	legacyMat := &sqlMaterialization{
 		id:           id,
 		db:           store.db,
 		tableName:    tableName,
 		query:        store.query,
 		providerType: store.Type(),
 		location:     pl.NewSQLLocation(tableName),
-	}, err
+	}
+
+	// Create a LegacyMaterializationAdapter wrapping the old materialization
+	return NewLegacyMaterializationAdapterWithEmptySchema(legacyMat), nil
 }
 
-func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
 	tableName, err := store.getMaterializationTableName(id)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	matID, err := ps.ResourceToMaterializationID(id.Type.String(), id.Name, id.Variant)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	getMatQry := store.query.materializationExists()
 	resTable, err := store.getsqlResourceTable(id)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
 	rows, err := store.db.Query(getMatQry, tableName)
 	if err != nil {
-		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+		return dataset.Materialization{}, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	defer rows.Close()
 	if !rows.Next() {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
+		return dataset.Materialization{}, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	err = store.query.materializationUpdate(store.db, tableName, resTable.name)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
-	return &sqlMaterialization{
-		id:           MaterializationID(matID),
-		db:           store.db,
-		tableName:    tableName,
-		query:        store.query,
-		providerType: store.Type(),
-	}, err
+	return NewLegacyMaterializationAdapterWithEmptySchema(
+		&sqlMaterialization{
+			id:           MaterializationID(matID),
+			db:           store.db,
+			tableName:    tableName,
+			query:        store.query,
+			providerType: store.Type(),
+		},
+	), nil
 }
 
 func (store *sqlOfflineStore) DeleteMaterialization(id MaterializationID) error {

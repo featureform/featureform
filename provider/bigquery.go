@@ -1239,30 +1239,28 @@ func (store *bqOfflineStore) newMaterialization(id MaterializationID, tableName 
 	}, nil
 }
 
-func (store *bqOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (store *bqOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
 	logger := store.logger.With("resourceId", id, "opts", opts)
-
 	logger.Debug("Creating materialization")
 
 	if id.Type != Feature {
 		logger.Errorw("Materialization source must be a feature", "type", id.Type)
-		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("received %s; only features can be materialized", id.Type.String()))
+		return dataset.Materialization{}, fferr.NewInvalidArgumentError(fmt.Errorf("received %s; only features can be materialized", id.Type.String()))
 	}
 
 	sqlLocation, isSqlLocation := opts.Schema.SourceTable.(*pl.SQLLocation)
 	if !isSqlLocation {
-		return nil, fferr.NewInvalidArgumentErrorf("source table is not an SQL location")
+		logger.Errorw("Source table is not an SQL location")
+		return dataset.Materialization{}, fferr.NewInvalidArgumentErrorf("source table is not an SQL location")
 	}
 
 	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
 	matTableName, err := store.getMaterializationTableName(id)
 	if err != nil {
 		logger.Errorw("Error getting table name", "error", err)
-		return nil, err
+		return dataset.Materialization{}, err
 	}
-	// TODO: Somehow combine this logic with all of the other interface methods that get a
-	// relative location.
-	// BigQuery requires the table name to be prefixed with a dataset when creating a new table.
+
 	matTableName = fmt.Sprintf("%s.%s.%s", store.query.ProjectId, store.query.DatasetId, matTableName)
 	materializeQry := store.query.materializationCreate(matTableName, opts.Schema, *sqlLocation)
 
@@ -1270,10 +1268,15 @@ func (store *bqOfflineStore) CreateMaterialization(id ResourceID, opts Materiali
 	_, err = bqQ.Read(store.query.getContext())
 	if err != nil {
 		logger.Errorw("Error creating materialization", "error", err)
-		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+		return dataset.Materialization{}, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 
-	return store.newMaterialization(matID, matTableName)
+	mat, err := store.newMaterialization(matID, matTableName)
+	if err != nil {
+		logger.Errorw("Error creating materialization object", "error", err)
+		return dataset.Materialization{}, err
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (store *bqOfflineStore) SupportsMaterializationOption(opt MaterializationOptionType) (bool, error) {
@@ -1325,96 +1328,111 @@ func (store *bqOfflineStore) getMaterializationTableName(id ResourceID) (string,
 	return ps.ResourceToTableName(FeatureMaterialization.String(), id.Name, id.Variant)
 }
 
-func (store *bqOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+func (store *bqOfflineStore) GetMaterialization(id MaterializationID) (dataset.Materialization, error) {
 	logger := store.logger.With("resourceId", id)
-
 	logger.Debug("Getting materialization")
 
 	name, variant, err := ps.MaterializationIDToResource(string(id))
 	if err != nil {
-		logger.Errorw("Error getting materialization", "error", err)
-		return nil, err
+		logger.Errorw("Error mapping materialization to resource", "error", err)
+		return dataset.Materialization{}, err
 	}
+
 	tableName, err := store.getMaterializationTableName(ResourceID{Name: name, Variant: variant, Type: Feature})
 	if err != nil {
 		logger.Errorw("Error getting table name", "error", err)
-		return nil, err
+		return dataset.Materialization{}, err
 	}
+
 	getMatQry := store.query.materializationExists(tableName)
 
 	bqQry := store.client.Query(getMatQry)
 	it, err := bqQry.Read(store.query.getContext())
 	if err != nil {
-		logger.Errorw("Error getting materialization", "error", err)
+		logger.Errorw("Error reading materialization", "error", err)
 		wrapped := fferr.NewExecutionError(store.Type().String(), err)
 		wrapped.AddDetail("table_name", tableName)
 		wrapped.AddDetail("materialization_id", string(id))
-		return nil, wrapped
+		return dataset.Materialization{}, wrapped
 	}
 
 	var row []bigquery.Value
 	err = it.Next(&row)
 	if err != nil {
-		logger.Errorw("Error iterating over table", "table", tableName, "error", err)
+		logger.Errorw("Error iterating over materialization", "error", err)
 		wrapped := fferr.NewExecutionError(store.Type().String(), err)
 		wrapped.AddDetail("table_name", tableName)
 		wrapped.AddDetail("materialization_id", string(id))
-		return nil, wrapped
+		return dataset.Materialization{}, wrapped
 	}
 
 	if len(row) == 0 {
-		return nil, fferr.NewDatasetNotFoundError(string(id), "", nil)
+		logger.Errorw("Materialization not found")
+		return dataset.Materialization{}, fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
 
-	return store.newMaterialization(id, tableName)
+	mat, err := store.newMaterialization(id, tableName)
+	if err != nil {
+		logger.Errorw("Error creating materialization", "error", err)
+		return dataset.Materialization{}, err
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
-func (store *bqOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (store *bqOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
 	logger := store.logger.With("resourceId", id)
-
 	logger.Debug("Updating materialization")
 
 	matID, err := NewMaterializationID(id)
 	if err != nil {
-		logger.Errorw("Error creating materialization", "error", err)
-		return nil, err
+		logger.Errorw("Error creating materialization ID", "error", err)
+		return dataset.Materialization{}, err
 	}
+
 	tableName, err := store.getMaterializationTableName(id)
 	if err != nil {
 		logger.Errorw("Error getting table name", "error", err)
-		return nil, err
+		return dataset.Materialization{}, err
 	}
+
 	getMatQry := store.query.materializationExists(tableName)
 	resTable, err := store.getbqResourceTable(id)
 	if err != nil {
-		logger.Errorw("Error getting table name", "error", err)
-		return nil, err
+		logger.Errorw("Error getting resource table", "error", err)
+		return dataset.Materialization{}, err
 	}
 
 	bqQ := store.client.Query(getMatQry)
 	it, err := bqQ.Read(store.query.getContext())
 	if err != nil {
-		logger.Errorw("Error running materialization query", "error", err)
-		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+		logger.Errorw("Error reading materialization", "error", err)
+		return dataset.Materialization{}, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
+
 	var row []bigquery.Value
 	err = it.Next(&row)
 	if err != nil {
-		logger.Errorw("Error iterating over table", "table", tableName, "error", err)
-		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+		logger.Errorw("Error iterating over table", "error", err)
+		return dataset.Materialization{}, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
+
 	if len(row) == 0 {
-		logger.Errorw("Row has no columns", "table", tableName)
-		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+		logger.Errorw("Row has no columns")
+		return dataset.Materialization{}, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 
 	err = store.query.materializationUpdate(store.client, tableName, resTable.name)
 	if err != nil {
 		logger.Errorw("Error updating materialization", "error", err)
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
-	return store.newMaterialization(matID, tableName)
+	mat, err := store.newMaterialization(matID, tableName)
+	if err != nil {
+		logger.Errorw("Error creating materialization object", "error", err)
+		return dataset.Materialization{}, err
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (store *bqOfflineStore) DeleteMaterialization(id MaterializationID) error {

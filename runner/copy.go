@@ -16,13 +16,15 @@ import (
 	"github.com/featureform/config"
 	"github.com/featureform/logging"
 
+	"go.uber.org/zap"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	"github.com/featureform/provider/dataset"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/types"
-	"go.uber.org/zap"
 )
 
 // We buffer the channel responsible for passing records to the goroutines that will write
@@ -39,7 +41,7 @@ type IndexRunner interface {
 }
 
 type MaterializedChunkRunner struct {
-	Materialized provider.Materialization
+	Materialized dataset.Materialization
 	Table        provider.OnlineStoreTable
 	Store        provider.OnlineStore
 	ChunkIdx     int
@@ -67,6 +69,28 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		ResultSync:  &ResultSync{},
 		DoneChannel: done,
 	}
+
+	numChunks, err := m.Materialized.NumChunks()
+	if err != nil {
+		logger.Errorw("error getting number of chunks", "error", err)
+		jobWatcher.EndWatch(err)
+		return jobWatcher, nil
+	}
+
+	if numChunks == 0 {
+		logger.Debugw("no chunks to process, job complete")
+		jobWatcher.EndWatch(nil)
+		return jobWatcher, nil
+	}
+
+	if m.ChunkIdx >= numChunks {
+		logger.Errorw("chunk index out of range",
+			"chunk_idx", m.ChunkIdx, "num_chunks", numChunks)
+		jobWatcher.EndWatch(fferr.NewInvalidArgumentErrorf(
+			"chunk index %d out of range (max %d)", m.ChunkIdx, numChunks-1))
+		return jobWatcher, nil
+	}
+
 	// We create a pool of goroutines per materialization chunk runner to make Set requests to
 	// the inference store asynchronously; after some initial testing, 500 workers appears to
 	// offer the best results
@@ -74,7 +98,7 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 	logger.Debugw("worker pool size", "worker_pool_size", workerPoolSize)
 	go func() {
 		logger.Debugw("starting materialized chunk runner", "chunk_idx", m.ChunkIdx)
-		it, err := m.Materialized.IterateChunk(m.ChunkIdx)
+		it, err := m.Materialized.ChunkIterator(ctx, m.ChunkIdx)
 		if err != nil {
 			logger.Errorw("error getting iterator", "error", err)
 			jobWatcher.EndWatch(err)
@@ -170,10 +194,22 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		}
 		var chanErr error
 		for it.Next() {
+			values := it.Values()
+			if len(values) < 2 {
+				chanErr = fferr.NewInternalErrorf(
+					"iterator returned %d values, expected ≥2", len(values))
+				break
+			}
+			ent, ok := values[0].Value.(string)
+			if !ok {
+				chanErr = fferr.NewInternalErrorf(
+					"entity value is %T, expected string", values[0].Value)
+				break
+			}
 			select {
 			case chanErr = <-errCh:
 				logger.Errorf("error setting value: %v", chanErr)
-			case ch <- it.Value():
+			case ch <- provider.ResourceRecord{Entity: ent, Value: values[1].Value}:
 			default:
 			}
 			if chanErr != nil {

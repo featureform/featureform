@@ -334,7 +334,7 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 	}, nil
 }
 
-func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
+func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (dataset.Dataset, error) {
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
@@ -364,16 +364,18 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tabl
 		return nil, err
 	}
 
-	return &SqlPrimaryTable{
-		db:          dbConn,
-		name:        sqlLocation.Location(),
-		sqlLocation: sqlLocation,
-		schema:      TableSchema{Columns: columnNames},
-		query:       store.query,
+	return &PrimaryTableToDatasetAdapter{
+		&SqlPrimaryTable{
+			db:          dbConn,
+			name:        sqlLocation.Location(),
+			sqlLocation: sqlLocation,
+			schema:      TableSchema{Columns: columnNames},
+			query:       store.query,
+		},
 	}, nil
 }
 
-func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) {
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
@@ -397,7 +399,7 @@ func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSche
 	if err != nil {
 		return nil, err
 	}
-	return table, nil
+	return &PrimaryTableToDatasetAdapter{table}, nil
 }
 
 func (store *sqlOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema TableSchema) (*SqlPrimaryTable, error) {
@@ -444,7 +446,7 @@ func (store *sqlOfflineStore) createsqlPrimaryTableQuery(name string, schema Tab
 	return store.query.primaryTableCreate(name, columnString), nil
 }
 
-func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
+func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error) {
 	location, err := source.GetPrimaryLocation()
 	if err != nil {
 		return nil, fferr.NewInvalidArgumentErrorf("Source Primary Location is empty: %v", err)
@@ -472,17 +474,18 @@ func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID, source metadata.Sou
 		return nil, err
 	}
 
-	return &SqlPrimaryTable{
+	sqlPT := &SqlPrimaryTable{
 		db:           dbConn,
 		name:         sqlLocation.GetTable(),
 		sqlLocation:  sqlLocation,
 		schema:       TableSchema{Columns: columnNames},
 		query:        store.query,
 		providerType: store.Type(),
-	}, nil
+	}
+	return &PrimaryTableToDatasetAdapter{sqlPT}, nil
 }
 
-func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (dataset.Dataset, error) {
 	if err := id.check(Transformation); err != nil {
 		return nil, err
 	}
@@ -512,14 +515,15 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 	}
 	sqlLocation := pl.NewSQLLocationFromParts(dbName, schemaName, name)
 
-	return &SqlPrimaryTable{
+	sqlPt := &SqlPrimaryTable{
 		db:           store.db,
 		name:         name,
 		sqlLocation:  sqlLocation,
 		schema:       TableSchema{Columns: columnNames},
 		query:        store.query,
 		providerType: store.Type(),
-	}, nil
+	}
+	return &PrimaryTableToDatasetAdapter{pt: sqlPt}, nil
 }
 
 // CreateResourceTable creates a new Resource table.
@@ -1298,6 +1302,10 @@ func (table *SqlPrimaryTable) GetName() string {
 	return table.name
 }
 
+func (table *SqlPrimaryTable) GetLocation() pl.Location {
+	return table.sqlLocation
+}
+
 func (table *SqlPrimaryTable) Write(rec GenericRecord) error {
 	tb := sanitize(table.name)
 	columns := table.getColumnNameString()
@@ -2070,4 +2078,20 @@ func GetTransformationTableName(id ResourceID) (string, error) {
 		return "", fferr.NewInternalErrorf("resource type must be %s: received %s", Transformation.String(), id.Type.String())
 	}
 	return ps.ResourceToTableName("Transformation", id.Name, id.Variant)
+}
+
+func SanitizeFullyQualifiedObject(obj pl.FullyQualifiedObject) string {
+	ident := db.Identifier{}
+
+	if obj.Database != "" && obj.Schema != "" {
+		ident = append(ident, obj.Database)
+	}
+
+	if obj.Schema != "" {
+		ident = append(ident, obj.Schema)
+	}
+
+	ident = append(ident, obj.Table)
+
+	return ident.Sanitize()
 }

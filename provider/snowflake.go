@@ -272,7 +272,7 @@ func (sf *snowflakeOfflineStore) CreateMaterialization(id ResourceID, opts Mater
 		logger.Errorw("Source table is not an SQL location", "location_type", fmt.Sprintf("%T", opts.Schema.SourceTable))
 		return nil, fferr.NewInvalidArgumentErrorf("source table is not an SQL location")
 	}
-	materializationAsQuery := sf.sfQueries.materializationCreateAsQuery(opts.Schema.Entity, opts.Schema.Value, opts.Schema.TS, sqlLoc.Sanitized())
+	materializationAsQuery := sf.sfQueries.materializationCreateAsQuery(opts.Schema.Entity, opts.Schema.Value, opts.Schema.TS, SanitizeSnowflakeIdentifier(sqlLoc.TableLocation()))
 	if err := resConfig.Validate(); err != nil {
 		logger.Errorw("Failed to validate dynamic table config", "error", err)
 		return nil, err

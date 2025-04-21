@@ -20,19 +20,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/parquet-go/parquet-go"
+	"gotest.tools/v3/assert"
+
 	"github.com/featureform/fferr"
+	fftypes "github.com/featureform/fftypes"
 	"github.com/featureform/filestore"
 	fs "github.com/featureform/filestore"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pb "github.com/featureform/metadata/proto"
+	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/provider/types"
-	"github.com/google/uuid"
-	"github.com/parquet-go/parquet-go"
-	"gotest.tools/v3/assert"
 )
 
 const outputDir = "test_files/output"
@@ -200,13 +204,14 @@ func testResourceLocation(t *testing.T, store OfflineStore) {
 		t.Fatalf("Failed to get table: %v", err)
 	}
 
+	name := table.Location().Location()
 	svProto := pb.SourceVariant{
-		Table: table.GetName(),
+		Table: name,
 		Definition: &pb.SourceVariant_PrimaryData{
 			PrimaryData: &pb.PrimaryData{
 				Location: &pb.PrimaryData_Table{
 					Table: &pb.SQLTable{
-						Name: table.GetName(),
+						Name: name,
 					},
 				},
 			},
@@ -1923,13 +1928,14 @@ func testPrimaryTableWrite(t *testing.T, store OfflineStore) {
 			t.Fatalf("Could not create table: %v", err)
 		}
 
+		name := table.Location().Location()
 		svProto := pb.SourceVariant{
-			Table: table.GetName(),
+			Table: name,
 			Definition: &pb.SourceVariant_PrimaryData{
 				PrimaryData: &pb.PrimaryData{
 					Location: &pb.PrimaryData_Table{
 						Table: &pb.SQLTable{
-							Name: table.GetName(),
+							Name: name,
 						},
 					},
 				},
@@ -1941,7 +1947,15 @@ func testPrimaryTableWrite(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not get Primary table: %v", err)
 		}
-		if err := table.WriteBatch(test.Records); err != nil {
+
+		// cast to writableDataset
+		writableDataset, ok := table.(dataset.WriteableDataset)
+		if !ok {
+			t.Fatalf("Could not cast to WritableDataset")
+		}
+
+		ctx := logging.NewTestContext(t)
+		if err := writableDataset.WriteBatch(ctx, GenericRecordsToRows(test.Records)); err != nil {
 			t.Fatalf("Could not write: %v", err)
 		}
 	}
@@ -2062,16 +2076,26 @@ func testTransform(t *testing.T, store OfflineStore) {
 			t.Fatalf("Could not initialize table: %v", err)
 		}
 
-		if err := table.WriteBatch(test.Records); err != nil {
+		writableTable, ok := table.(dataset.WriteableDataset)
+		if !ok {
+			t.Fatalf("Table does not implement WritableDataset interface")
+		}
+
+		if err := writableTable.WriteBatch(ctx, GenericRecordsToRows(test.Records)); err != nil {
 			t.Fatalf("Could not write: %v", err)
 		}
 
-		modifyTransformationConfig(t, t.Name(), table.GetName(), store.Type(), &test.Config)
+		name := table.Location().Location()
+		modifyTransformationConfig(t, t.Name(), name, store.Type(), &test.Config)
 		if err := store.CreateTransformation(test.Config); err != nil {
 			t.Fatalf("Could not create transformation: %v", err)
 		}
 
-		rows, err := table.NumRows()
+		sized, ok := table.(dataset.SizedDataset)
+		if !ok {
+			t.Fatalf("Table does not implement SizedDataset interface")
+		}
+		rows, err := sized.Len()
 		if err != nil {
 			t.Fatalf("could not get NumRows of table: %v", err)
 		}
@@ -2079,12 +2103,12 @@ func testTransform(t *testing.T, store OfflineStore) {
 			t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(test.Records), rows)
 		}
 
-		table, err = store.GetTransformationTable(test.Config.TargetTableID)
+		tfDs, err := store.GetTransformationTable(test.Config.TargetTableID)
 		if err != nil {
 			t.Errorf("Could not get transformation table: %v", err)
 		}
 
-		iterator, err := table.IterateSegment(100)
+		iterator, err := tfDs.Iterator(ctx, 0)
 		if err != nil {
 			t.Fatalf("Could not get generic iterator: %v", err)
 		}
@@ -2103,7 +2127,8 @@ func testTransform(t *testing.T, store OfflineStore) {
 				}
 			}
 
-			tableColumns := iterator.Columns()
+			schema := iterator.Schema()
+			tableColumns := schema.ColumnNames()
 			if len(tableColumns) == 0 {
 				t.Fatalf("The table doesn't have any columns.")
 			}
@@ -2213,26 +2238,41 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 	}
 
 	testTransform := func(t *testing.T, test TransformTest) {
+		ctx := logging.NewTestContext(t)
+
 		primaryTable, err := store.CreatePrimaryTable(test.PrimaryTable, test.Schema)
 		if err != nil {
 			t.Fatalf("Could not initialize table: %v", err)
 		}
-		if err := primaryTable.WriteBatch(test.Records); err != nil {
+
+		writableTable, ok := primaryTable.(dataset.WriteableDataset)
+		if !ok {
+			t.Fatalf("Table does not implement WritableDataset interface")
+		}
+
+		if err := writableTable.WriteBatch(ctx, GenericRecordsToRows(test.Records)); err != nil {
 			t.Fatalf("Could not write value: %v", err)
 		}
 
-		modifyTransformationConfig(t, t.Name(), primaryTable.GetName(), store.Type(), &test.Config)
+		name := primaryTable.Location().Location()
+		modifyTransformationConfig(t, t.Name(), name, store.Type(), &test.Config)
 		if err := store.CreateTransformation(test.Config); err != nil {
 			t.Fatalf("Could not create transformation: %v", err)
 		}
-		rows, err := primaryTable.NumRows()
+
+		sized, ok := primaryTable.(dataset.SizedDataset)
+		if !ok {
+			t.Fatalf("Table does not implement SizedDataset interface")
+		}
+		rows, err := sized.Len()
 		if err != nil {
 			t.Fatalf("could not get NumRows of table: %v", err)
 		}
+
 		if int(rows) != len(test.Records) {
 			t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(test.Records), rows)
 		}
-		table, err := store.GetTransformationTable(test.Config.TargetTableID)
+		tfDs, err := store.GetTransformationTable(test.Config.TargetTableID)
 		if err != nil {
 			t.Errorf("Could not get transformation table: %v", err)
 		}
@@ -2240,13 +2280,13 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 		var location pl.Location
 		if store.Type() == pt.SparkOffline {
 			sparkStore := store.(*SparkOfflineStore)
-			fp, err := sparkStore.Store.CreateFilePath(table.GetName(), false)
+			fp, err := sparkStore.Store.CreateFilePath(tfDs.Location().Location(), false)
 			if err != nil {
 				t.Fatalf("Could not create file path: %v", err)
 			}
 			location = pl.NewFileLocation(fp)
 		} else {
-			location = pl.NewSQLLocation(table.GetName())
+			location = pl.NewSQLLocation(tfDs.Location().Location())
 		}
 
 		// create feature on transformation
@@ -2269,13 +2309,14 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 			t.Fatalf("Could not create materialization: %v", err)
 		}
 
+		name = primaryTable.Location().Location()
 		svProto := pb.SourceVariant{
-			Table: primaryTable.GetName(),
+			Table: name,
 			Definition: &pb.SourceVariant_PrimaryData{
 				PrimaryData: &pb.PrimaryData{
 					Location: &pb.PrimaryData_Table{
 						Table: &pb.SQLTable{
-							Name: primaryTable.GetName(),
+							Name: name,
 						},
 					},
 				},
@@ -2283,23 +2324,28 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 		}
 		sv := metadata.WrapProtoSourceVariant(&svProto)
 
-		table, err = store.GetPrimaryTable(test.PrimaryTable, *sv)
+		ds, err := store.GetPrimaryTable(test.PrimaryTable, *sv)
 		if err != nil {
 			t.Fatalf("Could not get primary table: %v", err)
 		}
-		if err := table.WriteBatch(test.UpdatedRecords); err != nil {
+		writableDataset, ok := ds.(dataset.WriteableDataset)
+		if !ok {
+			t.Fatalf("Dataset is not writeable: %v", err)
+		}
+
+		if err := writableDataset.WriteBatch(ctx, GenericRecordsToRows(test.UpdatedRecords)); err != nil {
 			t.Fatalf("Could not write value: %v", err)
 		}
 
 		if err := store.UpdateTransformation(test.Config); err != nil {
 			t.Errorf("could not update transformation: %v", err)
 		}
-		table, err = store.GetTransformationTable(test.Config.TargetTableID)
+		tfDs, err = store.GetTransformationTable(test.Config.TargetTableID)
 		if err != nil {
 			t.Errorf("Could not get updated transformation table: %v", err)
 		}
 
-		iterator, err := table.IterateSegment(100)
+		iterator, err := tfDs.Iterator(ctx, 0)
 		if err != nil {
 			t.Fatalf("Could not get generic iterator: %v", err)
 		}
@@ -2466,15 +2512,27 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not initialize table: %v", err)
 		}
-		if err := primaryTable.WriteBatch(test.Records); err != nil {
+
+		writableTable, ok := primaryTable.(dataset.WriteableDataset)
+		if !ok {
+			t.Fatalf("Table does not implement WritableDataset interface")
+		}
+
+		if err := writableTable.WriteBatch(ctx, GenericRecordsToRows(test.Records)); err != nil {
 			t.Fatalf("Could not write records: %v", err)
 		}
 
-		modifyTransformationConfig(t, t.Name(), primaryTable.GetName(), store.Type(), &test.Config)
+		name := primaryTable.Location().Location()
+		modifyTransformationConfig(t, t.Name(), name, store.Type(), &test.Config)
 		if err := store.CreateTransformation(test.Config); err != nil {
 			t.Fatalf("Could not create transformation: %v", err)
 		}
-		rows, err := primaryTable.NumRows()
+
+		sized, ok := primaryTable.(dataset.SizedDataset)
+		if !ok {
+			t.Fatalf("Table does not implement SizedDataset interface")
+		}
+		rows, err := sized.Len()
 		if err != nil {
 			t.Fatalf("could not get NumRows of table: %v", err)
 		}
@@ -2485,7 +2543,7 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Errorf("Could not get transformation table: %v", err)
 		}
-		iterator, err := table.IterateSegment(100)
+		iterator, err := table.Iterator(ctx, 0)
 		if err != nil {
 			t.Fatalf("Could not get generic iterator: %v", err)
 		}
@@ -2512,13 +2570,14 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 			t.Fatalf("Could not close iterator: %v", err)
 		}
 
+		name = primaryTable.Location().Location()
 		svProto := pb.SourceVariant{
-			Table: primaryTable.GetName(),
+			Table: name,
 			Definition: &pb.SourceVariant_PrimaryData{
 				PrimaryData: &pb.PrimaryData{
 					Location: &pb.PrimaryData_Table{
 						Table: &pb.SQLTable{
-							Name: primaryTable.GetName(),
+							Name: name,
 						},
 					},
 				},
@@ -2530,19 +2589,24 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not get primary table: %v", err)
 		}
-		if err := table.WriteBatch(test.UpdatedRecords); err != nil {
+		ds, ok := table.(dataset.WriteableDataset)
+		if !ok {
+			t.Fatalf("Dataset is not writeable: %v", err)
+		}
+
+		if err := ds.WriteBatch(ctx, GenericRecordsToRows(test.UpdatedRecords)); err != nil {
 			t.Fatalf("Could not write updated records: %v", err)
 		}
 
 		if err := store.UpdateTransformation(test.Config); err != nil {
 			t.Errorf("could not update transformation: %v", err)
 		}
-		table, err = store.GetTransformationTable(test.Config.TargetTableID)
+		tfDs, err := store.GetTransformationTable(test.Config.TargetTableID)
 		if err != nil {
 			t.Errorf("Could not get updated transformation table: %v", err)
 		}
 
-		iterator, err = table.IterateSegment(100)
+		iterator, err = tfDs.Iterator(ctx, 0)
 		if err != nil {
 			t.Fatalf("Could not get generic iterator: %v", err)
 		}
@@ -2642,16 +2706,26 @@ func testTransformCreateFeature(t *testing.T, store OfflineStore) {
 		if err != nil {
 			t.Fatalf("Could not initialize table: %v", err)
 		}
-		if err := table.WriteBatch(test.Records); err != nil {
+
+		writableTable, ok := table.(dataset.WriteableDataset)
+		if !ok {
+			t.Fatalf("Table does not implement WritableDataset interface")
+		}
+
+		if err := writableTable.WriteBatch(ctx, GenericRecordsToRows(test.Records)); err != nil {
 			t.Fatalf("Could not write records: %v", err)
 		}
 
-		tableName := getTableName(string(store.Type()), table.GetName())
-		test.Config.Query = strings.Replace(test.Config.Query, "tb", tableName, 1)
+		name := table.Location().Location()
+		test.Config.Query = strings.Replace(test.Config.Query, "tb", name, 1)
 		if err := store.CreateTransformation(test.Config); err != nil {
 			t.Fatalf("Could not create transformation: %v", err)
 		}
-		rows, err := table.NumRows()
+		sized, ok := table.(dataset.SizedDataset)
+		if !ok {
+			t.Fatalf("Table does not implement SizedDataset interface")
+		}
+		rows, err := sized.Len()
 		if err != nil {
 			t.Fatalf("could not get NumRows of table: %v", err)
 		}
@@ -2794,7 +2868,11 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Fatalf("Could not initialize table: %v", err)
 	}
-	if err := table.WriteBatch(tests["First"].Records); err != nil {
+	writableTable, ok := table.(dataset.WriteableDataset)
+	if !ok {
+		t.Fatalf("Table does not implement WritableDataset interface")
+	}
+	if err := writableTable.WriteBatch(ctx, GenericRecordsToRows(tests["First"].Records)); err != nil {
 		t.Fatalf("Could not write batch: %v", err)
 	}
 
@@ -2813,23 +2891,28 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 			},
 		},
 	}
-	modifyTransformationConfig(t, t.Name(), table.GetName(), store.Type(), &config)
+	name := table.Location().Location()
+	modifyTransformationConfig(t, t.Name(), name, store.Type(), &config)
 
 	if err := store.CreateTransformation(config); err != nil {
 		t.Fatalf("Could not create transformation: %v", err)
 	}
-	rows, err := table.NumRows()
+	sized, ok := table.(dataset.SizedDataset)
+	if !ok {
+		t.Fatalf("Table does not implement SizedDataset interface")
+	}
+	rows, err := sized.Len()
 	if err != nil {
 		t.Fatalf("could not get NumRows of table: %v", err)
 	}
 	if int(rows) != len(tests["First"].Records) {
 		t.Fatalf("NumRows do not match. Expected: %d, Got: %d", len(tests["First"].Records), rows)
 	}
-	table, err = store.GetTransformationTable(tests["First"].Config.TargetTableID)
+	ds, err := store.GetTransformationTable(tests["First"].Config.TargetTableID)
 	if err != nil {
 		t.Errorf("Could not get transformation table: %v", err)
 	}
-	iterator, err := table.IterateSegment(100)
+	iterator, err := ds.Iterator(ctx, 0)
 	if err != nil {
 		t.Fatalf("Could not get generic iterator: %v", err)
 	}
@@ -2874,16 +2957,18 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 			},
 		},
 	}
-	modifyTransformationConfig(t, t.Name(), table.GetName(), store.Type(), &config)
+
+	name = table.Location().Location()
+	modifyTransformationConfig(t, t.Name(), name, store.Type(), &config)
 	if err := store.CreateTransformation(config); err != nil {
 		t.Fatalf("Could not create transformation: %v", err)
 	}
 
-	table, err = store.GetTransformationTable(config.TargetTableID)
+	tfDs, err := store.GetTransformationTable(config.TargetTableID)
 	if err != nil {
 		t.Errorf("Could not get transformation table: %v", err)
 	}
-	iterator, err = table.IterateSegment(100)
+	iterator, err = tfDs.Iterator(ctx, 0)
 	if err != nil {
 		t.Fatalf("Could not get generic iterator: %v", err)
 	}
@@ -2959,29 +3044,38 @@ func testTransformToMaterialize(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Fatalf("Could not initialize table: %v", err)
 	}
-	if err := table.WriteBatch(tests["First"].Records); err != nil {
+	writableTable, ok := table.(dataset.WriteableDataset)
+	if !ok {
+		t.Fatalf("Table does not implement WritableDataset interface")
+	}
+	if err := writableTable.WriteBatch(ctx, GenericRecordsToRows(tests["First"].Records)); err != nil {
 		t.Fatalf("Could not write batch: %v", err)
 	}
 
-	tableName := getTableName(string(store.Type()), table.GetName())
+	name := table.Location().Location()
 	config := TransformationConfig{
 		Type: SQLTransformation,
 		TargetTableID: ResourceID{
 			Name: firstTransformName,
 			Type: Transformation,
 		},
-		Query: fmt.Sprintf("SELECT entity, int, flt, str FROM %s", tableName),
+		Query: fmt.Sprintf("SELECT entity, int, flt, str FROM %s", name),
 		SourceMapping: []SourceMapping{
 			SourceMapping{
-				Template: tableName,
-				Source:   tableName,
+				Template: name,
+				Source:   name,
 			},
 		},
 	}
 	if err := store.CreateTransformation(config); err != nil {
 		t.Fatalf("Could not create transformation: %v", err)
 	}
-	rows, err := table.NumRows()
+
+	sized, ok := table.(dataset.SizedDataset)
+	if !ok {
+		t.Fatalf("Table does not implement SizedDataset interface")
+	}
+	rows, err := sized.Len()
 	if err != nil {
 		t.Fatalf("could not get NumRows of table: %v", err)
 	}
@@ -3033,20 +3127,25 @@ func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 		{"d", 4, "four", time.UnixMilli(3)},
 		{"e", 5, "five", time.UnixMilli(4)},
 	}
-	if err := table.WriteBatch(records); err != nil {
+	writableTable, ok := table.(dataset.WriteableDataset)
+	if !ok {
+		t.Fatalf("Table does not implement WritableDataset interface")
+	}
+	if err := writableTable.WriteBatch(ctx, GenericRecordsToRows(records)); err != nil {
 		t.Fatalf("Could not write batch: %v", err)
 	}
 
 	var location pl.Location
+	name := table.Location().Location()
 	if store.Type() == pt.SparkOffline {
 		sparkStore := store.(*SparkOfflineStore)
-		fp, err := sparkStore.Store.CreateFilePath(table.GetName(), false)
+		fp, err := sparkStore.Store.CreateFilePath(name, false)
 		if err != nil {
 			t.Fatalf("Could not create file path: %v", err)
 		}
 		location = pl.NewFileLocation(fp)
 	} else {
-		location = pl.NewSQLLocation(table.GetName())
+		location = pl.NewSQLLocation(name)
 	}
 
 	featureID := ResourceID{
@@ -3080,7 +3179,8 @@ func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 		{"i", 9, "nine", time.UnixMilli(3)},
 		{"j", 10, "ten", time.UnixMilli(4)},
 	}
-	if err := table.WriteBatch(updatedRecords); err != nil {
+
+	if err := writableTable.WriteBatch(ctx, GenericRecordsToRows(updatedRecords)); err != nil {
 		t.Fatalf("Could not write batch: %v", err)
 	}
 	err = store.DeleteMaterialization(mat.ID())
@@ -3091,7 +3191,11 @@ func testCreateResourceFromSource(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Fatalf("Could not recreate materialization: %v", err)
 	}
-	expected, err := table.NumRows()
+	sized, ok := table.(dataset.SizedDataset)
+	if !ok {
+		t.Fatalf("Table does not implement SizedDataset interface")
+	}
+	expected, err := sized.Len()
 	if err != nil {
 		t.Fatalf("Could not get resource table rows: %v", err)
 	}
@@ -3135,20 +3239,26 @@ func testCreateResourceFromSourceNoTS(t *testing.T, store OfflineStore) {
 		{"d", 4, "four", true},
 		{"e", 5, "five", false},
 	}
-	if err := table.WriteBatch(records); err != nil {
+
+	writableTable, ok := table.(dataset.WriteableDataset)
+	if !ok {
+		t.Fatalf("Table does not implement WritableDataset interface")
+	}
+	if err := writableTable.WriteBatch(ctx, GenericRecordsToRows(records)); err != nil {
 		t.Fatalf("Could not write batch: %v", err)
 	}
 
 	var location pl.Location
+	name := table.Location().Location()
 	if store.Type() == pt.SparkOffline {
 		sparkStore := store.(*SparkOfflineStore)
-		fp, err := sparkStore.Store.CreateFilePath(table.GetName(), false)
+		fp, err := sparkStore.Store.CreateFilePath(name, false)
 		if err != nil {
 			t.Fatalf("Could not create file path: %v", err)
 		}
 		location = pl.NewFileLocation(fp)
 	} else {
-		location = pl.NewSQLLocation(table.GetName())
+		location = pl.NewSQLLocation(name)
 	}
 
 	featureID := ResourceID{
@@ -3279,10 +3389,15 @@ func testCreatePrimaryFromNonExistentSource(t *testing.T, store OfflineStore) {
 	if err != nil {
 		t.Fatalf("Could not create primary table: %v", err)
 	}
-	tableName := fmt.Sprintf("%s_%s", "nonexistent", table.GetName())
+	tableName := fmt.Sprintf("%s_%s", "nonexistent", table.Location().Location())
 	var primaryErr error
 	if store.Type() == pt.SparkOffline {
-		sourceTablePath, err := table.(*FileStorePrimaryTable).GetSource()
+		// cast to correct location
+		location, ok := table.Location().(*pl.FileStoreLocation)
+		if !ok {
+			t.Fatalf("Table location is not a FileStoreLocation")
+		}
+		sourceTablePath := location.Filepath()
 		if err != nil {
 			t.Fatalf("Could not get source table path: %v", err)
 		}
@@ -3329,7 +3444,11 @@ func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 		{"d", 4, "four", time.UnixMilli(3)},
 		{"e", 5, "five", time.UnixMilli(4)},
 	}
-	if err := table.WriteBatch(records); err != nil {
+	writableTable, ok := table.(dataset.WriteableDataset)
+	if !ok {
+		t.Fatalf("Table does not implement WritableDataset interface")
+	}
+	if err := writableTable.WriteBatch(ctx, GenericRecordsToRows(records)); err != nil {
 		t.Fatalf("Could not write batch: %v", err)
 	}
 	primaryCopyID := ResourceID{
@@ -3341,17 +3460,19 @@ func testCreatePrimaryFromSource(t *testing.T, store OfflineStore) {
 	t.Log("Primary Name: ", primaryCopyID.Name)
 	// Need to sanitize name here b/c the the xxx-xxx format of the uuid. Cannot do it within
 	// register function because precreated tables do not necessarily use double quotes
-	tableName := table.GetName()
+	tableName := table.Location().Location()
 	t.Log("Table Name: ", tableName)
 	// Currently, the assumption is that a primary table will always have an absolute path
 	// to the source data file in its schema; to keep with this assumption until we determine
 	// a better approach (e.g. handling directories of primary sources), we will use the
 	// GetSource method on the FileStorePrimaryTable to get the absolute path to the source.
 	if store.Type() == pt.SparkOffline {
-		sourceTablePath, err := table.(*FileStorePrimaryTable).GetSource()
-		if err != nil {
-			t.Fatalf("Could not get source table path: %v", err)
+
+		location, ok := table.Location().(*pl.FileStoreLocation)
+		if !ok {
+			t.Fatalf("Table location is not a FileStoreLocation")
 		}
+		sourceTablePath := location.Filepath()
 
 		_, err = store.RegisterPrimaryFromSourceTable(primaryCopyID, pl.NewFileLocation(sourceTablePath))
 		if err != nil {
@@ -5052,4 +5173,22 @@ func TestResourceSchemaValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func GenericRecordToRow(record GenericRecord) fftypes.Row {
+	row := make([]fftypes.Value, len(record))
+	for i, value := range record {
+		row[i] = fftypes.Value{
+			Value: value,
+		}
+	}
+	return row
+}
+
+func GenericRecordsToRows(records []GenericRecord) []fftypes.Row {
+	rows := make([]fftypes.Row, len(records))
+	for i, record := range records {
+		rows[i] = GenericRecordToRow(record)
+	}
+	return rows
 }

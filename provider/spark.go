@@ -17,20 +17,22 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/glue"
+	"github.com/google/uuid"
+	"github.com/pkg/errors"
+	"golang.org/x/exp/slices"
+
 	"github.com/featureform/config"
 	"github.com/featureform/fferr"
 	"github.com/featureform/filestore"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
+	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
 	sparklib "github.com/featureform/provider/spark"
 	"github.com/featureform/provider/types"
-	"github.com/google/uuid"
-	"github.com/pkg/errors"
-	"golang.org/x/exp/slices"
 )
 
 const MATERIALIZATION_ID_SEGMENTS = 3
@@ -654,12 +656,13 @@ func NewSparkExecutor(
 	}
 }
 
-func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
+func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (dataset.Dataset, error) {
 	switch lt := tableLocation.(type) {
 	case *pl.SQLLocation:
 		return nil, fferr.NewInternalErrorf("SQLLocation not supported for primary table registration")
 	case *pl.FileStoreLocation:
-		return blobRegisterPrimary(id, *lt, spark.Logger.SugaredLogger, spark.Store)
+		primary, err := blobRegisterPrimary(id, *lt, spark.Logger.SugaredLogger, spark.Store)
+		return &PrimaryTableToDatasetAdapter{primary}, err
 	case *pl.CatalogLocation:
 		// TODO consider registering things in the catalog anyway?
 		return nil, nil
@@ -1150,13 +1153,15 @@ func (spark *SparkOfflineStore) ResourceLocation(id ResourceID, resource any) (p
 // TODO: Currently, GetTransformationTable is only used in the context of serving source data as an iterator,
 // and given we currently cannot serve catalog tables in this way, there's no need to implement support for
 // catalog locations here. However, eventually, we'll need to address this gap in implementation.
-func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+func (spark *SparkOfflineStore) GetTransformationTable(id ResourceID) (dataset.Dataset, error) {
 	transformationPath, err := spark.Store.CreateFilePath(id.ToFilestorePath(), true)
 	if err != nil {
 		return nil, err
 	}
 	spark.Logger.Debugw("Retrieved transformation source", "id", id, "filePath", transformationPath.ToURI())
-	return &FileStorePrimaryTable{spark.Store, transformationPath, TableSchema{}, true, id}, nil
+	fsPT := &FileStorePrimaryTable{spark.Store, transformationPath, TableSchema{}, true, id}
+
+	return &PrimaryTableToDatasetAdapter{fsPT}, nil
 }
 
 func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig, opts ...TransformationOption) error {
@@ -1167,7 +1172,7 @@ func (spark *SparkOfflineStore) UpdateTransformation(config TransformationConfig
 // **NOTE:** Unlike the pathway for registering a primary table from a data source that previously existed in the filestore, this
 // method controls the location of the data source that will be written to once the primary table (i.e. a file that simply holds the
 // fully qualified URL pointing to the source file), so it's important to consider what pattern we adopt here.
-func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) {
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
@@ -1194,10 +1199,10 @@ func (spark *SparkOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSc
 	if err != nil {
 		return nil, err
 	}
-	return &FileStorePrimaryTable{spark.Store, primaryTableFilepath, schema, false, id}, nil
+	return &PrimaryTableToDatasetAdapter{pt: &FileStorePrimaryTable{spark.Store, primaryTableFilepath, schema, false, id}}, nil
 }
 
-func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
+func (spark *SparkOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error) {
 	return fileStoreGetPrimary(id, spark.Store, spark.Logger.SugaredLogger)
 }
 
@@ -1383,10 +1388,14 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID, opts Materi
 	Materialization,
 	error,
 ) {
+	logger := spark.Logger.With("resource_id", id)
+	logger.Info("Creating materialization")
 	if opts.DirectCopyTo != nil {
+		logger.Debug("Using direct copy materialization")
 		// This returns nil for Materialization.
 		return nil, spark.directCopyMaterialize(id, opts)
 	}
+	logger.Debug("Using blob spark materialization")
 	return blobSparkMaterialization(id, spark, false, opts)
 }
 

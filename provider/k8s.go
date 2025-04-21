@@ -17,9 +17,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/featureform/metadata"
 	"github.com/parquet-go/parquet-go"
 	"github.com/pkg/errors"
+
+	"github.com/featureform/metadata"
+	"github.com/featureform/provider/dataset"
 
 	dp "github.com/novln/docker-parser"
 	"go.uber.org/zap"
@@ -29,7 +31,7 @@ import (
 
 	cfg "github.com/featureform/config"
 	"github.com/featureform/fferr"
-	filestore "github.com/featureform/filestore"
+	"github.com/featureform/filestore"
 	"github.com/featureform/kubernetes"
 	"github.com/featureform/logging"
 	pl "github.com/featureform/provider/location"
@@ -535,12 +537,17 @@ func blobRegisterResourceFromSourceTable(id ResourceID, sourceSchema ResourceSch
 	return &BlobOfflineTable{schema: sourceSchema, store: store}, nil
 }
 
-func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
+func (k8s *K8sOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (dataset.Dataset, error) {
 	fileStoreLocation, isFileStoreLocation := tableLocation.(*pl.FileStoreLocation)
 	if !isFileStoreLocation {
 		return nil, fferr.NewInternalError(fmt.Errorf("location is not a FileStoreLocation"))
 	}
-	return blobRegisterPrimary(id, *fileStoreLocation, k8s.logger, k8s.store)
+	primary, err := blobRegisterPrimary(id, *fileStoreLocation, k8s.logger, k8s.store)
+	if err != nil {
+		k8s.logger.Errorw("Error registering primary table", "error", err)
+		return nil, err
+	}
+	return &PrimaryTableToDatasetAdapter{pt: primary}, nil
 }
 
 func blobRegisterPrimary(id ResourceID, location pl.FileStoreLocation, logger *zap.SugaredLogger, store FileStore) (PrimaryTable, error) {
@@ -780,12 +787,12 @@ func (k8s *K8sOfflineStore) getSourcePath(path string) (string, error) {
 	var filePath string
 	if fileType == "primary" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Primary}
-		fileTable, err := k8s.GetPrimaryTable(fileResourceId, metadata.SourceVariant{}) // At the moment, we don't need the source variant
+		fileTableDs, err := k8s.GetPrimaryTable(fileResourceId, metadata.SourceVariant{}) // At the moment, we don't need the source variant
 		if err != nil {
 			k8s.logger.Errorw("Issue getting primary table", "id", fileResourceId, "error", err)
 			return "", err
 		}
-		filePath = fileTable.GetName()
+		filePath = fileTableDs.Location().Location()
 		return filePath, nil
 	} else if fileType == "transformation" {
 		fileResourceId := ResourceID{Name: fileName, Variant: fileVariant, Type: Transformation}
@@ -844,7 +851,7 @@ func (k8s *K8sOfflineStore) getResourceInformationFromFilePath(path string) (str
 	return fileType, fileName, fileVariant
 }
 
-func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (dataset.Dataset, error) {
 	resourceKey := ps.ResourceToDirectoryPath(id.Type.String(), id.Name, id.Variant)
 	transformationFilepath, err := k8s.store.CreateFilePath(resourceKey, false)
 	if err != nil {
@@ -861,7 +868,8 @@ func (k8s *K8sOfflineStore) GetTransformationTable(id ResourceID) (Transformatio
 		return nil, err
 	}
 	// TODO: populate schema
-	return &FileStorePrimaryTable{k8s.store, transformationFilepath, TableSchema{}, true, id}, nil
+	fsPt := &FileStorePrimaryTable{k8s.store, transformationFilepath, TableSchema{}, true, id}
+	return &PrimaryTableToDatasetAdapter{pt: fsPt}, nil
 }
 
 func (k8s *K8sOfflineStore) UpdateTransformation(config TransformationConfig, opts ...TransformationOption) error {
@@ -870,15 +878,15 @@ func (k8s *K8sOfflineStore) UpdateTransformation(config TransformationConfig, op
 	}
 	return k8s.transformation(config, true)
 }
-func (k8s *K8sOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+func (k8s *K8sOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) {
 	return nil, fferr.NewInternalError(fmt.Errorf("not implemented"))
 }
 
-func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
+func (k8s *K8sOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error) {
 	return fileStoreGetPrimary(id, k8s.store, k8s.logger)
 }
 
-func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogger) (PrimaryTable, error) {
+func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogger) (dataset.Dataset, error) {
 	filepath, err := store.CreateFilePath(id.ToFilestorePath(), false)
 	if err != nil {
 		return nil, err
@@ -898,7 +906,8 @@ func fileStoreGetPrimary(id ResourceID, store FileStore, logger *zap.SugaredLogg
 	if err != nil {
 		return nil, err
 	}
-	return &FileStorePrimaryTable{store, sourcePath, schema, false, id}, nil
+	fsPT := &FileStorePrimaryTable{store, sourcePath, schema, false, id}
+	return &PrimaryTableToDatasetAdapter{pt: fsPT}, nil
 }
 
 func (k8s *K8sOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {

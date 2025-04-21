@@ -80,6 +80,9 @@ spec:
               value: {{ .Values.api.statusPort | quote }}
             - name: IMAGE_VERSION
               value: {{ .Values.versionOverride | default .Chart.AppVersion }}
+          startupProbe:
+            grpc:
+              port: {{ .Values.api.port }}
           livenessProbe:
             httpGet:
               path: /_ah/

@@ -15,6 +15,7 @@ import (
 
 	"github.com/featureform/fferr"
 	types "github.com/featureform/fftypes"
+	"github.com/featureform/helpers/postgres"
 	"github.com/featureform/logging"
 	"github.com/featureform/provider/location"
 )
@@ -25,6 +26,8 @@ type SqlDataset struct {
 	schema    types.Schema
 	converter types.ValueConverter[any]
 	limit     int
+
+	sanitizer func(obj location.FullyQualifiedObject) string // remove this and create specific datasets
 }
 
 func NewSqlDataset(
@@ -126,20 +129,45 @@ func getSchema(db *sql.DB, converter types.ValueConverter[any], tableName *locat
 	return types.Schema{Fields: fields}, nil
 }
 
-func (ds SqlDataset) Location() location.Location {
+func (ds *SqlDataset) SetSanitizer(sanitizer func(obj location.FullyQualifiedObject) string) {
+	ds.sanitizer = sanitizer
+}
+
+func (ds *SqlDataset) Location() location.Location {
 	return ds.location
 }
 
-func (ds SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
+func (ds *SqlDataset) Iterator(ctx context.Context, limit int64) (Iterator, error) {
 	logger := logging.GetLoggerFromContext(ctx)
-	columnNames := ds.Schema().SanitizedColumnNames()
+	schema := ds.Schema()
+
+	columnNames := make([]string, len(schema.Fields))
+	for i, field := range schema.Fields {
+		columnNames[i] = postgres.Sanitize(string(field.Name))
+	}
+
 	cols := strings.Join(columnNames, ", ")
-	loc := ds.location.Sanitized()
+	var loc string
+	if ds.sanitizer != nil {
+		loc = ds.sanitizer(ds.location.TableLocation())
+	} else {
+		loc = location.SanitizeFullyQualifiedObject(ds.location.TableLocation())
+	}
 	var query string
-	if ds.limit == -1 {
+
+	effectiveLimit := -1
+	if ds.limit > 0 && limit > 0 {
+		effectiveLimit = min(ds.limit, int(limit))
+	} else if ds.limit > 0 {
+		effectiveLimit = ds.limit
+	} else if limit > 0 {
+		effectiveLimit = int(limit)
+	}
+	
+	if effectiveLimit == -1 {
 		query = fmt.Sprintf("SELECT %s FROM %s", cols, loc)
 	} else {
-		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", cols, loc, ds.limit)
+		query = fmt.Sprintf("SELECT %s FROM %s LIMIT %d", cols, loc, effectiveLimit)
 	}
 
 	rows, err := ds.db.QueryContext(ctx, query)
@@ -151,44 +179,35 @@ func (ds SqlDataset) Iterator(ctx context.Context) (Iterator, error) {
 	return NewSqlIterator(ctx, rows, ds.converter, ds.schema), nil
 }
 
-func (ds SqlDataset) Schema() types.Schema {
+func (ds *SqlDataset) Schema() types.Schema {
 	return ds.schema
 }
 
 type SqlIterator struct {
 	rows          *sql.Rows
-	currentValues types.Row
 	converter     types.ValueConverter[any]
 	schema        types.Schema
+	currentValues types.Row
+	scanTargets   []any
 	err           error
-	closed        bool
-	scanBuffers   []any     // Reusable buffer for SQL Scan
-	valueBuffers  []any     // Holds scanned values before conversion
-	rowBuffer     types.Row // Reusable row buffer to avoid allocations on each Next call
-
-	ctx context.Context
+	ctx           context.Context
 }
 
 func NewSqlIterator(ctx context.Context, rows *sql.Rows, converter types.ValueConverter[any], schema types.Schema) *SqlIterator {
-	// Pre-allocate buffers for scanning
 	columnCount := len(schema.Fields)
-	valueBuffers := make([]interface{}, columnCount)
-	scanBuffers := make([]interface{}, columnCount)
-	for i := range valueBuffers {
-		scanBuffers[i] = &valueBuffers[i]
+	scanTargets := make([]any, columnCount)
+
+	for i := range scanTargets {
+		var v any
+		scanTargets[i] = &v
 	}
 
-	// Pre-allocate the row buffer to avoid allocation on each Next() call
-	rowBuffer := make(types.Row, columnCount)
-
 	return &SqlIterator{
-		rows:         rows,
-		converter:    converter,
-		schema:       schema,
-		scanBuffers:  scanBuffers,
-		valueBuffers: valueBuffers,
-		rowBuffer:    rowBuffer,
-		ctx:          ctx,
+		rows:        rows,
+		converter:   converter,
+		schema:      schema,
+		scanTargets: scanTargets,
+		ctx:         ctx,
 	}
 }
 
@@ -216,8 +235,13 @@ func (it *SqlIterator) Close() error {
 }
 
 func (it *SqlIterator) Next() bool {
-	if it.closed {
+	// Check for context cancellation
+	select {
+	case <-it.ctx.Done():
+		it.err = it.ctx.Err()
+		it.Close()
 		return false
+	default:
 	}
 
 	if !it.rows.Next() {
@@ -225,32 +249,34 @@ func (it *SqlIterator) Next() bool {
 		return false
 	}
 
-	// Verify the column count
-	columns, err := it.rows.Columns()
-	if err != nil {
+	if it.scanTargets == nil {
+		it.scanTargets = make([]any, len(it.schema.Fields))
+		for i := range it.scanTargets {
+			var v any
+			it.scanTargets[i] = &v
+		}
+	}
+
+	// Scan row data into scan targets
+	if err := it.rows.Scan(it.scanTargets...); err != nil {
 		it.err = fferr.NewExecutionError("SQL", err)
 		it.Close()
 		return false
 	}
 
-	if len(columns) != len(it.schema.Fields) {
-		it.err = fferr.NewInternalErrorf("column count mismatch: schema has %d, query returned %d",
-			len(it.schema.Fields), len(columns))
-		it.Close()
-		return false
-	}
+	// Allocate a new row for the result
+	row := make(types.Row, len(it.scanTargets))
 
-	// Scan row data into pre-allocated buffers
-	if err := it.rows.Scan(it.scanBuffers...); err != nil {
-		it.err = fferr.NewExecutionError("SQL", err)
-		it.Close()
-		return false
-	}
+	// Convert values according to schema
+	for i, rawPtr := range it.scanTargets {
+		valPtr, ok := rawPtr.(*any)
+		if !ok {
+			it.err = fferr.NewInternalErrorf("unexpected scan target type at index %d: %T", i, rawPtr)
+			it.Close()
+			return false
+		}
+		val := *valPtr
 
-	// Convert values according to schema, reusing the pre-allocated row buffer
-	// This avoids allocating a new slice on each Next() call, reducing GC pressure
-	// especially important for large datasets with many rows
-	for i, val := range it.valueBuffers {
 		nativeType := it.schema.Fields[i].NativeType
 		convertedVal, err := it.converter.ConvertValue(nativeType, val)
 		if err != nil {
@@ -258,9 +284,9 @@ func (it *SqlIterator) Next() bool {
 			it.Close()
 			return false
 		}
-		it.rowBuffer[i] = convertedVal
+		row[i] = convertedVal
 	}
 
-	it.currentValues = it.rowBuffer
+	it.currentValues = row
 	return true
 }

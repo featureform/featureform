@@ -21,7 +21,7 @@ import (
 // and schema
 type Dataset interface {
 	Location() pl.Location
-	Iterator(ctx Context) (Iterator, error)
+	Iterator(ctx Context, limit int64) (Iterator, error)
 	Schema() types.Schema
 }
 

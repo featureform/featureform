@@ -27,6 +27,7 @@ import (
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider/clickhouse"
+	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
@@ -503,6 +504,10 @@ func (table *clickhousePrimaryTable) GetName() string {
 	return table.name
 }
 
+func (table *clickhousePrimaryTable) GetLocation() pl.Location {
+	return clickhouse.NewLocationFromTableName(table.name)
+}
+
 func (table *clickhousePrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 	columns, err := table.query.getColumns(table.db, table.name)
 	if err != nil {
@@ -738,7 +743,7 @@ func (store *clickHouseOfflineStore) CheckHealth() (bool, error) {
 	return true, nil
 }
 
-func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
+func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (dataset.Dataset, error) {
 	logger := store.logger.With("resourceId", id)
 
 	logger.Debug("Registering primary from source table")
@@ -777,11 +782,13 @@ func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceI
 		return nil, err
 	}
 
-	return &clickhousePrimaryTable{
-		db:     store.db,
-		name:   tableName,
-		schema: TableSchema{Columns: columnNames},
-		query:  store.query,
+	return &PrimaryTableToDatasetAdapter{
+		&clickhousePrimaryTable{
+			db:     store.db,
+			name:   tableName,
+			schema: TableSchema{Columns: columnNames},
+			query:  store.query,
+		},
 	}, nil
 }
 
@@ -808,7 +815,7 @@ func (store *clickHouseOfflineStore) CreateTransformation(config TransformationC
 	return nil
 }
 
-func (store *clickHouseOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+func (store *clickHouseOfflineStore) GetTransformationTable(id ResourceID) (dataset.Dataset, error) {
 	n := -1
 	name, err := store.getTransformationTableName(id)
 	if err != nil {
@@ -826,12 +833,13 @@ func (store *clickHouseOfflineStore) GetTransformationTable(id ResourceID) (Tran
 	if err != nil {
 		return nil, err
 	}
-	return &clickhousePrimaryTable{
+	chPt := &clickhousePrimaryTable{
 		db:     store.db,
 		name:   name,
 		schema: TableSchema{Columns: columnNames},
 		query:  store.query,
-	}, nil
+	}
+	return &PrimaryTableToDatasetAdapter{pt: chPt}, nil
 }
 
 func (store *clickHouseOfflineStore) UpdateTransformation(config TransformationConfig, opts ...TransformationOption) error {
@@ -849,7 +857,7 @@ func (store *clickHouseOfflineStore) UpdateTransformation(config TransformationC
 	return nil
 }
 
-func (store *clickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+func (store *clickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) {
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
@@ -869,10 +877,10 @@ func (store *clickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema Ta
 	if err != nil {
 		return nil, err
 	}
-	return table, nil
+	return &PrimaryTableToDatasetAdapter{pt: table}, nil
 }
 
-func (store *clickHouseOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
+func (store *clickHouseOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error) {
 	name, err := GetPrimaryTableName(id)
 	if err != nil {
 		return nil, err
@@ -886,12 +894,14 @@ func (store *clickHouseOfflineStore) GetPrimaryTable(id ResourceID, source metad
 	if err != nil {
 		return nil, err
 	}
-	return &clickhousePrimaryTable{
+	chPT := &clickhousePrimaryTable{
 		db:     store.db,
 		name:   name,
 		schema: TableSchema{Columns: columnNames},
 		query:  store.query,
-	}, nil
+	}
+
+	return &PrimaryTableToDatasetAdapter{pt: chPT}, nil
 }
 
 func (store *clickHouseOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
@@ -1691,9 +1701,11 @@ func (q clickhouseSQLQueries) castTableItemType(v interface{}, t interface{}) in
 	if v == nil {
 		return v
 	}
+
 	// v might be a pointer to a pointer (so we can handle nulls)
 	v = deferencePointer(v)
 	//type might be nullable - identify underlying type e.g. Nullable(String) -> String
+
 	match := nullableRe.FindStringSubmatch(t.(string))
 	if len(match) == 2 {
 		t = match[1]

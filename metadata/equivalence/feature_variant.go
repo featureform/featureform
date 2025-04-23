@@ -10,16 +10,18 @@ package equivalence
 import (
 	"reflect"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/featureform/fferr"
 	pb "github.com/featureform/metadata/proto"
 	"github.com/featureform/provider/types"
-	"github.com/google/go-cmp/cmp"
 )
 
 type featureVariant struct {
 	Name                    string
 	Provider                string
 	ValueType               types.ValueType
+	EntityColumn            string
 	ComputationMode         string // TODO move definition from metadata to common
 	Location                featureLocation
 	ResourceSnowflakeConfig resourceSnowflakeConfig
@@ -49,6 +51,7 @@ func FeatureVariantFromProto(proto *pb.FeatureVariant) (featureVariant, error) {
 		Name:                    proto.Name,
 		Provider:                proto.Provider,
 		ValueType:               valueType,
+		EntityColumn:            proto.Entity,
 		ComputationMode:         proto.Mode.String(),
 		Location:                location,
 		ResourceSnowflakeConfig: resourceSnowflakeConfigFromProto(proto.ResourceSnowflakeConfig),
@@ -66,6 +69,7 @@ func (f featureVariant) IsEquivalent(other Equivalencer) bool {
 			return f1.Name == f2.Name &&
 				f1.Provider == f2.Provider &&
 				f1.ValueType == f2.ValueType &&
+				f1.EntityColumn == f2.EntityColumn &&
 				f1.ComputationMode == f2.ComputationMode &&
 				f1.Location.IsEquivalent(f2.Location) &&
 				reflect.DeepEqual(f1.ResourceSnowflakeConfig, f2.ResourceSnowflakeConfig)

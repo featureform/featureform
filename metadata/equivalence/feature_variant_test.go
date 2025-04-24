@@ -8,11 +8,13 @@
 package equivalence
 
 import (
-	pb "github.com/featureform/metadata/proto"
 	"testing"
 
-	"github.com/featureform/provider/types"
+	pb "github.com/featureform/metadata/proto"
+
 	"github.com/stretchr/testify/assert"
+
+	"github.com/featureform/provider/types"
 )
 
 func TestFeatureVariantIsEquivalent(t *testing.T) {
@@ -29,6 +31,7 @@ func TestFeatureVariantIsEquivalent(t *testing.T) {
 				Name:            "Feature1",
 				Provider:        "Provider1",
 				ValueType:       types.Int8,
+				Entity:          "user_id",
 				ComputationMode: "Mode1",
 				Location: column{
 					Entity: "Entity1",
@@ -40,6 +43,7 @@ func TestFeatureVariantIsEquivalent(t *testing.T) {
 				Name:            "Feature1",
 				Provider:        "Provider1",
 				ValueType:       types.Int8,
+				Entity:          "user_id",
 				ComputationMode: "Mode1",
 				Location: column{
 					Entity: "Entity1",
@@ -50,11 +54,40 @@ func TestFeatureVariantIsEquivalent(t *testing.T) {
 			expected: true,
 		},
 		{
+			name: "Different Entity",
+			fv1: featureVariant{
+				Name:            "Feature1",
+				Provider:        "Provider1",
+				ValueType:       types.Int8,
+				Entity:          "user_id",
+				ComputationMode: "Mode1",
+				Location: column{
+					Entity: "Entity1",
+					Value:  "Value1",
+					Ts:     "Timestamp1",
+				},
+			},
+			fv2: featureVariant{
+				Name:            "Feature1",
+				Provider:        "Provider1",
+				ValueType:       types.Int8,
+				Entity:          "customer_id",
+				ComputationMode: "Mode1",
+				Location: column{
+					Entity: "Entity1",
+					Value:  "Value1",
+					Ts:     "Timestamp1",
+				},
+			},
+			expected: false,
+		},
+		{
 			name: "Different Names",
 			fv1: featureVariant{
 				Name:            "Feature1",
 				Provider:        "Provider1",
 				ValueType:       types.Int8,
+				Entity:          "user_id",
 				ComputationMode: "Mode1",
 				Location: column{
 					Entity: "Entity1",
@@ -66,6 +99,7 @@ func TestFeatureVariantIsEquivalent(t *testing.T) {
 				Name:            "Feature2", // Different Name
 				Provider:        "Provider1",
 				ValueType:       types.Int8,
+				Entity:          "user_id",
 				ComputationMode: "Mode1",
 				Location: column{
 					Entity: "Entity1",
@@ -81,6 +115,7 @@ func TestFeatureVariantIsEquivalent(t *testing.T) {
 				Name:            "Feature1",
 				Provider:        "Provider1",
 				ValueType:       types.Int8,
+				Entity:          "user_id",
 				ComputationMode: "Mode1",
 				Location: column{
 					Entity: "Entity1",
@@ -92,6 +127,7 @@ func TestFeatureVariantIsEquivalent(t *testing.T) {
 				Name:            "Feature1",
 				Provider:        "Provider2", // Different Provider
 				ValueType:       types.Int8,
+				Entity:          "user_id",
 				ComputationMode: "Mode1",
 				Location: column{
 					Entity: "Entity1",
@@ -107,6 +143,7 @@ func TestFeatureVariantIsEquivalent(t *testing.T) {
 				Name:            "Feature1",
 				Provider:        "Provider1",
 				ValueType:       types.Int8,
+				Entity:          "user_id",
 				ComputationMode: "Mode1",
 				Location: column{
 					Entity: "Entity1",
@@ -118,6 +155,7 @@ func TestFeatureVariantIsEquivalent(t *testing.T) {
 				Name:            "Feature1",
 				Provider:        "Provider1",
 				ValueType:       types.Int16,
+				Entity:          "user_id",
 				ComputationMode: "Mode1",
 				Location: column{
 					Entity: "Entity1",
@@ -133,6 +171,7 @@ func TestFeatureVariantIsEquivalent(t *testing.T) {
 				Name:            "Feature1",
 				Provider:        "Provider1",
 				ValueType:       types.Int8,
+				Entity:          "user_id",
 				ComputationMode: "Mode1",
 				Location: column{
 					Entity: "Entity1",
@@ -144,6 +183,7 @@ func TestFeatureVariantIsEquivalent(t *testing.T) {
 				Name:            "Feature1",
 				Provider:        "Provider1",
 				ValueType:       types.Int8,
+				Entity:          "user_id",
 				ComputationMode: "Mode2",
 				Location: column{
 					Entity: "Entity1",
@@ -157,10 +197,12 @@ func TestFeatureVariantIsEquivalent(t *testing.T) {
 			name: "Different Locations (Column vs PythonFunction)",
 			fv1: featureVariant{
 				Name:     "Feature1",
+				Entity:   "user_id",
 				Location: column{Entity: "Entity1", Value: "Value1", Ts: "Timestamp1"},
 			},
 			fv2: featureVariant{
 				Name:     "Feature1",
+				Entity:   "user_id",
 				Location: pythonFunction{Query: []byte("SELECT * FROM table")},
 			},
 			expected: false,
@@ -170,11 +212,13 @@ func TestFeatureVariantIsEquivalent(t *testing.T) {
 			fv1: featureVariant{
 				Name:     "Feature1",
 				Provider: "Provider1",
+				Entity:   "user_id",
 				Location: pythonFunction{Query: []byte("SELECT * FROM table")},
 			},
 			fv2: featureVariant{
 				Name:     "Feature1",
 				Provider: "Provider1",
+				Entity:   "user_id",
 				Location: pythonFunction{Query: []byte("SELECT * FROM table")},
 			},
 			expected: true,
@@ -183,10 +227,12 @@ func TestFeatureVariantIsEquivalent(t *testing.T) {
 			name: "Different PythonFunction queries",
 			fv1: featureVariant{
 				Name:     "Feature1",
+				Entity:   "user_id",
 				Location: pythonFunction{Query: []byte("SELECT * FROM table1")},
 			},
 			fv2: featureVariant{
 				Name:     "Feature1",
+				Entity:   "user_id",
 				Location: pythonFunction{Query: []byte("SELECT * FROM table2")}, // Different Query
 			},
 			expected: false,
@@ -196,11 +242,13 @@ func TestFeatureVariantIsEquivalent(t *testing.T) {
 			fv1: featureVariant{
 				Name:     "Feature1",
 				Provider: "Provider1",
+				Entity:   "user_id",
 				Location: stream{OfflineProvider: "OfflineProvider1"},
 			},
 			fv2: featureVariant{
 				Name:     "Feature1",
 				Provider: "Provider1",
+				Entity:   "user_id",
 				Location: stream{OfflineProvider: "OfflineProvider1"},
 			},
 			expected: true,
@@ -209,11 +257,13 @@ func TestFeatureVariantIsEquivalent(t *testing.T) {
 			name: "Different Stream offlineProviders",
 			fv1: featureVariant{
 				Name:     "Feature1",
+				Entity:   "user_id",
 				Location: stream{OfflineProvider: "OfflineProvider1"},
 				// ... other fields
 			},
 			fv2: featureVariant{
 				Name:     "Feature1",
+				Entity:   "user_id",
 				Location: stream{OfflineProvider: "OfflineProvider2"}, // Different OfflineProvider
 				// ... other fields
 			},
@@ -222,7 +272,8 @@ func TestFeatureVariantIsEquivalent(t *testing.T) {
 		{
 			name: "Different Types",
 			fv1: featureVariant{
-				Name: "Feature1",
+				Name:   "Feature1",
+				Entity: "user_id",
 				// ... other fields
 			},
 			fv2: column{
@@ -380,6 +431,7 @@ func TestFeatureVariantFromProto(t *testing.T) {
 				Name:     "user_spend",
 				Provider: "snowflake",
 				Type:     valueType,
+				Entity:   "user_id",
 				Mode:     pb.ComputationMode_PRECOMPUTED,
 				Location: &pb.FeatureVariant_Columns{
 					Columns: &pb.Columns{
@@ -396,6 +448,7 @@ func TestFeatureVariantFromProto(t *testing.T) {
 				Name:            "user_spend",
 				Provider:        "snowflake",
 				ValueType:       vt,
+				Entity:          "user_id",
 				ComputationMode: "PRECOMPUTED",
 				Location: column{
 					Entity: "user_id",
@@ -413,6 +466,7 @@ func TestFeatureVariantFromProto(t *testing.T) {
 				Name:     "user_category",
 				Provider: "python",
 				Type:     valueType,
+				Entity:   "user_id",
 				Mode:     pb.ComputationMode_PRECOMPUTED,
 				Location: &pb.FeatureVariant_Function{
 					Function: &pb.PythonFunction{
@@ -424,6 +478,7 @@ func TestFeatureVariantFromProto(t *testing.T) {
 				Name:            "user_category",
 				Provider:        "python",
 				ValueType:       vt,
+				Entity:          "user_id",
 				ComputationMode: "PRECOMPUTED",
 				Location: pythonFunction{
 					Query: []byte("def compute(row): return row['category'].upper()"),
@@ -437,6 +492,7 @@ func TestFeatureVariantFromProto(t *testing.T) {
 				Name:     "click_count",
 				Provider: "kafka",
 				Type:     valueType,
+				Entity:   "user_id",
 				Mode:     pb.ComputationMode_STREAMING,
 				Location: &pb.FeatureVariant_Stream{
 					Stream: &pb.Stream{
@@ -448,6 +504,7 @@ func TestFeatureVariantFromProto(t *testing.T) {
 				Name:            "click_count",
 				Provider:        "kafka",
 				ValueType:       vt,
+				Entity:          "user_id",
 				ComputationMode: "STREAMING",
 				Location: stream{
 					OfflineProvider: "snowflake",

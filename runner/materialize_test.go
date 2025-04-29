@@ -12,15 +12,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+	"go.uber.org/zap/zaptest"
+
 	"github.com/featureform/filestore"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pt "github.com/featureform/provider/provider_type"
 	vt "github.com/featureform/provider/types"
 	"github.com/featureform/types"
-	"github.com/google/uuid"
-	"go.uber.org/zap/zaptest"
 )
 
 func TestMaterializationRunner(t *testing.T) {
@@ -54,7 +56,7 @@ func testMaterializationRunner(t *testing.T, offline provider.OfflineStore, onli
 		records[i] = provider.ResourceRecord{Entity: entity, Value: val}
 	}
 	id, mat := createMaterialization(t, offline, schema, records)
-	defer offline.DeleteMaterialization(mat.ID())
+	defer offline.DeleteMaterialization(provider.MaterializationID(mat.ID()))
 	job := MaterializeRunner{
 		Online:  online,
 		Offline: offline,
@@ -102,7 +104,7 @@ func testMaterializationRunner(t *testing.T, offline provider.OfflineStore, onli
 
 func createMaterialization(
 	t *testing.T, store provider.OfflineStore, schema provider.TableSchema, records []provider.ResourceRecord,
-) (provider.ResourceID, provider.Materialization) {
+) (provider.ResourceID, dataset.Materialization) {
 	id := provider.ResourceID{Name: uuid.NewString(), Variant: uuid.NewString(), Type: provider.Feature}
 	table, err := store.CreateResourceTable(id, schema)
 	if err != nil {

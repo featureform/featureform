@@ -284,7 +284,7 @@ func (p *postgresOfflineStoreTester) CreateTableFromSchema(loc location.Location
 		return nil, err
 	}
 
-	return &sqlDataset, nil
+	return sqlDataset, nil
 }
 
 func TestPostgresSchemas(t *testing.T) {

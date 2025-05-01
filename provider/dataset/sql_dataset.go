@@ -36,96 +36,19 @@ func NewSqlDataset(
 	schema types.Schema,
 	converter types.ValueConverter[any],
 	limit int,
-) (SqlDataset, error) {
+) (*SqlDataset, error) {
 	lmt := limit
 	if limit <= 0 {
 		lmt = -1
 	}
 
-	return SqlDataset{
+	return &SqlDataset{
 		db:        db,
 		location:  location,
 		schema:    schema,
 		converter: converter,
 		limit:     lmt,
 	}, nil
-}
-
-// NewSqlDatasetWithAutoSchema creates a new SQL dataset with auto-detected schema
-func NewSqlDatasetWithAutoSchema(
-	db *sql.DB,
-	location *location.SQLLocation,
-	converter types.ValueConverter[any],
-	limit int,
-) (SqlDataset, error) {
-	schema, err := getSchema(db, converter, location)
-	if err != nil {
-		return SqlDataset{}, err
-	}
-
-	return NewSqlDataset(db, location, schema, converter, limit)
-}
-
-// getSchema extracts schema information from the database
-func getSchema(db *sql.DB, converter types.ValueConverter[any], tableName *location.SQLLocation) (types.Schema, error) {
-	// Extract schema and table name
-	tblName := tableName.GetTable()
-	schema := tableName.GetSchema()
-
-	qry := `SELECT column_name, data_type 
-	        FROM information_schema.columns 
-	        WHERE table_name = ? 
-	        AND table_schema = ? 
-	        ORDER BY ordinal_position`
-
-	// Execute query with both parameters
-	rows, err := db.Query(qry, tblName, schema)
-	if err != nil {
-		wrapped := fferr.NewExecutionError("SQL", err)
-		wrapped.AddDetail("schema", schema)
-		wrapped.AddDetail("table_name", tblName)
-		return types.Schema{}, wrapped
-	}
-	defer rows.Close()
-
-	// Process result set
-	fields := make([]types.ColumnSchema, 0)
-	for rows.Next() {
-		var columnName, dataType string
-		if err := rows.Scan(&columnName, &dataType); err != nil {
-			wrapped := fferr.NewExecutionError("SQL", err)
-			wrapped.AddDetail("schema", schema)
-			wrapped.AddDetail("table_name", tblName)
-			return types.Schema{}, wrapped
-		}
-
-		// Ensure the type is supported
-		valueType, err := converter.GetType(types.NativeType(dataType))
-		if err != nil {
-			wrapped := fferr.NewInternalErrorf("could not convert native type to value type: %v", err)
-			wrapped.AddDetail("schema", schema)
-			wrapped.AddDetail("table_name", tblName)
-			return types.Schema{}, wrapped
-		}
-
-		// Append column details
-		column := types.ColumnSchema{
-			Name:       types.ColumnName(columnName),
-			NativeType: types.NativeType(dataType),
-			Type:       valueType,
-		}
-		fields = append(fields, column)
-	}
-
-	// Check for row iteration errors
-	if err := rows.Err(); err != nil {
-		wrapped := fferr.NewExecutionError("SQL", err)
-		wrapped.AddDetail("schema", schema)
-		wrapped.AddDetail("table_name", tblName)
-		return types.Schema{}, wrapped
-	}
-
-	return types.Schema{Fields: fields}, nil
 }
 
 func (ds *SqlDataset) SetSanitizer(sanitizer func(obj location.FullyQualifiedObject) string) {

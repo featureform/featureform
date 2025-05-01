@@ -23,6 +23,7 @@ import (
 	chapi "github.com/ClickHouse/clickhouse-go/v2"
 
 	"github.com/featureform/fferr"
+	fftypes "github.com/featureform/fftypes"
 	"github.com/featureform/helpers/stringset"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -1820,6 +1821,10 @@ func (q clickhouseSQLQueries) getColumns(db *sql.DB, tableName string) ([]TableC
 		columnNames = append(columnNames, TableColumn{Name: column})
 	}
 	return columnNames, nil
+}
+
+func (q clickhouseSQLQueries) getSchema(db *sql.DB, converter fftypes.ValueConverter[any], location pl.SQLLocation) (fftypes.Schema, error) {
+	return fftypes.Schema{}, nil
 }
 
 func (q clickhouseSQLQueries) materializationDrop(tableName string) string {

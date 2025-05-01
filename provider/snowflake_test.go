@@ -189,7 +189,7 @@ func (s *snowflakeOfflineStoreTester) CreateTableFromSchema(loc location.Locatio
 		return nil, err
 	}
 
-	return &sqlDataset, nil
+	return sqlDataset, nil
 }
 
 // quoteSnowflakeIdentifier safely quotes dot-separated identifiers like db.schema.table

@@ -1876,7 +1876,8 @@ func testTrainingSetDefShorthand(t *testing.T, store OfflineStore) {
 
 func testPrimaryCreateTable(t *testing.T, store OfflineStore) {
 	type TestCreateCase struct {
-		Rec         ResourceID
+		Rec ResourceID
+
 		Schema      TableSchema
 		ExpectError bool
 		ExpectValue PrimaryTable

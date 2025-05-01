@@ -30,7 +30,6 @@ import (
 	pl "github.com/featureform/provider/location"
 	pt "github.com/featureform/provider/provider_type"
 	sc "github.com/featureform/scheduling"
-	"github.com/featureform/serving"
 	"github.com/featureform/storage"
 	"github.com/featureform/storage/query"
 	pr "github.com/featureform/streamer_proxy/proxy_client"
@@ -2170,7 +2169,7 @@ func (m *MetadataServer) SourceData(c *gin.Context) {
 	}
 
 	for iter.Next() {
-		sRow, err := serving.SerializedSourceRow(iter.Values())
+		sRow, err := iter.Values().ToProto()
 		if err != nil {
 			fetchError := &FetchError{StatusCode: http.StatusInternalServerError, Type: "SourceData"}
 			m.logger.Errorw(fetchError.Error(), "Metadata error", err)
@@ -2188,11 +2187,13 @@ func (m *MetadataServer) SourceData(c *gin.Context) {
 		response.Rows = append(response.Rows, dataRow)
 	}
 
-	for i, columnName := range iter.Columns() {
+	schema := iter.Schema()
+	colNames := schema.ColumnNames()
+	for i, columnName := range colNames {
 		cleanName := strings.ReplaceAll(columnName, "\"", "")
 		response.Columns = append(response.Columns, cleanName)
 		if i == MaxPreviewCols {
-			response.Columns = append(response.Columns, fmt.Sprintf("%d More Columns...", len(iter.Columns())-MaxPreviewCols))
+			response.Columns = append(response.Columns, fmt.Sprintf("%d More Columns...", len(colNames)-MaxPreviewCols))
 			break
 		}
 	}
@@ -2217,7 +2218,7 @@ func extractElementValue(rowString *proto.Value) string {
 	return result
 }
 
-func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64) (provider.GenericTableIterator, error) {
+func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64) (dataset.Iterator, error) {
 	ctx := context.TODO()
 	m.logger.Infow("Getting Source Variant Iterator", "name", name, "variant", variant)
 	sv, err := m.client.GetSourceVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
@@ -2260,11 +2261,7 @@ func (m *MetadataServer) getSourceDataIterator(name, variant string, limit int64
 	if providerErr != nil {
 		return nil, providerErr
 	}
-	newIter, err := ds.Iterator(ctx, limit)
-	if err != nil {
-		return nil, err
-	}
-	return &provider.NewIteratorToOldIteratorAdapter{Iterator: newIter}, nil
+	return ds.Iterator(ctx, limit)
 }
 
 type VariantResult interface {

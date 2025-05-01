@@ -530,7 +530,7 @@ type OfflineStoreCore interface {
 
 type OfflineStoreDataset interface {
 	// CreatePrimaryTable is not used outside of the context of tests
-	CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error)
+	CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) // won't be used later
 	RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (dataset.Dataset, error)
 	GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error)
 	SupportsTransformationOption(opt TransformationOptionType) (bool, error)

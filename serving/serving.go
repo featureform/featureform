@@ -322,7 +322,8 @@ func (serv *FeatureServer) SourceData(req *pb.SourceDataRequest, stream pb.Featu
 	rows := &pb.SourceDataRows{Rows: make([]*pb.SourceDataRow, 0, DataBatchSize)}
 	bufRows := 0
 	for iter.Next() {
-		sRow, err := SerializedSourceRow(iter.Values())
+		values := iter.Values()
+		sRow, err := values.ToProto()
 		if err != nil {
 			logger.Errorw("Failed to serialize row", "Error", err)
 			return err
@@ -506,7 +507,7 @@ func (serv *FeatureServer) checkEntityOfFeature(ids []provider.ResourceID) (bool
 	return true, nil
 }
 
-func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int64) (provider.GenericTableIterator, error) {
+func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int64) (dataset.Iterator, error) {
 	ctx := context.TODO()
 	serv.Logger.Infow("Getting Source Variant Iterator", "name", name, "variant", variant)
 	sv, err := serv.Metadata.GetSourceVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
@@ -551,11 +552,7 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 		return nil, fferr.NewInternalErrorf("primary table is nil for %s:%s", name, variant)
 	}
 
-	iterator, err := ds.Iterator(ctx, limit)
-	if err != nil {
-		return nil, err
-	}
-	return &provider.NewIteratorToOldIteratorAdapter{Iterator: iterator}, nil
+	return ds.Iterator(ctx, limit)
 }
 
 func (serv *FeatureServer) addModel(ctx context.Context, model *pb.Model, features []*pb.FeatureID) error {
@@ -731,8 +728,9 @@ func (serv *FeatureServer) SourceColumns(ctx context.Context, req *pb.SourceColu
 		return nil, fferr.NewDatasetNotFoundError(name, variant, fmt.Errorf("source data iterator is nil"))
 	}
 	defer it.Close()
+	schema := it.Schema()
 	return &pb.SourceDataColumns{
-		Columns: it.Columns(),
+		Columns: schema.ColumnNames(),
 	}, nil
 }
 

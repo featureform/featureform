@@ -24,6 +24,7 @@ import (
 	db "github.com/jackc/pgx/v4"
 
 	"github.com/featureform/fferr"
+	fftypes "github.com/featureform/fftypes"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider/dataset"
@@ -57,6 +58,7 @@ type OfflineTableQueries interface {
 	primaryTableRegister(tableName string, sourceName string) string
 	primaryTableCreate(name string, columnString string) string
 	getColumns(db *sql.DB, tableName string) ([]TableColumn, error)
+	getSchema(db *sql.DB, converter fftypes.ValueConverter[any], location pl.SQLLocation) (fftypes.Schema, error)
 	getValueColumnTypes(tableName string) string
 	determineColumnType(valueType types.ValueType) (string, error)
 	materializationCreate(tableName string, schema ResourceSchema) []string
@@ -359,20 +361,16 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tabl
 		return nil, fferr.NewConnectionError(store.Type().String(), err)
 	}
 
-	columnNames, err := store.query.getColumns(dbConn, sqlLocation.GetTable())
+	converter, err := pt.GetConverter(store.Type())
+	if err != nil {
+		return nil, err
+	}
+	schema, err := store.query.getSchema(dbConn, converter, *sqlLocation)
 	if err != nil {
 		return nil, err
 	}
 
-	return &PrimaryTableToDatasetAdapter{
-		&SqlPrimaryTable{
-			db:          dbConn,
-			name:        sqlLocation.Location(),
-			sqlLocation: sqlLocation,
-			schema:      TableSchema{Columns: columnNames},
-			query:       store.query,
-		},
-	}, nil
+	return dataset.NewSqlDataset(dbConn, sqlLocation, schema, converter, -1)
 }
 
 func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) {
@@ -469,20 +467,16 @@ func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID, source metadata.Sou
 		return nil, fferr.NewConnectionError(store.Type().String(), getDbErr)
 	}
 
-	columnNames, err := store.query.getColumns(dbConn, sqlLocation.GetTable())
+	converter, err := pt.GetConverter(store.Type())
+	if err != nil {
+		return nil, err
+	}
+	columnNames, err := store.query.getSchema(dbConn, converter, *sqlLocation)
 	if err != nil {
 		return nil, err
 	}
 
-	sqlPT := &SqlPrimaryTable{
-		db:           dbConn,
-		name:         sqlLocation.GetTable(),
-		sqlLocation:  sqlLocation,
-		schema:       TableSchema{Columns: columnNames},
-		query:        store.query,
-		providerType: store.Type(),
-	}
-	return &PrimaryTableToDatasetAdapter{sqlPT}, nil
+	return dataset.NewSqlDataset(dbConn, sqlLocation, columnNames, converter, -1)
 }
 
 func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (dataset.Dataset, error) {
@@ -1285,19 +1279,6 @@ type SqlPrimaryTable struct {
 	providerType pt.Type
 }
 
-func (table *SqlPrimaryTable) ToDataset() (dataset.SqlDataset, error) {
-	conv, err := pt.GetConverter(table.providerType)
-	if err != nil {
-		return dataset.SqlDataset{}, err
-	}
-	return dataset.NewSqlDatasetWithAutoSchema(
-		table.db,
-		table.sqlLocation,
-		conv,
-		-1,
-	)
-}
-
 func (table *SqlPrimaryTable) GetName() string {
 	return table.name
 }
@@ -1744,6 +1725,67 @@ func (q defaultOfflineSQLQueries) getColumns(db *sql.DB, name string) ([]TableCo
 		columnNames = append(columnNames, TableColumn{Name: column})
 	}
 	return columnNames, nil
+}
+
+func (q *defaultOfflineSQLQueries) getSchema(db *sql.DB, converter fftypes.ValueConverter[any], location pl.SQLLocation) (fftypes.Schema, error) {
+	tblName := location.GetTable()
+	schema := location.GetSchema()
+
+	// Corrected Query: Ensure both `table_name` and `table_schema` are matched
+	qry := `SELECT column_name, data_type 
+	        FROM information_schema.columns 
+	        WHERE table_name = ? 
+	        AND table_schema = ? 
+	        ORDER BY ordinal_position`
+
+	// Execute query with both parameters
+	rows, err := db.Query(qry, tblName, schema)
+	if err != nil {
+		wrapped := fferr.NewExecutionError("SQL", err)
+		wrapped.AddDetail("schema", schema)
+		wrapped.AddDetail("table_name", tblName)
+		return fftypes.Schema{}, wrapped
+	}
+	defer rows.Close()
+
+	// Process result set
+	fields := make([]fftypes.ColumnSchema, 0)
+	for rows.Next() {
+		var columnName, dataType string
+		if err := rows.Scan(&columnName, &dataType); err != nil {
+			wrapped := fferr.NewExecutionError("SQL", err)
+			wrapped.AddDetail("schema", schema)
+			wrapped.AddDetail("table_name", tblName)
+			return fftypes.Schema{}, wrapped
+		}
+
+		// Ensure the type is supported
+		valueType, err := converter.GetType(fftypes.NativeType(dataType))
+		if err != nil {
+			wrapped := fferr.NewInternalErrorf("could not convert native type to value type: %v", err)
+			wrapped.AddDetail("schema", schema)
+			wrapped.AddDetail("table_name", tblName)
+			return fftypes.Schema{}, wrapped
+		}
+
+		// Append column details
+		column := fftypes.ColumnSchema{
+			Name:       fftypes.ColumnName(columnName),
+			NativeType: fftypes.NativeType(dataType),
+			Type:       valueType,
+		}
+		fields = append(fields, column)
+	}
+
+	// Check for row iteration errors
+	if err := rows.Err(); err != nil {
+		wrapped := fferr.NewExecutionError("SQL", err)
+		wrapped.AddDetail("schema", schema)
+		wrapped.AddDetail("table_name", tblName)
+		return fftypes.Schema{}, wrapped
+	}
+
+	return fftypes.Schema{Fields: fields}, nil
 }
 
 func (q defaultOfflineSQLQueries) primaryTableCreate(name string, columnString string) string {

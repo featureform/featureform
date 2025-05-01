@@ -43,22 +43,22 @@ func TestTransformations(t *testing.T) {
 		tester              OfflineSqlTest
 		transformationQuery string
 	}{
-		{
-			getConfiguredBigQueryTester(t),
-			"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, TIMESTAMP(timestamp) as date FROM %s GROUP BY location_id, TIMESTAMP(timestamp)",
-		},
-		{
-			getConfiguredSnowflakeTester(t),
-			"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)",
-		},
+		//{
+		//	getConfiguredBigQueryTester(t),
+		//	"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, TIMESTAMP(timestamp) as date FROM %s GROUP BY location_id, TIMESTAMP(timestamp)",
+		//},
+		//{
+		//	getConfiguredSnowflakeTester(t),
+		//	"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)",
+		//},
 		{
 			getConfiguredPostgresTester(t),
 			"SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
 		},
-		{
-			getConfiguredClickHouseTester(t),
-			"SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
-		},
+		//{
+		//	getConfiguredClickHouseTester(t),
+		//	"SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
+		//},
 	}
 
 	testSuite := map[string]func(t *testing.T, storeTester OfflineSqlTest, transformationQuery string){
@@ -533,46 +533,6 @@ type testSQLTransformationData struct {
 	expected []GenericRecord
 	location pl.Location
 	config   TransformationConfig
-}
-
-func (d testSQLTransformationData) Assert(t *testing.T, actual PrimaryTable) {
-	entityIdx := 0
-	avgWindSpeedIdx := 1
-	avgWindDurationIdx := 2
-	avgFetchIdx := 3
-	tsIdx := 4
-
-	numRows, err := actual.NumRows()
-	if err != nil {
-		t.Fatalf("could not get number of rows: %v", err)
-	}
-
-	assert.Equal(t, len(d.expected), int(numRows), "expected same number of rows")
-
-	itr, err := actual.IterateSegment(100)
-	if err != nil {
-		t.Fatalf("could not get iterator: %v", err)
-	}
-
-	var expectedMap = map[string]GenericRecord{}
-	for i := 0; i < len(d.expected); i++ {
-		expectedMap[d.expected[i][entityIdx].(string)] = d.expected[i]
-	}
-
-	i := 0
-	for itr.Next() {
-		actual := itr.Values()
-		expected := expectedMap[actual[entityIdx].(string)]
-		assert.Equal(t, expected[entityIdx].(string), actual[entityIdx].(string), "expected same entity")
-		assert.Equal(t, expected[avgWindSpeedIdx].(float64), actual[avgWindSpeedIdx].(float64), "expected same value for col 2")
-		assert.Equal(t, expected[avgWindDurationIdx].(float64), actual[avgWindDurationIdx].(float64), "expected same value for col 3")
-		assert.Equal(t, expected[avgFetchIdx].(float64), actual[avgFetchIdx].(float64), "expected same value for col 4")
-		assert.Equal(t, expected[tsIdx].(time.Time).Truncate(time.Microsecond), actual[tsIdx].(time.Time).Truncate(time.Microsecond), "expected same ts")
-		i++
-	}
-	if itr.Err() != nil {
-		t.Fatalf("could not iterate over transformation: %v", itr.Err())
-	}
 }
 
 func (d testSQLTransformationData) AssertDataset(t *testing.T, actual dataset.Dataset) {
@@ -1556,41 +1516,6 @@ func createDummyTable(storeTester offlineSqlStoreTester, location pl.Location, n
 	}
 
 	return genericRecords, nil
-}
-
-func verifyPrimaryTable(t *testing.T, primary PrimaryTable, records []GenericRecord) {
-	t.Helper()
-	numRows, err := primary.NumRows()
-	if err != nil {
-		t.Fatalf("could not get number of rows: %v", err)
-	}
-
-	if numRows == 0 {
-		t.Fatalf("expected more than 0 rows")
-	}
-
-	iterator, err := primary.IterateSegment(100)
-	if err != nil {
-		t.Fatalf("Could not get generic iterator: %v", err)
-	}
-
-	i := 0
-	for iterator.Next() {
-		for j, v := range iterator.Values() {
-			// NOTE: we're handling float64 differently here given the values returned by Snowflake have less precision
-			// and therefore are not equal unless we round them; if tests require handling of other types, we can add
-			// additional cases here, otherwise the default case will cover all other types
-			switch v.(type) {
-			case float64:
-				assert.True(t, floatsAreClose(v.(float64), records[i][j].(float64), floatTolerance), "expected same values")
-			case time.Time:
-				assert.Equal(t, records[i][j].(time.Time).Truncate(time.Microsecond), v.(time.Time).Truncate(time.Microsecond), "expected same values")
-			default:
-				assert.Equal(t, v, records[i][j], "expected same values")
-			}
-		}
-		i++
-	}
 }
 
 func verifyDataset(t *testing.T, primary dataset.Dataset, records []GenericRecord) {

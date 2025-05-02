@@ -1673,10 +1673,6 @@ func createDummyTableNew(ctx context.Context, storeTester offlineSqlStoreTester,
 	return genericRecords, nil
 }
 
-func verifyDataset(t *testing.T, primary dataset.Dataset, records []GenericRecord) {
-	t.Helper()
-	sDs, ok := primary.(dataset.SizedDataset)
-	if !ok {
 func verifyDataset(t *testing.T, primary dataset.Dataset, records []fftypes.Row) {
 	t.Helper()
 

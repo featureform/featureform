@@ -1573,48 +1573,9 @@ func createDummyTableNew(ctx context.Context, storeTester offlineSqlStoreTester,
 
 func verifyDataset(t *testing.T, primary dataset.Dataset, records []GenericRecord) {
 	t.Helper()
-
-	// cast to sized
 	sDs, ok := primary.(dataset.SizedDataset)
 	if !ok {
-		t.Fatalf("expected dataset to be sized")
-	}
-
-	numRows, err := sDs.Len()
-	if err != nil {
-		t.Fatalf("could not get number of rows: %v", err)
-	}
-
-	if numRows == 0 {
-		t.Fatalf("expected more than 0 rows")
-	}
-
-	ctx := logging.NewTestContext(t)
-	iterator, err := sDs.Iterator(ctx, 100)
-	if err != nil {
-		t.Fatalf("Could not get generic iterator: %v", err)
-	}
-
-	i := 0
-	for iterator.Next() {
-		for j, v := range iterator.Values() {
-			// NOTE: we're handling float64 differently here given the values returned by Snowflake have less precision
-			// and therefore are not equal unless we round them; if tests require handling of other types, we can add
-			// additional cases here, otherwise the default case will cover all other types
-			switch v.Value.(type) {
-			case float64:
-				assert.True(t, floatsAreClose(v.Value.(float64), records[i][j].(float64), floatTolerance), "expected same values")
-			case time.Time:
-				assert.Equal(t, records[i][j].(time.Time).Truncate(time.Microsecond), v.Value.(time.Time).Truncate(time.Microsecond), "expected same values")
-			default:
-				assert.Equal(t, v.Value, records[i][j], "expected same values")
-			}
-		}
-		i++
-	}
-}
-
-func verifyDatasetNew(t *testing.T, primary dataset.Dataset, records []fftypes.Row) {
+func verifyDataset(t *testing.T, primary dataset.Dataset, records []fftypes.Row) {
 	t.Helper()
 
 	// cast to sized
@@ -1701,7 +1662,7 @@ func RegisterTableInDifferentDatabaseTest(t *testing.T, tester OfflineSqlTest) {
 	}
 
 	// Verify the table contents
-	verifyDatasetNew(t, primary, records)
+	verifyDataset(t, primary, records)
 }
 
 func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester OfflineSqlTest) {
@@ -1728,10 +1689,11 @@ func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester Of
 	}
 
 	// Verify the table contents
-	verifyDatasetNew(t, primary, records)
+	verifyDataset(t, primary, records)
 }
 
 func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester OfflineSqlTest) {
+	ctx := logging.NewTestContext(t)
 	schemaName1 := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
 	schemaName2 := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
 	if err := tester.storeTester.CreateSchema("", schemaName1); err != nil {
@@ -1745,14 +1707,14 @@ func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester OfflineSqlTest) {
 	// Create the first table
 	tableName := "DUMMY_TABLE"
 	sqlLocation := pl.NewSQLLocationFromParts("", schemaName1, tableName)
-	records, err := createDummyTable(tester.storeTester, sqlLocation, 3)
+	records, err := createDummyTableNew(ctx, tester.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	// Create the second table using the same table name
 	sqlLocation2 := pl.NewSQLLocationFromParts("", schemaName2, tableName)
-	records2, err := createDummyTable(tester.storeTester, sqlLocation2, 10)
+	records2, err := createDummyTableNew(ctx, tester.storeTester, sqlLocation2, 10)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
@@ -1779,6 +1741,7 @@ func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester OfflineSqlTest) {
 }
 
 func CrossDatabaseJoinTest(t *testing.T, test OfflineSqlTest) {
+	ctx := logging.NewTestContext(t)
 	storeTester, ok := test.storeTester.(offlineSqlStoreCreateDb)
 	if !ok {
 		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", test.storeTester))
@@ -1807,14 +1770,14 @@ func CrossDatabaseJoinTest(t *testing.T, test OfflineSqlTest) {
 
 	tableName1 := "DUMMY_TABLE"
 	sqlLocation := pl.NewSQLLocationFromParts(dbName, "PUBLIC", tableName1)
-	records, err := createDummyTable(test.storeTester, sqlLocation, 3)
+	records, err := createDummyTableNew(ctx, test.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	tableName2 := "DUMMY_TABLE2"
 	sqlLocation2 := pl.NewSQLLocationFromParts(dbName2, "PUBLIC", tableName2)
-	records2, err := createDummyTable(test.storeTester, sqlLocation2, 10)
+	records2, err := createDummyTableNew(ctx, test.storeTester, sqlLocation2, 10)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}

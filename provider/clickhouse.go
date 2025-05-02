@@ -778,19 +778,13 @@ func (store *clickHouseOfflineStore) RegisterPrimaryFromSourceTable(id ResourceI
 		return nil, wrapped
 	}
 
-	columnNames, err := store.query.getColumns(store.db, tableName)
+	converter, _ := pt.GetConverter(store.Type())
+	schema, err := store.query.getSchema(store.db, converter, *chLocation.SQLLocation)
 	if err != nil {
 		return nil, err
 	}
 
-	return &PrimaryTableToDatasetAdapter{
-		&clickhousePrimaryTable{
-			db:     store.db,
-			name:   tableName,
-			schema: TableSchema{Columns: columnNames},
-			query:  store.query,
-		},
-	}, nil
+	return dataset.NewSqlDataset(store.db, chLocation.SQLLocation, schema, converter, -1)
 }
 
 func (store *clickHouseOfflineStore) SupportsTransformationOption(opt TransformationOptionType) (bool, error) {
@@ -882,27 +876,26 @@ func (store *clickHouseOfflineStore) CreatePrimaryTable(id ResourceID, schema Ta
 }
 
 func (store *clickHouseOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error) {
-	name, err := GetPrimaryTableName(id)
-	if err != nil {
-		return nil, err
-	}
 	if exists, err := store.tableExists(id); err != nil {
 		return nil, err
 	} else if !exists {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
-	columnNames, err := store.query.getColumns(store.db, name)
+
+	loc, _ := source.GetPrimaryLocation()
+	chLocation, err := clickhouse.NewLocation(loc)
+	if err != nil {
+		logger.Errorw("invalid location type", "error", err)
+		return nil, err
+	}
+
+	converter, _ := pt.GetConverter(store.Type())
+	columnNames, err := store.query.getSchema(store.db, converter, *chLocation.SQLLocation)
 	if err != nil {
 		return nil, err
 	}
-	chPT := &clickhousePrimaryTable{
-		db:     store.db,
-		name:   name,
-		schema: TableSchema{Columns: columnNames},
-		query:  store.query,
-	}
 
-	return &PrimaryTableToDatasetAdapter{pt: chPT}, nil
+	return dataset.NewSqlDataset(store.db, chLocation.SQLLocation, columnNames, converter, -1)
 }
 
 func (store *clickHouseOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {
@@ -1820,7 +1813,53 @@ func (q clickhouseSQLQueries) getColumns(db *sql.DB, tableName string) ([]TableC
 }
 
 func (q clickhouseSQLQueries) getSchema(db *sql.DB, converter fftypes.ValueConverter[any], location pl.SQLLocation) (fftypes.Schema, error) {
-	return fftypes.Schema{}, nil
+	tblName := location.GetTable()
+
+	// Query both column name and data type from system.columns using currentDatabase()
+	qry := "SELECT name, type FROM system.columns WHERE table = ? AND database = currentDatabase()"
+	rows, err := db.Query(qry, tblName)
+	if err != nil {
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", tblName)
+		return fftypes.Schema{}, wrapped
+	}
+	defer rows.Close()
+
+	// Process result set
+	fields := make([]fftypes.ColumnSchema, 0)
+	for rows.Next() {
+		var columnName, dataType string
+		if err := rows.Scan(&columnName, &dataType); err != nil {
+			wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+			wrapped.AddDetail("table_name", tblName)
+			return fftypes.Schema{}, wrapped
+		}
+
+		// Ensure the type is supported
+		valueType, err := converter.GetType(fftypes.NativeType(dataType))
+		if err != nil {
+			wrapped := fferr.NewInternalErrorf("could not convert native type to value type: %v", err)
+			wrapped.AddDetail("table_name", tblName)
+			return fftypes.Schema{}, wrapped
+		}
+
+		// Append column details
+		column := fftypes.ColumnSchema{
+			Name:       fftypes.ColumnName(columnName),
+			NativeType: fftypes.NativeType(dataType),
+			Type:       valueType,
+		}
+		fields = append(fields, column)
+	}
+
+	// Check for row iteration errors
+	if err := rows.Err(); err != nil {
+		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
+		wrapped.AddDetail("table_name", tblName)
+		return fftypes.Schema{}, wrapped
+	}
+
+	return fftypes.Schema{Fields: fields}, nil
 }
 
 func (q clickhouseSQLQueries) materializationDrop(tableName string) string {

@@ -532,7 +532,7 @@ type OfflineStoreDataset interface {
 	// CreatePrimaryTable is not used outside of the context of tests
 	CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) // won't be used later
 	RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (dataset.Dataset, error)
-	GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error)
+	GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error) // rename to GetDatset
 	SupportsTransformationOption(opt TransformationOptionType) (bool, error)
 	CreateTransformation(config TransformationConfig, opts ...TransformationOption) error
 	GetTransformationTable(id ResourceID) (dataset.Dataset, error)
@@ -1241,43 +1241,49 @@ func (store *memoryOfflineStore) RegisterPrimaryFromSourceTable(
 	if id.Name == "make" && id.Variant == "panic" {
 		panic("This is a panic")
 	}
-	store.tables.Store(id, &memoryPrimaryTable{})
-	return &PrimaryTableToDatasetAdapter{pt: &memoryPrimaryTable{}}, nil
+	value := &memoryDataset{}
+	store.tables.Store(id, value)
+	return value, nil
 }
 
 func (store *memoryOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) {
-	store.tables.Store(id, &memoryPrimaryTable{})
-	return &PrimaryTableToDatasetAdapter{pt: &memoryPrimaryTable{}}, nil
+	value := &memoryDataset{}
+	store.tables.Store(id, value)
+	return value, nil
 }
 
-type memoryPrimaryTable struct {
+type memoryDataset struct {
+	name string
 }
 
-func (m *memoryPrimaryTable) Write(record GenericRecord) error {
-	return nil
-}
-
-func (m *memoryPrimaryTable) WriteBatch(record []GenericRecord) error {
-	return nil
-}
-
-func (m *memoryPrimaryTable) GetName() string {
-	return "memoryTableName"
-}
-
-func (m *memoryPrimaryTable) GetLocation() pl.Location {
-	loc, err := pl.NewFileLocationFromURI("memory://memoryTableName")
+// Location implements the dataset.Dataset interface
+func (ds *memoryDataset) Location() pl.Location {
+	loc, err := pl.NewFileLocationFromURI(fmt.Sprintf("memory://%s", ds.name))
 	if err != nil {
 		return nil
 	}
 	return loc
 }
 
-func (m *memoryPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
+// Iterator implements the dataset.Dataset interface
+func (ds *memoryDataset) Iterator(ctx context.Context, limit int64) (dataset.Iterator, error) {
 	return nil, nil
 }
 
-func (m *memoryPrimaryTable) NumRows() (int64, error) {
+// Schema implements the dataset.Dataset interface
+func (ds *memoryDataset) Schema() fftype.Schema {
+	return fftype.Schema{
+		Fields: []fftype.ColumnSchema{},
+	}
+}
+
+// WriteBatch implements the dataset.Dataset interface
+func (ds *memoryDataset) WriteBatch(ctx context.Context, records []fftype.Row) error {
+	return nil
+}
+
+// Len implements the dataset.Dataset interface
+func (ds *memoryDataset) Len() (int64, error) {
 	return 0, nil
 }
 
@@ -1286,8 +1292,8 @@ func (store *memoryOfflineStore) GetPrimaryTable(id ResourceID, source metadata.
 	if !has {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
-	memoryTable := table.(*memoryPrimaryTable)
-	return &PrimaryTableToDatasetAdapter{pt: memoryTable}, nil
+	memoryTable := table.(*memoryDataset)
+	return memoryTable, nil
 }
 
 func (store *memoryOfflineStore) SupportsTransformationOption(opt TransformationOptionType) (bool, error) {

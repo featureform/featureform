@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	fftypes "github.com/featureform/fftypes"
 	"github.com/featureform/logging"
 	"github.com/featureform/provider/dataset"
 	ps "github.com/featureform/provider/provider_schema"
@@ -1620,6 +1621,58 @@ func createDummyTable(storeTester offlineSqlStoreTester, location pl.Location, n
 	return genericRecords, nil
 }
 
+func createDummyTableNew(ctx context.Context, storeTester offlineSqlStoreTester, location pl.Location, numRows int) ([]fftypes.Row, error) {
+	// Create the table
+	// create simple Schema
+	schema := fftypes.Schema{
+		Fields: []fftypes.ColumnSchema{
+			{
+				Name:       "ID",
+				NativeType: "INTEGER",
+			},
+			{
+				Name:       "NAME",
+				NativeType: "STRING",
+			},
+		},
+	}
+
+	writableTester, ok := storeTester.(OfflineSqlStoreWriteableDatasetTester)
+	if !ok {
+		return nil, fmt.Errorf("storeTester does not implement OfflineSqlStoreWriteableDatasetTester")
+	}
+
+	writableDs, err := writableTester.CreateWritableDataset(location, schema)
+	if err != nil {
+		return nil, err
+	}
+
+	genericRecords := make([]fftypes.Row, 0)
+	randomNum := uuid.NewString()[:5]
+	for i := 0; i < numRows; i++ {
+		values := []fftypes.Value{
+			{
+				NativeType: "INTEGER",
+				Type:       fftypes.Int,
+				Value:      i,
+			},
+			{
+				NativeType: "STRING",
+				Type:       fftypes.String,
+				Value:      fmt.Sprintf("Name_%d_%s", i, randomNum),
+			},
+		}
+
+		genericRecords = append(genericRecords, values)
+	}
+
+	if err := writableDs.WriteBatch(ctx, genericRecords); err != nil {
+		return nil, err
+	}
+
+	return genericRecords, nil
+}
+
 func verifyDataset(t *testing.T, primary dataset.Dataset, records []GenericRecord) {
 	t.Helper()
 
@@ -1663,6 +1716,50 @@ func verifyDataset(t *testing.T, primary dataset.Dataset, records []GenericRecor
 	}
 }
 
+func verifyDatasetNew(t *testing.T, primary dataset.Dataset, records []fftypes.Row) {
+	t.Helper()
+
+	// cast to sized
+	sDs, ok := primary.(dataset.SizedDataset)
+	if !ok {
+		t.Fatalf("expected dataset to be sized")
+	}
+
+	numRows, err := sDs.Len()
+	if err != nil {
+		t.Fatalf("could not get number of rows: %v", err)
+	}
+
+	if numRows == 0 {
+		t.Fatalf("expected more than 0 rows")
+	}
+
+	ctx := logging.NewTestContext(t)
+	iterator, err := sDs.Iterator(ctx, 100)
+	if err != nil {
+		t.Fatalf("Could not get generic iterator: %v", err)
+	}
+
+	i := 0
+	for iterator.Next() {
+		for j, v := range iterator.Values() {
+			// NOTE: we're handling float64 differently here given the values returned by Snowflake have less precision
+			// and therefore are not equal unless we round them; if tests require handling of other types, we can add
+			// additional cases here, otherwise the default case will cover all other types
+			rec := records[i][j].Value
+			switch v.Value.(type) {
+			case float64:
+				assert.True(t, floatsAreClose(v.Value.(float64), rec.(float64), floatTolerance), "expected same values")
+			case time.Time:
+				assert.Equal(t, rec.(time.Time).Truncate(time.Microsecond), v.Value.(time.Time).Truncate(time.Microsecond), "expected same values")
+			default:
+				assert.Equal(t, v.Value, rec, "expected same values")
+			}
+		}
+		i++
+	}
+}
+
 func RegisterTableInDifferentDatabaseTest(t *testing.T, tester OfflineSqlTest) {
 	dbName := fmt.Sprintf("DB_%s", strings.ToUpper(uuid.NewString()[:5]))
 
@@ -1691,7 +1788,8 @@ func RegisterTableInDifferentDatabaseTest(t *testing.T, tester OfflineSqlTest) {
 	// Create the table
 	tableName := "DUMMY_TABLE"
 	sqlLocation := pl.NewSQLLocationFromParts(dbName, schemaName, tableName)
-	records, err := createDummyTable(tester.storeTester, sqlLocation, 3)
+	ctx := logging.NewTestContext(t)
+	records, err := createDummyTableNew(ctx, tester.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
@@ -1705,10 +1803,11 @@ func RegisterTableInDifferentDatabaseTest(t *testing.T, tester OfflineSqlTest) {
 	}
 
 	// Verify the table contents
-	verifyDataset(t, primary, records)
+	verifyDatasetNew(t, primary, records)
 }
 
 func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester OfflineSqlTest) {
+	ctx := logging.NewTestContext(t)
 	schemaName := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
 	if err := storeTester.storeTester.CreateSchema("", schemaName); err != nil {
 		t.Fatalf("could not create schema: %v", err)
@@ -1717,7 +1816,7 @@ func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester Of
 	// Create the table
 	tableName := "DUMMY_TABLE"
 	sqlLocation := pl.NewSQLLocationFromParts("", schemaName, tableName)
-	records, err := createDummyTable(storeTester.storeTester, sqlLocation, 3)
+	records, err := createDummyTableNew(ctx, storeTester.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
@@ -1731,7 +1830,7 @@ func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester Of
 	}
 
 	// Verify the table contents
-	verifyDataset(t, primary, records)
+	verifyDatasetNew(t, primary, records)
 }
 
 func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester OfflineSqlTest) {

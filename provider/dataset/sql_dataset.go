@@ -105,6 +105,18 @@ func (ds *SqlDataset) Schema() types.Schema {
 	return ds.schema
 }
 
+func (ds *SqlDataset) Len() (int64, error) {
+	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", location.SanitizeFullyQualifiedObject(ds.location.TableLocation()))
+	row := ds.db.QueryRow(query)
+
+	var count int64
+	if err := row.Scan(&count); err != nil {
+		return -1, fferr.NewInternalErrorf("Failed to count rows: %v", err)
+	}
+
+	return count, nil
+}
+
 type SqlIterator struct {
 	rows          *sql.Rows
 	converter     types.ValueConverter[any]

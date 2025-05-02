@@ -58,7 +58,7 @@ func (ch *clickHouseOfflineStoreTester) CreateSchema(database, schema string) er
 }
 
 type WritableClickHouseDataset struct {
-	*dataset.SqlDataset
+	dataset.Dataset
 	db *sql.DB
 }
 
@@ -134,19 +134,20 @@ func (ch *clickHouseOfflineStoreTester) CreateWritableDataset(loc pl.Location, s
 	}
 
 	ds, err := ch.CreateTableFromSchema(loc, schema)
-	ds.SetSanitizer(sanitizeClickHouseTableName)
+	dsSql := ds.(*dataset.SqlDataset)
+	dsSql.SetSanitizer(sanitizeClickHouseTableName)
 
 	if err != nil {
 		return nil, err
 	}
 
 	return WritableClickHouseDataset{
-		SqlDataset: ds,
-		db:         db,
+		Dataset: ds,
+		db:      db,
 	}, nil
 }
 
-func (ch *clickHouseOfflineStoreTester) CreateTableFromSchema(loc pl.Location, schema types.Schema) (*dataset.SqlDataset, error) {
+func (ch *clickHouseOfflineStoreTester) CreateTableFromSchema(loc pl.Location, schema types.Schema) (dataset.Dataset, error) {
 	logger := ch.logger.With("location", loc, "schema", schema)
 
 	sqlLocation, ok := loc.(*pl.SQLLocation)

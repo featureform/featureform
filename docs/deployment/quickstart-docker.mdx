@@ -31,10 +31,10 @@ This will pull and start the Featureform container, as well as a Postgres and Re
 example data.
 
 Users can optionally also use ClickHouse, should they wish to use an OLAP database for their offline store, by specifying
-the `--include_clickhouse` flag i.e.
+the `--clickhouse` flag i.e.
 
 ```shell
-featureform deploy docker --quickstart --include_clickhouse
+featureform deploy docker --quickstart --clickhouse
 ```
 
 ## Step 3: Set the Featureform Host
@@ -88,6 +88,10 @@ featureform stop docker
 Now that we have everything running, we'll walk through what was done to create the training set and feature.
 
 ## Apply
+
+We will be using Postgres for our example, however the ClickHouse provider works the same way,
+and passing the `--clickhouse` flag during deployment should have downloaded a similar `definitions.py` file with
+ClickHouse being the source provider.
 
 If we download the definitions.py file, we can see what Featureform is doing when we run `featureform apply`.
 

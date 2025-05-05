@@ -20,6 +20,7 @@ import (
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
+	_ "github.com/featureform/provider/snowflake"
 
 	snowflake "github.com/snowflakedb/gosnowflake"
 

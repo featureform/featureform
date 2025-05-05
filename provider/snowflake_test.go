@@ -126,7 +126,7 @@ func (w WritableSnowflakeDataset) WriteBatch(ctx context.Context, rows []types.R
 func (s *snowflakeOfflineStoreTester) CreateWritableDataset(loc location.Location, schema types.Schema) (dataset.WriteableDataset, error) {
 	sqlLoc, _ := loc.(*location.SQLLocation)
 
-	db, err := s.sqlOfflineStore.getDb("", sqlLoc.GetSchema())
+	db, err := s.sqlOfflineStore.getDb(sqlLoc.GetDatabase(), sqlLoc.GetSchema())
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func (s *snowflakeOfflineStoreTester) CreateTableFromSchema(loc location.Locatio
 		return nil, fmt.Errorf(errMsg)
 	}
 
-	db, err := s.sqlOfflineStore.getDb("", sqlLocation.GetSchema())
+	db, err := s.sqlOfflineStore.getDb(sqlLocation.GetDatabase(), sqlLocation.GetSchema())
 	if err != nil {
 		logger.Errorw("could not get db", "error", err)
 		return nil, err

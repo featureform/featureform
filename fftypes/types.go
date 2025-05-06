@@ -320,6 +320,11 @@ type Value struct {
 }
 
 func (v Value) ToProto() (proto *servpb.Value, err error) {
+	if v.Value == nil {
+		return &servpb.Value{
+			Value: &servpb.Value_StrValue{StrValue: ""},
+		}, nil
+	}
 	switch v.Type {
 	case Int:
 		return &servpb.Value{

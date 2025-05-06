@@ -324,10 +324,36 @@ func (serv *FeatureServer) SourceData(req *pb.SourceDataRequest, stream pb.Featu
 	}
 	rows := &pb.SourceDataRows{Rows: make([]*pb.SourceDataRow, 0, DataBatchSize)}
 	bufRows := 0
+
+	ctx := context.TODO()
+	sv, err := serv.Metadata.GetSourceVariant(ctx, metadata.NameVariant{Name: name, Variant: variant})
+	if err != nil {
+		return err
+	}
+	store, err := serv.getOfflineStore(ctx, sv)
+	if err != nil {
+		serv.Logger.Errorw("Failed to get offline store", "Error", err)
+		return err
+	}
+
+	isSpark := store.Type() == pt.SparkOffline
+
 	for iter.Next() {
+		var sRow *pb.SourceDataRow
+		var err error
+
 		values := iter.Values()
 		serv.Logger.Debugw("Got source data row", "Values", values)
-		sRow, err := values.ToProto()
+		sRow, err = values.ToProto()
+
+		if isSpark {
+			vals := make([]interface{}, len(values))
+			for i, v := range values {
+				vals[i] = v.Value
+			}
+			sRow, err = SerializedSourceRow(vals)
+		}
+
 		if err != nil {
 			logger.Errorw("Failed to serialize row", "Error", err)
 			return err
@@ -526,17 +552,9 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	if sv.Status() != scheduling.READY {
 		return nil, fferr.NewResourceNotReadyError(name, variant, "SOURCE_VARIANT", fmt.Errorf("current status: %s", sv.Status()))
 	}
-	providerEntry, err := sv.FetchProvider(serv.Metadata, ctx)
-	serv.Logger.Debugw("Fetched Source Variant Provider", "name", providerEntry.Name(), "type", providerEntry.Type())
+	store, err := serv.getOfflineStore(ctx, sv)
 	if err != nil {
-		return nil, err
-	}
-	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
-	if err != nil {
-		return nil, err
-	}
-	store, err := p.AsOfflineStore()
-	if err != nil {
+		serv.Logger.Errorw("Failed to get offline store", "Error", err)
 		return nil, err
 	}
 	var providerErr error
@@ -562,6 +580,23 @@ func (serv *FeatureServer) getSourceDataIterator(name, variant string, limit int
 	}
 
 	return ds.Iterator(ctx, limit)
+}
+
+func (serv *FeatureServer) getOfflineStore(ctx context.Context, sv *metadata.SourceVariant) (provider.OfflineStore, error) {
+	providerEntry, err := sv.FetchProvider(serv.Metadata, ctx)
+	serv.Logger.Debugw("Fetched Source Variant Provider", "name", providerEntry.Name(), "type", providerEntry.Type())
+	if err != nil {
+		return nil, err
+	}
+	p, err := provider.Get(pt.Type(providerEntry.Type()), providerEntry.SerializedConfig())
+	if err != nil {
+		return nil, err
+	}
+	store, err := p.AsOfflineStore()
+	if err != nil {
+		return nil, err
+	}
+	return store, nil
 }
 
 func (serv *FeatureServer) addModel(ctx context.Context, model *pb.Model, features []*pb.FeatureID) error {

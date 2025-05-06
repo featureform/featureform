@@ -323,6 +323,7 @@ func (serv *FeatureServer) SourceData(req *pb.SourceDataRequest, stream pb.Featu
 	bufRows := 0
 	for iter.Next() {
 		values := iter.Values()
+		serv.Logger.Debugw("Got source data row", "Values", values)
 		sRow, err := values.ToProto()
 		if err != nil {
 			logger.Errorw("Failed to serialize row", "Error", err)

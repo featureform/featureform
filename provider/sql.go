@@ -369,6 +369,7 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tabl
 	if err != nil {
 		return nil, err
 	}
+	store.logger.Debugw("Registering primary table", "table", sqlLocation.Location(), "schema", schema)
 
 	return dataset.NewSqlDataset(dbConn, sqlLocation, schema, converter, -1)
 }
@@ -471,12 +472,14 @@ func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID, source metadata.Sou
 	if err != nil {
 		return nil, err
 	}
-	columnNames, err := store.query.getSchema(dbConn, converter, *sqlLocation)
+	schema, err := store.query.getSchema(dbConn, converter, *sqlLocation)
 	if err != nil {
 		return nil, err
 	}
 
-	return dataset.NewSqlDataset(dbConn, sqlLocation, columnNames, converter, -1)
+	store.logger.Debugw("Getting primary dataset", "table", sqlLocation.Location(), "schema", schema)
+
+	return dataset.NewSqlDataset(dbConn, sqlLocation, schema, converter, -1)
 }
 
 func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (dataset.Dataset, error) {
@@ -497,10 +500,6 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (dataset.Dat
 	if !rows.Next() {
 		return nil, fferr.NewTransformationNotFoundError(name, id.Variant, err)
 	}
-	columnNames, err := store.query.getColumns(store.db, name)
-	if err != nil {
-		return nil, err
-	}
 
 	var dbName, schemaName string
 	err = store.db.QueryRow("SELECT current_database(), current_schema()").Scan(&dbName, &schemaName)
@@ -509,15 +508,18 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (dataset.Dat
 	}
 	sqlLocation := pl.NewSQLLocationFromParts(dbName, schemaName, name)
 
-	sqlPt := &SqlPrimaryTable{
-		db:           store.db,
-		name:         name,
-		sqlLocation:  sqlLocation,
-		schema:       TableSchema{Columns: columnNames},
-		query:        store.query,
-		providerType: store.Type(),
+	converter, err := pt.GetConverter(store.Type())
+	if err != nil {
+		return nil, err
 	}
-	return &PrimaryTableToDatasetAdapter{pt: sqlPt}, nil
+	schema, err := store.query.getSchema(store.db, converter, *sqlLocation)
+	if err != nil {
+		return nil, err
+	}
+
+	store.logger.Debugw("Getting primary dataset", "table", sqlLocation.Location(), "schema", schema)
+
+	return dataset.NewSqlDataset(store.db, sqlLocation, schema, converter, -1)
 }
 
 // CreateResourceTable creates a new Resource table.
@@ -1729,17 +1731,22 @@ func (q defaultOfflineSQLQueries) getColumns(db *sql.DB, name string) ([]TableCo
 
 func (q *defaultOfflineSQLQueries) getSchema(db *sql.DB, converter fftypes.ValueConverter[any], location pl.SQLLocation) (fftypes.Schema, error) {
 	tblName := location.GetTable()
+
+	// Note the single quotes around %s for the table name
+	query := fmt.Sprintf("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '%s'", tblName)
+
+	// Add schema condition only if present
 	schema := location.GetSchema()
+	if schema != "" {
+		query += fmt.Sprintf(" AND table_schema = '%s'", schema)
+	}
 
-	// Corrected Query: Ensure both `table_name` and `table_schema` are matched
-	qry := `SELECT column_name, data_type 
-	        FROM information_schema.columns 
-	        WHERE table_name = ? 
-	        AND table_schema = ? 
-	        ORDER BY ordinal_position`
+	// Add the ordering
+	query += " ORDER BY ordinal_position"
 
+	logging.GlobalLogger.Infow("ALI", "query", query, "location", location.TableLocation(), "schema", schema, "table_name", tblName, "db", db, "converter", converter, "query", query)
 	// Execute query with both parameters
-	rows, err := db.Query(qry, tblName, schema)
+	rows, err := db.Query(query)
 	if err != nil {
 		wrapped := fferr.NewExecutionError("SQL", err)
 		wrapped.AddDetail("schema", schema)

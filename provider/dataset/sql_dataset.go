@@ -68,6 +68,10 @@ func (ds *SqlDataset) Iterator(ctx context.Context, limit int64) (Iterator, erro
 		columnNames[i] = postgres.Sanitize(string(field.Name))
 	}
 
+	if len(columnNames) == 0 {
+		return nil, fferr.NewInternalErrorf("No columns found in schema")
+	}
+
 	cols := strings.Join(columnNames, ", ")
 	var loc string
 	if ds.sanitizer != nil {

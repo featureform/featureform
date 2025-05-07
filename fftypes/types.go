@@ -10,6 +10,7 @@ import (
 
 	"github.com/featureform/fferr"
 	pb "github.com/featureform/metadata/proto"
+	servpb "github.com/featureform/proto"
 )
 
 func init() {
@@ -316,6 +317,102 @@ type Value struct {
 	NativeType NativeType
 	Type       ValueType
 	Value      any
+}
+
+func (v Value) ToProto() (proto *servpb.Value, err error) {
+	if v.Value == nil {
+		return &servpb.Value{
+			Value: &servpb.Value_StrValue{StrValue: ""},
+		}, nil
+	}
+	switch v.Type {
+	case Int:
+		return &servpb.Value{
+			Value: &servpb.Value_IntValue{
+				IntValue: int32(v.Value.(int)),
+			},
+		}, nil
+	case Int8:
+		return &servpb.Value{
+			Value: &servpb.Value_IntValue{
+				IntValue: int32(v.Value.(int8)),
+			},
+		}, nil
+	case Int16:
+		return &servpb.Value{
+			Value: &servpb.Value_IntValue{
+				IntValue: int32(v.Value.(int16)),
+			},
+		}, nil
+	case Int32:
+		return &servpb.Value{
+			Value: &servpb.Value_Int32Value{
+				Int32Value: v.Value.(int32),
+			},
+		}, nil
+	case Int64:
+		return &servpb.Value{
+			Value: &servpb.Value_Int64Value{
+				Int64Value: v.Value.(int64),
+			},
+		}, nil
+	case UInt8:
+		return &servpb.Value{
+			Value: &servpb.Value_Uint32Value{
+				Uint32Value: uint32(v.Value.(uint8)),
+			},
+		}, nil
+	case UInt16:
+		return &servpb.Value{
+			Value: &servpb.Value_Uint32Value{
+				Uint32Value: uint32(v.Value.(uint16)),
+			},
+		}, nil
+	case UInt32:
+		return &servpb.Value{
+			Value: &servpb.Value_Uint32Value{
+				Uint32Value: v.Value.(uint32),
+			},
+		}, nil
+	case UInt64:
+		return &servpb.Value{
+			Value: &servpb.Value_Uint64Value{
+				Uint64Value: v.Value.(uint64),
+			},
+		}, nil
+	case Float32:
+		return &servpb.Value{
+			Value: &servpb.Value_FloatValue{
+				FloatValue: v.Value.(float32),
+			},
+		}, nil
+	case Float64:
+		return &servpb.Value{
+			Value: &servpb.Value_DoubleValue{
+				DoubleValue: v.Value.(float64),
+			},
+		}, nil
+	case String:
+		return &servpb.Value{
+			Value: &servpb.Value_StrValue{
+				StrValue: v.Value.(string),
+			},
+		}, nil
+	case Bool:
+		return &servpb.Value{
+			Value: &servpb.Value_BoolValue{
+				BoolValue: v.Value.(bool),
+			},
+		}, nil
+	case Timestamp, Datetime:
+		return &servpb.Value{
+			Value: &servpb.Value_StrValue{
+				StrValue: v.Value.(time.Time).Format(time.RFC3339),
+			},
+		}, nil
+	default:
+		return nil, fferr.NewDataTypeNotFoundError(fmt.Sprintf("%T", v.Value), fmt.Errorf("no type found for value: %v", v.Value))
+	}
 }
 
 type NativeType string

@@ -99,7 +99,7 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 			Value:      convertedValue,
 		}, nil
 
-	case "numeric":
+	case "numeric", "double precision":
 		if value == nil {
 			return types.Value{
 				NativeType: nativeType,
@@ -128,7 +128,7 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 			Value:      convertedValue,
 		}, nil
 
-	case "varchar":
+	case "varchar", "character varying":
 		if value == nil {
 			return types.Value{
 				NativeType: nativeType,
@@ -164,7 +164,7 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 			Value:      convertedValue,
 		}, nil
 
-	case "timestamp with time zone", "timestamptz", "TIMESTAMPTZ":
+	case "date", "timestamp with time zone", "timestamptz", "TIMESTAMPTZ":
 		if value == nil {
 			return types.Value{
 				NativeType: nativeType,

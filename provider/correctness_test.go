@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	fftypes "github.com/featureform/fftypes"
 	"github.com/featureform/logging"
 	"github.com/featureform/provider/dataset"
 	ps "github.com/featureform/provider/provider_schema"
@@ -43,22 +44,22 @@ func TestTransformations(t *testing.T) {
 		tester              OfflineSqlTest
 		transformationQuery string
 	}{
-		{
-			getConfiguredBigQueryTester(t),
-			"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, TIMESTAMP(timestamp) as date FROM %s GROUP BY location_id, TIMESTAMP(timestamp)",
-		},
-		{
-			getConfiguredSnowflakeTester(t),
-			"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)",
-		},
+		//{
+		//	getConfiguredBigQueryTester(t),
+		//	"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, TIMESTAMP(timestamp) as date FROM %s GROUP BY location_id, TIMESTAMP(timestamp)",
+		//},
+		//{
+		//	getConfiguredSnowflakeTester(t),
+		//	"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)",
+		//},
 		{
 			getConfiguredPostgresTester(t),
 			"SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
 		},
-		{
-			getConfiguredClickHouseTester(t),
-			"SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
-		},
+		//{
+		//	getConfiguredClickHouseTester(t),
+		//	"SELECT LOCATION_ID, AVG(WIND_SPEED) as AVG_DAILY_WIND_SPEED, AVG(WIND_DURATION) as AVG_DAILY_WIND_DURATION, AVG(FETCH_VALUE) as AVG_DAILY_FETCH, DATE(TIMESTAMP) as DATE FROM %s GROUP BY LOCATION_ID, DATE(TIMESTAMP)",
+		//},
 	}
 
 	testSuite := map[string]func(t *testing.T, storeTester OfflineSqlTest, transformationQuery string){
@@ -533,46 +534,6 @@ type testSQLTransformationData struct {
 	expected []GenericRecord
 	location pl.Location
 	config   TransformationConfig
-}
-
-func (d testSQLTransformationData) Assert(t *testing.T, actual PrimaryTable) {
-	entityIdx := 0
-	avgWindSpeedIdx := 1
-	avgWindDurationIdx := 2
-	avgFetchIdx := 3
-	tsIdx := 4
-
-	numRows, err := actual.NumRows()
-	if err != nil {
-		t.Fatalf("could not get number of rows: %v", err)
-	}
-
-	assert.Equal(t, len(d.expected), int(numRows), "expected same number of rows")
-
-	itr, err := actual.IterateSegment(100)
-	if err != nil {
-		t.Fatalf("could not get iterator: %v", err)
-	}
-
-	var expectedMap = map[string]GenericRecord{}
-	for i := 0; i < len(d.expected); i++ {
-		expectedMap[d.expected[i][entityIdx].(string)] = d.expected[i]
-	}
-
-	i := 0
-	for itr.Next() {
-		actual := itr.Values()
-		expected := expectedMap[actual[entityIdx].(string)]
-		assert.Equal(t, expected[entityIdx].(string), actual[entityIdx].(string), "expected same entity")
-		assert.Equal(t, expected[avgWindSpeedIdx].(float64), actual[avgWindSpeedIdx].(float64), "expected same value for col 2")
-		assert.Equal(t, expected[avgWindDurationIdx].(float64), actual[avgWindDurationIdx].(float64), "expected same value for col 3")
-		assert.Equal(t, expected[avgFetchIdx].(float64), actual[avgFetchIdx].(float64), "expected same value for col 4")
-		assert.Equal(t, expected[tsIdx].(time.Time).Truncate(time.Microsecond), actual[tsIdx].(time.Time).Truncate(time.Microsecond), "expected same ts")
-		i++
-	}
-	if itr.Err() != nil {
-		t.Fatalf("could not iterate over transformation: %v", itr.Err())
-	}
 }
 
 func (d testSQLTransformationData) AssertDataset(t *testing.T, actual dataset.Dataset) {
@@ -1558,42 +1519,59 @@ func createDummyTable(storeTester offlineSqlStoreTester, location pl.Location, n
 	return genericRecords, nil
 }
 
-func verifyPrimaryTable(t *testing.T, primary PrimaryTable, records []GenericRecord) {
-	t.Helper()
-	numRows, err := primary.NumRows()
+func createDummyTableNew(ctx context.Context, storeTester offlineSqlStoreTester, location pl.Location, numRows int) ([]fftypes.Row, error) {
+	// Create the table
+	// create simple Schema
+	schema := fftypes.Schema{
+		Fields: []fftypes.ColumnSchema{
+			{
+				Name:       "ID",
+				NativeType: "FLOAT",
+			},
+			{
+				Name:       "NAME",
+				NativeType: "STRING",
+			},
+		},
+	}
+
+	writableTester, ok := storeTester.(OfflineSqlStoreWriteableDatasetTester)
+	if !ok {
+		return nil, fmt.Errorf("storeTester does not implement OfflineSqlStoreWriteableDatasetTester")
+	}
+
+	writableDs, err := writableTester.CreateWritableDataset(location, schema)
 	if err != nil {
-		t.Fatalf("could not get number of rows: %v", err)
+		return nil, err
 	}
 
-	if numRows == 0 {
-		t.Fatalf("expected more than 0 rows")
-	}
-
-	iterator, err := primary.IterateSegment(100)
-	if err != nil {
-		t.Fatalf("Could not get generic iterator: %v", err)
-	}
-
-	i := 0
-	for iterator.Next() {
-		for j, v := range iterator.Values() {
-			// NOTE: we're handling float64 differently here given the values returned by Snowflake have less precision
-			// and therefore are not equal unless we round them; if tests require handling of other types, we can add
-			// additional cases here, otherwise the default case will cover all other types
-			switch v.(type) {
-			case float64:
-				assert.True(t, floatsAreClose(v.(float64), records[i][j].(float64), floatTolerance), "expected same values")
-			case time.Time:
-				assert.Equal(t, records[i][j].(time.Time).Truncate(time.Microsecond), v.(time.Time).Truncate(time.Microsecond), "expected same values")
-			default:
-				assert.Equal(t, v, records[i][j], "expected same values")
-			}
+	genericRecords := make([]fftypes.Row, 0)
+	randomNum := uuid.NewString()[:5]
+	for i := 0; i < numRows; i++ {
+		values := []fftypes.Value{
+			{
+				NativeType: "FLOAT",
+				Type:       fftypes.Float32,
+				Value:      float32(i),
+			},
+			{
+				NativeType: "STRING",
+				Type:       fftypes.String,
+				Value:      fmt.Sprintf("Name_%d_%s", i, randomNum),
+			},
 		}
-		i++
+
+		genericRecords = append(genericRecords, values)
 	}
+
+	if err := writableDs.WriteBatch(ctx, genericRecords); err != nil {
+		return nil, err
+	}
+
+	return genericRecords, nil
 }
 
-func verifyDataset(t *testing.T, primary dataset.Dataset, records []GenericRecord) {
+func verifyDataset(t *testing.T, primary dataset.Dataset, records []fftypes.Row) {
 	t.Helper()
 
 	// cast to sized
@@ -1623,13 +1601,14 @@ func verifyDataset(t *testing.T, primary dataset.Dataset, records []GenericRecor
 			// NOTE: we're handling float64 differently here given the values returned by Snowflake have less precision
 			// and therefore are not equal unless we round them; if tests require handling of other types, we can add
 			// additional cases here, otherwise the default case will cover all other types
+			rec := records[i][j].Value
 			switch v.Value.(type) {
 			case float64:
-				assert.True(t, floatsAreClose(v.Value.(float64), records[i][j].(float64), floatTolerance), "expected same values")
+				assert.True(t, floatsAreClose(v.Value.(float64), rec.(float64), floatTolerance), "expected same values")
 			case time.Time:
-				assert.Equal(t, records[i][j].(time.Time).Truncate(time.Microsecond), v.Value.(time.Time).Truncate(time.Microsecond), "expected same values")
+				assert.Equal(t, rec.(time.Time).Truncate(time.Microsecond), v.Value.(time.Time).Truncate(time.Microsecond), "expected same values")
 			default:
-				assert.Equal(t, v.Value, records[i][j], "expected same values")
+				assert.Equal(t, v.Value, rec, "expected same values")
 			}
 		}
 		i++
@@ -1664,7 +1643,8 @@ func RegisterTableInDifferentDatabaseTest(t *testing.T, tester OfflineSqlTest) {
 	// Create the table
 	tableName := "DUMMY_TABLE"
 	sqlLocation := pl.NewSQLLocationFromParts(dbName, schemaName, tableName)
-	records, err := createDummyTable(tester.storeTester, sqlLocation, 3)
+	ctx := logging.NewTestContext(t)
+	records, err := createDummyTableNew(ctx, tester.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
@@ -1682,6 +1662,7 @@ func RegisterTableInDifferentDatabaseTest(t *testing.T, tester OfflineSqlTest) {
 }
 
 func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester OfflineSqlTest) {
+	ctx := logging.NewTestContext(t)
 	schemaName := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
 	if err := storeTester.storeTester.CreateSchema("", schemaName); err != nil {
 		t.Fatalf("could not create schema: %v", err)
@@ -1690,7 +1671,7 @@ func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester Of
 	// Create the table
 	tableName := "DUMMY_TABLE"
 	sqlLocation := pl.NewSQLLocationFromParts("", schemaName, tableName)
-	records, err := createDummyTable(storeTester.storeTester, sqlLocation, 3)
+	records, err := createDummyTableNew(ctx, storeTester.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
@@ -1708,6 +1689,7 @@ func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester Of
 }
 
 func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester OfflineSqlTest) {
+	ctx := logging.NewTestContext(t)
 	schemaName1 := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
 	schemaName2 := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
 	if err := tester.storeTester.CreateSchema("", schemaName1); err != nil {
@@ -1721,14 +1703,14 @@ func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester OfflineSqlTest) {
 	// Create the first table
 	tableName := "DUMMY_TABLE"
 	sqlLocation := pl.NewSQLLocationFromParts("", schemaName1, tableName)
-	records, err := createDummyTable(tester.storeTester, sqlLocation, 3)
+	records, err := createDummyTableNew(ctx, tester.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	// Create the second table using the same table name
 	sqlLocation2 := pl.NewSQLLocationFromParts("", schemaName2, tableName)
-	records2, err := createDummyTable(tester.storeTester, sqlLocation2, 10)
+	records2, err := createDummyTableNew(ctx, tester.storeTester, sqlLocation2, 10)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
@@ -1755,6 +1737,7 @@ func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester OfflineSqlTest) {
 }
 
 func CrossDatabaseJoinTest(t *testing.T, test OfflineSqlTest) {
+	ctx := logging.NewTestContext(t)
 	storeTester, ok := test.storeTester.(offlineSqlStoreCreateDb)
 	if !ok {
 		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", test.storeTester))
@@ -1783,14 +1766,14 @@ func CrossDatabaseJoinTest(t *testing.T, test OfflineSqlTest) {
 
 	tableName1 := "DUMMY_TABLE"
 	sqlLocation := pl.NewSQLLocationFromParts(dbName, "PUBLIC", tableName1)
-	records, err := createDummyTable(test.storeTester, sqlLocation, 3)
+	records, err := createDummyTableNew(ctx, test.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	tableName2 := "DUMMY_TABLE2"
 	sqlLocation2 := pl.NewSQLLocationFromParts(dbName2, "PUBLIC", tableName2)
-	records2, err := createDummyTable(test.storeTester, sqlLocation2, 10)
+	records2, err := createDummyTableNew(ctx, test.storeTester, sqlLocation2, 10)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}

@@ -21,8 +21,10 @@ import (
 	"google.golang.org/api/option"
 
 	"github.com/featureform/fferr"
+	fftypes "github.com/featureform/fftypes"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
+	bigquery2 "github.com/featureform/provider/bigquery"
 	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
@@ -536,6 +538,63 @@ func (q defaultBQQueries) getColumns(client *bigquery.Client, name string) ([]Ta
 	return columnNames, nil
 }
 
+func (q defaultBQQueries) getSchema(client *bigquery.Client, converter fftypes.ValueConverter[any], location pl.SQLLocation) (fftypes.Schema, error) {
+	tblName := location.GetTable()
+	datasetName := location.GetSchema()
+
+	// Query to get column details from BigQuery information schema
+	qry := fmt.Sprintf("SELECT column_name, data_type FROM `%s.INFORMATION_SCHEMA.COLUMNS` WHERE table_name=\"%s\" ORDER BY ordinal_position", q.getTablePrefix(), tblName)
+
+	bqQ := client.Query(qry)
+	it, err := bqQ.Read(q.getContext())
+	if err != nil {
+		q.logger.Errorw("Failed to get schema", "dataset", datasetName, "table", tblName, "err", err)
+		wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
+		wrapped.AddDetail("schema", datasetName)
+		wrapped.AddDetail("table_name", tblName)
+		return fftypes.Schema{}, wrapped
+	}
+
+	// Process result set
+	fields := make([]fftypes.ColumnSchema, 0)
+	for {
+		var row []bigquery.Value
+		err := it.Next(&row)
+		if errors.Is(err, iterator.Done) {
+			break
+		} else if err != nil {
+			q.logger.Errorw("Failed to iterate schema rows", "dataset", datasetName, "table", tblName, "err", err)
+			wrapped := fferr.NewExecutionError(p_type.BigQueryOffline.String(), err)
+			wrapped.AddDetail("schema", datasetName)
+			wrapped.AddDetail("table_name", tblName)
+			return fftypes.Schema{}, wrapped
+		}
+
+		columnName := row[0].(string)
+		dataType := row[1].(string)
+
+		// Ensure the type is supported
+		valueType, err := converter.GetType(fftypes.NativeType(dataType))
+		if err != nil {
+			q.logger.Errorw("Failed to convert native type", "dataset", datasetName, "table", tblName, "type", dataType, "err", err)
+			wrapped := fferr.NewInternalErrorf("could not convert native type to value type: %v", err)
+			wrapped.AddDetail("schema", datasetName)
+			wrapped.AddDetail("table_name", tblName)
+			return fftypes.Schema{}, wrapped
+		}
+
+		// Append column details
+		column := fftypes.ColumnSchema{
+			Name:       fftypes.ColumnName(columnName),
+			NativeType: fftypes.NativeType(dataType),
+			Type:       valueType,
+		}
+		fields = append(fields, column)
+	}
+
+	return fftypes.Schema{Fields: fields}, nil
+}
+
 func (q defaultBQQueries) transformationUpdate(client *bigquery.Client, tableName string, query string) error {
 	tempName := fmt.Sprintf("tmp_%s", tableName)
 	fullQuery := fmt.Sprintf("CREATE TABLE `%s` AS %s", q.getTableName(tempName), query)
@@ -976,12 +1035,9 @@ func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, table
 		return nil, err
 	}
 
-	table, err := store.newBigQueryPrimaryTable(sqlLocation.Location())
-	if err != nil {
-		logger.Errorw("Error creating primary table", "error", err)
-		return nil, err
-	}
-	return &PrimaryTableToDatasetAdapter{pt: table}, nil
+	converter, _ := pt.GetConverter(store.Type())
+	schema, _ := store.query.getSchema(store.client, converter, *sqlLocation)
+	return bigquery2.NewDataset(store.client, sqlLocation, schema, converter, -1)
 }
 
 func (store *bqOfflineStore) SupportsTransformationOption(opt TransformationOptionType) (bool, error) {
@@ -1046,13 +1102,10 @@ func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (dataset.Data
 		return nil, fferr.NewTransformationNotFoundError(id.Name, id.Variant, nil)
 	}
 
-	bqPt, err := store.newBigQueryPrimaryTable(name)
-	if err != nil {
-		logger.Errorw("Error creating primary table", "error", err)
-		return nil, err
-	}
-
-	return &PrimaryTableToDatasetAdapter{pt: bqPt}, nil
+	sqlLoc := pl.NewSQLLocationFromParts(store.query.ProjectId, store.query.DatasetId, name)
+	converter, _ := pt.GetConverter(store.Type())
+	schema, _ := store.query.getSchema(store.client, converter, *sqlLoc)
+	return bigquery2.NewDataset(store.client, sqlLoc, schema, converter, -1)
 }
 
 func (store *bqOfflineStore) UpdateTransformation(config TransformationConfig, opts ...TransformationOption) error {
@@ -1140,16 +1193,9 @@ func (store *bqOfflineStore) GetPrimaryTable(id ResourceID, source metadata.Sour
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 
-	name := sqlLocation.Location()
-
-	bqTB, err := store.newBigQueryPrimaryTable(name)
-	if err != nil {
-		logger.Errorw("Error creating primary table", "error", err)
-		return nil, err
-	}
-
-	ds := PrimaryTableToDatasetAdapter{pt: bqTB}
-	return &ds, nil
+	converter, _ := pt.GetConverter(store.Type())
+	schema, _ := store.query.getSchema(store.client, converter, *sqlLocation)
+	return bigquery2.NewDataset(store.client, sqlLocation, schema, converter, -1)
 }
 
 func (store *bqOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {

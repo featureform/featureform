@@ -21,14 +21,14 @@ def step_impl(context, provider):
     context.cols = context.client.columns(context.transactions)
     if provider == "postgres":
         expected_source_cols = [
-            '"transactionid"',
-            '"customerid"',
-            '"customerdob"',
-            '"custlocation"',
-            '"custaccountbalance"',
-            '"transactionamount"',
-            '"timestamp"',
-            '"isfraud"',
+            "transactionid",
+            "customerid",
+            "customerdob",
+            "custlocation",
+            "custaccountbalance",
+            "transactionamount",
+            "timestamp",
+            "isfraud",
         ]
     elif provider == "spark":
         expected_source_cols = [

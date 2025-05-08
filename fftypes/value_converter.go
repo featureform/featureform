@@ -11,8 +11,8 @@ import (
 )
 
 type ValueConverter[T any] interface {
-	GetType(nativeType NativeType) (ValueType, error)
-	ConvertValue(nativeType NativeType, value T) (Value, error)
+	GetType(nativeType NewNativeType) (ValueType, error)
+	ConvertValue(nativeType NewNativeType, value T) (Value, error)
 }
 
 func ConvertNumberToInt(v any) (int, error) {

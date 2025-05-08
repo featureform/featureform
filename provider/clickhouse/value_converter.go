@@ -40,7 +40,7 @@ func checkZeroTime(t time.Time) time.Time {
 
 type Converter struct{}
 
-func (c Converter) GetType(nativeType types.NativeType) (types.ValueType, error) {
+func (c Converter) GetType(nativeType types.NewNativeType) (types.ValueType, error) {
 	conv, err := c.ConvertValue(nativeType, nil)
 	if err != nil {
 		return nil, err
@@ -49,9 +49,9 @@ func (c Converter) GetType(nativeType types.NativeType) (types.ValueType, error)
 }
 
 // ConvertValue converts a value from its ClickHouse representation to a types.Value
-func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.Value, error) {
+func (c Converter) ConvertValue(nativeType types.NewNativeType, value any) (types.Value, error) {
 	// Extract the underlying type if it's Nullable
-	typeStr := string(nativeType)
+	typeStr := nativeType.String()
 	match := nullableRe.FindStringSubmatch(typeStr)
 	if len(match) == 2 {
 		typeStr = match[1]

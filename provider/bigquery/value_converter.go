@@ -29,7 +29,7 @@ func Register() {
 
 type Converter struct{}
 
-func (c Converter) GetType(nativeType types.NativeType) (types.ValueType, error) {
+func (c Converter) GetType(nativeType types.NewNativeType) (types.ValueType, error) {
 	conv, err := c.ConvertValue(nativeType, nil)
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func (c Converter) GetType(nativeType types.NativeType) (types.ValueType, error)
 }
 
 // ConvertValue converts a value from its BigQuery representation to a types.Value
-func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.Value, error) {
+func (c Converter) ConvertValue(nativeType types.NewNativeType, value any) (types.Value, error) {
 	// Convert the value based on the native type
 	switch nativeType {
 	// Integer types

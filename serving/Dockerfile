@@ -22,6 +22,7 @@ RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_o
 
 COPY ./fferr ./fferr
 COPY ./ffsync ./ffsync
+COPY ./fftypes/ ./fftypes/
 COPY ./storage ./storage
 COPY ./scheduling ./scheduling
 COPY ./schema ./schema
@@ -39,6 +40,7 @@ COPY ./metrics/ ./metrics/
 COPY ./provider/ ./provider/
 COPY serving/main/main.go ./serving/main/main.go
 COPY ./coordinator/types ./coordinator/types
+COPY ./health/ ./health/
 
 RUN go build ./serving/main/main.go
 

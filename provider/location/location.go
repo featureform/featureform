@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"strings"
 
+	psql "github.com/jackc/pgx/v4"
+
 	pb "github.com/featureform/metadata/proto"
 
 	"github.com/featureform/fferr"
@@ -102,6 +104,25 @@ func (f FullyQualifiedObject) String() string {
 
 	return strings.Join(parts, ".")
 }
+
+// This is a helper function to sanitize a fully qualified object for use in most SQL queries (postgres, snowflake, etc.)
+func SanitizeFullyQualifiedObject(obj FullyQualifiedObject) string {
+	ident := psql.Identifier{}
+
+	if obj.Database != "" && obj.Schema != "" {
+		ident = append(ident, obj.Database)
+	}
+
+	if obj.Schema != "" {
+		ident = append(ident, obj.Schema)
+	}
+
+	ident = append(ident, obj.Table)
+
+	return ident.Sanitize()
+}
+
+type Sanitizer func(obj FullyQualifiedObject) string
 
 type SQLLocation struct {
 	database string

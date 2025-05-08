@@ -12,8 +12,8 @@ import (
 	"sync"
 
 	"github.com/featureform/fferr"
+	"github.com/featureform/fftypes"
 	pl "github.com/featureform/provider/location"
-	"github.com/featureform/types"
 )
 
 // Dataset is the base interface required by most of the
@@ -21,8 +21,8 @@ import (
 // and schema
 type Dataset interface {
 	Location() pl.Location
-	Iterator(ctx Context) (Iterator, error)
-	Schema() (types.Schema, error)
+	Iterator(ctx Context, limit int64) (Iterator, error)
+	Schema() types.Schema
 }
 
 // WriteableDataset is a Dataset that you can write to. For some datasets,
@@ -131,18 +131,16 @@ func (adapter *ChunkedDatasetAdapter) ChunkIterator(ctx Context, idx int) (Sized
 	}, nil
 }
 
-// Iterator is the generic interface to loop through any dataset in
-// Featureform.
+// Iterator is the generic interface to loop through any dataset in Featureform.
 type Iterator interface {
-	Next(Context) bool
+	Next() bool
 	Values() types.Row
-	Schema() (types.Schema, error)
+	Schema() types.Schema
 	Err() error
 	Close() error
 }
 
-// SizedIterator is an Iterator where we can cheaply check
-// the full length.
+// SizedIterator is an Iterator where we can cheaply check the full length.
 type SizedIterator interface {
 	Iterator
 	Len() (int64, error)

@@ -659,7 +659,7 @@ func getReplacementString(offlineStore provider.OfflineStore, tableMapping table
 		if !isSqlLocation {
 			return "", fferr.NewInvalidArgumentError(fmt.Errorf("expected SQLLocation for Postgres; got: %T", tableMapping.location))
 		}
-		return provider.SanitizeSqlLocation(sqlLocation.TableLocation()), nil
+		return pl.SanitizeFullyQualifiedObject(sqlLocation.TableLocation()), nil
 	case pt.SparkOffline:
 		return sanitize(tableMapping.name), nil
 	default:

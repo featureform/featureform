@@ -1,11 +1,18 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2025 FeatureForm Inc.
+//
+
 package dataset
 
 import (
 	"context"
 	"errors"
 
+	"github.com/featureform/fftypes"
 	pl "github.com/featureform/provider/location"
-	"github.com/featureform/types"
 )
 
 type InMemoryDataset struct {
@@ -22,12 +29,12 @@ func (ds *InMemoryDataset) Location() pl.Location {
 	return ds.location
 }
 
-func (ds *InMemoryDataset) Iterator(ctx context.Context) (Iterator, error) {
-	return &InMemoryIterator{data: ds.data, index: -1}, nil
+func (ds *InMemoryDataset) Iterator(ctx context.Context, limit int64) (Iterator, error) {
+	return &InMemoryIterator{data: ds.data, schema: ds.schema, index: int(limit)}, nil
 }
 
-func (ds *InMemoryDataset) Schema() (types.Schema, error) {
-	return ds.schema, nil
+func (ds *InMemoryDataset) Schema() types.Schema {
+	return ds.schema
 }
 
 func (ds *InMemoryDataset) WriteBatch(ctx context.Context, rows []types.Row) error {
@@ -52,11 +59,12 @@ func (ds *InMemoryDataset) IterateSegment(ctx context.Context, begin, end int64)
 }
 
 type InMemoryIterator struct {
-	data  []types.Row
-	index int
+	data   []types.Row
+	schema types.Schema
+	index  int
 }
 
-func (it *InMemoryIterator) Next(ctx context.Context) bool {
+func (it *InMemoryIterator) Next() bool {
 	if it.index+1 < len(it.data) {
 		it.index++
 		return true
@@ -68,8 +76,8 @@ func (it *InMemoryIterator) Values() types.Row {
 	return it.data[it.index]
 }
 
-func (it *InMemoryIterator) Schema() (types.Schema, error) {
-	return types.Schema{}, nil
+func (it *InMemoryIterator) Schema() types.Schema {
+	return it.schema
 }
 
 func (it *InMemoryIterator) Err() error {

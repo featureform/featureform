@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2025 FeatureForm Inc.
+//
+
 package dataset
 
 import (
@@ -90,27 +97,26 @@ func testIteratorSize(t *testing.T, iter Iterator, expectedSize int64) (isSized 
 
 func testBasicProperties(t *testing.T, tc DatasetTestCase) {
 	assert.Equal(t, tc.Location, tc.Dataset.Location())
-	schema, err := tc.Dataset.Schema()
-	require.NoError(t, err)
+	schema := tc.Dataset.Schema()
 	assert.Equal(t, tc.ExpectedSchema, schema)
 }
 
 func testIterator(t *testing.T, tc DatasetTestCase) {
 	ctx := logging.NewTestContext(t)
 
-	iter, err := tc.Dataset.Iterator(ctx)
+	iter, err := tc.Dataset.Iterator(ctx, -1)
 	require.NoError(t, err)
 	require.NotNil(t, iter)
 
 	// Check if the iterator implements SizedIterator
 	if isSized := testIteratorSize(t, iter, int64(len(tc.ExpectedData))); isSized {
 		// Get a fresh iterator since we might have consumed it
-		iter, err = tc.Dataset.Iterator(ctx)
+		iter, err = tc.Dataset.Iterator(ctx, -1)
 		require.NoError(t, err)
 	}
 
 	i := 0
-	for iter.Next(ctx) {
+	for iter.Next() {
 		require.Less(t, i, len(tc.ExpectedData), "Iterator returned more rows than expected")
 		assert.Equal(t, tc.ExpectedData[i], iter.Values())
 		i++
@@ -151,10 +157,10 @@ func testSegmentIterator(t *testing.T, tc DatasetTestCase) {
 
 	// Verify iterator returns expected segment
 	for i := start; i < end; i++ {
-		require.True(t, iter.Next(ctx), "Iterator ended prematurely")
+		require.True(t, iter.Next(), "Iterator ended prematurely")
 		assert.Equal(t, tc.ExpectedData[i], iter.Values())
 	}
-	assert.False(t, iter.Next(ctx), "Iterator did not end as expected")
+	assert.False(t, iter.Next(), "Iterator did not end as expected")
 }
 
 func testWriteableDataset(t *testing.T, ds WriteableDataset, tc DatasetTestCase) {
@@ -192,11 +198,11 @@ func testWriteableDataset(t *testing.T, ds WriteableDataset, tc DatasetTestCase)
 		}
 
 		// Verify all rows (original + new) are available through iteration
-		iter, err := ds.Iterator(ctx)
+		iter, err := ds.Iterator(ctx, -1)
 		require.NoError(t, err)
 
 		rowIdx := 0
-		for iter.Next(ctx) {
+		for iter.Next() {
 			if rowIdx < len(expectedDataAfterWrite) {
 				assert.Equal(t, expectedDataAfterWrite[rowIdx], iter.Values())
 			} else {
@@ -269,7 +275,7 @@ func testChunkedDatasetAdapter(t *testing.T, ds SizedSegmentableDataset, tc Data
 
 			// Verify chunk contents
 			i := 0
-			for iter.Next(ctx) {
+			for iter.Next() {
 				val := iter.Values()
 				assert.Equal(t, tc.ExpectedData[i], val)
 				i++
@@ -300,7 +306,7 @@ func testChunkedDatasetAdapter(t *testing.T, ds SizedSegmentableDataset, tc Data
 			// Verify chunk contents
 			startIdx := lastChunkIndex * int(adapter.ChunkSize)
 			i := 0
-			for iter.Next(ctx) {
+			for iter.Next() {
 				val := iter.Values()
 				assert.Equal(t, tc.ExpectedData[startIdx+i], val)
 				i++

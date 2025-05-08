@@ -25,6 +25,7 @@ RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_o
 
 COPY ./fferr ./fferr
 COPY ./ffsync ./ffsync
+COPY ./fftypes/ ./fftypes/
 COPY ./storage ./storage
 COPY ./scheduling ./scheduling
 COPY ./schema ./schema
@@ -38,12 +39,16 @@ COPY ./integrations/ ./integrations/
 COPY ./provider/ ./provider
 COPY ./config/ ./config/
 COPY ./coordinator/types ./coordinator/types
+COPY ./types/ ./types/
+COPY ./kubernetes/ ./kubernetes/
+COPY ./health/ ./health/
 
 RUN go build ./metadata/server/server.go
 
 FROM alpine
 
 COPY --from=0 ./app/server /server
+COPY ./db/migrations /db/migrations
 
 EXPOSE 8080
 ENTRYPOINT ["./server"]

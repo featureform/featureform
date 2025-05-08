@@ -17,6 +17,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/featureform/api"
 	"github.com/featureform/config"
 	"github.com/featureform/config/bootstrap"
@@ -24,6 +26,7 @@ import (
 	"github.com/featureform/coordinator/spawner"
 	ct "github.com/featureform/coordinator/types"
 	"github.com/featureform/db"
+	"github.com/featureform/health"
 	help "github.com/featureform/helpers"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
@@ -31,7 +34,6 @@ import (
 	"github.com/featureform/metrics"
 	pb "github.com/featureform/proto"
 	"github.com/featureform/serving"
-	"github.com/google/uuid"
 
 	"google.golang.org/grpc"
 )
@@ -118,12 +120,10 @@ func main() {
 
 	/****************************************** API Server ************************************************************/
 
-	go func() {
-		err := api.StartHttpsServer(":8443")
-		if err != nil && err != http.ErrServerClosed {
-			panic(fmt.Sprintf("health check HTTP server failed: %+v", err))
-		}
-	}()
+	if err := health.StartHttpServer(logger, "8443"); err != nil {
+		logger.Errorw("Error starting health check HTTP server", "error", err)
+		panic(fmt.Sprintf("health check HTTP server failed: %+v", err))
+	}
 
 	/******************************************** Metadata ************************************************************/
 

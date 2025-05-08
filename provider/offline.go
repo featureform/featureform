@@ -8,6 +8,7 @@
 package provider
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +18,8 @@ import (
 	"sync"
 	"time"
 
+	fftype "github.com/featureform/fftypes"
+	"github.com/featureform/provider/dataset"
 	tsq "github.com/featureform/provider/tsquery"
 
 	"github.com/google/uuid"
@@ -527,12 +530,12 @@ type OfflineStoreCore interface {
 
 type OfflineStoreDataset interface {
 	// CreatePrimaryTable is not used outside of the context of tests
-	CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error)
-	RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error)
-	GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error)
+	CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error)
+	RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (dataset.Dataset, error)
+	GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error)
 	SupportsTransformationOption(opt TransformationOptionType) (bool, error)
 	CreateTransformation(config TransformationConfig, opts ...TransformationOption) error
-	GetTransformationTable(id ResourceID) (TransformationTable, error)
+	GetTransformationTable(id ResourceID) (dataset.Dataset, error)
 	UpdateTransformation(config TransformationConfig, opts ...TransformationOption) error
 }
 
@@ -585,6 +588,67 @@ type GenericTableIterator interface {
 	Columns() []string
 	Err() error
 	Close() error
+}
+
+type NewIteratorToOldIteratorAdapter struct {
+	dataset.Iterator
+}
+
+func (it *NewIteratorToOldIteratorAdapter) Columns() []string {
+	schema := it.Iterator.Schema()
+	return schema.ColumnNames()
+}
+
+func (it *NewIteratorToOldIteratorAdapter) Next() bool {
+	return it.Iterator.Next()
+}
+
+func (it *NewIteratorToOldIteratorAdapter) Values() GenericRecord {
+	row := it.Iterator.Values()
+	gr := make(GenericRecord, len(row))
+	for i, v := range row {
+		gr[i] = v.Value
+	}
+	return gr
+}
+
+type OldIteratorToNewIteratorAdapter struct {
+	GenericTableIterator
+}
+
+func (it *OldIteratorToNewIteratorAdapter) Schema() fftype.Schema {
+	columns := it.GenericTableIterator.Columns()
+	fields := make([]fftype.ColumnSchema, len(columns))
+	for i, col := range columns {
+		fields[i] = fftype.ColumnSchema{
+			Name: fftype.ColumnName(col),
+		}
+	}
+
+	return fftype.Schema{
+		Fields: fields,
+	}
+}
+
+func (it *OldIteratorToNewIteratorAdapter) Next() bool {
+	return it.GenericTableIterator.Next()
+}
+
+func (it *OldIteratorToNewIteratorAdapter) Values() fftype.Row {
+	gr := it.GenericTableIterator.Values()
+	row := make(fftype.Row, len(gr))
+	for i, v := range gr {
+		row[i] = fftype.Value{Value: v}
+	}
+	return row
+}
+
+func (it *OldIteratorToNewIteratorAdapter) Err() error {
+	return it.GenericTableIterator.Err()
+}
+
+func (it *OldIteratorToNewIteratorAdapter) Close() error {
+	return it.GenericTableIterator.Close()
 }
 
 type Materialization interface {
@@ -698,8 +762,61 @@ type PrimaryTable interface {
 	// absolute path to the source table (i.e. the "name" in our
 	// current lexicon).
 	GetName() string
+	GetLocation() pl.Location
 	IterateSegment(n int64) (GenericTableIterator, error)
 	NumRows() (int64, error)
+}
+
+type PrimaryTableToDatasetAdapter struct {
+	pt PrimaryTable
+}
+
+func (adapter *PrimaryTableToDatasetAdapter) Location() pl.Location {
+	return adapter.pt.GetLocation()
+}
+
+func (adapter *PrimaryTableToDatasetAdapter) Iterator(ctx context.Context, limit int64) (dataset.Iterator, error) {
+	iterator, err := adapter.pt.IterateSegment(limit)
+	if err != nil {
+		return nil, err
+	}
+	return &OldIteratorToNewIteratorAdapter{iterator}, nil
+}
+
+func (adapter *PrimaryTableToDatasetAdapter) Schema() fftype.Schema {
+	iterator, err := adapter.pt.IterateSegment(1)
+	if err != nil {
+		panic(err)
+	}
+	defer iterator.Close()
+
+	columns := iterator.Columns()
+	fields := make([]fftype.ColumnSchema, len(columns))
+	for i, col := range columns {
+		fields[i] = fftype.ColumnSchema{
+			Name: fftype.ColumnName(col),
+		}
+	}
+
+	return fftype.Schema{
+		Fields: fields,
+	}
+}
+
+func (adapter *PrimaryTableToDatasetAdapter) WriteBatch(ctx context.Context, records []fftype.Row) error {
+	genericRecords := make([]GenericRecord, len(records))
+	for i, row := range records {
+		genericRecords[i] = make(GenericRecord, len(row))
+		for j, val := range row {
+			genericRecords[i][j] = val.Value
+		}
+	}
+	return adapter.pt.WriteBatch(genericRecords)
+}
+
+func (adapter *PrimaryTableToDatasetAdapter) Len() (int64, error) {
+	rows, err := adapter.pt.NumRows()
+	return rows, err
 }
 
 type TransformationTable interface {
@@ -1043,17 +1160,17 @@ func (store *memoryOfflineStore) RegisterResourceFromSourceTable(id ResourceID, 
 func (store *memoryOfflineStore) RegisterPrimaryFromSourceTable(
 	id ResourceID,
 	tableLocation pl.Location,
-) (PrimaryTable, error) {
+) (dataset.Dataset, error) {
 	if id.Name == "make" && id.Variant == "panic" {
 		panic("This is a panic")
 	}
 	store.tables.Store(id, &memoryPrimaryTable{})
-	return &memoryPrimaryTable{}, nil
+	return &PrimaryTableToDatasetAdapter{pt: &memoryPrimaryTable{}}, nil
 }
 
-func (store *memoryOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+func (store *memoryOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) {
 	store.tables.Store(id, &memoryPrimaryTable{})
-	return &memoryPrimaryTable{}, nil
+	return &PrimaryTableToDatasetAdapter{pt: &memoryPrimaryTable{}}, nil
 }
 
 type memoryPrimaryTable struct {
@@ -1071,6 +1188,14 @@ func (m *memoryPrimaryTable) GetName() string {
 	return "memoryTableName"
 }
 
+func (m *memoryPrimaryTable) GetLocation() pl.Location {
+	loc, err := pl.NewFileLocationFromURI("memory://memoryTableName")
+	if err != nil {
+		return nil
+	}
+	return loc
+}
+
 func (m *memoryPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 	return nil, nil
 }
@@ -1079,13 +1204,13 @@ func (m *memoryPrimaryTable) NumRows() (int64, error) {
 	return 0, nil
 }
 
-func (store *memoryOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
+func (store *memoryOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error) {
 	table, has := store.tables.Load(id)
 	if !has {
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	memoryTable := table.(*memoryPrimaryTable)
-	return memoryTable, nil
+	return &PrimaryTableToDatasetAdapter{pt: memoryTable}, nil
 }
 
 func (store *memoryOfflineStore) SupportsTransformationOption(opt TransformationOptionType) (bool, error) {
@@ -1103,7 +1228,7 @@ func (store *memoryOfflineStore) UpdateTransformation(config TransformationConfi
 	return fferr.NewInternalError(fmt.Errorf("UpdateTransformation unsupported for this provider"))
 }
 
-func (store *memoryOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+func (store *memoryOfflineStore) GetTransformationTable(id ResourceID) (dataset.Dataset, error) {
 	return nil, fferr.NewInternalError(fmt.Errorf("GetTransformationTable unsupported for this provider"))
 }
 

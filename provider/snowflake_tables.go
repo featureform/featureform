@@ -16,7 +16,7 @@ import (
 )
 
 type snowflakePrimaryTable struct {
-	sqlPrimaryTable
+	SqlPrimaryTable
 }
 
 func (tbl snowflakePrimaryTable) Write(record GenericRecord) error {

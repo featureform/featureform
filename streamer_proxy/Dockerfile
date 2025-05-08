@@ -24,6 +24,7 @@ RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_o
 COPY ./logging/ ./logging/
 COPY ./filestore/ ./filestore/
 COPY ./ffsync ./ffsync
+COPY ./fftypes/ ./fftypes/
 COPY ./helpers/ ./helpers/
 COPY ./config/ ./config/
 COPY ./fferr ./fferr/
@@ -38,6 +39,8 @@ COPY ./metadata/proto/ ./metadata/proto/
 COPY ./streamer_proxy/ ./streamer_proxy/
 COPY ./metadata/ ./metadata/
 COPY ./coordinator/types ./coordinator/types
+COPY ./kubernetes/ ./kubernetes/
+COPY ./health/ ./health/
 
 RUN go build -o /app/main ./streamer_proxy/
 

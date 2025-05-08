@@ -1,0 +1,37 @@
+services:
+  db:
+    build: ../../custom_containers/postgres_quickstart
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+  api:
+    build:
+      context: ../..
+      dockerfile: api/Dockerfile
+    environment:
+      FEATURE_DEBUG_LOGGING: true
+      FF_STATE_PROVIDER: psql
+      METADATA_HOST: "metadata"
+      PSQL_HOST: "db"
+      SKIP_FEATURE_SERVING: true
+    depends_on: [metadata]
+    ports:
+      - "7878:7878"
+  metadata:
+    build:
+      context: ../..
+      dockerfile: metadata/Dockerfile
+    environment:
+      FEATURE_DEBUG_LOGGING: true
+      FF_STATE_PROVIDER: psql
+      PSQL_HOST: "db"
+      RUN_GOOSE_MIGRATION_METADATA: true
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"

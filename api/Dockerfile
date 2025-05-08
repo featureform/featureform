@@ -16,6 +16,7 @@ RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_o
 
 COPY ./fferr ./fferr
 COPY ./ffsync ./ffsync
+COPY ./fftypes/ ./fftypes/
 COPY ./storage ./storage
 COPY ./schema ./schema
 COPY ./lib/ ./lib/
@@ -65,5 +66,5 @@ RUN cat $SPARK_SCRIPT_PATH | md5sum \
     | awk '{print $1}' \
     | xargs echo -n > /app/provider/scripts/spark/offline_store_spark_runner_md5.txt
 
-EXPOSE 8080
+EXPOSE 7878
 ENTRYPOINT ["./main"]

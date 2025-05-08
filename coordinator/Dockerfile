@@ -24,6 +24,7 @@ RUN protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_o
 # Copying source files
 COPY ./fferr ./fferr
 COPY ./ffsync ./ffsync
+COPY ./fftypes/ ./fftypes/
 COPY ./storage ./storage
 COPY ./scheduling ./scheduling
 COPY ./schema ./schema
@@ -39,6 +40,7 @@ COPY ./metadata/ ./metadata/
 COPY ./runner/ ./runner/
 COPY ./kubernetes ./kubernetes
 COPY ./types ./types
+COPY ./health/ ./health/
 COPY ./coordinator/main/main.go ./coordinator/main/main.go
 
 # Building Go app

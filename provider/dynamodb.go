@@ -29,13 +29,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/smithy-go"
+	sn "github.com/mrz1836/go-sanitize"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	se "github.com/featureform/provider/serialization"
 	vt "github.com/featureform/provider/types"
-	sn "github.com/mrz1836/go-sanitize"
 )
 
 func init() {
@@ -205,6 +206,7 @@ func (store *dynamodbOnlineStore) Close() error {
 
 // TODO(simba) make table name a param
 func CreateMetadataTable(client *dynamodb.Client, logger logging.Logger, tags []types.Tag) error {
+	logger.Info("Creating dynamo metadata table...")
 	tableName := defaultMetadataTableName
 	params := &dynamodb.CreateTableInput{
 		TableName: aws.String(tableName),
@@ -325,6 +327,15 @@ func (store *dynamodbOnlineStore) GetTable(feature, variant string) (OnlineStore
 	logger := store.logger.WithResource(logging.FeatureVariant, feature, variant)
 	key := dynamodbTableKey{store.prefix, feature, variant}
 	logger.Debugw("Getting feature table from DynamoDB metadata table ...", "key", key)
+	exists, err := store.tableExists(feature, variant)
+	if err != nil {
+		logger.Errorw("Failed to check if table exists in DynamoDB", "err", err)
+		return nil, err
+	}
+	if !exists {
+		logger.Error("Feature table not found in DynamoDB")
+		return nil, fferr.NewDatasetNotFoundError(feature, variant, nil)
+	}
 	meta, err := store.getFromMetadataTable(formatDynamoTableName(store.prefix, feature, variant))
 	if err != nil {
 		logger.Errorw("Failed to get feature table from DynamoDB metadata table", "err", err)
@@ -335,17 +346,91 @@ func (store *dynamodbOnlineStore) GetTable(feature, variant string) (OnlineStore
 	return table, nil
 }
 
+func (store *dynamodbOnlineStore) tableExists(feature, variant string) (bool, error) {
+	// We store tables in two places: DynamoDB and a metadata table. We need to check both to ensure consistency.
+
+	key := dynamodbTableKey{store.prefix, feature, variant}
+	tableName := formatDynamoTableName(store.prefix, feature, variant)
+
+	logger := store.logger.With("tableName", tableName, "key", key)
+	logger.Debug("Checking if table exists in DynamoDB...")
+
+	// Check if table exists in DynamoDB
+	input := &dynamodb.DescribeTableInput{
+		TableName: aws.String(tableName),
+	}
+
+	_, err := store.client.DescribeTable(context.TODO(), input)
+	tableExistsInDynamo := true
+	var dynamoNotFoundErr *types.ResourceNotFoundException
+	if err != nil {
+		if errors.As(err, &dynamoNotFoundErr) {
+			tableExistsInDynamo = false
+			logger.Debug("DynamoDB table not found")
+		} else {
+			logger.Errorw("Error checking table existence in DynamoDB", "error", err)
+			return false, err
+		}
+	}
+
+	logger.Debug("Checking if table exists in metadata table...")
+	_, metaErr := store.getFromMetadataTable(tableName)
+	tableExistsInMetadata := true
+	var datasetNotFoundError *fferr.DatasetNotFoundError
+	if metaErr != nil {
+		if errors.As(metaErr, &datasetNotFoundError) {
+			tableExistsInMetadata = false
+			logger.Debug("Table not found in metadata")
+		} else {
+			// It's some other error, return it
+			logger.Errorw("Error checking table existence in metadata table", "error", metaErr)
+			return false, metaErr
+		}
+	}
+
+	// Handle the four possible states
+	if tableExistsInDynamo && tableExistsInMetadata {
+		logger.Debug("Table exists in both DynamoDB and metadata")
+		return true, nil
+	}
+
+	if !tableExistsInDynamo && !tableExistsInMetadata {
+		logger.Debug("Table not found in both DynamoDB and metadata")
+		return false, nil
+	}
+
+	if tableExistsInMetadata && !tableExistsInDynamo {
+		logger.Warn("Inconsistency detected: Table exists in metadata but not in DynamoDB")
+		return false, nil
+	}
+
+	if tableExistsInDynamo && !tableExistsInMetadata {
+		logger.Warn("Inconsistency detected: Table exists in DynamoDB but not in metadata")
+		return true, nil
+	}
+
+	return false, fferr.NewInternalErrorf("unexpected error while checking table existence")
+}
+
 func (store *dynamodbOnlineStore) FormatTableName(feature, variant string) string {
 	return formatDynamoTableName(store.prefix, feature, variant)
 }
 
 func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType vt.ValueType) (OnlineStoreTable, error) {
+	logger := store.logger.WithResource(logging.FeatureVariant, feature, variant)
+	logger.Info("Creating feature table in DynamoDB ...")
 	key := dynamodbTableKey{store.prefix, feature, variant}
 	tableName := formatDynamoTableName(store.prefix, feature, variant)
-	if _, err := store.getFromMetadataTable(tableName); err == nil {
-		wrapped := fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
-		wrapped.AddDetail("tablename", tableName)
-		return nil, wrapped
+	logger = logger.With("tablename", tableName)
+	logger.Debug("Checking if feature table already exists in DynamoDB ...")
+	exists, err := store.tableExists(feature, variant)
+	if err != nil {
+		logger.Errorw("Failed to check if table exists in DynamoDB", "err", err)
+		return nil, err
+	}
+	if exists {
+		logger.Error("Feature table already exists in DynamoDB")
+		return nil, fferr.NewDatasetAlreadyExistsError(feature, variant, nil)
 	}
 	params := &dynamodb.CreateTableInput{
 		TableName: aws.String(tableName),
@@ -364,25 +449,40 @@ func (store *dynamodbOnlineStore) CreateTable(feature, variant string, valueType
 		},
 		Tags: store.tags,
 	}
+	logger = logger.With("dynamo_db_table_params", params)
+	logger.Debug("Running create table on dynamo client...")
 	if _, err := store.client.CreateTable(context.TODO(), params); err != nil {
+		logger.Errorw("Failed to create feature table in DynamoDB", "err", err)
 		return nil, fferr.NewResourceExecutionError(pt.DynamoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
+	logger.Debug("Waiting for feature table to be created in DynamoDB ...")
 	if err := waitForDynamoTable(store.client, tableName, store.timeout); err != nil {
+		logger.Errorw("Failed to wait for feature table in DynamoDB", "err", err)
 		return nil, fferr.NewResourceExecutionError(pt.DynamoDBOnline.String(), feature, variant, fferr.FEATURE_VARIANT, err)
 	}
+	logger.Debug("Updating metadata table with new feature table ...")
 	if err := store.updateMetadataTable(tableName, valueType, dynamoSerializationVersion); err != nil {
+		logger.Errorw("Failed to update metadata table", "err", err)
 		return nil, err
 	}
+	logger.Info("Successfully created feature table in DynamoDB")
 	return &dynamodbOnlineTable{store.client, key, valueType, dynamoSerializationVersion, store.stronglyConsistent}, nil
 }
 
 func (store *dynamodbOnlineStore) DeleteTable(feature, variant string) error {
 	logger := store.logger.WithResource(logging.FeatureVariant, feature, variant)
 	tableName := formatDynamoTableName(store.prefix, feature, variant)
-	logger.Debugw("Deleting feature table from DynamoDB ...", "tablename", tableName)
+	logger = logger.With("tablename", tableName)
+	logger.Info("Deleting feature table from DynamoDB ...")
+	logger.Debug("Deleting feature table from DynamoDB metadata table ...")
+	if err := store.deleteFromMetadataTable(context.TODO(), tableName); err != nil {
+		logger.Errorw("Failed to delete feature table from DynamoDB metadata table", "err", err)
+		return err
+	}
 	params := &dynamodb.DeleteTableInput{
 		TableName: aws.String(tableName),
 	}
+	logger.Debug("Running delete table on dynamo client...")
 	_, err := store.client.DeleteTable(context.TODO(), params)
 	if err != nil {
 		var notFoundErr *types.ResourceNotFoundException
@@ -394,11 +494,7 @@ func (store *dynamodbOnlineStore) DeleteTable(feature, variant string) error {
 			return fferr.NewExecutionError(pt.DynamoDBOnline.String(), err)
 		}
 	}
-	if err := store.deleteFromMetadataTable(context.TODO(), tableName); err != nil {
-		logger.Errorw("Failed to delete feature table from DynamoDB metadata table", "err", err)
-		return err
-	}
-	logger.Debugw("Successfully deleted feature table from DynamoDB")
+	logger.Info("Successfully deleted feature table from DynamoDB")
 	return nil
 }
 

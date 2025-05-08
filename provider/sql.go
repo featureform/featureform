@@ -26,6 +26,7 @@ import (
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
+	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
@@ -333,7 +334,7 @@ func (store *sqlOfflineStore) RegisterResourceFromSourceTable(id ResourceID, sch
 	}, nil
 }
 
-func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (PrimaryTable, error) {
+func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tableLocation pl.Location) (dataset.Dataset, error) {
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
@@ -363,16 +364,18 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tabl
 		return nil, err
 	}
 
-	return &sqlPrimaryTable{
-		db:          dbConn,
-		name:        sqlLocation.Location(),
-		sqlLocation: sqlLocation,
-		schema:      TableSchema{Columns: columnNames},
-		query:       store.query,
+	return &PrimaryTableToDatasetAdapter{
+		&SqlPrimaryTable{
+			db:          dbConn,
+			name:        sqlLocation.Location(),
+			sqlLocation: sqlLocation,
+			schema:      TableSchema{Columns: columnNames},
+			query:       store.query,
+		},
 	}, nil
 }
 
-func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (PrimaryTable, error) {
+func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) {
 	if err := id.check(Primary); err != nil {
 		return nil, err
 	}
@@ -396,10 +399,10 @@ func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSche
 	if err != nil {
 		return nil, err
 	}
-	return table, nil
+	return &PrimaryTableToDatasetAdapter{table}, nil
 }
 
-func (store *sqlOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema TableSchema) (*sqlPrimaryTable, error) {
+func (store *sqlOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema TableSchema) (*SqlPrimaryTable, error) {
 	query, err := store.createsqlPrimaryTableQuery(name, schema)
 	if err != nil {
 		return nil, err
@@ -417,7 +420,7 @@ func (store *sqlOfflineStore) newsqlPrimaryTable(db *sql.DB, name string, schema
 	}
 
 	location := pl.NewSQLLocationFromParts(dbName, schemaName, name)
-	return &sqlPrimaryTable{
+	return &SqlPrimaryTable{
 		db:           db,
 		name:         name, // TODO get rid of this and just use location
 		sqlLocation:  location,
@@ -443,7 +446,7 @@ func (store *sqlOfflineStore) createsqlPrimaryTableQuery(name string, schema Tab
 	return store.query.primaryTableCreate(name, columnString), nil
 }
 
-func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (PrimaryTable, error) {
+func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID, source metadata.SourceVariant) (dataset.Dataset, error) {
 	location, err := source.GetPrimaryLocation()
 	if err != nil {
 		return nil, fferr.NewInvalidArgumentErrorf("Source Primary Location is empty: %v", err)
@@ -471,17 +474,18 @@ func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID, source metadata.Sou
 		return nil, err
 	}
 
-	return &sqlPrimaryTable{
+	sqlPT := &SqlPrimaryTable{
 		db:           dbConn,
 		name:         sqlLocation.GetTable(),
 		sqlLocation:  sqlLocation,
 		schema:       TableSchema{Columns: columnNames},
 		query:        store.query,
 		providerType: store.Type(),
-	}, nil
+	}
+	return &PrimaryTableToDatasetAdapter{sqlPT}, nil
 }
 
-func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (TransformationTable, error) {
+func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (dataset.Dataset, error) {
 	if err := id.check(Transformation); err != nil {
 		return nil, err
 	}
@@ -511,14 +515,15 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (Transformat
 	}
 	sqlLocation := pl.NewSQLLocationFromParts(dbName, schemaName, name)
 
-	return &sqlPrimaryTable{
+	sqlPt := &SqlPrimaryTable{
 		db:           store.db,
 		name:         name,
 		sqlLocation:  sqlLocation,
 		schema:       TableSchema{Columns: columnNames},
 		query:        store.query,
 		providerType: store.Type(),
-	}, nil
+	}
+	return &PrimaryTableToDatasetAdapter{pt: sqlPt}, nil
 }
 
 // CreateResourceTable creates a new Resource table.
@@ -1271,7 +1276,7 @@ type sqlOfflineTable struct {
 	providerType pt.Type
 }
 
-type sqlPrimaryTable struct {
+type SqlPrimaryTable struct {
 	db           *sql.DB
 	name         string
 	sqlLocation  *pl.SQLLocation
@@ -1280,11 +1285,28 @@ type sqlPrimaryTable struct {
 	providerType pt.Type
 }
 
-func (table *sqlPrimaryTable) GetName() string {
+func (table *SqlPrimaryTable) ToDataset() (dataset.SqlDataset, error) {
+	conv, err := pt.GetConverter(table.providerType)
+	if err != nil {
+		return dataset.SqlDataset{}, err
+	}
+	return dataset.NewSqlDatasetWithAutoSchema(
+		table.db,
+		table.sqlLocation,
+		conv,
+		-1,
+	)
+}
+
+func (table *SqlPrimaryTable) GetName() string {
 	return table.name
 }
 
-func (table *sqlPrimaryTable) Write(rec GenericRecord) error {
+func (table *SqlPrimaryTable) GetLocation() pl.Location {
+	return table.sqlLocation
+}
+
+func (table *SqlPrimaryTable) Write(rec GenericRecord) error {
 	tb := sanitize(table.name)
 	columns := table.getColumnNameString()
 	placeholder := table.query.createValuePlaceholderString(table.schema.Columns)
@@ -1299,7 +1321,7 @@ func (table *sqlPrimaryTable) Write(rec GenericRecord) error {
 	return nil
 }
 
-func (table *sqlPrimaryTable) WriteBatch(recs []GenericRecord) error {
+func (table *SqlPrimaryTable) WriteBatch(recs []GenericRecord) error {
 	for _, rec := range recs {
 		if err := table.Write(rec); err != nil {
 			return err
@@ -1308,7 +1330,7 @@ func (table *sqlPrimaryTable) WriteBatch(recs []GenericRecord) error {
 	return nil
 }
 
-func (table *sqlPrimaryTable) getColumnNameString() string {
+func (table *SqlPrimaryTable) getColumnNameString() string {
 	columns := make([]string, 0)
 	for _, column := range table.schema.Columns {
 		columns = append(columns, column.Name)
@@ -1316,7 +1338,7 @@ func (table *sqlPrimaryTable) getColumnNameString() string {
 	return strings.Join(columns, ", ")
 }
 
-func (pt *sqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
+func (pt *SqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error) {
 	columns, err := pt.query.getColumns(pt.db, pt.name)
 	if err != nil {
 		return nil, err
@@ -1345,7 +1367,7 @@ func (pt *sqlPrimaryTable) IterateSegment(n int64) (GenericTableIterator, error)
 	return newsqlGenericTableIterator(rows, colTypes, columnNames, pt.query, pt.providerType), nil
 }
 
-func (pt *sqlPrimaryTable) getValueColumnTypes(table string) ([]interface{}, error) {
+func (pt *SqlPrimaryTable) getValueColumnTypes(table string) ([]interface{}, error) {
 	query := pt.query.getValueColumnTypes(table)
 	rows, err := pt.db.Query(query)
 	if err != nil {
@@ -1371,7 +1393,7 @@ func (pt *sqlPrimaryTable) getValueColumnTypes(table string) ([]interface{}, err
 	return colTypes, nil
 }
 
-func (pt *sqlPrimaryTable) NumRows() (int64, error) {
+func (pt *SqlPrimaryTable) NumRows() (int64, error) {
 	n := int64(0)
 	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", sanitize(pt.name))
 	rows := pt.db.QueryRow(query)
@@ -2058,7 +2080,7 @@ func GetTransformationTableName(id ResourceID) (string, error) {
 	return ps.ResourceToTableName("Transformation", id.Name, id.Variant)
 }
 
-func SanitizeSqlLocation(obj pl.FullyQualifiedObject) string {
+func SanitizeFullyQualifiedObject(obj pl.FullyQualifiedObject) string {
 	ident := db.Identifier{}
 
 	if obj.Database != "" && obj.Schema != "" {

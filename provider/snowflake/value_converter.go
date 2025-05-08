@@ -27,168 +27,143 @@ func Register() {
 
 type Converter struct{}
 
-func (c Converter) GetType(nativeType types.NativeType) (types.ValueType, error) {
-	conv, err := c.ConvertValue(nativeType, nil)
-	if err != nil {
-		return nil, err
+type NativeTypeDetails interface {
+	ColumnName() string
+}
+
+type nativeTypeDetails struct {
+	columnName string
+	precision  int
+	scale      int
+}
+
+func (n *nativeTypeDetails) ColumnName() string {
+	return n.columnName
+}
+
+func (c Converter) ParseNativeType(typeDetails NativeTypeDetails) (types.NewNativeType, error) {
+	sfDetails := typeDetails.(*nativeTypeDetails)
+
+	nativeType, ok := StringToNativeType[sfDetails.ColumnName()]
+	if !ok {
+		return nil, fferr.NewUnsupportedTypeError("Unsupported native type")
 	}
-	return conv.Type, nil
+
+	switch nt := nativeType.(type) {
+	case *NumberType:
+		nt.WithPrecision(sfDetails.precision).
+			WithScale(sfDetails.scale)
+		return nt, nil
+	default:
+		return nativeType, nil
+	}
+}
+
+func (c Converter) GetType(nativeType types.NewNativeType) (types.ValueType, error) {
+	// Handle nil case
+	if nativeType == nil {
+		return types.String, nil
+	}
+
+	// Check if this is a NumberType with precision/scale
+	if numeric, ok := nativeType.(*NumberType); ok {
+		// If scale is 0, this is an integer type
+		if numeric.Scale == 0 {
+			if numeric.Precision <= 9 {
+				return types.Int32, nil
+			}
+			return types.Int64, nil
+		}
+		// With scale > 0, this is a floating point type
+		return types.Float64, nil
+	}
+
+	// Compare directly to predefined constants
+	switch nativeType {
+	// Integer types
+	case INTEGER, INT, SMALLINT:
+		return types.Int32, nil
+	case BIGINT:
+		return types.Int64, nil
+
+	// Floating point types
+	case FLOAT, FLOAT4, REAL:
+		return types.Float64, nil
+	case FLOAT8, DOUBLE, DOUBLE_PRECISION:
+		return types.Float64, nil
+
+	// String types
+	case VARCHAR, CHAR, CHARACTER, STRING, TEXT:
+		return types.String, nil
+
+	// Boolean type
+	case BOOLEAN, BOOL:
+		return types.Bool, nil
+
+	// Date/Time types
+	case DATE, DATETIME, TIME:
+		return types.Datetime, nil
+	case TIMESTAMP, TIMESTAMP_LTZ, TIMESTAMP_NTZ, TIMESTAMP_TZ:
+		return types.Timestamp, nil
+	}
+
+	// If it's still a NativeTypeLiteral but not one of our predefined constants
+	if _, ok := nativeType.(types.NativeTypeLiteral); ok {
+		// Default to string for unknown literals
+		return types.String, nil
+	}
+
+	// If we can't determine the type, default to string
+	return types.String, nil
 }
 
 // ConvertValue converts a value from its Snowflake representation to a types.Value
-func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.Value, error) {
-	// Convert the value based on the native type
-	switch nativeType {
-	// Integer types
-	case "INTEGER", "SMALLINT":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Int32,
-				Value:      nil,
-			}, nil
-		}
-		convertedValue, err := types.ConvertNumberToInt32(value)
-		if err != nil {
-			return types.Value{}, err
-		}
-		return types.Value{
-			NativeType: nativeType,
-			Type:       types.Int32,
-			Value:      convertedValue,
-		}, nil
-
-	case "BIGINT":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Int64,
-				Value:      nil,
-			}, nil
-		}
-		convertedValue, err := types.ConvertNumberToInt64(value)
-		if err != nil {
-			return types.Value{}, err
-		}
-		return types.Value{
-			NativeType: nativeType,
-			Type:       types.Int64,
-			Value:      convertedValue,
-		}, nil
-
-	// Floating point types
-	case "FLOAT", "FLOAT4", "REAL":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Float32,
-				Value:      nil,
-			}, nil
-		}
-		convertedValue, err := types.ConvertNumberToFloat32(value)
-		if err != nil {
-			return types.Value{}, err
-		}
-		return types.Value{
-			NativeType: nativeType,
-			Type:       types.Float32,
-			Value:      convertedValue,
-		}, nil
-
-	case "NUMBER", "DECIMAL", "NUMERIC", "FLOAT8", "DOUBLE", "DOUBLE PRECISION":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Float64,
-				Value:      nil,
-			}, nil
-		}
-		convertedValue, err := types.ConvertNumberToFloat64(value)
-		if err != nil {
-			return types.Value{}, err
-		}
-		return types.Value{
-			NativeType: nativeType,
-			Type:       types.Float64,
-			Value:      convertedValue,
-		}, nil
-
-	// String types
-	case "VARCHAR", "STRING", "TEXT", "CHAR", "CHARACTER":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.String,
-				Value:      nil,
-			}, nil
-		}
-		convertedValue, err := types.ConvertToString(value)
-		if err != nil {
-			return types.Value{}, err
-		}
-		return types.Value{
-			NativeType: nativeType,
-			Type:       types.String,
-			Value:      convertedValue,
-		}, nil
-
-	// Boolean type
-	case "BOOLEAN":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Bool,
-				Value:      nil,
-			}, nil
-		}
-		convertedValue, err := types.ConvertToBool(value)
-		if err != nil {
-			return types.Value{}, err
-		}
-		return types.Value{
-			NativeType: nativeType,
-			Type:       types.Bool,
-			Value:      convertedValue,
-		}, nil
-
-	// Date/Time types
-	case "DATE", "DATETIME", "TIME":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Datetime,
-				Value:      nil,
-			}, nil
-		}
-		convertedValue, err := types.ConvertDatetime(value)
-		if err != nil {
-			return types.Value{}, err
-		}
-		return types.Value{
-			NativeType: nativeType,
-			Type:       types.Datetime,
-			Value:      convertedValue,
-		}, nil
-
-	case "TIMESTAMP", "TIMESTAMP_LTZ", "TIMESTAMP_NTZ", "TIMESTAMP_TZ":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Timestamp,
-				Value:      nil,
-			}, nil
-		}
-		convertedValue, err := types.ConvertDatetime(value)
-		if err != nil {
-			return types.Value{}, err
-		}
-		return types.Value{
-			NativeType: nativeType,
-			Type:       types.Timestamp,
-			Value:      convertedValue,
-		}, nil
-	default:
-		// This should never happen since we check IsSupported above
-		return types.Value{}, fferr.NewUnsupportedTypeError(string(nativeType))
+func (c Converter) ConvertValue(nativeType types.NewNativeType, value any) (types.Value, error) {
+	// Get the target Featureform type for this native type
+	targetType, err := c.GetType(nativeType)
+	if err != nil {
+		return types.Value{}, err
 	}
+
+	// If value is nil, return a nil value of the target type
+	if value == nil {
+		return types.Value{
+			NativeType: nativeType,
+			Type:       targetType,
+			Value:      nil,
+		}, nil
+	}
+
+	// Convert the value according to target type
+	var convertedValue any
+	var convErr error
+
+	switch targetType {
+	case types.Int32:
+		convertedValue, convErr = types.ConvertNumberToInt32(value)
+	case types.Int64:
+		convertedValue, convErr = types.ConvertNumberToInt64(value)
+	case types.Float32:
+		convertedValue, convErr = types.ConvertNumberToFloat32(value)
+	case types.Float64:
+		convertedValue, convErr = types.ConvertNumberToFloat64(value)
+	case types.String:
+		convertedValue, convErr = types.ConvertToString(value)
+	case types.Bool:
+		convertedValue, convErr = types.ConvertToBool(value)
+	case types.Timestamp, types.Datetime:
+		convertedValue, convErr = types.ConvertDatetime(value)
+	default:
+		return types.Value{}, fferr.NewUnsupportedTypeError("Unsupported target type")
+	}
+
+	if convErr != nil {
+		return types.Value{}, fferr.NewInternalErrorf("conversion error: %v", convErr)
+	}
+
+	return types.Value{
+		NativeType: nativeType,
+		Type:       targetType,
+		Value:      convertedValue,
+	}, nil
 }

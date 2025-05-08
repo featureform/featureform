@@ -12,7 +12,7 @@ import (
 	"sync"
 
 	"github.com/featureform/fferr"
-	types "github.com/featureform/fftypes"
+	"github.com/featureform/fftypes"
 	pl "github.com/featureform/provider/location"
 )
 

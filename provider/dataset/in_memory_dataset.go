@@ -11,7 +11,7 @@ import (
 	"context"
 	"errors"
 
-	types "github.com/featureform/fftypes"
+	"github.com/featureform/fftypes"
 	pl "github.com/featureform/provider/location"
 )
 

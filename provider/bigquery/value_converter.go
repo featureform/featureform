@@ -39,122 +39,120 @@ func (c Converter) GetType(nativeType types.NewNativeType) (types.ValueType, err
 
 // ConvertValue converts a value from its BigQuery representation to a types.Value
 func (c Converter) ConvertValue(nativeType types.NewNativeType, value any) (types.Value, error) {
-	// Convert the value based on the native type
+	// First, determine the target type for this native type
+	var targetType types.ValueType
+
 	switch nativeType {
 	// Integer types
-	case "INT64", "INTEGER", "BIGINT":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Int64,
-				Value:      nil,
-			}, nil
+	case INT64, INTEGER, BIGINT:
+		targetType = types.Int64
+	// Floating point types
+	case FLOAT64, DECIMAL:
+		targetType = types.Float64
+	// String type
+	case STRING:
+		targetType = types.String
+	// Boolean type
+	case BOOL:
+		targetType = types.Bool
+	// Date/Time types
+	case DATE, DATETIME, TIME:
+		targetType = types.Datetime
+	case TIMESTAMP:
+		targetType = types.Timestamp
+	default:
+		if typeName, ok := nativeType.(types.NativeTypeLiteral); ok {
+			return types.Value{}, fferr.NewUnsupportedTypeError(string(typeName))
 		}
+		return types.Value{}, fferr.NewUnsupportedTypeError("unknown type")
+	}
+
+	// Handle nil value case once
+	if value == nil {
+		return types.Value{
+			NativeType: nativeType,
+			Type:       targetType,
+			Value:      nil,
+		}, nil
+	}
+
+	// Handle the non-nil case based on native type
+	switch nativeType {
+	// Integer types
+	case INT64, INTEGER, BIGINT:
 		convertedValue, err := types.ConvertNumberToInt64(value)
 		if err != nil {
 			return types.Value{}, err
 		}
 		return types.Value{
 			NativeType: nativeType,
-			Type:       types.Int64,
+			Type:       targetType,
 			Value:      convertedValue,
 		}, nil
 
 	// Floating point types
-	case "FLOAT64", "DECIMAL":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Float64,
-				Value:      nil,
-			}, nil
-		}
+	case FLOAT64, DECIMAL:
 		convertedValue, err := types.ConvertNumberToFloat64(value)
 		if err != nil {
 			return types.Value{}, err
 		}
 		return types.Value{
 			NativeType: nativeType,
-			Type:       types.Float64,
+			Type:       targetType,
 			Value:      convertedValue,
 		}, nil
 
 	// String type
-	case "STRING":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.String,
-				Value:      nil,
-			}, nil
-		}
+	case STRING:
 		convertedValue, err := types.ConvertToString(value)
 		if err != nil {
 			return types.Value{}, err
 		}
 		return types.Value{
 			NativeType: nativeType,
-			Type:       types.String,
+			Type:       targetType,
 			Value:      convertedValue,
 		}, nil
 
 	// Boolean type
-	case "BOOL":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Bool,
-				Value:      nil,
-			}, nil
-		}
+	case BOOL:
 		convertedValue, err := types.ConvertToBool(value)
 		if err != nil {
 			return types.Value{}, err
 		}
 		return types.Value{
 			NativeType: nativeType,
-			Type:       types.Bool,
+			Type:       targetType,
 			Value:      convertedValue,
 		}, nil
 
 	// Date/Time types
-	case "DATE", "DATETIME", "TIME":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Datetime,
-				Value:      nil,
-			}, nil
-		}
+	case DATE, DATETIME, TIME:
 		convertedValue, err := types.ConvertDatetime(value)
 		if err != nil {
 			return types.Value{}, err
 		}
 		return types.Value{
 			NativeType: nativeType,
-			Type:       types.Datetime,
+			Type:       targetType,
 			Value:      convertedValue,
 		}, nil
 
-	case "TIMESTAMP":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Timestamp,
-				Value:      nil,
-			}, nil
-		}
+	case TIMESTAMP:
 		convertedValue, err := types.ConvertDatetime(value)
 		if err != nil {
 			return types.Value{}, err
 		}
 		return types.Value{
 			NativeType: nativeType,
-			Type:       types.Timestamp,
+			Type:       targetType,
 			Value:      convertedValue,
 		}, nil
 	default:
-		return types.Value{}, fferr.NewUnsupportedTypeError(string(nativeType))
+		if typeName, ok := nativeType.(types.NativeTypeLiteral); ok {
+			return types.Value{}, fferr.NewUnsupportedTypeError(string(typeName))
+		}
+		return types.Value{}, fferr.NewUnsupportedTypeError("unknown type")
 	}
 }
 

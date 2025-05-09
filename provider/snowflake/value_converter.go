@@ -27,10 +27,6 @@ func Register() {
 
 type Converter struct{}
 
-type NativeTypeDetails interface {
-	ColumnName() string
-}
-
 type nativeTypeDetails struct {
 	columnName string
 	precision  int
@@ -41,7 +37,7 @@ func (n *nativeTypeDetails) ColumnName() string {
 	return n.columnName
 }
 
-func (c Converter) ParseNativeType(typeDetails NativeTypeDetails) (types.NewNativeType, error) {
+func (c Converter) ParseNativeType(typeDetails types.NativeTypeDetails) (types.NewNativeType, error) {
 	sfDetails := typeDetails.(*nativeTypeDetails)
 
 	nativeType, ok := StringToNativeType[sfDetails.ColumnName()]
@@ -74,11 +70,9 @@ func (c Converter) GetType(nativeType types.NewNativeType) (types.ValueType, err
 			}
 			return types.Int64, nil
 		}
-		// With scale > 0, this is a floating point type
 		return types.Float64, nil
 	}
 
-	// Compare directly to predefined constants
 	switch nativeType {
 	// Integer types
 	case INTEGER, INT, SMALLINT:

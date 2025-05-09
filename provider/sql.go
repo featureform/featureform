@@ -1777,7 +1777,12 @@ func (q *defaultOfflineSQLQueries) getSchema(db *sql.DB, converter fftypes.Value
 		}
 
 		// Ensure the type is supported
-		valueType, err := converter.GetType(fftypes.NativeType(dataType))
+		nativeType, err := converter.ParseNativeType(fftypes.NewSimpleNativeTypeDetails(dataType))
+		if err != nil {
+			return fftypes.Schema{}, err
+		}
+
+		valueType, err := converter.GetType(nativeType)
 		if err != nil {
 			wrapped := fferr.NewInternalErrorf("could not convert native type to value type: %v", err)
 			wrapped.AddDetail("schema", schema)
@@ -1788,7 +1793,7 @@ func (q *defaultOfflineSQLQueries) getSchema(db *sql.DB, converter fftypes.Value
 		// Append column details
 		column := fftypes.ColumnSchema{
 			Name:       fftypes.ColumnName(columnName),
-			NativeType: fftypes.NativeType(dataType),
+			NativeType: nativeType,
 			Type:       valueType,
 		}
 		fields = append(fields, column)

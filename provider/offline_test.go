@@ -2114,7 +2114,7 @@ func testTransform(t *testing.T, store OfflineStore) {
 		}
 
 		tableSize := 0
-		for iterator.Next() {
+		for iterator.Next(ctx) {
 			if iterator.Err() != nil {
 				t.Fatalf("could not iterate rows: %v", iterator.Err())
 			}
@@ -2351,7 +2351,7 @@ func testTransformUpdateWithFeatures(t *testing.T, store OfflineStore) {
 		}
 
 		i := 0
-		for iterator.Next() {
+		for iterator.Next(ctx) {
 			found := false
 			for i, expRow := range test.UpdatedExpected {
 				if reflect.DeepEqual(iterator.Values(), expRow) {
@@ -2548,7 +2548,7 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 			t.Fatalf("Could not get generic iterator: %v", err)
 		}
 		i := 0
-		for iterator.Next() {
+		for iterator.Next(ctx) {
 			found := false
 			for i, expRow := range test.Expected {
 				if reflect.DeepEqual(iterator.Values(), expRow) {
@@ -2612,7 +2612,7 @@ func testTransformUpdate(t *testing.T, store OfflineStore) {
 		}
 
 		i = 0
-		for iterator.Next() {
+		for iterator.Next(ctx) {
 			found := false
 			for i, expRow := range test.UpdatedExpected {
 				if reflect.DeepEqual(iterator.Values(), expRow) {
@@ -2917,7 +2917,7 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not get generic iterator: %v", err)
 	}
 	tableSize := 0
-	for iterator.Next() {
+	for iterator.Next(ctx) {
 		found := false
 		tableSize += 1
 
@@ -2973,7 +2973,7 @@ func testChainTransform(t *testing.T, store OfflineStore) {
 		t.Fatalf("Could not get generic iterator: %v", err)
 	}
 	i := 0
-	for iterator.Next() {
+	for iterator.Next(ctx) {
 		if !reflect.DeepEqual(iterator.Values(), tests["Second"].Expected[i]) {
 			t.Fatalf("Expected: %#v, Received %#v", tests["Second"].Expected[i], iterator.Values())
 		}

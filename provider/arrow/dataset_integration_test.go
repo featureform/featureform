@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/featureform/core"
+	types "github.com/featureform/fftypes"
 	fs "github.com/featureform/filestore"
 	"github.com/featureform/helpers"
 	"github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	"github.com/featureform/streamer"
-	"github.com/featureform/types"
 )
 
 func runServer(t *testing.T) {

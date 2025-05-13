@@ -76,7 +76,7 @@ func TestStreamerIntegration(t *testing.T) {
 		t.Fatalf("Failed to create client: %s", err)
 	}
 	defer client.Close()
-	schema, err := client.GetSchema(ctx, req, opts)
+	schema, err := client.GetSchema(ctx, req)
 	if err != nil {
 		t.Fatalf("Failed to get schema: %s", err)
 	}

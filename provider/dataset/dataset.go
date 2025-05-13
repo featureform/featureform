@@ -11,6 +11,8 @@ import (
 	. "context"
 	"sync"
 
+	"golang.org/x/net/context"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/fftypes"
 	pl "github.com/featureform/provider/location"
@@ -133,7 +135,7 @@ func (adapter *ChunkedDatasetAdapter) ChunkIterator(ctx Context, idx int) (Sized
 
 // Iterator is the generic interface to loop through any dataset in Featureform.
 type Iterator interface {
-	Next() bool
+	Next(ctx context.Context) bool
 	Values() types.Row
 	Schema() types.Schema
 	Err() error

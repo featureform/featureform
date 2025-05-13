@@ -14,7 +14,7 @@ package arrow
 import (
 	"fmt"
 
-	"github.com/featureform/types"
+	types "github.com/featureform/fftypes"
 
 	arrowlib "github.com/apache/arrow/go/v18/arrow"
 )

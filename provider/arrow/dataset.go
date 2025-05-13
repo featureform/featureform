@@ -13,11 +13,11 @@ package arrow
 
 import (
 	"github.com/featureform/core"
+	types "github.com/featureform/fftypes"
 	"github.com/featureform/provider/dataset"
 	"github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	"github.com/featureform/streamer"
-	"github.com/featureform/types"
 )
 
 type StreamerDataset struct {

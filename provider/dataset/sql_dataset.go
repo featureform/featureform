@@ -163,7 +163,7 @@ func (ds *SqlDataset) Iterator(ctx context.Context, limit int64) (Iterator, erro
 	} else if limit > 0 {
 		effectiveLimit = int(limit)
 	}
-	
+
 	if effectiveLimit == -1 {
 		query = fmt.Sprintf("SELECT %s FROM %s", cols, loc)
 	} else {
@@ -234,7 +234,7 @@ func (it *SqlIterator) Close() error {
 	return nil
 }
 
-func (it *SqlIterator) Next() bool {
+func (it *SqlIterator) Next(ctx context.Context) bool {
 	// Check for context cancellation
 	select {
 	case <-it.ctx.Done():

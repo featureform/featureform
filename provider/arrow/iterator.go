@@ -16,8 +16,8 @@ import (
 	"sync"
 
 	"github.com/featureform/fferr"
+	types "github.com/featureform/fftypes"
 	"github.com/featureform/logging"
-	"github.com/featureform/types"
 
 	arrowlib "github.com/apache/arrow/go/v18/arrow"
 )
@@ -111,8 +111,8 @@ func (iter *Iterator) Err() error {
 	return iter.reader.Err()
 }
 
-func (iter *Iterator) Schema() (types.Schema, error) {
+func (iter *Iterator) Schema() types.Schema {
 	iter.mtx.RLock()
 	defer iter.mtx.RUnlock()
-	return iter.schema, nil
+	return iter.schema
 }

@@ -76,7 +76,7 @@ func TestBigQueryMetastoreConfigDifferingFields(t *testing.T) {
 					},
 				},
 			},
-			expected: ss.New(),
+			expected: ss.NewStringSet(),
 		},
 		{
 			name: "Diff Warehouse",
@@ -106,7 +106,7 @@ func TestBigQueryMetastoreConfigDifferingFields(t *testing.T) {
 					},
 				},
 			},
-			expected: ss.New("Warehouse"),
+			expected: ss.NewStringSet("Warehouse"),
 		},
 		{
 			name: "Diff All",
@@ -136,7 +136,7 @@ func TestBigQueryMetastoreConfigDifferingFields(t *testing.T) {
 					},
 				},
 			},
-			expected: ss.New("ProjectID", "Region", "Credentials", "Warehouse"),
+			expected: ss.NewStringSet("ProjectID", "Region", "Credentials", "Warehouse"),
 		},
 	}
 

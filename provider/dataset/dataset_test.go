@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	types "github.com/featureform/fftypes"
 	"github.com/featureform/logging"
 	pl "github.com/featureform/provider/location"
-	"github.com/featureform/types"
 )
 
 type DatasetTestCase struct {
@@ -116,7 +116,7 @@ func testIterator(t *testing.T, tc DatasetTestCase) {
 	}
 
 	i := 0
-	for iter.Next() {
+	for iter.Next(ctx) {
 		require.Less(t, i, len(tc.ExpectedData), "Iterator returned more rows than expected")
 		assert.Equal(t, tc.ExpectedData[i], iter.Values())
 		i++
@@ -157,10 +157,10 @@ func testSegmentIterator(t *testing.T, tc DatasetTestCase) {
 
 	// Verify iterator returns expected segment
 	for i := start; i < end; i++ {
-		require.True(t, iter.Next(), "Iterator ended prematurely")
+		require.True(t, iter.Next(ctx), "Iterator ended prematurely")
 		assert.Equal(t, tc.ExpectedData[i], iter.Values())
 	}
-	assert.False(t, iter.Next(), "Iterator did not end as expected")
+	assert.False(t, iter.Next(ctx), "Iterator did not end as expected")
 }
 
 func testWriteableDataset(t *testing.T, ds WriteableDataset, tc DatasetTestCase) {
@@ -202,7 +202,7 @@ func testWriteableDataset(t *testing.T, ds WriteableDataset, tc DatasetTestCase)
 		require.NoError(t, err)
 
 		rowIdx := 0
-		for iter.Next() {
+		for iter.Next(ctx) {
 			if rowIdx < len(expectedDataAfterWrite) {
 				assert.Equal(t, expectedDataAfterWrite[rowIdx], iter.Values())
 			} else {
@@ -275,7 +275,7 @@ func testChunkedDatasetAdapter(t *testing.T, ds SizedSegmentableDataset, tc Data
 
 			// Verify chunk contents
 			i := 0
-			for iter.Next() {
+			for iter.Next(ctx) {
 				val := iter.Values()
 				assert.Equal(t, tc.ExpectedData[i], val)
 				i++
@@ -306,7 +306,7 @@ func testChunkedDatasetAdapter(t *testing.T, ds SizedSegmentableDataset, tc Data
 			// Verify chunk contents
 			startIdx := lastChunkIndex * int(adapter.ChunkSize)
 			i := 0
-			for iter.Next() {
+			for iter.Next(ctx) {
 				val := iter.Values()
 				assert.Equal(t, tc.ExpectedData[startIdx+i], val)
 				i++

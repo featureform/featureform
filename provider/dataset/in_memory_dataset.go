@@ -64,7 +64,7 @@ type InMemoryIterator struct {
 	index  int
 }
 
-func (it *InMemoryIterator) Next() bool {
+func (it *InMemoryIterator) Next(ctx context.Context) bool {
 	if it.index+1 < len(it.data) {
 		it.index++
 		return true

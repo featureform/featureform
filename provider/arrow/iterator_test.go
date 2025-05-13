@@ -15,8 +15,8 @@ import (
 	"fmt"
 	"testing"
 
+	types "github.com/featureform/fftypes"
 	"github.com/featureform/logging"
-	"github.com/featureform/types"
 
 	arrowlib "github.com/apache/arrow/go/v18/arrow"
 )
@@ -107,9 +107,8 @@ func TestIterator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create iterator: %s", err)
 	}
-	if gotSchema, err := iter.Schema(); err != nil {
-		t.Fatalf("Iterator schema returned err %v", err)
-	} else if !gotSchema.Equals(schema) {
+	gotSchema := iter.Schema()
+	if !gotSchema.Equals(schema) {
 		t.Fatalf("Iterator schema doesn't match constructor")
 	}
 	rows := make(types.Rows, 0)

@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
-	"github.com/featureform/types"
+	types "github.com/featureform/fftypes"
 
 	arrowlib "github.com/apache/arrow/go/v18/arrow"
 	"github.com/apache/arrow/go/v18/arrow/array"

@@ -686,7 +686,7 @@ func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, s
 	}
 	logger.Info("Successfully registered resource from source table")
 	// Check out BlobOfflineTable
-	return nil, nil
+	return blobRegisterResourceFromSourceTable(id, schema, spark.Logger.SugaredLogger, spark.Store)
 }
 
 func (spark *SparkOfflineStore) SupportsTransformationOption(opt TransformationOptionType) (bool, error) {

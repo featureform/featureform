@@ -419,7 +419,7 @@ jobs:
           K8S_RUNNER_BASE_IMAGE: "local/k8s_runner:stable"
           K8S_RUNNER_SCIKIT: "local/k8s_runner:scikit-stable"
           S3_BUCKET_PATH: ${{ vars.S3_BUCKET_PATH }}
-          S3_BUCKET_NAME: ${{ vars.S3_BUCKET_PATH }}
+          S3_BUCKET_NAME: ${{ vars.S3_BUCKET_NAME }}
           S3_BUCKET_REGION: ${{ vars.S3_BUCKET_REGION }}
           GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
           GCS_BUCKET_NAME: ${{ vars.GCS_BUCKET_NAME }}

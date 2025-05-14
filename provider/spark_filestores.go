@@ -191,7 +191,7 @@ func (glueS3 SparkGlueS3FileStore) Exists(location pl.Location) (bool, error) {
 			Name:         aws.String(loc.Table()),
 		}
 
-		glueS3.Logger.Infow("Checking if Glue table exists", "table", input.Name, "database", input.DatabaseName)
+		glueS3.Logger.Infow("Checking if Glue table exists", "table", input.Name, "database", input.DatabaseName, "region", glueS3.GlueClient.Options().Region)
 		_, err := glueS3.GlueClient.GetTable(context.TODO(), input)
 
 		var entityNotFoundErr *types.EntityNotFoundException

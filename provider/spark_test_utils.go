@@ -65,10 +65,15 @@ func getTestingDatabricks(t *testing.T, cfg SparkFileStoreConfig, fst fs.FileSto
 }
 
 func GetTestingEMRGlue(t *testing.T, tableFormat pc.TableFormat) *SparkOfflineStore {
+	err := godotenv.Load("../.env")
+	if err != nil {
+		t.Logf("could not open .env file... Checking environment: %s", err)
+	}
+
 	// TODO put these env variables into secrets
 	glueConfig := &pc.GlueConfig{
 		Database:    "ff",
-		Warehouse:   "s3://ali-aws-lake-house-iceberg-blog-demo/demo2/",
+		Warehouse:   helpers.MustGetTestingEnv(t, "GLUE_S3_WAREHOUSE"),
 		Region:      helpers.MustGetTestingEnv(t, "S3_BUCKET_REGION"),
 		TableFormat: tableFormat,
 	}

@@ -26,33 +26,33 @@ func TestConverterGetType(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		nativeType types.NativeType
+		nativeType types.NewNativeType
 		expected   types.ValueType
 		expectErr  bool
 	}{
 		// Integer types
-		{"integer", "integer", types.Int32, false},
-		{"int", "int", types.Int32, false},
+		{"integer", INTEGER, types.Int32, false},
+		{"int", INT, types.Int32, false},
 
 		// Bigint type
-		{"bigint", "bigint", types.Int64, false},
+		{"bigint", BIGINT, types.Int64, false},
 
 		// Float types
-		{"float8", "float8", types.Float64, false},
-		{"numeric", "numeric", types.Float64, false},
+		{"float8", FLOAT8, types.Float64, false},
+		{"numeric", NUMERIC, types.Float64, false},
 
 		// String types
-		{"varchar", "varchar", types.String, false},
+		{"varchar", VARCHAR, types.String, false},
 
 		// Boolean type
-		{"boolean", "boolean", types.Bool, false},
+		{"boolean", BOOLEAN, types.Bool, false},
 
 		// Timestamp types
-		{"timestamp with time zone", "timestamp with time zone", types.Timestamp, false},
-		{"timestamptz", "timestamptz", types.Timestamp, false},
+		{"timestamp with time zone", TIMESTAMP_WITH_TIME_ZONE, types.Timestamp, false},
+		{"timestamptz", TIMESTAMPTZ, types.Timestamp, false},
 
 		// Unsupported type
-		{"unsupported", "unsupported", nil, true},
+		{"unsupported", types.NativeTypeLiteral("unsupported"), nil, true},
 	}
 
 	for _, tt := range tests {
@@ -76,65 +76,65 @@ func TestConverterConvertValue(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		nativeType types.NativeType
+		nativeType types.NewNativeType
 		value      interface{}
 		expected   types.Value
 		expectErr  bool
 	}{
 		// Integer tests
-		{"integer nil", "integer", nil, types.Value{NativeType: "integer", Type: types.Int32, Value: nil}, false},
-		{"integer int", "integer", 123, types.Value{NativeType: "integer", Type: types.Int32, Value: int32(123)}, false},
-		{"integer float", "integer", 123.45, types.Value{NativeType: "integer", Type: types.Int32, Value: int32(123)}, false},
-		{"integer string", "integer", "123", types.Value{NativeType: "integer", Type: types.Int32, Value: int32(123)}, false},
-		{"integer invalid", "integer", "abc", types.Value{}, true},
-		{"INT nil", "INT", nil, types.Value{NativeType: "INT", Type: types.Int32, Value: nil}, false},
-		{"INT int", "INT", 123, types.Value{NativeType: "INT", Type: types.Int32, Value: int32(123)}, false},
-		{"INT float", "INT", 123.45, types.Value{NativeType: "INT", Type: types.Int32, Value: int32(123)}, false},
-		{"INT string", "INT", "123", types.Value{NativeType: "INT", Type: types.Int32, Value: int32(123)}, false},
-		{"INT invalid", "INT", "abc", types.Value{}, true},
+		{"integer nil", INTEGER, nil, types.Value{NativeType: INTEGER, Type: types.Int32, Value: nil}, false},
+		{"integer int", INTEGER, 123, types.Value{NativeType: INTEGER, Type: types.Int32, Value: int32(123)}, false},
+		{"integer float", INTEGER, 123.45, types.Value{NativeType: INTEGER, Type: types.Int32, Value: int32(123)}, false},
+		{"integer string", INTEGER, "123", types.Value{NativeType: INTEGER, Type: types.Int32, Value: int32(123)}, false},
+		{"integer invalid", INTEGER, "abc", types.Value{}, true},
+		{"INT nil", INT, nil, types.Value{NativeType: INT, Type: types.Int32, Value: nil}, false},
+		{"INT int", INT, 123, types.Value{NativeType: INT, Type: types.Int32, Value: int32(123)}, false},
+		{"INT float", INT, 123.45, types.Value{NativeType: INT, Type: types.Int32, Value: int32(123)}, false},
+		{"INT string", INT, "123", types.Value{NativeType: INT, Type: types.Int32, Value: int32(123)}, false},
+		{"INT invalid", INT, "abc", types.Value{}, true},
 
 		// Bigint tests
-		{"bigint nil", "bigint", nil, types.Value{NativeType: "bigint", Type: types.Int64, Value: nil}, false},
-		{"bigint int", "bigint", 123, types.Value{NativeType: "bigint", Type: types.Int64, Value: int64(123)}, false},
-		{"bigint large", "bigint", 9223372036854775807, types.Value{NativeType: "bigint", Type: types.Int64, Value: int64(9223372036854775807)}, false},
+		{"bigint nil", BIGINT, nil, types.Value{NativeType: BIGINT, Type: types.Int64, Value: nil}, false},
+		{"bigint int", BIGINT, 123, types.Value{NativeType: BIGINT, Type: types.Int64, Value: int64(123)}, false},
+		{"bigint large", BIGINT, 9223372036854775807, types.Value{NativeType: BIGINT, Type: types.Int64, Value: int64(9223372036854775807)}, false},
 
 		// Float tests
-		{"float8 nil", "float8", nil, types.Value{NativeType: "float8", Type: types.Float64, Value: nil}, false},
-		{"float8 float", "float8", 123.45, types.Value{NativeType: "float8", Type: types.Float64, Value: float64(123.45)}, false},
-		{"float8 int", "float8", 123, types.Value{NativeType: "float8", Type: types.Float64, Value: float64(123)}, false},
-		{"float8 string", "float8", "123.45", types.Value{NativeType: "float8", Type: types.Float64, Value: float64(123.45)}, false},
-		{"float8 invalid", "float8", "abc", types.Value{}, true},
-		{"numeric nil", "numeric", nil, types.Value{NativeType: "numeric", Type: types.Float64, Value: nil}, false},
-		{"numeric float", "numeric", 123.45, types.Value{NativeType: "numeric", Type: types.Float64, Value: float64(123.45)}, false},
-		{"numeric int", "numeric", 123, types.Value{NativeType: "numeric", Type: types.Float64, Value: float64(123)}, false},
-		{"numeric string", "numeric", "123.45", types.Value{NativeType: "numeric", Type: types.Float64, Value: float64(123.45)}, false},
-		{"numeric byte array", "numeric", []uint8{49, 50, 51, 46, 52, 53}, types.Value{NativeType: "numeric", Type: types.Float64, Value: float64(123.45)}, false},
-		{"numeric invalid", "numeric", "abc", types.Value{}, true},
+		{"float8 nil", FLOAT8, nil, types.Value{NativeType: FLOAT8, Type: types.Float64, Value: nil}, false},
+		{"float8 float", FLOAT8, 123.45, types.Value{NativeType: FLOAT8, Type: types.Float64, Value: float64(123.45)}, false},
+		{"float8 int", FLOAT8, 123, types.Value{NativeType: FLOAT8, Type: types.Float64, Value: float64(123)}, false},
+		{"float8 string", FLOAT8, "123.45", types.Value{NativeType: FLOAT8, Type: types.Float64, Value: float64(123.45)}, false},
+		{"float8 invalid", FLOAT8, "abc", types.Value{}, true},
+		{"numeric nil", NUMERIC, nil, types.Value{NativeType: NUMERIC, Type: types.Float64, Value: nil}, false},
+		{"numeric float", NUMERIC, 123.45, types.Value{NativeType: NUMERIC, Type: types.Float64, Value: float64(123.45)}, false},
+		{"numeric int", NUMERIC, 123, types.Value{NativeType: NUMERIC, Type: types.Float64, Value: float64(123)}, false},
+		{"numeric string", NUMERIC, "123.45", types.Value{NativeType: NUMERIC, Type: types.Float64, Value: float64(123.45)}, false},
+		{"numeric byte array", NUMERIC, []uint8{49, 50, 51, 46, 52, 53}, types.Value{NativeType: NUMERIC, Type: types.Float64, Value: float64(123.45)}, false},
+		{"numeric invalid", NUMERIC, "abc", types.Value{}, true},
 
 		// String tests
-		{"varchar nil", "varchar", nil, types.Value{NativeType: "varchar", Type: types.String, Value: nil}, false},
-		{"varchar string", "varchar", "test", types.Value{NativeType: "varchar", Type: types.String, Value: "test"}, false},
-		{"varchar int", "varchar", 123, types.Value{NativeType: "varchar", Type: types.String, Value: "123"}, false},
-		{"varchar float", "varchar", 123.45, types.Value{NativeType: "varchar", Type: types.String, Value: "123.45"}, false},
+		{"varchar nil", VARCHAR, nil, types.Value{NativeType: VARCHAR, Type: types.String, Value: nil}, false},
+		{"varchar string", VARCHAR, "test", types.Value{NativeType: VARCHAR, Type: types.String, Value: "test"}, false},
+		{"varchar int", VARCHAR, 123, types.Value{NativeType: VARCHAR, Type: types.String, Value: "123"}, false},
+		{"varchar float", VARCHAR, 123.45, types.Value{NativeType: VARCHAR, Type: types.String, Value: "123.45"}, false},
 
 		// Boolean tests
-		{"boolean nil", "boolean", nil, types.Value{NativeType: "boolean", Type: types.Bool, Value: nil}, false},
-		{"boolean true", "boolean", true, types.Value{NativeType: "boolean", Type: types.Bool, Value: true}, false},
-		{"boolean false", "boolean", false, types.Value{NativeType: "boolean", Type: types.Bool, Value: false}, false},
-		{"boolean string true", "boolean", "true", types.Value{NativeType: "boolean", Type: types.Bool, Value: true}, false},
-		{"boolean string false", "boolean", "false", types.Value{NativeType: "boolean", Type: types.Bool, Value: false}, false},
-		{"boolean int 1", "boolean", 1, types.Value{NativeType: "boolean", Type: types.Bool, Value: true}, false},
-		{"boolean int 0", "boolean", 0, types.Value{NativeType: "boolean", Type: types.Bool, Value: false}, false},
-		{"boolean invalid", "boolean", "abc", types.Value{}, true},
+		{"boolean nil", BOOLEAN, nil, types.Value{NativeType: BOOLEAN, Type: types.Bool, Value: nil}, false},
+		{"boolean true", BOOLEAN, true, types.Value{NativeType: BOOLEAN, Type: types.Bool, Value: true}, false},
+		{"boolean false", BOOLEAN, false, types.Value{NativeType: BOOLEAN, Type: types.Bool, Value: false}, false},
+		{"boolean string true", BOOLEAN, "true", types.Value{NativeType: BOOLEAN, Type: types.Bool, Value: true}, false},
+		{"boolean string false", BOOLEAN, "false", types.Value{NativeType: BOOLEAN, Type: types.Bool, Value: false}, false},
+		{"boolean int 1", BOOLEAN, 1, types.Value{NativeType: BOOLEAN, Type: types.Bool, Value: true}, false},
+		{"boolean int 0", BOOLEAN, 0, types.Value{NativeType: BOOLEAN, Type: types.Bool, Value: false}, false},
+		{"boolean invalid", BOOLEAN, "abc", types.Value{}, true},
 
 		// Timestamp tests
-		{"timestamp with time zone nil", "timestamp with time zone", nil, types.Value{NativeType: "timestamp with time zone", Type: types.Timestamp, Value: nil}, false},
-		{"timestamp with time zone time", "timestamp with time zone", testTime, types.Value{NativeType: "timestamp with time zone", Type: types.Timestamp, Value: testTime}, false},
-		{"timestamptz nil", "timestamptz", nil, types.Value{NativeType: "timestamptz", Type: types.Timestamp, Value: nil}, false},
-		{"timestamptz time", "timestamptz", testTime, types.Value{NativeType: "timestamptz", Type: types.Timestamp, Value: testTime}, false},
+		{"timestamp with time zone nil", TIMESTAMP_WITH_TIME_ZONE, nil, types.Value{NativeType: TIMESTAMP_WITH_TIME_ZONE, Type: types.Timestamp, Value: nil}, false},
+		{"timestamp with time zone time", TIMESTAMP_WITH_TIME_ZONE, testTime, types.Value{NativeType: TIMESTAMP_WITH_TIME_ZONE, Type: types.Timestamp, Value: testTime}, false},
+		{"timestamptz nil", TIMESTAMPTZ, nil, types.Value{NativeType: TIMESTAMPTZ, Type: types.Timestamp, Value: nil}, false},
+		{"timestamptz time", TIMESTAMPTZ, testTime, types.Value{NativeType: TIMESTAMPTZ, Type: types.Timestamp, Value: testTime}, false},
 
 		// Unsupported type
-		{"unsupported nil", "unsupported", nil, types.Value{}, true},
+		{"unsupported nil", types.NativeTypeLiteral("unsupported"), nil, types.Value{}, true},
 	}
 
 	for _, tt := range tests {
@@ -167,9 +167,9 @@ func TestTimeZoneHandling(t *testing.T) {
 	nycTime := time.Date(2025, 3, 28, 8, 0, 0, 0, nycLoc) // 8 AM in NYC = 12 PM UTC
 
 	// Test that both times are treated the same
-	utcResult, err := converter.ConvertValue("timestamp with time zone", utcTime)
+	utcResult, err := converter.ConvertValue(TIMESTAMP_WITH_TIME_ZONE, utcTime)
 	assert.NoError(t, err)
-	nycResult, err := converter.ConvertValue("timestamp with time zone", nycTime)
+	nycResult, err := converter.ConvertValue(TIMESTAMP_WITH_TIME_ZONE, nycTime)
 	assert.NoError(t, err)
 
 	// Compare the unix timestamps (which are timezone agnostic)
@@ -187,35 +187,35 @@ func TestEdgeCases(t *testing.T) {
 
 	t.Run("Integer boundaries", func(t *testing.T) {
 		// Max int32
-		value, err := converter.ConvertValue("integer", 2147483647)
+		value, err := converter.ConvertValue(INTEGER, 2147483647)
 		assert.NoError(t, err)
 		assert.Equal(t, int32(2147483647), value.Value)
 
 		// Min int32
-		value, err = converter.ConvertValue("integer", -2147483648)
+		value, err = converter.ConvertValue(INTEGER, -2147483648)
 		assert.NoError(t, err)
 		assert.Equal(t, int32(-2147483648), value.Value)
 
 		// Max int64
-		value, err = converter.ConvertValue("bigint", 9223372036854775807)
+		value, err = converter.ConvertValue(BIGINT, 9223372036854775807)
 		assert.NoError(t, err)
 		assert.Equal(t, int64(9223372036854775807), value.Value)
 
 		// Min int64
-		value, err = converter.ConvertValue("bigint", -9223372036854775808)
+		value, err = converter.ConvertValue(BIGINT, -9223372036854775808)
 		assert.NoError(t, err)
 		assert.Equal(t, int64(-9223372036854775808), value.Value)
 	})
 
 	t.Run("String edge cases", func(t *testing.T) {
 		// Empty string
-		value, err := converter.ConvertValue("varchar", "")
+		value, err := converter.ConvertValue(VARCHAR, "")
 		assert.NoError(t, err)
 		assert.Equal(t, "", value.Value)
 
 		// Very long string
 		longString := string(make([]byte, 1000))
-		value, err = converter.ConvertValue("varchar", longString)
+		value, err = converter.ConvertValue(VARCHAR, longString)
 		assert.NoError(t, err)
 		assert.Equal(t, longString, value.Value)
 	})

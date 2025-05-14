@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	fftypes "github.com/featureform/fftypes"
+	"github.com/featureform/provider/postgres"
 )
 
 // NewPostgresTestData creates test data for PostgreSQL
@@ -27,7 +28,7 @@ func NewPostgresTestData(t *testing.T) TestColumnData {
 		Columns: []TestColumn{
 			{
 				Name:           "int_col",
-				NativeType:     "integer",
+				NativeType:     postgres.INTEGER,
 				ExpectedGoType: fftypes.Int32,
 				TestValue:      int32(42),
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -36,7 +37,7 @@ func NewPostgresTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "bigint_col",
-				NativeType:     "bigint",
+				NativeType:     postgres.BIGINT,
 				ExpectedGoType: fftypes.Int64,
 				TestValue:      int64(9223372036854775807),
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -45,7 +46,7 @@ func NewPostgresTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "float_col",
-				NativeType:     "float8",
+				NativeType:     postgres.FLOAT8,
 				ExpectedGoType: fftypes.Float64,
 				TestValue:      float64(3.14159),
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -54,7 +55,7 @@ func NewPostgresTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "string_col",
-				NativeType:     "varchar",
+				NativeType:     postgres.VARCHAR,
 				ExpectedGoType: fftypes.String,
 				TestValue:      "string value",
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -63,7 +64,7 @@ func NewPostgresTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "bool_col",
-				NativeType:     "boolean",
+				NativeType:     postgres.BOOLEAN,
 				ExpectedGoType: fftypes.Bool,
 				TestValue:      true,
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -72,7 +73,7 @@ func NewPostgresTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "timestamp_col",
-				NativeType:     "timestamp with time zone",
+				NativeType:     postgres.TIMESTAMP_WITH_TIME_ZONE,
 				ExpectedGoType: fftypes.Timestamp,
 				TestValue:      formattedTime,
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -82,7 +83,7 @@ func NewPostgresTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "timestamptz_col",
-				NativeType:     "timestamptz",
+				NativeType:     postgres.TIMESTAMPTZ,
 				ExpectedGoType: fftypes.Timestamp,
 				TestValue:      formattedTime,
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -92,7 +93,7 @@ func NewPostgresTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "numeric_col",
-				NativeType:     "numeric",
+				NativeType:     postgres.NUMERIC,
 				ExpectedGoType: fftypes.Float64,
 				TestValue:      "123.456",
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -101,7 +102,7 @@ func NewPostgresTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "integer_col",
-				NativeType:     "int",
+				NativeType:     postgres.INT,
 				ExpectedGoType: fftypes.Int32,
 				TestValue:      int32(42),
 				VerifyFunc: func(t *testing.T, actual any) {

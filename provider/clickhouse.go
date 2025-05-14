@@ -1840,7 +1840,13 @@ func (q clickhouseSQLQueries) getSchema(db *sql.DB, converter fftypes.ValueConve
 		}
 
 		// Ensure the type is supported
-		valueType, err := converter.GetType(fftypes.NativeType(dataType))
+		nativeType, err := converter.ParseNativeType(fftypes.NewSimpleNativeTypeDetails(dataType))
+		if err != nil {
+			wrapped := fferr.NewInternalErrorf("could not parse native type: %v", err)
+			wrapped.AddDetail("table_name", tblName)
+			return fftypes.Schema{}, wrapped
+		}
+		valueType, err := converter.GetType(nativeType)
 		if err != nil {
 			wrapped := fferr.NewInternalErrorf("could not convert native type to value type: %v", err)
 			wrapped.AddDetail("table_name", tblName)
@@ -1850,7 +1856,7 @@ func (q clickhouseSQLQueries) getSchema(db *sql.DB, converter fftypes.ValueConve
 		// Append column details
 		column := fftypes.ColumnSchema{
 			Name:       fftypes.ColumnName(columnName),
-			NativeType: fftypes.NativeType(dataType),
+			NativeType: nativeType,
 			Type:       valueType,
 		}
 		fields = append(fields, column)

@@ -1628,11 +1628,11 @@ func createDummyTableNew(ctx context.Context, storeTester offlineSqlStoreTester,
 		Fields: []fftypes.ColumnSchema{
 			{
 				Name:       "ID",
-				NativeType: "FLOAT",
+				NativeType: fftypes.NativeTypeLiteral("FLOAT"),
 			},
 			{
 				Name:       "NAME",
-				NativeType: "STRING",
+				NativeType: fftypes.NativeTypeLiteral("STRING"),
 			},
 		},
 	}
@@ -1652,12 +1652,12 @@ func createDummyTableNew(ctx context.Context, storeTester offlineSqlStoreTester,
 	for i := 0; i < numRows; i++ {
 		values := []fftypes.Value{
 			{
-				NativeType: "FLOAT",
+				NativeType: fftypes.NativeTypeLiteral("FLOAT"),
 				Type:       fftypes.Float32,
 				Value:      float32(i),
 			},
 			{
-				NativeType: "STRING",
+				NativeType: fftypes.NativeTypeLiteral("STRING"),
 				Type:       fftypes.String,
 				Value:      fmt.Sprintf("Name_%d_%s", i, randomNum),
 			},

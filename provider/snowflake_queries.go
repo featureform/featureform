@@ -205,9 +205,17 @@ func (q *snowflakeSQLQueries) getSchema(db *sql.DB, converter fftypes.ValueConve
 			return fftypes.Schema{}, wrapped
 		}
 
-		nativeType := snowflake.ParseNativeType(dataType, numericPrecision, numericScale)
+		snowflakeDetails := snowflake.NewNativeTypeDetails(dataType, numericPrecision, numericScale)
+		nativeType, err := converter.ParseNativeType(snowflakeDetails)
+		if err != nil {
+			wrapped := fferr.NewInternalErrorf("could not parse native type: %v", err)
+			wrapped.AddDetail("schema", schema)
+			wrapped.AddDetail("table_name", tblName)
+			wrapped.AddDetail("column", columnName)
+			wrapped.AddDetail("data_type", dataType)
+			return fftypes.Schema{}, wrapped
+		}
 		valueType, err := converter.GetType(nativeType)
-
 		if err != nil {
 			wrapped := fferr.NewInternalErrorf("could not convert native type to value type: %v", err)
 			wrapped.AddDetail("schema", schema)

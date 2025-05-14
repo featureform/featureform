@@ -29,45 +29,59 @@ func Register() {
 
 type Converter struct{}
 
-func (c Converter) GetType(nativeType types.NewNativeType) (types.ValueType, error) {
-	conv, err := c.ConvertValue(nativeType, nil)
-	if err != nil {
-		return nil, err
+func (c Converter) ParseNativeType(typeDetails types.NativeTypeDetails) (types.NewNativeType, error) {
+	typeName := typeDetails.ColumnName()
+
+	// Look up the type in our mapping
+	nativeType, ok := StringToNativeType[typeName]
+	if !ok {
+		return nil, fferr.NewUnsupportedTypeError("Unsupported native type: " + typeName)
 	}
-	return conv.Type, nil
+
+	return nativeType, nil
 }
 
-// ConvertValue converts a value from its BigQuery representation to a types.Value
-func (c Converter) ConvertValue(nativeType types.NewNativeType, value any) (types.Value, error) {
-	// First, determine the target type for this native type
-	var targetType types.ValueType
+func (c Converter) GetType(nativeType types.NewNativeType) (types.ValueType, error) {
+	// Handle nil case
+	if nativeType == nil {
+		return types.String, nil
+	}
 
 	switch nativeType {
 	// Integer types
 	case INT64, INTEGER, BIGINT:
-		targetType = types.Int64
+		return types.Int64, nil
 	// Floating point types
 	case FLOAT64, DECIMAL:
-		targetType = types.Float64
+		return types.Float64, nil
 	// String type
 	case STRING:
-		targetType = types.String
+		return types.String, nil
 	// Boolean type
 	case BOOL:
-		targetType = types.Bool
+		return types.Bool, nil
 	// Date/Time types
 	case DATE, DATETIME, TIME:
-		targetType = types.Datetime
+		return types.Datetime, nil
 	case TIMESTAMP:
-		targetType = types.Timestamp
+		return types.Timestamp, nil
 	default:
 		if typeName, ok := nativeType.(types.NativeTypeLiteral); ok {
-			return types.Value{}, fferr.NewUnsupportedTypeError(string(typeName))
+			return nil, fferr.NewUnsupportedTypeError(string(typeName))
 		}
-		return types.Value{}, fferr.NewUnsupportedTypeError("unknown type")
+		return nil, fferr.NewUnsupportedTypeError("unknown type")
+	}
+}
+
+// ConvertValue converts a value from its BigQuery representation to a types.Value
+func (c Converter) ConvertValue(nativeType types.NewNativeType, value any) (types.Value, error) {
+	// Get the target type for this native type
+	targetType, err := c.GetType(nativeType)
+	if err != nil {
+		return types.Value{}, err
 	}
 
-	// Handle nil value case once
+	// Handle nil value case
 	if value == nil {
 		return types.Value{
 			NativeType: nativeType,
@@ -76,84 +90,38 @@ func (c Converter) ConvertValue(nativeType types.NewNativeType, value any) (type
 		}, nil
 	}
 
-	// Handle the non-nil case based on native type
-	switch nativeType {
-	// Integer types
-	case INT64, INTEGER, BIGINT:
-		convertedValue, err := types.ConvertNumberToInt64(value)
-		if err != nil {
-			return types.Value{}, err
-		}
-		return types.Value{
-			NativeType: nativeType,
-			Type:       targetType,
-			Value:      convertedValue,
-		}, nil
+	// Convert the value according to target type
+	var convertedValue any
+	var convErr error
 
-	// Floating point types
-	case FLOAT64, DECIMAL:
-		convertedValue, err := types.ConvertNumberToFloat64(value)
-		if err != nil {
-			return types.Value{}, err
-		}
-		return types.Value{
-			NativeType: nativeType,
-			Type:       targetType,
-			Value:      convertedValue,
-		}, nil
-
-	// String type
-	case STRING:
-		convertedValue, err := types.ConvertToString(value)
-		if err != nil {
-			return types.Value{}, err
-		}
-		return types.Value{
-			NativeType: nativeType,
-			Type:       targetType,
-			Value:      convertedValue,
-		}, nil
-
-	// Boolean type
-	case BOOL:
-		convertedValue, err := types.ConvertToBool(value)
-		if err != nil {
-			return types.Value{}, err
-		}
-		return types.Value{
-			NativeType: nativeType,
-			Type:       targetType,
-			Value:      convertedValue,
-		}, nil
-
-	// Date/Time types
-	case DATE, DATETIME, TIME:
-		convertedValue, err := types.ConvertDatetime(value)
-		if err != nil {
-			return types.Value{}, err
-		}
-		return types.Value{
-			NativeType: nativeType,
-			Type:       targetType,
-			Value:      convertedValue,
-		}, nil
-
-	case TIMESTAMP:
-		convertedValue, err := types.ConvertDatetime(value)
-		if err != nil {
-			return types.Value{}, err
-		}
-		return types.Value{
-			NativeType: nativeType,
-			Type:       targetType,
-			Value:      convertedValue,
-		}, nil
+	switch targetType {
+	case types.Int32:
+		convertedValue, convErr = types.ConvertNumberToInt32(value)
+	case types.Int64:
+		convertedValue, convErr = types.ConvertNumberToInt64(value)
+	case types.Float32:
+		convertedValue, convErr = types.ConvertNumberToFloat32(value)
+	case types.Float64:
+		convertedValue, convErr = types.ConvertNumberToFloat64(value)
+	case types.String:
+		convertedValue, convErr = types.ConvertToString(value)
+	case types.Bool:
+		convertedValue, convErr = types.ConvertToBool(value)
+	case types.Timestamp, types.Datetime:
+		convertedValue, convErr = types.ConvertDatetime(value)
 	default:
-		if typeName, ok := nativeType.(types.NativeTypeLiteral); ok {
-			return types.Value{}, fferr.NewUnsupportedTypeError(string(typeName))
-		}
-		return types.Value{}, fferr.NewUnsupportedTypeError("unknown type")
+		return types.Value{}, fferr.NewUnsupportedTypeError("Unsupported target type")
 	}
+
+	if convErr != nil {
+		return types.Value{}, fferr.NewInternalErrorf("conversion error: %v", convErr)
+	}
+
+	return types.Value{
+		NativeType: nativeType,
+		Type:       targetType,
+		Value:      convertedValue,
+	}, nil
 }
 
 func GetBigQueryType(valueType types.ValueType) (bigquery.FieldType, error) {

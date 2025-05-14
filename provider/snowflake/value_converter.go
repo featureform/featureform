@@ -8,6 +8,8 @@
 package snowflake
 
 import (
+	"database/sql"
+
 	"github.com/featureform/fferr"
 	types "github.com/featureform/fftypes"
 	"github.com/featureform/logging"
@@ -29,26 +31,41 @@ type Converter struct{}
 
 type nativeTypeDetails struct {
 	columnName string
-	precision  int
-	scale      int
+	precision  sql.NullInt64
+	scale      sql.NullInt64
 }
 
-func (n *nativeTypeDetails) ColumnName() string {
+func NewNativeTypeDetails(columnName string, precision, scale sql.NullInt64) types.NativeTypeDetails {
+	return &nativeTypeDetails{
+		columnName: columnName,
+		precision:  precision,
+		scale:      scale,
+	}
+}
+
+func (n nativeTypeDetails) ColumnName() string {
 	return n.columnName
 }
 
 func (c Converter) ParseNativeType(typeDetails types.NativeTypeDetails) (types.NewNativeType, error) {
-	sfDetails := typeDetails.(*nativeTypeDetails)
+	sfDetails, ok := typeDetails.(*nativeTypeDetails)
+	if !ok {
+		return nil, fferr.NewInternalErrorf("Invalid type details: %T", typeDetails)
+	}
 
 	nativeType, ok := StringToNativeType[sfDetails.ColumnName()]
 	if !ok {
-		return nil, fferr.NewUnsupportedTypeError("Unsupported native type")
+		return nil, fferr.NewUnsupportedTypeError("Unsupported native type: " + sfDetails.ColumnName())
 	}
 
 	switch nt := nativeType.(type) {
 	case *NumberType:
-		nt.WithPrecision(sfDetails.precision).
-			WithScale(sfDetails.scale)
+		if !sfDetails.precision.Valid && !sfDetails.scale.Valid {
+			return nt, fferr.NewInternalErrorf("Invalid precision/scale for native type: %s", sfDetails.ColumnName())
+		}
+
+		nt = nt.WithPrecision(sfDetails.precision.Int64).
+			WithScale(sfDetails.scale.Int64)
 		return nt, nil
 	default:
 		return nativeType, nil
@@ -101,14 +118,13 @@ func (c Converter) GetType(nativeType types.NewNativeType) (types.ValueType, err
 		return types.Timestamp, nil
 	}
 
-	// If it's still a NativeTypeLiteral but not one of our predefined constants
-	if _, ok := nativeType.(types.NativeTypeLiteral); ok {
-		// Default to string for unknown literals
-		return types.String, nil
+	// For literal types we don't recognize, return an error with the type name
+	if typeLiteral, ok := nativeType.(types.NativeTypeLiteral); ok {
+		return nil, fferr.NewUnsupportedTypeError(string(typeLiteral))
 	}
 
-	// If we can't determine the type, default to string
-	return types.String, nil
+	// For any other type, return a generic error
+	return nil, fferr.NewUnsupportedTypeError("unknown type")
 }
 
 // ConvertValue converts a value from its Snowflake representation to a types.Value

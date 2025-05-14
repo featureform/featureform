@@ -70,8 +70,8 @@ var StringToNativeType = map[string]fftypes.NewNativeType{
 // NumberType represents a numeric database type with optional precision and scale
 type NumberType struct {
 	name      string
-	Precision int // -1 means unspecified
-	Scale     int // -1 means unspecified
+	Precision int64
+	Scale     int64
 }
 
 func (t *NumberType) IsNativeType() bool {
@@ -86,12 +86,12 @@ func NewNumberType() *NumberType {
 	}
 }
 
-func (t *NumberType) WithPrecision(precision int) *NumberType {
+func (t *NumberType) WithPrecision(precision int64) *NumberType {
 	t.Precision = precision
 	return t
 }
 
-func (t *NumberType) WithScale(scale int) *NumberType {
+func (t *NumberType) WithScale(scale int64) *NumberType {
 	t.Scale = scale
 	return t
 }
@@ -106,10 +106,10 @@ func (t *NumberType) String() string {
 	return t.name + "(" + string(rune(t.Precision)) + "," + string(rune(t.Scale)) + ")"
 }
 
-func (t *NumberType) GetPrecision() int {
+func (t *NumberType) GetPrecision() int64 {
 	return t.Precision
 }
 
-func (t *NumberType) GetScale() int {
+func (t *NumberType) GetScale() int64 {
 	return t.Scale
 }

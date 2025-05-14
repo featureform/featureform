@@ -574,7 +574,15 @@ func (q defaultBQQueries) getSchema(client *bigquery.Client, converter fftypes.V
 		dataType := row[1].(string)
 
 		// Ensure the type is supported
-		valueType, err := converter.GetType(fftypes.NativeType(dataType))
+		nativeType, err := converter.ParseNativeType(fftypes.NewSimpleNativeTypeDetails(dataType))
+		if err != nil {
+			q.logger.Errorw("Failed to parse native type", "dataset", datasetName, "table", tblName, "type", dataType, "err", err)
+			wrapped := fferr.NewInternalErrorf("could not parse native type: %v", err)
+			wrapped.AddDetail("schema", datasetName)
+			wrapped.AddDetail("table_name", tblName)
+			return fftypes.Schema{}, wrapped
+		}
+		valueType, err := converter.GetType(nativeType)
 		if err != nil {
 			q.logger.Errorw("Failed to convert native type", "dataset", datasetName, "table", tblName, "type", dataType, "err", err)
 			wrapped := fferr.NewInternalErrorf("could not convert native type to value type: %v", err)
@@ -586,7 +594,7 @@ func (q defaultBQQueries) getSchema(client *bigquery.Client, converter fftypes.V
 		// Append column details
 		column := fftypes.ColumnSchema{
 			Name:       fftypes.ColumnName(columnName),
-			NativeType: fftypes.NativeType(dataType),
+			NativeType: nativeType,
 			Type:       valueType,
 		}
 		fields = append(fields, column)

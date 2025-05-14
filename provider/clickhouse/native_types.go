@@ -39,7 +39,7 @@ var (
 	FLOAT64 = fftypes.NativeTypeLiteral("Float64")
 
 	// DateTime type with default precision
-	DATETIME64 = NewDateTime64Type(9)
+	DATETIME64 = fftypes.NativeTypeLiteral("DATETIME64(9)")
 )
 
 // StringToNativeType maps the string representation to the corresponding NativeTypeLiteral
@@ -83,29 +83,4 @@ func NewNullableType(innerType fftypes.NewNativeType) *NullableType {
 // GetInnerType returns the inner type of a nullable type
 func (t *NullableType) GetInnerType() fftypes.NewNativeType {
 	return t.innerType
-}
-
-// DateTime64Type represents a DateTime64 type with precision
-type DateTime64Type struct {
-	precision int
-}
-
-func (t *DateTime64Type) IsNativeType() bool {
-	return true
-}
-
-func (t *DateTime64Type) String() string {
-	return fmt.Sprintf("DateTime64(%d)", t.precision)
-}
-
-// NewDateTime64Type creates a new DateTime64 type with the specified precision
-func NewDateTime64Type(precision int) *DateTime64Type {
-	return &DateTime64Type{
-		precision: precision,
-	}
-}
-
-// GetPrecision returns the precision of the DateTime64 type
-func (t *DateTime64Type) GetPrecision() int {
-	return t.precision
 }

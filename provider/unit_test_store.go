@@ -308,9 +308,9 @@ func (mi *UnitTestIterator) Next() bool {
 
 	// All rows contain the same data to match test expectations
 	mi.currentRow = fftype.Row{
-		{NativeType: "column1", Value: "row string value", Type: fftype.String},
-		{NativeType: "column2", Value: true, Type: fftype.Bool},
-		{NativeType: "column3", Value: int64(10), Type: fftype.Int64},
+		{NativeType: fftype.NativeTypeLiteral("column1"), Value: "row string value", Type: fftype.String},
+		{NativeType: fftype.NativeTypeLiteral("column2"), Value: true, Type: fftype.Bool},
+		{NativeType: fftype.NativeTypeLiteral("column3"), Value: int64(10), Type: fftype.Int64},
 	}
 
 	return true

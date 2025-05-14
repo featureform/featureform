@@ -378,9 +378,9 @@ jobs:
 
       - name: Create Secret
         env:
-          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_ACCOUNT_NAME: ${{ vars.AZURE_ACCOUNT_NAME }}
           AZURE_STORAGE_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
-          AZURE_CONTAINER: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AZURE_CONTAINER: ${{ vars.AZURE_CONTAINER_NAME }}
           STORAGE_PATH: "backup"
         run: |
           python backup/create_secret.py azure $AZURE_ACCOUNT_NAME "$AZURE_STORAGE_KEY" $AZURE_CONTAINER $STORAGE_PATH
@@ -411,7 +411,7 @@ jobs:
           DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           DATABRICKS_CLUSTER: ${{ vars.DATABRICKS_CLUSTER }}
-          MONGODB_HOST: ${{ vars.MONGODB_HOST }}
+          MONGODB_HOST: ${{ secrets.MONGODB_HOST }}
           MONGODB_PORT: ${{ secrets.MONGODB_PORT }}
           MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
           MONGODB_PASSWORD: ${{ secrets.MONGODB_PASSWORD }}
@@ -450,9 +450,9 @@ jobs:
       - name: Restore
         env:
           CLOUD_PROVIDER: "AZURE"
-          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_STORAGE_ACCOUNT: ${{ vars.AZURE_ACCOUNT_NAME }}
           AZURE_STORAGE_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
-          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AZURE_CONTAINER_NAME: ${{ vars.AZURE_CONTAINER_NAME }}
           AZURE_STORAGE_PATH: "backup"
         working-directory: ./backup/restore
         run: ./restore.sh --force

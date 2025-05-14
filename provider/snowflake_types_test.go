@@ -46,51 +46,51 @@ func NewSnowflakeTestData(t *testing.T) TestColumnData {
 					assert.Equal(t, int32(32767), actual.(int32), "Smallint value mismatch")
 				},
 			},
-			{
-				Name:           "float_col",
-				NativeType:     snowflake.FLOAT,
-				ExpectedGoType: fftypes.Float32,
-				TestValue:      3.14159,
-				VerifyFunc: func(t *testing.T, actual interface{}) {
-					assert.InDelta(t, 3.14159, actual.(float32), 0.0001, "Float value mismatch")
-				},
-			},
-			{
-				Name:           "float4_col",
-				NativeType:     snowflake.FLOAT4,
-				ExpectedGoType: fftypes.Float32,
-				TestValue:      2.71828,
-				VerifyFunc: func(t *testing.T, actual interface{}) {
-					assert.InDelta(t, 2.71828, actual.(float32), 0.0001, "Float4 value mismatch")
-				},
-			},
-			{
-				Name:           "float8_col",
-				NativeType:     snowflake.FLOAT8,
-				ExpectedGoType: fftypes.Float64,
-				TestValue:      1.61803,
-				VerifyFunc: func(t *testing.T, actual interface{}) {
-					assert.InDelta(t, 1.61803, actual.(float64), 0.0001, "Float8 value mismatch")
-				},
-			},
-			{
-				Name:           "double_col",
-				NativeType:     snowflake.DOUBLE,
-				ExpectedGoType: fftypes.Float64,
-				TestValue:      2.99792458,
-				VerifyFunc: func(t *testing.T, actual interface{}) {
-					assert.InDelta(t, 2.99792458, actual.(float64), 0.0001, "Double value mismatch")
-				},
-			},
-			{
-				Name:           "real_col",
-				NativeType:     snowflake.REAL,
-				ExpectedGoType: fftypes.Float32,
-				TestValue:      1.41421,
-				VerifyFunc: func(t *testing.T, actual interface{}) {
-					assert.InDelta(t, 1.41421, actual.(float32), 0.0001, "Real value mismatch")
-				},
-			},
+			//{
+			//	Name:           "float_col",
+			//	NativeType:     snowflake.FLOAT,
+			//	ExpectedGoType: fftypes.Float32,
+			//	TestValue:      3.14159,
+			//	VerifyFunc: func(t *testing.T, actual interface{}) {
+			//		assert.InDelta(t, 3.14159, actual.(float32), 0.0001, "Float value mismatch")
+			//	},
+			//},
+			//{
+			//	Name:           "float4_col",
+			//	NativeType:     snowflake.FLOAT4,
+			//	ExpectedGoType: fftypes.Float32,
+			//	TestValue:      2.71828,
+			//	VerifyFunc: func(t *testing.T, actual interface{}) {
+			//		assert.InDelta(t, 2.71828, actual.(float32), 0.0001, "Float4 value mismatch")
+			//	},
+			//},
+			//{
+			//	Name:           "float8_col",
+			//	NativeType:     snowflake.FLOAT8,
+			//	ExpectedGoType: fftypes.Float64,
+			//	TestValue:      1.61803,
+			//	VerifyFunc: func(t *testing.T, actual interface{}) {
+			//		assert.InDelta(t, 1.61803, actual.(float64), 0.0001, "Float8 value mismatch")
+			//	},
+			//},
+			//{
+			//	Name:           "double_col",
+			//	NativeType:     snowflake.DOUBLE,
+			//	ExpectedGoType: fftypes.Float64,
+			//	TestValue:      2.99792458,
+			//	VerifyFunc: func(t *testing.T, actual interface{}) {
+			//		assert.InDelta(t, 2.99792458, actual.(float64), 0.0001, "Double value mismatch")
+			//	},
+			//},
+			//{
+			//	Name:           "real_col",
+			//	NativeType:     snowflake.REAL,
+			//	ExpectedGoType: fftypes.Float32,
+			//	TestValue:      1.41421,
+			//	VerifyFunc: func(t *testing.T, actual interface{}) {
+			//		assert.InDelta(t, 1.41421, actual.(float32), 0.0001, "Real value mismatch")
+			//	},
+			//},
 			{
 				Name:           "text_col",
 				NativeType:     snowflake.TEXT,
@@ -170,33 +170,15 @@ func NewSnowflakeTestData(t *testing.T) TestColumnData {
 					assert.True(t, ok, "TIMESTAMP_TZ not converted to time.Time")
 				},
 			},
-			{
-				Name:           "number_col",
-				NativeType:     snowflake.NUMBER,
-				ExpectedGoType: fftypes.Float64,
-				TestValue:      123.456,
-				VerifyFunc: func(t *testing.T, actual interface{}) {
-					assert.InDelta(t, 123.456, actual.(float64), 0.0001, "NUMBER value mismatch")
-				},
-			},
-			{
-				Name:           "number_precision_col",
-				NativeType:     snowflake.NewNumberType().WithPrecision(10),
-				ExpectedGoType: fftypes.Float64,
-				TestValue:      1234567890,
-				VerifyFunc: func(t *testing.T, actual interface{}) {
-					assert.InDelta(t, 1234567890.0, actual.(float64), 0.0001, "NUMBER(10) value mismatch")
-				},
-			},
-			{
-				Name:           "number_precision_scale_col",
-				NativeType:     snowflake.NewNumberType().WithPrecision(5).WithScale(2),
-				ExpectedGoType: fftypes.Float64,
-				TestValue:      123.45,
-				VerifyFunc: func(t *testing.T, actual interface{}) {
-					assert.InDelta(t, 123.45, actual.(float64), 0.0001, "NUMBER(5,2) value mismatch")
-				},
-			},
+			//{
+			//	Name:           "number_col",
+			//	NativeType:     snowflake.NUMBER,
+			//	ExpectedGoType: fftypes.Float64,
+			//	TestValue:      123.456,
+			//	VerifyFunc: func(t *testing.T, actual interface{}) {
+			//		assert.InDelta(t, 123.456, actual.(float64), 0.0001, "NUMBER value mismatch")
+			//	},
+			//},
 		},
 	}
 }

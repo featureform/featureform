@@ -228,13 +228,13 @@ def step_impl(context):
 @when('I register the "{data_source_size}" files from the database')
 def step_impl(context, data_source_size):
     if data_source_size == "short":
-        source_0 = "s3a://featureform-spark-testing/data/avg_trans_short"
-        source_1 = "s3a://featureform-spark-testing/data/balance_short"
-        source_2 = "s3a://featureform-spark-testing/data/perc_short"
+        source_0 = "s3a://ff-spark-testing/data/avg_trans_short"
+        source_1 = "s3a://ff-spark-testing/data/balance_short"
+        source_2 = "s3a://ff-spark-testing/data/perc_short"
     elif data_source_size == "long":
-        source_0 = "s3a://featureform-spark-testing/data/avg_trans.snappy.parquet"
-        source_1 = "s3a://featureform-spark-testing/data/balance.snappy.parquet"
-        source_2 = "s3a://featureform-spark-testing/data/perc.snappy.parquet"
+        source_0 = "s3a://ff-spark-testing/data/avg_trans.snappy.parquet"
+        source_1 = "s3a://ff-spark-testing/data/balance.snappy.parquet"
+        source_2 = "s3a://ff-spark-testing/data/perc.snappy.parquet"
     else:
         raise Exception("Data source size not recognized", data_source_size)
 

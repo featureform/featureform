@@ -1274,8 +1274,8 @@ func testPrepareQueryForSpark(t *testing.T, store *SparkOfflineStore) {
 			},
 			"SELECT * FROM source_0 and more source_1",
 			[]string{
-				"s3://featureform-spark-testing/featureform/testprimary/testFile.csv",
-				"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/",
+				"s3://ff-spark-testing/featureform/testprimary/testFile.csv",
+				"s3://ff-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/",
 			},
 			false,
 		},
@@ -1290,7 +1290,7 @@ func testPrepareQueryForSpark(t *testing.T, store *SparkOfflineStore) {
 			},
 			"SELECT * FROM source_0",
 			[]string{
-				"s3://featureform-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/",
+				"s3://ff-spark-testing/featureform/Transformation/028f6213-77a8-43bb-9d91-dd7e9ee96102/test_variant/2022-08-19 17:37:36.546384/",
 			},
 			false,
 		},
@@ -1466,16 +1466,16 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 	}{
 		{
 			"PrimaryPathSuccess",
-			"featureform-spark-testing/featureform/Primary/test_name/test_variant",
+			"ff-spark-testing/featureform/Primary/test_name/test_variant",
 			"code",
 			"AzureBlobStore",
 			[]string{
-				"featureform-spark-testing/featureform/testprimary/testFile.csv",
+				"ff-spark-testing/featureform/testprimary/testFile.csv",
 			},
 			[]string{
 				"df",
 				"--output_uri",
-				"featureform-spark-testing/featureform/Primary/test_name/test_variant",
+				"ff-spark-testing/featureform/Primary/test_name/test_variant",
 				"--code",
 				"code",
 				"--store_type",
@@ -1487,13 +1487,13 @@ func testGetDFArgs(t *testing.T, store *SparkOfflineStore) {
 				"--credential",
 				fmt.Sprintf("azure_container_name=%s", azureStore.containerName()),
 				"--sources",
-				"featureform-spark-testing/featureform/testprimary/testFile.csv",
+				"ff-spark-testing/featureform/testprimary/testFile.csv",
 			},
 			false,
 		},
 		{
 			"FakePrimaryPath",
-			"s3://featureform-spark-testing/featureform/Primary/test_name/test_variant",
+			"s3://ff-spark-testing/featureform/Primary/test_name/test_variant",
 			"code",
 			"AzureBlobStore",
 			[]string{
@@ -1575,7 +1575,7 @@ func testTransformation(t *testing.T, store *SparkOfflineStore) {
 		// 			Type:    Transformation,
 		// 			Variant: "test_variant",
 		// 		},
-		// 		Query: "s3://featureform-spark-testing/featureform/DFTransformations/test_name/test_variant/transformation.pkl",
+		// 		Query: "s3://ff-spark-testing/featureform/DFTransformations/test_name/test_variant/transformation.pkl",
 		// 		SourceMapping: []SourceMapping{
 		// 			SourceMapping{
 		// 				Template: "transaction",

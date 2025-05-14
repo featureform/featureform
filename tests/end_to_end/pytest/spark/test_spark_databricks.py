@@ -20,7 +20,7 @@ pytestmark = [pytest.mark.spark, pytest.mark.databricks]
         pytest.param(
             "databricks_s3_spark_fixture",
             "transactions_s3",
-            "s3://featureform-spark-testing/data/transactions_short.csv",
+            "s3://ff-spark-testing/data/transactions_short.csv",
             marks=[pytest.mark.s3],
         ),
     ],

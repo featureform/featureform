@@ -29,9 +29,9 @@ Feature: Spark End to End
 
     Examples: S3
       | filetype  | storage_provider | bucket                    |
-      | csv       | s3               | featureform-spark-testing |
-      | parquet   | s3               | featureform-spark-testing |
-      | directory | s3               | featureform-spark-testing |
+      | csv       | s3               | ff-spark-testing |
+      | parquet   | s3               | ff-spark-testing |
+      | directory | s3               | ff-spark-testing |
 
     Examples: GCS
       | filetype | storage_provider | bucket |
@@ -55,7 +55,7 @@ Feature: Spark End to End
 
     Examples: S3
       | filetype | storage_provider | bucket                    |
-      | csv      | s3               | featureform-spark-testing |
+      | csv      | s3               | ff-spark-testing |
 
   @long @wip
   Scenario Outline: Register a large file in spark
@@ -75,9 +75,9 @@ Feature: Spark End to End
 
     Examples: S3
       | filetype  | storage_provider | bucket                    |
-      | csv       | s3               | featureform-spark-testing |
-      | parquet   | s3               | featureform-spark-testing |
-      | directory | s3               | featureform-spark-testing |
+      | csv       | s3               | ff-spark-testing |
+      | parquet   | s3               | ff-spark-testing |
+      | directory | s3               | ff-spark-testing |
 
     Examples: GCS
       | filetype | storage_provider | bucket |
@@ -101,7 +101,7 @@ Feature: Spark End to End
     Examples: Base Case
       | storage_provider | bucket                    | path | exception |
       | azure            | test                      | test | None      |
-      | s3               | featureform-spark-testing | test | None      |
+      | s3               | ff-spark-testing | test | None      |
       | gcs              | featureform-test          | test | None      |
 
     Examples: Invalid Bucket
@@ -116,8 +116,8 @@ Feature: Spark End to End
       | storage_provider | bucket                    | path  | exception |
       | azure            | test                      | /     | None      |
       | azure            | test                      | empty | None      |
-      | s3               | featureform-spark-testing | /     | None      |
-      | s3               | featureform-spark-testing | empty | None      |
+      | s3               | ff-spark-testing | /     | None      |
+      | s3               | ff-spark-testing | empty | None      |
       | gcs              | featureform-test          | /     | None      |
       | gcs              | featureform-test          | empty | None      |
 
@@ -153,10 +153,10 @@ Feature: Spark End to End
 
     Examples: S3
       | filesize | filetype | storage_provider | bucket                    | feature_source | label_source   |
-      | small    | csv      | s3               | featureform-spark-testing | transformation | transformation |
-      | small    | csv      | s3               | featureform-spark-testing | primary        | primary        |
-      | small    | csv      | s3               | featureform-spark-testing | transformation | primary        |
-      | small    | csv      | s3               | featureform-spark-testing | primary        | transformation |
+      | small    | csv      | s3               | ff-spark-testing | transformation | transformation |
+      | small    | csv      | s3               | ff-spark-testing | primary        | primary        |
+      | small    | csv      | s3               | ff-spark-testing | transformation | primary        |
+      | small    | csv      | s3               | ff-spark-testing | primary        | transformation |
     #      |  small   |   parquet    |         s3       | test   | transformation | transformation | # TODO: Enable
     #      |  small   |   parquet    |         s3       | test   |    primary     |     primary    | # TODO: Enable
     #      |  small   |   parquet    |         s3       | test   | transformation |     primary    | # TODO: Enable
@@ -178,7 +178,7 @@ Feature: Spark End to End
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"
     And I get or register redis
-    And I register "s3" filestore with bucket "featureform-spark-testing" and root path "empty"
+    And I register "s3" filestore with bucket "ff-spark-testing" and root path "empty"
     And I get or register EMR with glue
     And I register an iceberg table
     When I register a "<transformation_type>" transformation named "<transformation_name>" from "primary" (v2)

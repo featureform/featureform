@@ -283,34 +283,6 @@ def bigquery_provider(bigquery_config):
 
 
 @pytest.fixture
-def spark_provider(registrar):
-    databricks = DatabricksCredentials(
-        username="a", password="b", cluster_id="abcd-123def-ghijklmn"
-    )
-    azure_blob = AzureFileStoreConfig(
-        account_name="", account_key="", container_name="", root_path=""
-    )
-
-    config = SparkConfig(
-        executor_type=databricks.type(),
-        executor_config=databricks.config(),
-        store_type=azure_blob.store_type(),
-        store_config=azure_blob.config(),
-    )
-    provider = Provider(
-        name="spark",
-        function="OFFLINE",
-        description="",
-        team="",
-        config=config,
-        tags=[],
-        properties={},
-    )
-
-    return OfflineSparkProvider(registrar, provider)
-
-
-@pytest.fixture
 def core_site_path():
     return "test_files/yarn_files/core-site.xml"
 
@@ -435,12 +407,6 @@ def mock_provider(kubernetes_config):
         properties={},
     )
 
-
-@pytest.fixture
-def registrar():
-    r = Registrar()
-    r.set_default_owner("tester")
-    return r
 
 
 def get_transformation_config(registrar):

@@ -1653,8 +1653,8 @@ func createDummyTableNew(ctx context.Context, storeTester offlineSqlStoreTester,
 		values := []fftypes.Value{
 			{
 				NativeType: fftypes.NativeTypeLiteral("FLOAT"),
-				Type:       fftypes.Float32,
-				Value:      float32(i),
+				Type:       fftypes.Float64,
+				Value:      float64(i),
 			},
 			{
 				NativeType: fftypes.NativeTypeLiteral("STRING"),

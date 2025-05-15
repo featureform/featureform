@@ -672,18 +672,52 @@ func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, lo
 		logger.Error(err.Error())
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
 	}
-	logger.Info("Primary successfully registered")
 
-	fileStoreLocation, isFileStoreLocation := loc.(*pl.FileStoreLocation)
-	if !isFileStoreLocation {
-		return nil, fferr.NewInternalError(fmt.Errorf("location is not a FileStoreLocation"))
+	var ds dataset.Dataset
+	switch lt := loc.(type) {
+	case *pl.FileStoreLocation:
+		primary, err := blobRegisterPrimary(id, *lt, spark.Logger.SugaredLogger, spark.Store)
+		if err != nil {
+			spark.Logger.Errorw("Error registering primary table", "error", err)
+			return nil, err
+		}
+		ds = &PrimaryTableToDatasetAdapter{pt: primary}
+	case *pl.CatalogLocation:
+		glueS3Filestore, isGlueS3Filestore := spark.Store.(*SparkGlueS3FileStore)
+		if !isGlueS3Filestore {
+			return nil, fferr.NewInternalErrorf("filestore is not SparkGlueS3FileStore; received %T", spark.Store)
+		}
+
+		databaseName := lt.Database()
+		tableName := lt.Table()
+		input := &glue.GetTableInput{
+			DatabaseName: &databaseName,
+			Name:         &tableName,
+		}
+		table, err := glueS3Filestore.GlueClient.GetTable(context.Background(), input)
+		if err != nil {
+			return nil, fferr.NewProviderConfigError(spark.Type().String(), err)
+		}
+
+		if table.Table.StorageDescriptor == nil || table.Table.StorageDescriptor.Location == nil {
+			return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("Glue Table does not have an associated location"))
+		}
+		filestore, err := pl.NewFileLocationFromURI(*table.Table.StorageDescriptor.Location)
+		if err != nil {
+			return nil, err
+		}
+		primary, err := blobRegisterPrimary(id, *filestore.(*pl.FileStoreLocation), spark.Logger.SugaredLogger, spark.Store)
+		if err != nil {
+			spark.Logger.Errorw("Error registering primary table", "error", err)
+			return nil, err
+		}
+		ds = &PrimaryTableToDatasetAdapter{pt: primary}
+	default:
+		return nil, fferr.NewInternalErrorf("Location type %T not supported for primary table registration", loc)
 	}
-	primary, err := blobRegisterPrimary(id, *fileStoreLocation, spark.Logger.SugaredLogger, spark.Store)
-	if err != nil {
-		spark.Logger.Errorw("Error registering primary table", "error", err)
-		return nil, err
-	}
-	return &PrimaryTableToDatasetAdapter{pt: primary}, nil
+
+	logger.Info("Primary successfully registered")
+	return ds, nil
 }
 
 func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {

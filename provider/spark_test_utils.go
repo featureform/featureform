@@ -68,7 +68,7 @@ func GetTestingEMRGlue(t *testing.T, tableFormat pc.TableFormat) *SparkOfflineSt
 	// TODO put these env variables into secrets
 	glueConfig := &pc.GlueConfig{
 		Database:    "ff",
-		Warehouse:   helpers.MustGetTestingEnv(t, "GLUE_S3_WAREHOUSE"),
+		Warehouse:   "s3://ali-aws-lake-house-iceberg-blog-demo/demo2/",
 		Region:      helpers.MustGetTestingEnv(t, "S3_BUCKET_REGION"),
 		TableFormat: tableFormat,
 	}

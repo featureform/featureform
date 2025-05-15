@@ -671,11 +671,19 @@ func (spark *SparkOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, lo
 		err := fmt.Errorf("Location %s not found, primary registration failed", loc.Location())
 		logger.Error(err.Error())
 		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, err)
-	} else {
-		logger.Info("Primary successfully registered")
-		// Check out FileStorePrimaryTable thing
-		return nil, nil
 	}
+	logger.Info("Primary successfully registered")
+
+	fileStoreLocation, isFileStoreLocation := loc.(*pl.FileStoreLocation)
+	if !isFileStoreLocation {
+		return nil, fferr.NewInternalError(fmt.Errorf("location is not a FileStoreLocation"))
+	}
+	primary, err := blobRegisterPrimary(id, *fileStoreLocation, spark.Logger.SugaredLogger, spark.Store)
+	if err != nil {
+		spark.Logger.Errorw("Error registering primary table", "error", err)
+		return nil, err
+	}
+	return &PrimaryTableToDatasetAdapter{pt: primary}, nil
 }
 
 func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, schema ResourceSchema, opts ...ResourceOption) (OfflineTable, error) {
@@ -685,7 +693,6 @@ func (spark *SparkOfflineStore) RegisterResourceFromSourceTable(id ResourceID, s
 		spark.Logger.Errorf("Spark Offline Store does not currently support resource options; received %v for resource %v", opts, id)
 	}
 	logger.Info("Successfully registered resource from source table")
-	// Check out BlobOfflineTable
 	return blobRegisterResourceFromSourceTable(id, schema, spark.Logger.SugaredLogger, spark.Store)
 }
 

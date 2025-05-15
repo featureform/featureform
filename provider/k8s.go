@@ -977,16 +977,24 @@ func completePrimarySourceTablePathForGCS(sourceTable string, store FileStore) (
 	return nil, nil
 }
 
-func (k8s *K8sOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
-	return k8s.materialization(id, false)
+func (k8s *K8sOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
+	mat, err := k8s.materialization(id, false)
+	if err != nil {
+		return dataset.Materialization{}, err
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (store *K8sOfflineStore) SupportsMaterializationOption(opt MaterializationOptionType) (bool, error) {
 	return false, nil
 }
 
-func (k8s *K8sOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
-	return fileStoreGetMaterialization(id, k8s.store, k8s.logger)
+func (k8s *K8sOfflineStore) GetMaterialization(id MaterializationID) (dataset.Materialization, error) {
+	mat, err := fileStoreGetMaterialization(id, k8s.store, k8s.logger)
+	if err != nil {
+		return dataset.Materialization{}, err
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (k8s *K8sOfflineStore) ResourceLocation(id ResourceID, resource any) (pl.Location, error) {
@@ -1201,8 +1209,12 @@ func (iter *FileStoreFeatureIterator) Close() error {
 	return nil
 }
 
-func (k8s *K8sOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
-	return k8s.materialization(id, true)
+func (k8s *K8sOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
+	mat, err := k8s.materialization(id, true)
+	if err != nil {
+		return dataset.Materialization{}, err
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (k8s *K8sOfflineStore) materialization(id ResourceID, isUpdate bool) (Materialization, error) {
@@ -1403,15 +1415,20 @@ func (k8s *K8sOfflineStore) trainingSet(def TrainingSetDef, isUpdate bool) error
 	return nil
 }
 
-func (k8s *K8sOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
-	return fileStoreGetTrainingSet(id, k8s.store, k8s.logger)
+func (k8s *K8sOfflineStore) GetTrainingSet(id ResourceID) (dataset.TrainingSetIterator, error) {
+	legacyIter, err := fileStoreGetTrainingSet(id, k8s.store, k8s.logger)
+	if err != nil {
+		k8s.logger.Errorw("Could not get training set", "id", id, "error", err)
+		return nil, err
+	}
+	return NewLegacyTrainingSetIteratorAdapter(legacyIter), nil
 }
 
 func (k8s *K8sOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
 	return nil, fmt.Errorf("not Implemented")
 }
 
-func (k8s *K8sOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+func (k8s *K8sOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (dataset.TrainingSetIterator, dataset.TrainingSetIterator, error) {
 	return nil, nil, fmt.Errorf("not Implemented")
 }
 

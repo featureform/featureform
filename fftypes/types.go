@@ -1,3 +1,10 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//
+// Copyright 2025 FeatureForm Inc.
+//
+
 package types
 
 import (
@@ -32,7 +39,7 @@ const (
 	Bool      ScalarType = "bool"
 	Timestamp ScalarType = "time.Time"
 	Datetime  ScalarType = "datetime"
-	Unknown   ScalarType = "Unknown"
+	Unknown   ScalarType = "UNKNOWN"
 )
 
 var ScalarTypes = map[ScalarType]bool{
@@ -54,7 +61,6 @@ var ScalarTypes = map[ScalarType]bool{
 }
 
 var scalarToProto = map[ScalarType]pb.ScalarType{
-	//NilType: pb.ScalarType_NULL,
 	Int:     pb.ScalarType_INT,
 	Int32:   pb.ScalarType_INT32,
 	Int64:   pb.ScalarType_INT64,
@@ -295,7 +301,7 @@ func (vt *ValueTypeJSONWrapper) UnmarshalJSON(data []byte) error {
 	return fferr.NewInternalError(fmt.Errorf("could not unmarshal value type: %v", data))
 }
 
-func (vt *ValueTypeJSONWrapper) MarshalJSON() ([]byte, error) {
+func (vt ValueTypeJSONWrapper) MarshalJSON() ([]byte, error) {
 	switch vt.ValueType.(type) {
 	case VectorType:
 		return json.Marshal(map[string]VectorType{"ValueType": vt.ValueType.(VectorType)})
@@ -312,6 +318,12 @@ type ColumnSchema struct {
 	Type       ValueType
 }
 
+func (clm ColumnSchema) Equals(other ColumnSchema) bool {
+	return clm.Name == other.Name &&
+		clm.NativeType == other.NativeType &&
+		clm.Type.String() == other.Type.String()
+}
+
 type Value struct {
 	NativeType NativeType
 	Type       ValueType
@@ -321,15 +333,22 @@ type Value struct {
 type NativeType string
 type ColumnName string
 
-type NativeToValueTypeMapper map[NativeType]ValueType
-
-type TypeConverter func(interface{}) (interface{}, error)
-
-type TypeConverterMapping map[string]TypeConverter
-
 type Schema struct {
 	Fields []ColumnSchema
 	// todo: can include more state or behavior, etc.
+}
+
+func (schema *Schema) Equals(other Schema) bool {
+	// If they both point to the same thing, we know they are equal.
+	if len(schema.Fields) != len(other.Fields) {
+		return false
+	}
+	for i := range schema.Fields {
+		if !schema.Fields[i].Equals(other.Fields[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 // ColumnNames returns a slice of all column names in the schema

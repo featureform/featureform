@@ -420,7 +420,8 @@ jobs:
           K8S_RUNNER_SCIKIT: "local/k8s_runner:scikit-stable"
           S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
           S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_PATH }}
-          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
+          S3_BUCKET_REGION: ${{ vars.S3_BUCKET_REGION }}
+          GLUE_S3_WAREHOUSE: ${{ vars.GLUE_S3_WAREHOUSE }}
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
           GCP_CREDENTIALS_FILE: "./provider/gcp_credentials.json"

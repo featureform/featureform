@@ -71,7 +71,7 @@ def pytest_configure(config):
         file.write(response.content)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def spark_provider(ff_registrar):
     databricks = DatabricksCredentials(
         username="a", password="b", cluster_id="abcd-123def-ghijklmn"
@@ -99,7 +99,7 @@ def spark_provider(ff_registrar):
     return OfflineSparkProvider(ff_registrar, provider)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def avg_user_transaction():
     def average_user_transaction(df):
         """doc string"""

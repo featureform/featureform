@@ -9,6 +9,16 @@ package stringset
 
 type StringSet map[string]bool
 
+func NewStringSet(initial ...string) StringSet {
+	ss := make(StringSet)
+
+	for _, str := range initial {
+		ss[str] = true
+	}
+
+	return ss
+}
+
 func (a StringSet) Add(items ...string) {
 	for _, item := range items {
 		a[item] = true

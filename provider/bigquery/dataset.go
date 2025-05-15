@@ -146,7 +146,7 @@ func (it *Iterator) Close() error {
 }
 
 // Next advances the iterator to the next row
-func (it *Iterator) Next() bool {
+func (it *Iterator) Next(ctx context.Context) bool {
 	select {
 	case <-it.ctx.Done():
 		it.err = fferr.NewInternalErrorf("context is done")

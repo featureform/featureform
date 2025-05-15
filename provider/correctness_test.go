@@ -605,7 +605,7 @@ func (d testSQLTransformationData) AssertDataset(t *testing.T, actual dataset.Da
 	}
 
 	i := 0
-	for itr.Next() {
+	for itr.Next(ctx) {
 		values := itr.Values()
 		expected := expectedMap[values[entityIdx].Value.(string)]
 		assert.Equal(t, expected[entityIdx].(string), values[entityIdx].Value.(string), "expected same entity")
@@ -1618,7 +1618,7 @@ func verifyDataset(t *testing.T, primary dataset.Dataset, records []GenericRecor
 	}
 
 	i := 0
-	for iterator.Next() {
+	for iterator.Next(ctx) {
 		for j, v := range iterator.Values() {
 			// NOTE: we're handling float64 differently here given the values returned by Snowflake have less precision
 			// and therefore are not equal unless we round them; if tests require handling of other types, we can add

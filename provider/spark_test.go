@@ -458,7 +458,7 @@ func testRegisterPrimary(store *SparkOfflineStore) error {
 		return fmt.Errorf("Not the correct columns returned")
 	}
 	idx := 0
-	for iterator.Next() {
+	for iterator.Next(ctx) {
 		jsonString := reflect.ValueOf(iterator.Values()).Index(0).Interface()
 		var jsonMap map[string]interface{}
 		json.Unmarshal([]byte(jsonString.(string)), &jsonMap)

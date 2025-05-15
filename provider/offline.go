@@ -600,7 +600,7 @@ func (it *NewIteratorToOldIteratorAdapter) Columns() []string {
 }
 
 func (it *NewIteratorToOldIteratorAdapter) Next() bool {
-	return it.Iterator.Next()
+	return it.Iterator.Next(context.TODO())
 }
 
 func (it *NewIteratorToOldIteratorAdapter) Values() GenericRecord {
@@ -630,7 +630,7 @@ func (it *OldIteratorToNewIteratorAdapter) Schema() fftype.Schema {
 	}
 }
 
-func (it *OldIteratorToNewIteratorAdapter) Next() bool {
+func (it *OldIteratorToNewIteratorAdapter) Next(ctx context.Context) bool {
 	return it.GenericTableIterator.Next()
 }
 

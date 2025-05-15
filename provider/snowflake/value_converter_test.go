@@ -84,17 +84,40 @@ func TestConverterGetType(t *testing.T) {
 func TestNumberTypeWithPrecisionAndScale(t *testing.T) {
 	converter := Converter{}
 
-	// Test NUMBER type with precision and scale=0
-	numberWithPrecision := NewNumberType().WithPrecision(10).WithScale(0)
-	valueType, err := converter.GetType(numberWithPrecision)
+	// Test NUMBER type with small precision (≤ 9) and scale=0
+	// Should map to Int32
+	smallIntNumber := NewNumberType().WithPrecision(9).WithScale(0)
+	valueType, err := converter.GetType(smallIntNumber)
 	assert.NoError(t, err)
-	assert.Equal(t, types.Int64, valueType) // If scale is 0, it should be integer type
+	assert.Equal(t, types.Int32, valueType, "NUMBER with precision ≤ 9 and scale=0 should map to Int32")
 
-	// Test NUMBER type with precision and scale
-	numberWithPrecisionAndScale := NewNumberType().WithPrecision(10).WithScale(2)
-	valueType, err = converter.GetType(numberWithPrecisionAndScale)
+	// Test NUMBER type with larger precision (> 9) and scale=0
+	// Should map to Int64
+	largeIntNumber := NewNumberType().WithPrecision(10).WithScale(0)
+	valueType, err = converter.GetType(largeIntNumber)
 	assert.NoError(t, err)
-	assert.Equal(t, types.Float64, valueType) // If scale > 0, it should be float
+	assert.Equal(t, types.Int64, valueType, "NUMBER with precision > 9 and scale=0 should map to Int64")
+
+	// Test NUMBER type with very large precision and scale=0
+	// Should still map to Int64 (with potential precision loss)
+	veryLargeIntNumber := NewNumberType().WithPrecision(38).WithScale(0)
+	valueType, err = converter.GetType(veryLargeIntNumber)
+	assert.NoError(t, err)
+	assert.Equal(t, types.Int64, valueType, "NUMBER with very large precision and scale=0 should map to Int64")
+
+	// Test NUMBER type with small precision and scale > 0
+	// Should map to Float32 if we add that mapping
+	smallFloatNumber := NewNumberType().WithPrecision(7).WithScale(2)
+	valueType, err = converter.GetType(smallFloatNumber)
+	assert.NoError(t, err)
+	assert.Equal(t, types.Float32, valueType, "NUMBER with precision ≤ 7 and scale > 0 should map to Float32")
+
+	// Test NUMBER type with larger precision and scale > 0
+	// Should map to Float64
+	largeFloatNumber := NewNumberType().WithPrecision(10).WithScale(2)
+	valueType, err = converter.GetType(largeFloatNumber)
+	assert.NoError(t, err)
+	assert.Equal(t, types.Float64, valueType, "NUMBER with precision > 7 and scale > 0 should map to Float64")
 }
 
 func TestConverterConvertValue(t *testing.T) {

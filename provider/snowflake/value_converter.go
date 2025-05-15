@@ -78,14 +78,19 @@ func (c Converter) GetType(nativeType types.NewNativeType) (types.ValueType, err
 		return types.String, nil
 	}
 
-	// Check if this is a NumberType with precision/scale
 	if numeric, ok := nativeType.(*NumberType); ok {
 		// If scale is 0, this is an integer type
 		if numeric.Scale == 0 {
 			if numeric.Precision <= 9 {
 				return types.Int32, nil
 			}
+			// All larger integers use Int64, with potential precision loss for values > 2^63-1
 			return types.Int64, nil
+		}
+
+		// For numbers with decimal places
+		if numeric.Precision <= 7 {
+			return types.Float32, nil
 		}
 		return types.Float64, nil
 	}

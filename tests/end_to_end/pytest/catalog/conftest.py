@@ -19,7 +19,7 @@ def s3_bucket_fixture(client):
             access_key=os.getenv("AWS_ACCESS_KEY_ID", None),
             secret_key=os.getenv("AWS_SECRET_ACCESS_KEY", None),
         ),
-        bucket_name=os.getenv("S3_BUCKET_NAME", "featureform-spark-testing"),
+        bucket_name=os.getenv("S3_BUCKET_NAME", "ff-spark-testing"),
         bucket_region=os.getenv("S3_BUCKET_REGION", "us-east-2"),
         path="pytest_end_to_end",
     )

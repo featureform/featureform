@@ -420,7 +420,7 @@ def step_impl(context):
 def step_impl(context):
     context.transactions = context.spark.register_file(
         name="transactions",
-        file_path="s3://featureform-spark-testing/data/transactions_short.csv",
+        file_path="s3://ff-spark-testing/data/transactions_short.csv",
     )
     context.client.apply(asynchronous=False, verbose=True)
 

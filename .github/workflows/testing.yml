@@ -23,7 +23,7 @@ env:
   CLICKHOUSE_PORT: "9001"
   SPARK_LOCAL_SCRIPT_PATH: scripts/spark/offline_store_spark_runner.py
   PYTHON_LOCAL_INIT_PATH: scripts/spark/python_packages.sh
-  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_ACCESS_KEY_ID: ${{ vars.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
   FIRESTORE_PROJECT: ${{ secrets.FIRESTORE_PROJECT }}
   FIRESTORE_CREDENTIALS: ${{ secrets.FIRESTORE_CREDENTIALS_FILE }}
@@ -37,6 +37,7 @@ jobs:
       run:
         working-directory: ./dashboard/
     runs-on: ubuntu-latest
+    environment: Integration testing
 
     steps:
       - name: Checkout repository
@@ -125,7 +126,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: us-east-1
 
@@ -257,6 +258,7 @@ jobs:
     if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event.inputs.run_job == 'client-deps') }}
     name: Client Dependencies
     runs-on: ubuntu-latest
+    environment: Integration testing
 
     steps:
       - uses: actions/checkout@v2
@@ -309,6 +311,7 @@ jobs:
     env:
       FEATUREFORM_HOST: "http://localhost:7878"
     runs-on: "ubuntu-latest"
+    environment: Integration testing
     if: ${{ (github.ref != 'refs/heads/main' && github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event.inputs.run_job == 'client-ubuntu') }}
 
     steps:
@@ -356,6 +359,7 @@ jobs:
     env:
       FEATUREFORM_HOST: "http://localhost:7878"
     runs-on: ${{ matrix.os }}
+    environment: Integration testing
     if: ${{ (github.ref != 'refs/heads/main' && github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event.inputs.run_job == 'client-all') }}
     strategy:
       matrix:
@@ -423,6 +427,7 @@ jobs:
       run:
         working-directory: ./
     runs-on: ubuntu-latest
+    environment: Integration testing
     steps:
       - uses: actions/checkout@v2
 
@@ -447,7 +452,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: us-east-1
 
@@ -585,6 +590,7 @@ jobs:
       run:
         working-directory: ./
     runs-on: ubuntu-latest
+    environment: Integration testing
     steps:
       - uses: actions/checkout@v2
 
@@ -609,7 +615,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: us-east-1
 
@@ -749,6 +755,7 @@ jobs:
       run:
         working-directory: ./
     runs-on: ubuntu-latest
+    environment: Integration testing
     steps:
       - uses: actions/checkout@v2
 
@@ -773,7 +780,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id: ${{ vars.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: us-east-1
 
@@ -887,6 +894,7 @@ jobs:
       run:
         working-directory: ./
     runs-on: ubuntu-latest
+    environment: Integration testing
     steps:
       - uses: actions/checkout@v4
 

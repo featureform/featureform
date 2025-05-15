@@ -24,7 +24,7 @@ def s3_bucket_fixture(client):
             access_key=os.getenv("AWS_ACCESS_KEY_ID", None),
             secret_key=os.getenv("AWS_SECRET_ACCESS_KEY", None),
         ),
-        bucket_name=os.getenv("S3_BUCKET_NAME", "featureform-spark-testing"),
+        bucket_name=os.getenv("S3_BUCKET_NAME", "ff-spark-testing"),
         bucket_region=os.getenv("S3_BUCKET_REGION", "us-east-2"),
         path="pytest_end_to_end",
     )
@@ -66,7 +66,7 @@ def databricks_s3_transactions_dataset(
     spark = databricks_s3_spark_fixture
     transactions = spark.register_file(
         name="transactions_input",
-        file_path="s3://featureform-spark-testing/data/transactions_short.csv",
+        file_path="s3://ff-spark-testing/data/transactions_short.csv",
     )
 
     client.apply(asynchronous=False, verbose=True)

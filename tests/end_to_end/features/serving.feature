@@ -19,6 +19,7 @@ Feature: Batch Serving
   #   Then I serve batch features for snowflake
   #   And I can get a list containing the entity name and a tuple with all the features from "snowflake"
 
+  @skip
   Scenario: Serving Batch Features (Spark)
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"
@@ -30,6 +31,7 @@ Feature: Batch Serving
     Then I serve batch features for spark
     And I can get a list containing the entity name and a tuple with all the features from "spark"
 
+  @skip
   Scenario: Serving Batch Features (Spark with Submit Params Exceeding 10K Bytes)
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"

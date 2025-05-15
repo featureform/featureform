@@ -19,26 +19,24 @@ Feature: Batch Serving
   #   Then I serve batch features for snowflake
   #   And I can get a list containing the entity name and a tuple with all the features from "snowflake"
 
-  @skip
-  Scenario: Serving Batch Features (Spark)
-    Given Featureform is installed
-    When I create a "hosted" "insecure" client for "localhost:7878"
-    And I generate a random variant name
-    And I register "s3" filestore with bucket "ff-spark-testing" and root path "behave"
-    And I get or register databricks
-    And I register the "short" files from the database
-    And I define a SparkUser and register features
-    Then I serve batch features for spark
-    And I can get a list containing the entity name and a tuple with all the features from "spark"
-
-  @skip
-  Scenario: Serving Batch Features (Spark with Submit Params Exceeding 10K Bytes)
-    Given Featureform is installed
-    When I create a "hosted" "insecure" client for "localhost:7878"
-    And I generate a random variant name
-    And I register "s3" filestore with bucket "ff-spark-testing" and root path "behave"
-    And I get or register databricks
-    And I register the "long" files from the database
-    And I define a SparkUser and register features
-    Then I serve batch features for spark with submit params that exceed the 10K-byte API limit
-    And I can get a list containing the correct number of features
+#  Scenario: Serving Batch Features (Spark)
+#    Given Featureform is installed
+#    When I create a "hosted" "insecure" client for "localhost:7878"
+#    And I generate a random variant name
+#    And I register "s3" filestore with bucket "ff-spark-testing" and root path "behave"
+#    And I get or register databricks
+#    And I register the "short" files from the database
+#    And I define a SparkUser and register features
+#    Then I serve batch features for spark
+#    And I can get a list containing the entity name and a tuple with all the features from "spark"
+#
+#  Scenario: Serving Batch Features (Spark with Submit Params Exceeding 10K Bytes)
+#    Given Featureform is installed
+#    When I create a "hosted" "insecure" client for "localhost:7878"
+#    And I generate a random variant name
+#    And I register "s3" filestore with bucket "ff-spark-testing" and root path "behave"
+#    And I get or register databricks
+#    And I register the "long" files from the database
+#    And I define a SparkUser and register features
+#    Then I serve batch features for spark with submit params that exceed the 10K-byte API limit
+#    And I can get a list containing the correct number of features

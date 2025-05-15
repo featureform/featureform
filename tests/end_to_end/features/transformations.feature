@@ -25,10 +25,10 @@ Feature: Transformations
       #      | DF                 | azure               |         test              |       empty                |
       #      | DF                 | azure               |         test              |     featureform            |
       #      | DF                 | azure               |         test              | featureform/featureform    |
-      | DF                  | s3               | featureform-spark-testing | behave    |
-  #      | DF                 | s3                  | featureform-spark-testing |       empty                |
-  #      | DF                 | s3                  | featureform-spark-testing |     featureform            |
-  #      | DF                 | s3                  | featureform-spark-testing | featureform/featureform    |
+      | DF                  | s3               | ff-spark-testing | behave    |
+  #      | DF                 | s3                  | ff-spark-testing |       empty                |
+  #      | DF                 | s3                  | ff-spark-testing |     featureform            |
+  #      | DF                 | s3                  | ff-spark-testing | featureform/featureform    |
   #      | DF                 | gcs                 |    featureform-test       |          behave            | TODO: Enable Later
 
   Scenario Outline: Single Spark Transformations
@@ -45,5 +45,5 @@ Feature: Transformations
     Examples:
       | transformation_type | storage_provider | bucket                    |
       #    | SQL                 | azure            | test |
-      | SQL                 | s3               | featureform-spark-testing |
+      | SQL                 | s3               | ff-spark-testing |
 #    | SQL                 | gcs               | test |

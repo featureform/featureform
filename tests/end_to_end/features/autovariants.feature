@@ -11,7 +11,7 @@ Feature: AutoVariants
   Scenario Outline: Same auto variant for same transformation
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"
-    And I register "s3" filestore with bucket "featureform-spark-testing" and root path "data"
+    And I register "s3" filestore with bucket "ff-spark-testing" and root path "data"
     And I get or register databricks
     And I register transactions_short.csv
     And I register "trans_av_1" transformation with auto variant of type "<transformation_type>"
@@ -26,7 +26,7 @@ Feature: AutoVariants
   Scenario: User-defined variant and auto variant for same transformation
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"
-    And I register "s3" filestore with bucket "featureform-spark-testing" and root path "data"
+    And I register "s3" filestore with bucket "ff-spark-testing" and root path "data"
     And I get or register databricks
     And I register transactions_short.csv
     And I register a transformation with user-provided variant
@@ -36,7 +36,7 @@ Feature: AutoVariants
   Scenario Outline: Different auto variant for different transformation
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"
-    And I register "s3" filestore with bucket "featureform-spark-testing" and root path "data"
+    And I register "s3" filestore with bucket "ff-spark-testing" and root path "data"
     And I get or register databricks
     When I register transactions_short.csv
     And I register "trans_av_2" transformation with auto variant of type "<transformation_type>"
@@ -51,7 +51,7 @@ Feature: AutoVariants
   Scenario: Create auto variant dataset and register a new dataset with user-defined variant
     Given Featureform is installed
     When I create a "hosted" "insecure" client for "localhost:7878"
-    And I register "s3" filestore with bucket "featureform-spark-testing" and root path "data"
+    And I register "s3" filestore with bucket "ff-spark-testing" and root path "data"
     And I get or register databricks
     And I register transactions_short.csv
     Then I should be able to register a source with user-defined variant

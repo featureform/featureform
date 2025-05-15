@@ -378,9 +378,9 @@ jobs:
 
       - name: Create Secret
         env:
-          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_ACCOUNT_NAME: ${{ vars.AZURE_ACCOUNT_NAME }}
           AZURE_STORAGE_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
-          AZURE_CONTAINER: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AZURE_CONTAINER: ${{ vars.AZURE_CONTAINER_NAME }}
           STORAGE_PATH: "backup"
         run: |
           python backup/create_secret.py azure $AZURE_ACCOUNT_NAME "$AZURE_STORAGE_KEY" $AZURE_CONTAINER $STORAGE_PATH
@@ -401,16 +401,16 @@ jobs:
 
       - name: Test End-to-End
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_ACCESS_KEY_ID: ${{ vars.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-          AWS_EMR_CLUSTER_ID: ${{ secrets.AWS_EMR_CLUSTER_ID }}
-          AWS_EMR_CLUSTER_REGION: ${{ secrets.AWS_EMR_CLUSTER_REGION }}
+          AWS_EMR_CLUSTER_ID: ${{ vars.AWS_EMR_CLUSTER_ID }}
+          AWS_EMR_CLUSTER_REGION: ${{ vars.AWS_EMR_CLUSTER_REGION }}
+          AZURE_ACCOUNT_NAME: ${{ vars.AZURE_ACCOUNT_NAME }}
           AZURE_ACCOUNT_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
-          AZURE_ACCOUNT_NAME: ${{ secrets.AZURE_ACCOUNT_NAME }}
-          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          AZURE_CONTAINER_NAME: ${{ vars.AZURE_CONTAINER_NAME }}
+          DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          DATABRICKS_CLUSTER: ${{ secrets.DATABRICKS_CLUSTER }}
+          DATABRICKS_CLUSTER: ${{ vars.DATABRICKS_CLUSTER }}
           MONGODB_HOST: ${{ secrets.MONGODB_HOST }}
           MONGODB_PORT: ${{ secrets.MONGODB_PORT }}
           MONGODB_USERNAME: ${{ secrets.MONGODB_USERNAME }}
@@ -418,11 +418,11 @@ jobs:
           MONGODB_DATABASE: ${{ secrets.MONGODB_PASSWORD }}
           K8S_RUNNER_BASE_IMAGE: "local/k8s_runner:stable"
           K8S_RUNNER_SCIKIT: "local/k8s_runner:scikit-stable"
-          S3_BUCKET_PATH: ${{ secrets.S3_BUCKET_PATH }}
-          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_PATH }}
-          S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION }}
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+          S3_BUCKET_PATH: ${{ vars.S3_BUCKET_PATH }}
+          S3_BUCKET_NAME: ${{ vars.S3_BUCKET_NAME }}
+          S3_BUCKET_REGION: ${{ vars.S3_BUCKET_REGION }}
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCS_BUCKET_NAME: ${{ vars.GCS_BUCKET_NAME }}
           GCP_CREDENTIALS_FILE: "./provider/gcp_credentials.json"
           FEATUREFORM_HOST: localhost:8000
           FEATUREFORM_CERT: tls.crt
@@ -450,9 +450,9 @@ jobs:
       - name: Restore
         env:
           CLOUD_PROVIDER: "AZURE"
-          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_ACCOUNT_NAME }}
+          AZURE_STORAGE_ACCOUNT: ${{ vars.AZURE_ACCOUNT_NAME }}
           AZURE_STORAGE_KEY: ${{ secrets.AZURE_ACCOUNT_KEY }}
-          AZURE_CONTAINER_NAME: ${{ secrets.AZURE_CONTAINER_NAME }}
+          AZURE_CONTAINER_NAME: ${{ vars.AZURE_CONTAINER_NAME }}
           AZURE_STORAGE_PATH: "backup"
         working-directory: ./backup/restore
         run: ./restore.sh --force

@@ -169,7 +169,7 @@ def step_impl(context):
     context.new_source = context.spark.register_file(
         name="transactions_short",
         variant=new_random_variant,
-        file_path="s3://featureform-spark-testing/data/transactions_short.csv",
+        file_path="s3://ff-spark-testing/data/transactions_short.csv",
     )
     context.client.apply(asynchronous=False, verbose=True)
 

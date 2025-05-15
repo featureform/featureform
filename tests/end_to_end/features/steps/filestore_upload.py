@@ -201,13 +201,13 @@ def step_impl(context, filesize, filetype, storage_provider):
             connection_string, "test", local_file_name, upload_file_path, filetype
         )
     elif storage_provider == "s3":
-        context.cloud_file_path = f"s3a://featureform-spark-testing/{upload_file_path}"
+        context.cloud_file_path = f"s3a://ff-spark-testing/{upload_file_path}"
         upload_to_aws(
-            "featureform-spark-testing", local_file_name, upload_file_path, filetype
+            "ff-spark-testing", local_file_name, upload_file_path, filetype
         )
 
     elif storage_provider == "gcs":
-        context.cloud_file_path = f"gs://featureform-spark-testing/{upload_file_path}"
+        context.cloud_file_path = f"gs://ff-spark-testing/{upload_file_path}"
         upload_to_gcs("featureform-test", local_file_name, upload_file_path, filetype)
 
     else:

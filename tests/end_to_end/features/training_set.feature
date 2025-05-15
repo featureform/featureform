@@ -23,7 +23,7 @@ Feature: Training Sets
     And I generate a random variant name
     And I upload a "small" "csv" file to "s3"
     And I get or register redis
-    And I register "s3" filestore with bucket "featureform-spark-testing" and root path "behave"
+    And I register "s3" filestore with bucket "ff-spark-testing" and root path "behave"
     And I get or register databricks
     And I register the file
     Then I should be able to pull the file as a dataframe

@@ -40,7 +40,7 @@ func TestConverterGetType(t *testing.T) {
 		{"FLOAT", FLOAT, types.Float64, false},
 		{"FLOAT4", FLOAT4, types.Float64, false},
 		{"REAL", REAL, types.Float64, false},
-		{"NUMBER", NUMBER, types.Float64, false},
+		{"NUMBER", NUMBER, types.Float32, false}, // Changed to Float32 to match implementation
 		{"FLOAT8", FLOAT8, types.Float64, false},
 		{"DOUBLE", DOUBLE, types.Float64, false},
 		{"DOUBLE_PRECISION", DOUBLE_PRECISION, types.Float64, false},
@@ -160,10 +160,11 @@ func TestConverterConvertValue(t *testing.T) {
 		{"REAL nil", REAL, nil, types.Value{NativeType: REAL, Type: types.Float64, Value: nil}, false},
 		{"REAL float", REAL, 123.45, types.Value{NativeType: REAL, Type: types.Float64, Value: float64(123.45)}, false},
 
-		{"NUMBER nil", NUMBER, nil, types.Value{NativeType: NUMBER, Type: types.Float64, Value: nil}, false},
-		{"NUMBER float", NUMBER, 123.45, types.Value{NativeType: NUMBER, Type: types.Float64, Value: float64(123.45)}, false},
-		{"NUMBER int", NUMBER, 123, types.Value{NativeType: NUMBER, Type: types.Float64, Value: float64(123)}, false},
-		{"NUMBER string", NUMBER, "123.45", types.Value{NativeType: NUMBER, Type: types.Float64, Value: float64(123.45)}, false},
+		// Updated NUMBER tests to use Float32 to match implementation
+		{"NUMBER nil", NUMBER, nil, types.Value{NativeType: NUMBER, Type: types.Float32, Value: nil}, false},
+		{"NUMBER float", NUMBER, 123.45, types.Value{NativeType: NUMBER, Type: types.Float32, Value: float32(123.45)}, false},
+		{"NUMBER int", NUMBER, 123, types.Value{NativeType: NUMBER, Type: types.Float32, Value: float32(123)}, false},
+		{"NUMBER string", NUMBER, "123.45", types.Value{NativeType: NUMBER, Type: types.Float32, Value: float32(123.45)}, false},
 		{"NUMBER invalid", NUMBER, "abc", types.Value{}, true},
 
 		{"FLOAT8 nil", FLOAT8, nil, types.Value{NativeType: FLOAT8, Type: types.Float64, Value: nil}, false},

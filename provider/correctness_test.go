@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
@@ -864,6 +865,105 @@ func (d testSQLMaterializationData) Assert(t *testing.T, mat Materialization, is
 	}
 }
 
+func (d testSQLMaterializationData) AssertMatDs(t *testing.T, matDataset dataset.Materialization, isIncremental bool) {
+	ctx := context.Background()
+
+	// Prepare expected data map
+	expectedMap := make(map[string][]ResourceRecord)
+	expected := d.expected
+	if isIncremental {
+		expected = d.incrementalExpected
+	}
+	for _, exp := range expected {
+		if _, ok := expectedMap[exp.Entity]; ok {
+			expectedMap[exp.Entity] = append(expectedMap[exp.Entity], exp)
+		} else {
+			expectedMap[exp.Entity] = []ResourceRecord{exp}
+		}
+	}
+
+	// Verify row count
+	numRows, err := matDataset.Len()
+	if err != nil {
+		t.Fatalf("could not get number of rows: %v", err)
+	}
+	assert.Equal(t, len(expectedMap), int(numRows), "expected same number of rows")
+
+	// Get iterator - use basic iterator instead of feature iterator
+	iter, err := matDataset.IterateSegment(ctx, 0, 100)
+	if err != nil {
+		t.Fatalf("could not get iterator: %v", err)
+	}
+	defer iter.Close()
+
+	// Process rows
+	for iter.Next() {
+		row := iter.Values()
+
+		// Assuming standard schema layout: [entity, value, timestamp]
+		// Extract the ResourceRecord from the row values
+		matRec := ResourceRecord{}
+
+		// Entity should be the first column and a string
+		if len(row) > 0 && row[0].Value != nil {
+			if entityVal, ok := row[0].Value.(string); ok {
+				matRec.Entity = entityVal
+			} else {
+				t.Fatalf("entity value not a string: %v", row[0].Value)
+			}
+		} else {
+			t.Fatalf("missing entity value in row")
+		}
+
+		// Value should be the second column
+		if len(row) > 1 {
+			matRec.Value = row[1].Value
+		} else {
+			t.Fatalf("missing value in row")
+		}
+
+		// Timestamp may be the third column if present
+		if len(row) > 2 && row[2].Value != nil {
+			if tsVal, ok := row[2].Value.(time.Time); ok {
+				matRec.TS = tsVal
+			}
+		}
+
+		// Validate against expectations
+		recs, hasRecord := expectedMap[matRec.Entity]
+		if !hasRecord {
+			t.Fatalf("expected entity ID %s to exist", matRec.Entity)
+		}
+
+		// Check for match among expected records
+		if len(recs) > 1 {
+			foundMatch := false
+			for _, rec := range recs {
+				if rec.Entity == matRec.Entity &&
+					reflect.DeepEqual(matRec.Value, rec.Value) &&
+					rec.TS.Equal(matRec.TS) {
+					foundMatch = true
+					break
+				}
+			}
+
+			if !foundMatch {
+				t.Fatalf("No matching record found for entity %s with value %v and timestamp %v",
+					matRec.Entity, matRec.Value, matRec.TS)
+			}
+		} else {
+			rec := recs[0]
+			assert.Equal(t, rec.Entity, matRec.Entity, "expected same entity")
+			assert.Equal(t, matRec.Value, rec.Value, "expected same value")
+			assert.Equal(t, rec.TS, matRec.TS, "expected same timestamp")
+		}
+	}
+
+	if iter.Err() != nil {
+		t.Fatalf("could not iterate over materialization: %v", iter.Err())
+	}
+}
+
 type trainingSetDatasetType string
 
 const (
@@ -912,7 +1012,7 @@ type testSQLTrainingSetData struct {
 	def                     TrainingSetDef
 }
 
-func (data testSQLTrainingSetData) Assert(t *testing.T, ts TrainingSetIterator) {
+func (data testSQLTrainingSetData) Assert(t *testing.T, ts dataset.TrainingSetIterator) {
 	expectedFeaturesMap := make(map[string]bool)
 	for _, exp := range data.expected {
 		hash, err := data.HashStruct(exp.Features)
@@ -931,8 +1031,8 @@ func (data testSQLTrainingSetData) Assert(t *testing.T, ts TrainingSetIterator) 
 	}
 	i := 0
 	for ts.Next() {
-		features := ts.Features()
-		label := ts.Label()
+		features := ts.Features().GetRawValues()
+		label := ts.Label().Value
 		featuresHash, err := data.HashStruct(features)
 		if err != nil {
 			t.Fatalf("could not hash features: %v", err)
@@ -1386,11 +1486,9 @@ func RegisterTrainingSet(t *testing.T, test OfflineSqlTest, tsDatasetType traini
 	if err := tsTest.tester.CreateTrainingSet(tsTest.data.def); err != nil {
 		t.Fatalf("could not create training set: %v", err)
 	}
-	ts, err := tsTest.tester.GetTrainingSet(tsTest.data.id)
-	if err != nil {
-		t.Fatalf("could not get training set: %v", err)
-	}
-	tsTest.data.Assert(t, ts)
+	tsIter, err := tsTest.tester.GetTrainingSet(tsTest.data.id)
+	require.NoError(t, err, "could not get training set")
+	tsTest.data.Assert(t, tsIter)
 }
 
 func RegisterMaterializationNoTimestampTest(t *testing.T, tester OfflineSqlTest) {
@@ -1402,12 +1500,12 @@ func RegisterMaterializationNoTimestampTest(t *testing.T, tester OfflineSqlTest)
 	if err != nil {
 		t.Fatalf("could not create materialization: %v", err)
 	}
-	mat, err = matTest.tester.GetMaterialization(mat.ID())
+	mat, err = matTest.tester.GetMaterialization(MaterializationID(mat.ID()))
 	if err != nil {
 		t.Fatalf("could not get materialization: %v", err)
 	}
 
-	matTest.data.Assert(t, mat, isIncremental)
+	matTest.data.AssertMatDs(t, mat, isIncremental)
 }
 
 func RegisterMaterializationTimestampTest(t *testing.T, tester OfflineSqlTest) {
@@ -1419,12 +1517,12 @@ func RegisterMaterializationTimestampTest(t *testing.T, tester OfflineSqlTest) {
 	if err != nil {
 		t.Fatalf("could not create materialization: %v", err)
 	}
-	mat, err = matTest.tester.GetMaterialization(mat.ID())
+	mat, err = matTest.tester.GetMaterialization(MaterializationID(mat.ID()))
 	if err != nil {
 		t.Fatalf("could not get materialization: %v", err)
 	}
 
-	matTest.data.Assert(t, mat, isIncremental)
+	matTest.data.AssertMatDs(t, mat, isIncremental)
 }
 
 func RegisterValidFeatureAndLabel(t *testing.T, test OfflineSqlTest, tsDatasetType trainingSetDatasetType) {

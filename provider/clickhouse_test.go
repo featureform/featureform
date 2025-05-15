@@ -544,6 +544,9 @@ func TestClickHouseCastTableItemType(t *testing.T) {
 }
 
 func getClickHouseConfig(t *testing.T) (pc.ClickHouseConfig, error) {
+	// load dot env
+	_ = godotenv.Load("../.env")
+
 	clickHouseDb := helpers.GetEnv("CLICKHOUSE_DB", fmt.Sprintf("feature_form_%d", time.Now().UnixMilli()))
 	username := helpers.MustGetTestingEnv(t, "CLICKHOUSE_USER")
 	password := helpers.MustGetTestingEnv(t, "CLICKHOUSE_PASSWORD")
@@ -586,6 +589,10 @@ func getConfiguredClickHouseTester(t *testing.T) OfflineSqlTest {
 	if err != nil {
 		t.Fatalf("could not initialize store: %s\n", err)
 	}
+
+	// setup the right stuff
+	clickHouseConfig.Port = uint16(9000)
+	clickHouseConfig.Username = "default"
 
 	conn, err := sql.Open("clickhouse", fmt.Sprintf("clickhouse://%s:%d?username=%s&password=%s&secure=%t",
 		clickHouseConfig.Host,

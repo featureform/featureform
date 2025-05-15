@@ -181,6 +181,7 @@ func (s *snowflakeOfflineStoreTester) CreateTableFromSchema(loc location.Locatio
 		return nil, err
 	}
 
+	//s.sqlOfflineStore.query.getSchema(sqlLocation, schema)
 	sqlDataset, err := dataset.NewSqlDataset(db, sqlLocation, schema, snowflake.Converter{}, -1)
 	if err != nil {
 		return nil, err

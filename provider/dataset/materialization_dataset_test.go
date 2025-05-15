@@ -161,16 +161,17 @@ func TestMaterializationDataset(t *testing.T) {
 				require.NoError(t, err)
 
 				for i := 0; i < numChunks; i++ {
-					t.Run(fmt.Sprintf("Chunk%d", i), func(t *testing.T) {
-						iter, err := matDS.ChunkIterator(ctx, i)
+					chunkIndex := i // Create a new variable to capture the current value of i
+					t.Run(fmt.Sprintf("Chunk%d", chunkIndex), func(t *testing.T) {
+						iter, err := matDS.ChunkIterator(ctx, chunkIndex)
 						require.NoError(t, err)
 
 						rows := collectRows(t, iter)
 
 						// Calculate expected chunk size
 						expectedSize := tc.chunkSize
-						if i == numChunks-1 && int64(len(data))%tc.chunkSize != 0 {
-							expectedSize = int64(len(data)) - int64(i)*tc.chunkSize
+						if chunkIndex == numChunks-1 && int64(len(data))%tc.chunkSize != 0 {
+							expectedSize = int64(len(data)) - int64(chunkIndex)*tc.chunkSize
 						}
 
 						assert.Equal(t, int(expectedSize), len(rows))
@@ -215,16 +216,17 @@ func TestMaterializationDataset(t *testing.T) {
 					require.NoError(t, err)
 
 					for i := 0; i < numChunks; i++ {
-						t.Run(fmt.Sprintf("Chunk%d", i), func(t *testing.T) {
-							iter, err := matDS.FeatureChunkIterator(ctx, i)
+						chunkIndex := i // Create a new variable to capture the current value of i
+						t.Run(fmt.Sprintf("Chunk%d", chunkIndex), func(t *testing.T) {
+							iter, err := matDS.FeatureChunkIterator(ctx, chunkIndex)
 							require.NoError(t, err)
 
 							featureRows := collectFeatureRows(t, iter)
 
 							// Calculate expected chunk size
 							expectedSize := tc.chunkSize
-							if i == numChunks-1 && int64(len(data))%tc.chunkSize != 0 {
-								expectedSize = int64(len(data)) - int64(i)*tc.chunkSize
+							if chunkIndex == numChunks-1 && int64(len(data))%tc.chunkSize != 0 {
+								expectedSize = int64(len(data)) - int64(chunkIndex)*tc.chunkSize
 							}
 
 							assert.Equal(t, int(expectedSize), len(featureRows))

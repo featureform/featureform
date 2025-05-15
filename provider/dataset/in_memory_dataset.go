@@ -11,7 +11,7 @@ import (
 	"context"
 	"errors"
 
-	types "github.com/featureform/fftypes"
+	"github.com/featureform/fftypes"
 	pl "github.com/featureform/provider/location"
 )
 
@@ -64,7 +64,7 @@ type InMemoryIterator struct {
 	index  int
 }
 
-func (it *InMemoryIterator) Next() bool {
+func (it *InMemoryIterator) Next(ctx context.Context) bool {
 	if it.index+1 < len(it.data) {
 		it.index++
 		return true

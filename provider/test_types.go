@@ -99,7 +99,7 @@ func TestDatabaseTypeConversions(t *testing.T, tester OfflineSqlStoreWriteableDa
 	defer it.Close()
 
 	// Verify we have a row
-	require.True(t, it.Next(), "Failed to get row from iterator with error: %v", it.Err())
+	require.True(t, it.Next(ctx), "Failed to get row from iterator with error: %v", it.Err())
 	if it.Err() != nil {
 		t.Fatalf("Iterator error: %v", it.Err())
 	}
@@ -125,6 +125,6 @@ func TestDatabaseTypeConversions(t *testing.T, tester OfflineSqlStoreWriteableDa
 	}
 
 	// Ensure no extra rows
-	assert.False(t, it.Next(), "Iterator returned unexpected additional rows")
+	assert.False(t, it.Next(ctx), "Iterator returned unexpected additional rows")
 	assert.NoError(t, it.Err(), "Iterator encountered error")
 }

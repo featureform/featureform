@@ -291,7 +291,7 @@ func (l *FileStoreLocation) Proto() *pb.Location {
 	}
 }
 
-func NewCatalogLocation(database, table, tableFormat string) Location {
+func NewCatalogLocation(database, table, tableFormat string) *CatalogLocation {
 	return &CatalogLocation{database: database, table: table, tableFormat: tableFormat}
 }
 

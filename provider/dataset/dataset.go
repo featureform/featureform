@@ -8,7 +8,7 @@
 package dataset
 
 import (
-	. "context"
+	"context"
 	"sync"
 
 	"github.com/featureform/fferr"
@@ -21,7 +21,7 @@ import (
 // and schema
 type Dataset interface {
 	Location() pl.Location
-	Iterator(ctx Context, limit int64) (Iterator, error)
+	Iterator(ctx context.Context, limit int64) (Iterator, error)
 	Schema() types.Schema
 }
 
@@ -30,7 +30,7 @@ type Dataset interface {
 // preferable to write as many things as possible in a single batch.
 type WriteableDataset interface {
 	Dataset
-	WriteBatch(Context, []types.Row) error
+	WriteBatch(context.Context, []types.Row) error
 }
 
 // SizedDataset is a Dataset where the size can be cheaply calculated.
@@ -46,12 +46,12 @@ type SizedDataset interface {
 // to SizedIterator to see if the length is available.
 type SegmentableDataset interface {
 	Dataset
-	IterateSegment(ctx Context, begin, end int64) (Iterator, error)
+	IterateSegment(ctx context.Context, begin, end int64) (Iterator, error)
 }
 
 type ChunkedDataset interface {
 	NumChunks() (int, error)
-	ChunkIterator(ctx Context, idx int) (SizedIterator, error)
+	ChunkIterator(ctx context.Context, idx int) (SizedIterator, error)
 }
 
 type SizedSegmentableDataset interface {
@@ -97,7 +97,7 @@ func (adapter *ChunkedDatasetAdapter) NumChunks() (int, error) {
 	return int(numChunks), nil
 }
 
-func (adapter *ChunkedDatasetAdapter) ChunkIterator(ctx Context, idx int) (SizedIterator, error) {
+func (adapter *ChunkedDatasetAdapter) ChunkIterator(ctx context.Context, idx int) (SizedIterator, error) {
 	numChunks, err := adapter.NumChunks()
 	if err != nil {
 		return nil, err
@@ -127,7 +127,7 @@ func (adapter *ChunkedDatasetAdapter) ChunkIterator(ctx Context, idx int) (Sized
 	// Create a wrapper that adds the Len method to any iterator
 	return &GenericSizedIterator{
 		Iterator: iter,
-		length:   end - begin,
+		Length:   end - begin,
 	}, nil
 }
 
@@ -148,9 +148,9 @@ type SizedIterator interface {
 
 type GenericSizedIterator struct {
 	Iterator
-	length int64
+	Length int64
 }
 
 func (it *GenericSizedIterator) Len() (int64, error) {
-	return it.length, nil
+	return it.Length, nil
 }

@@ -340,3 +340,47 @@ func (s *Schema) ColumnNames() []string {
 	}
 	return names
 }
+
+type FeaturesSchema struct {
+	EntityColumn   ColumnSchema
+	FeatureColumns []FeatureColumn
+}
+
+type FeatureColumn struct {
+	FeatureColumn   ColumnSchema
+	TimestampColumn ColumnSchema
+}
+
+type FeatureRow struct {
+	Schema FeaturesSchema
+	Row    Row
+}
+
+func (f FeatureRow) GetRawValues() []any {
+	vals := make([]any, len(f.Row))
+	for i, field := range f.Row {
+		vals[i] = field.Value
+	}
+	return vals
+}
+
+type FeatureRows struct {
+	Schema FeaturesSchema
+	Rows   []Row
+}
+
+type TrainingSetSchema struct {
+	FeatureColumns []FeatureColumn
+	LabelColumn    ColumnSchema
+}
+
+func (trainingSetSchema *TrainingSetSchema) GetFeatureSchema() FeaturesSchema {
+	return FeaturesSchema{
+		FeatureColumns: trainingSetSchema.FeatureColumns,
+	}
+}
+
+type TrainingSetRow struct {
+	Schema TrainingSetSchema
+	Row    Row
+}

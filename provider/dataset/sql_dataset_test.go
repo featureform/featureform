@@ -21,9 +21,9 @@ func TestSqlDatasetQueryConstruction(t *testing.T) {
 	// Setup test data
 	testSchema := types.Schema{
 		Fields: []types.ColumnSchema{
-			{Name: "id", NativeType: "integer", Type: types.Int},
-			{Name: "name", NativeType: "varchar", Type: types.String},
-			{Name: "special; column--", NativeType: "varchar", Type: types.String}, // Test sanitization
+			{Name: "id", NativeType: types.NativeTypeLiteral("integer"), Type: types.Int},
+			{Name: "name", NativeType: types.NativeTypeLiteral("varchar"), Type: types.String},
+			{Name: "special; column--", NativeType: types.NativeTypeLiteral("varchar"), Type: types.String}, // Test sanitization
 		},
 	}
 
@@ -91,6 +91,10 @@ func TestSqlDatasetQueryConstruction(t *testing.T) {
 // Simple mock converter
 type mockIntegerValueConverter struct{}
 
+func (m *mockIntegerValueConverter) ParseNativeType(nativeTypeDetails types.NativeTypeDetails) (types.NativeType, error) {
+	return types.NativeTypeLiteral("integer"), nil
+}
+
 func (m *mockIntegerValueConverter) ConvertValue(nativeType types.NativeType, value any) (types.Value, error) {
 	return types.Value{
 		NativeType: nativeType,
@@ -101,7 +105,7 @@ func (m *mockIntegerValueConverter) ConvertValue(nativeType types.NativeType, va
 
 func (m *mockIntegerValueConverter) GetType(nativeType types.NativeType) (types.ValueType, error) {
 	switch nativeType {
-	case "integer":
+	case types.NativeTypeLiteral("integer"):
 		return types.Int, nil
 	default:
 		return types.String, nil

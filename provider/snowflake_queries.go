@@ -8,14 +8,19 @@
 package provider
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
 
 	db "github.com/jackc/pgx/v4"
 
+	"github.com/featureform/fferr"
+	fftypes "github.com/featureform/fftypes"
+	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
+	"github.com/featureform/provider/snowflake"
 )
 
 const CATALOG_CLAUSE = "CATALOG = 'SNOWFLAKE' "
@@ -141,6 +146,103 @@ func SanitizeSnowflakeIdentifier(obj pl.FullyQualifiedObject) string {
 	ident = append(ident, obj.Table)
 
 	return ident.Sanitize()
+}
+
+func (q *snowflakeSQLQueries) getSchema(db *sql.DB, converter fftypes.ValueConverter[any], location pl.SQLLocation) (fftypes.Schema, error) {
+	tblName := location.GetTable()
+	schema := location.GetSchema()
+
+	// In Snowflake, we need to get columns including precision and scale information
+	query := `
+		SELECT 
+			column_name, 
+			data_type, 
+			numeric_precision, 
+			numeric_scale,
+		FROM 
+			information_schema.columns 
+		WHERE 
+			table_name = ?
+			`
+
+	// Add schema condition only if present
+	if schema != "" {
+		query += " AND table_schema = ?"
+	}
+
+	// Add the ordering
+	query += " ORDER BY ordinal_position"
+
+	// Prepare parameters for the query
+	var params []interface{}
+	params = append(params, tblName)
+	if schema != "" {
+		params = append(params, schema)
+	}
+
+	logging.GlobalLogger.Infow("Getting Snowflake schema", "query", query, "table", tblName, "schema", schema)
+
+	// Execute query with parameters
+	rows, err := db.Query(query, params...)
+	if err != nil {
+		wrapped := fferr.NewExecutionError("Snowflake", err)
+		wrapped.AddDetail("schema", schema)
+		wrapped.AddDetail("table_name", tblName)
+		return fftypes.Schema{}, wrapped
+	}
+	defer rows.Close()
+
+	// Process result set
+	fields := make([]fftypes.ColumnSchema, 0)
+	for rows.Next() {
+		var columnName, dataType string
+		var numericPrecision, numericScale sql.NullInt64
+
+		if err := rows.Scan(&columnName, &dataType, &numericPrecision, &numericScale); err != nil {
+			wrapped := fferr.NewExecutionError("Snowflake", err)
+			wrapped.AddDetail("schema", schema)
+			wrapped.AddDetail("table_name", tblName)
+			return fftypes.Schema{}, wrapped
+		}
+
+		snowflakeDetails := snowflake.NewNativeTypeDetails(dataType, numericPrecision, numericScale)
+		nativeType, err := converter.ParseNativeType(snowflakeDetails)
+		if err != nil {
+			wrapped := fferr.NewInternalErrorf("could not parse native type: %v", err)
+			wrapped.AddDetail("schema", schema)
+			wrapped.AddDetail("table_name", tblName)
+			wrapped.AddDetail("column", columnName)
+			wrapped.AddDetail("data_type", dataType)
+			return fftypes.Schema{}, wrapped
+		}
+		valueType, err := converter.GetType(nativeType)
+		if err != nil {
+			wrapped := fferr.NewInternalErrorf("could not convert native type to value type: %v", err)
+			wrapped.AddDetail("schema", schema)
+			wrapped.AddDetail("table_name", tblName)
+			wrapped.AddDetail("column", columnName)
+			wrapped.AddDetail("data_type", dataType)
+			return fftypes.Schema{}, wrapped
+		}
+
+		// Append column details
+		column := fftypes.ColumnSchema{
+			Name:       fftypes.ColumnName(columnName),
+			NativeType: nativeType,
+			Type:       valueType,
+		}
+		fields = append(fields, column)
+	}
+
+	// Check for row iteration errors
+	if err := rows.Err(); err != nil {
+		wrapped := fferr.NewExecutionError("Snowflake", err)
+		wrapped.AddDetail("schema", schema)
+		wrapped.AddDetail("table_name", tblName)
+		return fftypes.Schema{}, wrapped
+	}
+
+	return fftypes.Schema{Fields: fields}, nil
 }
 
 func toIcebergTimestamp(tsCol string) string {

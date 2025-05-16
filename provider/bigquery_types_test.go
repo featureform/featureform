@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	fftypes "github.com/featureform/fftypes"
+	"github.com/featureform/provider/bigquery"
 )
 
 func NewBigQueryTestData(t *testing.T) TestColumnData {
@@ -19,7 +20,7 @@ func NewBigQueryTestData(t *testing.T) TestColumnData {
 		Columns: []TestColumn{
 			{
 				Name:           "int_col",
-				NativeType:     "INTEGER",
+				NativeType:     bigquery.INTEGER,
 				ExpectedGoType: fftypes.Int64,
 				TestValue:      int64(42),
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -28,7 +29,7 @@ func NewBigQueryTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "bigint_col",
-				NativeType:     "BIGINT",
+				NativeType:     bigquery.BIGINT,
 				ExpectedGoType: fftypes.Int64,
 				TestValue:      int64(9223372036854775807),
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -37,7 +38,7 @@ func NewBigQueryTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "float_col",
-				NativeType:     "DECIMAL",
+				NativeType:     bigquery.DECIMAL,
 				ExpectedGoType: fftypes.Float64,
 				TestValue:      float64(3.14159),
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -46,7 +47,7 @@ func NewBigQueryTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "string_col",
-				NativeType:     "STRING",
+				NativeType:     bigquery.STRING,
 				ExpectedGoType: fftypes.String,
 				TestValue:      "string value",
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -55,7 +56,7 @@ func NewBigQueryTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "bool_col",
-				NativeType:     "BOOL",
+				NativeType:     bigquery.BOOL,
 				ExpectedGoType: fftypes.Bool,
 				TestValue:      true,
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -64,7 +65,7 @@ func NewBigQueryTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "timestamp_col",
-				NativeType:     "TIMESTAMP",
+				NativeType:     bigquery.TIMESTAMP,
 				ExpectedGoType: fftypes.Timestamp,
 				TestValue:      formattedTime,
 				VerifyFunc: func(t *testing.T, actual any) {

@@ -13,11 +13,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
+
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
 	"github.com/featureform/provider/types"
-	"github.com/google/uuid"
-	"github.com/joho/godotenv"
 )
 
 func TestFileStorePrimaryTable(t *testing.T) {

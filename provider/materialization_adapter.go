@@ -148,7 +148,7 @@ func (adapter *LegacyIteratorAdapter) Close() error {
 func createFeatureSchemaFromResourceSchema(schema ResourceSchema) types.FeaturesSchema {
 	entityCol := types.ColumnSchema{
 		Name:       types.ColumnName(schema.Entity),
-		NativeType: types.NativeType("string"),
+		NativeType: types.NativeTypeLiteral("string"),
 		Type:       types.String,
 	}
 
@@ -156,7 +156,7 @@ func createFeatureSchemaFromResourceSchema(schema ResourceSchema) types.Features
 	featureCols[0] = types.FeatureColumn{
 		FeatureColumn: types.ColumnSchema{
 			Name:       types.ColumnName(schema.Value),
-			NativeType: types.NativeType("string"),
+			NativeType: types.NativeTypeLiteral("string"),
 			Type:       types.String,
 		},
 	}
@@ -164,7 +164,7 @@ func createFeatureSchemaFromResourceSchema(schema ResourceSchema) types.Features
 	if schema.TS != "" {
 		featureCols[0].TimestampColumn = types.ColumnSchema{
 			Name:       types.ColumnName(schema.TS),
-			NativeType: types.NativeType("timestamp"),
+			NativeType: types.NativeTypeLiteral("timestamp"),
 			Type:       types.Timestamp,
 		}
 	}

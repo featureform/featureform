@@ -20,38 +20,38 @@ func createTestData() ([]types.Row, types.Schema) {
 	// Create schema
 	schema := types.Schema{
 		Fields: []types.ColumnSchema{
-			{Name: "entity_id", NativeType: "string", Type: types.String},
-			{Name: "feature_value", NativeType: "float64", Type: types.Float64},
-			{Name: "timestamp", NativeType: "timestamp", Type: types.Timestamp},
+			{Name: "entity_id", NativeType: types.NativeTypeLiteral("string"), Type: types.String},
+			{Name: "feature_value", NativeType: types.NativeTypeLiteral("float64"), Type: types.Float64},
+			{Name: "timestamp", NativeType: types.NativeTypeLiteral("timestamp"), Type: types.Timestamp},
 		},
 	}
 
 	// Create data rows
 	data := []types.Row{
 		{
-			types.Value{NativeType: "string", Type: types.String, Value: "entity1"},
-			types.Value{NativeType: "float64", Type: types.Float64, Value: 123.45},
-			types.Value{NativeType: "timestamp", Type: types.Timestamp, Value: now.Add(-3 * time.Hour)},
+			types.Value{NativeType: types.NativeTypeLiteral("string"), Type: types.String, Value: "entity1"},
+			types.Value{NativeType: types.NativeTypeLiteral("float64"), Type: types.Float64, Value: 123.45},
+			types.Value{NativeType: types.NativeTypeLiteral("timestamp"), Type: types.Timestamp, Value: now.Add(-3 * time.Hour)},
 		},
 		{
-			types.Value{NativeType: "string", Type: types.String, Value: "entity2"},
-			types.Value{NativeType: "float64", Type: types.Float64, Value: 67.89},
-			types.Value{NativeType: "timestamp", Type: types.Timestamp, Value: now.Add(-2 * time.Hour)},
+			types.Value{NativeType: types.NativeTypeLiteral("string"), Type: types.String, Value: "entity2"},
+			types.Value{NativeType: types.NativeTypeLiteral("float64"), Type: types.Float64, Value: 67.89},
+			types.Value{NativeType: types.NativeTypeLiteral("timestamp"), Type: types.Timestamp, Value: now.Add(-2 * time.Hour)},
 		},
 		{
-			types.Value{NativeType: "string", Type: types.String, Value: "entity3"},
-			types.Value{NativeType: "float64", Type: types.Float64, Value: 42.0},
-			types.Value{NativeType: "timestamp", Type: types.Timestamp, Value: now.Add(-1 * time.Hour)},
+			types.Value{NativeType: types.NativeTypeLiteral("string"), Type: types.String, Value: "entity3"},
+			types.Value{NativeType: types.NativeTypeLiteral("float64"), Type: types.Float64, Value: 42.0},
+			types.Value{NativeType: types.NativeTypeLiteral("timestamp"), Type: types.Timestamp, Value: now.Add(-1 * time.Hour)},
 		},
 		{
-			types.Value{NativeType: "string", Type: types.String, Value: "entity4"},
-			types.Value{NativeType: "float64", Type: types.Float64, Value: 99.99},
-			types.Value{NativeType: "timestamp", Type: types.Timestamp, Value: now},
+			types.Value{NativeType: types.NativeTypeLiteral("string"), Type: types.String, Value: "entity4"},
+			types.Value{NativeType: types.NativeTypeLiteral("float64"), Type: types.Float64, Value: 99.99},
+			types.Value{NativeType: types.NativeTypeLiteral("timestamp"), Type: types.Timestamp, Value: now},
 		},
 		{
-			types.Value{NativeType: "string", Type: types.String, Value: "entity5"},
-			types.Value{NativeType: "float64", Type: types.Float64, Value: 101.5},
-			types.Value{NativeType: "timestamp", Type: types.Timestamp, Value: now.Add(1 * time.Hour)},
+			types.Value{NativeType: types.NativeTypeLiteral("string"), Type: types.String, Value: "entity5"},
+			types.Value{NativeType: types.NativeTypeLiteral("float64"), Type: types.Float64, Value: 101.5},
+			types.Value{NativeType: types.NativeTypeLiteral("timestamp"), Type: types.Timestamp, Value: now.Add(1 * time.Hour)},
 		},
 	}
 

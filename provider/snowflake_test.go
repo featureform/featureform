@@ -85,7 +85,7 @@ func (s *snowflakeOfflineStoreTester) CreateSchema(database, schema string) erro
 }
 
 type WritableSnowflakeDataset struct {
-	*dataset.SqlDataset
+	dataset.Dataset
 	db *sql.DB
 }
 
@@ -124,12 +124,9 @@ func (w WritableSnowflakeDataset) WriteBatch(ctx context.Context, rows []types.R
 }
 
 func (s *snowflakeOfflineStoreTester) CreateWritableDataset(loc location.Location, schema types.Schema) (dataset.WriteableDataset, error) {
-	//sqlLocation, ok := loc.(*location.SQLLocation)
-	//if !ok {
-	//	return nil, fmt.Errorf("invalid location type")
-	//}
+	sqlLoc, _ := loc.(*location.SQLLocation)
 
-	db, err := s.sqlOfflineStore.getDb("", "")
+	db, err := s.sqlOfflineStore.getDb(sqlLoc.GetDatabase(), sqlLoc.GetSchema())
 	if err != nil {
 		return nil, err
 	}
@@ -141,12 +138,12 @@ func (s *snowflakeOfflineStoreTester) CreateWritableDataset(loc location.Locatio
 	}
 
 	return WritableSnowflakeDataset{
-		SqlDataset: ds,
-		db:         db,
+		Dataset: ds,
+		db:      db,
 	}, nil
 }
 
-func (s *snowflakeOfflineStoreTester) CreateTableFromSchema(loc location.Location, schema types.Schema) (*dataset.SqlDataset, error) {
+func (s *snowflakeOfflineStoreTester) CreateTableFromSchema(loc location.Location, schema types.Schema) (dataset.Dataset, error) {
 	logger := s.logger.With("location", loc, "schema", schema)
 
 	sqlLocation, ok := loc.(*location.SQLLocation)
@@ -156,7 +153,7 @@ func (s *snowflakeOfflineStoreTester) CreateTableFromSchema(loc location.Locatio
 		return nil, fmt.Errorf(errMsg)
 	}
 
-	db, err := s.sqlOfflineStore.getDb("", "")
+	db, err := s.sqlOfflineStore.getDb(sqlLocation.GetDatabase(), sqlLocation.GetSchema())
 	if err != nil {
 		logger.Errorw("could not get db", "error", err)
 		return nil, err
@@ -172,7 +169,7 @@ func (s *snowflakeOfflineStoreTester) CreateTableFromSchema(loc location.Locatio
 			queryBuilder.WriteString(", ")
 		}
 		quotedCol := fmt.Sprintf("\"%s\"", column.Name)
-		queryBuilder.WriteString(fmt.Sprintf("%s %s", quotedCol, column.NativeType))
+		queryBuilder.WriteString(fmt.Sprintf("%s %s", quotedCol, column.NativeType.TypeName()))
 	}
 
 	queryBuilder.WriteString(")")
@@ -189,7 +186,7 @@ func (s *snowflakeOfflineStoreTester) CreateTableFromSchema(loc location.Locatio
 		return nil, err
 	}
 
-	return &sqlDataset, nil
+	return sqlDataset, nil
 }
 
 // quoteSnowflakeIdentifier safely quotes dot-separated identifiers like db.schema.table

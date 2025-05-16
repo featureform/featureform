@@ -415,6 +415,7 @@ func (t *SourceTask) runPrimaryTableJob(
 	if runErr != nil {
 		return err
 	}
+	logger.Debugw("Registering primary table", "location", location, "provider_resource_id", providerResourceID)
 	if _, err := offlineStore.RegisterPrimaryFromSourceTable(providerResourceID, location); err != nil {
 		return err
 	}

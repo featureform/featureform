@@ -157,10 +157,7 @@ func (tbl *FileStorePrimaryTable) IterateSegment(n int64) (GenericTableIterator,
 }
 
 func (tbl *FileStorePrimaryTable) NumRows() (int64, error) {
-	src, err := tbl.GetSource()
-	if err != nil {
-		return 0, err
-	}
+	src := tbl.source
 	return tbl.store.NumRows(src)
 }
 

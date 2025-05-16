@@ -18,7 +18,7 @@ type TestColumn struct {
 	// Name of the column
 	Name string
 	// Database-specific type name
-	NativeType string
+	NativeType fftypes.NativeType
 	// Expected Go type after conversion
 	ExpectedGoType fftypes.ValueType
 	// Test value to be inserted
@@ -37,7 +37,7 @@ func (d *TestColumnData) ToSchema() fftypes.Schema {
 		field := fftypes.ColumnSchema{
 			Name:       fftypes.ColumnName(col.Name),
 			Type:       col.ExpectedGoType,
-			NativeType: fftypes.NativeType(col.NativeType),
+			NativeType: col.NativeType,
 		}
 		schema.Fields = append(schema.Fields, field)
 	}
@@ -58,12 +58,12 @@ func TestDatabaseTypeConversions(t *testing.T, tester OfflineSqlStoreWriteableDa
 	// Get test database name
 	dbName := tester.GetTestDatabase()
 
-	schemaName := fmt.Sprintf("test_types_schema_%s", strings.ToLower(uuid.NewString()[:8]))
+	schemaName := fmt.Sprintf("TEST_TYPES_TO_SCHEMA_%s", strings.ToUpper(uuid.NewString()[:8]))
 	err := tester.CreateSchema(dbName, schemaName)
 	require.NoError(t, err, "Failed to create schema")
 
 	// Create table name with random suffix
-	tableName := fmt.Sprintf("test_types_%s", strings.ToLower(uuid.NewString()[:8]))
+	tableName := fmt.Sprintf("TEST_TYPES_%s", strings.ToLower(uuid.NewString()[:8]))
 	location := pl.NewSQLLocationFromParts(dbName, schemaName, tableName)
 
 	// Create a dataset with test schema
@@ -80,7 +80,7 @@ func TestDatabaseTypeConversions(t *testing.T, tester OfflineSqlStoreWriteableDa
 	for i, col := range testData.Columns {
 		testRows[0][i] = fftypes.Value{
 			Type:       col.ExpectedGoType,
-			NativeType: fftypes.NativeType(col.NativeType),
+			NativeType: col.NativeType,
 			Value:      col.TestValue,
 		}
 	}

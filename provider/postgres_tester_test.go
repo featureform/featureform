@@ -151,7 +151,7 @@ func (p *postgresOfflineStoreTester) CreateTable(loc location.Location, schema T
 
 // WritablePostgresDataset implements WriteableDataset for PostgreSQL
 type WritablePostgresDataset struct {
-	*dataset.SqlDataset
+	dataset.Dataset
 	db          *sql.DB
 	sqlLocation *location.SQLLocation
 }
@@ -235,14 +235,14 @@ func (p *postgresOfflineStoreTester) CreateWritableDataset(loc location.Location
 	}
 
 	return WritablePostgresDataset{
-		SqlDataset:  ds,
+		Dataset:     ds,
 		db:          db,
 		sqlLocation: sqlLocation,
 	}, nil
 }
 
 // CreateTableFromSchema creates a table from a schema
-func (p *postgresOfflineStoreTester) CreateTableFromSchema(loc location.Location, schema types.Schema) (*dataset.SqlDataset, error) {
+func (p *postgresOfflineStoreTester) CreateTableFromSchema(loc location.Location, schema types.Schema) (dataset.Dataset, error) {
 	logger := p.logger.With("location", loc, "schema", schema)
 
 	sqlLocation, ok := loc.(*location.SQLLocation)
@@ -267,7 +267,7 @@ func (p *postgresOfflineStoreTester) CreateTableFromSchema(loc location.Location
 			queryBuilder.WriteString(", ")
 		}
 
-		queryBuilder.WriteString(fmt.Sprintf("%s %s", pq.QuoteIdentifier(string(column.Name)), column.NativeType))
+		queryBuilder.WriteString(fmt.Sprintf("%s %s", pq.QuoteIdentifier(string(column.Name)), column.NativeType.TypeName()))
 	}
 	queryBuilder.WriteString(")")
 
@@ -284,7 +284,7 @@ func (p *postgresOfflineStoreTester) CreateTableFromSchema(loc location.Location
 		return nil, err
 	}
 
-	return &sqlDataset, nil
+	return sqlDataset, nil
 }
 
 func TestPostgresSchemas(t *testing.T) {

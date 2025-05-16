@@ -20,6 +20,7 @@ import (
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	pl "github.com/featureform/provider/location"
+	_ "github.com/featureform/provider/postgres"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	tsq "github.com/featureform/provider/tsquery"

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	fftypes "github.com/featureform/fftypes"
+	"github.com/featureform/provider/clickhouse"
 )
 
 func NewClickHouseTestData(t *testing.T) TestColumnData {
@@ -19,7 +20,7 @@ func NewClickHouseTestData(t *testing.T) TestColumnData {
 		Columns: []TestColumn{
 			{
 				Name:           "int8_col",
-				NativeType:     "Int8",
+				NativeType:     clickhouse.INT8,
 				ExpectedGoType: fftypes.Int8,
 				TestValue:      int8(42),
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -28,7 +29,7 @@ func NewClickHouseTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "int16_col",
-				NativeType:     "Int16",
+				NativeType:     clickhouse.INT16,
 				ExpectedGoType: fftypes.Int16,
 				TestValue:      int16(16384),
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -37,7 +38,7 @@ func NewClickHouseTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "int32_col",
-				NativeType:     "Int32",
+				NativeType:     clickhouse.INT32,
 				ExpectedGoType: fftypes.Int32,
 				TestValue:      int32(2147483647),
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -46,7 +47,7 @@ func NewClickHouseTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "int64_col",
-				NativeType:     "Int64",
+				NativeType:     clickhouse.INT64,
 				ExpectedGoType: fftypes.Int64,
 				TestValue:      int64(9223372036854775807),
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -55,7 +56,7 @@ func NewClickHouseTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "uint8_col",
-				NativeType:     "UInt8",
+				NativeType:     clickhouse.UINT8,
 				ExpectedGoType: fftypes.UInt8,
 				TestValue:      uint8(255),
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -64,7 +65,7 @@ func NewClickHouseTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "uint16_col",
-				NativeType:     "UInt16",
+				NativeType:     clickhouse.UINT16,
 				ExpectedGoType: fftypes.UInt16,
 				TestValue:      uint16(65535),
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -73,7 +74,7 @@ func NewClickHouseTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "uint32_col",
-				NativeType:     "UInt32",
+				NativeType:     clickhouse.UINT32,
 				ExpectedGoType: fftypes.UInt32,
 				TestValue:      uint32(4294967295),
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -82,7 +83,7 @@ func NewClickHouseTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "uint64_col",
-				NativeType:     "UInt64",
+				NativeType:     clickhouse.UINT64,
 				ExpectedGoType: fftypes.UInt64,
 				TestValue:      uint64(18446744073709551615),
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -91,7 +92,7 @@ func NewClickHouseTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "float32_col",
-				NativeType:     "Float32",
+				NativeType:     clickhouse.FLOAT32,
 				ExpectedGoType: fftypes.Float32,
 				TestValue:      float32(3.14159),
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -100,7 +101,7 @@ func NewClickHouseTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "float64_col",
-				NativeType:     "Float64",
+				NativeType:     clickhouse.FLOAT64,
 				ExpectedGoType: fftypes.Float64,
 				TestValue:      float64(2.71828182845904),
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -109,7 +110,7 @@ func NewClickHouseTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "string_col",
-				NativeType:     "String",
+				NativeType:     clickhouse.STRING,
 				ExpectedGoType: fftypes.String,
 				TestValue:      "string value",
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -118,7 +119,7 @@ func NewClickHouseTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "datetime64_col",
-				NativeType:     "DateTime64(9)", // Millisecond precision
+				NativeType:     clickhouse.DATETIME64, // Millisecond precision
 				ExpectedGoType: fftypes.Timestamp,
 				TestValue:      formattedTime,
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -133,7 +134,7 @@ func NewClickHouseTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "nullable_int_col",
-				NativeType:     "Nullable(Int32)",
+				NativeType:     clickhouse.NewNullableType(clickhouse.INT32),
 				ExpectedGoType: fftypes.Int32,
 				TestValue:      42,
 				VerifyFunc: func(t *testing.T, actual any) {
@@ -146,7 +147,7 @@ func NewClickHouseTestData(t *testing.T) TestColumnData {
 			},
 			{
 				Name:           "nullable_string_col",
-				NativeType:     "Nullable(String)",
+				NativeType:     clickhouse.NewNullableType(clickhouse.STRING),
 				ExpectedGoType: fftypes.String,
 				TestValue:      "nullable string",
 				VerifyFunc: func(t *testing.T, actual any) {

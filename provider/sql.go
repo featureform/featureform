@@ -24,6 +24,7 @@ import (
 	db "github.com/jackc/pgx/v4"
 
 	"github.com/featureform/fferr"
+	fftypes "github.com/featureform/fftypes"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider/dataset"
@@ -57,6 +58,7 @@ type OfflineTableQueries interface {
 	primaryTableRegister(tableName string, sourceName string) string
 	primaryTableCreate(name string, columnString string) string
 	getColumns(db *sql.DB, tableName string) ([]TableColumn, error)
+	getSchema(db *sql.DB, converter fftypes.ValueConverter[any], location pl.SQLLocation) (fftypes.Schema, error)
 	getValueColumnTypes(tableName string) string
 	determineColumnType(valueType types.ValueType) (string, error)
 	materializationCreate(tableName string, schema ResourceSchema) []string
@@ -359,20 +361,17 @@ func (store *sqlOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, tabl
 		return nil, fferr.NewConnectionError(store.Type().String(), err)
 	}
 
-	columnNames, err := store.query.getColumns(dbConn, sqlLocation.GetTable())
+	converter, err := pt.GetConverter(store.Type())
 	if err != nil {
 		return nil, err
 	}
+	schema, err := store.query.getSchema(dbConn, converter, *sqlLocation)
+	if err != nil {
+		return nil, err
+	}
+	store.logger.Debugw("Registering primary table", "table", sqlLocation.Location(), "schema", schema)
 
-	return &PrimaryTableToDatasetAdapter{
-		&SqlPrimaryTable{
-			db:          dbConn,
-			name:        sqlLocation.Location(),
-			sqlLocation: sqlLocation,
-			schema:      TableSchema{Columns: columnNames},
-			query:       store.query,
-		},
-	}, nil
+	return dataset.NewSqlDataset(dbConn, sqlLocation, schema, converter, -1)
 }
 
 func (store *sqlOfflineStore) CreatePrimaryTable(id ResourceID, schema TableSchema) (dataset.Dataset, error) {
@@ -469,20 +468,18 @@ func (store *sqlOfflineStore) GetPrimaryTable(id ResourceID, source metadata.Sou
 		return nil, fferr.NewConnectionError(store.Type().String(), getDbErr)
 	}
 
-	columnNames, err := store.query.getColumns(dbConn, sqlLocation.GetTable())
+	converter, err := pt.GetConverter(store.Type())
+	if err != nil {
+		return nil, err
+	}
+	schema, err := store.query.getSchema(dbConn, converter, *sqlLocation)
 	if err != nil {
 		return nil, err
 	}
 
-	sqlPT := &SqlPrimaryTable{
-		db:           dbConn,
-		name:         sqlLocation.GetTable(),
-		sqlLocation:  sqlLocation,
-		schema:       TableSchema{Columns: columnNames},
-		query:        store.query,
-		providerType: store.Type(),
-	}
-	return &PrimaryTableToDatasetAdapter{sqlPT}, nil
+	store.logger.Debugw("Getting primary dataset", "table", sqlLocation.Location(), "schema", schema)
+
+	return dataset.NewSqlDataset(dbConn, sqlLocation, schema, converter, -1)
 }
 
 func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (dataset.Dataset, error) {
@@ -503,10 +500,6 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (dataset.Dat
 	if !rows.Next() {
 		return nil, fferr.NewTransformationNotFoundError(name, id.Variant, err)
 	}
-	columnNames, err := store.query.getColumns(store.db, name)
-	if err != nil {
-		return nil, err
-	}
 
 	var dbName, schemaName string
 	err = store.db.QueryRow("SELECT current_database(), current_schema()").Scan(&dbName, &schemaName)
@@ -515,15 +508,18 @@ func (store *sqlOfflineStore) GetTransformationTable(id ResourceID) (dataset.Dat
 	}
 	sqlLocation := pl.NewSQLLocationFromParts(dbName, schemaName, name)
 
-	sqlPt := &SqlPrimaryTable{
-		db:           store.db,
-		name:         name,
-		sqlLocation:  sqlLocation,
-		schema:       TableSchema{Columns: columnNames},
-		query:        store.query,
-		providerType: store.Type(),
+	converter, err := pt.GetConverter(store.Type())
+	if err != nil {
+		return nil, err
 	}
-	return &PrimaryTableToDatasetAdapter{pt: sqlPt}, nil
+	schema, err := store.query.getSchema(store.db, converter, *sqlLocation)
+	if err != nil {
+		return nil, err
+	}
+
+	store.logger.Debugw("Getting primary dataset", "table", sqlLocation.Location(), "schema", schema)
+
+	return dataset.NewSqlDataset(store.db, sqlLocation, schema, converter, -1)
 }
 
 // CreateResourceTable creates a new Resource table.
@@ -896,47 +892,49 @@ func (store *sqlOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFeatureIt
 
 	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query, store.Type()), nil
 }
-func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (store *sqlOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
 	if id.Type != Feature {
-		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("received %s; only features can be materialized", id.Type))
+		return dataset.Materialization{}, fferr.NewInvalidArgumentError(fmt.Errorf("received %s; only features can be materialized", id.Type))
 	}
 	matID, err := NewMaterializationID(id)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	matTableName, err := store.getMaterializationTableName(id)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	materializeQueries := store.query.materializationCreate(matTableName, opts.Schema)
 	for _, materializeQry := range materializeQueries {
 		_, err = store.db.Exec(materializeQry)
 		if err != nil {
-			return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+			return dataset.Materialization{}, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 		}
 	}
-	return &sqlMaterialization{
+	mat := &sqlMaterialization{
 		id:           matID,
 		db:           store.db,
 		tableName:    matTableName,
 		query:        store.query,
 		providerType: store.Type(),
-	}, nil
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (store *sqlOfflineStore) SupportsMaterializationOption(opt MaterializationOptionType) (bool, error) {
 	return false, nil
 }
 
-func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (dataset.Materialization, error) {
 	name, variant, err := ps.MaterializationIDToResource(string(id))
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
-	tableName, err := store.getMaterializationTableName(ResourceID{name, variant, Feature})
+	resourceID := ResourceID{name, variant, Feature}
+	tableName, err := store.getMaterializationTableName(resourceID)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
 	getMatQry := store.query.materializationExists()
@@ -945,7 +943,7 @@ func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Material
 	if err != nil {
 		wrapped := fferr.NewExecutionError(store.Type().String(), err)
 		wrapped.AddDetail("table_name", tableName)
-		return nil, wrapped
+		return dataset.Materialization{}, wrapped
 	}
 	defer rows.Close()
 
@@ -954,52 +952,59 @@ func (store *sqlOfflineStore) GetMaterialization(id MaterializationID) (Material
 		rowCount++
 	}
 	if rowCount == 0 {
-		return nil, fferr.NewDatasetNotFoundError(string(id), "", nil)
+		return dataset.Materialization{}, fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
-	return &sqlMaterialization{
+
+	// Create the legacy materialization object
+	legacyMat := &sqlMaterialization{
 		id:           id,
 		db:           store.db,
 		tableName:    tableName,
 		query:        store.query,
 		providerType: store.Type(),
 		location:     pl.NewSQLLocation(tableName),
-	}, err
+	}
+
+	// Create a LegacyMaterializationAdapter wrapping the old materialization
+	return NewLegacyMaterializationAdapterWithEmptySchema(legacyMat), nil
 }
 
-func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (store *sqlOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
 	tableName, err := store.getMaterializationTableName(id)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	matID, err := ps.ResourceToMaterializationID(id.Type.String(), id.Name, id.Variant)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	getMatQry := store.query.materializationExists()
 	resTable, err := store.getsqlResourceTable(id)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
 	rows, err := store.db.Query(getMatQry, tableName)
 	if err != nil {
-		return nil, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+		return dataset.Materialization{}, fferr.NewResourceExecutionError(store.Type().String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	defer rows.Close()
 	if !rows.Next() {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
+		return dataset.Materialization{}, fferr.NewDatasetNotFoundError(id.Name, id.Variant, nil)
 	}
 	err = store.query.materializationUpdate(store.db, tableName, resTable.name)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
-	return &sqlMaterialization{
-		id:           MaterializationID(matID),
-		db:           store.db,
-		tableName:    tableName,
-		query:        store.query,
-		providerType: store.Type(),
-	}, err
+	return NewLegacyMaterializationAdapterWithEmptySchema(
+		&sqlMaterialization{
+			id:           MaterializationID(matID),
+			db:           store.db,
+			tableName:    tableName,
+			query:        store.query,
+			providerType: store.Type(),
+		},
+	), nil
 }
 
 func (store *sqlOfflineStore) DeleteMaterialization(id MaterializationID) error {
@@ -1094,7 +1099,7 @@ func (store *sqlOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 	return nil
 }
 
-func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (dataset.TrainingSetIterator, error) {
 	logger := store.logger.WithResource(logging.TrainingSetVariant, id.Name, id.Variant)
 	logger.Debugw("Getting training set")
 	if err := id.check(TrainingSet); err != nil {
@@ -1136,14 +1141,15 @@ func (store *sqlOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator
 		return nil, err
 	}
 	logger.Debugw("Returning Training Set Iterator")
-	return store.newsqlTrainingSetIterator(rows, colTypes), nil
+	iter := store.newsqlTrainingSetIterator(rows, colTypes)
+	return NewLegacyTrainingSetIteratorAdapter(iter), nil
 }
 
 func (store *sqlOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
 	return nil, fmt.Errorf("not Implemented")
 }
 
-func (store *sqlOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+func (store *sqlOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (dataset.TrainingSetIterator, dataset.TrainingSetIterator, error) {
 	return nil, nil, fmt.Errorf("not Implemented")
 }
 
@@ -1283,19 +1289,6 @@ type SqlPrimaryTable struct {
 	query        OfflineTableQueries
 	schema       TableSchema
 	providerType pt.Type
-}
-
-func (table *SqlPrimaryTable) ToDataset() (dataset.SqlDataset, error) {
-	conv, err := pt.GetConverter(table.providerType)
-	if err != nil {
-		return dataset.SqlDataset{}, err
-	}
-	return dataset.NewSqlDatasetWithAutoSchema(
-		table.db,
-		table.sqlLocation,
-		conv,
-		-1,
-	)
 }
 
 func (table *SqlPrimaryTable) GetName() string {
@@ -1744,6 +1737,76 @@ func (q defaultOfflineSQLQueries) getColumns(db *sql.DB, name string) ([]TableCo
 		columnNames = append(columnNames, TableColumn{Name: column})
 	}
 	return columnNames, nil
+}
+
+func (q *defaultOfflineSQLQueries) getSchema(db *sql.DB, converter fftypes.ValueConverter[any], location pl.SQLLocation) (fftypes.Schema, error) {
+	tblName := location.GetTable()
+
+	// Note the single quotes around %s for the table name
+	query := fmt.Sprintf("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '%s'", tblName)
+
+	// Add schema condition only if present
+	schema := location.GetSchema()
+	if schema != "" {
+		query += fmt.Sprintf(" AND table_schema = '%s'", schema)
+	}
+
+	// Add the ordering
+	query += " ORDER BY ordinal_position"
+
+	// Execute query with both parameters
+	rows, err := db.Query(query)
+	if err != nil {
+		wrapped := fferr.NewExecutionError("SQL", err)
+		wrapped.AddDetail("schema", schema)
+		wrapped.AddDetail("table_name", tblName)
+		return fftypes.Schema{}, wrapped
+	}
+	defer rows.Close()
+
+	// Process result set
+	fields := make([]fftypes.ColumnSchema, 0)
+	for rows.Next() {
+		var columnName, dataType string
+		if err := rows.Scan(&columnName, &dataType); err != nil {
+			wrapped := fferr.NewExecutionError("SQL", err)
+			wrapped.AddDetail("schema", schema)
+			wrapped.AddDetail("table_name", tblName)
+			return fftypes.Schema{}, wrapped
+		}
+
+		// Ensure the type is supported
+		nativeType, err := converter.ParseNativeType(fftypes.NewSimpleNativeTypeDetails(dataType))
+		if err != nil {
+			return fftypes.Schema{}, err
+		}
+
+		valueType, err := converter.GetType(nativeType)
+		if err != nil {
+			wrapped := fferr.NewInternalErrorf("could not convert native type to value type: %v", err)
+			wrapped.AddDetail("schema", schema)
+			wrapped.AddDetail("table_name", tblName)
+			return fftypes.Schema{}, wrapped
+		}
+
+		// Append column details
+		column := fftypes.ColumnSchema{
+			Name:       fftypes.ColumnName(columnName),
+			NativeType: nativeType,
+			Type:       valueType,
+		}
+		fields = append(fields, column)
+	}
+
+	// Check for row iteration errors
+	if err := rows.Err(); err != nil {
+		wrapped := fferr.NewExecutionError("SQL", err)
+		wrapped.AddDetail("schema", schema)
+		wrapped.AddDetail("table_name", tblName)
+		return fftypes.Schema{}, wrapped
+	}
+
+	return fftypes.Schema{Fields: fields}, nil
 }
 
 func (q defaultOfflineSQLQueries) primaryTableCreate(name string, columnString string) string {

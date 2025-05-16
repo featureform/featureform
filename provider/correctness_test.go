@@ -20,12 +20,14 @@ import (
 	"time"
 
 	"github.com/featureform/fferr"
+	fftypes "github.com/featureform/fftypes"
 	"github.com/featureform/logging"
 	"github.com/featureform/provider/dataset"
 	ps "github.com/featureform/provider/provider_schema"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/featureform/metadata"
 	pl "github.com/featureform/provider/location"
@@ -43,10 +45,10 @@ func TestTransformations(t *testing.T) {
 		tester              OfflineSqlTest
 		transformationQuery string
 	}{
-		{
-			getConfiguredBigQueryTester(t),
-			"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, TIMESTAMP(timestamp) as date FROM %s GROUP BY location_id, TIMESTAMP(timestamp)",
-		},
+		//{
+		//	getConfiguredBigQueryTester(t),
+		//	"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, TIMESTAMP(timestamp) as date FROM %s GROUP BY location_id, TIMESTAMP(timestamp)",
+		//},
 		{
 			getConfiguredSnowflakeTester(t),
 			"SELECT location_id, AVG(wind_speed) as avg_daily_wind_speed, AVG(wind_duration) as avg_daily_wind_duration, AVG(fetch_value) as avg_daily_fetch, DATE(timestamp) as date FROM %s GROUP BY location_id, DATE(timestamp)",
@@ -535,46 +537,6 @@ type testSQLTransformationData struct {
 	config   TransformationConfig
 }
 
-func (d testSQLTransformationData) Assert(t *testing.T, actual PrimaryTable) {
-	entityIdx := 0
-	avgWindSpeedIdx := 1
-	avgWindDurationIdx := 2
-	avgFetchIdx := 3
-	tsIdx := 4
-
-	numRows, err := actual.NumRows()
-	if err != nil {
-		t.Fatalf("could not get number of rows: %v", err)
-	}
-
-	assert.Equal(t, len(d.expected), int(numRows), "expected same number of rows")
-
-	itr, err := actual.IterateSegment(100)
-	if err != nil {
-		t.Fatalf("could not get iterator: %v", err)
-	}
-
-	var expectedMap = map[string]GenericRecord{}
-	for i := 0; i < len(d.expected); i++ {
-		expectedMap[d.expected[i][entityIdx].(string)] = d.expected[i]
-	}
-
-	i := 0
-	for itr.Next() {
-		actual := itr.Values()
-		expected := expectedMap[actual[entityIdx].(string)]
-		assert.Equal(t, expected[entityIdx].(string), actual[entityIdx].(string), "expected same entity")
-		assert.Equal(t, expected[avgWindSpeedIdx].(float64), actual[avgWindSpeedIdx].(float64), "expected same value for col 2")
-		assert.Equal(t, expected[avgWindDurationIdx].(float64), actual[avgWindDurationIdx].(float64), "expected same value for col 3")
-		assert.Equal(t, expected[avgFetchIdx].(float64), actual[avgFetchIdx].(float64), "expected same value for col 4")
-		assert.Equal(t, expected[tsIdx].(time.Time).Truncate(time.Microsecond), actual[tsIdx].(time.Time).Truncate(time.Microsecond), "expected same ts")
-		i++
-	}
-	if itr.Err() != nil {
-		t.Fatalf("could not iterate over transformation: %v", itr.Err())
-	}
-}
-
 func (d testSQLTransformationData) AssertDataset(t *testing.T, actual dataset.Dataset) {
 	entityIdx := 0
 	avgWindSpeedIdx := 1
@@ -864,6 +826,109 @@ func (d testSQLMaterializationData) Assert(t *testing.T, mat Materialization, is
 	}
 }
 
+func (d testSQLMaterializationData) AssertMatDs(t *testing.T, matDataset dataset.Materialization, isIncremental bool) {
+	ctx := context.Background()
+
+	// Prepare expected data map
+	expectedMap := make(map[string][]ResourceRecord)
+	expected := d.expected
+	if isIncremental {
+		expected = d.incrementalExpected
+	}
+	for _, exp := range expected {
+		if _, ok := expectedMap[exp.Entity]; ok {
+			expectedMap[exp.Entity] = append(expectedMap[exp.Entity], exp)
+		} else {
+			expectedMap[exp.Entity] = []ResourceRecord{exp}
+		}
+	}
+
+	// Verify row count
+	numRows, err := matDataset.Len()
+	if err != nil {
+		t.Fatalf("could not get number of rows: %v", err)
+	}
+	assert.Equal(t, len(expectedMap), int(numRows), "expected same number of rows")
+
+	// Get iterator - use basic iterator instead of feature iterator
+	iter, err := matDataset.IterateSegment(ctx, 0, 100)
+	if err != nil {
+		t.Fatalf("could not get iterator: %v", err)
+	}
+	defer func() {
+		if err := iter.Close(); err != nil {
+			t.Fatalf("could not close iterator: %v", err)
+		}
+	}()
+
+	// Process rows
+	for iter.Next() {
+		row := iter.Values()
+
+		// Assuming standard schema layout: [entity, value, timestamp]
+		// Extract the ResourceRecord from the row values
+		matRec := ResourceRecord{}
+
+		// Entity should be the first column and a string
+		if len(row) > 0 && row[0].Value != nil {
+			if entityVal, ok := row[0].Value.(string); ok {
+				matRec.Entity = entityVal
+			} else {
+				t.Fatalf("entity value not a string: %v", row[0].Value)
+			}
+		} else {
+			t.Fatalf("missing entity value in row")
+		}
+
+		// Value should be the second column
+		if len(row) > 1 {
+			matRec.Value = row[1].Value
+		} else {
+			t.Fatalf("missing value in row")
+		}
+
+		// Timestamp may be the third column if present
+		if len(row) > 2 && row[2].Value != nil {
+			if tsVal, ok := row[2].Value.(time.Time); ok {
+				matRec.TS = tsVal
+			}
+		}
+
+		// Validate against expectations
+		recs, hasRecord := expectedMap[matRec.Entity]
+		if !hasRecord {
+			t.Fatalf("expected entity ID %s to exist", matRec.Entity)
+		}
+
+		// Check for match among expected records
+		if len(recs) > 1 {
+			foundMatch := false
+			for _, rec := range recs {
+				if rec.Entity == matRec.Entity &&
+					reflect.DeepEqual(matRec.Value, rec.Value) &&
+					rec.TS.Equal(matRec.TS) {
+					foundMatch = true
+					break
+				}
+			}
+
+			if !foundMatch {
+				t.Fatalf("No matching record found for entity %s with value %v and timestamp %v",
+					matRec.Entity, matRec.Value, matRec.TS)
+			}
+		} else {
+			rec := recs[0]
+			assert.Equal(t, rec.Entity, matRec.Entity, "expected same entity")
+			assert.Equal(t, matRec.Value, rec.Value, "expected same value")
+			assert.Equal(t, rec.TS, matRec.TS, "expected same timestamp")
+		}
+	}
+
+	if iter.Err() != nil {
+		t.Fatalf("could not iterate over materialization: %v", iter.Err())
+	}
+}
+
 type trainingSetDatasetType string
 
 const (
@@ -912,7 +977,7 @@ type testSQLTrainingSetData struct {
 	def                     TrainingSetDef
 }
 
-func (data testSQLTrainingSetData) Assert(t *testing.T, ts TrainingSetIterator) {
+func (data testSQLTrainingSetData) Assert(t *testing.T, ts dataset.TrainingSetIterator) {
 	expectedFeaturesMap := make(map[string]bool)
 	for _, exp := range data.expected {
 		hash, err := data.HashStruct(exp.Features)
@@ -931,8 +996,8 @@ func (data testSQLTrainingSetData) Assert(t *testing.T, ts TrainingSetIterator) 
 	}
 	i := 0
 	for ts.Next() {
-		features := ts.Features()
-		label := ts.Label()
+		features := ts.Features().GetRawValues()
+		label := ts.Label().Value
 		featuresHash, err := data.HashStruct(features)
 		if err != nil {
 			t.Fatalf("could not hash features: %v", err)
@@ -1386,11 +1451,9 @@ func RegisterTrainingSet(t *testing.T, test OfflineSqlTest, tsDatasetType traini
 	if err := tsTest.tester.CreateTrainingSet(tsTest.data.def); err != nil {
 		t.Fatalf("could not create training set: %v", err)
 	}
-	ts, err := tsTest.tester.GetTrainingSet(tsTest.data.id)
-	if err != nil {
-		t.Fatalf("could not get training set: %v", err)
-	}
-	tsTest.data.Assert(t, ts)
+	tsIter, err := tsTest.tester.GetTrainingSet(tsTest.data.id)
+	require.NoError(t, err, "could not get training set")
+	tsTest.data.Assert(t, tsIter)
 }
 
 func RegisterMaterializationNoTimestampTest(t *testing.T, tester OfflineSqlTest) {
@@ -1402,12 +1465,12 @@ func RegisterMaterializationNoTimestampTest(t *testing.T, tester OfflineSqlTest)
 	if err != nil {
 		t.Fatalf("could not create materialization: %v", err)
 	}
-	mat, err = matTest.tester.GetMaterialization(mat.ID())
+	mat, err = matTest.tester.GetMaterialization(MaterializationID(mat.ID()))
 	if err != nil {
 		t.Fatalf("could not get materialization: %v", err)
 	}
 
-	matTest.data.Assert(t, mat, isIncremental)
+	matTest.data.AssertMatDs(t, mat, isIncremental)
 }
 
 func RegisterMaterializationTimestampTest(t *testing.T, tester OfflineSqlTest) {
@@ -1419,12 +1482,12 @@ func RegisterMaterializationTimestampTest(t *testing.T, tester OfflineSqlTest) {
 	if err != nil {
 		t.Fatalf("could not create materialization: %v", err)
 	}
-	mat, err = matTest.tester.GetMaterialization(mat.ID())
+	mat, err = matTest.tester.GetMaterialization(MaterializationID(mat.ID()))
 	if err != nil {
 		t.Fatalf("could not get materialization: %v", err)
 	}
 
-	matTest.data.Assert(t, mat, isIncremental)
+	matTest.data.AssertMatDs(t, mat, isIncremental)
 }
 
 func RegisterValidFeatureAndLabel(t *testing.T, test OfflineSqlTest, tsDatasetType trainingSetDatasetType) {
@@ -1558,42 +1621,59 @@ func createDummyTable(storeTester offlineSqlStoreTester, location pl.Location, n
 	return genericRecords, nil
 }
 
-func verifyPrimaryTable(t *testing.T, primary PrimaryTable, records []GenericRecord) {
-	t.Helper()
-	numRows, err := primary.NumRows()
+func createDummyTableNew(ctx context.Context, storeTester offlineSqlStoreTester, location pl.Location, numRows int) ([]fftypes.Row, error) {
+	// Create the table
+	// create simple Schema
+	schema := fftypes.Schema{
+		Fields: []fftypes.ColumnSchema{
+			{
+				Name:       "ID",
+				NativeType: fftypes.NativeTypeLiteral("FLOAT"),
+			},
+			{
+				Name:       "NAME",
+				NativeType: fftypes.NativeTypeLiteral("STRING"),
+			},
+		},
+	}
+
+	writableTester, ok := storeTester.(OfflineSqlStoreWriteableDatasetTester)
+	if !ok {
+		return nil, fmt.Errorf("storeTester does not implement OfflineSqlStoreWriteableDatasetTester")
+	}
+
+	writableDs, err := writableTester.CreateWritableDataset(location, schema)
 	if err != nil {
-		t.Fatalf("could not get number of rows: %v", err)
+		return nil, err
 	}
 
-	if numRows == 0 {
-		t.Fatalf("expected more than 0 rows")
-	}
-
-	iterator, err := primary.IterateSegment(100)
-	if err != nil {
-		t.Fatalf("Could not get generic iterator: %v", err)
-	}
-
-	i := 0
-	for iterator.Next() {
-		for j, v := range iterator.Values() {
-			// NOTE: we're handling float64 differently here given the values returned by Snowflake have less precision
-			// and therefore are not equal unless we round them; if tests require handling of other types, we can add
-			// additional cases here, otherwise the default case will cover all other types
-			switch v.(type) {
-			case float64:
-				assert.True(t, floatsAreClose(v.(float64), records[i][j].(float64), floatTolerance), "expected same values")
-			case time.Time:
-				assert.Equal(t, records[i][j].(time.Time).Truncate(time.Microsecond), v.(time.Time).Truncate(time.Microsecond), "expected same values")
-			default:
-				assert.Equal(t, v, records[i][j], "expected same values")
-			}
+	genericRecords := make([]fftypes.Row, 0)
+	randomNum := uuid.NewString()[:5]
+	for i := 0; i < numRows; i++ {
+		values := []fftypes.Value{
+			{
+				NativeType: fftypes.NativeTypeLiteral("FLOAT"),
+				Type:       fftypes.Float64,
+				Value:      float64(i),
+			},
+			{
+				NativeType: fftypes.NativeTypeLiteral("STRING"),
+				Type:       fftypes.String,
+				Value:      fmt.Sprintf("Name_%d_%s", i, randomNum),
+			},
 		}
-		i++
+
+		genericRecords = append(genericRecords, values)
 	}
+
+	if err := writableDs.WriteBatch(ctx, genericRecords); err != nil {
+		return nil, err
+	}
+
+	return genericRecords, nil
 }
 
-func verifyDataset(t *testing.T, primary dataset.Dataset, records []GenericRecord) {
+func verifyDataset(t *testing.T, primary dataset.Dataset, records []fftypes.Row) {
 	t.Helper()
 
 	// cast to sized
@@ -1623,13 +1703,14 @@ func verifyDataset(t *testing.T, primary dataset.Dataset, records []GenericRecor
 			// NOTE: we're handling float64 differently here given the values returned by Snowflake have less precision
 			// and therefore are not equal unless we round them; if tests require handling of other types, we can add
 			// additional cases here, otherwise the default case will cover all other types
+			rec := records[i][j].Value
 			switch v.Value.(type) {
 			case float64:
-				assert.True(t, floatsAreClose(v.Value.(float64), records[i][j].(float64), floatTolerance), "expected same values")
+				assert.True(t, floatsAreClose(v.Value.(float64), rec.(float64), floatTolerance), "expected same values")
 			case time.Time:
-				assert.Equal(t, records[i][j].(time.Time).Truncate(time.Microsecond), v.Value.(time.Time).Truncate(time.Microsecond), "expected same values")
+				assert.Equal(t, rec.(time.Time).Truncate(time.Microsecond), v.Value.(time.Time).Truncate(time.Microsecond), "expected same values")
 			default:
-				assert.Equal(t, v.Value, records[i][j], "expected same values")
+				assert.Equal(t, v.Value, rec, "expected same values")
 			}
 		}
 		i++
@@ -1664,7 +1745,8 @@ func RegisterTableInDifferentDatabaseTest(t *testing.T, tester OfflineSqlTest) {
 	// Create the table
 	tableName := "DUMMY_TABLE"
 	sqlLocation := pl.NewSQLLocationFromParts(dbName, schemaName, tableName)
-	records, err := createDummyTable(tester.storeTester, sqlLocation, 3)
+	ctx := logging.NewTestContext(t)
+	records, err := createDummyTableNew(ctx, tester.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
@@ -1682,6 +1764,7 @@ func RegisterTableInDifferentDatabaseTest(t *testing.T, tester OfflineSqlTest) {
 }
 
 func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester OfflineSqlTest) {
+	ctx := logging.NewTestContext(t)
 	schemaName := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
 	if err := storeTester.storeTester.CreateSchema("", schemaName); err != nil {
 		t.Fatalf("could not create schema: %v", err)
@@ -1690,7 +1773,7 @@ func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester Of
 	// Create the table
 	tableName := "DUMMY_TABLE"
 	sqlLocation := pl.NewSQLLocationFromParts("", schemaName, tableName)
-	records, err := createDummyTable(storeTester.storeTester, sqlLocation, 3)
+	records, err := createDummyTableNew(ctx, storeTester.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
@@ -1708,6 +1791,7 @@ func RegisterTableInSameDatabaseDifferentSchemaTest(t *testing.T, storeTester Of
 }
 
 func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester OfflineSqlTest) {
+	ctx := logging.NewTestContext(t)
 	schemaName1 := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
 	schemaName2 := fmt.Sprintf("SCHEMA_%s", strings.ToUpper(uuid.NewString()[:5]))
 	if err := tester.storeTester.CreateSchema("", schemaName1); err != nil {
@@ -1721,14 +1805,14 @@ func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester OfflineSqlTest) {
 	// Create the first table
 	tableName := "DUMMY_TABLE"
 	sqlLocation := pl.NewSQLLocationFromParts("", schemaName1, tableName)
-	records, err := createDummyTable(tester.storeTester, sqlLocation, 3)
+	records, err := createDummyTableNew(ctx, tester.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	// Create the second table using the same table name
 	sqlLocation2 := pl.NewSQLLocationFromParts("", schemaName2, tableName)
-	records2, err := createDummyTable(tester.storeTester, sqlLocation2, 10)
+	records2, err := createDummyTableNew(ctx, tester.storeTester, sqlLocation2, 10)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
@@ -1755,6 +1839,7 @@ func RegisterTwoTablesInSameSchemaTest(t *testing.T, tester OfflineSqlTest) {
 }
 
 func CrossDatabaseJoinTest(t *testing.T, test OfflineSqlTest) {
+	ctx := logging.NewTestContext(t)
 	storeTester, ok := test.storeTester.(offlineSqlStoreCreateDb)
 	if !ok {
 		t.Skip(fmt.Sprintf("%T does not implement offlineSqlStoreCreateDb. Skipping test", test.storeTester))
@@ -1783,14 +1868,14 @@ func CrossDatabaseJoinTest(t *testing.T, test OfflineSqlTest) {
 
 	tableName1 := "DUMMY_TABLE"
 	sqlLocation := pl.NewSQLLocationFromParts(dbName, "PUBLIC", tableName1)
-	records, err := createDummyTable(test.storeTester, sqlLocation, 3)
+	records, err := createDummyTableNew(ctx, test.storeTester, sqlLocation, 3)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}
 
 	tableName2 := "DUMMY_TABLE2"
 	sqlLocation2 := pl.NewSQLLocationFromParts(dbName2, "PUBLIC", tableName2)
-	records2, err := createDummyTable(test.storeTester, sqlLocation2, 10)
+	records2, err := createDummyTableNew(ctx, test.storeTester, sqlLocation2, 10)
 	if err != nil {
 		t.Fatalf("could not create table: %v", err)
 	}

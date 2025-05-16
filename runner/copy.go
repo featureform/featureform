@@ -13,16 +13,18 @@ import (
 	"fmt"
 	"sync"
 
+	"go.uber.org/zap"
+
 	"github.com/featureform/config"
 	"github.com/featureform/logging"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"
 	"github.com/featureform/provider"
+	"github.com/featureform/provider/dataset"
 	pc "github.com/featureform/provider/provider_config"
 	pt "github.com/featureform/provider/provider_type"
 	"github.com/featureform/types"
-	"go.uber.org/zap"
 )
 
 // We buffer the channel responsible for passing records to the goroutines that will write
@@ -33,13 +35,19 @@ const resourceRecordBufferSize = 1_000_000
 // This breaks tests currently and may have unintended consequences. More work to be done.
 const providerCachingEnabled = false
 
+// Column indices for accessing values in a row
+const (
+	entityColIdx = 0
+	valueColIdx  = 1
+)
+
 type IndexRunner interface {
 	types.Runner
 	SetIndex(index int) error
 }
 
 type MaterializedChunkRunner struct {
-	Materialized provider.Materialization
+	Materialized dataset.Materialization
 	Table        provider.OnlineStoreTable
 	Store        provider.OnlineStore
 	ChunkIdx     int
@@ -67,6 +75,20 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		ResultSync:  &ResultSync{},
 		DoneChannel: done,
 	}
+
+	numChunks, err := m.Materialized.NumChunks()
+	if err != nil {
+		logger.Errorw("error getting number of chunks", "error", err)
+		jobWatcher.EndWatch(err)
+		return jobWatcher, nil
+	}
+
+	if numChunks == 0 {
+		logger.Debugw("no chunks to process, job complete")
+		jobWatcher.EndWatch(nil)
+		return jobWatcher, nil
+	}
+
 	// We create a pool of goroutines per materialization chunk runner to make Set requests to
 	// the inference store asynchronously; after some initial testing, 500 workers appears to
 	// offer the best results
@@ -74,7 +96,7 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 	logger.Debugw("worker pool size", "worker_pool_size", workerPoolSize)
 	go func() {
 		logger.Debugw("starting materialized chunk runner", "chunk_idx", m.ChunkIdx)
-		it, err := m.Materialized.IterateChunk(m.ChunkIdx)
+		it, err := m.Materialized.ChunkIterator(ctx, m.ChunkIdx)
 		if err != nil {
 			logger.Errorw("error getting iterator", "error", err)
 			jobWatcher.EndWatch(err)
@@ -170,10 +192,13 @@ func (m *MaterializedChunkRunner) Run() (types.CompletionWatcher, error) {
 		}
 		var chanErr error
 		for it.Next() {
+			values := it.Values()
+			entity := values[entityColIdx].Value.(string) // Using entityColIdx constant instead of hardcoded 0
+			val := values[valueColIdx].Value              // Using valueColIdx constant instead of hardcoded 1
 			select {
 			case chanErr = <-errCh:
 				logger.Errorf("error setting value: %v", chanErr)
-			case ch <- it.Value():
+			case ch <- provider.ResourceRecord{Entity: entity, Value: val}:
 			default:
 			}
 			if chanErr != nil {

@@ -170,8 +170,8 @@ func testWriteableDataset(t *testing.T, ds WriteableDataset, tc DatasetTestCase)
 
 		// Create new rows to write
 		newRows := []types.Row{
-			{types.Value{NativeType: "int", Type: types.Int, Value: 100}},
-			{types.Value{NativeType: "int", Type: types.Int, Value: 101}},
+			{types.Value{NativeType: types.NativeTypeLiteral("int"), Type: types.Int, Value: 100}},
+			{types.Value{NativeType: types.NativeTypeLiteral("int"), Type: types.Int, Value: 101}},
 		}
 
 		// Get initial length

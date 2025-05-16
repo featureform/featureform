@@ -30,6 +30,15 @@ func Register() {
 
 type Converter struct{}
 
+func (c Converter) ParseNativeType(typeDetails types.NativeTypeDetails) (types.NativeType, error) {
+	nativeType, ok := StringToNativeType[typeDetails.ColumnName()]
+	if !ok {
+		return nil, fferr.NewUnsupportedTypeError("Unsupported native type")
+	}
+
+	return nativeType, nil
+}
+
 func (c Converter) GetType(nativeType types.NativeType) (types.ValueType, error) {
 	conv, err := c.ConvertValue(nativeType, nil)
 	if err != nil {
@@ -40,73 +49,85 @@ func (c Converter) GetType(nativeType types.NativeType) (types.ValueType, error)
 
 // ConvertValue converts a value from its PostgreSQL representation to a types.Value
 func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.Value, error) {
-	// Normalize type name to lowercase
-	normalizedType := strings.ToLower(string(nativeType))
+	// First, determine the target type for this native type
+	var targetType types.ValueType
 
-	// Convert the value based on the native type
-	switch normalizedType {
-	case "integer", "int":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Int32,
-				Value:      nil,
-			}, nil
+	switch nativeType {
+	case INTEGER, INT:
+		targetType = types.Int32
+	case BIGINT:
+		targetType = types.Int64
+	case FLOAT8, NUMERIC, DOUBLE_PRECISION:
+		targetType = types.Float64
+	case VARCHAR, CHARACTER_VARYING:
+		targetType = types.String
+	case BOOLEAN:
+		targetType = types.Bool
+	case DATE, TIMESTAMP_WITH_TIME_ZONE, TIMESTAMPTZ:
+		targetType = types.Timestamp
+	default:
+		// Try to handle string-based types if passed directly
+		if typeLiteral, ok := nativeType.(types.NativeTypeLiteral); ok {
+			normalizedType := strings.ToLower(string(typeLiteral))
+
+			// Check if this is a known type in normalized form
+			for knownType, knownLiteral := range StringToNativeType {
+				if normalizedType == knownType {
+					return c.ConvertValue(knownLiteral, value)
+				}
+			}
+
+			return types.Value{}, fferr.NewUnsupportedTypeError(string(typeLiteral))
 		}
+
+		return types.Value{}, fferr.NewUnsupportedTypeError("unknown type")
+	}
+
+	// Handle nil value case once
+	if value == nil {
+		return types.Value{
+			NativeType: nativeType,
+			Type:       targetType,
+			Value:      nil,
+		}, nil
+	}
+
+	// Now handle the non-nil case based on native type
+	switch nativeType {
+	case INTEGER, INT:
 		convertedValue, err := types.ConvertNumberToInt32(value)
 		if err != nil {
 			return types.Value{}, err
 		}
 		return types.Value{
 			NativeType: nativeType,
-			Type:       types.Int32,
+			Type:       targetType,
 			Value:      convertedValue,
 		}, nil
 
-	case "bigint":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Int64,
-				Value:      nil,
-			}, nil
-		}
+	case BIGINT:
 		convertedValue, err := types.ConvertNumberToInt64(value)
 		if err != nil {
 			return types.Value{}, err
 		}
 		return types.Value{
 			NativeType: nativeType,
-			Type:       types.Int64,
+			Type:       targetType,
 			Value:      convertedValue,
 		}, nil
 
-	case "float8":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Float64,
-				Value:      nil,
-			}, nil
-		}
+	case FLOAT8:
 		convertedValue, err := types.ConvertNumberToFloat64(value)
 		if err != nil {
 			return types.Value{}, err
 		}
 		return types.Value{
 			NativeType: nativeType,
-			Type:       types.Float64,
+			Type:       targetType,
 			Value:      convertedValue,
 		}, nil
 
-	case "numeric":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Float64,
-				Value:      nil,
-			}, nil
-		}
+	case NUMERIC, DOUBLE_PRECISION:
 		if byteArray, ok := value.([]uint8); ok {
 			floatVal, err := strconv.ParseFloat(string(byteArray), 64)
 			if err != nil {
@@ -114,7 +135,7 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 			}
 			return types.Value{
 				NativeType: nativeType,
-				Type:       types.Float64,
+				Type:       targetType,
 				Value:      floatVal,
 			}, nil
 		}
@@ -124,65 +145,58 @@ func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.V
 		}
 		return types.Value{
 			NativeType: nativeType,
-			Type:       types.Float64,
+			Type:       targetType,
 			Value:      convertedValue,
 		}, nil
 
-	case "varchar":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.String,
-				Value:      nil,
-			}, nil
-		}
+	case VARCHAR, CHARACTER_VARYING:
 		convertedValue, err := types.ConvertToString(value)
 		if err != nil {
 			return types.Value{}, err
 		}
 		return types.Value{
 			NativeType: nativeType,
-			Type:       types.String,
+			Type:       targetType,
 			Value:      convertedValue,
 		}, nil
 
-	case "boolean":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Bool,
-				Value:      nil,
-			}, nil
-		}
+	case BOOLEAN:
 		convertedValue, err := types.ConvertToBool(value)
 		if err != nil {
 			return types.Value{}, err
 		}
 		return types.Value{
 			NativeType: nativeType,
-			Type:       types.Bool,
+			Type:       targetType,
 			Value:      convertedValue,
 		}, nil
 
-	case "timestamp with time zone", "timestamptz", "TIMESTAMPTZ":
-		if value == nil {
-			return types.Value{
-				NativeType: nativeType,
-				Type:       types.Timestamp,
-				Value:      nil,
-			}, nil
-		}
+	case DATE, TIMESTAMP_WITH_TIME_ZONE, TIMESTAMPTZ:
 		convertedValue, err := types.ConvertDatetime(value)
 		if err != nil {
 			return types.Value{}, err
 		}
 		return types.Value{
 			NativeType: nativeType,
-			Type:       types.Timestamp,
+			Type:       targetType,
 			Value:      convertedValue,
 		}, nil
 
 	default:
-		return types.Value{}, fferr.NewUnsupportedTypeError(string(nativeType))
+		// Try to handle string-based types if passed directly
+		if typeLiteral, ok := nativeType.(types.NativeTypeLiteral); ok {
+			normalizedType := strings.ToLower(string(typeLiteral))
+
+			// Check if this is a known type in normalized form
+			for knownType, knownLiteral := range StringToNativeType {
+				if normalizedType == knownType {
+					return c.ConvertValue(knownLiteral, value)
+				}
+			}
+
+			return types.Value{}, fferr.NewUnsupportedTypeError(string(typeLiteral))
+		}
+
+		return types.Value{}, fferr.NewUnsupportedTypeError("unknown type")
 	}
 }

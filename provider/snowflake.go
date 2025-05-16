@@ -16,10 +16,12 @@ import (
 	"github.com/featureform/helpers/stringset"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
+	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
 	ps "github.com/featureform/provider/provider_schema"
 	pt "github.com/featureform/provider/provider_type"
+	_ "github.com/featureform/provider/snowflake"
 
 	snowflake "github.com/snowflakedb/gosnowflake"
 
@@ -235,16 +237,16 @@ func (sf *snowflakeOfflineStore) GetResourceTable(id ResourceID) (OfflineTable, 
 	return nil, fferr.NewInternalErrorf("Snowflake Offline Store does not currently support getting resource tables")
 }
 
-func (sf *snowflakeOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (sf *snowflakeOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
 	logger := sf.logger.WithResource(logging.FeatureVariant, id.Name, id.Variant)
 	if err := id.check(Feature); err != nil {
 		logger.Errorw("Failed to validate resource ID", "error", err)
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	var snowflakeConfig pc.SnowflakeConfig
 	if err := snowflakeConfig.Deserialize(sf.sqlOfflineStore.Config()); err != nil {
 		logger.Errorw("Failed to deserialize snowflake config", "error", err)
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	resConfig := opts.ResourceSnowflakeConfig
 	if resConfig == nil {
@@ -254,50 +256,51 @@ func (sf *snowflakeOfflineStore) CreateMaterialization(id ResourceID, opts Mater
 	logger.Debugw("Dynamic Table Config before Merge with Snowflake Config", "config", resConfig)
 	if err := resConfig.Merge(&snowflakeConfig); err != nil {
 		logger.Errorw("Failed to merge dynamic table config", "error", err)
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
 	logger.Debugw(("Dynamic Table Config after Merge with Snowflake Config"), "config", resConfig)
 	tableName, err := ps.ResourceToTableName(FeatureMaterialization.String(), id.Name, id.Variant)
 	if err != nil {
 		logger.Errorw("Failed to get materialization table name", "error", err)
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	if err := opts.Schema.Validate(); err != nil {
 		logger.Errorw("Failed to validate schema", "error", err)
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	sqlLoc, isSqlLoc := opts.Schema.SourceTable.(*pl.SQLLocation)
 	if !isSqlLoc {
 		logger.Errorw("Source table is not an SQL location", "location_type", fmt.Sprintf("%T", opts.Schema.SourceTable))
-		return nil, fferr.NewInvalidArgumentErrorf("source table is not an SQL location")
+		return dataset.Materialization{}, fferr.NewInvalidArgumentErrorf("source table is not an SQL location")
 	}
 	materializationAsQuery := sf.sfQueries.materializationCreateAsQuery(opts.Schema.Entity, opts.Schema.Value, opts.Schema.TS, SanitizeSnowflakeIdentifier(sqlLoc.TableLocation()))
 	if err := resConfig.Validate(); err != nil {
 		logger.Errorw("Failed to validate dynamic table config", "error", err)
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	query := sf.sfQueries.dynamicIcebergTableCreate(tableName, materializationAsQuery, *resConfig)
 	logger.Debugw("Creating Dynamic Iceberg Table for materialization", "query", query)
 	if _, err := sf.sqlOfflineStore.db.Exec(query); err != nil {
 		logger.Errorw("Failed to create dynamic iceberg table", "error", err)
 		wrapped := fferr.NewResourceExecutionError(pt.SnowflakeOffline.String(), id.Name, id.Variant, fferr.FEATURE_MATERIALIZATION, err)
-		return nil, sf.handleErr(wrapped, err)
+		return dataset.Materialization{}, sf.handleErr(wrapped, err)
 	}
 	logger.Info("Successfully created materialization")
-	return &sqlMaterialization{
+	mat := &sqlMaterialization{
 		id:           MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant)),
 		db:           sf.sqlOfflineStore.db,
 		tableName:    tableName,
 		location:     pl.NewSQLLocation(tableName),
 		query:        sf.sfQueries,
 		providerType: pt.SnowflakeOffline,
-	}, nil
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
-func (sf *snowflakeOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (sf *snowflakeOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
 	sf.logger.Errorw("Snowflake Offline Store does not currently support updating materializations", "id", id, "opts", opts)
-	return nil, fferr.NewInternalErrorf("Snowflake Offline Store does not currently support updating materializations")
+	return dataset.Materialization{}, fferr.NewInternalErrorf("Snowflake Offline Store does not currently support updating materializations")
 }
 
 func (sf *snowflakeOfflineStore) CreateTrainingSet(def TrainingSetDef) error {

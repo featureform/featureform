@@ -10,10 +10,11 @@ package equivalence
 import (
 	"reflect"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/featureform/fferr"
 	"github.com/featureform/logging"
 	pb "github.com/featureform/metadata/proto"
-	"github.com/google/go-cmp/cmp"
 )
 
 type trainingSetType string
@@ -36,7 +37,7 @@ func trainingSetTypeFromProto(proto pb.TrainingSetType) (trainingSetType, error)
 	case pb.TrainingSetType_TRAINING_SET_TYPE_VIEW:
 		trainingSetType = viewTrainingSet
 	case pb.TrainingSetType_TRAINING_SET_TYPE_UNSPECIFIED:
-		logger.DPanic("Training set type unspecified")
+		logger.Error("Training set type unspecified")
 		return trainingSetType, fferr.NewInvalidArgumentErrorf("Training set type unspecified")
 	default:
 		logger.DPanicf("Unknown training set type %v", proto)

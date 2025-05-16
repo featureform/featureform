@@ -33,6 +33,7 @@ type OfflineSqlStoreCoreTester interface {
 	GetTestDatabase() string
 	CreateSchema(database, schema string) error
 	CreateTable(loc location.Location, schema TableSchema) (PrimaryTable, error)
+	CreateTableFromSchema(loc location.Location, schema fftypes.Schema) (dataset.Dataset, error)
 }
 
 type OfflineSqlStoreWriteableDatasetTester interface {

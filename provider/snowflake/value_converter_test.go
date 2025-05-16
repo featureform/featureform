@@ -359,7 +359,7 @@ func TestParseNativeType(t *testing.T) {
 func TestNumberType(t *testing.T) {
 	// Test creating a NUMBER with no precision or scale
 	number := NewNumberType()
-	assert.Equal(t, "NUMBER", number.String())
+	assert.Equal(t, "NUMBER", number.TypeName())
 	assert.Equal(t, int64(-1), number.GetPrecision())
 	assert.Equal(t, int64(-1), number.GetScale())
 

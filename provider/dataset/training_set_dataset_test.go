@@ -21,9 +21,9 @@ func TestTrainingSet_TrainingSetSchema(t *testing.T) {
 	// Create base schema with feature and label columns
 	baseSchema := types.Schema{
 		Fields: []types.ColumnSchema{
-			{Name: "feature1", Type: types.Float64, NativeType: "float"},
-			{Name: "feature2", Type: types.Int, NativeType: "int"},
-			{Name: "label", Type: types.String, NativeType: "string"},
+			{Name: "feature1", Type: types.Float64, NativeType: types.NativeTypeLiteral("float")},
+			{Name: "feature2", Type: types.Int, NativeType: types.NativeTypeLiteral("int")},
+			{Name: "label", Type: types.String, NativeType: types.NativeTypeLiteral("string")},
 		},
 	}
 
@@ -50,23 +50,23 @@ func TestTrainingSetIterator_Basic(t *testing.T) {
 	// Create base schema with feature and label columns
 	baseSchema := types.Schema{
 		Fields: []types.ColumnSchema{
-			{Name: "feature1", Type: types.Float64, NativeType: "float"},
-			{Name: "feature2", Type: types.Int, NativeType: "int"},
-			{Name: "label", Type: types.String, NativeType: "string"},
+			{Name: "feature1", Type: types.Float64, NativeType: types.NativeTypeLiteral("float")},
+			{Name: "feature2", Type: types.Int, NativeType: types.NativeTypeLiteral("int")},
+			{Name: "label", Type: types.String, NativeType: types.NativeTypeLiteral("string")},
 		},
 	}
 
 	// Create test data
 	testData := []types.Row{
 		{
-			{Type: types.Float64, NativeType: "float", Value: 1.0},
-			{Type: types.Int, NativeType: "int", Value: 10},
-			{Type: types.String, NativeType: "string", Value: "class_a"},
+			{Type: types.Float64, NativeType: types.NativeTypeLiteral("float"), Value: 1.0},
+			{Type: types.Int, NativeType: types.NativeTypeLiteral("int"), Value: 10},
+			{Type: types.String, NativeType: types.NativeTypeLiteral("string"), Value: "class_a"},
 		},
 		{
-			{Type: types.Float64, NativeType: "float", Value: 2.0},
-			{Type: types.Int, NativeType: "int", Value: 20},
-			{Type: types.String, NativeType: "string", Value: "class_b"},
+			{Type: types.Float64, NativeType: types.NativeTypeLiteral("float"), Value: 2.0},
+			{Type: types.Int, NativeType: types.NativeTypeLiteral("int"), Value: 20},
+			{Type: types.String, NativeType: types.NativeTypeLiteral("string"), Value: "class_b"},
 		},
 	}
 
@@ -117,28 +117,28 @@ func TestTrainingSetIterator_WithLimit(t *testing.T) {
 	// Create base schema with feature and label columns
 	baseSchema := types.Schema{
 		Fields: []types.ColumnSchema{
-			{Name: "feature1", Type: types.Float64, NativeType: "float"},
-			{Name: "feature2", Type: types.Int, NativeType: "int"},
-			{Name: "label", Type: types.String, NativeType: "string"},
+			{Name: "feature1", Type: types.Float64, NativeType: types.NativeTypeLiteral("float")},
+			{Name: "feature2", Type: types.Int, NativeType: types.NativeTypeLiteral("int")},
+			{Name: "label", Type: types.String, NativeType: types.NativeTypeLiteral("string")},
 		},
 	}
 
 	// Create test data with multiple rows
 	testData := []types.Row{
 		{
-			{Type: types.Float64, NativeType: "float", Value: 1.0},
-			{Type: types.Int, NativeType: "int", Value: 10},
-			{Type: types.String, NativeType: "string", Value: "class_a"},
+			{Type: types.Float64, NativeType: types.NativeTypeLiteral("float"), Value: 1.0},
+			{Type: types.Int, NativeType: types.NativeTypeLiteral("int"), Value: 10},
+			{Type: types.String, NativeType: types.NativeTypeLiteral("string"), Value: "class_a"},
 		},
 		{
-			{Type: types.Float64, NativeType: "float", Value: 2.0},
-			{Type: types.Int, NativeType: "int", Value: 20},
-			{Type: types.String, NativeType: "string", Value: "class_b"},
+			{Type: types.Float64, NativeType: types.NativeTypeLiteral("float"), Value: 2.0},
+			{Type: types.Int, NativeType: types.NativeTypeLiteral("int"), Value: 20},
+			{Type: types.String, NativeType: types.NativeTypeLiteral("string"), Value: "class_b"},
 		},
 		{
-			{Type: types.Float64, NativeType: "float", Value: 3.0},
-			{Type: types.Int, NativeType: "int", Value: 30},
-			{Type: types.String, NativeType: "string", Value: "class_c"},
+			{Type: types.Float64, NativeType: types.NativeTypeLiteral("float"), Value: 3.0},
+			{Type: types.Int, NativeType: types.NativeTypeLiteral("int"), Value: 30},
+			{Type: types.String, NativeType: types.NativeTypeLiteral("string"), Value: "class_c"},
 		},
 	}
 
@@ -179,16 +179,16 @@ func TestTrainingSetIterator_ErrorHandling(t *testing.T) {
 	// Create base schema
 	baseSchema := types.Schema{
 		Fields: []types.ColumnSchema{
-			{Name: "feature1", Type: types.Float64, NativeType: "float"},
-			{Name: "feature2", Type: types.Int, NativeType: "int"},
+			{Name: "feature1", Type: types.Float64, NativeType: types.NativeTypeLiteral("float")},
+			{Name: "feature2", Type: types.Int, NativeType: types.NativeTypeLiteral("int")},
 		},
 	}
 
 	// Create test data
 	testData := []types.Row{
 		{
-			{Type: types.Float64, NativeType: "float", Value: 1.0},
-			{Type: types.Int, NativeType: "int", Value: 10},
+			{Type: types.Float64, NativeType: types.NativeTypeLiteral("float"), Value: 1.0},
+			{Type: types.Int, NativeType: types.NativeTypeLiteral("int"), Value: 10},
 		},
 	}
 
@@ -200,7 +200,7 @@ func TestTrainingSetIterator_ErrorHandling(t *testing.T) {
 		FeatureColumns: []types.FeatureColumn{
 			{FeatureColumn: baseSchema.Fields[0]}, // feature1
 		},
-		LabelColumn: types.ColumnSchema{Name: "nonexistent", Type: types.String, NativeType: "string"},
+		LabelColumn: types.ColumnSchema{Name: "nonexistent", Type: types.String, NativeType: types.NativeTypeLiteral("string")},
 	}
 
 	// Create the training set
@@ -217,18 +217,18 @@ func TestTrainingSetIterator_DifferentColumnOrder(t *testing.T) {
 	// Create base schema with feature and label columns in one order
 	baseSchema := types.Schema{
 		Fields: []types.ColumnSchema{
-			{Name: "feature2", Type: types.Int, NativeType: "int"},
-			{Name: "label", Type: types.String, NativeType: "string"},
-			{Name: "feature1", Type: types.Float64, NativeType: "float"},
+			{Name: "feature2", Type: types.Int, NativeType: types.NativeTypeLiteral("int")},
+			{Name: "label", Type: types.String, NativeType: types.NativeTypeLiteral("string")},
+			{Name: "feature1", Type: types.Float64, NativeType: types.NativeTypeLiteral("float")},
 		},
 	}
 
 	// Create test data matching the base schema order
 	testData := []types.Row{
 		{
-			{Type: types.Int, NativeType: "int", Value: 10},
-			{Type: types.String, NativeType: "string", Value: "class_a"},
-			{Type: types.Float64, NativeType: "float", Value: 1.0},
+			{Type: types.Int, NativeType: types.NativeTypeLiteral("int"), Value: 10},
+			{Type: types.String, NativeType: types.NativeTypeLiteral("string"), Value: "class_a"},
+			{Type: types.Float64, NativeType: types.NativeTypeLiteral("float"), Value: 1.0},
 		},
 	}
 
@@ -273,9 +273,9 @@ func TestTrainingSetIterator_GetFeatureSchema(t *testing.T) {
 	// Create base schema
 	baseSchema := types.Schema{
 		Fields: []types.ColumnSchema{
-			{Name: "feature1", Type: types.Float64, NativeType: "float"},
-			{Name: "feature2", Type: types.Int, NativeType: "int"},
-			{Name: "label", Type: types.String, NativeType: "string"},
+			{Name: "feature1", Type: types.Float64, NativeType: types.NativeTypeLiteral("float")},
+			{Name: "feature2", Type: types.Int, NativeType: types.NativeTypeLiteral("int")},
+			{Name: "label", Type: types.String, NativeType: types.NativeTypeLiteral("string")},
 		},
 	}
 
@@ -300,16 +300,16 @@ func TestTrainingSetIterator_SchemaMismatch(t *testing.T) {
 	// Create base schema
 	baseSchema := types.Schema{
 		Fields: []types.ColumnSchema{
-			{Name: "feature1", Type: types.Float64, NativeType: "float"},
-			{Name: "feature2", Type: types.Int, NativeType: "int"},
+			{Name: "feature1", Type: types.Float64, NativeType: types.NativeTypeLiteral("float")},
+			{Name: "feature2", Type: types.Int, NativeType: types.NativeTypeLiteral("int")},
 		},
 	}
 
 	// Create test data
 	testData := []types.Row{
 		{
-			{Type: types.Float64, NativeType: "float", Value: 1.0},
-			{Type: types.Int, NativeType: "int", Value: 10},
+			{Type: types.Float64, NativeType: types.NativeTypeLiteral("float"), Value: 1.0},
+			{Type: types.Int, NativeType: types.NativeTypeLiteral("int"), Value: 10},
 		},
 	}
 
@@ -338,8 +338,8 @@ func TestTrainingSetIterator_SchemaMismatch(t *testing.T) {
 func TestFeatureRow_GetRawValues(t *testing.T) {
 	// Create a feature row
 	featureValues := []types.Value{
-		{Type: types.Float64, NativeType: "float", Value: 1.0},
-		{Type: types.Int, NativeType: "int", Value: 10},
+		{Type: types.Float64, NativeType: types.NativeTypeLiteral("float"), Value: 1.0},
+		{Type: types.Int, NativeType: types.NativeTypeLiteral("int"), Value: 10},
 	}
 
 	featureRow := types.FeatureRow{

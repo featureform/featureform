@@ -66,7 +66,7 @@ type NullableType struct {
 }
 
 func (t *NullableType) TypeName() string {
-	return fmt.Sprintf("Nullable(%s)", t.innerType.String())
+	return fmt.Sprintf("Nullable(%s)", t.innerType.TypeName())
 }
 
 // NewNullableType creates a new nullable type from an inner type

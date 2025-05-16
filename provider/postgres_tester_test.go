@@ -267,7 +267,7 @@ func (p *postgresOfflineStoreTester) CreateTableFromSchema(loc location.Location
 			queryBuilder.WriteString(", ")
 		}
 
-		queryBuilder.WriteString(fmt.Sprintf("%s %s", pq.QuoteIdentifier(string(column.Name)), column.NativeType))
+		queryBuilder.WriteString(fmt.Sprintf("%s %s", pq.QuoteIdentifier(string(column.Name)), column.NativeType.TypeName()))
 	}
 	queryBuilder.WriteString(")")
 

@@ -169,7 +169,7 @@ func (s *snowflakeOfflineStoreTester) CreateTableFromSchema(loc location.Locatio
 			queryBuilder.WriteString(", ")
 		}
 		quotedCol := fmt.Sprintf("\"%s\"", column.Name)
-		queryBuilder.WriteString(fmt.Sprintf("%s %s", quotedCol, column.NativeType))
+		queryBuilder.WriteString(fmt.Sprintf("%s %s", quotedCol, column.NativeType.TypeName()))
 	}
 
 	queryBuilder.WriteString(")")

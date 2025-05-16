@@ -91,11 +91,11 @@ func TestSqlDatasetQueryConstruction(t *testing.T) {
 // Simple mock converter
 type mockIntegerValueConverter struct{}
 
-func (m *mockIntegerValueConverter) ParseNativeType(nativeTypeDetails types.NativeTypeDetails) (types.NewNativeType, error) {
+func (m *mockIntegerValueConverter) ParseNativeType(nativeTypeDetails types.NativeTypeDetails) (types.NativeType, error) {
 	return types.NativeTypeLiteral("integer"), nil
 }
 
-func (m *mockIntegerValueConverter) ConvertValue(nativeType types.NewNativeType, value any) (types.Value, error) {
+func (m *mockIntegerValueConverter) ConvertValue(nativeType types.NativeType, value any) (types.Value, error) {
 	return types.Value{
 		NativeType: nativeType,
 		Type:       types.Int,
@@ -103,7 +103,7 @@ func (m *mockIntegerValueConverter) ConvertValue(nativeType types.NewNativeType,
 	}, nil
 }
 
-func (m *mockIntegerValueConverter) GetType(nativeType types.NewNativeType) (types.ValueType, error) {
+func (m *mockIntegerValueConverter) GetType(nativeType types.NativeType) (types.ValueType, error) {
 	switch nativeType {
 	case types.NativeTypeLiteral("integer"):
 		return types.Int, nil

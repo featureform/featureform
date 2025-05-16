@@ -36,7 +36,7 @@ var (
 )
 
 // StringToNativeType maps the string representation to the corresponding NativeTypeLiteral
-var StringToNativeType = map[string]fftypes.NewNativeType{
+var StringToNativeType = map[string]fftypes.NativeType{
 	"INT64":     INT64,
 	"INTEGER":   INTEGER,
 	"BIGINT":    BIGINT,

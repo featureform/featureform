@@ -309,12 +309,12 @@ func (vt *ValueTypeJSONWrapper) MarshalJSON() ([]byte, error) {
 
 type ColumnSchema struct {
 	Name       ColumnName
-	NativeType NewNativeType
+	NativeType NativeType
 	Type       ValueType
 }
 
 type Value struct {
-	NativeType NewNativeType
+	NativeType NativeType
 	Type       ValueType
 	Value      any
 }
@@ -415,14 +415,7 @@ func (v Value) ToProto() (proto *servpb.Value, err error) {
 	}
 }
 
-type NativeType string
 type ColumnName string
-
-type NativeToValueTypeMapper map[NativeType]ValueType
-
-type TypeConverter func(interface{}) (interface{}, error)
-
-type TypeConverterMapping map[string]TypeConverter
 
 type Schema struct {
 	Fields []ColumnSchema

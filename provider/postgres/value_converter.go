@@ -30,7 +30,7 @@ func Register() {
 
 type Converter struct{}
 
-func (c Converter) ParseNativeType(typeDetails types.NativeTypeDetails) (types.NewNativeType, error) {
+func (c Converter) ParseNativeType(typeDetails types.NativeTypeDetails) (types.NativeType, error) {
 	nativeType, ok := StringToNativeType[typeDetails.ColumnName()]
 	if !ok {
 		return nil, fferr.NewUnsupportedTypeError("Unsupported native type")
@@ -39,7 +39,7 @@ func (c Converter) ParseNativeType(typeDetails types.NativeTypeDetails) (types.N
 	return nativeType, nil
 }
 
-func (c Converter) GetType(nativeType types.NewNativeType) (types.ValueType, error) {
+func (c Converter) GetType(nativeType types.NativeType) (types.ValueType, error) {
 	conv, err := c.ConvertValue(nativeType, nil)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func (c Converter) GetType(nativeType types.NewNativeType) (types.ValueType, err
 }
 
 // ConvertValue converts a value from its PostgreSQL representation to a types.Value
-func (c Converter) ConvertValue(nativeType types.NewNativeType, value any) (types.Value, error) {
+func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.Value, error) {
 	// First, determine the target type for this native type
 	var targetType types.ValueType
 

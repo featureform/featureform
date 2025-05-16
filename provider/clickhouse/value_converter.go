@@ -39,7 +39,7 @@ func checkZeroTime(t time.Time) time.Time {
 
 type Converter struct{}
 
-func (c Converter) ParseNativeType(typeDetails types.NativeTypeDetails) (types.NewNativeType, error) {
+func (c Converter) ParseNativeType(typeDetails types.NativeTypeDetails) (types.NativeType, error) {
 	typeName := typeDetails.ColumnName()
 
 	// Check if it's a Nullable type
@@ -62,7 +62,7 @@ func (c Converter) ParseNativeType(typeDetails types.NativeTypeDetails) (types.N
 	return nil, fferr.NewUnsupportedTypeError("unknown type")
 }
 
-func (c Converter) GetType(nativeType types.NewNativeType) (types.ValueType, error) {
+func (c Converter) GetType(nativeType types.NativeType) (types.ValueType, error) {
 	// Handle nil case
 	if nativeType == nil {
 		return types.String, nil
@@ -127,7 +127,7 @@ func (c Converter) GetType(nativeType types.NewNativeType) (types.ValueType, err
 
 // ConvertValue converts a value from its ClickHouse representation to a types.Value
 // ConvertValue converts a value from its ClickHouse representation to a types.Value
-func (c Converter) ConvertValue(nativeType types.NewNativeType, value any) (types.Value, error) {
+func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.Value, error) {
 	if nullableType, ok := nativeType.(*NullableType); ok {
 		return c.ConvertValue(nullableType.GetInnerType(), value)
 	}

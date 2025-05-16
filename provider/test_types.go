@@ -18,7 +18,7 @@ type TestColumn struct {
 	// Name of the column
 	Name string
 	// Database-specific type name
-	NativeType fftypes.NewNativeType
+	NativeType fftypes.NativeType
 	// Expected Go type after conversion
 	ExpectedGoType fftypes.ValueType
 	// Test value to be inserted

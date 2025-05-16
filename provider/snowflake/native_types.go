@@ -39,7 +39,7 @@ var (
 )
 
 // StringToTypeLiteral maps the string representation to the corresponding NativeTypeLiteral
-var StringToNativeType = map[string]fftypes.NewNativeType{
+var StringToNativeType = map[string]fftypes.NativeType{
 	"INTEGER":          INTEGER,
 	"INT":              INT,
 	"BIGINT":           BIGINT,
@@ -74,10 +74,6 @@ type NumberType struct {
 	Scale     int64
 }
 
-func (t *NumberType) IsNativeType() bool {
-	return true
-}
-
 func NewNumberType() *NumberType {
 	return &NumberType{
 		name:      "NUMBER",
@@ -96,7 +92,7 @@ func (t *NumberType) WithScale(scale int64) *NumberType {
 	return t
 }
 
-func (t *NumberType) String() string {
+func (t *NumberType) TypeName() string {
 	if t.Precision == -1 {
 		return t.name
 	}

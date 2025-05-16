@@ -27,7 +27,7 @@ func TestConverterGetType(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		nativeType types.NewNativeType
+		nativeType types.NativeType
 		expected   types.ValueType
 		expectErr  bool
 	}{
@@ -128,7 +128,7 @@ func TestConverterConvertValue(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		nativeType types.NewNativeType
+		nativeType types.NativeType
 		value      interface{}
 		expected   types.Value
 		expectErr  bool

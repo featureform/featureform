@@ -43,7 +43,7 @@ var (
 )
 
 // StringToNativeType maps the string representation to the corresponding NativeTypeLiteral
-var StringToNativeType = map[string]fftypes.NewNativeType{
+var StringToNativeType = map[string]fftypes.NativeType{
 	"String":        STRING,
 	"Bool":          BOOL,
 	"Int":           INT,
@@ -62,25 +62,21 @@ var StringToNativeType = map[string]fftypes.NewNativeType{
 
 // NullableType represents a nullable version of another type
 type NullableType struct {
-	innerType fftypes.NewNativeType
+	innerType fftypes.NativeType
 }
 
-func (t *NullableType) IsNativeType() bool {
-	return true
-}
-
-func (t *NullableType) String() string {
+func (t *NullableType) TypeName() string {
 	return fmt.Sprintf("Nullable(%s)", t.innerType.String())
 }
 
 // NewNullableType creates a new nullable type from an inner type
-func NewNullableType(innerType fftypes.NewNativeType) *NullableType {
+func NewNullableType(innerType fftypes.NativeType) *NullableType {
 	return &NullableType{
 		innerType: innerType,
 	}
 }
 
 // GetInnerType returns the inner type of a nullable type
-func (t *NullableType) GetInnerType() fftypes.NewNativeType {
+func (t *NullableType) GetInnerType() fftypes.NativeType {
 	return t.innerType
 }

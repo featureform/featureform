@@ -1,8 +1,7 @@
 package types
 
-type NewNativeType interface {
-	String() string
-	IsNativeType() bool
+type NativeType interface {
+	TypeName() string
 }
 
 type NativeTypeDetails interface {
@@ -26,10 +25,6 @@ func (s SimpleNativeTypeDetails) ColumnName() string {
 
 type NativeTypeLiteral string
 
-func (n NativeTypeLiteral) String() string {
+func (n NativeTypeLiteral) TypeName() string {
 	return string(n)
-}
-
-func (n NativeTypeLiteral) IsNativeType() bool {
-	return true
 }

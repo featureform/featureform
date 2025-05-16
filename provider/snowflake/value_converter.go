@@ -47,7 +47,7 @@ func (n nativeTypeDetails) ColumnName() string {
 	return n.columnName
 }
 
-func (c Converter) ParseNativeType(typeDetails types.NativeTypeDetails) (types.NewNativeType, error) {
+func (c Converter) ParseNativeType(typeDetails types.NativeTypeDetails) (types.NativeType, error) {
 	sfDetails, ok := typeDetails.(*nativeTypeDetails)
 	if !ok {
 		return nil, fferr.NewInternalErrorf("Invalid type details: %T", typeDetails)
@@ -72,7 +72,7 @@ func (c Converter) ParseNativeType(typeDetails types.NativeTypeDetails) (types.N
 	}
 }
 
-func (c Converter) GetType(nativeType types.NewNativeType) (types.ValueType, error) {
+func (c Converter) GetType(nativeType types.NativeType) (types.ValueType, error) {
 	// Handle nil case
 	if nativeType == nil {
 		return types.String, nil
@@ -133,7 +133,7 @@ func (c Converter) GetType(nativeType types.NewNativeType) (types.ValueType, err
 }
 
 // ConvertValue converts a value from its Snowflake representation to a types.Value
-func (c Converter) ConvertValue(nativeType types.NewNativeType, value any) (types.Value, error) {
+func (c Converter) ConvertValue(nativeType types.NativeType, value any) (types.Value, error) {
 	// Get the target Featureform type for this native type
 	targetType, err := c.GetType(nativeType)
 	if err != nil {

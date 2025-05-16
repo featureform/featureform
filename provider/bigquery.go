@@ -24,7 +24,7 @@ import (
 	fftypes "github.com/featureform/fftypes"
 	"github.com/featureform/logging"
 	"github.com/featureform/metadata"
-	bigquery2 "github.com/featureform/provider/bigquery"
+	ffbq "github.com/featureform/provider/bigquery"
 	"github.com/featureform/provider/dataset"
 	pl "github.com/featureform/provider/location"
 	pc "github.com/featureform/provider/provider_config"
@@ -1045,7 +1045,7 @@ func (store *bqOfflineStore) RegisterPrimaryFromSourceTable(id ResourceID, table
 
 	converter, _ := pt.GetConverter(store.Type())
 	schema, _ := store.query.getSchema(store.client, converter, *sqlLocation)
-	return bigquery2.NewDataset(store.client, sqlLocation, schema, converter, -1)
+	return ffbq.NewDataset(store.client, sqlLocation, schema, converter, -1)
 }
 
 func (store *bqOfflineStore) SupportsTransformationOption(opt TransformationOptionType) (bool, error) {
@@ -1113,7 +1113,7 @@ func (store *bqOfflineStore) GetTransformationTable(id ResourceID) (dataset.Data
 	sqlLoc := pl.NewSQLLocationFromParts(store.query.ProjectId, store.query.DatasetId, name)
 	converter, _ := pt.GetConverter(store.Type())
 	schema, _ := store.query.getSchema(store.client, converter, *sqlLoc)
-	return bigquery2.NewDataset(store.client, sqlLoc, schema, converter, -1)
+	return ffbq.NewDataset(store.client, sqlLoc, schema, converter, -1)
 }
 
 func (store *bqOfflineStore) UpdateTransformation(config TransformationConfig, opts ...TransformationOption) error {
@@ -1203,7 +1203,7 @@ func (store *bqOfflineStore) GetPrimaryTable(id ResourceID, source metadata.Sour
 
 	converter, _ := pt.GetConverter(store.Type())
 	schema, _ := store.query.getSchema(store.client, converter, *sqlLocation)
-	return bigquery2.NewDataset(store.client, sqlLocation, schema, converter, -1)
+	return ffbq.NewDataset(store.client, sqlLocation, schema, converter, -1)
 }
 
 func (store *bqOfflineStore) CreateResourceTable(id ResourceID, schema TableSchema) (OfflineTable, error) {

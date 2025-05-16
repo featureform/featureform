@@ -1754,7 +1754,6 @@ func (q *defaultOfflineSQLQueries) getSchema(db *sql.DB, converter fftypes.Value
 	// Add the ordering
 	query += " ORDER BY ordinal_position"
 
-	logging.GlobalLogger.Infow("ALI", "query", query, "location", location.TableLocation(), "schema", schema, "table_name", tblName, "db", db, "converter", converter, "query", query)
 	// Execute query with both parameters
 	rows, err := db.Query(query)
 	if err != nil {

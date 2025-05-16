@@ -19,11 +19,11 @@ import (
 func TestInMemoryDataset(t *testing.T) {
 	// Create test data
 	data := []types.Row{
-		{types.Value{NativeType: "int", Type: types.Int, Value: 1}},
-		{types.Value{NativeType: "int", Type: types.Int, Value: 2}},
-		{types.Value{NativeType: "int", Type: types.Int, Value: 3}},
+		{types.Value{NativeType: types.NativeTypeLiteral("int"), Type: types.Int, Value: 1}},
+		{types.Value{NativeType: types.NativeTypeLiteral("int"), Type: types.Int, Value: 2}},
+		{types.Value{NativeType: types.NativeTypeLiteral("int"), Type: types.Int, Value: 3}},
 	}
-	schema := types.Schema{Fields: []types.ColumnSchema{{Name: "id", NativeType: "int"}}}
+	schema := types.Schema{Fields: []types.ColumnSchema{{Name: "id", NativeType: types.NativeTypeLiteral("int")}}}
 	location, err := pl.NewFileLocationFromURI("file://test")
 	require.NoError(t, err)
 

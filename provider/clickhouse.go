@@ -1017,22 +1017,22 @@ func (store *clickHouseOfflineStore) GetBatchFeatures(ids []ResourceID) (BatchFe
 	return newsqlBatchFeatureIterator(resultRows, columnTypes, columnNames, store.query, store.Type()), nil
 }
 
-func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
 	logger := store.logger.WithResource(logging.FeatureVariant, id.Name, id.Variant)
 	if err := id.check(Feature); err != nil {
 		logger.Errorw("Failed to validate resource ID", "error", err)
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
 	if err := opts.Schema.Validate(); err != nil {
 		logger.Errorw("Failed to validate schema", "error", err)
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
 	matID := MaterializationID(fmt.Sprintf("%s__%s", id.Name, id.Variant))
 	matTableName, err := store.getMaterializationTableName(id)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
 	materializeQueries := store.query.materializationCreate(matTableName, opts.Schema)
@@ -1041,29 +1041,30 @@ func (store *clickHouseOfflineStore) CreateMaterialization(id ResourceID, opts M
 		if err != nil {
 			wrapped := fferr.NewInvalidResourceTypeError(id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 			wrapped.AddDetail("materialization_table_name", matTableName)
-			return nil, wrapped
+			return dataset.Materialization{}, wrapped
 		}
 	}
-	return &clickHouseMaterialization{
+	mat := &clickHouseMaterialization{
 		id:        matID,
 		db:        store.db,
 		tableName: matTableName,
 		query:     store.query,
-	}, nil
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (store *clickHouseOfflineStore) SupportsMaterializationOption(opt MaterializationOptionType) (bool, error) {
 	return false, nil
 }
 
-func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
+func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (dataset.Materialization, error) {
 	name, variant, err := ps.MaterializationIDToResource(string(id))
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	tableName, err := store.getMaterializationTableName(ResourceID{name, variant, Feature})
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
 	getMatQry := store.query.materializationExists()
@@ -1072,52 +1073,54 @@ func (store *clickHouseOfflineStore) GetMaterialization(id MaterializationID) (M
 	if execErr != nil {
 		wrapped := fferr.NewExecutionError(pt.ClickHouseOffline.String(), err)
 		wrapped.AddDetail("table_name", tableName)
-		return nil, wrapped
+		return dataset.Materialization{}, wrapped
 	}
 	if n == 0 {
-		return nil, fferr.NewDatasetNotFoundError(string(id), "", nil)
+		return dataset.Materialization{}, fferr.NewDatasetNotFoundError(string(id), "", nil)
 	}
-	return &clickHouseMaterialization{
+	return NewLegacyMaterializationAdapterWithEmptySchema(&clickHouseMaterialization{
 		id:        id,
 		db:        store.db,
 		tableName: tableName,
 		query:     store.query,
-	}, err
+	}), nil
 }
 
-func (store *clickHouseOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (Materialization, error) {
+func (store *clickHouseOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
 	matID, err := NewMaterializationID(id)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	tableName, err := store.getMaterializationTableName(id)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 	getMatQry := store.query.materializationExists()
 	resTable, err := store.getsqlResourceTable(id)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
 
 	rows, err := store.db.Query(getMatQry, tableName)
 	if err != nil {
-		return nil, fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
+		return dataset.Materialization{}, fferr.NewResourceExecutionError(pt.ClickHouseOffline.String(), id.Name, id.Variant, fferr.ResourceType(id.Type.String()), err)
 	}
 	defer rows.Close()
 	if !rows.Next() {
-		return nil, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("table %s is empty", tableName))
+		return dataset.Materialization{}, fferr.NewDatasetNotFoundError(id.Name, id.Variant, fmt.Errorf("table %s is empty", tableName))
 	}
 	err = store.query.materializationUpdate(store.db, tableName, resTable.name)
 	if err != nil {
-		return nil, err
+		return dataset.Materialization{}, err
 	}
-	return &clickHouseMaterialization{
-		id:        matID,
-		db:        store.db,
-		tableName: tableName,
-		query:     store.query,
-	}, err
+	return NewLegacyMaterializationAdapterWithEmptySchema(
+		&clickHouseMaterialization{
+			id:        matID,
+			db:        store.db,
+			tableName: tableName,
+			query:     store.query,
+		},
+	), nil
 }
 
 func (store *clickHouseOfflineStore) DeleteMaterialization(id MaterializationID) error {
@@ -1258,7 +1261,7 @@ func (store *clickHouseOfflineStore) prepareTrainingSetQuery(id ResourceID) (*Tr
 	}, nil
 }
 
-func (store *clickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
+func (store *clickHouseOfflineStore) GetTrainingSet(id ResourceID) (dataset.TrainingSetIterator, error) {
 	fmt.Printf("Getting Training Set: %v\n", id)
 	prep, err := store.prepareTrainingSetQuery(id)
 	if err != nil {
@@ -1274,7 +1277,8 @@ func (store *clickHouseOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetI
 	if err != nil {
 		return nil, err
 	}
-	return store.newsqlTrainingSetIterator(rows, colTypes), nil
+	tsIter := store.newsqlTrainingSetIterator(rows, colTypes)
+	return NewLegacyTrainingSetIteratorAdapter(tsIter), nil
 }
 
 func (store *clickHouseOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
@@ -1339,7 +1343,7 @@ func (store *clickHouseOfflineStore) getTrainTestSplitTableName(trainingSetTable
 	return trainTestSplitViewName
 }
 
-func (store *clickHouseOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (TrainingSetIterator, TrainingSetIterator, error) {
+func (store *clickHouseOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (dataset.TrainingSetIterator, dataset.TrainingSetIterator, error) {
 	prep, err := store.prepareTrainingSetQuery(ResourceID{Name: def.TrainingSetName, Variant: def.TrainingSetVariant})
 	if err != nil {
 		return nil, nil, err
@@ -1364,9 +1368,9 @@ func (store *clickHouseOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (T
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not get column types: %v", err)
 	}
-
-	return store.newsqlTrainingSetIterator(trainRows, colTypes), store.newsqlTrainingSetIterator(testRows, colTypes), nil
-
+	trainIter := store.newsqlTrainingSetIterator(trainRows, colTypes)
+	testIter := store.newsqlTrainingSetIterator(testRows, colTypes)
+	return NewLegacyTrainingSetIteratorAdapter(trainIter), NewLegacyTrainingSetIteratorAdapter(testIter), nil
 }
 
 func (store *clickHouseOfflineStore) ResourceLocation(id ResourceID, resource any) (pl.Location, error) {

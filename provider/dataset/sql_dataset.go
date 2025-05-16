@@ -72,7 +72,6 @@ func getSchema(db *sql.DB, converter types.ValueConverter[any], tableName *locat
 	tblName := tableName.GetTable()
 	schema := tableName.GetSchema()
 
-	// Corrected Query: Ensure both `table_name` and `table_schema` are matched
 	qry := `SELECT column_name, data_type 
 	        FROM information_schema.columns 
 	        WHERE table_name = ? 
@@ -163,7 +162,7 @@ func (ds *SqlDataset) Iterator(ctx context.Context, limit int64) (Iterator, erro
 	} else if limit > 0 {
 		effectiveLimit = int(limit)
 	}
-	
+
 	if effectiveLimit == -1 {
 		query = fmt.Sprintf("SELECT %s FROM %s", cols, loc)
 	} else {

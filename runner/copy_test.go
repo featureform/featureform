@@ -254,7 +254,7 @@ func testParamsOnTable(params JobTestParams, table provider.OnlineStoreTable) er
 	online := NewMockOnlineStore()
 	featureRows := params.Materialized.Data
 	job := &MaterializedChunkRunner{
-		Materialized: &params.Materialized,
+		Materialized: provider.NewLegacyMaterializationAdapterWithEmptySchema(&params.Materialized),
 		Table:        table,
 		Store:        online,
 		ChunkIdx:     params.ChunkIdx,
@@ -294,7 +294,7 @@ func testParamsOnTable(params JobTestParams, table provider.OnlineStoreTable) er
 func testBreakingParams(params ErrorJobTestParams) error {
 	online := NewMockOnlineStore()
 	job := &MaterializedChunkRunner{
-		Materialized: params.Materialized,
+		Materialized: provider.NewLegacyMaterializationAdapterWithEmptySchema(params.Materialized),
 		Table:        params.Table,
 		Store:        online,
 		ChunkIdx:     params.ChunkIdx,
@@ -421,20 +421,20 @@ func (b BrokenNumChunksOfflineStore) GetResourceTable(id provider.ResourceID) (p
 	return nil, nil
 }
 
-func (b BrokenNumChunksOfflineStore) CreateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (provider.Materialization, error) {
-	return nil, nil
+func (b BrokenNumChunksOfflineStore) CreateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (dataset.Materialization, error) {
+	return dataset.Materialization{}, nil
 }
 
 func (store BrokenNumChunksOfflineStore) SupportsMaterializationOption(opt provider.MaterializationOptionType) (bool, error) {
 	return false, nil
 }
 
-func (b BrokenNumChunksOfflineStore) UpdateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (provider.Materialization, error) {
-	return nil, nil
+func (b BrokenNumChunksOfflineStore) UpdateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (dataset.Materialization, error) {
+	return dataset.Materialization{}, nil
 }
 
-func (b BrokenNumChunksOfflineStore) GetMaterialization(id provider.MaterializationID) (provider.Materialization, error) {
-	return &MaterializedFeaturesNumChunksBroken{""}, nil
+func (b BrokenNumChunksOfflineStore) GetMaterialization(id provider.MaterializationID) (dataset.Materialization, error) {
+	return provider.NewLegacyMaterializationAdapterWithEmptySchema(&MaterializedFeaturesNumChunksBroken{""}), nil
 }
 func (b BrokenNumChunksOfflineStore) DeleteMaterialization(id provider.MaterializationID) error {
 	return nil
@@ -447,7 +447,7 @@ func (b BrokenNumChunksOfflineStore) UpdateTrainingSet(provider.TrainingSetDef) 
 	return nil
 }
 
-func (b BrokenNumChunksOfflineStore) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
+func (b BrokenNumChunksOfflineStore) GetTrainingSet(id provider.ResourceID) (dataset.TrainingSetIterator, error) {
 	return nil, nil
 }
 
@@ -455,7 +455,7 @@ func (b BrokenNumChunksOfflineStore) CreateTrainTestSplit(def provider.TrainTest
 	return nil, fmt.Errorf("not Implemented")
 }
 
-func (b BrokenNumChunksOfflineStore) GetTrainTestSplit(def provider.TrainTestSplitDef) (provider.TrainingSetIterator, provider.TrainingSetIterator, error) {
+func (b BrokenNumChunksOfflineStore) GetTrainTestSplit(def provider.TrainTestSplitDef) (dataset.TrainingSetIterator, dataset.TrainingSetIterator, error) {
 	return nil, nil, fmt.Errorf("not Implemented")
 }
 
@@ -737,8 +737,8 @@ func (m MockOfflineStore) GetTransformationTable(id provider.ResourceID) (datase
 	return nil, nil
 }
 
-func (m MockOfflineStore) UpdateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (provider.Materialization, error) {
-	return nil, nil
+func (m MockOfflineStore) UpdateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (dataset.Materialization, error) {
+	return dataset.Materialization{}, nil
 }
 
 func (m MockOfflineStore) UpdateTrainingSet(provider.TrainingSetDef) error {
@@ -757,7 +757,7 @@ func (m MockOfflineStore) CreateTrainTestSplit(def provider.TrainTestSplitDef) (
 	return nil, fmt.Errorf("not Implemented")
 }
 
-func (m MockOfflineStore) GetTrainTestSplit(def provider.TrainTestSplitDef) (provider.TrainingSetIterator, provider.TrainingSetIterator, error) {
+func (m MockOfflineStore) GetTrainTestSplit(def provider.TrainTestSplitDef) (dataset.TrainingSetIterator, dataset.TrainingSetIterator, error) {
 	return nil, nil, fmt.Errorf("not Implemented")
 
 }
@@ -818,16 +818,15 @@ func (m MockOfflineStore) GetResourceTable(id provider.ResourceID) (provider.Off
 	return MockOfflineTable{}, nil
 }
 
-func (m MockOfflineStore) CreateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (provider.Materialization, error) {
-	return MockMaterialization{}, nil
+func (m MockOfflineStore) CreateMaterialization(id provider.ResourceID, opts provider.MaterializationOptions) (dataset.Materialization, error) {
+	return provider.NewLegacyMaterializationAdapterWithEmptySchema(MockMaterialization{}), nil
 }
 
 func (store MockOfflineStore) SupportsMaterializationOption(opt provider.MaterializationOptionType) (bool, error) {
 	return false, nil
 }
-
-func (m MockOfflineStore) GetMaterialization(id provider.MaterializationID) (provider.Materialization, error) {
-	return MockMaterialization{}, nil
+func (m MockOfflineStore) GetMaterialization(id provider.MaterializationID) (dataset.Materialization, error) {
+	return provider.NewLegacyMaterializationAdapterWithEmptySchema(MockMaterialization{}), nil
 }
 
 func (m MockOfflineStore) DeleteMaterialization(id provider.MaterializationID) error {
@@ -838,7 +837,7 @@ func (m MockOfflineStore) CreateTrainingSet(provider.TrainingSetDef) error {
 	return nil
 }
 
-func (m MockOfflineStore) GetTrainingSet(id provider.ResourceID) (provider.TrainingSetIterator, error) {
+func (m MockOfflineStore) GetTrainingSet(id provider.ResourceID) (dataset.TrainingSetIterator, error) {
 	return nil, nil
 }
 
@@ -942,7 +941,7 @@ func TestChunkRunnerFactory(t *testing.T) {
 		OfflineType:    "MOCK_OFFLINE",
 		OnlineConfig:   []byte{},
 		OfflineConfig:  []byte{},
-		MaterializedID: materialization.ID(),
+		MaterializedID: provider.MaterializationID(materialization.ID()),
 		ResourceID:     resourceID,
 		// Have to skip cache to avoid tests messing with eachother.
 		SkipCache: true,

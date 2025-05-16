@@ -1385,7 +1385,7 @@ func blobSparkMaterialization(
 }
 
 func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID, opts MaterializationOptions) (
-	Materialization,
+	dataset.Materialization,
 	error,
 ) {
 	logger := spark.Logger.With("resource_id", id)
@@ -1393,10 +1393,14 @@ func (spark *SparkOfflineStore) CreateMaterialization(id ResourceID, opts Materi
 	if opts.DirectCopyTo != nil {
 		logger.Debug("Using direct copy materialization")
 		// This returns nil for Materialization.
-		return nil, spark.directCopyMaterialize(id, opts)
+		return dataset.Materialization{}, spark.directCopyMaterialize(id, opts)
 	}
 	logger.Debug("Using blob spark materialization")
-	return blobSparkMaterialization(id, spark, false, opts)
+	mat, err := blobSparkMaterialization(id, spark, false, opts)
+	if err != nil {
+		return dataset.Materialization{}, err
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (spark *SparkOfflineStore) directCopyMaterialize(id ResourceID, opts MaterializationOptions) error {
@@ -1486,15 +1490,21 @@ func (spark *SparkOfflineStore) SupportsMaterializationOption(opt Materializatio
 	}
 }
 
-func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (Materialization, error) {
-	return fileStoreGetMaterialization(id, spark.Store, spark.Logger.SugaredLogger)
+func (spark *SparkOfflineStore) GetMaterialization(id MaterializationID) (dataset.Materialization, error) {
+	mat, err := fileStoreGetMaterialization(id, spark.Store, spark.Logger.SugaredLogger)
+	if err != nil {
+		return dataset.Materialization{}, err
+	}
+
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
-func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (
-	Materialization,
-	error,
-) {
-	return blobSparkMaterialization(id, spark, true, opts)
+func (spark *SparkOfflineStore) UpdateMaterialization(id ResourceID, opts MaterializationOptions) (dataset.Materialization, error) {
+	mat, err := blobSparkMaterialization(id, spark, true, opts)
+	if err != nil {
+		return dataset.Materialization{}, err
+	}
+	return NewLegacyMaterializationAdapterWithEmptySchema(mat), nil
 }
 
 func (spark *SparkOfflineStore) DeleteMaterialization(id MaterializationID) error {
@@ -1722,19 +1732,20 @@ func (spark *SparkOfflineStore) UpdateTrainingSet(def TrainingSetDef) error {
 	return sparkTrainingSet(def, spark, true)
 }
 
-func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (TrainingSetIterator, error) {
-	return fileStoreGetTrainingSet(id, spark.Store, spark.Logger.SugaredLogger)
+func (spark *SparkOfflineStore) GetTrainingSet(id ResourceID) (dataset.TrainingSetIterator, error) {
+	legacyIter, err := fileStoreGetTrainingSet(id, spark.Store, spark.Logger.SugaredLogger)
+	if err != nil {
+		spark.Logger.Errorw("Error getting training set", "id", id, "error", err)
+		return nil, err
+	}
+	return NewLegacyTrainingSetIteratorAdapter(legacyIter), nil
 }
 
 func (spark *SparkOfflineStore) CreateTrainTestSplit(def TrainTestSplitDef) (func() error, error) {
 	return nil, fmt.Errorf("not Implemented")
 }
 
-func (spark *SparkOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (
-	TrainingSetIterator,
-	TrainingSetIterator,
-	error,
-) {
+func (spark *SparkOfflineStore) GetTrainTestSplit(def TrainTestSplitDef) (dataset.TrainingSetIterator, dataset.TrainingSetIterator, error) {
 	return nil, nil, fmt.Errorf("not Implemented")
 }
 

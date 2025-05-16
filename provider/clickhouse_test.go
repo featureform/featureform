@@ -134,12 +134,11 @@ func (ch *clickHouseOfflineStoreTester) CreateWritableDataset(loc pl.Location, s
 	}
 
 	ds, err := ch.CreateTableFromSchema(loc, schema)
-	dsSql := ds.(*dataset.SqlDataset)
-	dsSql.SetSanitizer(sanitizeClickHouseTableName)
-
 	if err != nil {
 		return nil, err
 	}
+	dsSql := ds.(*dataset.SqlDataset)
+	dsSql.SetSanitizer(sanitizeClickHouseTableName)
 
 	return WritableClickHouseDataset{
 		Dataset: ds,
@@ -170,7 +169,7 @@ func (ch *clickHouseOfflineStoreTester) CreateTableFromSchema(loc pl.Location, s
 		if i > 0 {
 			queryBuilder.WriteString(", ")
 		}
-		queryBuilder.WriteString(fmt.Sprintf("%s %s", column.Name, column.NativeType))
+		queryBuilder.WriteString(fmt.Sprintf("%s %s", column.Name, column.NativeType.TypeName()))
 	}
 	queryBuilder.WriteString(") ENGINE=MergeTree ORDER BY ()")
 

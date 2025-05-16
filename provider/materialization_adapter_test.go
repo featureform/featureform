@@ -262,6 +262,7 @@ func TestLegacyMaterializationAdapter(t *testing.T) {
 
 	// Test with empty dataset
 	t.Run("EmptyDataset", func(t *testing.T) {
+		ctx := logging.NewTestContext(t)
 		emptyMat := newMemoryMaterialization(
 			testID,
 			[]ResourceRecord{},

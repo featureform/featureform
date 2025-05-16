@@ -138,11 +138,5 @@ func (it *TrainingSetIteratorImpl) Features() types.FeatureRow {
 }
 
 func (it *TrainingSetIteratorImpl) Label() types.Value {
-	row := it.Values()
-
-	if it.labelIndex >= 0 && it.labelIndex < len(row) {
-		return row[it.labelIndex]
-	}
-
 	return it.currentLabel
 }

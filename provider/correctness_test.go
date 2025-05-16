@@ -894,7 +894,11 @@ func (d testSQLMaterializationData) AssertMatDs(t *testing.T, matDataset dataset
 	if err != nil {
 		t.Fatalf("could not get iterator: %v", err)
 	}
-	defer iter.Close()
+	defer func() {
+		if err := iter.Close(); err != nil {
+			t.Fatalf("could not close iterator: %v", err)
+		}
+	}()
 
 	// Process rows
 	for iter.Next() {

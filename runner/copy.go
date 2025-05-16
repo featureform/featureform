@@ -13,10 +13,10 @@ import (
 	"fmt"
 	"sync"
 
+	"go.uber.org/zap"
+
 	"github.com/featureform/config"
 	"github.com/featureform/logging"
-
-	"go.uber.org/zap"
 
 	"github.com/featureform/fferr"
 	"github.com/featureform/metadata"

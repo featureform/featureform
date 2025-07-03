@@ -22,13 +22,10 @@ import (
 
 func TestSourceVariant_IsTransformation(t *testing.T) {
 	type fields struct {
-		serialized           *pb.SourceVariant
-		fetchTrainingSetsFns fetchTrainingSetsFns
-		fetchFeaturesFns     fetchFeaturesFns
-		fetchLabelsFns       fetchLabelsFns
-		fetchProviderFns     fetchProviderFns
-		createdFn            createdFn
-		protoStringer        protoStringer
+		serialized       *pb.SourceVariant
+		fetchProviderFns fetchProviderFns
+		createdFn        createdFn
+		protoStringer    protoStringer
 	}
 	tests := []struct {
 		name   string
@@ -36,24 +33,18 @@ func TestSourceVariant_IsTransformation(t *testing.T) {
 		want   bool
 	}{
 		{name: "test", fields: fields{
-			serialized:           &pb.SourceVariant{Definition: &pb.SourceVariant_Transformation{}},
-			fetchFeaturesFns:     fetchFeaturesFns{},
-			fetchLabelsFns:       fetchLabelsFns{},
-			fetchProviderFns:     fetchProviderFns{},
-			fetchTrainingSetsFns: fetchTrainingSetsFns{},
-			createdFn:            createdFn{},
-			protoStringer:        protoStringer{}}, want: true},
+			serialized:       &pb.SourceVariant{Definition: &pb.SourceVariant_Transformation{}},
+			fetchProviderFns: fetchProviderFns{},
+			createdFn:        createdFn{},
+			protoStringer:    protoStringer{}}, want: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			variant := &SourceVariant{
-				serialized:           tt.fields.serialized,
-				fetchTrainingSetsFns: tt.fields.fetchTrainingSetsFns,
-				fetchFeaturesFns:     tt.fields.fetchFeaturesFns,
-				fetchLabelsFns:       tt.fields.fetchLabelsFns,
-				fetchProviderFns:     tt.fields.fetchProviderFns,
-				createdFn:            tt.fields.createdFn,
-				protoStringer:        tt.fields.protoStringer,
+				serialized:       tt.fields.serialized,
+				fetchProviderFns: tt.fields.fetchProviderFns,
+				createdFn:        tt.fields.createdFn,
+				protoStringer:    tt.fields.protoStringer,
 			}
 			if got := variant.IsTransformation(); got != tt.want {
 				t.Errorf("IsTransformation() = %v, want %v", got, tt.want)
@@ -64,14 +55,11 @@ func TestSourceVariant_IsTransformation(t *testing.T) {
 
 func TestSourceVariant_TransformationArgs(t *testing.T) {
 	type fields struct {
-		serialized           *pb.SourceVariant
-		fetchTrainingSetsFns fetchTrainingSetsFns
-		fetchFeaturesFns     fetchFeaturesFns
-		fetchLabelsFns       fetchLabelsFns
-		fetchProviderFns     fetchProviderFns
-		createdFn            createdFn
-		lastUpdatedFn        lastUpdatedFn
-		protoStringer        protoStringer
+		serialized       *pb.SourceVariant
+		fetchProviderFns fetchProviderFns
+		createdFn        createdFn
+		lastUpdatedFn    lastUpdatedFn
+		protoStringer    protoStringer
 	}
 	tests := []struct {
 		name   string
@@ -126,14 +114,11 @@ func TestSourceVariant_TransformationArgs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			variant := &SourceVariant{
-				serialized:           tt.fields.serialized,
-				fetchTrainingSetsFns: tt.fields.fetchTrainingSetsFns,
-				fetchFeaturesFns:     tt.fields.fetchFeaturesFns,
-				fetchLabelsFns:       tt.fields.fetchLabelsFns,
-				fetchProviderFns:     tt.fields.fetchProviderFns,
-				createdFn:            tt.fields.createdFn,
-				lastUpdatedFn:        tt.fields.lastUpdatedFn,
-				protoStringer:        tt.fields.protoStringer,
+				serialized:       tt.fields.serialized,
+				fetchProviderFns: tt.fields.fetchProviderFns,
+				createdFn:        tt.fields.createdFn,
+				lastUpdatedFn:    tt.fields.lastUpdatedFn,
+				protoStringer:    tt.fields.protoStringer,
 			}
 			if got := variant.TransformationArgs(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("TransformationArgs() = %v, want %v", got, tt.want)
@@ -415,15 +400,14 @@ func TestFeatureVariant_ToShallowMap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			variant := &FeatureVariant{
-				serialized:           tt.serialized,
-				fetchTrainingSetsFns: fetchTrainingSetsFns{tt.serialized},
-				fetchProviderFns:     fetchProviderFns{tt.serialized},
-				fetchSourceFns:       fetchSourceFns{tt.serialized},
-				createdFn:            createdFn{tt.serialized},
-				lastUpdatedFn:        lastUpdatedFn{tt.serialized},
-				protoStringer:        protoStringer{tt.serialized},
-				fetchTagsFn:          fetchTagsFn{tt.serialized},
-				fetchPropertiesFn:    fetchPropertiesFn{tt.serialized},
+				serialized:        tt.serialized,
+				fetchProviderFns:  fetchProviderFns{tt.serialized},
+				fetchSourceFns:    fetchSourceFns{tt.serialized},
+				createdFn:         createdFn{tt.serialized},
+				lastUpdatedFn:     lastUpdatedFn{tt.serialized},
+				protoStringer:     protoStringer{tt.serialized},
+				fetchTagsFn:       fetchTagsFn{tt.serialized},
+				fetchPropertiesFn: fetchPropertiesFn{tt.serialized},
 			}
 			if got := variant.ToShallowMap(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ToShallowMap() = \n%#v, \nwant \n%#v", got, tt.want)
@@ -498,15 +482,14 @@ func TestLabelVariant_ToShallowMap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			variant := &LabelVariant{
-				serialized:           tt.serialized,
-				fetchTrainingSetsFns: fetchTrainingSetsFns{tt.serialized},
-				fetchProviderFns:     fetchProviderFns{tt.serialized},
-				fetchSourceFns:       fetchSourceFns{tt.serialized},
-				createdFn:            createdFn{tt.serialized},
-				protoStringer:        protoStringer{tt.serialized},
-				fetchTagsFn:          fetchTagsFn{tt.serialized},
-				fetchPropertiesFn:    fetchPropertiesFn{tt.serialized},
-				fetchEntityFn:        fetchEntityFn{tt.serialized},
+				serialized:        tt.serialized,
+				fetchProviderFns:  fetchProviderFns{tt.serialized},
+				fetchSourceFns:    fetchSourceFns{tt.serialized},
+				createdFn:         createdFn{tt.serialized},
+				protoStringer:     protoStringer{tt.serialized},
+				fetchTagsFn:       fetchTagsFn{tt.serialized},
+				fetchPropertiesFn: fetchPropertiesFn{tt.serialized},
+				fetchEntityFn:     fetchEntityFn{tt.serialized},
 			}
 			if got := variant.ToShallowMap(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ToShallowMap() = %v, want %v", got, tt.want)
@@ -573,14 +556,13 @@ func TestSourceVariant_ToShallowMap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			variant := &SourceVariant{
-				serialized:           tt.serialized,
-				fetchTrainingSetsFns: fetchTrainingSetsFns{tt.serialized},
-				fetchProviderFns:     fetchProviderFns{tt.serialized},
-				createdFn:            createdFn{tt.serialized},
-				lastUpdatedFn:        lastUpdatedFn{tt.serialized},
-				protoStringer:        protoStringer{tt.serialized},
-				fetchTagsFn:          fetchTagsFn{tt.serialized},
-				fetchPropertiesFn:    fetchPropertiesFn{tt.serialized},
+				serialized:        tt.serialized,
+				fetchProviderFns:  fetchProviderFns{tt.serialized},
+				createdFn:         createdFn{tt.serialized},
+				lastUpdatedFn:     lastUpdatedFn{tt.serialized},
+				protoStringer:     protoStringer{tt.serialized},
+				fetchTagsFn:       fetchTagsFn{tt.serialized},
+				fetchPropertiesFn: fetchPropertiesFn{tt.serialized},
 			}
 			if got := variant.ToShallowMap(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ToShallowMap() = \n%#v, \nwant \n%#v", got, tt.want)

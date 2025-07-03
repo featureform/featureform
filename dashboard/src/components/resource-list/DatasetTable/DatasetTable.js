@@ -60,7 +60,7 @@ export const dataset_columns = [
   {
     field: 'sourceType',
     headerName: 'Dataset Type',
-    width: 125,
+    width: 200,
     editable: false,
     sortable: false,
     filterable: false,
@@ -73,23 +73,31 @@ export const dataset_columns = [
     },
   },
   {
-    field: 'mode',
-    headerName: 'Mode',
+    field: 'owner',
+    headerName: 'Owner',
+    width: 300,
     editable: false,
     sortable: false,
     filterable: false,
-    renderCell: function () {
+    renderCell: function ({ row }) {
       return (
-        <Typography variant='body1' sx={{ marginLeft: 1 }}>
-          ---
-        </Typography>
+        <div style={{ display: 'flex' }}>
+            <UserBubbleSvg
+              height='20'
+              width='20'
+              letter={row?.owner?.[0]?.toUpperCase()}
+            />
+            <Typography variant='body1' sx={{ marginLeft: 1 }}>
+              {row?.owner}
+            </Typography>
+        </div>
       );
     },
   },
   {
     field: 'status',
     headerName: 'Status',
-    width: 250,
+    width: 200,
     editable: false,
     sortable: false,
     filterable: false,
@@ -99,24 +107,12 @@ export const dataset_columns = [
         result = STATUS_COLORS.READY;
       }
       return (
-        <div>
           <div style={{ display: 'flex' }}>
             <ConnectionSvg fill={result} height='20' width='20' />
             <Typography variant='body1' sx={{ marginLeft: 1 }}>
               {row?.status}
             </Typography>
           </div>
-          <div style={{ display: 'flex' }}>
-            <UserBubbleSvg
-              height='20'
-              width='20'
-              letter={row?.owner?.[0]?.toUpperCase()}
-            />
-            <Typography variant='body1' sx={{ marginLeft: 1 }}>
-              {row?.owner}
-            </Typography>
-          </div>
-        </div>
       );
     },
   },

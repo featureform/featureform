@@ -44,7 +44,7 @@ export const entity_columns = [
     sortable: false,
     filterable: false,
     renderCell: function (params) {
-      const featureCount = params.row?.feature?.length ?? 0;
+      const featureCount = params.row?.features ? Object.keys(params.row.features).length : 0;
       return (
         <Typography variant='body1' sx={{ marginLeft: 1 }}>
           {featureCount}
@@ -60,7 +60,7 @@ export const entity_columns = [
     sortable: false,
     filterable: false,
     renderCell: function (params) {
-      const labelCount = params.row?.labels ? params.row.labels.length : 0;
+      const labelCount = params.row?.labels ? Object.keys(params.row.labels).length : 0;
       return (
         <Typography variant='body1' sx={{ marginLeft: 1 }}>
           {labelCount}

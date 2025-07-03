@@ -56,6 +56,7 @@ const (
 	Model              ResourceType = "model"
 	Label              ResourceType = "label"
 	LabelVariant       ResourceType = "label-variant"
+	Unknown            ResourceType = "unknown"
 )
 
 func ResourceTypeFromProto(resourceType proto.ResourceType) ResourceType {

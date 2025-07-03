@@ -782,12 +782,12 @@ func TestGetProviders(t *testing.T) {
 		SkipListLocking: true,
 		Logger:          logger,
 	}
-	client := &metadata.Client{}
-	serv := MetadataServer{
-		client:          client,
-		logger:          logger,
-		StorageProvider: storage,
+	client := &metadata.Client{
+		GrpcConn: metadata.MetadataServerMock{},
 	}
+	serv := GetMetadataServer(t)
+	serv.client = client
+	serv.StorageProvider = storage
 
 	serv.GetProviderResources(ctx)
 

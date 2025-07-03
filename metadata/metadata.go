@@ -2816,6 +2816,115 @@ func (serv *MetadataServer) GetFeatureVariants(stream pb.Metadata_GetFeatureVari
 	})
 }
 
+func (serv *MetadataServer) GetDownstreamDependencies(stream pb.Metadata_GetDownstreamDependenciesServer) error {
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened Get Downstream Dependencies stream")
+
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			logger.Errorw("End of GetDownstreamDependencies stream")
+			return nil
+		}
+		if err != nil {
+			logger.Errorw("Error receiving downstream dependencies request", "error", err)
+			return err
+		}
+
+		deps, err := serv.resourcesRepository.GetDependenciesByType(ctx, common.ResourceID{
+			Name:    req.ResourceId.Resource.Name,
+			Variant: req.ResourceId.Resource.Variant,
+			Type:    common.ResourceType(req.ResourceId.ResourceType),
+		}, common.ResourceType(req.DependencyType))
+
+		if err != nil {
+			logger.Errorw("failed to get dependencies", "error", err)
+			return err
+		}
+		var allErrors []string
+		// For each dependency, fetch the full resource
+		for key, val := range deps {
+			resource, err := parseLookupResource(ctx, val)
+			if err != nil {
+				logger.Errorw("Unable to parse resource", "key", key, "error", err)
+				allErrors = append(allErrors, err.Error())
+				continue
+			}
+			dependent_resource := &pb.GetDownstreamDependenciesResponse{}
+			switch ResourceType(resource.ID().Type) {
+			case FEATURE_VARIANT:
+				dependent_resource.DependentResource = &pb.GetDownstreamDependenciesResponse_FeatureVariant{FeatureVariant: resource.Proto().(*pb.FeatureVariant)}
+			case LABEL_VARIANT:
+				dependent_resource.DependentResource = &pb.GetDownstreamDependenciesResponse_LabelVariant{LabelVariant: resource.Proto().(*pb.LabelVariant)}
+			case SOURCE_VARIANT:
+				dependent_resource.DependentResource = &pb.GetDownstreamDependenciesResponse_SourceVariant{SourceVariant: resource.Proto().(*pb.SourceVariant)}
+			case TRAINING_SET_VARIANT:
+				dependent_resource.DependentResource = &pb.GetDownstreamDependenciesResponse_TrainingSetVariant{TrainingSetVariant: resource.Proto().(*pb.TrainingSetVariant)}
+			case MODEL:
+				dependent_resource.DependentResource = &pb.GetDownstreamDependenciesResponse_Model{Model: resource.Proto().(*pb.Model)}
+			case USER:
+				dependent_resource.DependentResource = &pb.GetDownstreamDependenciesResponse_User{User: resource.Proto().(*pb.User)}
+			case PROVIDER:
+				dependent_resource.DependentResource = &pb.GetDownstreamDependenciesResponse_Provider{Provider: resource.Proto().(*pb.Provider)}
+			case ENTITY:
+				dependent_resource.DependentResource = &pb.GetDownstreamDependenciesResponse_Entity{Entity: resource.Proto().(*pb.Entity)}
+			}
+			logger.Debugw("Sending downstream dependencies response", "name", resource.ID().Name, "variant", resource.ID().Variant, "type", resource.ID().Type)
+			if err := stream.Send(dependent_resource); err != nil {
+				logger.Errorw("Error sending downstream dependencies response", "error", err)
+				return err
+			}
+		}
+	}
+}
+
+func (serv *MetadataServer) GetAllDownstreamDependencies(stream pb.Metadata_GetAllDownstreamDependenciesServer) error {
+	_, ctx, logger := serv.Logger.InitializeRequestID(stream.Context())
+	logger.Info("Opened Get Downstream Dependencies stream")
+
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			logger.Errorw("End of GetAllDownstreamDependencies stream")
+			return nil
+		}
+		if err != nil {
+			logger.Errorw("Error receiving downstream dependencies request", "error", err)
+			return err
+		}
+
+		deps, err := serv.resourcesRepository.GetDependencies(ctx, common.ResourceID{
+			Name:    req.ResourceId.Resource.Name,
+			Variant: req.ResourceId.Resource.Variant,
+			Type:    common.ResourceType(req.ResourceId.ResourceType),
+		})
+
+		if err != nil {
+			logger.Errorw("failed to get dependencies", "error", err)
+			return err
+		}
+		var allErrors []string
+		// For each dependency, fetch the full resource
+		for _, dep := range deps {
+			dependent_resource := &pb.ResourceID{
+				Resource: &pb.NameVariant{
+					Name:    dep.Name,
+					Variant: dep.Variant,
+				},
+				ResourceType: pb.ResourceType(dep.Type),
+			}
+			logger.Debugw("Sending downstream dependencies response", "name", dep.Name, "variant", dep.Variant, "type", dep.Type)
+			if err := stream.Send(dependent_resource); err != nil {
+				logger.Errorw("Error sending downstream dependencies response", "error", err)
+				allErrors = append(allErrors, err.Error())
+			}
+		}
+		if len(allErrors) > 0 {
+			return fferr.NewInternalErrorf("errors: %v", allErrors)
+		}
+	}
+}
+
 func (serv *MetadataServer) ListLabels(request *pb.ListRequest, stream pb.Metadata_ListLabelsServer) error {
 	ctx := logging.AttachRequestID(logging.RequestID(request.RequestId), stream.Context(), serv.Logger)
 	logging.GetLoggerFromContext(ctx).Info("Opened List Labels stream")
@@ -4050,6 +4159,7 @@ type ProviderResource struct {
 	Error            string                                  `json:"error"`
 	Tags             Tags                                    `json:"tags"`
 	Properties       Properties                              `json:"properties"`
+	DependencyCount  int                                     `json:"dependency-count"`
 }
 
 type ModelResource struct {
@@ -4109,4 +4219,16 @@ func SourceShallowMap(variant *SourceVariant) SourceVariantResource {
 		Error:          variant.Error(),
 		Specifications: getSourceArgs(variant),
 	}
+}
+
+type UserResource struct {
+	Name         string                                  `json:"name"`
+	Type         string                                  `json:"type"`
+	Features     map[string][]FeatureVariantResource     `json:"features"`
+	Labels       map[string][]LabelVariantResource       `json:"labels"`
+	TrainingSets map[string][]TrainingSetVariantResource `json:"training-sets"`
+	Sources      map[string][]SourceVariantResource      `json:"sources"`
+	Status       string                                  `json:"status"`
+	Tags         Tags                                    `json:"tags"`
+	Properties   Properties                              `json:"properties"`
 }

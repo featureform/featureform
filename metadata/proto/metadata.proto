@@ -39,6 +39,8 @@ service Metadata {
   rpc GetProviders(stream NameRequest) returns (stream Provider);
   rpc GetEntities(stream NameRequest) returns (stream Entity);
   rpc GetModels(stream NameRequest) returns (stream Model);
+  rpc GetDownstreamDependencies(stream GetDownstreamDependenciesRequest) returns (stream GetDownstreamDependenciesResponse);
+  rpc GetAllDownstreamDependencies(stream GetAllDownstreamDependenciesRequest) returns (stream ResourceID);
 
 
   // Deletion API
@@ -92,14 +94,22 @@ service Api {
   rpc GetProviders(stream NameRequest) returns (stream Provider);
   rpc GetEntities(stream NameRequest) returns (stream Entity);
   rpc GetModels(stream NameRequest) returns (stream Model);
+  rpc GetDownstreamDependencies(stream GetDownstreamDependenciesRequest) returns (stream GetDownstreamDependenciesResponse);
+  rpc GetAllDownstreamDependencies(stream GetAllDownstreamDependenciesRequest) returns (stream ResourceID);
+
+  // Deletion API
+  // Initiates the deletion process by flagging the resource for removal.
+  rpc MarkForDeletion(MarkForDeletionRequest) returns (MarkForDeletionResponse);
+  // Completes the deletion process by updating the resource status to 'deleted' in metadata during the deletion task.
+  rpc FinalizeDeletion(FinalizeDeletionRequest) returns (FinalizeDeletionResponse);
+  // Retrieves the resource that is staged for deletion.
+  rpc GetStagedForDeletionResource(GetStagedForDeletionResourceRequest) returns (GetStagedForDeletionResourceResponse);
+  rpc PruneResource(PruneResourceRequest) returns (PruneResourceResponse);
+
   /**
     * GetEquivalent returns a resourceVariant that matches on key attributes,
     * i.e. for a sourceVariant it will only match on key attributes (name, definition, owner, provider)
    */
-
-  rpc MarkForDeletion(MarkForDeletionRequest) returns (MarkForDeletionResponse);
-  rpc PruneResource(PruneResourceRequest) returns (PruneResourceResponse);
-
   rpc GetEquivalent(GetEquivalentRequest) returns (ResourceVariant);
   rpc Run(RunRequest) returns (Empty);
 
@@ -758,4 +768,28 @@ enum TrainingSetType {
   TRAINING_SET_TYPE_DYNAMIC = 1;
   TRAINING_SET_TYPE_STATIC = 2;
   TRAINING_SET_TYPE_VIEW = 3;
+}
+
+message GetDownstreamDependenciesRequest {
+  ResourceID resource_id = 1;
+  ResourceType dependency_type = 2;
+  string request_id = 3;
+}
+
+message GetDownstreamDependenciesResponse {
+    oneof dependent_resource {
+        FeatureVariant feature_variant = 1;
+        LabelVariant label_variant = 2;
+        SourceVariant source_variant = 3;
+        TrainingSetVariant training_set_variant = 4;
+        Model model = 5;
+        User user = 6;
+        Provider provider = 7;
+        Entity entity = 8;
+    }
+}
+
+message GetAllDownstreamDependenciesRequest {
+  ResourceID resource_id = 1;
+  string request_id = 2;
 }

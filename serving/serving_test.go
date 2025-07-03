@@ -1075,11 +1075,13 @@ func TestSimpleModelRegistrationFeatureServe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get model: %s", err)
 	}
-	if len(modelResp.Features()) != 1 {
+	features, _ := modelResp.FetchFeatures(ctx, serv.Metadata)
+
+	if len(features) != 1 {
 		t.Fatalf("Failed to associate model with feature")
 	}
-	modelFeature := modelResp.Features()[0]
-	if !(modelFeature.Name == feature.Name && modelFeature.Variant == feature.Version) {
+	modelFeature := features[0]
+	if !(modelFeature.Name() == feature.Name && modelFeature.Variant() == feature.Version) {
 		t.Fatalf("Wrong feature associated with registered model: %v\nExpected %v", modelFeature, feature)
 	}
 }
@@ -1440,11 +1442,12 @@ func TestSimpleModelRegistrationTrainingSetServe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get model: %s", err)
 	}
-	if len(modelResp.TrainingSets()) != 1 {
+	trainingSets, _ := modelResp.FetchTrainingSets(ctx, serv.Metadata)
+	if len(trainingSets) != 1 {
 		t.Fatalf("Failed to associate model with feature")
 	}
-	modelTrainingSet := modelResp.TrainingSets()[0]
-	if !(modelTrainingSet.Name == trainingData.Name && modelTrainingSet.Variant == trainingData.Version) {
+	modelTrainingSet := trainingSets[0]
+	if !(modelTrainingSet.Name() == trainingData.Name && modelTrainingSet.Variant() == trainingData.Version) {
 		t.Fatalf("Wrong training set associated with registered model: %v\nExpected %v", modelTrainingSet, trainingData)
 	}
 }

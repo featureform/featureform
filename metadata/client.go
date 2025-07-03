@@ -293,6 +293,24 @@ func (c ResourceVariantColumns) SerializeLabelColumns() *pb.LabelVariant_Columns
 	}
 }
 
+func (m EntityMappings) SerializeEntityMappings() *pb.LabelVariant_EntityMappings {
+	mappings := make([]*pb.EntityMapping, len(m.Mappings))
+	for i, mapping := range m.Mappings {
+		mappings[i] = &pb.EntityMapping{
+			Name:         mapping.Name,
+			EntityColumn: mapping.EntityColumn,
+		}
+	}
+
+	return &pb.LabelVariant_EntityMappings{
+		EntityMappings: &pb.EntityMappings{
+			Mappings:        mappings,
+			ValueColumn:     m.ValueColumn,
+			TimestampColumn: m.TimestampColumn,
+		},
+	}
+}
+
 type PythonFunction struct {
 	Query []byte
 }
@@ -511,6 +529,8 @@ func (def LabelDef) Serialize(requestID logging.RequestID) (*pb.LabelVariantRequ
 		serialized.LabelVariant.Location = &pb.LabelVariant_Stream{Stream: serializedStream}
 	case nil:
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("LabelDef Source not set"))
+	case EntityMappings:
+		serialized.LabelVariant.Location = def.Location.(EntityMappings).SerializeEntityMappings()
 	default:
 		return nil, fferr.NewInvalidArgumentError(fmt.Errorf("LabelDef Source has unexpected type %T", x))
 	}
@@ -1528,6 +1548,229 @@ func (client *Client) parseModelStream(stream modelStream) ([]*Model, error) {
 	return models, nil
 }
 
+// GetAllDownstreamDependencies retrieves all downstream dependencies for a given resource.
+func (client *Client) GetAllDownstreamDependencies(ctx context.Context, id ResourceID) ([]ResourceID, error) {
+	logger := logging.GetLoggerFromContext(ctx).With("resource", id)
+	logger.Infow("Getting all downstream dependencies")
+
+	stream, err := client.GrpcConn.GetAllDownstreamDependencies(ctx)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies",
+			"error", err,
+		)
+		return nil, err
+	}
+	logger.Debugw("Sending downstream dependencies request")
+	go func() {
+		if stream == nil {
+			logger.Infow("Stream is nil")
+			return
+		}
+		nameVariant := pb.NameVariant{Name: id.Name, Variant: id.Variant}
+		resourceID := &pb.ResourceID{
+			Resource:     &nameVariant,
+			ResourceType: id.Type.Serialized(),
+		}
+
+		req := &pb.GetAllDownstreamDependenciesRequest{
+			ResourceId: resourceID,
+			RequestId:  logging.GetRequestIDFromContext(ctx).String(),
+		}
+
+		err := stream.Send(req)
+		if err != nil {
+			logger.Errorw("Failed to send downstream dependencies request",
+				"error", err,
+			)
+		}
+
+		err = stream.CloseSend()
+		if err != nil {
+			logger.Errorw("Failed to close send", "error", err)
+		}
+	}()
+	logger.Infow("Sent request for downstream dependencies")
+	// Process the response stream
+	dependencies := make([]ResourceID, 0)
+	for {
+		if stream == nil {
+			logger.Infow("Stream is nil")
+			return nil, nil
+		}
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			logger.Infow("End of file. Received all downstream dependencies")
+			break
+		}
+		if err != nil {
+			logger.Errorw("Error receiving downstream dependencies response", "error", err)
+			return nil, err
+		}
+
+		// Convert the protobuf ResourceID to our internal ResourceID type
+		dependency := ResourceID{
+			Name:    resp.Resource.Name,
+			Variant: resp.Resource.Variant,
+			Type:    ResourceType(resp.ResourceType),
+		}
+		dependencies = append(dependencies, dependency)
+		logger.Infow("Received downstream dependency", "dependency", dependency)
+	}
+
+	return dependencies, nil
+}
+
+// GetDownstreamDependencies retrieves all downstream dependencies of a resource type for a given resource.
+// For example, this can be used to find all training sets that depend on a feature,
+// or all features that depend on a source.
+func (client *Client) GetDownstreamDependencies(ctx context.Context, id ResourceID, dependencyType ResourceType) (interface{}, error) {
+	logger := logging.GetLoggerFromContext(ctx).With("resource", id, "dependency_type", dependencyType)
+	logger.Debugw("Getting downstream dependencies")
+	stream, err := client.GrpcConn.GetDownstreamDependencies(ctx)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies",
+			"error", err,
+		)
+		return nil, err
+	}
+	logger.Infow("Sending downstream dependencies request", "resource", id, "dependency_type", dependencyType)
+	go func() {
+		nameVariant := pb.NameVariant{Name: id.Name, Variant: id.Variant}
+		resourceID := &pb.ResourceID{
+			Resource:     &nameVariant,
+			ResourceType: id.Type.Serialized(),
+		}
+
+		req := &pb.GetDownstreamDependenciesRequest{
+			ResourceId:     resourceID,
+			DependencyType: dependencyType.Serialized(),
+			RequestId:      logging.GetRequestIDFromContext(ctx).String(),
+		}
+
+		err := stream.Send(req)
+		if err != nil {
+			logger.Errorw("Failed to send downstream dependencies request",
+				"error", err,
+			)
+		}
+
+		err = stream.CloseSend()
+		if err != nil {
+			logger.Errorw("Failed to close send", "error", err)
+		}
+	}()
+
+	return client.parseResourceDependencyStream(ctx, stream, dependencyType)
+}
+
+type resourceDependencyStream interface {
+	Recv() (*pb.GetDownstreamDependenciesResponse, error)
+}
+
+// Generic helper function to parse any resource stream
+func parseResourceStream[T proto.Message, R any](
+	ctx context.Context,
+	stream resourceDependencyStream,
+	getter func(*pb.GetDownstreamDependenciesResponse) T,
+	wrapper func(T) R,
+) ([]R, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	results := make([]R, 0)
+	for {
+		serial, err := stream.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			logger.Errorw("Error parsing dependency stream", "error", err)
+			return nil, err
+		}
+
+		variant := getter(serial)
+		if any(variant) == nil {
+			logger.Errorw("Expected variant, got nil")
+			return nil, fferr.NewInternalErrorf("expected variant, got nil")
+		}
+
+		results = append(results, wrapper(variant))
+	}
+	return results, nil
+}
+
+func (client *Client) parseResourceDependencyStream(ctx context.Context, stream resourceDependencyStream, dependencyType ResourceType) (interface{}, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger.Infow("Parsing resource dependency stream")
+
+	switch dependencyType {
+	case FEATURE_VARIANT:
+		logger.Debugw("Parsing feature dependency stream")
+		return parseResourceStream[*pb.FeatureVariant, *FeatureVariant](
+			ctx,
+			stream,
+			func(r *pb.GetDownstreamDependenciesResponse) *pb.FeatureVariant { return r.GetFeatureVariant() },
+			WrapProtoFeatureVariant)
+
+	case LABEL_VARIANT:
+		logger.Debugw("Parsing label dependency stream")
+		return parseResourceStream[*pb.LabelVariant, *LabelVariant](
+			ctx,
+			stream,
+			func(r *pb.GetDownstreamDependenciesResponse) *pb.LabelVariant { return r.GetLabelVariant() },
+			WrapProtoLabelVariant)
+
+	case SOURCE_VARIANT:
+		logger.Debugw("Parsing source dependency stream")
+		return parseResourceStream[*pb.SourceVariant, *SourceVariant](
+			ctx,
+			stream,
+			func(r *pb.GetDownstreamDependenciesResponse) *pb.SourceVariant { return r.GetSourceVariant() },
+			WrapProtoSourceVariant)
+
+	case TRAINING_SET_VARIANT:
+		logger.Debugw("Parsing training set dependency stream")
+		return parseResourceStream[*pb.TrainingSetVariant, *TrainingSetVariant](
+			ctx,
+			stream,
+			func(r *pb.GetDownstreamDependenciesResponse) *pb.TrainingSetVariant { return r.GetTrainingSetVariant() },
+			WrapProtoTrainingSetVariant)
+
+	case MODEL:
+		logger.Debugw("Parsing model dependency stream")
+		return parseResourceStream[*pb.Model, *Model](
+			ctx,
+			stream,
+			func(r *pb.GetDownstreamDependenciesResponse) *pb.Model { return r.GetModel() },
+			WrapProtoModel)
+
+	case USER:
+		logger.Debugw("Parsing user dependency stream")
+		return parseResourceStream[*pb.User, *User](
+			ctx,
+			stream,
+			func(r *pb.GetDownstreamDependenciesResponse) *pb.User { return r.GetUser() },
+			WrapProtoUser)
+
+	case PROVIDER:
+		logger.Debugw("Parsing provider dependency stream")
+		return parseResourceStream[*pb.Provider, *Provider](
+			ctx,
+			stream,
+			func(r *pb.GetDownstreamDependenciesResponse) *pb.Provider { return r.GetProvider() },
+			WrapProtoProvider)
+
+	case ENTITY:
+		logger.Debugw("Parsing entity dependency stream")
+		return parseResourceStream[*pb.Entity, *Entity](
+			ctx,
+			stream,
+			func(r *pb.GetDownstreamDependenciesResponse) *pb.Entity { return r.GetEntity() },
+			WrapProtoEntity)
+
+	default:
+		logger.Errorw("Unknown dependency type", "dependency_type", dependencyType)
+		return nil, fferr.NewInvalidArgumentErrorf("unknown dependency type %v", dependencyType)
+	}
+}
+
 type protoStringer struct {
 	msg proto.Message
 }
@@ -1631,70 +1874,6 @@ type StreamDef struct {
 
 func (s StreamDef) FetchProvider(client *Client, ctx context.Context) (*Provider, error) {
 	return client.GetProvider(ctx, s.offlineProvider)
-}
-
-type trainingSetsGetter interface {
-	GetTrainingsets() []*pb.NameVariant
-}
-
-type fetchTrainingSetsFns struct {
-	getter trainingSetsGetter
-}
-
-func (fn fetchTrainingSetsFns) TrainingSets() NameVariants {
-	return parseNameVariants(fn.getter.GetTrainingsets())
-}
-
-func (fn fetchTrainingSetsFns) FetchTrainingSets(client *Client, ctx context.Context) ([]*TrainingSetVariant, error) {
-	return client.GetTrainingSetVariants(ctx, fn.TrainingSets())
-}
-
-type labelsGetter interface {
-	GetLabels() []*pb.NameVariant
-}
-
-type fetchLabelsFns struct {
-	getter labelsGetter
-}
-
-func (fn fetchLabelsFns) Labels() NameVariants {
-	return parseNameVariants(fn.getter.GetLabels())
-}
-
-func (fn fetchLabelsFns) FetchLabels(client *Client, ctx context.Context) ([]*LabelVariant, error) {
-	return client.GetLabelVariants(ctx, fn.Labels())
-}
-
-type featuresGetter interface {
-	GetFeatures() []*pb.NameVariant
-}
-
-type fetchFeaturesFns struct {
-	getter featuresGetter
-}
-
-func (fn fetchFeaturesFns) Features() NameVariants {
-	return parseNameVariants(fn.getter.GetFeatures())
-}
-
-func (fn fetchFeaturesFns) FetchFeatures(client *Client, ctx context.Context) ([]*FeatureVariant, error) {
-	return client.GetFeatureVariants(ctx, fn.Features())
-}
-
-type sourcesGetter interface {
-	GetSources() []*pb.NameVariant
-}
-
-type fetchSourcesFns struct {
-	getter sourcesGetter
-}
-
-func (fn fetchSourcesFns) Sources() NameVariants {
-	return parseNameVariants(fn.getter.GetSources())
-}
-
-func (fn fetchSourcesFns) FetchSources(client *Client, ctx context.Context) ([]*SourceVariant, error) {
-	return client.GetSourceVariants(ctx, fn.Sources())
 }
 
 type sourceGetter interface {
@@ -1831,13 +2010,12 @@ func WrapProtoFeature(serialized *pb.Feature) *Feature {
 	}
 }
 
-func (feature Feature) FetchVariants(client *Client, ctx context.Context) ([]*FeatureVariant, error) {
+func (feature Feature) FetchVariants(ctx context.Context, client *Client) ([]*FeatureVariant, error) {
 	return client.GetFeatureVariants(ctx, feature.NameVariants())
 }
 
 type FeatureVariant struct {
 	serialized *pb.FeatureVariant
-	fetchTrainingSetsFns
 	fetchProviderFns
 	fetchSourceFns
 	createdFn
@@ -1852,7 +2030,6 @@ type FeatureVariant struct {
 func WrapProtoFeatureVariant(serialized *pb.FeatureVariant) *FeatureVariant {
 	return &FeatureVariant{
 		serialized:                   serialized,
-		fetchTrainingSetsFns:         fetchTrainingSetsFns{serialized},
 		fetchProviderFns:             fetchProviderFns{serialized},
 		fetchSourceFns:               fetchSourceFns{serialized},
 		createdFn:                    createdFn{serialized},
@@ -1991,6 +2168,24 @@ func (variant *FeatureVariant) isTable() bool {
 	return reflect.TypeOf(variant.serialized.GetLocation()) == reflect.TypeOf(&pb.FeatureVariant_Columns{})
 }
 
+func (variant *FeatureVariant) FetchTrainingSets(ctx context.Context, client *Client) ([]*TrainingSetVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.FeatureVariant, variant.Name(), variant.Variant())
+	logger.Infow("Fetching associated training sets")
+	resourceId := ResourceID{
+		Name:    variant.Name(),
+		Variant: variant.Variant(),
+		Type:    FEATURE_VARIANT,
+	}
+	trainingSetStream, err := client.GetDownstreamDependencies(ctx, resourceId, TRAINING_SET_VARIANT)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies", "error", err)
+		return nil, err
+	}
+	trainingSets := trainingSetStream.([]*TrainingSetVariant)
+	return trainingSets, nil
+}
+
 func (variant *FeatureVariant) LocationColumns() interface{} {
 	if variant.Mode() != PRECOMPUTED {
 		return nil
@@ -2101,10 +2296,6 @@ func (variant *FeatureVariant) ResourceSnowflakeConfig() (*ResourceSnowflakeConf
 
 type User struct {
 	serialized *pb.User
-	fetchTrainingSetsFns
-	fetchFeaturesFns
-	fetchLabelsFns
-	fetchSourcesFns
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
@@ -2116,14 +2307,10 @@ func (u User) Variant() string {
 
 func WrapProtoUser(serialized *pb.User) *User {
 	return &User{
-		serialized:           serialized,
-		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
-		fetchFeaturesFns:     fetchFeaturesFns{serialized},
-		fetchLabelsFns:       fetchLabelsFns{serialized},
-		fetchSourcesFns:      fetchSourcesFns{serialized},
-		protoStringer:        protoStringer{serialized},
-		fetchTagsFn:          fetchTagsFn{serialized},
-		fetchPropertiesFn:    fetchPropertiesFn{serialized},
+		serialized:        serialized,
+		protoStringer:     protoStringer{serialized},
+		fetchTagsFn:       fetchTagsFn{serialized},
+		fetchPropertiesFn: fetchPropertiesFn{serialized},
 	}
 }
 
@@ -2153,12 +2340,90 @@ func (user *User) Properties() Properties {
 	return user.fetchPropertiesFn.Properties()
 }
 
+func (user *User) ToShallowMap() UserResource {
+	return UserResource{
+		Name:       user.Name(),
+		Type:       "User",
+		Status:     user.Status().String(),
+		Tags:       user.Tags(),
+		Properties: user.Properties(),
+	}
+}
+
+func (user *User) FetchFeatures(ctx context.Context, client *Client) ([]*FeatureVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.User, user.Name(), "")
+	logger.Infow("Fetching associated features")
+	resourceId := ResourceID{
+		Name:    user.Name(),
+		Variant: "",
+		Type:    USER,
+	}
+	featureStream, err := client.GetDownstreamDependencies(ctx, resourceId, FEATURE_VARIANT)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies", "error", err)
+		return nil, err
+	}
+	features := featureStream.([]*FeatureVariant)
+	return features, nil
+}
+
+func (user *User) FetchLabels(ctx context.Context, client *Client) ([]*LabelVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.User, user.Name(), "")
+	logger.Infow("Fetching associated labels")
+	resourceId := ResourceID{
+		Name:    user.Name(),
+		Variant: "",
+		Type:    USER,
+	}
+	labelStream, err := client.GetDownstreamDependencies(ctx, resourceId, LABEL_VARIANT)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies", "error", err)
+		return nil, err
+	}
+	labels := labelStream.([]*LabelVariant)
+	return labels, nil
+}
+
+func (user *User) FetchSources(ctx context.Context, client *Client) ([]*SourceVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.User, user.Name(), "")
+	logger.Infow("Fetching associated sources")
+	resourceId := ResourceID{
+		Name:    user.Name(),
+		Variant: "",
+		Type:    USER,
+	}
+	sourceStream, err := client.GetDownstreamDependencies(ctx, resourceId, SOURCE_VARIANT)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies", "error", err)
+		return nil, err
+	}
+	sources := sourceStream.([]*SourceVariant)
+	return sources, nil
+}
+
+func (user *User) FetchTrainingSets(ctx context.Context, client *Client) ([]*TrainingSetVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.User, user.Name(), "")
+	logger.Infow("Fetching associated training sets")
+	resourceId := ResourceID{
+		Name:    user.Name(),
+		Variant: "",
+		Type:    USER,
+	}
+	trainingSetStream, err := client.GetDownstreamDependencies(ctx, resourceId, TRAINING_SET_VARIANT)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies", "error", err)
+		return nil, err
+	}
+	trainingSets := trainingSetStream.([]*TrainingSetVariant)
+	return trainingSets, nil
+}
+
 type Provider struct {
 	serialized *pb.Provider
-	fetchTrainingSetsFns
-	fetchFeaturesFns
-	fetchLabelsFns
-	fetchSourcesFns
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
@@ -2172,10 +2437,6 @@ func (p Provider) Variant() string {
 func WrapProtoProvider(serialized *pb.Provider) *Provider {
 	return &Provider{
 		serialized:              serialized,
-		fetchTrainingSetsFns:    fetchTrainingSetsFns{serialized},
-		fetchFeaturesFns:        fetchFeaturesFns{serialized},
-		fetchLabelsFns:          fetchLabelsFns{serialized},
-		fetchSourcesFns:         fetchSourcesFns{serialized},
 		protoStringer:           protoStringer{serialized},
 		fetchTagsFn:             fetchTagsFn{serialized},
 		fetchPropertiesFn:       fetchPropertiesFn{serialized},
@@ -2245,11 +2506,84 @@ func (provider *Provider) Properties() Properties {
 	return provider.fetchPropertiesFn.Properties()
 }
 
+func (provider *Provider) FetchFeatures(ctx context.Context, client *Client) ([]*FeatureVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.Provider, provider.Name(), "")
+	logger.Infow("Fetching associated features")
+	resourceId := ResourceID{
+		Name:    provider.Name(),
+		Variant: "",
+		Type:    PROVIDER,
+	}
+	featureStream, err := client.GetDownstreamDependencies(ctx, resourceId, FEATURE_VARIANT)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies", "error", err)
+		return nil, err
+	}
+	features := featureStream.([]*FeatureVariant)
+	return features, nil
+}
+
+func (provider *Provider) FetchLabels(ctx context.Context, client *Client) ([]*LabelVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.Provider, provider.Name(), "")
+	logger.Infow("Fetching associated labels")
+	resourceId := ResourceID{
+		Name:    provider.Name(),
+		Variant: "",
+		Type:    PROVIDER,
+	}
+	labelStream, err := client.GetDownstreamDependencies(ctx, resourceId, LABEL_VARIANT)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies", "error", err)
+		return nil, err
+	}
+	labels := labelStream.([]*LabelVariant)
+	return labels, nil
+}
+
+func (provider *Provider) Sources() NameVariants {
+	return parseNameVariants(provider.serialized.GetSources())
+}
+
+func (provider *Provider) FetchSources(ctx context.Context, client *Client) ([]*SourceVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.Provider, provider.Name(), "")
+	logger.Infow("Fetching associated sources")
+	resourceId := ResourceID{
+		Name:    provider.Name(),
+		Variant: "",
+		Type:    PROVIDER,
+	}
+	sourceStream, err := client.GetDownstreamDependencies(ctx, resourceId, SOURCE_VARIANT)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies", "error", err)
+		return nil, err
+	}
+	sources := sourceStream.([]*SourceVariant)
+	return sources, nil
+}
+
+func (provider *Provider) FetchTrainingSets(ctx context.Context, client *Client) ([]*TrainingSetVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.Provider, provider.Name(), "")
+	logger.Infow("Fetching associated training sets")
+	resourceId := ResourceID{
+		Name:    provider.Name(),
+		Variant: "",
+		Type:    PROVIDER,
+	}
+	trainingSetStream, err := client.GetDownstreamDependencies(ctx, resourceId, TRAINING_SET_VARIANT)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies", "error", err)
+		return nil, err
+	}
+	trainingSets := trainingSetStream.([]*TrainingSetVariant)
+	return trainingSets, nil
+}
+
 type Model struct {
 	serialized *pb.Model
-	fetchTrainingSetsFns
-	fetchFeaturesFns
-	fetchLabelsFns
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
@@ -2261,13 +2595,10 @@ func (m Model) Variant() string {
 
 func WrapProtoModel(serialized *pb.Model) *Model {
 	return &Model{
-		serialized:           serialized,
-		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
-		fetchFeaturesFns:     fetchFeaturesFns{serialized},
-		fetchLabelsFns:       fetchLabelsFns{serialized},
-		protoStringer:        protoStringer{serialized},
-		fetchTagsFn:          fetchTagsFn{serialized},
-		fetchPropertiesFn:    fetchPropertiesFn{serialized},
+		serialized:        serialized,
+		protoStringer:     protoStringer{serialized},
+		fetchTagsFn:       fetchTagsFn{serialized},
+		fetchPropertiesFn: fetchPropertiesFn{serialized},
 	}
 }
 
@@ -2306,6 +2637,36 @@ func (model *Model) Properties() Properties {
 	return model.fetchPropertiesFn.Properties()
 }
 
+func (model *Model) FetchFeatures(ctx context.Context, client *Client) ([]*FeatureVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.Model, model.Name(), model.Variant())
+	logger.Infow("Fetching associated features")
+
+	featureNameVariants := model.serialized.GetFeatures()
+	parsedNameVariants := parseNameVariants(featureNameVariants)
+	features, err := client.GetFeatureVariants(ctx, parsedNameVariants)
+	if err != nil {
+		logger.Errorw("Failed to get associated features", "error", err)
+		return nil, err
+	}
+	return features, nil
+}
+
+func (model *Model) FetchTrainingSets(ctx context.Context, client *Client) ([]*TrainingSetVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.Model, model.Name(), model.Variant())
+	logger.Infow("Fetching associated training sets")
+
+	trainingSetNameVariants := model.serialized.GetTrainingsets()
+	parsedNameVariants := parseNameVariants(trainingSetNameVariants)
+	trainingSets, err := client.GetTrainingSetVariants(ctx, parsedNameVariants)
+	if err != nil {
+		logger.Errorw("Failed to get associated training sets", "error", err)
+		return nil, err
+	}
+	return trainingSets, nil
+}
+
 type Label struct {
 	serialized *pb.Label
 	variantsFns
@@ -2320,13 +2681,12 @@ func WrapProtoLabel(serialized *pb.Label) *Label {
 	}
 }
 
-func (label Label) FetchVariants(client *Client, ctx context.Context) ([]*LabelVariant, error) {
+func (label Label) FetchVariants(ctx context.Context, client *Client) ([]*LabelVariant, error) {
 	return client.GetLabelVariants(ctx, label.NameVariants())
 }
 
 type LabelVariant struct {
 	serialized *pb.LabelVariant
-	fetchTrainingSetsFns
 	fetchProviderFns
 	fetchSourceFns
 	createdFn
@@ -2338,15 +2698,14 @@ type LabelVariant struct {
 
 func WrapProtoLabelVariant(serialized *pb.LabelVariant) *LabelVariant {
 	return &LabelVariant{
-		serialized:           serialized,
-		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
-		fetchProviderFns:     fetchProviderFns{serialized},
-		fetchSourceFns:       fetchSourceFns{serialized},
-		createdFn:            createdFn{serialized},
-		protoStringer:        protoStringer{serialized},
-		fetchTagsFn:          fetchTagsFn{serialized},
-		fetchPropertiesFn:    fetchPropertiesFn{serialized},
-		fetchEntityFn:        fetchEntityFn{serialized},
+		serialized:        serialized,
+		fetchProviderFns:  fetchProviderFns{serialized},
+		fetchSourceFns:    fetchSourceFns{serialized},
+		createdFn:         createdFn{serialized},
+		protoStringer:     protoStringer{serialized},
+		fetchTagsFn:       fetchTagsFn{serialized},
+		fetchPropertiesFn: fetchPropertiesFn{serialized},
+		fetchEntityFn:     fetchEntityFn{serialized},
 	}
 }
 
@@ -2428,6 +2787,24 @@ func (variant *LabelVariant) Error() string {
 	return ""
 }
 
+func (label *LabelVariant) FetchTrainingSets(ctx context.Context, client *Client) ([]*TrainingSetVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.LabelVariant, label.Name(), label.Variant())
+	logger.Infow("Fetching associated training sets")
+	resourceId := ResourceID{
+		Name:    label.Name(),
+		Variant: label.Variant(),
+		Type:    LABEL_VARIANT,
+	}
+	trainingSetStream, err := client.GetDownstreamDependencies(ctx, resourceId, TRAINING_SET_VARIANT)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies", "error", err)
+		return nil, err
+	}
+	trainingSets := trainingSetStream.([]*TrainingSetVariant)
+	return trainingSets, nil
+}
+
 func (variant *LabelVariant) IsLegacyLocation() bool {
 	loc := variant.serialized.GetLocation()
 	if _, isColumnsLocations := loc.(*pb.LabelVariant_Columns); isColumnsLocations {
@@ -2507,13 +2884,12 @@ func WrapProtoTrainingSet(serialized *pb.TrainingSet) *TrainingSet {
 	}
 }
 
-func (trainingSet TrainingSet) FetchVariants(client *Client, ctx context.Context) ([]*TrainingSetVariant, error) {
+func (trainingSet TrainingSet) FetchVariants(ctx context.Context, client *Client) ([]*TrainingSetVariant, error) {
 	return client.GetTrainingSetVariants(ctx, trainingSet.NameVariants())
 }
 
 type TrainingSetVariant struct {
 	serialized *pb.TrainingSetVariant
-	fetchFeaturesFns
 	fetchProviderFns
 	createdFn
 	lastUpdatedFn
@@ -2525,7 +2901,6 @@ type TrainingSetVariant struct {
 func WrapProtoTrainingSetVariant(serialized *pb.TrainingSetVariant) *TrainingSetVariant {
 	return &TrainingSetVariant{
 		serialized:        serialized,
-		fetchFeaturesFns:  fetchFeaturesFns{serialized},
 		fetchProviderFns:  fetchProviderFns{serialized},
 		createdFn:         createdFn{serialized},
 		lastUpdatedFn:     lastUpdatedFn{serialized},
@@ -2619,6 +2994,21 @@ func (variant *TrainingSetVariant) TrainingSetType() TrainingSetType {
 	return typ
 }
 
+func (variant *TrainingSetVariant) FetchFeatures(ctx context.Context, client *Client) ([]*FeatureVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.TrainingSetVariant, variant.Name(), variant.Variant())
+	logger.Infow("Fetching associated features")
+
+	featureNameVariants := variant.serialized.GetFeatures()
+	parsedNameVariants := parseNameVariants(featureNameVariants)
+	features, err := client.GetFeatureVariants(ctx, parsedNameVariants)
+	if err != nil {
+		logger.Errorw("Failed to get associated features", "error", err)
+		return nil, err
+	}
+	return features, nil
+}
+
 type Source struct {
 	serialized *pb.Source
 	variantsFns
@@ -2633,15 +3023,12 @@ func WrapProtoSource(serialized *pb.Source) *Source {
 	}
 }
 
-func (source Source) FetchVariants(client *Client, ctx context.Context) ([]*SourceVariant, error) {
+func (source Source) FetchVariants(ctx context.Context, client *Client) ([]*SourceVariant, error) {
 	return client.GetSourceVariants(ctx, source.NameVariants())
 }
 
 type SourceVariant struct {
 	serialized *pb.SourceVariant
-	fetchTrainingSetsFns
-	fetchFeaturesFns
-	fetchLabelsFns
 	fetchProviderFns
 	createdFn
 	lastUpdatedFn
@@ -3025,9 +3412,6 @@ func (variant *SourceVariant) TaskIDs() ([]scheduling.TaskID, error) {
 func WrapProtoSourceVariant(serialized *pb.SourceVariant) *SourceVariant {
 	return &SourceVariant{
 		serialized:            serialized,
-		fetchTrainingSetsFns:  fetchTrainingSetsFns{serialized},
-		fetchFeaturesFns:      fetchFeaturesFns{serialized},
-		fetchLabelsFns:        fetchLabelsFns{serialized},
 		fetchProviderFns:      fetchProviderFns{serialized},
 		createdFn:             createdFn{serialized},
 		lastUpdatedFn:         lastUpdatedFn{serialized},
@@ -3105,6 +3489,60 @@ func (variant *SourceVariant) Error() string {
 		return ""
 	}
 	return fferr.ToDashboardError(variant.serialized.GetStatus())
+}
+
+func (variant *SourceVariant) FetchFeatures(ctx context.Context, client *Client) ([]*FeatureVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.SourceVariant, variant.Name(), variant.Variant())
+	logger.Infow("Fetching associated features")
+	resourceId := ResourceID{
+		Name:    variant.Name(),
+		Variant: variant.Variant(),
+		Type:    SOURCE_VARIANT,
+	}
+	featureStream, err := client.GetDownstreamDependencies(ctx, resourceId, FEATURE_VARIANT)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies", "error", err)
+		return nil, err
+	}
+	features := featureStream.([]*FeatureVariant)
+	return features, nil
+}
+
+func (variant *SourceVariant) FetchLabels(ctx context.Context, client *Client) ([]*LabelVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.SourceVariant, variant.Name(), variant.Variant())
+	logger.Infow("Fetching associated labels")
+	resourceId := ResourceID{
+		Name:    variant.Name(),
+		Variant: variant.Variant(),
+		Type:    SOURCE_VARIANT,
+	}
+	labelStream, err := client.GetDownstreamDependencies(ctx, resourceId, LABEL_VARIANT)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies", "error", err)
+		return nil, err
+	}
+	labels := labelStream.([]*LabelVariant)
+	return labels, nil
+}
+
+func (variant *SourceVariant) FetchTrainingSets(ctx context.Context, client *Client) ([]*TrainingSetVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.SourceVariant, variant.Name(), variant.Variant())
+	logger.Infow("Fetching associated training sets")
+	resourceId := ResourceID{
+		Name:    variant.Name(),
+		Variant: variant.Variant(),
+		Type:    SOURCE_VARIANT,
+	}
+	trainingSetStream, err := client.GetDownstreamDependencies(ctx, resourceId, TRAINING_SET_VARIANT)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies", "error", err)
+		return nil, err
+	}
+	trainingSets := trainingSetStream.([]*TrainingSetVariant)
+	return trainingSets, nil
 }
 
 func (variant *SourceVariant) IsTransformation() bool {
@@ -3338,9 +3776,6 @@ func (variant *SourceVariant) Properties() Properties {
 
 type Entity struct {
 	serialized *pb.Entity
-	fetchTrainingSetsFns
-	fetchFeaturesFns
-	fetchLabelsFns
 	protoStringer
 	fetchTagsFn
 	fetchPropertiesFn
@@ -3352,13 +3787,10 @@ func (entity Entity) Variant() string {
 
 func WrapProtoEntity(serialized *pb.Entity) *Entity {
 	return &Entity{
-		serialized:           serialized,
-		fetchTrainingSetsFns: fetchTrainingSetsFns{serialized},
-		fetchFeaturesFns:     fetchFeaturesFns{serialized},
-		fetchLabelsFns:       fetchLabelsFns{serialized},
-		protoStringer:        protoStringer{serialized},
-		fetchTagsFn:          fetchTagsFn{serialized},
-		fetchPropertiesFn:    fetchPropertiesFn{serialized},
+		serialized:        serialized,
+		protoStringer:     protoStringer{serialized},
+		fetchTagsFn:       fetchTagsFn{serialized},
+		fetchPropertiesFn: fetchPropertiesFn{serialized},
 	}
 }
 
@@ -3401,6 +3833,60 @@ func (entity *Entity) Tags() Tags {
 
 func (entity *Entity) Properties() Properties {
 	return entity.fetchPropertiesFn.Properties()
+}
+
+func (entity *Entity) FetchFeatures(ctx context.Context, client *Client) ([]*FeatureVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.Entity, entity.Name(), "")
+	logger.Infow("Fetching associated features")
+	resourceId := ResourceID{
+		Name:    entity.Name(),
+		Variant: "",
+		Type:    ENTITY,
+	}
+	featureStream, err := client.GetDownstreamDependencies(ctx, resourceId, FEATURE_VARIANT)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies", "error", err)
+		return nil, err
+	}
+	features := featureStream.([]*FeatureVariant)
+	return features, nil
+}
+
+func (entity *Entity) FetchLabels(ctx context.Context, client *Client) ([]*LabelVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.Entity, entity.Name(), "")
+	logger.Infow("Fetching associated labels")
+	resourceId := ResourceID{
+		Name:    entity.Name(),
+		Variant: "",
+		Type:    ENTITY,
+	}
+	labelStream, err := client.GetDownstreamDependencies(ctx, resourceId, LABEL_VARIANT)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies", "error", err)
+		return nil, err
+	}
+	labels := labelStream.([]*LabelVariant)
+	return labels, nil
+}
+
+func (entity *Entity) FetchTrainingSets(ctx context.Context, client *Client) ([]*TrainingSetVariant, error) {
+	logger := logging.GetLoggerFromContext(ctx)
+	logger = logger.WithResource(logging.Entity, entity.Name(), "")
+	logger.Infow("Fetching associated training sets")
+	resourceId := ResourceID{
+		Name:    entity.Name(),
+		Variant: "",
+		Type:    ENTITY,
+	}
+	trainingSetStream, err := client.GetDownstreamDependencies(ctx, resourceId, TRAINING_SET_VARIANT)
+	if err != nil {
+		logger.Errorw("Failed to get downstream dependencies", "error", err)
+		return nil, err
+	}
+	trainingSets := trainingSetStream.([]*TrainingSetVariant)
+	return trainingSets, nil
 }
 
 func NewClient(host string, logger logging.Logger) (*Client, error) {

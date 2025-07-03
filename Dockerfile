@@ -134,6 +134,7 @@ COPY db/migrations /app/db/migrations
 RUN apt-get update && apt-get install -y postgresql postgresql-contrib
 USER postgres
 RUN /etc/init.d/postgresql start && \
+    until pg_isready -h localhost -U postgres; do echo "Waiting for postgres..."; sleep 1; done && \
     psql --command "ALTER USER postgres WITH PASSWORD 'password';" && \
     goose -dir /app/db/migrations postgres "host=localhost user=postgres password=password dbname=postgres sslmode=disable" up
 USER root

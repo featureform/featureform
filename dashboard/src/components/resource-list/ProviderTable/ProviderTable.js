@@ -14,7 +14,6 @@ import { MainContainer, GridContainer, StyledDataGrid, STATUS_COLORS } from '../
 import BaseFilterPanel from '../BaseFilterPanel';
 import { isMatchingDefault } from '../DatasetTable/DatasetTable';
 import { ConnectionSvg } from '../icons/Connections';
-import { UserBubbleSvg } from '../icons/Owner';
 import NoDataMessage from '../NoDataMessage';
 import FilterPanel from './FilterPanel';
 
@@ -143,6 +142,25 @@ export const provider_columns = [
               />
             ))}
           </Box>
+        </>
+      );
+    },
+  },
+  {
+    field: 'dependent-resources',
+    headerName: '# of Resources',
+    flex: 1,
+    width: 350,
+    editable: false,
+    renderCell: function (params) {
+      const dependencyCount = params.row?.['dependency-count'] ?? 0;
+      return (
+        <>
+          <div style={{ display: 'flex' }}>
+            <Typography variant='body2' sx={{ marginLeft: 0.5 }}>
+              {dependencyCount}
+            </Typography>
+          </div>
         </>
       );
     },

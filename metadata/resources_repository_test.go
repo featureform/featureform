@@ -817,3 +817,367 @@ func TestPrune(t *testing.T) {
 		require.Nil(t, markedForDeletion)
 	})
 }
+
+func TestGetDependenciesByType(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+	resources := []ResourceDef{
+		UserDef{
+			Name:       "Featureform",
+			Tags:       Tags{},
+			Properties: Properties{},
+		},
+		UserDef{
+			Name:       "Other",
+			Tags:       Tags{},
+			Properties: Properties{},
+		},
+		EntityDef{
+			Name:        "user",
+			Description: "A user entity",
+			Tags:        Tags{},
+			Properties:  Properties{},
+		},
+		EntityDef{
+			Name:        "customer",
+			Description: "A customer entity",
+			Tags:        Tags{},
+			Properties:  Properties{},
+		},
+		ProviderDef{
+			Name:             "mockOnline",
+			Description:      "A mock online provider",
+			Type:             string(pt.RedisOnline),
+			Software:         "redis",
+			Team:             "fraud",
+			SerializedConfig: []byte(""),
+			Tags:             Tags{},
+			Properties:       Properties{},
+		},
+		ProviderDef{
+			Name:             "mockOffline",
+			Description:      "A mock offline provider",
+			Type:             string(pt.SnowflakeOffline),
+			Software:         "snowflake",
+			Team:             "recommendations",
+			SerializedConfig: []byte(""),
+			Tags:             Tags{},
+			Properties:       Properties{},
+		},
+		SourceDef{
+			Name:        "primarydata1",
+			Variant:     "var",
+			Description: "A CSV source but different",
+			Definition: PrimaryDataSource{
+				Location: SQLTable{
+					Name: "mockPrimary",
+				},
+				TimestampColumn: "timestamp",
+			},
+			Owner:      "Featureform",
+			Provider:   "mockOffline",
+			Tags:       Tags{},
+			Properties: Properties{},
+		},
+		SourceDef{
+			Name:        "primarydata2",
+			Variant:     "default",
+			Description: "A CSV source but different",
+			Definition: PrimaryDataSource{
+				Location: SQLTable{
+					Name: "anotherDataset",
+				},
+				TimestampColumn: "timestamp",
+			},
+			Owner:      "Featureform",
+			Provider:   "mockOffline",
+			Tags:       Tags{},
+			Properties: Properties{},
+		},
+		SourceDef{
+			Name:        "mockTransformation1",
+			Variant:     "var",
+			Description: "A CSV source",
+			Definition: TransformationSource{
+				TransformationType: SQLTransformationType{
+					Query: "SELECT * FROM mockPrimary",
+					Sources: []NameVariant{{
+						Name:    "primarydata1",
+						Variant: "var"},
+					},
+				},
+			},
+			Owner:      "Featureform",
+			Provider:   "mockOffline",
+			Tags:       Tags{},
+			Properties: Properties{},
+		},
+		SourceDef{
+			Name:        "mockTransformation2",
+			Variant:     "var",
+			Description: "A SQL transformation source",
+			Definition: TransformationSource{
+				TransformationType: SQLTransformationType{
+					Query: "SELECT p1.entity, AVG(p1.int + p2.int) as avg_int FROM primarydata1.var p1 JOIN primarydata2.default p2 ON p1.entity = p2.entity GROUP BY p1.entity",
+					Sources: []NameVariant{
+						{Name: "primarydata1",
+							Variant: "var"},
+						{Name: "primarydata2",
+							Variant: "default"},
+					},
+				},
+			},
+			Owner:      "Featureform",
+			Provider:   "mockOffline",
+			Tags:       Tags{},
+			Properties: Properties{},
+		},
+		FeatureDef{
+			Name:        "featureFromTf",
+			Variant:     "variant",
+			Provider:    "mockOnline",
+			Entity:      "user",
+			Type:        types.Float32,
+			Description: "Feature variant",
+			Source:      NameVariant{"mockTransformation2", "var"},
+			Owner:       "Other",
+			Location: ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
+			Tags:       Tags{},
+			Properties: Properties{},
+			Mode:       PRECOMPUTED,
+			IsOnDemand: false,
+		},
+		FeatureDef{
+			Name:        "featureFromPrimary1",
+			Variant:     "default",
+			Provider:    "mockOnline",
+			Entity:      "user",
+			Type:        types.Float32,
+			Description: "Feature variant",
+			Source:      NameVariant{"primarydata1", "var"},
+			Owner:       "Featureform",
+			Location: ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
+			Tags:       Tags{},
+			Properties: Properties{},
+			Mode:       PRECOMPUTED,
+			IsOnDemand: false,
+		},
+		FeatureDef{
+			Name:        "featureFromPrimary2",
+			Variant:     "default",
+			Provider:    "mockOnline",
+			Entity:      "user",
+			Type:        types.Float32,
+			Description: "Feature variant",
+			Source:      NameVariant{"primarydata2", "default"},
+			Owner:       "Featureform",
+			Location: ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
+			Tags:       Tags{},
+			Properties: Properties{},
+			Mode:       PRECOMPUTED,
+			IsOnDemand: false,
+		},
+		LabelDef{
+			Name:        "label",
+			Variant:     "variant",
+			Type:        types.Int64,
+			Description: "label variant",
+			Provider:    "mockOffline",
+			Entity:      "user",
+			Source:      NameVariant{"mockTransformation1", "var"},
+			Owner:       "Other",
+			Location: ResourceVariantColumns{
+				Entity: "col1",
+				Value:  "col2",
+				TS:     "col3",
+			},
+			Tags:       Tags{},
+			Properties: Properties{},
+		},
+		LabelDef{
+			Name:        "multiEntityLabel",
+			Variant:     "variant",
+			Type:        types.Bool,
+			Description: "tests multi entity label",
+			Provider:    "mockOffline",
+			Source:      NameVariant{"mockTransformation1", "var"},
+			Owner:       "Other",
+			Location: EntityMappings{
+				Mappings: []EntityMapping{
+					{Name: "user", EntityColumn: "col1"},
+					{Name: "customer", EntityColumn: "col2"},
+				},
+				ValueColumn:     "col3",
+				TimestampColumn: "col4",
+			},
+		},
+		TrainingSetDef{
+			Name:        "training-set",
+			Variant:     "variant",
+			Provider:    "mockOffline",
+			Description: "training-set variant",
+			Label:       NameVariant{"label", "variant"},
+			Features: NameVariants{
+				{"featureFromTf", "variant"},
+				{"featureFromPrimary1", "default"},
+				{"featureFromPrimary2", "default"},
+			},
+			Owner:      "Other",
+			Tags:       Tags{},
+			Properties: Properties{},
+		},
+		ModelDef{
+			Name:        "training-model",
+			Description: "model",
+			Features: NameVariants{
+				{"featureFromTf", "variant"},
+				{"featureFromPrimary1", "default"},
+			},
+			Trainingsets: NameVariants{
+				{"training-set", "variant"},
+			},
+			Tags:       Tags{},
+			Properties: Properties{},
+		},
+	}
+
+	testServer := newTestMetadataServer(t)
+	ctx := testServer.ctx
+	defer testServer.Close()
+	testServer.SetupTestData(t, resources, true)
+
+	testCases := []struct {
+		name           string
+		resourceID     common.ResourceID
+		dependencyType common.ResourceType
+		expectedDeps   map[string]bool
+		expectError    bool
+	}{
+		{
+			name: "feature dependencies for source",
+			resourceID: common.ResourceID{
+				Name:    "primarydata1",
+				Variant: "var",
+				Type:    common.SOURCE_VARIANT,
+			},
+			dependencyType: common.FEATURE_VARIANT,
+			expectedDeps: map[string]bool{
+				createKey(ResourceID{Name: "featureFromTf", Variant: "variant", Type: FEATURE_VARIANT}):       false,
+				createKey(ResourceID{Name: "featureFromPrimary1", Variant: "default", Type: FEATURE_VARIANT}): false,
+			},
+		},
+		{
+			name: "training set dependencies for source",
+			resourceID: common.ResourceID{
+				Name:    "primarydata2",
+				Variant: "default",
+				Type:    common.SOURCE_VARIANT,
+			},
+			dependencyType: common.TRAINING_SET_VARIANT,
+			expectedDeps: map[string]bool{
+				createKey(ResourceID{Name: "training-set", Variant: "variant", Type: TRAINING_SET_VARIANT}): false,
+			},
+		},
+		{
+			name: "feature dependencies for provider",
+			resourceID: common.ResourceID{
+				Name:    "mockOffline",
+				Variant: "",
+				Type:    common.PROVIDER,
+			},
+			dependencyType: common.FEATURE_VARIANT,
+			expectedDeps: map[string]bool{
+				createKey(ResourceID{Name: "featureFromPrimary1", Variant: "default", Type: FEATURE_VARIANT}): false,
+				createKey(ResourceID{Name: "featureFromPrimary2", Variant: "default", Type: FEATURE_VARIANT}): false,
+				createKey(ResourceID{Name: "featureFromTf", Variant: "variant", Type: FEATURE_VARIANT}):       false,
+			},
+		},
+		{
+			name: "feature dependencies for entity",
+			resourceID: common.ResourceID{
+				Name:    "user",
+				Variant: "",
+				Type:    common.ENTITY,
+			},
+			dependencyType: common.FEATURE_VARIANT,
+			expectedDeps: map[string]bool{
+				createKey(ResourceID{Name: "featureFromPrimary1", Variant: "default", Type: FEATURE_VARIANT}): false,
+				createKey(ResourceID{Name: "featureFromPrimary2", Variant: "default", Type: FEATURE_VARIANT}): false,
+				createKey(ResourceID{Name: "featureFromTf", Variant: "variant", Type: FEATURE_VARIANT}):       false,
+			},
+		},
+		{
+			name: "training set dependencies for entity",
+			resourceID: common.ResourceID{
+				Name:    "user",
+				Variant: "",
+				Type:    common.ENTITY,
+			},
+			dependencyType: common.TRAINING_SET_VARIANT,
+			expectedDeps: map[string]bool{
+				createKey(ResourceID{Name: "training-set", Variant: "variant", Type: TRAINING_SET_VARIANT}): false,
+			},
+		},
+		{
+			name: "Label dependencies for Entity",
+			resourceID: common.ResourceID{
+				Name:    "user",
+				Variant: "",
+				Type:    common.ENTITY,
+			},
+			dependencyType: common.LABEL_VARIANT,
+			expectedDeps: map[string]bool{
+				createKey(ResourceID{Name: "label", Variant: "variant", Type: LABEL_VARIANT}):            false,
+				createKey(ResourceID{Name: "multiEntityLabel", Variant: "variant", Type: LABEL_VARIANT}): false,
+			},
+		},
+		{
+			name: "resource without dependencies",
+			resourceID: common.ResourceID{
+				Name:    "mockOnline",
+				Variant: "",
+				Type:    common.PROVIDER,
+			},
+			dependencyType: common.SOURCE_VARIANT,
+			expectedDeps:   map[string]bool{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			deps, err := testServer.repo.GetDependenciesByType(ctx, tc.resourceID, tc.dependencyType)
+
+			if tc.expectError {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			require.Len(t, deps, len(tc.expectedDeps), fmt.Sprintf("expected %d dependencies, found %d", len(tc.expectedDeps), len(deps)))
+
+			// Check each dependency exists and mark it as found
+			for key := range deps {
+				_, exists := tc.expectedDeps[key]
+				require.True(t, exists, "expected dependency not found: %s", key)
+				tc.expectedDeps[key] = true
+			}
+
+			for key, found := range tc.expectedDeps {
+				require.True(t, found, "expected dependency not found: %s", key)
+			}
+		})
+	}
+}

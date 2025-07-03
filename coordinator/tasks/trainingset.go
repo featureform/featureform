@@ -89,28 +89,27 @@ func (t *TrainingSetTask) Run() error {
 	if err := t.metadata.Tasks.AddRunLog(t.taskDef.TaskId, t.taskDef.ID, "Waiting for dependencies to complete..."); err != nil {
 		return err
 	}
-	featureSourceMappings := make([]provider.SourceMapping, len(ts.Features()))
-	features := ts.Features()
+	features, err := ts.FetchFeatures(ctx, t.metadata)
+	if err != nil {
+		logger.Errorw("Failed to fetch features", "error", err)
+		return err
+	}
+	featureSourceMappings := make([]provider.SourceMapping, len(features))
 	featureList := make([]provider.ResourceID, len(features))
 	for i, feature := range features {
-		featureList[i] = provider.ResourceID{Name: feature.Name, Variant: feature.Variant, Type: provider.Feature}
-		featureResource, err := t.metadata.GetFeatureVariant(ctx, feature)
-		if err != nil {
-			logger.Errorw("Failed to get feature variant", "error", err)
-			return err
-		}
-		sourceNameVariant := featureResource.Source()
+		featureList[i] = provider.ResourceID{Name: feature.Name(), Variant: feature.Variant(), Type: provider.Feature}
+		sourceNameVariant := feature.Source()
 		sourceVariant, err := t.awaitPendingSource(ctx, sourceNameVariant)
 		if err != nil {
 			logger.Errorw("Failed to wait on pending feature source", "error", err)
 			return err
 		}
-		_, err = t.AwaitPendingFeature(ctx, metadata.NameVariant{Name: feature.Name, Variant: feature.Variant})
+		_, err = t.AwaitPendingFeature(ctx, metadata.NameVariant{Name: feature.Name(), Variant: feature.Variant()})
 		if err != nil {
 			logger.Errorw("Failed to wait on pending feature variant", "error", err)
 			return err
 		}
-		featureSourceMappings[i], err = t.getFeatureSourceMapping(ctx, featureResource, sourceVariant)
+		featureSourceMappings[i], err = t.getFeatureSourceMapping(ctx, feature, sourceVariant)
 		if err != nil {
 			logger.Errorw("Failed to get feature source mapping", "error", err)
 			return err

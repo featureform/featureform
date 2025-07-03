@@ -281,7 +281,7 @@ func TestTaskDistributionAcrossCoordinators(t *testing.T) {
 	feature := features[0]
 	allReady := make([]bool, len(feature.Variants()))
 	for i := 0; i < 10; i++ {
-		variants, err := feature.FetchVariants(client, ctx)
+		variants, err := feature.FetchVariants(ctx, client)
 		if err != nil {
 			t.Fatalf("Failed to fetch feature variants: %v", err)
 		}

@@ -13,6 +13,8 @@
 
 [//]: # (|                [Cassandra]&#40;#cassandra&#41;                |         |   x    |         |    x    |        |                        |)
 
+[//]: # (|                 [ScyllaDB]&#40;#scylladb&#41;                 |         |   x    |         |    x    |        |                        |)
+
 [//]: # (|                 [DynamoDB]&#40;#dynamodb&#41;                 |         |   x    |         |    x    |        |                        |)
 
 [//]: # (|                [Firestore]&#40;#firestore&#41;                |         |   x    |         |    x    |        |                        |)
@@ -133,6 +135,10 @@ This page provides reference and examples for how to register the various provid
         show_root_heading: false
         show_source: false
         show_root_toc_entry: false
+
+### ScyllaDB
+
+Cassandra provider could be used as is to connect to ScyllaDB.
 
 ### DynamoDB
 

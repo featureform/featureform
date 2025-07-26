@@ -11,6 +11,7 @@
 |        EMR        | &check; |     &check;     |
 | Kubernetes Runner |                    |     &check;     |
 |     Cassandra     | &check; |     &check;     |
+|     Scylladb      | &check; |     &check;     |
 |     DynamoDB      | &check; |     &check;     |
 |     Firestore     | &check; |     &check;     |
 |      MongoDB      | &check; |     &check;     |

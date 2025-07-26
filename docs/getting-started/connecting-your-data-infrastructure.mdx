@@ -13,7 +13,7 @@ An [inference store](/providers/inference-store) allows feature values to be loo
 
 #### Choosing an Inference Store
 
-When choosing an inference store provider, consider three variables: price, deployment complexity, and latency. Deployment complexity refers to the cost of expertise needed to host the inference store provider. This can be the cost of internal IT headcount, a vendor, or a cloud platform. Price refers to the actual cost of data and serving in the inference store, typically the lower the latency an inference store has, the higher the cost per GB of storage. In near-real-time situations like a recommender system, a low-latency inference store provider like [Redis](../providers/redis.md) or [Cassandra](../providers/cassandra.md) is the right choice. On the other hand, in a batch use case, using [Snowflake](../providers/snowflake.md) may be sufficient and cost-efficient.
+When choosing an inference store provider, consider three variables: price, deployment complexity, and latency. Deployment complexity refers to the cost of expertise needed to host the inference store provider. This can be the cost of internal IT headcount, a vendor, or a cloud platform. Price refers to the actual cost of data and serving in the inference store, typically the lower the latency an inference store has, the higher the cost per GB of storage. In near-real-time situations like a recommender system, a low-latency inference store provider like [Redis](../providers/redis.md) or [Cassandra](../providers/cassandra.md)/[ScyllaDB](../providers/scylladb.md)] is the right choice. On the other hand, in a batch use case, using [Snowflake](../providers/snowflake.md) may be sufficient and cost-efficient.
 
 ### Offline Store
 

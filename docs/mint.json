@@ -154,7 +154,8 @@
                   "inference-online-stores/dynamodb",
                   "inference-online-stores/firestore",
                   "inference-online-stores/mongodb",
-                  "inference-online-stores/redis"
+                  "inference-online-stores/redis",
+                  "inference-online-stores/scylladb"
                 ]
               },
               {

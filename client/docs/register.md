@@ -27,6 +27,10 @@
         show_root_heading: false
         show_root_toc_entry: false
 
+### ScyllaDB
+
+Cassandra provider could be used as is to connect to ScyllaDB.
+
 ### DynamoDB
 
 ::: featureform.register.Registrar.register_dynamodb

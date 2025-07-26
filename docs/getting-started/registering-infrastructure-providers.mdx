@@ -13,7 +13,7 @@ An inference store allows feature values to be looked up at inference time. Feat
 
 #### Choosing an Inference Store
 
-When choosing an inference store provider, the three variables to consider are price, deployment complexity, and latency. Deployment complexity refers to the cost of expertise needed to host the inference store provider. That can be the cost of the internal IT headcount, a vendor, or a cloud platform. Price refers to the actual cost of data and serving in the inference store, typically the lower latency an inference store is the higher the cost per GB of storage. In near-real time situations like a recommender system, a low-latency inference store provider like [Redis](/inference-online-stores/redis) or [Cassandra](/inference-online-stores/cassandra) is the right choice. On the other hand, in a batch use case, using [Snowflake](/training-offline-stores/snowflake) may be sufficient and cost-efficient.
+When choosing an inference store provider, the three variables to consider are price, deployment complexity, and latency. Deployment complexity refers to the cost of expertise needed to host the inference store provider. That can be the cost of the internal IT headcount, a vendor, or a cloud platform. Price refers to the actual cost of data and serving in the inference store, typically the lower latency an inference store is the higher the cost per GB of storage. In near-real time situations like a recommender system, a low-latency inference store provider like [Redis](/inference-online-stores/redis) or [Cassandra](/inference-online-stores/cassandra)/[ScyllaDB](/inference-online-stores/scylladb) is the right choice. On the other hand, in a batch use case, using [Snowflake](/training-offline-stores/snowflake) may be sufficient and cost-efficient.
 
 ### Offline Store
 
@@ -75,6 +75,8 @@ You can find the list of valid fields for each provider type on their specific p
 [Redis](/inference-online-stores/redis)
 
 [Cassandra](/inference-online-stores/cassandra)
+
+[ScyllaDB](/inference-online-stores/scylladb)
 
 [DynamoDB](/inference-online-stores/dynamodb)
 

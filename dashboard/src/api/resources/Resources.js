@@ -138,6 +138,7 @@ export const providerLogos = Object.freeze({
   // Online Stores
   REDIS: '/static/Redis_Logo.svg',
   CASSANDRA: '/static/apache_cassandra.svg',
+  SCYLLADB: '/static/scylladb.svg',
   DYNAMODB: '/static/amazon_dynamoDB.svg',
   FIRESTORE: '/static/google_firestore.svg',
   MONGODB: '/static/mongoDB.svg',

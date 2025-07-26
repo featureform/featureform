@@ -1,0 +1,12 @@
+---
+title: "Scylladb"
+description: "Featureform supports [ScyllaDB](https://www.scylladb.com/) as an Inference Store."
+---
+
+## Implementation
+
+A ScyllaDB table is created for every feature. All these tables are part of a keyspace with replication set to 3 by default. A metadata table exists within the keyspace as well to allow the provider to keep track of its own state. Featureform's scheduler aims to achieve consistency between ScyllaDB's internal state with the user's desired state as specified in the metadata service.
+
+## Configuration
+
+ScyllaDB is compatible with the Cassandra provider. To use ScyllaDB, follow the Cassandra configuration guide without modifications—simply set the host and port to those of your ScyllaDB instance. All other configuration settings remain unchanged.
